@@ -650,7 +650,9 @@ public class TransactionInitializer {
                 if (t_state != null) {
                     LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
                 }
-                LOG.error(String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
+                LOG.error(String.format("Failed calculate estimate for %s request\nParameters: %s",
+                                        AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                                        params), ex);
                 predict_partitions = catalogContext.getAllPartitionIds();
                 predict_readOnly = false;
                 predict_abortable = true;
