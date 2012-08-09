@@ -208,6 +208,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      * @return
      * @throws IOException
      */
+    @SuppressWarnings("unchecked")
     public Catalog createCatalog(boolean fkeys, boolean full_catalog) throws IOException {
         // compile a catalog
         if (full_catalog) {

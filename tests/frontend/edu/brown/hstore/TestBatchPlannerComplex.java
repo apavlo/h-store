@@ -11,7 +11,6 @@ import org.voltdb.BackendTarget;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
-import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
@@ -43,27 +42,15 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     private SQLStmt batch[];
     private ParameterSet args[];
     
-    private HStoreConf hstore_conf;
     private MockPartitionExecutor executor;
     private Histogram<Integer> touched_partitions;
     private Procedure catalog_proc;
     private BatchPlanner planner;
 
-    public static class ConflictProc extends VoltProcedure {
-        public final SQLStmt ReplicatedInsert = new SQLStmt("INSERT INTO COUNTRY VALUES (?, ?, ?, ?);");
-        public final SQLStmt ReplicatedSelect = new SQLStmt("SELECT * FROM COUNTRY");
-        
-        public VoltTable[] run(long id, String name, String code2, String code3) {
-            voltQueueSQL(ReplicatedInsert, id, name, code2, code3);
-            voltQueueSQL(ReplicatedSelect);
-            return voltExecuteSQL(true);
-        }
-    }
-    
     private final AbstractProjectBuilder builder = new SEATSProjectBuilder() {
         {
+            this.addProcedure(BatchPlannerConflictProc.class);
             this.addAllDefaults();
-            this.addProcedure(TestBatchPlannerComplex.ConflictProc.class);
         }
     };
     
@@ -73,7 +60,6 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
         this.touched_partitions = new Histogram<Integer>();
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        this.hstore_conf = HStoreConf.singleton();
         
         this.batch = new SQLStmt[this.catalog_proc.getStatements().size()];
         this.args = new ParameterSet[this.batch.length];
@@ -165,21 +151,19 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      * testFragmentOrder
      */
     public void testFragmentOrder() throws Exception {
-        Procedure catalog_proc = this.getProcedure(DeleteReservation.class);
-        Map<Statement, SQLStmt> sqlStmts = new HashMap<Statement, SQLStmt>();
+        System.err.println(CatalogUtil.debug(catalogContext.procedures));
+        Procedure catalog_proc = this.getProcedure(BatchPlannerConflictProc.class);
         
         // Create a big batch and make sure that the fragments are in the correct order
-//        SQLStmt batch[] = new SQLStmt[hstore_conf.site.planner_max_batch_size];
-        SQLStmt batch[] = new SQLStmt[5];
-        ParameterSet params[] = new ParameterSet[batch.length];
-        for (int i = 0; i < batch.length; i++) {
-            Statement catalog_stmt = CollectionUtil.random(catalog_proc.getStatements());
-            batch[i] = sqlStmts.get(catalog_stmt);
-            if (batch[i] == null) {
-                batch[i] = new SQLStmt(catalog_stmt);
-                sqlStmts.put(catalog_stmt, batch[i]);
-            }
-            params[i] = new ParameterSet(this.makeRandomStatementParameters(catalog_stmt));
+        Statement stmts[] = new Statement[]{
+            catalog_proc.getStatements().getIgnoreCase("ReplicatedInsert"),
+            catalog_proc.getStatements().getIgnoreCase("ReplicatedSelect")
+        };
+        SQLStmt batch[] = new SQLStmt[stmts.length];
+        ParameterSet params[] = new ParameterSet[stmts.length];
+        for (int i = 0; i < stmts.length; i++) {
+            batch[i] = new SQLStmt(stmts[i]);
+            params[i] = new ParameterSet(this.randomStatementParameters(stmts[i]));
         } // FOR
         
         BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
@@ -199,6 +183,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         assertFalse(fragments.isEmpty());
 
         List<Statement> batchStmtOrder = new ArrayList<Statement>();
+        boolean first = true;
         Statement last = null;
         for (WorkFragment pf : fragments) {
             assertNotNull(pf);
@@ -210,11 +195,11 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                     batchStmtOrder.add(current);
                 }
                 last = current;
+                
+                // Make sure that the select doesn't appear before we execute the
+                if (first) assertNotSame(stmts[1], current);
             } // FOR
-        } // FOR
-        assertEquals(batch.length, batchStmtOrder.size());
-        for (int i = 0; i < batch.length; i++) {
-            assertEquals(batch[i], batchStmtOrder.get(i));
+            first = false;
         } // FOR
     }
     

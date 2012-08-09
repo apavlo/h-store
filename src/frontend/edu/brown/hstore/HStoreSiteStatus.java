@@ -710,7 +710,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         ProfileMeasurement final_totals[] = null;
         int num_cols = 0;
         for (BatchPlanner bp : bps) {
-            ProfileMeasurement times[] = bp.getProfileTimes();
+            ProfileMeasurement times[] = bp.getProfiler().getProfileMeasurements();
             
             Procedure catalog_proc = bp.getProcedure();
             ProfileMeasurement totals[] = proc_totals.get(catalog_proc);
