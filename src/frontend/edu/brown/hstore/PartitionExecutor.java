@@ -157,6 +157,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -2815,7 +2816,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 StringBuilder sb = new StringBuilder();
                 sb.append(ts + " - WorkFragments:\n");
                 for (WorkFragment fragment : fragments) {
-                    sb.append(StringUtil.box(fragment.toString()) + "\n");
+                    sb.append(StringBoxUtil.box(fragment.toString()) + "\n");
                 } // FOR
                 sb.append(ts + " - ParameterSets:\n");
                 for (ParameterSet ps : parameters) {

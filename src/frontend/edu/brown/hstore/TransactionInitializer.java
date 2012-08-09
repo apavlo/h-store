@@ -61,7 +61,7 @@ import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
+import edu.brown.utils.StringBoxUtil;
 
 /**
  * This class is responsible for figuring out everything about a txn before it 
@@ -618,7 +618,7 @@ public class TransactionInitializer {
                     
                 // We have a TransactionEstimator.State, so let's see what it says...
                 } else {
-                    if (t) LOG.trace("\n" + StringUtil.box(t_state.toString()));
+                    if (t) LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
                     MarkovEstimate m_estimate = t_state.getInitialEstimate();
                     
                     // Bah! We didn't get back a MarkovEstimate for some reason...

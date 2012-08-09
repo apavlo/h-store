@@ -44,6 +44,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ExceptionHandlingRunnable;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -208,7 +209,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     
     private void printStatus() {
         LOG.info("STATUS #" + this.snapshot_ctr.incrementAndGet() + "\n" +
-                 StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
+                 StringBoxUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
                                               hstore_conf.site.status_show_executor_info,
                                               hstore_conf.site.status_show_thread_info,
                                               hstore_conf.site.pool_profiling)));

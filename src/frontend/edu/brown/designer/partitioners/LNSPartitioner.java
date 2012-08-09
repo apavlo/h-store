@@ -59,6 +59,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.MathUtil;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -636,7 +637,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             m.put(" - limit_back_track", String.format("%.02f", this.last_backtrack_limit));
             m.put(" - best_cost", String.format(DEBUG_COST_FORMAT, this.best_cost));
             m.put(" - best_memory", this.best_memory);
-            LOG.info("\n" + StringUtil.box(String.format("LNS RESTART #%03d  [relax_size=%d]\n%s", restart_ctr, relax_size, StringUtil.formatMaps(m)), "+", 125));
+            LOG.info("\n" + StringBoxUtil.box(String.format("LNS RESTART #%03d  [relax_size=%d]\n%s", restart_ctr, relax_size, StringUtil.formatMaps(m)), "+", 125));
         }
 
         // Select which tables we want to relax on this restart
@@ -1068,7 +1069,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         m[2] = new ListOrderedMap<String, Object>();
         m[2].put(info.workload.getProcedureHistogram().toString(), null);
 
-        return (StringUtil.box(StringUtil.formatMaps(m), "+"));
+        return (StringBoxUtil.box(StringUtil.formatMaps(m), "+"));
     }
 
     // ----------------------------------------------------------------------------
