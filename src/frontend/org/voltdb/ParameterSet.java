@@ -29,7 +29,7 @@ import org.voltdb.types.TimestampType;
 import org.voltdb.types.VoltDecimalHelper;
 
 import edu.brown.pools.Poolable;
-import edu.brown.utils.ClassUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * The ordered set of parameters of the proper types that is passed into
@@ -253,29 +253,11 @@ public class ParameterSet implements FastSerializable, Poolable {
 
     @Override
     public String toString() {
-        StringBuffer sb = new StringBuffer();
-        sb.append(this.getClass().getSimpleName())
-          .append("{");
-        if (m_params == null) {
-            sb.append("NULL");
-        } else {
-            for (int i = 0; i < m_params.length; ++i) {
-                sb.append(i > 0 ? ", " : "")
-                 .append("[" + i + "]=");
-                 if (m_params[i] == null) {
-                     sb.append("NULL");    
-                 } else if (ClassUtil.isArray(m_params[i])) {
-                     // FIXME
-                     sb.append(m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")");
-                 } else {
-                     sb.append(m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")");
-                 }
-            }
-        }
-        sb.append("}");
-        return sb.toString();
+        return String.format("%s{%s}",
+                this.getClass().getSimpleName(),
+                StringUtil.toString(m_params, true, true));
     }
-
+    
     static private Object readOneParameter(FastDeserializer in) throws IOException {
         byte nextTypeByte = in.readByte();
         if (nextTypeByte == ARRAY) {

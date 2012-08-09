@@ -41,6 +41,7 @@ import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import org.voltdb.client.Client;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
@@ -727,6 +728,70 @@ public abstract class StringUtil {
             out.append(nibbleToHexChar(b & 0xf));
         }
         return out;
+    }
+
+    /**
+     * Pretty-print an object array
+     * @param params
+     * @param includeOffsets
+     * @param includeClass
+     * @return
+     */
+    public static String toString(Object params[], boolean includeOffsets, boolean includeClass) {
+        if (params == null) return ("null");
+        
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < params.length; ++i) {
+            if (i > 0) sb.append(", ");
+            if (includeOffsets) sb.append("[" + i + "]=");
+            
+            // NULL
+            if (params[i] == null) {
+                sb.append("null");
+            }
+            // ARRAY
+            else if (ClassUtil.isArray(params[i])) {
+                if (params[i] instanceof boolean[]) {
+                    sb.append(Arrays.toString((boolean[])params[i]));
+                }
+                else if (params[i] instanceof byte[]) {
+                    sb.append(Arrays.toString((byte[])params[i]));
+                }
+                else if (params[i] instanceof short[]) {
+                    sb.append(Arrays.toString((short[])params[i]));
+                }
+                else if (params[i] instanceof int[]) {
+                    sb.append(Arrays.toString((int[])params[i]));
+                }
+                else if (params[i] instanceof long[]) {
+                    sb.append(Arrays.toString((long[])params[i]));
+                }
+                else if (params[i] instanceof float[]) {
+                    sb.append(Arrays.toString((float[])params[i]));
+                }
+                else if (params[i] instanceof double[]) {
+                    sb.append(Arrays.toString((double[])params[i]));
+                }
+                else if (params[i] instanceof String[]) {
+                    sb.append(Arrays.toString((String[])params[i]));
+                }
+                else if (params[i] instanceof TimestampType[]) {
+                    sb.append(Arrays.toString((TimestampType[])params[i]));
+                }
+                else if (params[i] instanceof Object[]) {
+                    sb.append(Arrays.toString((Object[])params[i]));
+                }
+                else {
+                    sb.append(params[i].toString());     
+                }
+                if (includeClass) sb.append("(" + params[i].getClass().getSimpleName() + ")");
+            }
+            else {
+                sb.append(params[i].toString());
+                if (includeClass) sb.append("(" + params[i].getClass().getSimpleName() + ")");
+            }
+        }
+        return (sb.toString());
     }
 
 }
