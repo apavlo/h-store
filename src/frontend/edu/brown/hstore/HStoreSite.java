@@ -1614,21 +1614,28 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * specialized sysprocs where we need to do some pre-processing that is separate
      * from how the regular sysproc txns are executed.
      * @param catalog_proc
-     * @param done
+     * @param clientCallback
      * @param request
      * @return True if this request was handled and the caller does not need to do anything further
      */
     private boolean processSysProc(long client_handle,
                                    Procedure catalog_proc,
                                    ParameterSet params,
-                                   RpcCallback<ClientResponseImpl> done) {
+                                   RpcCallback<ClientResponseImpl> clientCallback) {
         
         // -------------------------------
         // SHUTDOWN
         // TODO: Execute as a regular sysproc transaction
         // -------------------------------
         if (catalog_proc.getName().equals("@Shutdown")) {
-            this.responseError(client_handle, Status.OK, "", done, EstTime.currentTimeMillis());
+            ClientResponseImpl cresponse = new ClientResponseImpl(
+                    -1,
+                    client_handle,
+                    -1,
+                    Status.OK,
+                    HStoreConstants.EMPTY_RESULT,
+                    "");
+            this.responseSend(cresponse, clientCallback, EstTime.currentTimeMillis(), 0);
 
             // Non-blocking....
             Exception error = new Exception("Shutdown command received at " + this.getSiteName());
@@ -1663,7 +1670,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             
             if (msg != null) {
-                this.responseError(client_handle, Status.ABORT_GRACEFUL, msg, done, EstTime.currentTimeMillis());
+                this.responseError(client_handle, Status.ABORT_GRACEFUL, msg, clientCallback, EstTime.currentTimeMillis());
                 return (true);
             }
             
@@ -1689,7 +1696,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             ts.init(-1l, EstTime.currentTimeMillis(), client_handle, base_partition,
                     catalogContext.getAllPartitionIds(), false, true,
-                    catalog_proc, params, done);
+                    catalog_proc, params, clientCallback);
             
             String sql = (String)params.toArray()[0];
             this.asyncCompilerWork_thread.planSQL(ts, sql);
@@ -2410,7 +2417,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                               String message,
                               RpcCallback<ClientResponseImpl> clientCallback,
                               long initiateTime) {
-        assert(status != Status.OK);
         ClientResponseImpl cresponse = new ClientResponseImpl(
                                             -1,
                                             client_handle,
