@@ -3236,7 +3236,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
         }
         
-        boolean needFinish =false;
         
         // -------------------------------
         // ALL: Mispredicted Transactions
@@ -3250,7 +3249,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // We don't want to delete the transaction here because whoever is going to requeue it for
             // us will need to know what partitions that the transaction touched when it executed before
             this.hstore_site.transactionRequeue(ts, status);
-            needFinish = (ts.isPredictSinglePartition() == false);
+            
+            // Send a message all the partitions involved that the party is over
+            // and that they need to abort the transaction. We don't actually care when we get the
+            // results back because we'll start working on new txns right away.
+            // Note that when we call transactionFinish() right here this thread will then go on 
+            // to invoke HStoreSite.transactionFinish() for us. That means when it returns we will
+            // have successfully aborted the txn at least at all of the local partitions at this site.
+            if (ts.isPredictSinglePartition() == false) {
+                if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
+                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+                if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
+                this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
+                if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) 
+                    this.profiler.network_time.stop();
+            }
         }
         // -------------------------------
         // ALL: Single-Partition Transactions
@@ -3321,26 +3334,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // This has to come before the network messages above because this will clean-up the 
             // LocalTransaction state information
             this.hstore_site.responseSend(ts, cresponse);
-            needFinish = true;
-        }
-        
-        // Send a message all the partitions involved that the party is over
-        // and that they need to abort the transaction. We don't actually care when we get the
-        // results back because we'll start working on new txns right away.
-        // Note that when we call transactionFinish() right here this thread will then go on 
-        // to invoke HStoreSite.transactionFinish() for us. That means when it returns we will
-        // have successfully aborted the txn at least at all of the local partitions at this site.
-        if (needFinish) {
+            
+            // Send a message all the partitions involved that the party is over
+            // and that they need to abort the transaction. We don't actually care when we get the
+            // results back because we'll start working on new txns right away.
+            // Note that when we call transactionFinish() right here this thread will then go on 
+            // to invoke HStoreSite.transactionFinish() for us. That means when it returns we will
+            // have successfully aborted the txn at least at all of the local partitions at this site.
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
             TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
-            try {
-                this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
-            } finally {
-                if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) 
-                    this.profiler.network_time.stop();
-            }
+            this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
+            if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) 
+                this.profiler.network_time.stop();
         }
+        
+
+
     }
         
     /**
