@@ -533,6 +533,9 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @return
      */
     private float getSpecificProbability(MarkovVertex.Probability ptype, int partition) {
+        assert(partition < this.probabilities[ptype.ordinal()].length) :
+            String.format("Invalid partition %d for %s [max=%d]",
+                          partition, ptype, this.probabilities[ptype.ordinal()].length);
         float value = this.probabilities[ptype.ordinal()][partition];
         if (value == MarkovUtil.NULL_MARKER) value = ptype.default_value;
         
