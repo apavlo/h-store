@@ -22,6 +22,7 @@
  */
 package org.voltdb.benchmark.bingo;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.bingo.procedures.CreateTournament;
 import org.voltdb.benchmark.bingo.procedures.DeleteTournament;
 import org.voltdb.benchmark.bingo.procedures.GetAvgPot;
@@ -41,8 +42,8 @@ public class BingoProjectBuilder extends AbstractProjectBuilder {
      */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = null;
     
-    
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         CreateTournament.class,
         PlayRound.class,
         DeleteTournament.class,

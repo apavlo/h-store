@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
@@ -42,7 +43,10 @@ import org.voltdb.regressionsuites.aggregates.*;
 public class TestSqlAggregateSuite extends RegressionSuite {
 
     /** Procedures used by this suite */
-    static final Class<?>[] PROCEDURES = { Insert.class };
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Insert.class
+    };
 
     static final int ROWS = 10;
 

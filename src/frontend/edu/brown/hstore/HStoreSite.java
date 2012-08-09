@@ -197,12 +197,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final AbstractHasher hasher;
     
     /**
-     * All of the partitions in the cluster
-     */
-    @Deprecated
-    private final PartitionSet all_partitions;
-
-    /**
      * Keep track of which txns that we have in-flight right now
      */
     private final Map<Long, AbstractTransaction> inflight_txns = 
@@ -420,8 +414,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
-        this.all_partitions = catalogContext.getAllPartitionIds();
-        final int num_partitions = this.all_partitions.size();
+        final int num_partitions = this.catalogContext.numberOfPartitions;
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
         
@@ -441,7 +434,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
         // TODO: Move this cache information into CatalogContext
         CatalogUtil.clearCache(this.catalogContext.database);
-        BatchPlanner.clear(this.all_partitions.size());
+        BatchPlanner.clear(this.catalogContext.numberOfPartitions);
 
         // Only preload stuff if we were asked to
         if (hstore_conf.site.preload) {
@@ -782,15 +775,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public int getHostId() {
         return (this.catalog_host.getId());
-    }
-    
-    /**
-     * Return the list of all the partition ids in this H-Store database cluster
-     * TODO: Moved to CatalogContext
-     */
-    @Deprecated
-    public PartitionSet getAllPartitionIds() {
-        return (this.all_partitions);
     }
     
     /**
@@ -2180,7 +2164,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else if (most_touched.isEmpty() == false) {
                 redirect_partition = CollectionUtil.random(most_touched);
             } else {
-                redirect_partition = CollectionUtil.random(this.all_partitions);
+                redirect_partition = CollectionUtil.random(this.catalogContext.getAllPartitionIds());
             }
             assert(redirect_partition != null) : "Redirect partition is null!\n" + orig_ts.debug();
             if (t) {
@@ -2271,7 +2255,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 break;
             } // WHILE
         } else {
-            predict_touchedPartitions = this.all_partitions;
+            predict_touchedPartitions = this.catalogContext.getAllPartitionIds();
         }
         
         // -------------------------------
@@ -2302,7 +2286,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             predict_touchedPartitions.add(base_partition);
         }
-        if (predict_touchedPartitions.isEmpty()) predict_touchedPartitions = this.all_partitions;
+        if (predict_touchedPartitions.isEmpty()) 
+            predict_touchedPartitions = this.catalogContext.getAllPartitionIds();
         
         // -------------------------------
         // NEW TXN INITIALIZATION

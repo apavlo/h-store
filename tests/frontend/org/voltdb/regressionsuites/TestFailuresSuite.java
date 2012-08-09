@@ -28,6 +28,7 @@ import java.io.IOException;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
@@ -49,7 +50,8 @@ import org.voltdb.regressionsuites.sqlfeatureprocs.WorkWithBigString;
 public class TestFailuresSuite extends RegressionSuite {
 
     // procedures used by these tests
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         AssertFail.class,
         ViolateUniqueness.class,
         ViolateUniquenessAndCatchException.class,

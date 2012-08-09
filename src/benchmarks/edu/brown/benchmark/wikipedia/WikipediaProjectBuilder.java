@@ -19,6 +19,8 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia;
 
+import org.voltdb.VoltProcedure;
+
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
@@ -38,7 +40,8 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
     // REQUIRED: Retrieved via reflection by BenchmarkController
     public static final Class<? extends BenchmarkComponent> m_loaderClass = WikipediaLoader.class;
  
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         GetTableCounts.class,
         UpdateRevisionCounters.class,
         AddWatchList.class,

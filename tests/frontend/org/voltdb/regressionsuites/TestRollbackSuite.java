@@ -29,8 +29,8 @@ import java.math.BigInteger;
 
 import junit.framework.Test;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.client.Client;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.VoltTable;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -41,7 +41,8 @@ import org.voltdb.types.TimestampType;
 public class TestRollbackSuite extends RegressionSuite {
 
     // procedures used by these tests
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         SinglePartitionJavaError.class,
         SinglePartitionJavaAbort.class,
         SinglePartitionConstraintError.class,

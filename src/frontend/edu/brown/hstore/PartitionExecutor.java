@@ -50,6 +50,7 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +63,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
@@ -152,6 +152,7 @@ import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.profilers.PartitionExecutorProfiler;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
@@ -481,14 +482,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     
     // Associate the system procedure planfragment ids to wrappers.
     // Planfragments are registered when the procedure wrapper is init()'d.
-    private final HashMap<Long, VoltSystemProcedure> m_registeredSysProcPlanFragments = new HashMap<Long, VoltSystemProcedure>();
+    private final Map<Long, VoltSystemProcedure> m_registeredSysProcPlanFragments = new HashMap<Long, VoltSystemProcedure>();
 
     public void registerPlanFragment(final long pfId, final VoltSystemProcedure proc) {
         synchronized (m_registeredSysProcPlanFragments) {
             if (!m_registeredSysProcPlanFragments.containsKey(pfId)) {
                 assert(m_registeredSysProcPlanFragments.containsKey(pfId) == false) : "Trying to register the same sysproc more than once: " + pfId;
                 m_registeredSysProcPlanFragments.put(pfId, proc);
-                LOG.trace("Registered @" + proc.getClass().getSimpleName() + " sysproc handle for FragmentId #" + pfId);
+                if (t) LOG.trace(String.format("Registered %s sysproc handle at partition %d for FragmentId #%d",
+                                 VoltSystemProcedure.getProcCallName(proc.getClass()), partitionId, pfId));
             }
         } // SYNCH
     }
@@ -2067,7 +2069,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 assert(result.size() == fragment.getOutputDepIdCount());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     int dep_id = fragment.getOutputDepId(i);
-                    if (t) LOG.trace("Storing DependencyId #" + dep_id  + " for " + ts);
+                    if (d) LOG.debug(String.format("%s - Storing DependencyId #%d [numRows=%d]%s",
+                                     ts, dep_id, result.dependencies[i].getRowCount(),
+                                     (t ? "\n"+result.dependencies[i] : "")));
                     try {
                         local_ts.addResult(this.partitionId, dep_id, result.dependencies[i]);
                     } catch (Throwable ex) {
@@ -2154,7 +2158,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                     ts, fragmentCount));
 //            if (t) {
 //                LOG.trace("FragmentTaskIds: " + Arrays.toString(fragmentIds));
-//                Map<String, Object> m = new ListOrderedMap<String, Object>();
+//                Map<String, Object> m = new LinkedHashMap<String, Object>();
 //                for (int i = 0; i < parameters.length; i++) {
 //                    m.put("Parameter[" + i + "]", parameters[i]);
 //                } // FOR
@@ -2321,16 +2325,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             sb.append(String.format("%s - Executing %d fragments [lastTxnId=%d, undoToken=%d]",
                                     ts, batchSize, this.lastCommittedTxnId, undoToken));
             if (t) {
-                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("Fragments", Arrays.toString(fragmentIds));
                 
-                Map<Integer, Object> inner = new ListOrderedMap<Integer, Object>();
+                Map<Integer, Object> inner = new LinkedHashMap<Integer, Object>();
                 for (int i = 0; i < batchSize; i++)
                     inner.put(i, parameterSets[i].toString());
                 m.put("Parameters", inner);
                 
                 if (batchSize > 0 && input_depIds[0] != HStoreConstants.NULL_DEPENDENCY_ID) {
-                    inner = new ListOrderedMap<Integer, Object>();
+                    inner = new LinkedHashMap<Integer, Object>();
                     for (int i = 0; i < batchSize; i++) {
                         List<VoltTable> deps = input_deps.get(input_depIds[i]);
                         inner.put(input_depIds[i], (deps != null ? StringUtil.join("\n", deps) : "???"));
@@ -2585,11 +2589,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Otherwise, we need to generate WorkFragments and then send the messages out 
         // to our remote partitions using the HStoreCoordinator
         else {
-            if (d) LOG.debug(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
+            if (t) LOG.trace(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
             ExecutionState execState = ts.getExecutionState();
             execState.tmp_partitionFragments.clear();
             plan.getWorkFragments(ts.getTransactionId(), execState.tmp_partitionFragments);
-            if (t) LOG.trace("Got back a set of tasks for " + execState.tmp_partitionFragments.size() + " partitions for " + ts);
+            if (t) LOG.trace(String.format("%s - Got back %d work fragments",
+                             ts, execState.tmp_partitionFragments.size()));
 
             // Block until we get all of our responses.
             results = this.dispatchWorkFragments(ts, batchSize, execState.tmp_partitionFragments, batchParams);
@@ -2805,7 +2810,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // *********************************** DEBUG ***********************************
         if (d) {
             LOG.debug(String.format("%s - Preparing to dispatch %d messages and wait for the results",
-                                             ts, fragments.size()));
+                      ts, fragments.size()));
             if (t) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(ts + " - WorkFragments:\n");
@@ -2888,8 +2893,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         //  (5) The latch for this round is still greater than zero
         while (ts.hasPendingError() == false && 
                (first == true || execState.stillHasWorkFragments() || (latch != null && latch.getCount() > 0))) {
-            if (t) LOG.trace(String.format("%s - [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                                           ts, first, execState.stillHasWorkFragments(), queue.size(), latch));
+            if (t) LOG.trace(String.format("%s - %s loop [first=%s, stillHasWorkFragments=%s, latch=%s]",
+                             ts, ClassUtil.getCurrentMethodName(),
+                             first, execState.stillHasWorkFragments(), queue.size(), latch));
             
             // If this is the not first time through the loop, then poll the queue
             // to get our list of fragments
@@ -2969,10 +2975,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 
                 // Execute all of our WorkFragments quickly at our local ExecutionEngine
                 for (WorkFragment fragment : this.tmp_localWorkFragmentList) {
-                    if (d) LOG.debug(String.format("Got unblocked FragmentTaskMessage for %s. Executing locally...", ts));
+                    if (d) LOG.debug(String.format("%s - Got unblocked %s to execute locally",
+                                     ts, fragment.getClass().getSimpleName()));
                     assert(fragment.getPartitionId() == this.partitionId) :
-                        String.format("Trying to process FragmentTaskMessage for %s on partition %d but it should have been sent to partition %d [singlePartition=%s]\n%s",
-                                      ts, this.partitionId, fragment.getPartitionId(), predict_singlePartition, fragment);
+                        String.format("Trying to process %s for %s on partition %d but it should have been sent to partition %d" +
+                        		      "[singlePartition=%s]\n%s",
+                                      fragment.getClass().getSimpleName(), ts, this.partitionId, fragment.getPartitionId(),
+                                      predict_singlePartition, fragment);
                     ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
                     this.processWorkFragment(ts, fragment, fragmentParams);
                 } // FOR

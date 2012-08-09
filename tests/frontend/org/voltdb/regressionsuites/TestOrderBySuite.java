@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.client.Client;
@@ -46,11 +47,13 @@ public class TestOrderBySuite extends RegressionSuite {
      * CREATE TABLE O1 ( PKEY INTEGER, A_INT INTEGER, A_INLINE_STR VARCHAR(10),
      * A_POOL_STR VARCHAR(1024), PRIMARY_KEY (PKEY) );
      */
-
-    static final Class<?>[] PROCEDURES = { InsertO1.class,
-                                          InsertO3.class,
-                                          OrderByNonIndex.class,
-                                          OrderByOneIndex.class };
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        InsertO1.class,
+        InsertO3.class,
+        OrderByNonIndex.class,
+        OrderByOneIndex.class
+    };
 
     ArrayList<Integer> a_int = new ArrayList<Integer>();
     ArrayList<String> a_inline_str = new ArrayList<String>();

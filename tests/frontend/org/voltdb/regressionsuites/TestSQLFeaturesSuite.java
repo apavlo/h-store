@@ -27,13 +27,16 @@ import java.io.IOException;
 
 import junit.framework.Test;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTableRow;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.VoltTable;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.sqlfeatureprocs.*;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ClassUtil;
 
 public class TestSQLFeaturesSuite extends RegressionSuite {
@@ -43,7 +46,8 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
      */
 
     // procedures used by these tests
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         FeaturesSelectAll.class, UpdateTests.class,
         SelfJoinTest.class, SelectOrderLineByDistInfo.class,
         BatchedMultiPartitionTest.class, WorkWithBigString.class, PassByteArrayArg.class,
@@ -58,208 +62,210 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         super(name);
     }
 
-    public void testUpdates() throws IOException {
-        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
-        Client client = getClient();
-
-        try {
-            client.callProcedure("InsertOrderLine", 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1.5, "poo");
-            client.callProcedure("UpdateTests", 1L);
-            VoltTable[] results = client.callProcedure("FeaturesSelectAll").getResults();
-
-            assertEquals(5, results.length);
-
-            // get the order line table
-            VoltTable table = results[2];
-            assertEquals(table.getColumnName(0), "OL_O_ID");
-            assertTrue(table.getRowCount() == 1);
-            VoltTableRow row = table.fetchRow(0);
-            assertEquals(row.getLong("OL_O_ID"), 1);
-            assertEquals(row.getLong("OL_D_ID"), 6);
-            assertEquals(row.getLong("OL_W_ID"), 1);
-            assertEquals(row.getLong("OL_QUANTITY"), 1);
-            assertEquals(row.getLong("OL_SUPPLY_W_ID"), 5);
-
-            assertTrue(true);
-
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        } catch (IOException e) {
-            e.printStackTrace();
-            fail();
-        }
-    }
-
-    public void testSelfJoins() throws IOException {
-        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
-        Client client = getClient();
-
-        try {
-            client.callProcedure("InsertNewOrder", 1L, 3L, 1L);
-            VoltTable[] results = client.callProcedure("SelfJoinTest", 1L).getResults();
-
-            assertEquals(results.length, 1);
-
-            // get the new order table
-            VoltTable table = results[0];
-            assertTrue(table.getRowCount() == 1);
-            VoltTableRow row = table.fetchRow(0);
-            assertEquals(row.getLong("NO_D_ID"), 3);
-
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        } catch (IOException e) {
-            e.printStackTrace();
-            fail();
-        }
-    }
-
-    /** Verify that non-latin-1 characters can be stored and retrieved */
-    public void testUTF8Storage() throws IOException {
-        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
-        Client client = getClient();
-        final String testString = "並丧";
-        try {
-            client.callProcedure("InsertOrderLine", 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1.5, testString);
-            VoltTable[] results = client.callProcedure("FeaturesSelectAll").getResults();
-
-            assertEquals(5, results.length);
-
-            // get the order line table
-            VoltTable table = results[2];
-            assertEquals(table.getColumnName(0), "OL_O_ID");
-            assertTrue(table.getRowCount() == 1);
-            VoltTableRow row = table.fetchRow(0);
-            String resultString = row.getString("OL_DIST_INFO");
-            assertEquals(testString, resultString);
-        }
-        catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-            fail();
-        }
-    }
-
-    /** Verify that non-latin-1 characters can be used in expressions */
-    public void testUTF8Predicate() throws IOException {
-        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
-        Client client = getClient();
-        final String testString = "袪被";
-        try {
-            // Intentionally using a one byte string to make sure length preceded strings are handled correctly in the EE.
-            client.callProcedure("InsertOrderLine", 2L, 1L, 1L, 2L, 2L, 2L, 2L, 2L, 1.5, "a");
-            client.callProcedure("InsertOrderLine", 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1.5, testString);
-            client.callProcedure("InsertOrderLine", 3L, 1L, 1L, 3L, 3L, 3L, 3L, 3L, 1.5, "def");
-            VoltTable[] results = client.callProcedure("SelectOrderLineByDistInfo", testString).getResults();
-            assertEquals(1, results.length);
-            VoltTable table = results[0];
-            assertTrue(table.getRowCount() == 1);
-            VoltTableRow row = table.fetchRow(0);
-            String resultString = row.getString("OL_DIST_INFO");
-            assertEquals(testString, resultString);
-        }
-        catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-            fail();
-        }
-    }
-
-//    public void testBatchedMultipartitionTxns() throws IOException, ProcCallException {
+//    public void testUpdates() throws IOException {
+//        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
 //        Client client = getClient();
 //
-//        VoltTable[] results = client.callProcedure("BatchedMultiPartitionTest").getResults();
-//        assertEquals(5, results.length);
-//        assertEquals(1, results[0].asScalarLong());
-//        assertEquals(1, results[1].asScalarLong());
-//        assertEquals(1, results[2].asScalarLong());
-//        assertEquals(2, results[3].getRowCount());
-//        assertEquals(1, results[4].getRowCount());
+//        try {
+//            client.callProcedure("InsertOrderLine", 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1.5, "poo");
+//            client.callProcedure("UpdateTests", 1L);
+//            VoltTable[] results = client.callProcedure("FeaturesSelectAll").getResults();
+//
+//            assertEquals(5, results.length);
+//
+//            // get the order line table
+//            VoltTable table = results[2];
+//            assertEquals(table.getColumnName(0), "OL_O_ID");
+//            assertTrue(table.getRowCount() == 1);
+//            VoltTableRow row = table.fetchRow(0);
+//            assertEquals(row.getLong("OL_O_ID"), 1);
+//            assertEquals(row.getLong("OL_D_ID"), 6);
+//            assertEquals(row.getLong("OL_W_ID"), 1);
+//            assertEquals(row.getLong("OL_QUANTITY"), 1);
+//            assertEquals(row.getLong("OL_SUPPLY_W_ID"), 5);
+//
+//            assertTrue(true);
+//
+//        } catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//    }
+//
+//    public void testSelfJoins() throws IOException {
+//        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
+//        Client client = getClient();
+//
+//        try {
+//            client.callProcedure("InsertNewOrder", 1L, 3L, 1L);
+//            VoltTable[] results = client.callProcedure("SelfJoinTest", 1L).getResults();
+//
+//            assertEquals(results.length, 1);
+//
+//            // get the new order table
+//            VoltTable table = results[0];
+//            assertTrue(table.getRowCount() == 1);
+//            VoltTableRow row = table.fetchRow(0);
+//            assertEquals(row.getLong("NO_D_ID"), 3);
+//
+//        } catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//    }
+//
+//    /** Verify that non-latin-1 characters can be stored and retrieved */
+//    public void testUTF8Storage() throws IOException {
+//        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
+//        Client client = getClient();
+//        final String testString = "並丧";
+//        try {
+//            client.callProcedure("InsertOrderLine", 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1.5, testString);
+//            VoltTable[] results = client.callProcedure("FeaturesSelectAll").getResults();
+//
+//            assertEquals(5, results.length);
+//
+//            // get the order line table
+//            VoltTable table = results[2];
+//            assertEquals(table.getColumnName(0), "OL_O_ID");
+//            assertTrue(table.getRowCount() == 1);
+//            VoltTableRow row = table.fetchRow(0);
+//            String resultString = row.getString("OL_DIST_INFO");
+//            assertEquals(testString, resultString);
+//        }
+//        catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//        catch (IOException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//    }
+//
+//    /** Verify that non-latin-1 characters can be used in expressions */
+//    public void testUTF8Predicate() throws IOException {
+//        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
+//        Client client = getClient();
+//        final String testString = "袪被";
+//        try {
+//            // Intentionally using a one byte string to make sure length preceded strings are handled correctly in the EE.
+//            client.callProcedure("InsertOrderLine", 2L, 1L, 1L, 2L, 2L, 2L, 2L, 2L, 1.5, "a");
+//            client.callProcedure("InsertOrderLine", 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1.5, testString);
+//            client.callProcedure("InsertOrderLine", 3L, 1L, 1L, 3L, 3L, 3L, 3L, 3L, 1.5, "def");
+//            VoltTable[] results = client.callProcedure("SelectOrderLineByDistInfo", testString).getResults();
+//            assertEquals(1, results.length);
+//            VoltTable table = results[0];
+//            assertTrue(table.getRowCount() == 1);
+//            VoltTableRow row = table.fetchRow(0);
+//            String resultString = row.getString("OL_DIST_INFO");
+//            assertEquals(testString, resultString);
+//        }
+//        catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//        catch (IOException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
 //    }
 
-    public void testLongStringUsage() throws IOException {
-        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
-        final int STRLEN = 5000;
-
+    public void testBatchedMultipartitionTxns() throws IOException, ProcCallException {
         Client client = getClient();
 
-        String longStringPart = "volt!";
-        StringBuilder sb = new StringBuilder();
-        while(sb.length() < STRLEN)
-            sb.append(longStringPart);
-        String longString = sb.toString();
-        assertEquals(STRLEN, longString.length());
-
-        VoltTable[] results = null;
-        try {
-            results = client.callProcedure("WorkWithBigString", 1, longString).getResults();
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        }
-        assertEquals(1, results.length);
-        VoltTableRow row = results[0].fetchRow(0);
-
-        assertEquals(1, row.getLong(0));
-        assertEquals(0, row.getString(2).compareTo(longString));
+        ClientResponse cresponse = client.callProcedure("BatchedMultiPartitionTest");
+        System.err.println(cresponse);
+        VoltTable[] results = cresponse.getResults();
+        assertEquals(5, results.length);
+        assertEquals(1, results[0].asScalarLong());
+        assertEquals(1, results[1].asScalarLong());
+        assertEquals(CatalogUtil.getNumberOfPartitions(this.getCatalog()), results[2].asScalarLong());
+        assertEquals(2, results[3].getRowCount());
+        assertEquals(1, results[4].getRowCount());
     }
 
-    public void testStringAsByteArrayParam() throws IOException {
-        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
-        final int STRLEN = 5000;
-
-        Client client = getClient();
-
-        String longStringPart = "volt!";
-        StringBuilder sb = new StringBuilder();
-        while(sb.length() < STRLEN)
-            sb.append(longStringPart);
-        String longString = sb.toString();
-        assertEquals(STRLEN, longString.length());
-
-
-        VoltTable[] results = null;
-        try {
-            results = client.callProcedure("PassByteArrayArg", 1, 2, longString.getBytes("UTF-8")).getResults();
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        }
-        assertEquals(1, results.length);
-        VoltTableRow row = results[0].fetchRow(0);
-
-        assertEquals(1, row.getLong(0));
-        assertEquals(0, row.getString(2).compareTo(longString));
-    }
-
-    public void testPassAllArgTypes() throws IOException {
-        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
-        byte b = 100;
-        byte bArray[] = new byte[] { 100, 101, 102 };
-        short s = 32000;
-        short sArray[] = new short[] { 32000, 32001, 32002 };
-        int i = 2147483640;
-        int iArray[] = new int[] { 2147483640, 2147483641, 2147483642 };
-        long l = Long.MAX_VALUE - 10;
-        long lArray[] = new long[] { Long.MAX_VALUE - 10, Long.MAX_VALUE - 9, Long.MAX_VALUE - 8 };
-        String str = "foo";
-        byte bString[] = "bar".getBytes("UTF-8");
-
-        Client client = getClient();
-        try {
-            client.callProcedure("PassAllArgTypes", b, bArray, s, sArray, i, iArray, l, lArray, str, bString);
-        } catch (Exception e) {
-            fail();
-        }
-    }
+//    public void testLongStringUsage() throws IOException {
+//        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
+//        final int STRLEN = 5000;
+//
+//        Client client = getClient();
+//
+//        String longStringPart = "volt!";
+//        StringBuilder sb = new StringBuilder();
+//        while(sb.length() < STRLEN)
+//            sb.append(longStringPart);
+//        String longString = sb.toString();
+//        assertEquals(STRLEN, longString.length());
+//
+//        VoltTable[] results = null;
+//        try {
+//            results = client.callProcedure("WorkWithBigString", 1, longString).getResults();
+//        } catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//        assertEquals(1, results.length);
+//        VoltTableRow row = results[0].fetchRow(0);
+//
+//        assertEquals(1, row.getLong(0));
+//        assertEquals(0, row.getString(2).compareTo(longString));
+//    }
+//
+//    public void testStringAsByteArrayParam() throws IOException {
+//        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
+//        final int STRLEN = 5000;
+//
+//        Client client = getClient();
+//
+//        String longStringPart = "volt!";
+//        StringBuilder sb = new StringBuilder();
+//        while(sb.length() < STRLEN)
+//            sb.append(longStringPart);
+//        String longString = sb.toString();
+//        assertEquals(STRLEN, longString.length());
+//
+//
+//        VoltTable[] results = null;
+//        try {
+//            results = client.callProcedure("PassByteArrayArg", 1, 2, longString.getBytes("UTF-8")).getResults();
+//        } catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//        assertEquals(1, results.length);
+//        VoltTableRow row = results[0].fetchRow(0);
+//
+//        assertEquals(1, row.getLong(0));
+//        assertEquals(0, row.getString(2).compareTo(longString));
+//    }
+//
+//    public void testPassAllArgTypes() throws IOException {
+//        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
+//        byte b = 100;
+//        byte bArray[] = new byte[] { 100, 101, 102 };
+//        short s = 32000;
+//        short sArray[] = new short[] { 32000, 32001, 32002 };
+//        int i = 2147483640;
+//        int iArray[] = new int[] { 2147483640, 2147483641, 2147483642 };
+//        long l = Long.MAX_VALUE - 10;
+//        long lArray[] = new long[] { Long.MAX_VALUE - 10, Long.MAX_VALUE - 9, Long.MAX_VALUE - 8 };
+//        String str = "foo";
+//        byte bString[] = "bar".getBytes("UTF-8");
+//
+//        Client client = getClient();
+//        try {
+//            client.callProcedure("PassAllArgTypes", b, bArray, s, sArray, i, iArray, l, lArray, str, bString);
+//        } catch (Exception e) {
+//            fail();
+//        }
+//    }
 
     /**
      * Build a list of the tests that will be run when TestTPCCSuite gets run by JUnit.
@@ -309,34 +315,34 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         // CONFIG #2: 2 Local Site/Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
 
-        // get a server config for the native backend with two sites/partitions
-        config = new LocalSingleProcessServer("sqlfeatures-twopartition.jar", 2, BackendTarget.NATIVE_EE_JNI);
-
-        // build the jarfile (note the reuse of the TPCC project)
-        success = config.compile(project);
-        assert(success);
-
-        // add this config to the set of tests to run
-        builder.addServerConfig(config);
-
-        /////////////////////////////////////////////////////////////
-        // CONFIG #3: 1 Local Site/Partition running on HSQL backend
-        /////////////////////////////////////////////////////////////
-
-//        config = new LocalSingleProcessServer("sqlfeatures-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
+//        // get a server config for the native backend with two sites/partitions
+//        config = new LocalSingleProcessServer("sqlfeatures-twopartition.jar", 2, BackendTarget.NATIVE_EE_JNI);
+//
+//        // build the jarfile (note the reuse of the TPCC project)
+//        success = config.compile(project);
+//        assert(success);
+//
+//        // add this config to the set of tests to run
+//        builder.addServerConfig(config);
+//
+//        /////////////////////////////////////////////////////////////
+//        // CONFIG #3: 1 Local Site/Partition running on HSQL backend
+//        /////////////////////////////////////////////////////////////
+//
+////        config = new LocalSingleProcessServer("sqlfeatures-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
+////        success = config.compile(project);
+////        assert(success);
+////        builder.addServerConfig(config);
+//
+//
+//        /////////////////////////////////////////////////////////////
+//        // CONFIG #4: Local Cluster (of processes)
+//        /////////////////////////////////////////////////////////////
+//
+//        config = new LocalCluster("sqlfeatures-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
 //        success = config.compile(project);
 //        assert(success);
 //        builder.addServerConfig(config);
-
-
-        /////////////////////////////////////////////////////////////
-        // CONFIG #4: Local Cluster (of processes)
-        /////////////////////////////////////////////////////////////
-
-        config = new LocalCluster("sqlfeatures-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
 
         return builder;
     }

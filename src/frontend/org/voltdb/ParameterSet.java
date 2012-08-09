@@ -253,25 +253,27 @@ public class ParameterSet implements FastSerializable, Poolable {
 
     @Override
     public String toString() {
-        StringBuffer b = new StringBuffer();
-        b.append("ParameterSet:");
+        StringBuffer sb = new StringBuffer();
+        sb.append(this.getClass().getSimpleName())
+          .append("{");
         if (m_params == null) {
-            b.append("NULL");
+            sb.append("NULL");
         } else {
             for (int i = 0; i < m_params.length; ++i) {
-                b.append(i > 0 ? ", " : "")
-                 .append("param[" + i + "]=");
+                sb.append(i > 0 ? ", " : "")
+                 .append("[" + i + "]=");
                  if (m_params[i] == null) {
-                     b.append("NULL");    
+                     sb.append("NULL");    
                  } else if (ClassUtil.isArray(m_params[i])) {
                      // FIXME
-                     b.append(m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")");
+                     sb.append(m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")");
                  } else {
-                     b.append(m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")");
+                     sb.append(m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")");
                  }
             }
         }
-        return new String(b);
+        sb.append("}");
+        return sb.toString();
     }
 
     static private Object readOneParameter(FastDeserializer in) throws IOException {

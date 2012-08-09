@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ConnectionUtil;
@@ -44,7 +45,8 @@ import org.voltdb.regressionsuites.malicious.GoSleep;
 public class TestMaliciousClientSuite extends RegressionSuite {
 
     // procedures used by these tests
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         GoSleep.class
     };
 

@@ -25,10 +25,10 @@ package org.voltdb.regressionsuites;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
@@ -46,7 +46,8 @@ import org.voltdb.planner.TestPlansGroupBy;
 
 public class TestPlansGroupBySuite extends RegressionSuite {
 
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         org.voltdb.regressionsuites.plansgroupbyprocs.CountT1A1.class,
         org.voltdb.regressionsuites.plansgroupbyprocs.InsertF.class,
         org.voltdb.regressionsuites.plansgroupbyprocs.InsertDims.class,
