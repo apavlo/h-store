@@ -472,7 +472,7 @@ public class TransactionEstimator implements Loggable {
         assert (catalog_proc != null);
         long start_time = EstTime.currentTimeMillis();
         if (d) LOG.debug(String.format("Starting estimation for new %s [partition=%d]",
-                                       AbstractTransaction.formatTxnName(catalog_proc, txn_id), base_partition));
+                         AbstractTransaction.formatTxnName(catalog_proc, txn_id), base_partition));
 
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
@@ -501,9 +501,10 @@ public class TransactionEstimator implements Loggable {
                 estimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();
                 estimator.init(markov, this, base_partition, args);
                 estimator.enableForceTraversal(true);
-            } catch (Exception ex) {
-                LOG.error("Failed to intiialize new MarkovPathEstimator for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id));
-                throw new RuntimeException(ex);
+            } catch (Throwable ex) {
+                String msg = "Failed to intitialize new MarkovPathEstimator for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id); 
+                LOG.error(msg, ex);
+                throw new RuntimeException(msg, ex);
             }
             
             // Calculate initial path estimate
@@ -513,14 +514,16 @@ public class TransactionEstimator implements Loggable {
                 try {
                     estimator.traverse(start);
                     // if (catalog_proc.getName().equalsIgnoreCase("NewBid")) throw new Exception ("Fake!");
-                } catch (Throwable e) {
+                } catch (Throwable ex) {
                     try {
                         GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(estimator.getVisitPath()));
                         LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
-                    } catch (Exception ex) {
-                        throw new RuntimeException(ex);
+                    } catch (Exception ex2) {
+                        throw new RuntimeException(ex2);
                     }
-                    throw new RuntimeException("Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id), e);
+                    String msg = "Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+                    LOG.error(msg, ex);
+                    throw new RuntimeException(msg, ex);
                 }
             } // SYNCH
         } else {
