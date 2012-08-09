@@ -385,7 +385,7 @@ public class MapReduceTransaction extends LocalTransaction {
     }
     
     public PartitionSet getPredictTouchedPartitions() {
-        return (this.hstore_site.getAllPartitionIds());
+        return (this.hstore_site.getCatalogContext().getAllPartitionIds());
     }
 
     public TransactionMapCallback getTransactionMapCallback() {

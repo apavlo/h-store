@@ -29,6 +29,7 @@ import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
@@ -52,18 +53,17 @@ public class TestSQLTypesSuite extends RegressionSuite {
     // 1500 character string
     private static final String ReallyLongString;
 
-
-
-
     /** Procedures used by this suite */
-    static final Class<?>[] PROCEDURES = { Delete.class,
-                                           Insert.class,
-                                           InsertMulti.class,
-                                           Select.class,
-                                           Update.class,
-                                           UpdateDecimal.class,
-                                           ParamSetArrays.class};
-
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Delete.class,
+        Insert.class,
+        InsertMulti.class,
+        Select.class,
+        Update.class,
+        UpdateDecimal.class,
+        ParamSetArrays.class
+    };
 
     /** Utility to create an array of bytes with value "b" of length "length" */
     public byte[] byteArray(final int length, final byte b) {

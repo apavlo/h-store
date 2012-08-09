@@ -843,16 +843,18 @@ public abstract class PlanNodeUtil {
     }
 
     /**
+     * Return a list of the PlanFragments for the given Statement that are sorted in
+     * the order that they must be executed
      * @param catalog_stmt
-     * @param singlepartition
+     * @param singlePartition
      * @return
      */
-    public static List<PlanFragment> getSortedPlanFragments(Statement catalog_stmt, boolean singlepartition) {
-        Map<Statement, List<PlanFragment>> cache = (singlepartition ? PlanNodeUtil.CACHE_SORTED_SP_FRAGMENTS : PlanNodeUtil.CACHE_SORTED_MP_FRAGMENTS);
+    public static List<PlanFragment> getSortedPlanFragments(Statement catalog_stmt, boolean singlePartition) {
+        Map<Statement, List<PlanFragment>> cache = (singlePartition ? PlanNodeUtil.CACHE_SORTED_SP_FRAGMENTS : PlanNodeUtil.CACHE_SORTED_MP_FRAGMENTS);
         List<PlanFragment> ret = cache.get(catalog_stmt);
         if (ret == null) {
             CatalogMap<PlanFragment> catalog_frags = null;
-            if (singlepartition && catalog_stmt.getHas_singlesited()) {
+            if (singlePartition && catalog_stmt.getHas_singlesited()) {
                 catalog_frags = catalog_stmt.getFragments();
             } else if (catalog_stmt.getHas_multisited()) {
                 catalog_frags = catalog_stmt.getMs_fragments();
@@ -870,11 +872,11 @@ public abstract class PlanNodeUtil {
 
     /**
      * @param nodes
-     * @param singlesited
+     * @param singlePartition
      *            TODO
      * @return
      */
-    public static AbstractPlanNode reconstructPlanNodeTree(Statement catalog_stmt, List<AbstractPlanNode> nodes, boolean singlesited) throws Exception {
+    public static AbstractPlanNode reconstructPlanNodeTree(Statement catalog_stmt, List<AbstractPlanNode> nodes, boolean singlePartition) throws Exception {
         if (debug.get())
             LOG.debug("reconstructPlanNodeTree(" + catalog_stmt + ", " + nodes + ", true)");
 

@@ -29,6 +29,8 @@
 
 package edu.brown.benchmark.voter;
 
+import org.voltdb.VoltProcedure;
+
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
@@ -44,7 +46,9 @@ public class VoterProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterLoader.class;
 
 	// a list of procedures implemented in this benchmark
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {Vote.class, Initialize.class};
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Vote.class, Initialize.class};
 	
 	{
 		addTransactionFrequency(Vote.class, 100);

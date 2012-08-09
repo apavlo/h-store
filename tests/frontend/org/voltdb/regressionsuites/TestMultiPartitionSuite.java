@@ -25,6 +25,7 @@ package org.voltdb.regressionsuites;
 
 import junit.framework.Test;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.client.Client;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -42,7 +43,8 @@ import java.io.IOException;
 public class TestMultiPartitionSuite extends RegressionSuite {
 
     // procedures used by these tests
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         MultiSiteSelect.class, MultiSiteIndexSelect.class,
         MultiSiteDelete.class, UpdateNewOrder.class
     };

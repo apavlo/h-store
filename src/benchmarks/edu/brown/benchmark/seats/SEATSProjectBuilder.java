@@ -30,6 +30,7 @@ package edu.brown.benchmark.seats;
 import java.io.File;
 import java.net.URL;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -44,7 +45,8 @@ public class SEATSProjectBuilder extends AbstractProjectBuilder {
     /** Retrieved via reflection by BenchmarkController */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = SEATSLoader.class;
 
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         DeleteReservation.class,
         FindFlights.class,
         FindOpenSeats.class,

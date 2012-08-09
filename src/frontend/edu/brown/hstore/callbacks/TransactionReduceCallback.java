@@ -37,7 +37,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
      */
     public TransactionReduceCallback(HStoreSite hstore_site) {
         super(hstore_site);
-        this.finalResults = new VoltTable[hstore_site.getAllPartitionIds().size()];
+        this.finalResults = new VoltTable[hstore_site.getCatalogContext().numberOfPartitions];
     }
 
     public void init(MapReduceTransaction ts) {

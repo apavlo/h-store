@@ -100,6 +100,7 @@ public abstract class ClassUtil {
     
     /**
      * Convenience method to get the name of the method that invoked this method
+     * This is slow and should not be used for anything other than debugging
      * @return
      */
     public static String getCurrentMethodName() {

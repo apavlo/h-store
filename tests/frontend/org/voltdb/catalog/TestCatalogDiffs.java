@@ -25,21 +25,30 @@ package org.voltdb.catalog;
 
 import junit.framework.TestCase;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.utils.CatalogUtil;
 
 public class TestCatalogDiffs extends TestCase {
 
-    Class<?>[] BASEPROCS =     { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> BASEPROCS[] = (Class<? extends VoltProcedure>[])new Class<?>[]
+                               { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
                                  org.voltdb.benchmark.tpcc.procedures.delivery.class };
-    Class<?>[] EXPANDEDPROCS = { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> EXPANDEDPROCS[] = (Class<? extends VoltProcedure>[])new Class<?>[]
+                               { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
                                  org.voltdb.benchmark.tpcc.procedures.delivery.class,
                                  org.voltdb.benchmark.tpcc.procedures.slev.class };
-    Class<?>[] FEWERPROCS =    { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class };
-    Class<?>[] CONFLICTPROCS = { org.voltdb.catalog.InsertNewOrder.class,
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> FEWERPROCS[] = (Class<? extends VoltProcedure>[])new Class<?>[]
+                               { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class };
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> CONFLICTPROCS[] = (Class<? extends VoltProcedure>[])new Class<?>[]
+                               { org.voltdb.catalog.InsertNewOrder.class,
                                  org.voltdb.benchmark.tpcc.procedures.delivery.class };
 
-    protected String compile(String name, Class<?>... procList) {
+    protected String compile(String name, Class<? extends VoltProcedure>... procList) {
         TPCCProjectBuilder builder = new TPCCProjectBuilder();
         builder.addDefaultSchema();
         builder.addDefaultPartitioning();
