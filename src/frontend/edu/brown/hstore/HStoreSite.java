@@ -1212,9 +1212,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             throw new RuntimeException("Trying to start " + this.getSiteName() + " more than once");
         }
         
-        if (ClassUtil.isAssertsEnabled())
-            LOG.warn("H-Store is executing with asserts enabled. This will degrade runtime performance.");
-        
         this.init();
         
         try {
