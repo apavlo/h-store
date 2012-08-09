@@ -54,6 +54,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.CommandLogWriterProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
@@ -244,9 +245,7 @@ public class CommandLogWriter implements Shutdownable {
     private CircularLogEntryBuffer entries[];
     private CircularLogEntryBuffer entriesFlushing[];
     
-    private final ProfileMeasurement blockedTime;
-    private final ProfileMeasurement writingTime;
-    private final ProfileMeasurement networkTime;
+    private CommandLogWriterProfiler profiler;
     
     /**
      * Constructor
@@ -312,13 +311,7 @@ public class CommandLogWriter implements Shutdownable {
         
         // Writer Profiling
         if (hstore_conf.site.commandlog_profiling) {
-            this.writingTime = new ProfileMeasurement("WRITING");
-            this.blockedTime = new ProfileMeasurement("BLOCKED");
-            this.networkTime = new ProfileMeasurement("NETWORK");
-        } else {
-            this.writingTime = null;
-            this.blockedTime = null;
-            this.networkTime = null;
+            this.profiler = new CommandLogWriterProfiler();
         }
     }
     
@@ -372,16 +365,8 @@ public class CommandLogWriter implements Shutdownable {
         return (this.stop);
     }
     
-    public ProfileMeasurement getLoggerWritingTime() {
-        return this.writingTime;
-    }
-    
-    public ProfileMeasurement getLoggerBlockedTime() {
-        return this.blockedTime;
-    }
-    
-    public ProfileMeasurement getLoggerNetworkTime() {
-        return this.networkTime;
+    public CommandLogWriterProfiler getProfiler() {
+        return this.profiler;
     }
     
     public boolean writeHeader() {
@@ -413,7 +398,10 @@ public class CommandLogWriter implements Shutdownable {
      * @param eb
      */
     public void groupCommit(CircularLogEntryBuffer[] eb) {
-        if (hstore_conf.site.commandlog_profiling) this.writingTime.start();
+        if (hstore_conf.site.commandlog_profiling) {
+            if (this.profiler == null) this.profiler = new CommandLogWriterProfiler();
+            this.profiler.writingTime.start();
+        }
         
         // Write all to a single FastSerializer buffer
         this.singletonSerializer.clear();
@@ -461,11 +449,9 @@ public class CommandLogWriter implements Shutdownable {
         } catch (IOException ex) {
             String message = "Failed to group commit for buffer";
             throw new ServerFaultException(message, ex);
-        } finally {
-            if (hstore_conf.site.commandlog_profiling) this.writingTime.stop();
         }
-        
-        if (hstore_conf.site.commandlog_profiling) this.networkTime.start();
+        if (hstore_conf.site.commandlog_profiling && profiler != null) 
+            ProfileMeasurement.swap(profiler.writingTime, profiler.networkTime);
         try {
             // Send responses
             for (int i = 0; i < eb.length; i++) {
@@ -482,7 +468,7 @@ public class CommandLogWriter implements Shutdownable {
                 buffer.flushCleanup();
             } // FOR
         } finally {
-            if (hstore_conf.site.commandlog_profiling) this.networkTime.stop();
+            if (hstore_conf.site.commandlog_profiling && profiler != null) profiler.networkTime.stop();
         }
         this.commitBatchCounter++;
     }
@@ -529,7 +515,7 @@ public class CommandLogWriter implements Shutdownable {
             } catch (InterruptedException e) {
                 throw new RuntimeException("[WAL] Thread interrupted while waiting for WriterThread to finish writing");
             } finally {
-                if (hstore_conf.site.commandlog_profiling) this.blockedTime.stop();
+                if (hstore_conf.site.commandlog_profiling && profiler != null) profiler.blockedTime.stop();
             }
 
             if (trace.get())
