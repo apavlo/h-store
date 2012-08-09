@@ -488,6 +488,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (thread != null) threadName = thread.getName(); 
                 LOG.fatal(String.format("Thread %s had a fatal error: %s",
                           threadName, (error != null ? error.getMessage() : null)));
+                error.printStackTrace();
                 hstore_coordinator.shutdownClusterBlocking(error);
             }
         };

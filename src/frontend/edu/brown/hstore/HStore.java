@@ -174,7 +174,8 @@ public abstract class HStore {
                 } else {
                     local_markovs = markovs.get(local_partition);
                 }
-                assert(local_markovs != null) : "Failed to get the proper MarkovGraphsContainer that we need for partition #" + local_partition;
+                assert(local_markovs != null) : 
+                    "Failed to retrieve MarkovGraphsContainer for partition #" + local_partition;
             }
 
             // Initialize TransactionEstimator stuff
