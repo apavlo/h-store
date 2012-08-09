@@ -367,10 +367,6 @@ public class BenchmarkController {
         }
     }
     
-
-
-    
-    
     /**
      * SETUP BENCHMARK 
      */
@@ -1517,7 +1513,7 @@ public class BenchmarkController {
         CatalogContext catalogContext = null;
         
         // HStoreConf Path
-        String hstore_conf_path = null;
+        File hstore_conf_path = null;
         
         // Benchmark Conf Path
         String benchmark_conf_path = null;
@@ -1541,19 +1537,6 @@ public class BenchmarkController {
         // List of SiteIds that we won't start because they'll be started by the profiler
         Set<Integer> profileSiteIds = new HashSet<Integer>();
 
-        // try to read connection string for reporting database
-        // from a "mysqlp" file
-        // set value to null on failure
-
-//        try {
-//            databaseURL = readConnectionStringFromFile(remotePath);
-//            assert(databaseURL.length == 2);
-//        }
-//        catch (RuntimeException e) {
-//            databaseURL = new String[2];
-//            System.out.println(e.getMessage());
-//        }
-
         Map<String, String> clientParams = new LinkedHashMap<String, String>();
         List<String> clientHosts = new ArrayList<String>();
         
@@ -1572,7 +1555,7 @@ public class BenchmarkController {
                 continue;
             /* HStoreConf File Path */
             } else if (parts[0].equalsIgnoreCase("CONF")) {
-                hstore_conf_path = parts[1];
+                hstore_conf_path = new File(parts[1]);
             /* Benchmark Configuration File Path */
             } else if (parts[0].equalsIgnoreCase(HStoreConstants.BENCHMARK_PARAM_PREFIX + "CONF")) {
                 benchmark_conf_path = parts[1];
@@ -1581,15 +1564,15 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("KILLONZERO")) {
                 killOnZeroResults = Boolean.parseBoolean(parts[1]);
                 
+            /*
+             * Whether or not to check the result of each transaction.
+             */
             } else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
-                /*
-                 * Whether or not to check the result of each transaction.
-                 */
                 checkTransaction = Float.parseFloat(parts[1]);
+            /*
+             * Whether or not to check all the tables at the end.
+             */
             } else if (parts[0].equalsIgnoreCase("CHECKTABLES")) {
-                /*
-                 * Whether or not to check all the tables at the end.
-                 */
                 checkTables = Boolean.parseBoolean(parts[1]);
             } else if (parts[0].equalsIgnoreCase("LOCAL")) {
                 /*
@@ -1677,58 +1660,64 @@ public class BenchmarkController {
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASETAG")) {
                 statsTag = parts[1];
-                
-            } else if (parts[0].equalsIgnoreCase("CATALOG")) {
+            }
+            else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 catalogContext = CatalogUtil.loadCatalogContextFromJar(catalogPath);
                 assert(catalogContext != null);
                 num_partitions = catalogContext.numberOfPartitions;
-                
-            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
+            }
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
                 partitionPlanPath = parts[1];
                 clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_APPLY, "true");
                 
-            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY)) {
+            }
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY)) {
                 clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY, parts[1]);
-            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING)) {
+            }
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING)) {
                 clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING, parts[1]);
                 
-            } else if (parts[0].equalsIgnoreCase("COMPILE")) {
-                /*
-                 * Whether to compile the benchmark jar
-                 */
+            }
+            /*
+             * Whether to compile the benchmark jar
+             */
+            else if (parts[0].equalsIgnoreCase("COMPILE")) {
                 compileBenchmark = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("COMPILEONLY")) {
-                /*
-                 * Whether to compile only the benchmark jar and then quit
-                 */
+            }
+            /*
+             * Whether to compile only the benchmark jar and then quit
+             */
+            else if (parts[0].equalsIgnoreCase("COMPILEONLY")) {
                 compileOnly = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("CATALOGHOSTS")) {
-                /*
-                 * Launch the ExecutionSites using the hosts that are in the catalog
-                 */
+            }
+            /*
+             * Launch the ExecutionSites using the hosts that are in the catalog
+             */
+            else if (parts[0].equalsIgnoreCase("CATALOGHOSTS")) {
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
-            
+            }
             /*
              * List of evictable tables
              */
-            } else if (parts[0].equalsIgnoreCase("EVICTABLE")) {
+            else if (parts[0].equalsIgnoreCase("EVICTABLE")) {
                 if (debug.get()) LOG.debug("EVICTABLE: " + parts[1]);
                 evictable = parts[1].split(",");
+            }
             /*
              * List of deferrable queries
              * Format: <ProcedureName>.<StatementName>
              */
-            } else if (parts[0].equalsIgnoreCase("DEFERRABLE")) {
+            else if (parts[0].equalsIgnoreCase("DEFERRABLE")) {
                 if (debug.get()) LOG.debug("DEFERRABLE: " + parts[1]);
                 deferrable = parts[1].split(",");
-            
+            }
             /* Disable starting the database cluster  */
-            } else if (parts[0].equalsIgnoreCase("NOSITES") || parts[0].equalsIgnoreCase("NOSTART")) {
+            else if (parts[0].equalsIgnoreCase("NOSITES") || parts[0].equalsIgnoreCase("NOSTART")) {
                 // HACK: If they stay "nostart=true", then we'll allow that
                 if (parts[1].equalsIgnoreCase("true")) {
                     noSites = true;
@@ -1793,10 +1782,9 @@ public class BenchmarkController {
 
         // Initialize HStoreConf
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
-        File f = new File(hstore_conf_path);
-        HStoreConf hstore_conf = HStoreConf.init(f, vargs);
+        HStoreConf hstore_conf = HStoreConf.init(hstore_conf_path, vargs);
         if (debug.get()) 
-            LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true));
+            LOG.debug("HStore Conf '" + hstore_conf_path.getName() + "'\n" + hstore_conf.toString(true));
         
         if (hstore_conf.client.duration < 1000) {
             LOG.error("Duration is specified in milliseconds");
@@ -1922,11 +1910,11 @@ public class BenchmarkController {
         clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
         
         // Make sure we put in the parameters passed from the command-line into both components
-        clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
-        siteParams.putAll(hstore_conf.getParametersLoadedFromArgs());
+        Map<String, String> loadedArgs = hstore_conf.getParametersLoadedFromArgs(); 
+        clientParams.putAll(loadedArgs);
+        siteParams.putAll(loadedArgs);
         config.clientParameters.putAll(clientParams);
         config.siteParameters.putAll(siteParams);
-        
         if (debug.get()) LOG.debug("Benchmark Configuration\n" + config.toString());
         
         // ACTUALLY RUN THE BENCHMARK
