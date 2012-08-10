@@ -814,7 +814,8 @@ public class TPCCLoader extends BenchmarkComponent {
         for (LoadThread loadThread : m_loadThreads) {
             LOG.debug("Starting LoadThread...");
             loadThread.setUncaughtExceptionHandler(handler);
-            loadThread.start(true);
+            // loadThread.start(true);
+            loadThread.start(false);
 //            doMakeReplicated = false;
         }
 

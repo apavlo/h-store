@@ -29,6 +29,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.processtools.SSHTools;
 import org.voltdb.processtools.ShellTools;
 
+import edu.brown.hstore.conf.HStoreConf;
+
 public class KillStragglers implements Runnable {
     private static final Logger LOG = Logger.getLogger(KillStragglers.class);
 
@@ -89,7 +91,9 @@ public class KillStragglers implements Runnable {
         if (m_killCoordinator) kill_cmd += " --protocoord";
         if (m_killEngine) kill_cmd += " --protoengine";
         if (m_killClient) kill_cmd += " --client";
-        if (LOG.isDebugEnabled()) kill_cmd += " --debug";
+        if (LOG.isDebugEnabled()) {
+            kill_cmd += " --debug=" + HStoreConf.singleton().global.log_dir;
+        }
         
         String cmd[] = SSHTools.convert(m_username, m_hostname, m_remotePath, m_sshOptions, kill_cmd); 
         LOG.debug("KILL PUSSY CAT KILL: " + Arrays.toString(cmd));
