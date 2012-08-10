@@ -159,6 +159,7 @@ EXPERIMENT_SETTINGS = {
     "motivation": {
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
+        "site.markov_enable":                   True,
         "client.blocking":                      True,
         "client.output_response_status":        True,
         "client.output_exec_profiling":         "execprofile.csv",
@@ -186,12 +187,13 @@ def updateEnv(env, benchmark, exp_type):
     ## MOTIVATION
     ## ----------------------------------------------
     if exp_type == "motivation":
-        if benchmark == "tpcc":
-            markov = "%s-%dp.markov.gz" % (benchmark, partitions)
-        else:
-            markov = "%s.markov.gz" % (benchmark)
-        env["hstore.exec_prefix"] += " -Dsite.markov_enable=true"
-        env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
+        if env.get('site.markov_enable', False):
+            if benchmark == "tpcc":
+                markov = "%s-%dp.markov.gz" % (benchmark, partitions)
+            else:
+                markov = "%s.markov.gz" % (benchmark)
+            env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
+        ## IF
         
         pplan = "%s.lns.pplan" % benchmark
         env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)

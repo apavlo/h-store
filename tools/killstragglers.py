@@ -33,7 +33,7 @@ if __name__ == '__main__':
         "protoengine",
         "protocoord",
         "client",
-        "debug",
+        "debug=",
     ])
     ## ----------------------------------------------
     ## COMMAND OPTIONS
@@ -63,12 +63,13 @@ if __name__ == '__main__':
     
     ## Debug Output
     if "debug" in options:
+        logDir = options["debug"][0]
         l = logging.getLogger()
         l.setLevel(logging.DEBUG)
-        output = os.path.join(OPT_LOGDIR, "killstragglers.log")
+        output = os.path.realpath(os.path.join(logDir, "killstragglers.log"))
         logging.debug("Writing KillStragglers log to '%s'" % output)
         
-        if not os.path.exists(OPT_LOGDIR): os.makedirs(OPT_LOGDIR)
+        if not os.path.exists(logDir): os.makedirs(logDir)
         handler = logging.FileHandler(output)
         handler.setFormatter(l.handlers[0].formatter)
         l.addHandler(handler)
