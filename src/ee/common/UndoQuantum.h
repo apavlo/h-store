@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <cassert>
 
+#include "common/debuglog.h"
 #include "common/Pool.hpp"
 #include "common/UndoAction.h"
 
@@ -45,6 +46,7 @@ public:
      * of the data pool which will be purged in one go.
      */
     inline void undo() {
+        VOLT_TRACE("Invoking %ld UndoActions for token %ld", m_undoActions.size(), m_undoToken);
         for (std::vector<UndoAction*>::reverse_iterator i = m_undoActions.rbegin();
              i != m_undoActions.rend(); i++) {
             (*i)->undo();
@@ -59,6 +61,7 @@ public:
      * Also call own destructor to ensure that the vector is released.
      */
     inline void release() {
+        VOLT_TRACE("Releasing %ld UndoActions for token %ld", m_undoActions.size(), m_undoToken);
         for (std::vector<UndoAction*>::reverse_iterator i = m_undoActions.rbegin();
              i != m_undoActions.rend(); i++) {
             (*i)->release();
