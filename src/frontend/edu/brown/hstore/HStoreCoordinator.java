@@ -1210,7 +1210,7 @@ public class HStoreCoordinator implements Shutdownable {
             
             // XXX: I forget why I had commented these two guys out...
 //            LogManager.shutdown();
-            System.exit(exit_status);
+//            System.exit(exit_status);
         }
     }
 
