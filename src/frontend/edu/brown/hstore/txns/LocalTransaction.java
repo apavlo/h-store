@@ -39,6 +39,7 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -455,8 +456,8 @@ public class LocalTransaction extends AbstractTransaction {
         // executing a prefetchable query, which may be queued up before the
         // transaction's control code starts executing
         // Of course if this is the base partition, then we *definitely* need
-        // to have the ExecuteionState.
-        if (this.prefetch == null || partition == this.base_partition) {
+        // to have the ExecutionState.
+        if (partition == this.base_partition) {
             assert(this.state != null) :
                 String.format("Trying to initalize new round for %s on partition %d but the ExecutionState is null",
                               this, partition);
@@ -624,13 +625,17 @@ public class LocalTransaction extends AbstractTransaction {
         super.setPendingError(error);
         if (interruptThread == false) return;
         
-        // Spin through this so that the waiting thread wakes up and sees that they got an error
-        while (this.state.dependency_latch.getCount() > 0) {
-            this.state.dependency_latch.countDown();
-        } // WHILE
-        
-        // And then shove an empty result at them
-        this.state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
+        try {
+            // And then shove an empty result at them
+            this.state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
+            
+            // Spin through this so that the waiting thread wakes up and sees that they got an error
+            while (this.state.dependency_latch.getCount() > 0) {
+                this.state.dependency_latch.countDown();
+            } // WHILE
+        } catch (NullPointerException ex) {
+            // HACK!
+        }
     }
     
     @Override
@@ -890,7 +895,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     protected DependencyInfo getDependencyInfo(int d_id) {
         return (this.state.dependencies.get(d_id));
-        // return (this.state.dependencies[stmt_index].get(d_id));
     }
 
     @Override
@@ -1217,6 +1221,15 @@ public class LocalTransaction extends AbstractTransaction {
      * @param dependency_id The dependency id that this result corresponds to
      */
     private void addResult(final Pair<Integer, Integer> key, VoltTable result, final boolean force) {
+        // We have to do this because this method is allowed to be called by different threads
+        ReentrantLock stateLock = null;
+        try {
+            stateLock = this.state.lock;
+        } catch (NullPointerException ex) {
+            // HACK
+        }
+        if (stateLock == null) return;
+        
         final int base_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(result != null);
         assert(this.round_state[base_offset] == RoundState.INITIALIZED || this.round_state[base_offset] == RoundState.STARTED) :
@@ -1233,8 +1246,9 @@ public class LocalTransaction extends AbstractTransaction {
         // for now. They will get released when we switch to STARTED 
         // This is the only part that we need to synchonize on
         if (force == false) {
-            if (this.predict_singlePartition == false) this.state.lock.lock();
+            if (this.predict_singlePartition == false) stateLock.lock();
             try {
+                if (this.state == null) return;
                 if (this.round_state[base_offset] == RoundState.INITIALIZED) {
                     assert(this.state.queued_results.containsKey(key) == false) : 
                         String.format("%s - Duplicate result %s",
@@ -1249,32 +1263,40 @@ public class LocalTransaction extends AbstractTransaction {
                     if (t) LOG.trace("Result stmt_ctr(key=" + key + "): " + this.state.results_dependency_stmt_ctr.get(key));
                 }
             } finally {
-                if (this.predict_singlePartition == false) this.state.lock.unlock();
+                if (this.predict_singlePartition == false) stateLock.unlock();
             } // SYNCH
         }
             
         // Each partition+dependency_id should be unique within the Statement batch.
         // So as the results come back to us, we have to figure out which Statement it belongs to
         DependencyInfo dinfo = null;
-        Queue<Integer> queue = this.state.results_dependency_stmt_ctr.get(key);
-        assert(queue != null) :
-            String.format("Unexpected %s in %s / %s\n%s",
-                          debugPartDep(partition, dependency_id), this,
-                          key, this.state.results_dependency_stmt_ctr);
-        assert(queue.isEmpty() == false) :
-            String.format("No more statements for %s in %s\nresults_dependency_stmt_ctr = %s",
-                          debugPartDep(partition, dependency_id), this,
-                          this.state.results_dependency_stmt_ctr);
+        Queue<Integer> queue = null;
+        int stmt_index;
+        try {
+            queue = this.state.results_dependency_stmt_ctr.get(key);
+            assert(queue != null) :
+                String.format("Unexpected %s in %s / %s\n%s",
+                              debugPartDep(partition, dependency_id), this,
+                              key, this.state.results_dependency_stmt_ctr);
+            assert(queue.isEmpty() == false) :
+                String.format("No more statements for %s in %s\nresults_dependency_stmt_ctr = %s",
+                              debugPartDep(partition, dependency_id), this,
+                              this.state.results_dependency_stmt_ctr);
 
-        int stmt_index = queue.remove().intValue();
-        dinfo = this.getDependencyInfo(dependency_id);
-        assert(dinfo != null) :
-            String.format("Unexpected %s for %s [stmt_index=%d]\n%s",
-                          debugPartDep(partition, dependency_id), this, stmt_index, result); 
+            stmt_index = queue.remove().intValue();
+            dinfo = this.getDependencyInfo(dependency_id);
+            assert(dinfo != null) :
+                String.format("Unexpected %s for %s [stmt_index=%d]\n%s",
+                              debugPartDep(partition, dependency_id), this, stmt_index, result);
+        } catch (NullPointerException ex) {
+            // HACK: IGNORE!
+        }
         dinfo.addResult(partition, result);
         
-        if (this.predict_singlePartition == false) this.state.lock.lock();
+        if (this.predict_singlePartition == false) stateLock.lock();
         try {
+            // If the state has disappeared, then we know that this txn is aborted
+            if (this.state == null) return;
             this.state.received_ctr++;
             
             // Check whether we need to start running stuff now
@@ -1313,7 +1335,7 @@ public class LocalTransaction extends AbstractTransaction {
             this.state.still_has_tasks = this.state.blocked_tasks.isEmpty() == false ||
                                          this.state.unblocked_tasks.isEmpty() == false;
         } finally {
-            if (this.predict_singlePartition == false) this.state.lock.unlock();
+            if (this.predict_singlePartition == false) stateLock.unlock();
         } // SYNCH
         
         if (d) {

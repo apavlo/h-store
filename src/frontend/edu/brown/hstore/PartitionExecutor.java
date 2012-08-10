@@ -830,7 +830,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
                 ex.printStackTrace();
-                LOG.fatal(String.format("Unexpected error for PartitionExecutor partition #%d [%s]",
+                LOG.fatal(String.format("Unexpected error for PartitionExecutor at partition #%d [%s]",
                                         this.partitionId, this.currentTxn), ex);
                 if (this.currentTxn != null) LOG.fatal("TransactionState Dump:\n" + this.currentTxn.debug());
             }
@@ -1241,6 +1241,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     public ExecutionEngine getExecutionEngine() {
         return (this.ee);
     }
+    public Thread getExecutionThread() {
+        return (this.self);
+    }
     public HsqlBackend getHsqlBackend() {
         return (this.hsql);
     }
@@ -1600,7 +1603,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private void processWorkResult(LocalTransaction ts, WorkResult result) {
         boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
         if (d) LOG.debug(String.format("Processing FragmentResponseMessage for %s on partition %d [srcPartition=%d, deps=%d]",
-                                       ts, this.partitionId, result.getPartitionId(), result.getDepDataCount()));
+                         ts, this.partitionId, result.getPartitionId(), result.getDepDataCount()));
         
         // If the Fragment failed to execute, then we need to abort the Transaction
         // Note that we have to do this before we add the responses to the TransactionState so that
@@ -1608,7 +1611,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // procedure back up
         if (result.getStatus() != Status.OK) {
             if (t) LOG.trace(String.format("Received non-success response %s from partition %d for %s",
-                                                    result.getStatus(), result.getPartitionId(), ts));
+                             result.getStatus(), result.getPartitionId(), ts));
 
             SerializableException error = null;
             if (needs_profiling) ts.profiler.startDeserialization();
@@ -2290,18 +2293,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                        Arrays.toString(plan.getInputDependencyIds())));
         
         // NOTE: There are no dependencies that we need to pass in because the entire batch is single-partitioned
-        DependencySet result = this.executePlanFragments(ts,
-                                                         undoToken,
-                                                         fragmentCount,
-                                                         fragmentIds,
-                                                         parameterSets,
-                                                         output_depIds,
-                                                         input_depIds,
-                                                         null);
+        DependencySet result = null;
+        try {
+            result = this.executePlanFragments(ts,
+                                               undoToken,
+                                               fragmentCount,
+                                               fragmentIds,
+                                               parameterSets,
+                                               output_depIds,
+                                               input_depIds,
+                                               null);
+        
+        } finally {
+            ts.fastFinishRound(this.partitionId);    
+        }
         // assert(result != null) : "Unexpected null DependencySet result for " + ts; 
         if (t) LOG.trace("Output:\n" + result);
-        
-        ts.fastFinishRound(this.partitionId);
         return (result != null ? result.dependencies : null);
     }
     
@@ -2359,7 +2366,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // pass attached dependencies to the EE (for non-sysproc work).
         if (input_deps != null && input_deps.isEmpty() == false) {
             if (d) LOG.debug(String.format("%s - Stashing %d InputDependencies at partition %d",
-                                           ts, input_deps.size(), this.partitionId));
+                             ts, input_deps.size(), this.partitionId));
             ee.stashWorkUnitDependencies(input_deps);
         }
         
@@ -2416,7 +2423,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
         } catch (SerializableException ex) {
             if (d) LOG.error(String.format("%s - Unexpected error in the ExecutionEngine on partition %d",
-                                           ts, this.partitionId), ex);
+                             ts, this.partitionId), ex);
             error = ex;
             throw ex;
         } catch (Throwable ex) {
@@ -2427,7 +2434,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (needs_profiling) ((LocalTransaction)ts).profiler.stopExecEE();
             if (error == null && result == null) {
                 LOG.warn(String.format("%s - Finished executing fragments but got back null results [fragmentIds=%s]",
-                                       ts, Arrays.toString(fragmentIds)));
+                         ts, Arrays.toString(fragmentIds)));
             }
         }
         
@@ -2543,7 +2550,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         assert(plan != null);
         if (t) {
-            LOG.trace(ts + " - Touched Partitions: " + ts.getTouchedPartitions());
+            LOG.trace(ts + " - Touched Partitions: " + ts.getTouchedPartitions().values());
             LOG.trace(ts + " - Next BatchPlan:\n" + plan.toString());
         }
         if (needs_profiling) ts.profiler.stopExecPlanning();
