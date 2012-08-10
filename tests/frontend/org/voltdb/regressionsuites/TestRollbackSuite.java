@@ -246,6 +246,7 @@ public class TestRollbackSuite extends RegressionSuite {
             client.callProcedure("InsertAllTypes", 7, 6, 5, 4, new TimestampType(3),
                                  0.2, moneyTwo, "INLINED", "UNINLINED");
         } catch (ProcCallException e1) {
+            System.err.printf(">>> %s UNEXPECTED[0] %s\n", procName, e1);
             e1.printStackTrace();
             fail();
         }
@@ -257,10 +258,12 @@ public class TestRollbackSuite extends RegressionSuite {
                 client.callProcedure(procName, 7);
             else
                 client.callProcedure(procName);
+            System.err.printf(">>> %s DID NOT FAIL!\n", procName);
             fail();
         }
         catch (ProcCallException e) {}
         catch (IOException e) {
+            System.err.printf(">>> %s UNEXPECTED[1] %s\n", procName, e);
             e.printStackTrace();
             fail();
         }
@@ -381,10 +384,12 @@ public class TestRollbackSuite extends RegressionSuite {
             client.callProcedure("@AdHoc", "DELETE FROM ALL_TYPES");
         }
         catch (ProcCallException e) {
+            System.err.printf(">>> %s UNEXPECTED[2] %s\n", procName, e);
             e.printStackTrace();
             fail();
         }
         catch (IOException e) {
+            System.err.printf(">>> %s UNEXPECTED[3] %s\n", procName, e);
             e.printStackTrace();
             fail();
         }
