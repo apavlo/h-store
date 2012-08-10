@@ -163,8 +163,8 @@ EXPERIMENT_SETTINGS = {
         #"client.output_exec_profiling":         "execprofile.csv",
         #"client.output_txn_profiling":          "txnprofile.csv",
         #"client.output_txn_profiling_combine":  True,
-        "client.output_txn_counters":           "txncounters.csv",
-        "client.output_txn_counters_combine":   True,
+        #"client.output_txn_counters":           "txncounters.csv",
+        #"client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
         "benchmark.neworder_abort":             False,
         "benchmark.neworder_multip_mix":        100,
@@ -189,8 +189,8 @@ def updateEnv(env, benchmark, exp_type):
             markov = "%s-%dp.markov.gz" % (benchmark, partitions)
         else:
             markov = "%s.markov.gz" % (benchmark)
-        env["hstore.exec_prefix"] += " -Dsite.markov_enable=true"
-        env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
+        #env["hstore.exec_prefix"] += " -Dsite.markov_enable=true"
+        #env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
         
         pplan = "%s.lns.pplan" % benchmark
         env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
