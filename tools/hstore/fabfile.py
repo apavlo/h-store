@@ -426,7 +426,7 @@ def setup_env():
     
     # Upgrade and clean up packages
     if env["ec2.pkg_auto_update"]:
-        sudo("apt-get --yes distupgrade")
+        sudo("apt-get --yes dist-upgrade")
         sudo("apt-get --yes autoremove")
     
     first_setup = False
