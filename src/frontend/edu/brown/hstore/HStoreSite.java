@@ -1229,7 +1229,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         // IMPORTANT: This message must always be printed in order for the BenchmarkController
         //            to know that we're ready! That's why we have to use System.out instead of LOG
-        String msg = String.format("%s / Site=%s / Address=%s:%d / Partitions=%s",
+        String msg = String.format("%s -- Site=%s / Address=%s:%d / Partitions=%s",
                 HStoreConstants.SITE_READY_MSG,
                 this.getSiteName(),
                 this.catalog_site.getHost().getIpaddr(),

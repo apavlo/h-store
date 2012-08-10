@@ -148,18 +148,31 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     
     private final boolean prepared[];
     private final boolean finished[];
-    private final long last_undo_token[];
     protected final RoundState round_state[];
     protected final int round_ctr[];
+
+    /**
+     * The first undo token used at each partition
+     * When we abort a txn we will need to give the EE this value
+     */
+    private final long exec_firstUndoToken[];
+    /**
+     * The last undo token used at each partition
+     * When we commit a txn we will need to give the EE this value 
+     */
+    private final long exec_lastUndoToken[];
+    /**
+     * This is set to true if the transaction did some work without an undo buffer
+     * This is used to just check that we aren't trying to rollback changes
+     * without having used the undo log
+     */
+    private final boolean exec_noUndoBuffer[];
     
     /** Whether this transaction has been read-only so far */
     protected final boolean exec_readOnly[];
     
     /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
     protected final boolean exec_eeWork[];
-    
-    /** This is set to true if the transaction did some work without an undo buffer **/
-    private final boolean exec_noUndoBuffer[];
     
     protected final BitSet readTables[];
     protected final BitSet writeTables[];
@@ -178,11 +191,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         int numLocalPartitions = hstore_site.getLocalPartitionIdArray().length;
         this.prepared = new boolean[numLocalPartitions];
         this.finished = new boolean[numLocalPartitions];
-        this.last_undo_token = new long[numLocalPartitions];
         this.round_state = new RoundState[numLocalPartitions];
         this.round_ctr = new int[numLocalPartitions];
         this.exec_readOnly = new boolean[numLocalPartitions];
         this.exec_eeWork = new boolean[numLocalPartitions];
+        
+        this.exec_firstUndoToken = new long[numLocalPartitions];
+        this.exec_lastUndoToken = new long[numLocalPartitions];
         this.exec_noUndoBuffer = new boolean[numLocalPartitions];
         
         this.finish_task = new FinishTxnMessage(this, Status.OK);
@@ -196,7 +211,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.writeTables[i] = new BitSet(num_tables);
         } // FOR
         
-        Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+        Arrays.fill(this.exec_firstUndoToken, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+        Arrays.fill(this.exec_lastUndoToken, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_readOnly, true);
     }
 
@@ -265,9 +281,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.finished[i] = false;
             this.round_state[i] = null;
             this.round_ctr[i] = 0;
-            this.last_undo_token[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
             this.exec_readOnly[i] = true;
             this.exec_eeWork[i] = false;
+            this.exec_firstUndoToken[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
+            this.exec_lastUndoToken[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
             this.exec_noUndoBuffer[i] = false;
             
             this.readTables[i].clear();
@@ -305,7 +322,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Must be called once before one can add new FragmentTaskMessages for this txn 
+     * Must be called once before one can add new WorkFragments for this txn 
      * @param undoToken
      */
     public void initRound(int partition, long undoToken) {
@@ -314,10 +331,18 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
                           this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
-        if (this.last_undo_token[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || 
+        
+        if (this.exec_lastUndoToken[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || 
             undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
-            this.last_undo_token[offset] = undoToken;
+            // LAST UNDO TOKEN
+            this.exec_lastUndoToken[offset] = undoToken;
+            
+            // FIRST UNDO TOKEN
+            if (this.exec_firstUndoToken[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN) { 
+                this.exec_firstUndoToken[offset] = undoToken;
+            }
         }
+        // NO UNDO LOGGING
         if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
             this.exec_noUndoBuffer[offset] = true;
         }
@@ -328,7 +353,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     /**
-     * Called once all of the FragmentTaskMessages have been submitted for this txn
+     * Called once all of the WorkFragments have been submitted for this txn
      * @return
      */
     public void startRound(int partition) {
@@ -490,7 +515,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     /**
-     * Get the current batch/round counter
+     * Get the current round counter at the given partition.
+     * Note that a round is different than a batch. A "batch" contains multiple queries
+     * that the txn wants to execute, of which their PlanFragments are broken
+     * up into separate execution "rounds" in the PartitionExecutor.
      */
     public int getCurrentRound(int partition) {
         return (this.round_ctr[hstore_site.getLocalPartitionOffset(partition)]);
@@ -697,11 +725,20 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected RoundState getCurrentRoundState(int partition) {
         return (this.round_state[hstore_site.getLocalPartitionOffset(partition)]);
     }
+    
+    /**
+     * Get the first undo token used for this transaction
+     * When we ABORT a txn we will need to give the EE this value
+     */
+    public long getFirstUndoToken(int partition) {
+        return this.exec_firstUndoToken[hstore_site.getLocalPartitionOffset(partition)];
+    }
     /**
      * Get the last undo token used for this transaction
+     * When we COMMIT a txn we will need to give the EE this value
      */
     public long getLastUndoToken(int partition) {
-        return this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)];
+        return this.exec_lastUndoToken[hstore_site.getLocalPartitionOffset(partition)];
     }
     
     // ----------------------------------------------------------------------------
@@ -818,7 +855,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         m.put("SysProc", this.sysproc);
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
-        m.put("Last UndoToken", Arrays.toString(this.last_undo_token));
+        m.put("Last UndoToken", Arrays.toString(this.exec_lastUndoToken));
         m.put("# of Rounds", Arrays.toString(this.round_ctr));
         m.put("Executed Work", Arrays.toString(this.exec_eeWork));
         if (this.pending_error != null)

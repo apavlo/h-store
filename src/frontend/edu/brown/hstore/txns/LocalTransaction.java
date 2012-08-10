@@ -480,6 +480,12 @@ public class LocalTransaction extends AbstractTransaction {
         }
     }
     
+    /**
+     * Fast-path round initialization. This should be called when the next
+     * batch contains only local, single-partition queries
+     * @param partition
+     * @param undoToken
+     */
     public void fastInitRound(int partition, long undoToken) {
         super.initRound(partition, undoToken);
     }
@@ -900,7 +906,7 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.exec_touchedPartitions.getValueCount() <= 1);
     }
     /**
-     * Returns true if the given FragmentTaskMessage is currently set as blocked for this txn
+     * Returns true if the given WorkFragment is currently set as blocked for this txn
      * @param ftask
      * @return
      */
@@ -1071,8 +1077,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     /**
      * Queues up a WorkFragment for this txn
-     * If the return value is true, then the FragmentTaskMessage is blocked waiting for dependencies
-     * If the return value is false, then the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
+     * If the return value is true, then the WorkFragment is blocked waiting for dependencies
+     * If the return value is false, then the WorkFragment can be executed immediately (either locally or on at a remote partition)
      * @param fragment
      */
     public boolean addWorkFragment(WorkFragment fragment) {
@@ -1238,7 +1244,7 @@ public class LocalTransaction extends AbstractTransaction {
                     return;
                 }
                 if (d) {
-                    LOG.debug(String.format("%s - Storing new result for key %d", this, key));
+                    LOG.debug(String.format("%s - Storing new result for key %s", this, key));
                     if (t) LOG.trace("Result stmt_ctr(key=" + key + "): " + this.state.results_dependency_stmt_ctr.get(key));
                 }
             } finally {
