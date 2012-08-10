@@ -1817,7 +1817,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         
         Status status = cresponse.getStatus();
-        if (d) LOG.debug(String.format("Finished execution of %s [status=%s, beforeMode=%s, currentMode=%s]",
+        if (d) LOG.debug(String.format("%s - Finished execution of transaction control code [status=%s, beforeMode=%s, currentMode=%s]",
                                        ts, status, before_mode, this.currentExecMode));
 
         // We assume that most transactions are not speculatively executed and are successful
@@ -1842,10 +1842,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (status != Status.OK && ts.isExecReadOnly(this.partitionId) == false) {
                         this.setExecutionMode(ts, ExecutionMode.DISABLED);
                         int blocked = this.work_queue.drainTo(this.currentBlockedTxns);
-                        if (t && blocked > 0)
-                            LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s",
-                                                    blocked, this.partitionId, this.currentExecMode));
-                        if (d) LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
+                        if (d) {
+                            if (t && blocked > 0)
+                                LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s",
+                                                        blocked, this.partitionId, this.currentExecMode));
+                            LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted",
+                                      this.partitionId, ts));
+                        }
                     }
                     if (t) LOG.trace(String.format("%s - Queuing ClientResponse [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
                                                    ts, cresponse.getStatus(), before_mode, this.currentExecMode, this.currentDtxn));
@@ -2025,18 +2028,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (is_sameSite) {
                         if (other == null) other = this.hstore_site.getPartitionExecutor(ts.getBasePartition());
                         other.queryCache.addResult(ts.getTransactionId(),
-                                                              fragment.getFragmentId(i),
-                                                              fragment.getPartitionId(),
-                                                              parameters[i],
-                                                              result.dependencies[i]);
+                                                   fragment.getFragmentId(i),
+                                                   fragment.getPartitionId(),
+                                                   parameters[i],
+                                                   result.dependencies[i]);
                     }
                     // We also need to store it in our own cache in case we need to retrieve it
                     // if they come at us with the same query request
                     this.queryCache.addResult(ts.getTransactionId(),
-                                                         fragment.getFragmentId(i),
-                                                         fragment.getPartitionId(),
-                                                         parameters[i],
-                                                         result.dependencies[i]);
+                                              fragment.getFragmentId(i),
+                                              fragment.getPartitionId(),
+                                              parameters[i],
+                                              result.dependencies[i]);
                 } // FOR
             }
             
@@ -2070,7 +2073,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 assert(result.size() == fragment.getOutputDepIdCount());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     int dep_id = fragment.getOutputDepId(i);
-                    if (d) LOG.debug(String.format("%s - Storing DependencyId #%d [numRows=%d]%s",
+                    if (t) LOG.trace(String.format("%s - Storing DependencyId #%d [numRows=%d]%s",
                                      ts, dep_id, result.dependencies[i].getRowCount(),
                                      (t ? "\n"+result.dependencies[i] : "")));
                     try {
@@ -3430,6 +3433,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
         ts.markFinished(this.partitionId);
+        if (d) LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
+                         ts, (commit ? "commit" : "abort"), this.partitionId));
     }
     
     /**
