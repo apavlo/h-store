@@ -549,7 +549,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (d) LOG.debug("__FILE__:__LINE__ " +"Got error for txn #" + this.txn_id + " - " + error.getMessage());
+//            if (d) 
+                LOG.warn(String.format("%s - Got %s error for txn: %s",
+                         this, error.getClass().getSimpleName(), error.getMessage()));
             this.pending_error = error;
         }
     }

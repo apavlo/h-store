@@ -194,6 +194,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                                                         .addFragmentId(pf.fragmentId)
                                                         .addStmtIndex(0)
                                                         .addParamIndex(i);
+                ts.getTouchedPartitions().put(destPartitionId);
                 
                 // Input Dependencies
                 boolean needs_input = false;
