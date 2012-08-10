@@ -617,19 +617,20 @@ public class LocalTransaction extends AbstractTransaction {
      * the transaction will be released from its lock so that the transaction can be
      * aborted without needing to wait for all of the results to return. 
      * @param error
-     * @param wakeThread
+     * @param interruptThread
      */
-    public void setPendingError(SerializableException error, boolean wakeThread) {
-        boolean spin_latch = (this.pending_error == null);
+    public void setPendingError(SerializableException error, boolean interruptThread) {
+        interruptThread = (this.pending_error == null && interruptThread);
         super.setPendingError(error);
-        if (wakeThread == false) return;
+        if (interruptThread == false) return;
         
         // Spin through this so that the waiting thread wakes up and sees that they got an error
-        if (spin_latch) {
-            while (this.state.dependency_latch.getCount() > 0) {
-                this.state.dependency_latch.countDown();
-            } // WHILE
-        }        
+        while (this.state.dependency_latch.getCount() > 0) {
+            this.state.dependency_latch.countDown();
+        } // WHILE
+        
+        // And then shove an empty result at them
+        this.state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
     }
     
     @Override

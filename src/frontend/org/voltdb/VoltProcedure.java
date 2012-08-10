@@ -173,7 +173,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // INVOCATION MEMBERS
     // ----------------------------------------------------------------------------
     
-    private AbstractTransaction m_currentTxnState;  // assigned in call()
+    protected AbstractTransaction m_currentTxnState;  // assigned in call()
     protected LocalTransaction m_localTxnState;  // assigned in call()
     private int batchId = 0;
     private SQLStmt batchQueryStmts[];
@@ -1138,8 +1138,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             throw ex;
         } catch (Throwable ex) {
             throw new ServerFaultException("Unexpected error", ex, m_localTxnState.getTransactionId());
+        } finally {
+            this.batchId++;
+            if (m_localTxnState.hasPendingError()) {
+                throw m_localTxnState.getPendingError();
+            }
         }
-        this.batchId++;
         return (results);
     }
     
