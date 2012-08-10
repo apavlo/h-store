@@ -131,7 +131,7 @@ ENV_DEFAULT = {
     "ec2.reboot_wait_time":        20,
     "ec2.status_wait_time":        20,
     "ec2.cluster_group":           None,
-    "ec2.pkg_autoremove":          True,
+    "ec2.pkg_auto_update":         True,
 
     ## Client Options
     "client.count":                1,
@@ -424,8 +424,9 @@ def setup_env():
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
     __syncTime__()
     
-    # Clean up packages
-    if env["ec2.pkg_autoremove"]:
+    # Upgrade and clean up packages
+    if env["ec2.pkg_auto_update"]:
+        sudo("apt-get --yes distupgrade")
         sudo("apt-get --yes autoremove")
     
     first_setup = False
@@ -580,13 +581,17 @@ def deploy_hstore(build=True, update=True):
     with cd(HSTORE_DIR):
         run("git checkout %s" % env["hstore.git_branch"])
         if update:
+            LOG.debug("Pulling in latest changes for branch '%s'" % env["hstore.git_branch"])
             run("git checkout -- properties")
             run("git pull %s" % env["hstore.git_options"])
         
         ## Checkout Extra Files
         if need_files:
-            LOG.debug("Initializing H-Store research files directory for branch '%s'" % env["hstore.git_branch"])
+            LOG.debug("Initializing H-Store research files directory for branch '%s'" %  env["hstore.git_branch"])
             run("ant junit-getfiles")
+        elif update:
+            LOG.debug("Pulling in latest research files for branch '%s'" % env["hstore.git_branch"])
+            # run("ant junit-getfiles")
         ## IF
             
         if build:
