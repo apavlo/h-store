@@ -161,6 +161,10 @@ public class ExecutionState implements Poolable {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
     
+    protected Thread getExecutionThread() {
+        return (this.executor.getExecutionThread());
+    }
+    
     public LinkedBlockingDeque<Collection<WorkFragment>> getUnblockedWorkFragmentsQueue() {
         return (this.unblocked_tasks);
     }

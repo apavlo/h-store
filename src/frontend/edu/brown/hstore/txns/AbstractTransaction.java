@@ -322,7 +322,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Must be called once before one can add new WorkFragments for this txn 
+     * Must be called once before one can add new WorkFragments for this txn
+     * This will always clear out any pending errors 
      * @param undoToken
      */
     public void initRound(int partition, long undoToken) {
@@ -331,6 +332,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
                           this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
+        // If we get to this point, then we know that nobody cares about any 
+        // errors from the previous round, therefore we can just clear it out
+        this.pending_error = null;
         
         if (this.exec_lastUndoToken[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || 
             undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
@@ -549,9 +553,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-//            if (d) 
-                LOG.warn(String.format("%s - Got %s error for txn: %s",
-                         this, error.getClass().getSimpleName(), error.getMessage()));
+            if (d) LOG.warn(String.format("%s - Got %s error for txn: %s",
+                            this, error.getClass().getSimpleName(), error.getMessage()));
             this.pending_error = error;
         }
     }
