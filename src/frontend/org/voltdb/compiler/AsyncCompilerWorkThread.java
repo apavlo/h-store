@@ -96,7 +96,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
         }
         // if no placeholder, create a new plannertool
         if (m_ptool == null) {
-            m_ptool = PlannerTool.createPlannerToolProcess(m_hStoreSite.getCatalog().serialize());
+            m_ptool = PlannerTool.createPlannerToolProcess(m_hStoreSite.getCatalogContext().catalog.serialize());
         }
     }
 

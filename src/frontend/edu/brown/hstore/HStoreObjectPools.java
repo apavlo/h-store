@@ -103,7 +103,7 @@ public final class HStoreObjectPools implements Configurable {
         // If there are no prefetchable queries or MapReduce procedures in the catalog, then we will not
         // create these special object pools
         boolean needsPrefetch = false;
-        for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
+        for (Procedure catalog_proc : hstore_site.getCatalogContext().procedures) {
             if (catalog_proc.getPrefetchable() && hstore_conf.site.exec_prefetch_queries) {
                 needsPrefetch = true;
                 break;

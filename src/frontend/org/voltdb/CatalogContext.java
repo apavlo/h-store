@@ -320,14 +320,14 @@ public class CatalogContext {
     }
     
     /**
-     * Return  of all the partition ids in this H-Store database cluster
+     * Return all the partition ids in this H-Store database cluster
      */
     public PartitionSet getAllPartitionIds() {
         return (this.partitionIdCollection);
     }
     
     /**
-     * Return  of all the partition ids in this H-Store database cluster
+     * Return all the partition ids in this H-Store database cluster
      */
     public Integer[] getAllPartitionIdArray() {
         return (this.partitionIdArray);
@@ -345,6 +345,14 @@ public class CatalogContext {
     // TABLES + COLUMNS
     // ------------------------------------------------------------
 
+    /**
+     * Return the Table for the given name
+     * @param tableName
+     */
+    public Table getTableByName(String tableName) {
+        return (this.database.getTables().getIgnoreCase(tableName));
+    }
+    
     /**
      * Return all of the internal system tables for the database
      */

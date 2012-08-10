@@ -179,7 +179,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         this.header.put("Number of Partitions", this.executors.size());
         
         // Pre-Compute TransactionProfile Information
-        this.initTxnProfileInfo(hstore_site.getDatabase());
+        this.initTxnProfileInfo(hstore_site.getCatalogContext().database);
     }
     
     @Override

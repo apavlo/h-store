@@ -148,8 +148,8 @@ public class MapReduceTransaction extends LocalTransaction {
                    client_callback);
         
         // Intialize MapReduce properties
-        this.mapEmit = hstore_site.getDatabase().getTables().get(this.catalog_proc.getMapemittable());
-        this.reduceEmit = hstore_site.getDatabase().getTables().get(this.catalog_proc.getReduceemittable());
+        this.mapEmit = hstore_site.getCatalogContext().getTableByName(this.catalog_proc.getMapemittable());
+        this.reduceEmit = hstore_site.getCatalogContext().getTableByName(this.catalog_proc.getReduceemittable());
         LOG.info(" CatalogUtil.getVoltTable(thisMapEmit): -> " + this.catalog_proc.getMapemittable());
         LOG.info("MapReduce LocalPartitionIds: " + this.hstore_site.getLocalPartitionIds());
         
