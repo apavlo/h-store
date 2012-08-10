@@ -76,15 +76,18 @@ public class TPCCLoader extends BenchmarkComponent {
      */
     private final LoadThread m_loadThreads[];
     final TPCCConfig m_tpccConfig;
+    final int replicated_batch_size;
 
     private int MAX_BATCH_SIZE = 10000;
     
-    private static final VoltTable.ColumnInfo customerTableColumnInfo[] = new VoltTable.ColumnInfo[] {
-            new VoltTable.ColumnInfo("C_ID", VoltType.INTEGER), new VoltTable.ColumnInfo("C_D_ID", VoltType.TINYINT),
-            new VoltTable.ColumnInfo("C_W_ID", VoltType.SMALLINT),
-            new VoltTable.ColumnInfo("C_FIRST", VoltType.STRING), new VoltTable.ColumnInfo("C_LAST", VoltType.STRING) };
+    private static final VoltTable.ColumnInfo CUSTOMER_NAME_COLUMNS[] = new VoltTable.ColumnInfo[] {
+        new VoltTable.ColumnInfo("C_ID", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("C_D_ID", VoltType.TINYINT),
+        new VoltTable.ColumnInfo("C_W_ID", VoltType.SMALLINT),
+        new VoltTable.ColumnInfo("C_FIRST", VoltType.STRING),
+        new VoltTable.ColumnInfo("C_LAST", VoltType.STRING)
+    };
 
-    private static final LinkedList<VoltTable> customerNamesTables = new LinkedList<VoltTable>();
     private static final Semaphore m_finishedLoadThreads = new Semaphore(0);
 
     public TPCCLoader(String args[]) {
@@ -93,6 +96,9 @@ public class TPCCLoader extends BenchmarkComponent {
         initTableNames();
         m_tpccConfig = TPCCConfig.createConfig(this.getCatalog(), m_extraParams);
         m_loadThreads = new LoadThread[m_tpccConfig.num_loadthreads];
+        
+        // Scale the MAX_BATCH_SIZE based on the number of partitions
+        this.replicated_batch_size = MAX_BATCH_SIZE / CatalogUtil.getNumberOfPartitions(getCatalog());
         
         if (LOG.isDebugEnabled())
             LOG.debug("Loader Configuration:\n" + m_tpccConfig);
@@ -172,6 +178,8 @@ public class TPCCLoader extends BenchmarkComponent {
         private final RandomGenerator m_generator;
         private final TimestampType m_generationDateTime;
         private final ScaleParameters m_parameters;
+        private final int itemStart;
+        private final int itemEnd;
 
         /**
          * table data FOR CURRENT WAREHOUSE (LoadWarehouse is partitioned on
@@ -182,11 +190,15 @@ public class TPCCLoader extends BenchmarkComponent {
                                                                   // tables
         private volatile boolean m_doMakeReplicated = false;
 
-        public LoadThread(RandomGenerator generator, TimestampType generationDateTime, ScaleParameters parameters, int index) {
-            super("Load Thread " + index);
+        public LoadThread(RandomGenerator generator, TimestampType generationDateTime, ScaleParameters parameters, int threadIndex) {
+            super("Load Thread " + threadIndex);
             m_generator = generator;
             this.m_generationDateTime = generationDateTime;
             this.m_parameters = parameters;
+            
+            int itemsPerThread = parameters.items / m_tpccConfig.num_loadthreads; 
+            this.itemStart = itemsPerThread * threadIndex;
+            this.itemEnd = this.itemStart + itemsPerThread;
         }
 
         @Override
@@ -201,19 +213,23 @@ public class TPCCLoader extends BenchmarkComponent {
                 makeWarehouse(warehouseId);
                 for (int i = 0; i < data_tables.length; ++i)
                     data_tables[i] = null;
-                LOG.info("Finished Loading Warehouse " + warehouseId);
-            }
-            if (m_doMakeReplicated) {
-                try {
-                    m_finishedLoadThreads.acquire(m_loadThreads.length - 1);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                makeReplicated();
-                m_doMakeReplicated = false;
-            } else {
-                m_finishedLoadThreads.release();
-            }
+                LOG.info("Finished WAREHOUSE " + warehouseId);
+            } // WHILE
+            
+            makeItems(this.itemStart, itemEnd);
+            LOG.debug(String.format("Finished ITEM [%d - %d]", this.itemStart, this.itemEnd));
+            
+//            if (m_doMakeReplicated) {
+//                try {
+//                    m_finishedLoadThreads.acquire(m_loadThreads.length - 1);
+//                } catch (InterruptedException e) {
+//                    throw new RuntimeException(e);
+//                }
+//                makeCustomerName();
+//                m_doMakeReplicated = false;
+//            } else {
+//                m_finishedLoadThreads.release();
+//            }
 
 //            VoltTable results[] = null;
 //            try {
@@ -318,7 +334,7 @@ public class TPCCLoader extends BenchmarkComponent {
 
         private final Object[] container_customer = new Object[6 + 5 + 10];
 
-        public void generateCustomer(long c_w_id, long c_d_id, long c_id, boolean badCredit, boolean doesReplicateName) {
+        public void generateCustomer(long c_w_id, long c_d_id, long c_id, boolean badCredit, VoltTable customerNames) {
             String c_first = m_generator.astring(TPCCConstants.MIN_FIRST, TPCCConstants.MAX_FIRST);
             String c_middle = TPCCConstants.MIDDLE;
 
@@ -372,16 +388,9 @@ public class TPCCLoader extends BenchmarkComponent {
             container_customer[ind++] = c_delivery_cnt;
             container_customer[ind++] = c_data;
             data_tables[IDX_CUSTOMERS].addRow(container_customer);
-            if (doesReplicateName) {
-                // replicate name and id to every site
-                synchronized (customerNamesTables) {
-                    VoltTable customerNames = customerNamesTables.peekFirst();
-                    if (customerNames == null || customerNames.getRowCount() > 32760) {
-                        customerNames = new VoltTable(customerTableColumnInfo);
-                        customerNamesTables.push(customerNames);
-                    }
-                    customerNames.addRow(c_id, c_d_id, c_w_id, c_first, c_last);
-                }
+            
+            if (customerNames != null) {
+                customerNames.addRow(c_id, c_d_id, c_w_id, c_first, c_last);
             }
         }
 
@@ -534,6 +543,10 @@ public class TPCCLoader extends BenchmarkComponent {
         public void makeWarehouse(long w_id) {
             generateWarehouse(w_id);
 
+            // replicate name and id to every site
+            VoltTable customerNames = null;
+            if (m_doMakeReplicated) customerNames = new VoltTable(CUSTOMER_NAME_COLUMNS);
+            
             for (int d_id = 1; d_id <= m_parameters.districtsPerWarehouse; ++d_id) {
                 // System.err.printf("Beginning District: %d\n", d_id);
                 generateDistrict(w_id, d_id);
@@ -544,7 +557,7 @@ public class TPCCLoader extends BenchmarkComponent {
                 // long[] c_ids = new long[customersPerDistrict];
                 for (int c_id = 1; c_id <= m_parameters.customersPerDistrict; ++c_id) {
                     boolean badCredit = selectedRows.contains(c_id);
-                    generateCustomer(w_id, d_id, c_id, badCredit, true);
+                    generateCustomer(w_id, d_id, c_id, badCredit, customerNames);
                     generateHistory(w_id, d_id, c_id);
                 }
 
@@ -578,11 +591,18 @@ public class TPCCLoader extends BenchmarkComponent {
                 }
                 commitDataTables(w_id); // flushout current data to avoid
                                         // outofmemory
+                
+                if (customerNames != null || customerNames.getRowCount() > 32760) {
+                    this.makeCustomerName(customerNames);
+                }
+            }
+            if (customerNames != null || customerNames.getRowCount() > 0) {
+                this.makeCustomerName(customerNames);
             }
         }
 
         /** generate replicated tables, ITEM and CUSTOMER_NAME. */
-        public void makeReplicated() {
+        public void makeItems(int itemStart, int itemFinish) {
             // create ITEMS here to reduce memory consumption
             VoltTable items = new VoltTable(new VoltTable.ColumnInfo("I_ID", VoltType.INTEGER),
                                             new VoltTable.ColumnInfo("I_IM_ID", VoltType.INTEGER),
@@ -590,15 +610,14 @@ public class TPCCLoader extends BenchmarkComponent {
                                             new VoltTable.ColumnInfo("I_PRICE", VoltType.FLOAT),
                                             new VoltTable.ColumnInfo("I_DATA", VoltType.STRING));
             
-            // Scale the MAX_BATCH_SIZE based on the number of partitions
-            int replicated_batch_size = MAX_BATCH_SIZE / CatalogUtil.getNumberOfPartitions(getCatalog());
+            
             
             // items.ensureRowCapacity(parameters.items);
             // items.ensureStringCapacity(parameters.items * 96);
             // Select 10% of the rows to be marked "original"
-            LOG.info(String.format("Loading replicated ITEM table [tuples=%d]", m_parameters.items));
+            LOG.debug(String.format("Loading replicated ITEM table [tuples=%d]", m_parameters.items));
             HashSet<Integer> originalRows = selectUniqueIds(m_parameters.items / 10, 1, m_parameters.items);
-            for (int i = 1; i <= m_parameters.items; ++i) {
+            for (int i = itemStart; i < itemFinish; ++i) {
                 // if we're on a 10% boundary, print out some nice status info
                 // if (i % (m_parameters.items / 10) == 0)
                 // System.err.printf("   %d%%\n", (i * 100) /
@@ -623,107 +642,34 @@ public class TPCCLoader extends BenchmarkComponent {
                 loadVoltTable("ITEM", items);
                 items.clearRowData();
             }
-
-//            if (m_voltClient != null) {
-//                // XXX
-//                final int numPermits = 48;
-//                final Semaphore maxOutstandingInvocations = new Semaphore(numPermits);
-//                final int totalInvocations = customerNamesTables.size() * m_parameters.warehouses;
-//                final ProcedureCallback callback = new ProcedureCallback() {
-//                    private int invocationsCompleted = 0;
-//
-//                    private double lastPercentCompleted = 0.0;
-//
-//                    @Override
-//                    public synchronized void clientCallback(ClientResponse clientResponse) {
-//                        if (clientResponse.getStatus() != Status.OK) {
-//                            System.err.println(clientResponse.getStatusString());
-//                            System.exit(-1);
-//                        }
-//                        invocationsCompleted++;
-//                        final double percentCompleted = invocationsCompleted / (double) totalInvocations;
-//                        if (percentCompleted > lastPercentCompleted + .1) {
-//                            lastPercentCompleted = percentCompleted;
-//                            LOG.info(String.format("Finished %d/%d replicated load work", invocationsCompleted, totalInvocations));
-//                        }
-//                        maxOutstandingInvocations.release();
-//                    }
-//
-//                };
-//
-//                LinkedList<Pair<Integer, LinkedList<VoltTable>>> replicatedLoadWork = new LinkedList<Pair<Integer, LinkedList<VoltTable>>>();
-//
-//                int totalLoadWorkGenerated = 0;
-//                for (int w_id = m_parameters.starting_warehouse; w_id <= (m_parameters.warehouses + m_parameters.starting_warehouse); ++w_id) {
-//                    replicatedLoadWork.add(new Pair<Integer, LinkedList<VoltTable>>(w_id, new LinkedList<VoltTable>(
-//                            customerNamesTables), false));
-//                    totalLoadWorkGenerated += customerNamesTables.size();
-//                }
-//                Collections.shuffle(replicatedLoadWork);
-//                LOG.debug("Total load work generated is " + (totalLoadWorkGenerated-1));
-
-                /*
-                 * Only supply item table the first time.
-                 */
-                
-                // Customer Name! Booyah! Shaq Attaq!
-                for (int i = 0, cnt = customerNamesTables.size(); i < cnt; i++) {
-                    VoltTable table = customerNamesTables.get(i);
-                    VoltTable batch = new VoltTable(table);
-                    LOG.debug(String.format("Loading replicated CUSTOMER_NAME table %02d / %02d [tuples=%d]", (i+1), cnt, table.getRowCount()));
-                    try {
-                        for (int i2 = 0, cnt2 = table.getRowCount(); i2 < cnt2; i2++) {
-                            batch.add(table.fetchRow(i2));
-                            if (batch.getRowCount() == replicated_batch_size) {
-                                LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i2, cnt2));
-                                loadVoltTable("CUSTOMER_NAME", batch);
-                                batch.clearRowData();
-                            }
-                        } // FOR
-                        if (batch.getRowCount() > 0) {
-                            loadVoltTable("CUSTOMER_NAME", batch);
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        System.exit(-1);
-                    }
-                }
-
-//                while (!replicatedLoadWork.isEmpty()) {
-//                    Iterator<Pair<Integer, LinkedList<VoltTable>>> iter = replicatedLoadWork.iterator();
-//                    while (iter.hasNext()) {
-//                        Pair<Integer, LinkedList<VoltTable>> p = iter.next();
-//                        if (p.getSecond().peek() == null) {
-//                            iter.remove();
-//                            continue;
-//                        }
-//                        try {
-//                            maxOutstandingInvocations.acquire();
-//                            VoltTable table = p.getSecond().pop();
-//                            boolean queued = false;
-//                            while (!queued) {
-//                                queued = this.getClientHandle().callProcedure(callback, Constants.LOAD_WAREHOUSE_REPLICATED,
-//                                        (short) p.getFirst().intValue(), null, table);
-//                                this.getClientHandle().backpressureBarrier();
-//                            }
-//                        } catch (Exception e) {
-//                            e.printStackTrace();
-//                            System.exit(-1);
-//                        }
-//                    }
-//                }
-//
-//                try {
-//                    maxOutstandingInvocations.acquire(numPermits);
-//                    LOG.info("Finished all replicated load work");
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                    System.exit(-1);
-//                }
-//            }
-
             items = null;
         }
+        
+        private void makeCustomerName(VoltTable table) {
+            // Customer Name! Booyah! Shaq Attaq!
+            VoltTable batch = new VoltTable(table);
+            LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d]", table.getRowCount()));
+            try {
+                for (int i = 0, cnt = table.getRowCount(); i < cnt; i++) {
+                    batch.add(table.fetchRow(i));
+                    if (batch.getRowCount() == replicated_batch_size) {
+                        LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i, cnt));
+                        loadVoltTable("CUSTOMER_NAME", batch);
+                        batch.clearRowData();
+                    }
+                } // FOR
+                if (batch.getRowCount() > 0) {
+                    loadVoltTable("CUSTOMER_NAME", batch);
+                    batch.clearRowData();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(-1);
+            } finally {
+                table.clearRowData();
+            }
+        }
+        
 
         /** Send to data to VoltDB and/or to the jdbc connection */
         private void commitDataTables(long w_id) {
@@ -867,12 +813,12 @@ public class TPCCLoader extends BenchmarkComponent {
         availableWarehouseIds.addAll(warehouseIds);
 
         LOG.info(String.format("Loading %d warehouses using %d load threads", warehouseIds.size(), m_loadThreads.length));
-        boolean doMakeReplicated = true;
+//        boolean doMakeReplicated = true;
         for (LoadThread loadThread : m_loadThreads) {
             LOG.debug("Starting LoadThread...");
             loadThread.setUncaughtExceptionHandler(handler);
-            loadThread.start(doMakeReplicated);
-            doMakeReplicated = false;
+            loadThread.start(true);
+//            doMakeReplicated = false;
         }
 
         for (int ii = 0; ii < m_loadThreads.length; ii++) {
