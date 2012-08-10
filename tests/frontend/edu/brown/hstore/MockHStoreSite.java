@@ -46,7 +46,7 @@ public class MockHStoreSite extends HStoreSite {
         PartitionSet predict_touchedPartitions = catalogContext.getAllPartitionIds();
         boolean predict_readOnly = false;
         boolean predict_canAbort = true;
-        Procedure catalog_proc = hstore_site.getDatabase().getProcedures().getIgnoreCase("@NoOp");
+        Procedure catalog_proc = catalogContext.procedures.getIgnoreCase("@NoOp");
         ParameterSet params = new ParameterSet();
         RpcCallback<ClientResponseImpl> client_callback = null;
         
@@ -115,7 +115,7 @@ public class MockHStoreSite extends HStoreSite {
         );
         int site_id = args.getIntOptParam(0);
         
-        Site catalog_site = CatalogUtil.getSiteFromId(args.catalog, site_id);
+        Site catalog_site = args.catalogContext.getSiteById(site_id);
         assert(catalog_site != null) : "Invalid site id #" + site_id;
         
         HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);

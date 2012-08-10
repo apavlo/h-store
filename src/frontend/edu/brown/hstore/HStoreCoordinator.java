@@ -257,13 +257,13 @@ public class HStoreCoordinator implements Shutdownable {
         PrefetchQueryPlanner tmpPlanner = null;
         if (hstore_conf.site.exec_prefetch_queries) {
             boolean has_prefetch = false;
-            for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
+            for (Procedure catalog_proc : catalogContext.procedures) {
                 if (catalog_proc.getPrefetchable()) {
                     has_prefetch = true;
                     break;
                 }
             }
-            if (has_prefetch) tmpPlanner = new PrefetchQueryPlanner(hstore_site.getDatabase(),
+            if (has_prefetch) tmpPlanner = new PrefetchQueryPlanner(catalogContext.database,
                                                                     hstore_site.getPartitionEstimator());
         }
         this.queryPrefetchPlanner = tmpPlanner;

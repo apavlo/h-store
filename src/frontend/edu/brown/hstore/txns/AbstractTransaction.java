@@ -205,7 +205,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         
         this.readTables = new BitSet[numLocalPartitions];
         this.writeTables = new BitSet[numLocalPartitions];
-        int num_tables = hstore_site.getDatabase().getTables().size();
+        int num_tables = hstore_site.getCatalogContext().database.getTables().size();
         for (int i = 0; i < numLocalPartitions; i++) {
             this.readTables[i] = new BitSet(num_tables);
             this.writeTables[i] = new BitSet(num_tables);
