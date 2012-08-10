@@ -19,6 +19,7 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
@@ -664,8 +665,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         try {
             base_partition = t_estimator.getPartitionEstimator().getBasePartition(markov.getProcedure(), args);
         } catch (Exception ex) {
-            LOG.fatal(String.format("Failed to calculate base partition for <%s, %s>", markov.getProcedure().getName(), Arrays.toString(args)), ex);
-            System.exit(1);
+            String msg = String.format("Failed to calculate base partition for <%s, %s>",
+                                       markov.getProcedure().getName(), Arrays.toString(args)); 
+            LOG.fatal(msg, ex);
+            throw new RuntimeException(msg, ex);
         }
         assert(base_partition != HStoreConstants.NULL_PARTITION_ID);
         

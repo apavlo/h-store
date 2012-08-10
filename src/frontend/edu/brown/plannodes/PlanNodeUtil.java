@@ -474,7 +474,7 @@ public abstract class PlanNodeUtil {
             } catch (Exception ex) {
                 LOG.fatal("Failed to retrieve table '" + table_name + "'", ex);
                 LOG.fatal(CatalogUtil.debug(catalog_db.getTables()));
-                System.exit(1);
+                throw new RuntimeException(ex);
             }
             assert (catalog_tbl != null) : "Invalid table '" + table_name + "'";
 
@@ -770,8 +770,7 @@ public abstract class PlanNodeUtil {
         } else if (node instanceof UpdatePlanNode) {
             sb.append(inner_spacer).append("UpdateIndexes[" + ((UpdatePlanNode) node).doesUpdateIndexes() + "]\n");
         } else {
-            LOG.fatal("Unsupported PlanNode type: " + node.getClass().getSimpleName());
-            System.exit(1);
+            throw new RuntimeException("Unsupported PlanNode type: " + node.getClass().getSimpleName());
         }
 
         // Output Columns
@@ -1012,8 +1011,6 @@ public abstract class PlanNodeUtil {
 
         if (ret == null) {
             throw new RuntimeException("Unable to deserialize full query plan tree for " + catalog_stmt + ": The deserializer returned a null root node");
-            // System.err.println(CatalogUtil.debugJSON(catalog_stmt));
-            // System.exit(1);
         }
 
         cache.put(cache_key, ret);
@@ -1135,7 +1132,7 @@ public abstract class PlanNodeUtil {
                 node2 = getPlanNodeTreeForPlanFragment(o2);
             } catch (Exception ex) {
                 LOG.fatal(ex);
-                System.exit(1);
+                throw new RuntimeException(ex);
             }
             // o1 > o2
             return (node2.getPlanNodeId() - node1.getPlanNodeId());
