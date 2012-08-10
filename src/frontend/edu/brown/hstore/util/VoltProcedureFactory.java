@@ -41,7 +41,7 @@ public class VoltProcedureFactory extends TypedPoolableObjectFactory<VoltProcedu
                 p_class = (Class<? extends VoltProcedure>)Class.forName(className);
             } catch (final ClassNotFoundException e) {
                 LOG.fatal("Failed to load procedure class '" + className + "'", e);
-                System.exit(1);
+                throw new RuntimeException(e);
             }
         }
         this.proc_class = p_class;

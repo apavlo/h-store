@@ -375,7 +375,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             FileUtil.writeStringToFile(file, catalog.serialize());
         } catch (Exception ex) {
             ex.printStackTrace();
-            System.exit(1);
+            throw new RuntimeException(ex);
         }
         LOG.info("Wrote catalog contents to '" + file.getAbsolutePath() + "'");
         return (file);
@@ -1611,7 +1611,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, node, columns, modified, readOnly);
                 } catch (Exception ex) {
                     LOG.fatal("Failed to extract columns from " + node, ex);
-                    System.exit(1);
+                    throw new RuntimeException(ex);
                 }
                 return;
             }
@@ -2113,7 +2113,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     this._callback(node);
                 } catch (Exception ex) {
                     ex.printStackTrace();
-                    System.exit(1);
+                    throw new RuntimeException(ex);
                 }
             }
 
@@ -2662,7 +2662,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 ret += "FRAGMENT " + catalog_frgmt.getName() + "\n" + jsonObject.toString(2) + line;
             } catch (Exception ex) {
                 ex.printStackTrace();
-                System.exit(1);
+                throw new RuntimeException(ex);
             }
         } // FOR
         return (ret);

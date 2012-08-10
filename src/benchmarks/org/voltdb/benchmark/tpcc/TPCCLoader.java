@@ -127,14 +127,14 @@ public class TPCCLoader extends BenchmarkComponent {
     private final static int IDX_HISTORIES = 7;
 
     private void initTableNames() {
-        table_names[IDX_WAREHOUSES] = "warehouse";
-        table_names[IDX_DISTRICTS] = "district";
-        table_names[IDX_CUSTOMERS] = "customer";
-        table_names[IDX_STOCKS] = "stock";
-        table_names[IDX_ORDERS] = "orders";
-        table_names[IDX_NEWORDERS] = "new_order";
-        table_names[IDX_ORDERLINES] = "order_line";
-        table_names[IDX_HISTORIES] = "history";
+        table_names[IDX_WAREHOUSES] = TPCCConstants.TABLENAME_WAREHOUSE;
+        table_names[IDX_DISTRICTS] = TPCCConstants.TABLENAME_DISTRICT;
+        table_names[IDX_CUSTOMERS] = TPCCConstants.TABLENAME_CUSTOMER;
+        table_names[IDX_STOCKS] = TPCCConstants.TABLENAME_STOCK;
+        table_names[IDX_ORDERS] = TPCCConstants.TABLENAME_ORDERS;
+        table_names[IDX_NEWORDERS] = TPCCConstants.TABLENAME_NEW_ORDER;
+        table_names[IDX_ORDERLINES] = TPCCConstants.TABLENAME_ORDER_LINE;
+        table_names[IDX_HISTORIES] = TPCCConstants.TABLENAME_HISTORY;
     }
 
     public static void main(String[] args) {
