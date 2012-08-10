@@ -42,7 +42,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 
@@ -87,8 +86,6 @@ public class TPCCLoader extends BenchmarkComponent {
         new VoltTable.ColumnInfo("C_FIRST", VoltType.STRING),
         new VoltTable.ColumnInfo("C_LAST", VoltType.STRING)
     };
-
-    private static final Semaphore m_finishedLoadThreads = new Semaphore(0);
 
     public TPCCLoader(String args[]) {
         super(args);
@@ -592,11 +589,11 @@ public class TPCCLoader extends BenchmarkComponent {
                 commitDataTables(w_id); // flushout current data to avoid
                                         // outofmemory
                 
-                if (customerNames != null || customerNames.getRowCount() > 32760) {
+                if (customerNames != null && customerNames.getRowCount() > 32760) {
                     this.makeCustomerName(customerNames);
                 }
             }
-            if (customerNames != null || customerNames.getRowCount() > 0) {
+            if (customerNames != null && customerNames.getRowCount() > 0) {
                 this.makeCustomerName(customerNames);
             }
         }
