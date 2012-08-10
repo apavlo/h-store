@@ -2396,7 +2396,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         Throwable error = null;
         try {
-            if (d) LOG.debug(String.format("%s - Executing fragments %s at partition %d",
+            if (t) LOG.trace(String.format("%s - Executing fragments %s at partition %d",
                                            ts, Arrays.toString(fragmentIds), this.partitionId));
             
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
@@ -2417,7 +2417,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             throw ex;
         } catch (Throwable ex) {
             error = ex;
-            throw new ServerFaultException(String.format("%s - Failed to execute PlanFragments: %s", ts, Arrays.toString(fragmentIds)), ex);
+            String msg = String.format("%s - Failed to execute PlanFragments: %s", ts, Arrays.toString(fragmentIds));
+            throw new ServerFaultException(msg, ex);
         } finally {
             if (needs_profiling) ((LocalTransaction)ts).profiler.stopExecEE();
             if (error == null && result == null) {
