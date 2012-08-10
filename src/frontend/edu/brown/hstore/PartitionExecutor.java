@@ -3250,7 +3250,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
         }
         
-        
         // -------------------------------
         // ALL: Mispredicted Transactions
         // -------------------------------
@@ -3263,8 +3262,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // We don't want to delete the transaction here because whoever is going to requeue it for
             // us will need to know what partitions that the transaction touched when it executed before
             if (ts.isPredictSinglePartition()) {
-                this.hstore_site.transactionRequeue(ts, status);
                 this.finishWork(ts, false);
+                this.hstore_site.transactionRequeue(ts, status);
             }
             // Send a message all the partitions involved that the party is over
             // and that they need to abort the transaction. We don't actually care when we get the
@@ -3365,9 +3364,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) 
                 this.profiler.network_time.stop();
         }
-        
-
-
     }
         
     /**
@@ -3378,6 +3374,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private void finishWork(AbstractTransaction ts, boolean commit) {
         assert(ts != null) :
             "Unexpected null transaction handle at partition " + this.partitionId;
+        assert(ts.isInitialized()) :
+            String.format("Trying to commit uninitialized transaction %s at partition %d", ts, this.partitionId);
         assert(ts.isMarkedFinished(this.partitionId) == false) :
             String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
         
