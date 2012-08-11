@@ -27,6 +27,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
+import edu.brown.hstore.estimators.Estimation;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;

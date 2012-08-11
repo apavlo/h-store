@@ -38,6 +38,7 @@ import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.NumericToNominal;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.MarkovCostModel;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;

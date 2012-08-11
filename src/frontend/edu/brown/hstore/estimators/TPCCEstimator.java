@@ -12,6 +12,7 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ParameterMangler;
+import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
 public class TPCCEstimator extends AbstractEstimator {
@@ -31,8 +32,8 @@ public class TPCCEstimator extends AbstractEstimator {
      * Constructor
      * @param hstore_site
      */
-    public TPCCEstimator(CatalogContext catalogContext, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
-        super(catalogContext, manglers, hasher);
+    public TPCCEstimator(CatalogContext catalogContext, PartitionEstimator p_estimator) {
+        super(p_estimator);
     }
     
     private Integer getPartition(Short w_id) {

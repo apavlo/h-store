@@ -26,6 +26,7 @@ import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractGraphElement;
 import edu.brown.graphs.GraphUtil;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.AuctionMarkMarkovGraphsContainer;
@@ -292,7 +293,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      * @param vtype - the Vertex type (cannot be a regular query)
      * @return the single vertex for that type  
      */
-    protected MarkovVertex getSpecialVertex(MarkovVertex.Type vtype) {
+    public MarkovVertex getSpecialVertex(MarkovVertex.Type vtype) {
         assert(vtype != MarkovVertex.Type.QUERY);
         MarkovVertex v = null;
         switch (vtype) {
@@ -303,6 +304,28 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
                 assert(v != null) : "The special vertex for type " + vtype + " is null";
                 break;
             }
+            default:
+                // Ignore others
+        } // SWITCH
+        return (v);
+    }
+    
+    /**
+     * For the given Vertex type, return the special vertex
+     * @param vtype - the Vertex type (cannot be a regular query)
+     * @return the single vertex for that type  
+     */
+    public MarkovVertex getFinishVertex(Status status) {
+        MarkovVertex v = null;
+        switch (status) {
+            case OK:
+                v = this.getCommitVertex();
+                break;
+            case ABORT_USER:
+            case ABORT_GRACEFUL:
+            case ABORT_MISPREDICT:
+                v = this.getAbortVertex();
+                break;
             default:
                 // Ignore others
         } // SWITCH

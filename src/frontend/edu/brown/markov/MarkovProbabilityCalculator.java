@@ -9,6 +9,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.hstore.estimators.Estimation;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovVertex.Type;
