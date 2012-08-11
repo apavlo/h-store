@@ -66,11 +66,12 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.hstore.estimators.Estimation;
+import edu.brown.hstore.estimators.EstimationState;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEstimate;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.Histogram;
@@ -174,9 +175,9 @@ public class LocalTransaction extends AbstractTransaction {
     private PartitionSet predict_touchedPartitions;
   
     /**
-     * TransctionEstimator State Handle
+     * EstimationState Handle
      */
-    private TransactionEstimator.State predict_tState;
+    private EstimationState predict_tState;
     
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
@@ -368,7 +369,7 @@ public class LocalTransaction extends AbstractTransaction {
         }
         // Return our TransactionEstimator.State handle
         if (this.predict_tState != null) {
-            TransactionEstimator.POOL_STATES.returnObject(this.predict_tState);
+            this.predict_tState.finish();
             this.predict_tState = null;
         }
         
@@ -874,7 +875,7 @@ public class LocalTransaction extends AbstractTransaction {
     }
 
     
-    public TransactionEstimator.State getEstimatorState() {
+    public EstimationState getEstimatorState() {
         return (this.predict_tState);
     }
     public void setEstimatorState(TransactionEstimator.State state) {
@@ -1415,7 +1416,7 @@ public class LocalTransaction extends AbstractTransaction {
         final int ts_done_partitions_size = this.exec_donePartitions.size();
         PartitionSet new_done = null;
 
-        TransactionEstimator.State t_state = this.getEstimatorState();
+        EstimationState t_state = this.getEstimatorState();
         if (t_state == null) {
             return (null);
         }
@@ -1423,7 +1424,7 @@ public class LocalTransaction extends AbstractTransaction {
         if (d) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
                                        this, this.getCurrentRound(this.base_partition)));
         
-        MarkovEstimate estimate = t_state.getLastEstimate();
+        Estimation estimate = t_state.getLastEstimate();
         assert(estimate != null) : "Got back null MarkovEstimate for " + this;
         if (estimate.isValid()) {
             return (null);

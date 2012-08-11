@@ -1,4 +1,4 @@
-package edu.brown.markov;
+package edu.brown.hstore.estimators;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -10,29 +10,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
 
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
-import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.markov.MarkovEdge;
+import edu.brown.markov.MarkovEstimate;
+import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovPathEstimator;
+import edu.brown.markov.MarkovUtil;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphsContainer;
-import edu.brown.pools.Poolable;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -43,7 +46,7 @@ import edu.brown.workload.TransactionTrace;
  * 
  * @author pavlo
  */
-public class TransactionEstimator implements Loggable {
+public class TransactionEstimator extends AbstractEstimator<TransactionEstimator.State, MarkovEstimate> {
     private static final Logger LOG = Logger.getLogger(TransactionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -72,14 +75,9 @@ public class TransactionEstimator implements Loggable {
     // DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    private final CatalogContext catalogContext;
-    private final int num_partitions;
-    private final PartitionEstimator p_estimator;
-    private final ParameterMappingsSet correlations;
+    private final ParameterMappingsSet mappings;
     private final MarkovGraphsContainer markovs;
     private final Map<Long, State> txn_states = new ConcurrentHashMap<Long, State>();
-    private final AtomicInteger txn_count = new AtomicInteger(0);
-    private final HStoreConf hstore_conf;
     
     /**
      * We can maintain a cache of the last successful MarkovPathEstimator per MarkovGraph
@@ -95,17 +93,11 @@ public class TransactionEstimator implements Loggable {
     /**
      * The current state of a transaction
      */
-    public static final class State implements Poolable {
+    public static final class State extends EstimationState {
         private final List<MarkovVertex> actual_path = new ArrayList<MarkovVertex>();
         private final List<MarkovEdge> actual_path_edges = new ArrayList<MarkovEdge>();
-        private final PartitionSet touched_partitions = new PartitionSet();
-        private final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
         private final List<MarkovEstimate> estimates = new ArrayList<MarkovEstimate>();
-        private final int num_partitions;
 
-        private Long txn_id = null;
-        private int base_partition;
-        private long start_time;
         private MarkovGraph markov;
         private MarkovPathEstimator initial_estimator;
         private MarkovEstimate initial_estimate;
@@ -138,7 +130,7 @@ public class TransactionEstimator implements Loggable {
          * @param estimated_path - the initial path estimation from MarkovPathEstimator
          */
         private State(int num_partitions) {
-            this.num_partitions = num_partitions;
+            super(num_partitions);
         }
         
         public void init(Long txn_id, int base_partition, MarkovGraph markov, MarkovPathEstimator initial_estimator, long start_time) {
@@ -152,16 +144,11 @@ public class TransactionEstimator implements Loggable {
         }
         
         @Override
-        public boolean isInitialized() {
-            return (this.txn_id != null);
-        }
-        
-        @Override
         public void finish() {
             // Only return the MarkovPathEstimator to it's object pool if it hasn't been cached
             if (this.initial_estimator.isCached() == false) {
                 if (d) LOG.debug(String.format("Initial MarkovPathEstimator is not marked as cached for txn #%d. Returning to pool... [hashCode=%d]",
-                                               this.txn_id, this.initial_estimator.hashCode()));
+                                 this.txn_id, this.initial_estimator.hashCode()));
                 try {
                     TransactionEstimator.POOL_ESTIMATORS.returnObject(this.initial_estimator);
                 } catch (Exception ex) {
@@ -169,7 +156,7 @@ public class TransactionEstimator implements Loggable {
                 }
             } else if (d) {
                 LOG.debug(String.format("Initial MarkovPathEstimator is marked as cached for txn #%d. Will not return to pool... [hashCode=%d]",
-                                        this.txn_id, this.initial_estimator.hashCode()));
+                          this.txn_id, this.initial_estimator.hashCode()));
             }
          
             // We maintain a local cache of Estimates, so there is no pool to return them to
@@ -177,20 +164,20 @@ public class TransactionEstimator implements Loggable {
             // want to return that here.
             for (int i = 0; i < this.num_estimates; i++) {
                 assert(this.estimates.get(i) != this.initial_estimate) :
-                    String.format("MarkovEstimate #%d == Initial MarkovEstimate for txn #%d [hashCode=%d]", i, this.txn_id, this.initial_estimate.hashCode());
+                    String.format("MarkovEstimate #%d == Initial MarkovEstimate for txn #%d [hashCode=%d]",
+                                  i, this.txn_id, this.initial_estimate.hashCode());
                 this.estimates.get(i).finish();
             } // FOR
             this.num_estimates = 0;
             
             this.markov.incrementTransasctionCount();
-            this.txn_id = null;
             this.actual_path.clear();
             this.actual_path_edges.clear();
-            this.touched_partitions.clear();
-            this.query_instance_cnts.clear();
             this.current = null;
             this.initial_estimator = null;
             this.initial_estimate = null;
+            super.finish();
+            TransactionEstimator.POOL_STATES.returnObject(this);
         }
         
         /**
@@ -209,18 +196,10 @@ public class TransactionEstimator implements Loggable {
             return (next);
         }
 
-        public long getTransactionId() {
-            return (this.txn_id);
-        }
-        public long getStartTime() {
-            return this.start_time;
-        }
         public MarkovGraph getMarkovGraph() {
             return (this.markov);
         }
-        public int getBasePartition() {
-            return (this.base_partition);
-        }
+        
         public Procedure getProcedure() {
             return (this.markov.getProcedure());
         }
@@ -252,33 +231,11 @@ public class TransactionEstimator implements Loggable {
             this.current = current;
         }
         
-        /**
-         * Get the number of milli-seconds that have passed since the txn started
-         * @return
-         */
-        public long getExecutionTimeOffset() {
-            return (EstTime.currentTimeMillis() - this.start_time);
-        }
-        
-        public long getExecutionTimeOffset(long stop) {
-            return (stop - this.start_time);
-        }
-        
-        public int updateQueryInstanceCount(Statement catalog_stmt) {
-            Integer cnt = this.query_instance_cnts.get(catalog_stmt);
-            if (cnt == null) cnt = 0;
-            this.query_instance_cnts.put(catalog_stmt, cnt.intValue() + 1);
-            return (cnt.intValue());
-        }
-        
         public List<MarkovVertex> getInitialPath() {
             return (this.initial_estimator.getVisitPath());
         }
         public float getInitialPathConfidence() {
             return (this.initial_estimator.getConfidence());
-        }
-        public PartitionSet getTouchedPartitions() {
-            return (this.touched_partitions);
         }
         public List<MarkovVertex> getActualPath() {
             return (this.actual_path);
@@ -292,6 +249,7 @@ public class TransactionEstimator implements Loggable {
             return (this.initial_estimate);
         }
 
+        @Override
         public MarkovEstimate getLastEstimate() {
             return (this.num_estimates > 0 ? this.estimates.get(this.num_estimates-1) : this.initial_estimate);
         }
@@ -334,17 +292,18 @@ public class TransactionEstimator implements Loggable {
     /**
      * Constructor
      * @param p_estimator
-     * @param correlations
+     * @param mappings
      * @param markovs
      */
-    public TransactionEstimator(PartitionEstimator p_estimator, ParameterMappingsSet correlations, MarkovGraphsContainer markovs) {
-        this.p_estimator = p_estimator;
+    public TransactionEstimator(PartitionEstimator p_estimator,
+                                Map<Procedure, ParameterMangler> manglers,
+                                ParameterMappingsSet mappings,
+                                MarkovGraphsContainer markovs) {
+        super(p_estimator, manglers);
         this.markovs = markovs;
-        this.catalogContext = this.p_estimator.getCatalogContext();
-        this.num_partitions = this.catalogContext.numberOfPartitions;
-        this.correlations = (correlations == null ? new ParameterMappingsSet() : correlations);
-        this.hstore_conf = HStoreConf.singleton();
-        if (this.markovs != null && this.markovs.getHasher() == null) this.markovs.setHasher(this.p_estimator.getHasher());
+        this.mappings = (mappings == null ? new ParameterMappingsSet() : mappings);
+        if (this.markovs != null && this.markovs.getHasher() == null) 
+            this.markovs.setHasher(this.hasher);
         
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
@@ -364,11 +323,10 @@ public class TransactionEstimator implements Loggable {
 
     /**
      * Constructor
-     * 
      * @param catalog_db
      */
-    public TransactionEstimator(int base_partition, PartitionEstimator p_estimator) {
-        this(p_estimator, null, new MarkovGraphsContainer());
+    public TransactionEstimator(PartitionEstimator p_estimator) {
+        this(p_estimator, null, null, new MarkovGraphsContainer());
     }
 
     // ----------------------------------------------------------------------------
@@ -380,44 +338,18 @@ public class TransactionEstimator implements Loggable {
         d = debug.get();
         t = trace.get();
     }
-
     
     public void enableGraphRecomputes() {
        this.enable_recomputes = true;
     }
-    
-    public CatalogContext getCatalogContext() {
-        return this.catalogContext;
-    }
-    public ParameterMappingsSet getParameterMappings() {
-        return this.correlations;
-    }
-    public PartitionEstimator getPartitionEstimator() {
-        return this.p_estimator;
-    }
     public MarkovGraphsContainer getMarkovs() {
         return (this.markovs);
     }
+    public ParameterMappingsSet getParameterMappings() {
+        return this.mappings;
+    }
     public void addMarkovGraphs(MarkovGraphsContainer markovs) {
         this.markovs.copy(markovs);
-    }
-    
-    /**
-     * Return the internal State object for the given transaction id
-     * @param txn_id
-     * @return
-     */
-    public State getState(long txn_id) {
-        return (this.txn_states.get(txn_id));
-    }
-    
-    /**
-     * Returns true if this TransactionEstimator is following a transaction
-     * @param txn_id
-     * @return
-     */
-    public boolean hasState(long txn_id) {
-        return (this.txn_states.containsKey(txn_id));
     }
     
     /**
@@ -439,27 +371,7 @@ public class TransactionEstimator implements Loggable {
     // ----------------------------------------------------------------------------
     // RUNTIME METHODS
     // ----------------------------------------------------------------------------
-   
-    /**
-     * Sets up the beginning of a transaction. Returns an estimate of where this
-     * transaction will go.
-     * 
-     * @param txn_id
-     * @param catalog_proc
-     * @param BASE_PARTITION
-     * @return an estimate for the transaction's future
-     */
-    protected State startTransaction(long txn_id, Procedure catalog_proc, Object args[]) {
-        int base_partition = HStoreConstants.NULL_PARTITION_ID;
-        try {
-            base_partition = this.p_estimator.getBasePartition(catalog_proc, args);
-            assert(base_partition != HStoreConstants.NULL_PARTITION_ID);
-        } catch (Throwable ex) {
-            throw new RuntimeException(String.format("Failed to calculate base partition for <%s, %s>", catalog_proc.getName(), Arrays.toString(args)), ex);
-        }
-        return (this.startTransaction(txn_id, base_partition, catalog_proc, args));
-    }
-        
+
     /**
      * 
      * @param txn_id
@@ -468,7 +380,7 @@ public class TransactionEstimator implements Loggable {
      * @param args
      * @return
      */
-    public State startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
+    public State startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         assert (catalog_proc != null);
         long start_time = EstTime.currentTimeMillis();
         if (d) LOG.debug(String.format("Starting estimation for new %s [partition=%d]",
@@ -568,15 +480,7 @@ public class TransactionEstimator implements Loggable {
 //    public final ProfileMeasurement CACHE = new ProfileMeasurement("CACHE");
 //    public final ProfileMeasurement CONSUME = new ProfileMeasurement("CONSUME");
     
-    /**
-     * Takes a series of queries and executes them in order given the partition
-     * information. Provides an estimate of where the transaction might go next.
-     * @param state
-     * @param catalog_stmts
-     * @param partitions
-     * @param allow_cache_lookup TODO
-     * @return
-     */
+    @Override
     public MarkovEstimate executeQueries(State state, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup) {
         if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.txn_id));
         int batch_size = catalog_stmts.length;
@@ -662,57 +566,36 @@ public class TransactionEstimator implements Loggable {
     }
 
     /**
-     * The transaction with provided txn_id is finished
-     * @param txn_id finished transaction
-     */
-    public State commit(Long txn_id) {
-        return (this.completeTransaction(txn_id, MarkovVertex.Type.COMMIT));
-    }
-
-    /**
-     * The transaction with provided txn_id has aborted
-     * @param txn_id
-     */
-    public State abort(long txn_id) {
-        return (this.completeTransaction(txn_id, MarkovVertex.Type.ABORT));
-    }
-
-    /**
-     * The transaction for the given txn_id is in limbo, so we just want to remove it
-     * Removes the transaction State without doing any final processing
-     * @param txn_id
-     * @return
-     */
-    public State mispredict(long txn_id) {
-        if (d) LOG.debug(String.format("Removing State info for txn #%d", txn_id));
-        // We can just remove its state and pass it back
-        // We don't care if it's valid or not
-        State s = this.txn_states.remove(txn_id);
-        if (s != null) s.markov.incrementMispredictionCount();
-        return (s);
-    }
-    
-    /**
      * 
      * @param txn_id
      * @param vtype
      * @return
      */
-    private State completeTransaction(Long txn_id, MarkovVertex.Type vtype) {
+    @Override
+    protected State completeTransaction(Long txn_id, Status status) {
         State s = this.txn_states.remove(txn_id);
         if (s == null) {
             LOG.warn("No state information exists for txn #" + txn_id);
             return (null);
         }
+        
+        // The transaction for the given txn_id is in limbo, so we just want to remove it
+        if (status == Status.ABORT_MISPREDICT) {
+            if (s != null) s.markov.incrementMispredictionCount();
+            return (s);
+        }
+        
+        
         long timestamp = EstTime.currentTimeMillis();
-        if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [type=%s]", txn_id, vtype));
+        if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [status=%s]",
+                         txn_id, status));
         
         // We need to update the counter information in our MarkovGraph so that we know
         // that the procedure may transition to the ABORT vertex from where ever it was before 
         MarkovGraph g = s.getMarkovGraph();
         MarkovVertex current = s.getCurrent();
-        MarkovVertex next_v = g.getSpecialVertex(vtype);
-        assert(next_v != null) : "Missing " + vtype;
+        MarkovVertex next_v = g.getFinishVertex(status);
+        assert(next_v != null) : "Missing " + status;
         
         // If no edge exists to the next vertex, then we need to create one
         synchronized (g) {
@@ -745,8 +628,6 @@ public class TransactionEstimator implements Loggable {
     // ----------------------------------------------------------------------------
     // INTERNAL ESTIMATION METHODS
     // ----------------------------------------------------------------------------
-
-    
     
     /**
      * Figure out the next vertex that the txn will transition to for the give Statement catalog object
@@ -815,7 +696,7 @@ public class TransactionEstimator implements Loggable {
     // ----------------------------------------------------------------------------
     
     public State processTransactionTrace(TransactionTrace txn_trace) throws Exception {
-        long txn_id = txn_trace.getTransactionId();
+        Long txn_id = txn_trace.getTransactionId();
         if (d) {
             LOG.debug("Processing TransactionTrace #" + txn_id);
             if (t) LOG.trace(txn_trace.debug(this.catalogContext.database));
@@ -836,7 +717,7 @@ public class TransactionEstimator implements Loggable {
                 this.executeQueries(s, catalog_stmts, partitions, false);
             } // SYNCH
         } // FOR (batches)
-        if (txn_trace.isAborted()) this.abort(txn_id);
+        if (txn_trace.isAborted()) this.abort(txn_id, Status.ABORT_USER);
         else this.commit(txn_id);
         
         assert(s.getEstimateCount() == txn_trace.getBatchCount());

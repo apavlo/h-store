@@ -121,6 +121,9 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.AbstractEstimator;
+import edu.brown.hstore.estimators.Estimation;
+import edu.brown.hstore.estimators.EstimationState;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
@@ -150,7 +153,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -249,7 +251,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * Runtime Estimators
      */
     private final PartitionEstimator p_estimator;
-    private final TransactionEstimator t_estimator;
+    private final AbstractEstimator<EstimationState, Estimation> t_estimator;
     private EstimationThresholds thresholds;
     
     // Each execution site manages snapshot using a SnapshotSiteProcessor
@@ -569,7 +571,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                              final CatalogContext catalogContext,
                              final BackendTarget target,
                              final PartitionEstimator p_estimator,
-                             final TransactionEstimator t_estimator) {
+                             final AbstractEstimator<EstimationState, Estimation> t_estimator) {
         this.hstore_conf = HStoreConf.singleton();
         
         this.work_queue = new ThrottlingQueue<InternalMessage>(
@@ -592,17 +594,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         this.backend_target = target;
 
-        // The PartitionEstimator is what we use to figure our where our transactions are going to go
+        // The PartitionEstimator is what we use to figure our where each query needs
+        // to be sent to
         this.p_estimator = p_estimator;
         
-        // The TransactionEstimator is the runtime piece that we use to keep track of where the 
-        // transaction is in its execution workflow. This allows us to make predictions about
-        // what kind of things we expect the xact to do in the future
-        if (t_estimator == null) { // HACK
-            this.t_estimator = new TransactionEstimator(partitionId, p_estimator);    
-        } else {
-            this.t_estimator = t_estimator; 
-        }
+        // The TransactionEstimator is the runtime piece that we use to keep track of
+        // where the transaction is in its execution workflow. This allows us to 
+        // make predictions about what kind of things we expect the xact to do in 
+        // the future
+        this.t_estimator = t_estimator; 
         
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
@@ -1251,7 +1251,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     public PartitionEstimator getPartitionEstimator() {
         return (this.p_estimator);
     }
-    public TransactionEstimator getTransactionEstimator() {
+    public AbstractEstimator<EstimationState, Estimation> getTransactionEstimator() {
         return (this.t_estimator);
     }
     
@@ -2244,7 +2244,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
         if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false) {
             
-            MarkovEstimate est = ts.getEstimatorState().getLastEstimate();
+            Estimation est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
             if (hstore_conf.site.exec_no_undo_logging == false ||
                 est.isValid() == false ||
@@ -2556,7 +2556,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (needs_profiling) ts.profiler.stopExecPlanning();
         
         // Tell the TransactionEstimator that we're about to execute these mofos
-        TransactionEstimator.State t_state = ts.getEstimatorState();
+        EstimationState t_state = ts.getEstimatorState();
         if (t_state != null) {
             if (needs_profiling) ts.profiler.startExecEstimation();
             try {
@@ -2575,12 +2575,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 //            if (t_state != null) {
 //                LOG.warn("GRAPH DUMP: " + t_state.dumpMarkovGraph());
 //            }
-            
-            MarkovGraph markov = (t_state != null ? t_state.getMarkovGraph() : null); 
-            if (hstore_conf.site.markov_mispredict_recompute && markov != null) {
-                if (d) LOG.debug("Recomputing MarkovGraph probabilities because " + ts + " mispredicted");
-                // FIXME this.executor.helper.queueMarkovToRecompute(markov);
-            }
             
             // Print Misprediction Debug
             if (d || hstore_conf.site.exec_mispredict_crash) {

@@ -11,6 +11,7 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ParameterMangler;
+import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
 public class SEATSEstimator extends AbstractEstimator {
@@ -25,8 +26,8 @@ public class SEATSEstimator extends AbstractEstimator {
      * Constructor
      * @param hstore_site
      */
-    public SEATSEstimator(CatalogContext catalogContext, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
-        super(catalogContext, manglers, hasher);
+    public SEATSEstimator(PartitionEstimator p_estimator, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
+        super(p_estimator, manglers, hasher);
     }
     
     @Override

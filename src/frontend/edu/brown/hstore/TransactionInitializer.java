@@ -45,6 +45,7 @@ import edu.brown.hstore.estimators.AbstractEstimator;
 import edu.brown.hstore.estimators.SEATSEstimator;
 import edu.brown.hstore.estimators.TM1Estimator;
 import edu.brown.hstore.estimators.TPCCEstimator;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
@@ -53,7 +54,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.utils.EventObservable;
@@ -98,12 +98,6 @@ public class TransactionInitializer {
     private EstimationThresholds thresholds;
     
     /**
-     * If we're using the TransactionEstimator, then we need to convert all 
-     * primitive array ProcParameters into object arrays...
-     */
-    private final Map<Procedure, ParameterMangler> manglers;
-    
-    /**
      * HACK: This is the internal map used to keep track of TxnId->TxnHandles
      * inside of the HStoreSite.
      */
@@ -131,14 +125,6 @@ public class TransactionInitializer {
         this.thresholds = hstore_site.getThresholds();
         this.p_estimator = hstore_site.getPartitionEstimator();
         this.t_estimators = new TransactionEstimator[catalogContext.numberOfPartitions];
-        
-        // Create all of our parameter manglers
-        this.manglers = new IdentityHashMap<Procedure, ParameterMangler>();
-        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
-            if (catalog_proc.getSystemproc()) continue;
-            this.manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
-        } // FOR
-        if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.manglers.size()));
         
         // HACK
         if (hstore_conf.site.markov_fixed) {
@@ -581,7 +567,7 @@ public class TransactionInitializer {
         else if (hstore_conf.site.markov_fixed) {
             if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", ts.getClientHandle()));
             if (this.fixed_estimator != null)
-                predict_partitions = this.fixed_estimator.initializeTransaction(catalog_proc, params.toArray());
+                predict_partitions = this.fixed_estimator.startTransaction(null, catalog_proc, params.toArray());
             if (predict_partitions == null)
                 predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
         }    
@@ -608,7 +594,7 @@ public class TransactionInitializer {
                 if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, mangler.toString(cast_args)));
                 
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitEstimation();
-                t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, cast_args);
+                t_state = t_estimator.startTransactionImpl(txn_id, base_partition, catalog_proc, cast_args);
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned

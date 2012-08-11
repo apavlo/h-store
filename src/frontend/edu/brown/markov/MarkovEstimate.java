@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.estimators.Estimation;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -53,7 +54,7 @@ public class MarkovEstimate implements Poolable, Estimation {
 
     private int reused = 0;
     
-    protected MarkovEstimate(int num_partitions) {
+    public MarkovEstimate(int num_partitions) {
         if (PARTITIONS_ARRAY == null) {
             synchronized (MarkovEstimate.class) {
                 if (PARTITIONS_ARRAY == null) {
@@ -340,9 +341,11 @@ public class MarkovEstimate implements Poolable, Estimation {
         return (true);
     }
     
+    @Override
     public boolean isSinglePartition(EstimationThresholds t) {
         return (this.getTouchedPartitions(t).size() <= 1);
     }
+    @Override
     public boolean isAbortable(EstimationThresholds t) {
         return (this.abort >= t.getAbortThreshold());
     }
@@ -412,6 +415,7 @@ public class MarkovEstimate implements Poolable, Estimation {
      * @param t
      * @return
      */
+    @Override
     public PartitionSet getWritePartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.write_partitions == null) this.write_partitions = new PartitionSet();
@@ -423,6 +427,7 @@ public class MarkovEstimate implements Poolable, Estimation {
      * @param t
      * @return
      */
+    @Override
     public PartitionSet getFinishedPartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.finished_partitions == null) this.finished_partitions = new PartitionSet();

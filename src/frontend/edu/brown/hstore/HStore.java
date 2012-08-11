@@ -41,11 +41,14 @@ import org.voltdb.catalog.Site;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.AbstractEstimator;
+import edu.brown.hstore.estimators.Estimation;
+import edu.brown.hstore.estimators.EstimationState;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.MarkovUtil;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
@@ -185,7 +188,12 @@ public abstract class HStore {
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
             if (debug.get()) LOG.debug("Creating Estimator for " + HStoreThreadManager.formatSiteName(catalog_site.getId()));
-            TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, mappings, local_markovs);
+            AbstractEstimator<? extends EstimationState, ? extends Estimation> t_estimator = null;
+            if (markovs != null) {
+                t_estimator = new TransactionEstimator(p_estimator, mappings, local_markovs);
+            } else {
+                
+            }
 
             // setup the EE
             if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);

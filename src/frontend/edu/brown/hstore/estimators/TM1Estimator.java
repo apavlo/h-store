@@ -7,12 +7,13 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.ParameterMangler;
+import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
 public class TM1Estimator extends AbstractEstimator {
 
-    public TM1Estimator(CatalogContext catalogContext, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
-        super(catalogContext, manglers, hasher);
+    public TM1Estimator(CatalogContext catalogContext, PartitionEstimator p_estimator) {
+        super(catalogContext);
     }
     
     @Override
