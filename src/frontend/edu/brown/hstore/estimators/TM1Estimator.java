@@ -31,14 +31,12 @@ public class TM1Estimator extends FixedEstimator {
 
     @Override
     public Estimation executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
-        // TODO Auto-generated method stub
-        return null;
+        return (state.getInitialEstimate());
     }
     
     @Override
-    protected EstimatorState completeTransaction(EstimatorState state, Status status) {
-        // TODO Auto-generated method stub
-        return null;
+    protected void completeTransaction(EstimatorState state, Status status) {
+        // Nothing to do
     }
 
     @Override

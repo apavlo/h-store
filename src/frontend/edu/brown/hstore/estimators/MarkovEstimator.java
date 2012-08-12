@@ -366,17 +366,16 @@ public class MarkovEstimator extends AbstractEstimator {
      * 
      * @param txn_id
      * @param vtype
-     * @return
      */
     @Override
-    protected EstimatorState completeTransaction(EstimatorState s, Status status) {
+    protected void completeTransaction(EstimatorState s, Status status) {
         MarkovEstimatorState state = (MarkovEstimatorState)s;
 
         // The transaction for the given txn_id is in limbo, so we just want to remove it
-        if (status != Status.ABORT_USER) {
+        if (status != Status.OK && status != Status.ABORT_USER) {
             if (state != null && status == Status.ABORT_MISPREDICT) 
                 state.markov.incrementMispredictionCount();
-            return (state);
+            return;
         }
 
         Long txn_id = state.getTransactionId();
@@ -418,7 +417,7 @@ public class MarkovEstimator extends AbstractEstimator {
                 }
             } // SYNCH
         }
-        return (state);
+        return;
     }
 
     // ----------------------------------------------------------------------------
@@ -519,7 +518,9 @@ public class MarkovEstimator extends AbstractEstimator {
         else this.commit(s);
         
         assert(s.getEstimateCount() == txn_trace.getBatchCount());
-        assert(s.getActualPath().size() == (txn_trace.getQueryCount() + 2));
+        assert(s.getActualPath().size() == (txn_trace.getQueryCount() + 2)) :
+            String.format("Path[%d] != QueryCount[%d]",
+                          s.getActualPath().size(), txn_trace.getQueryCount());
         return (s);
     }
     

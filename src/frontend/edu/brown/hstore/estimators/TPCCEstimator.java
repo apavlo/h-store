@@ -85,13 +85,12 @@ public class TPCCEstimator extends FixedEstimator {
     
     @Override
     public Estimation executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
-        // TODO Auto-generated method stub
-        return null;
+        return state.getInitialEstimate();
     }
-    
-    protected EstimatorState completeTransaction(EstimatorState state, Status status) {
-        
-        return null;
+
+    @Override
+    protected void completeTransaction(EstimatorState state, Status status) {
+        // Nothing to do
     }
     
     private PartitionSet newOrder(Object args[], Object mangled[]) {
@@ -110,9 +109,8 @@ public class TPCCEstimator extends FixedEstimator {
                 touchedPartitions.add(this.getPartition(s_w_id));
             }
         } // FOR
-        if (debug.get())
-            LOG.debug(String.format("NewOrder - Partitions=%s, W_ID=%d, S_W_IDS=%s",
-                      touchedPartitions, w_id, Arrays.toString(s_w_ids)));
+        if (debug.get()) LOG.debug(String.format("NewOrder - Partitions=%s, W_ID=%d, S_W_IDS=%s",
+                                   touchedPartitions, w_id, Arrays.toString(s_w_ids)));
         return (touchedPartitions);        
     }
 
