@@ -122,7 +122,7 @@ import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.Estimation;
+import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
@@ -2242,7 +2242,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
         if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false) {
             
-            Estimation est = ts.getEstimatorState().getLastEstimate();
+            TransactionEstimate est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
             if (hstore_conf.site.exec_no_undo_logging == false ||
                 est.isValid() == false ||

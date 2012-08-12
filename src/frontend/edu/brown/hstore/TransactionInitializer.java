@@ -41,7 +41,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.Estimation;
+import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -540,7 +540,7 @@ public class TransactionInitializer {
                 // We have a TransactionEstimator, so let's see what it says...
                 } else {
                     if (t) LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
-                    Estimation t_estimate = t_state.getInitialEstimate();
+                    TransactionEstimate t_estimate = t_state.getInitialEstimate();
                     
                     // Bah! We didn't get back a Estimation for some reason...
                     if (t_estimate == null) {

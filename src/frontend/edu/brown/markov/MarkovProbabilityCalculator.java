@@ -50,7 +50,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
     protected void callback(MarkovVertex element) {
         MarkovGraph markov = (MarkovGraph)this.getGraph();
         // HACK
-        DynamicEstimation est = (this.markov_est != null ? this.markov_est : element);
+        DynamicTransactionEstimate est = (this.markov_est != null ? this.markov_est : element);
         
         if (trace.get()) LOG.trace("BEFORE: " + element + " => " + est.getSinglePartitionProbability());
 //            if (element.isSingleSitedProbablitySet() == false) element.setSingleSitedProbability(0.0);

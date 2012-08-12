@@ -30,7 +30,7 @@ public class TM1Estimator extends FixedEstimator {
     }
 
     @Override
-    public Estimation executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+    public TransactionEstimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
         return (state.getInitialEstimate());
     }
     

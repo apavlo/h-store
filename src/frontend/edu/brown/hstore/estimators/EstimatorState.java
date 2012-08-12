@@ -65,8 +65,8 @@ public abstract class EstimatorState implements Poolable {
      * Return the initial Estimate made for this transaction before it began execution
      * @return
      */
-    public abstract Estimation getInitialEstimate();
-    public abstract Estimation getLastEstimate();
+    public abstract TransactionEstimate getInitialEstimate();
+    public abstract TransactionEstimate getLastEstimate();
     
     /**
      * Get the number of milli-seconds that have passed since the txn started
