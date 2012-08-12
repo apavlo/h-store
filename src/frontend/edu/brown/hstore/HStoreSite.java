@@ -91,7 +91,7 @@ import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.Estimation;
+import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;

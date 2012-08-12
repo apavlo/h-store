@@ -58,12 +58,12 @@ public abstract class FixedEstimator extends TransactionEstimator {
         }
 
         @Override
-        public Estimation getInitialEstimate() {
+        public TransactionEstimate getInitialEstimate() {
             return CollectionUtil.first(this.estimates);
         }
 
         @Override
-        public Estimation getLastEstimate() {
+        public TransactionEstimate getLastEstimate() {
             return CollectionUtil.last(this.estimates);
         }
     } // CLASS
@@ -72,7 +72,7 @@ public abstract class FixedEstimator extends TransactionEstimator {
      * Fixed Estimator Estimate
      * @author pavlo
      */
-    protected static class FixedEstimation implements Estimation {
+    protected static class FixedEstimation implements TransactionEstimate {
         protected final PartitionSet partitions;
         protected final PartitionSet readonly;
         protected final PartitionSet finished;

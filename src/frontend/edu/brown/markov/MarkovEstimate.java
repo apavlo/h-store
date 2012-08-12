@@ -12,7 +12,7 @@ import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
-public class MarkovEstimate implements Poolable, DynamicEstimation {
+public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     private static final Logger LOG = Logger.getLogger(MarkovEstimate.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

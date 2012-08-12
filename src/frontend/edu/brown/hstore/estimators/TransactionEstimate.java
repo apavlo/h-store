@@ -3,7 +3,7 @@ package edu.brown.hstore.estimators;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.PartitionSet;
 
-public interface Estimation {
+public interface TransactionEstimate {
 
     public boolean isValid();
     

@@ -40,7 +40,7 @@ import edu.brown.utils.TableUtil;
  * @author svelagap
  * @author pavlo
  */
-public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, DynamicEstimation {
+public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, DynamicTransactionEstimate {
     private static final Logger LOG = Logger.getLogger(MarkovVertex.class);
     private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
     private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());

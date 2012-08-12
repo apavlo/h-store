@@ -148,7 +148,7 @@ public abstract class TransactionEstimator implements Loggable {
      * @param allow_cache_lookup TODO
      * @return
      */
-    public abstract Estimation executeQueries(EstimatorState state, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup);
+    public abstract TransactionEstimate executeQueries(EstimatorState state, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup);
     
     /**
      * The transaction with provided txn_id is finished

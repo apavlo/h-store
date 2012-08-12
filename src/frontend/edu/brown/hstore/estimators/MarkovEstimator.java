@@ -277,7 +277,7 @@ public class MarkovEstimator extends TransactionEstimator {
 //    public final ProfileMeasurement CONSUME = new ProfileMeasurement("CONSUME");
     
     @Override
-    public Estimation executeQueries(EstimatorState s, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup) {
+    public TransactionEstimate executeQueries(EstimatorState s, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup) {
         MarkovEstimatorState state = (MarkovEstimatorState)s; 
         if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.txn_id));
         int batch_size = catalog_stmts.length;
