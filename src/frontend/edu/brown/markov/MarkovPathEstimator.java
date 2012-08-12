@@ -553,7 +553,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                             throw ex;
                         }
                         if (this.touched_partitions.contains(p) == false) {
-                            this.estimate.setDoneProbability(p.intValue(), inverse_prob);
+                            this.estimate.setFinishProbability(p.intValue(), inverse_prob);
                         }
                         this.read_partitions.add(p);
                     }
@@ -567,7 +567,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                         this.estimate.setReadOnlyProbability(p.intValue(), inverse_prob);
                         this.estimate.setWriteProbability(p.intValue(), this.confidence);
                         if (this.touched_partitions.contains(p) == false) {
-                            this.estimate.setDoneProbability(p.intValue(), inverse_prob);
+                            this.estimate.setFinishProbability(p.intValue(), inverse_prob);
                         }
                         this.write_partitions.add(p);
                     }
@@ -578,9 +578,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             
             // If this is the first time that the path touched more than one partition, then we need to set the single-partition
             // probability to be the confidence coefficient thus far
-            if (this.touched_partitions.size() > 1 && this.estimate.isSingleSitedProbabilitySet() == false) {
+            if (this.touched_partitions.size() > 1 && this.estimate.isSinglePartitionProbabilitySet() == false) {
                 if (t) LOG.trace("Setting the single-partition probability to current confidence [" + this.confidence + "]");
-                this.estimate.setSingleSitedProbability(inverse_prob);
+                this.estimate.setSinglePartitionProbability(inverse_prob);
             }
             
             // Keep track of the highest abort probability that we've seen thus far
@@ -630,8 +630,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 this.estimate.setReadOnlyProbability(p, first_v.getReadOnlyProbability(p));
                 this.estimate.setWriteProbability(p, first_v.getWriteProbability(p));
                 
-                float finished_prob = first_v.getDoneProbability(p);
-                this.estimate.setDoneProbability(p, finished_prob);
+                float finished_prob = first_v.getFinishProbability(p);
+                this.estimate.setFinishProbability(p, finished_prob);
                 if (is_singlepartition) untouched_finish = Math.min(untouched_finish, finished_prob);
             } else if (this.estimate.isWriteProbabilitySet(p) == false) {
                 this.estimate.setWriteProbability(p, inverse_prob);
@@ -641,7 +641,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         // Single-Partition Probability
         if (is_singlepartition) {
             if (t) LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???", this.touched_partitions)); 
-            this.estimate.setSingleSitedProbability(untouched_finish);
+            this.estimate.setSinglePartitionProbability(untouched_finish);
         }
         
         // Abort Probability

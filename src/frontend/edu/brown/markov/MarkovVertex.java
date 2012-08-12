@@ -27,7 +27,6 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
-import edu.brown.hstore.estimators.Estimation;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -41,7 +40,7 @@ import edu.brown.utils.TableUtil;
  * @author svelagap
  * @author pavlo
  */
-public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, Estimation {
+public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, DynamicEstimation {
     private static final Logger LOG = Logger.getLogger(MarkovVertex.class);
     private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
     private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
@@ -591,23 +590,23 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     // ----------------------------------------------------------------------------
     
     @Override
-    public void addSingleSitedProbability(float probability) {
+    public void addSinglePartitionProbability(float probability) {
         this.addToProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
     }
     @Override
-    public void setSingleSitedProbability(float probability) {
+    public void setSinglePartitionProbability(float probability) {
         this.setProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
     }
     @Override
-    public float getSingleSitedProbability() {
+    public float getSinglePartitionProbability() {
         return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID));
     }
     @Override
-    public boolean isSingleSitedProbabilitySet() {
+    public boolean isSinglePartitionProbabilitySet() {
         return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != MarkovUtil.NULL_MARKER);
     }
     @Override
-    public boolean isSinglePartition(EstimationThresholds t) {
+    public boolean isSinglePartitioned(EstimationThresholds t) {
         return (this.partitions.size() == 1);
     }
 
@@ -696,27 +695,27 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     // FINISHED PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addDoneProbability(int partition, float probability) {
+    public void addFinishProbability(int partition, float probability) {
         this.addToProbability(Probability.DONE, partition, probability);
     }
-    public void setDoneProbability(int partition, float probability) {
+    public void setFinishProbability(int partition, float probability) {
         this.setProbability(Probability.DONE, partition, probability);
     }
-    public float getDoneProbability(int partition) {
+    public float getFinishProbability(int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition));
     }
-    public boolean isDoneProbabilitySet(int partition) {
+    public boolean isFinishProbabilitySet(int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition) != MarkovUtil.NULL_MARKER);
     }
     @Override
-    public boolean isFinishedPartition(EstimationThresholds t, int partition) {
+    public boolean isFinishPartition(EstimationThresholds t, int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition) >= t.finished);
     }
     @Override
-    public PartitionSet getFinishedPartitions(EstimationThresholds t) {
+    public PartitionSet getFinishPartitions(EstimationThresholds t) {
         PartitionSet partitions = new PartitionSet();
         for (int p = 0, cnt = this.probabilities[Probability.DONE.ordinal()].length; p < cnt; p++) {
-            if (this.isFinishedPartition(t, p)) {
+            if (this.isFinishPartition(t, p)) {
                 partitions.add(p);
             }
         } // FOR

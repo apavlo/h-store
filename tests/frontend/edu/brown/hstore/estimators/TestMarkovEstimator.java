@@ -176,16 +176,16 @@ public class TestMarkovEstimator extends BaseTestCase {
         assertEquals(partitions.size(), est_partitions.size());
         assertEquals(partitions, est_partitions);
         
-        assert(est.isSinglePartition(this.thresholds));
+        assert(est.isSinglePartitioned(this.thresholds));
         assertTrue(est.isAbortable(this.thresholds));
         
         for (Integer partition : ALL_PARTITIONS) {
             if (partitions.contains(partition)) { //  == BASE_PARTITION) {
-                assertFalse("isFinishedPartition(" + partition + ")", est.isFinishedPartition(thresholds, partition));
+                assertFalse("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
                 assertTrue("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition) == true);
                 assertTrue("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition) == true);
             } else {
-                assertTrue("isFinishedPartition(" + partition + ")", est.isFinishedPartition(thresholds, partition));
+                assertTrue("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
                 assertFalse("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition) == true);
                 assertFalse("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition) == true);
             }

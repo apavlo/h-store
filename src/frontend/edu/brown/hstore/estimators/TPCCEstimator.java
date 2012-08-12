@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
@@ -49,23 +48,38 @@ public class TPCCEstimator extends FixedEstimator {
     @Override
     public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
-        PartitionSet ret = null;
+        FixedEstimatorState ret = new FixedEstimatorState(this.num_partitions);
         
+        PartitionSet partitions = null;
+        PartitionSet readonly = null;
         if (procName.equalsIgnoreCase("neworder")) {
-            ret = this.newOrder(args, args);
-        } else if (procName.startsWith("payment")) {
+            partitions = this.newOrder(args, args);
+            readonly = EMPTY_PARTITION_SET;
+        }
+        else if (procName.startsWith("payment")) {
             Integer hash_w_id = this.getPartition((Short)args[0]);
             Integer hash_c_w_id = this.getPartition((Short)args[3]);
             if (hash_w_id.equals(hash_c_w_id)) {
-                ret = this.singlePartitionSets.get(hash_w_id);
+                partitions = this.singlePartitionSets.get(hash_w_id);
             } else {
-                ret = new PartitionSet();
-                ret.add(hash_w_id);
-                ret.add(hash_c_w_id);
+                partitions = new PartitionSet();
+                partitions.add(hash_w_id);
+                partitions.add(hash_c_w_id);
             }
+            readonly = EMPTY_PARTITION_SET;
         }
+        else if (procName.equalsIgnoreCase("delivery")) {
+            partitions = catalogContext.getPartitionSetSingleton(base_partition);
+            readonly = EMPTY_PARTITION_SET;
+        }
+        else {
+            partitions = readonly = catalogContext.getPartitionSetSingleton(base_partition);
+        }
+        assert(partitions != null);
+        assert(readonly != null);
         
-        return (null);
+        ret.createNextEstimate(partitions, readonly, EMPTY_PARTITION_SET);
+        return (ret);
         
     }
     

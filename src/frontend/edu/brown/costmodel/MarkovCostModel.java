@@ -287,7 +287,7 @@ public class MarkovCostModel extends AbstractCostModel {
         this.e_write_partitions.clear();
         MarkovEstimate est = s.getInitialEstimate();
         for (Integer partition : est.getTouchedPartitions(this.thresholds)) {
-            if (est.isFinishedPartition(this.thresholds, partition.intValue()) == false) {
+            if (est.isFinishPartition(this.thresholds, partition.intValue()) == false) {
                 for (MarkovVertex v : s.getInitialPath()) {
                     if (v.getPartitions().contains(partition) == false)
                         continue;
@@ -454,7 +454,7 @@ public class MarkovCostModel extends AbstractCostModel {
             estimates = s.getEstimates();
         }
 
-        boolean e_singlepartitioned = initial_est.isSinglePartition(this.thresholds);
+        boolean e_singlepartitioned = initial_est.isSinglePartitioned(this.thresholds);
         boolean a_singlepartitioned = (this.a_all_partitions.size() == 1);
 
         boolean first_penalty = true;
@@ -671,7 +671,7 @@ public class MarkovCostModel extends AbstractCostModel {
             // that causes the partition to get touched. This is because our initial 
             // estimation of what partitions we are done at will be based on the total
             // path estimation and not directly on the finished probabilities
-            for (Integer finished_p : est.getFinishedPartitions(this.thresholds)) {
+            for (Integer finished_p : est.getFinishPartitions(this.thresholds)) {
                 if (touched_partitions.contains(finished_p)) {
                     // We are late with identifying that a partition is finished
                     // if it was idle for more than one batch round
