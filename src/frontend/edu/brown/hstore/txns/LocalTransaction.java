@@ -67,8 +67,7 @@ import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.estimators.Estimation;
-import edu.brown.hstore.estimators.EstimationState;
-import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -177,7 +176,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * EstimationState Handle
      */
-    private EstimationState predict_tState;
+    private EstimatorState predict_tState;
     
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
@@ -875,10 +874,10 @@ public class LocalTransaction extends AbstractTransaction {
     }
 
     
-    public EstimationState getEstimatorState() {
+    public EstimatorState getEstimatorState() {
         return (this.predict_tState);
     }
-    public void setEstimatorState(TransactionEstimator.State state) {
+    public void setEstimatorState(EstimatorState state) {
         this.predict_tState = state;
     }
     
@@ -1416,7 +1415,7 @@ public class LocalTransaction extends AbstractTransaction {
         final int ts_done_partitions_size = this.exec_donePartitions.size();
         PartitionSet new_done = null;
 
-        EstimationState t_state = this.getEstimatorState();
+        EstimatorState t_state = this.getEstimatorState();
         if (t_state == null) {
             return (null);
         }

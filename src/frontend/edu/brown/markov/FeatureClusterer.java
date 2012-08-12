@@ -38,7 +38,7 @@ import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.NumericToNominal;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.MarkovCostModel;
-import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
@@ -187,7 +187,7 @@ public class FeatureClusterer {
         /**
          * And a TransactionEstimator for each PartitionId
          */
-        final TransactionEstimator t_estimators_per_partition[];
+        final MarkovEstimator t_estimators_per_partition[];
         /**
          * Histogram of Clusters Per Partition
          */
@@ -212,14 +212,14 @@ public class FeatureClusterer {
             // We allocate a complete array for all of the partitions in the catalog
             this.markovs_per_partition = new TxnToClusterMarkovGraphsContainer[FeatureClusterer.this.total_num_partitions];
             this.costmodels_per_partition = new MarkovCostModel[FeatureClusterer.this.total_num_partitions];
-            this.t_estimators_per_partition = new TransactionEstimator[FeatureClusterer.this.total_num_partitions];
+            this.t_estimators_per_partition = new MarkovEstimator[FeatureClusterer.this.total_num_partitions];
             this.clusters_per_partition = (Histogram<Integer>[])new Histogram<?>[FeatureClusterer.this.total_num_partitions];
             
             // But then only initialize the partition-specific data structures
             for (int p : FeatureClusterer.this.all_partitions) {
                 this.clusters_per_partition[p] = new Histogram<Integer>();
                 this.markovs_per_partition[p] = new TxnToClusterMarkovGraphsContainer();
-                this.t_estimators_per_partition[p] = new TransactionEstimator(FeatureClusterer.this.p_estimator, FeatureClusterer.this.correlations, this.markovs_per_partition[p]);
+                this.t_estimators_per_partition[p] = new MarkovEstimator(FeatureClusterer.this.p_estimator, FeatureClusterer.this.correlations, this.markovs_per_partition[p]);
                 this.costmodels_per_partition[p] = new MarkovCostModel(catalogContext, p_estimator, this.t_estimators_per_partition[p], thresholds);
             } // FOR
         }
@@ -276,7 +276,7 @@ public class FeatureClusterer {
     /**
      * Global TransactionEstimator
      */
-    private final TransactionEstimator global_t_estimator;
+    private final MarkovEstimator global_t_estimator;
     
     /**
      * Global Counters
@@ -335,7 +335,7 @@ public class FeatureClusterer {
             this.split_percentages[type.ordinal()] = type.percentage;
         } // FOR
         
-        this.global_t_estimator = new TransactionEstimator(this.p_estimator, this.correlations, this.global_markov);
+        this.global_t_estimator = new MarkovEstimator(this.p_estimator, this.correlations, this.global_markov);
         this.global_costmodel = new MarkovCostModel(catalogContext, this.p_estimator, this.global_t_estimator, this.thresholds);
         for (Integer p : FeatureClusterer.this.all_partitions) {
             this.global_markov.getOrCreate(p, FeatureClusterer.this.catalog_proc).initialize();

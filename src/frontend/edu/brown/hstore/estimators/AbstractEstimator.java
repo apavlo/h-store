@@ -30,7 +30,7 @@ import edu.brown.utils.PartitionSet;
  * @param <S> An EstimationState for the txn
  * @param <E> The current Estimation generated for the txn
  */
-public abstract class AbstractEstimator<S extends EstimationState, E extends Estimation> implements Loggable {
+public abstract class AbstractEstimator implements Loggable {
     private static final Logger LOG = Logger.getLogger(AbstractEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -96,7 +96,7 @@ public abstract class AbstractEstimator<S extends EstimationState, E extends Est
      * @param BASE_PARTITION
      * @return an estimate for the transaction's future
      */
-    public S startTransaction(Long txn_id, Procedure catalog_proc, Object args[]) {
+    public final EstimatorState startTransaction(Long txn_id, Procedure catalog_proc, Object args[]) {
         int base_partition = HStoreConstants.NULL_PARTITION_ID;
         try {
             base_partition = this.p_estimator.getBasePartition(catalog_proc, args);
@@ -104,7 +104,9 @@ public abstract class AbstractEstimator<S extends EstimationState, E extends Est
         } catch (Throwable ex) {
             throw new RuntimeException(String.format("Failed to calculate base partition for <%s, %s>", catalog_proc.getName(), Arrays.toString(args)), ex);
         }
-        return (this.startTransactionImpl(txn_id, base_partition, catalog_proc, args));
+        EstimatorState state = this.startTransactionImpl(txn_id, base_partition, catalog_proc, args); 
+        if (state != null) this.txn_count.incrementAndGet();
+        return (state);
     }
     
     /**
@@ -116,7 +118,7 @@ public abstract class AbstractEstimator<S extends EstimationState, E extends Est
      * @param args
      * @return
      */
-    public S startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
+    public final EstimatorState startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
         ParameterMangler mangler = this.manglers.get(catalog_proc);
         if (mangler == null) return (null);
         
@@ -128,7 +130,7 @@ public abstract class AbstractEstimator<S extends EstimationState, E extends Est
     }
     
     
-    public abstract S startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]);
+    public abstract EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]);
     
     
     /**
@@ -140,22 +142,22 @@ public abstract class AbstractEstimator<S extends EstimationState, E extends Est
      * @param allow_cache_lookup TODO
      * @return
      */
-    public abstract E executeQueries(S state, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup);
+    public abstract Estimation executeQueries(EstimatorState state, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup);
     
     /**
      * The transaction with provided txn_id is finished
      * @param txn_id finished transaction
      */
-    public S commit(Long txn_id) {
-        return (this.completeTransaction(txn_id, Status.OK));
+    public EstimatorState commit(EstimatorState state) {
+        return (this.completeTransaction(state, Status.OK));
     }
 
     /**
      * The transaction with provided txn_id has aborted
      * @param txn_id
      */
-    public S abort(long txn_id, Status status) {
-        return (this.completeTransaction(txn_id, status));
+    public EstimatorState abort(EstimatorState state, Status status) {
+        return (this.completeTransaction(state, status));
     }
 
     /**
@@ -164,6 +166,6 @@ public abstract class AbstractEstimator<S extends EstimationState, E extends Est
      * @param vtype
      * @return
      */
-    protected abstract S completeTransaction(Long txn_id, Status status);
+    protected abstract EstimatorState completeTransaction(EstimatorState state, Status status);
     
 }

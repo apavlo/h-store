@@ -349,41 +349,49 @@ public class MarkovEstimate implements Poolable, Estimation {
     public boolean isAbortable(EstimationThresholds t) {
         return (this.abort >= t.getAbortThreshold());
     }
-    public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
-        return (this.checkProbabilityAllPartitions(this.read, t.getReadThreshold()));
-    }
+    @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
         return (this.read[partition] >= t.getReadThreshold());
     }
+    @Override
+    public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
+        return (this.checkProbabilityAllPartitions(this.read, t.getReadThreshold()));
+    }
+    
+    // ----------------------------------------------------------------------------
+    // WRITE PROBABILITY
+    // ----------------------------------------------------------------------------
+    
+    @Override
     public boolean isWritePartition(EstimationThresholds t, int partition) {
         return (this.write[partition] >= t.getWriteThreshold());
     }
-    public boolean isWriteAllPartitions(EstimationThresholds t) {
-        return (this.checkProbabilityAllPartitions(this.write, t.getWriteThreshold()));
-    }
+    
+    // ----------------------------------------------------------------------------
+    // FINISHED PROBABILITY
+    // ----------------------------------------------------------------------------
+    
+    @Override
     public boolean isFinishedPartition(EstimationThresholds t, int partition) {
         return (this.finished[partition] >= t.getFinishedThreshold());
     }
-    public boolean isFinishedAllPartitions(EstimationThresholds t) {
-        return (this.checkProbabilityAllPartitions(this.finished, t.getFinishedThreshold()));
-    }
+    
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
     public boolean isTargetPartition(EstimationThresholds t, int partition) {
         return ((1 - this.finished[partition]) >= t.getFinishedThreshold());
     }
-
     public boolean isConfidenceProbabilitySet() {
         return (this.confidence != MarkovUtil.NULL_MARKER);
     }
-
-    
     public int getTouchedCounter(int partition) {
         return (this.touched[partition]);
     }
     public float getConfidenceProbability() {
         return (this.confidence);
     }
-
-
     public long getExecutionTime() {
         return time;
     }
@@ -399,22 +407,13 @@ public class MarkovEstimate implements Poolable, Estimation {
         } // FOR
     }
 
-    /**
-     * Get the partitions that this transaction will only read from
-     * @param t
-     * @return
-     */
+    @Override
     public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.read_partitions == null) this.read_partitions = new PartitionSet();
         this.getPartitions(this.read_partitions, this.read, (float)t.getReadThreshold(), false);
         return (this.read_partitions);
     }
-    /**
-     * Get the partitions that this transaction will write to
-     * @param t
-     * @return
-     */
     @Override
     public PartitionSet getWritePartitions(EstimationThresholds t) {
         assert(t != null);
@@ -422,11 +421,6 @@ public class MarkovEstimate implements Poolable, Estimation {
         this.getPartitions(this.write_partitions, this.write, (float)t.getWriteThreshold(), false);
         return (this.write_partitions);
     }
-    /**
-     * Get the partitions that this transaction is finished with at this point in the transaction
-     * @param t
-     * @return
-     */
     @Override
     public PartitionSet getFinishedPartitions(EstimationThresholds t) {
         assert(t != null);
@@ -434,11 +428,7 @@ public class MarkovEstimate implements Poolable, Estimation {
         this.getPartitions(this.finished_partitions, this.finished, (float)t.getFinishedThreshold(), false);
         return (this.finished_partitions);
     }
-    /**
-     * Get the partitions that this transaction will need to read/write data on 
-     * @param t
-     * @return
-     */
+    @Override
     public PartitionSet getTouchedPartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.touched_partitions == null) this.touched_partitions = new PartitionSet();

@@ -26,8 +26,8 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.TransactionEstimator.State;
+import edu.brown.hstore.estimators.MarkovEstimator;
+import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -173,7 +173,7 @@ public class MarkovCostModel extends AbstractCostModel {
     // ----------------------------------------------------------------------------
 
     private final EstimationThresholds thresholds;
-    private final TransactionEstimator t_estimator;
+    private final MarkovEstimator t_estimator;
     private final Collection<Integer> all_partitions;
     private boolean force_full_comparison = false;
     private boolean force_regenerate_markovestimates = false;
@@ -207,7 +207,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param catalog_db
      * @param p_estimator
      */
-    public MarkovCostModel(CatalogContext catalogContext, PartitionEstimator p_estimator, TransactionEstimator t_estimator, EstimationThresholds thresholds) {
+    public MarkovCostModel(CatalogContext catalogContext, PartitionEstimator p_estimator, MarkovEstimator t_estimator, EstimationThresholds thresholds) {
         super(MarkovCostModel.class, catalogContext, p_estimator);
         this.thresholds = thresholds;
         this.t_estimator = t_estimator;
@@ -270,7 +270,7 @@ public class MarkovCostModel extends AbstractCostModel {
         // At this point we know what the transaction actually would do using
         // the TransactionEstimator's
         // internal Markov models.
-        State s = this.t_estimator.processTransactionTrace(txn_trace);
+        MarkovEstimatorState s = this.t_estimator.processTransactionTrace(txn_trace);
         assert (s != null);
 
         if (debug.get()) {
@@ -333,7 +333,7 @@ public class MarkovCostModel extends AbstractCostModel {
             throw new RuntimeException(ex);
         }
 
-        TransactionEstimator.POOL_STATES.returnObject(s);
+        MarkovEstimator.POOL_STATES.returnObject(s);
 
         return (cost);
     }
@@ -406,7 +406,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param actual
      * @return
      */
-    protected double comparePathsFull(State s) {
+    protected double comparePathsFull(MarkovEstimatorState s) {
         if (debug.get())
             LOG.debug("Performing full comparison of Transaction #" + s.getTransactionId());
 
@@ -904,7 +904,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     MarkovCostModel costmodels[] = thread_costmodels[thread_id];
                     for (int p = 0; p < num_partitions; p++) {
                         MarkovGraphsContainer markovs = (global ? thread_markovs[thread_id].get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) : thread_markovs[thread_id].get(p));
-                        TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_mappings, markovs);
+                        MarkovEstimator t_estimator = new MarkovEstimator(p_estimator, args.param_mappings, markovs);
                         costmodels[p] = new MarkovCostModel(args.catalogContext, p_estimator, t_estimator, args.thresholds);
                         if (force_fullpath)
                             thread_costmodels[thread_id][p].forceFullPathComparison();

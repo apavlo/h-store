@@ -42,9 +42,8 @@ import org.voltdb.catalog.Site;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.AbstractEstimator;
-import edu.brown.hstore.estimators.Estimation;
-import edu.brown.hstore.estimators.EstimationState;
-import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.FixedEstimator;
+import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
@@ -188,21 +187,21 @@ public abstract class HStore {
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
             if (debug.get()) LOG.debug("Creating Estimator for " + HStoreThreadManager.formatSiteName(catalog_site.getId()));
-            AbstractEstimator<? extends EstimationState, ? extends Estimation> t_estimator = null;
-            if (markovs != null) {
-                t_estimator = new TransactionEstimator(p_estimator, mappings, local_markovs);
+            AbstractEstimator t_estimator = null;
+            if (hstore_conf.site.markov_fixed == false && markovs != null) {
+                t_estimator = new MarkovEstimator(p_estimator, mappings, local_markovs);
             } else {
-                
+                t_estimator = FixedEstimator.getFixedEstimator(p_estimator, singleton.getCatalogContext());
             }
 
             // setup the EE
             if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
             PartitionExecutor executor = new PartitionExecutor(
-                    local_partition,
-                    singleton.getCatalogContext(),
-                    BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
-                    p_estimator,
-                    t_estimator);
+                                                local_partition,
+                                                singleton.getCatalogContext(),
+                                                BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
+                                                p_estimator,
+                                                t_estimator);
             singleton.addPartitionExecutor(local_partition, executor);
         } // FOR
         

@@ -7,6 +7,12 @@ public interface Estimation {
 
     public boolean isValid();
     
+    /**
+     * Get the partitions that this transaction will need to read/write data on 
+     * @param t
+     */
+    public PartitionSet getTouchedPartitions(EstimationThresholds t);
+    
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY
     // ----------------------------------------------------------------------------
@@ -23,8 +29,14 @@ public interface Estimation {
     public void setReadOnlyProbability(int partition, float probability);
     public float getReadOnlyProbability(int partition);
     public boolean isReadOnlyProbabilitySet(int partition);
-    public boolean isReadOnlyAllPartitions(EstimationThresholds t);
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition);
+    public boolean isReadOnlyAllPartitions(EstimationThresholds t);
+    
+    /**
+     * Get the partitions that this transaction will only read from
+     * @param t
+     */
+    public PartitionSet getReadOnlyPartitions(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY
@@ -33,8 +45,12 @@ public interface Estimation {
     public void setWriteProbability(int partition, float probability);
     public float getWriteProbability(int partition);
     public boolean isWriteProbabilitySet(int partition);
-    public PartitionSet getWritePartitions(EstimationThresholds t);
     public boolean isWritePartition(EstimationThresholds t, int partition);
+    /**
+     * Get the partitions that this transaction will write to
+     * @param t
+     */
+    public PartitionSet getWritePartitions(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------
     // DONE PROBABILITY
@@ -43,6 +59,12 @@ public interface Estimation {
     public void setDoneProbability(int partition, float probability);
     public float getDoneProbability(int partition);
     public boolean isDoneProbabilitySet(int partition);
+    public boolean isFinishedPartition(EstimationThresholds t, int partition);
+    
+    /**
+     * Get the partitions that this transaction is finished with at this point in the transaction
+     * @param t
+     */
     public PartitionSet getFinishedPartitions(EstimationThresholds t);
 
     // ----------------------------------------------------------------------------

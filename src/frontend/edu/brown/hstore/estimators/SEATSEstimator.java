@@ -6,15 +6,17 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
-public class SEATSEstimator extends AbstractEstimator {
+public class SEATSEstimator extends FixedEstimator {
     private static final Logger LOG = Logger.getLogger(SEATSEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -26,12 +28,12 @@ public class SEATSEstimator extends AbstractEstimator {
      * Constructor
      * @param hstore_site
      */
-    public SEATSEstimator(PartitionEstimator p_estimator, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
-        super(p_estimator, manglers, hasher);
+    public SEATSEstimator(PartitionEstimator p_estimator) {
+        super(p_estimator);
     }
     
     @Override
-    protected PartitionSet initializeTransactionImpl(Procedure catalog_proc, Object args[], Object mangled[]) {
+    public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
         long f_id = VoltType.NULL_BIGINT;
         long c_id = VoltType.NULL_BIGINT;
@@ -39,18 +41,18 @@ public class SEATSEstimator extends AbstractEstimator {
         
         if (procName.equalsIgnoreCase("NewReservation") ||
             procName.equalsIgnoreCase("UpdateReservation")) {
-            c_id = (Long)mangled[1];
-            f_id = (Long)mangled[2];
+            c_id = (Long)args[1];
+            f_id = (Long)args[2];
         }
         else if (procName.equalsIgnoreCase("DeleteReservation")) {
-            c_id = (Long)mangled[1];
-            f_id = (Long)mangled[0];
+            c_id = (Long)args[1];
+            f_id = (Long)args[0];
         }
         else if (procName.equalsIgnoreCase("FindOpenSeats")) {
-            f_id = (Long)mangled[0];
+            f_id = (Long)args[0];
         }
         else if (procName.equalsIgnoreCase("UpdateCustomer")) {
-            c_id = (Long)mangled[0];
+            c_id = (Long)args[0];
         }
         
         // Construct partitions collection!
@@ -68,7 +70,29 @@ public class SEATSEstimator extends AbstractEstimator {
         else {
             ret = this.catalogContext.getAllPartitionIds();
         }
-
-        return (ret);
+        
+        return null;
     }
+
+
+    @Override
+    public Estimation executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    protected EstimatorState completeTransaction(EstimatorState state, Status status) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public void updateLogging() {
+        // TODO Auto-generated method stub
+        
+    }
+
+
+
 }
