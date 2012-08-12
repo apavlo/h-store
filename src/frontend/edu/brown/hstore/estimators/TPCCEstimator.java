@@ -53,7 +53,7 @@ public class TPCCEstimator extends FixedEstimator {
         PartitionSet partitions = null;
         PartitionSet readonly = null;
         if (procName.equalsIgnoreCase("neworder")) {
-            partitions = this.newOrder(args, args);
+            partitions = this.newOrder(args);
             readonly = EMPTY_PARTITION_SET;
         }
         else if (procName.startsWith("payment")) {
@@ -93,8 +93,8 @@ public class TPCCEstimator extends FixedEstimator {
         // Nothing to do
     }
     
-    private PartitionSet newOrder(Object args[], Object mangled[]) {
-        final Short w_id = (Short)mangled[0];
+    private PartitionSet newOrder(Object args[]) {
+        final Short w_id = (Short)args[0];
         assert(w_id != null);
         short s_w_ids[] = (short[])args[5];
         

@@ -41,7 +41,7 @@ import org.voltdb.catalog.Site;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.AbstractEstimator;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.FixedEstimator;
 import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
@@ -187,10 +187,10 @@ public abstract class HStore {
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
             if (debug.get()) LOG.debug("Creating Estimator for " + HStoreThreadManager.formatSiteName(catalog_site.getId()));
-            AbstractEstimator t_estimator = null;
+            TransactionEstimator t_estimator = null;
             if (hstore_conf.site.markov_fixed == false && markovs != null) {
                 t_estimator = new MarkovEstimator(p_estimator, mappings, local_markovs);
-            } else {
+            } else if (hstore_conf.site.markov_fixed) {
                 t_estimator = FixedEstimator.factory(p_estimator, singleton.getCatalogContext());
             }
 

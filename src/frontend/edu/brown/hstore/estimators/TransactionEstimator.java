@@ -21,6 +21,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.StringUtil;
 
 /**
  * An Estimator is the runtime piece that we use to keep track of where the 
@@ -30,8 +31,8 @@ import edu.brown.utils.PartitionSet;
  * @param <S> An EstimationState for the txn
  * @param <E> The current Estimation generated for the txn
  */
-public abstract class AbstractEstimator implements Loggable {
-    private static final Logger LOG = Logger.getLogger(AbstractEstimator.class);
+public abstract class TransactionEstimator implements Loggable {
+    private static final Logger LOG = Logger.getLogger(TransactionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -57,7 +58,7 @@ public abstract class AbstractEstimator implements Loggable {
      */
     protected final Map<Integer, PartitionSet> singlePartitionSets = new HashMap<Integer, PartitionSet>();
     
-    public AbstractEstimator(PartitionEstimator p_estimator) {
+    public TransactionEstimator(PartitionEstimator p_estimator) {
         this.hstore_conf = HStoreConf.singleton();
         this.p_estimator = p_estimator;
         this.catalogContext = p_estimator.getCatalogContext();
@@ -104,9 +105,7 @@ public abstract class AbstractEstimator implements Loggable {
         } catch (Throwable ex) {
             throw new RuntimeException(String.format("Failed to calculate base partition for <%s, %s>", catalog_proc.getName(), Arrays.toString(args)), ex);
         }
-        EstimatorState state = this.startTransactionImpl(txn_id, base_partition, catalog_proc, args); 
-        if (state != null) this.txn_count.incrementAndGet();
-        return (state);
+        return (this.startTransaction(txn_id, base_partition, catalog_proc, args));
     }
     
     /**
@@ -119,17 +118,24 @@ public abstract class AbstractEstimator implements Loggable {
      * @return
      */
     public final EstimatorState startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
-        ParameterMangler mangler = this.manglers.get(catalog_proc);
-        if (mangler == null) return (null);
-        
-        Object mangled[] = mangler.convert(args);
-        if (debug.get()) LOG.debug(String.format("Checking %s input parameters:\n%s",
-                                   catalog_proc.getName(), mangler.toString(mangled)));
-        
-        return (this.startTransactionImpl(txn_id, base_partition, catalog_proc, mangled));
+        if (debug.get()) LOG.debug(String.format("Checking %s input parameters:\nARGS: %s",
+                                   catalog_proc.getName(),
+                                   StringUtil.toString(args, true, true)));
+
+        EstimatorState state = this.startTransactionImpl(txn_id, base_partition, catalog_proc, args);
+        if (state != null) this.txn_count.incrementAndGet();
+        return (state);
     }
     
     
+    /**
+     * Implementation for starting a opening up a new transaction in the estimator 
+     * @param txn_id
+     * @param base_partition
+     * @param catalog_proc
+     * @param args
+     * @return
+     */
     public abstract EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]);
     
     
@@ -161,7 +167,7 @@ public abstract class AbstractEstimator implements Loggable {
     }
 
     /**
-     * 
+     * Mark a transaction as finished execution
      * @param txn_id
      * @param vtype
      */

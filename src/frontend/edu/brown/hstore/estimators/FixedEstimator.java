@@ -12,7 +12,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 
-public abstract class FixedEstimator extends AbstractEstimator {
+public abstract class FixedEstimator extends TransactionEstimator {
     
     protected static final PartitionSet EMPTY_PARTITION_SET = new PartitionSet();
     

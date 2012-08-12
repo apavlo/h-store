@@ -281,6 +281,13 @@ public class FastDeserializer implements DataInput {
             }
             return retval;
         }
+        if (type == Byte.class) {
+            final Byte[] retval = new Byte[count];
+            for (int i = 0; i < count; i++) {
+                retval[i] = readByte();
+            }
+            return retval;
+        }
         if (type == short.class) {
             final short[] retval = new short[count];
             for (int i = 0; i < count; i++) {
@@ -288,8 +295,21 @@ public class FastDeserializer implements DataInput {
             }
             return retval;
         }
+        if (type == Short.class) {
+            final Short[] retval = new Short[count];
+            for (int i = 0; i < count; i++) {
+                retval[i] = readShort();
+            }
+            return retval;
+        }
         if (type == int.class) {
             final int[] retval = new int[count];
+            for (int i = 0; i < count; i++)
+                retval[i] = readInt();
+            return retval;
+        }
+        if (type == Integer.class) {
+            final Integer[] retval = new Integer[count];
             for (int i = 0; i < count; i++)
                 retval[i] = readInt();
             return retval;
