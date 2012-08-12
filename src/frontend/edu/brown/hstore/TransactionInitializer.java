@@ -40,7 +40,7 @@ import org.voltdb.messaging.FastDeserializer;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.AbstractEstimator;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.Estimation;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.MarkovEstimatorState;
@@ -88,7 +88,7 @@ public class TransactionInitializer {
     private final HStoreObjectPools objectPools;
     private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
-    private final AbstractEstimator t_estimators[];
+    private final TransactionEstimator t_estimators[];
     private EstimationThresholds thresholds;
     
     /**
@@ -118,7 +118,7 @@ public class TransactionInitializer {
         
         this.thresholds = hstore_site.getThresholds();
         this.p_estimator = hstore_site.getPartitionEstimator();
-        this.t_estimators = new AbstractEstimator[catalogContext.numberOfPartitions];
+        this.t_estimators = new TransactionEstimator[catalogContext.numberOfPartitions];
     }
 
     // ----------------------------------------------------------------------------
@@ -521,7 +521,7 @@ public class TransactionInitializer {
             // Grab the TransactionEstimator for the destination partition and figure out whether
             // this mofo is likely to be single-partition or not. Anything that we can't estimate
             // will just have to be multi-partitioned. This includes sysprocs
-            AbstractEstimator t_estimator = this.t_estimators[base_partition];
+            TransactionEstimator t_estimator = this.t_estimators[base_partition];
             if (t_estimator == null) {
                 t_estimator = this.hstore_site.getPartitionExecutor(base_partition).getTransactionEstimator();
                 this.t_estimators[base_partition] = t_estimator;
@@ -573,6 +573,7 @@ public class TransactionInitializer {
                 LOG.error(String.format("Failed calculate estimate for %s request\nParameters: %s",
                                         AbstractTransaction.formatTxnName(catalog_proc, txn_id),
                                         params), ex);
+                ex.printStackTrace();
                 predict_partitions = catalogContext.getAllPartitionIds();
                 predict_readOnly = false;
                 predict_abortable = true;

@@ -121,7 +121,7 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.AbstractEstimator;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.Estimation;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.DeferredQueryMessage;
@@ -249,7 +249,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * Runtime Estimators
      */
     private final PartitionEstimator p_estimator;
-    private final AbstractEstimator t_estimator;
+    private final TransactionEstimator t_estimator;
     private EstimationThresholds thresholds;
     
     // Each execution site manages snapshot using a SnapshotSiteProcessor
@@ -569,7 +569,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                              final CatalogContext catalogContext,
                              final BackendTarget target,
                              final PartitionEstimator p_estimator,
-                             final AbstractEstimator t_estimator) {
+                             final TransactionEstimator t_estimator) {
         this.hstore_conf = HStoreConf.singleton();
         
         this.work_queue = new ThrottlingQueue<InternalMessage>(
@@ -1249,7 +1249,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     public PartitionEstimator getPartitionEstimator() {
         return (this.p_estimator);
     }
-    public AbstractEstimator getTransactionEstimator() {
+    public TransactionEstimator getTransactionEstimator() {
         return (this.t_estimator);
     }
     
