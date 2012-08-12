@@ -7,15 +7,15 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
-import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
-public class TPCCEstimator extends AbstractEstimator {
+public class TPCCEstimator extends FixedEstimator {
     private static final Logger LOG = Logger.getLogger(TPCCEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -32,7 +32,7 @@ public class TPCCEstimator extends AbstractEstimator {
      * Constructor
      * @param hstore_site
      */
-    public TPCCEstimator(CatalogContext catalogContext, PartitionEstimator p_estimator) {
+    public TPCCEstimator(PartitionEstimator p_estimator) {
         super(p_estimator);
     }
     
@@ -47,15 +47,15 @@ public class TPCCEstimator extends AbstractEstimator {
     }
     
     @Override
-    protected PartitionSet initializeTransactionImpl(Procedure catalog_proc, Object args[], Object mangled[]) {
+    public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
         PartitionSet ret = null;
         
         if (procName.equalsIgnoreCase("neworder")) {
-            ret = this.newOrder(args, mangled);
+            ret = this.newOrder(args, args);
         } else if (procName.startsWith("payment")) {
-            Integer hash_w_id = this.getPartition((Short)mangled[0]);
-            Integer hash_c_w_id = this.getPartition((Short)mangled[3]);
+            Integer hash_w_id = this.getPartition((Short)args[0]);
+            Integer hash_c_w_id = this.getPartition((Short)args[3]);
             if (hash_w_id.equals(hash_c_w_id)) {
                 ret = this.singlePartitionSets.get(hash_w_id);
             } else {
@@ -64,7 +64,20 @@ public class TPCCEstimator extends AbstractEstimator {
                 ret.add(hash_c_w_id);
             }
         }
-        return (ret);
+        
+        return (null);
+        
+    }
+    
+    @Override
+    public Estimation executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    
+    protected EstimatorState completeTransaction(EstimatorState state, Status status) {
+        
+        return null;
     }
     
     private PartitionSet newOrder(Object args[], Object mangled[]) {
@@ -85,7 +98,13 @@ public class TPCCEstimator extends AbstractEstimator {
         } // FOR
         if (debug.get())
             LOG.debug(String.format("NewOrder - Partitions=%s, W_ID=%d, S_W_IDS=%s",
-                                    touchedPartitions, w_id, Arrays.toString(s_w_ids)));
+                      touchedPartitions, w_id, Arrays.toString(s_w_ids)));
         return (touchedPartitions);        
+    }
+
+    @Override
+    public void updateLogging() {
+        // TODO Auto-generated method stub
+        
     }
 }

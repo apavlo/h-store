@@ -16,8 +16,8 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.costmodel.MarkovCostModel.Penalty;
-import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.TransactionEstimator.State;
+import edu.brown.hstore.estimators.MarkovEstimator;
+import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
@@ -50,12 +50,12 @@ public class TestMarkovCostModel extends BaseTestCase {
     private static MarkovGraphsContainer markovs;
     private static ParameterMappingsSet correlations;
     private static Procedure catalog_proc;
-    private static TransactionEstimator t_estimator;
+    private static MarkovEstimator t_estimator;
 
     private MarkovCostModel costmodel;
     private MarkovGraph markov;
     private TransactionTrace txn_trace;
-    private State txn_state;
+    private MarkovEstimatorState txn_state;
     private List<MarkovVertex> estimated_path;
     private List<MarkovVertex> actual_path;
     
@@ -126,7 +126,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             assertNotNull(markovs);
             
             // And then populate the MarkovCostModel
-            t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
+            t_estimator = new MarkovEstimator(p_estimator, correlations, markovs);
         }
         
         this.costmodel = new MarkovCostModel(catalogContext, p_estimator, t_estimator, thresholds);

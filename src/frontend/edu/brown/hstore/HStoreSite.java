@@ -90,7 +90,10 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.AbstractEstimator;
+import edu.brown.hstore.estimators.Estimation;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
 import edu.brown.hstore.stats.PoolCounterStats;
 import edu.brown.hstore.stats.TransactionCounterStats;
@@ -2522,8 +2525,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Clean-up any extra information that we may have for the txn
-        TransactionEstimator t_estimator = null;
-        if (ts.getEstimatorState() != null) {
+        AbstractEstimator t_estimator = null;
+        EstimatorState t_state = ts.getEstimatorState(); 
+        if (t_state != null) {
             t_estimator = this.executors[base_partition].getTransactionEstimator();
             assert(t_estimator != null);
         }
@@ -2532,7 +2536,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case OK:
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to COMMIT " + ts);
-                        t_estimator.commit(ts.getTransactionId());
+                        t_estimator.commit(t_state);
                     }
                     // We always need to keep track of how many txns we process 
                     // in order to check whether we are hung or not
@@ -2542,7 +2546,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_USER:
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to ABORT " + ts);
-                        t_estimator.abort(ts.getTransactionId());
+                        t_estimator.abort(t_state, status);
                     }
                     if (hstore_conf.site.txn_counters)
                         TransactionCounter.ABORTED.inc(catalog_proc);
@@ -2552,7 +2556,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_EVICTEDACCESS:
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
-                        t_estimator.mispredict(ts.getTransactionId());
+                        t_estimator.abort(t_state, status);
                     }
                     if (hstore_conf.site.txn_counters) {
                         if (status == Status.ABORT_EVICTEDACCESS) {

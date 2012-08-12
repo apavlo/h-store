@@ -15,7 +15,7 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
@@ -48,7 +48,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     private static final Set<Integer> multip_partitions = new HashSet<Integer>();
     private static final List<MarkovVertex> multip_path = new ArrayList<MarkovVertex>();
     
-    private TransactionEstimator t_estimator;
+    private MarkovEstimator t_estimator;
     private Procedure catalog_proc;
     private MarkovGraph graph;
     
@@ -116,7 +116,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         // Setup
         this.graph = markovs.get(BASE_PARTITION, this.catalog_proc);
         assertNotNull("No graph exists for " + this.catalog_proc + " on Partition #" + BASE_PARTITION, this.graph);
-        this.t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
+        this.t_estimator = new MarkovEstimator(p_estimator, correlations, markovs);
     }
     
     /**

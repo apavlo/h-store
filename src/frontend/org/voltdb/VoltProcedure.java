@@ -58,7 +58,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.Loggable;
@@ -140,7 +140,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     private Procedure catalog_proc;
     private String procedure_name;
     protected PartitionEstimator p_estimator;
-    protected TransactionEstimator t_estimator;
     protected HStoreSite hstore_site;
     protected HStoreConf hstore_conf;
     
@@ -268,7 +267,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             this.workloadQueryHandles = new ArrayList<Object>();
         }
         
-        this.t_estimator = this.executor.getTransactionEstimator();
         this.p_estimator = p_estimator;
         
         if (d) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.partitionId));
@@ -1543,7 +1541,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     private String mispredictDebug(SQLStmt batchStmts[],
                                    ParameterSet params[],
                                    MarkovGraph markov,
-                                   TransactionEstimator.State s,
+                                   MarkovEstimatorState s,
                                    Exception ex,
                                    int batchSize) {
         StringBuilder sb = new StringBuilder();

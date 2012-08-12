@@ -87,22 +87,19 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             this.default_value = default_value;
         }
         
-        protected static final Map<Integer, Probability> idx_lookup = new HashMap<Integer, Probability>();
         protected static final Map<String, Probability> name_lookup = new HashMap<String, Probability>();
         static {
             for (Probability vt : EnumSet.allOf(Probability.class)) {
-                Probability.idx_lookup.put(vt.ordinal(), vt);
-                Probability.name_lookup.put(vt.name().toLowerCase().intern(), vt);
+                Probability.name_lookup.put(vt.name().toLowerCase(), vt);
             }
         }
         
-        public static Probability get(Integer idx) {
+        public static Probability get(int idx) {
             assert(idx >= 0);
-            return (idx_lookup.get(idx));
+            return (Probability.values()[idx]);
         }
-
         public static Probability get(String name) {
-            return (name_lookup.get(name.toLowerCase().intern()));
+            return (name_lookup.get(name.toLowerCase()));
         }
     };
 
@@ -177,7 +174,10 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      */
     private transient long execution_time_count = 0l;
     
-    
+    /**
+     * Cached output for toString()
+     * This is actually used for faster .equals() lookups too
+     */
     private transient String to_string = null;
     
 
@@ -263,6 +263,12 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             this.probabilities[ptype.ordinal()] = new float[inner_len];
         } // FOR
         this.resetAllProbabilities();
+    }
+    
+
+    @Override
+    public boolean isValid() {
+        return (true);
     }
     
     public boolean isValid(MarkovGraph markov) {
@@ -519,14 +525,6 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return (true);
     }
     
-    public boolean isSingleSited() {
-        return partitions.size() <= 1;
-    }
-
-    public boolean isReadOnly() {
-        return ((Statement) this.catalog_item).getReadonly();
-    }
-    
     /**
      * Returns the probability of name if it is found in the mapping, otherwise returns d
      * @param name
@@ -592,34 +590,74 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     // SINGLE-SITED PROBABILITY
     // ----------------------------------------------------------------------------
     
+    @Override
     public void addSingleSitedProbability(float probability) {
         this.addToProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
     }
+    @Override
     public void setSingleSitedProbability(float probability) {
         this.setProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
     }
+    @Override
     public float getSingleSitedProbability() {
         return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID));
     }
+    @Override
     public boolean isSingleSitedProbabilitySet() {
         return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != MarkovUtil.NULL_MARKER);
+    }
+    @Override
+    public boolean isSinglePartition(EstimationThresholds t) {
+        return (this.partitions.size() == 1);
     }
 
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
     
+    public boolean isReadOnly() {
+        return ((Statement) this.catalog_item).getReadonly();
+    }
+    @Override
     public void addReadOnlyProbability(int partition, float probability) {
         this.addToProbability(Probability.READ_ONLY, partition, probability);
     }
+    @Override
     public void setReadOnlyProbability(int partition, float probability) {
         this.setProbability(Probability.READ_ONLY, partition, probability);
     }
+    @Override
     public float getReadOnlyProbability(int partition) {
         return (this.getSpecificProbability(Probability.READ_ONLY, partition));
     }
+    @Override
     public boolean isReadOnlyProbabilitySet(int partition) {
         return (this.getSpecificProbability(Probability.READ_ONLY, partition) != MarkovUtil.NULL_MARKER);
+    }
+    @Override
+    public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
+        return (this.getSpecificProbability(Probability.WRITE, partition) >= t.write);
+    }
+    @Override
+    public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
+        boolean readonly = true;
+        for (int p = 0, cnt = this.probabilities[Probability.READ_ONLY.ordinal()].length; p < cnt; p++) {
+            if (this.getSpecificProbability(Probability.WRITE, p) >= t.write) {
+                readonly = false;
+                break;
+            }
+        } // FOR
+        return (readonly);
+    }
+    @Override
+    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
+        PartitionSet partitions = new PartitionSet();
+        for (int p = 0, cnt = this.probabilities[Probability.READ_ONLY.ordinal()].length; p < cnt; p++) {
+            if (this.isReadOnlyPartition(t, p)) {
+                partitions.add(p);
+            }
+        } // FOR
+        return (partitions);
     }
     
     // ----------------------------------------------------------------------------
@@ -638,9 +676,24 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     public boolean isWriteProbabilitySet(int partition) {
         return (this.getSpecificProbability(Probability.WRITE, partition) != MarkovUtil.NULL_MARKER);
     }
+    @Override
+    public boolean isWritePartition(EstimationThresholds t, int partition) {
+        return (this.getSpecificProbability(Probability.WRITE, partition) >= t.write);
+    }
+
+    @Override
+    public PartitionSet getWritePartitions(EstimationThresholds t) {
+        PartitionSet partitions = new PartitionSet();
+        for (int p = 0, cnt = this.probabilities[Probability.READ_ONLY.ordinal()].length; p < cnt; p++) {
+            if (this.isWritePartition(t, p)) {
+                partitions.add(p);
+            }
+        } // FOR
+        return (partitions);
+    }
     
     // ----------------------------------------------------------------------------
-    // DONE PROBABILITY
+    // FINISHED PROBABILITY
     // ----------------------------------------------------------------------------
     
     public void addDoneProbability(int partition, float probability) {
@@ -655,23 +708,50 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     public boolean isDoneProbabilitySet(int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition) != MarkovUtil.NULL_MARKER);
     }
+    @Override
+    public boolean isFinishedPartition(EstimationThresholds t, int partition) {
+        return (this.getSpecificProbability(Probability.DONE, partition) >= t.finished);
+    }
+    @Override
+    public PartitionSet getFinishedPartitions(EstimationThresholds t) {
+        PartitionSet partitions = new PartitionSet();
+        for (int p = 0, cnt = this.probabilities[Probability.DONE.ordinal()].length; p < cnt; p++) {
+            if (this.isFinishedPartition(t, p)) {
+                partitions.add(p);
+            }
+        } // FOR
+        return (partitions);
+    }
 
     // ----------------------------------------------------------------------------
     // ABORT PROBABILITY
     // ----------------------------------------------------------------------------
 
+    @Override
     public void addAbortProbability(float probability) {
         this.addToProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability);
     }
+    @Override
     public void setAbortProbability(float probability) {
         this.setProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability);
     }
+    @Override
     public float getAbortProbability() {
         return (this.getSpecificProbability(Probability.ABORT, DEFAULT_PARTITION_ID));
     }
+    @Override
     public boolean isAbortProbabilitySet() {
         return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID) != MarkovUtil.NULL_MARKER);
     }
+    @Override
+    public boolean isAbortable(EstimationThresholds t) {
+        float prob = this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID);
+        if (prob != MarkovUtil.NULL_MARKER) {
+            return (prob >= t.abort);
+        }
+        return (true);
+    }
+    
 
     /**
      * The 'score' of a vertex is a measure of how often it has been hit in the current workload.
@@ -879,6 +959,13 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             break;
         } // SWITCH
     }
+
+    @Override
+    public PartitionSet getTouchedPartitions(EstimationThresholds t) {
+        return (this.partitions);
+    }
+
+
 
 
 }

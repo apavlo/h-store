@@ -6,12 +6,10 @@ import java.util.Map;
 import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 
-import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovPathEstimator;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
 
-public abstract class EstimationState implements Poolable {
+public abstract class EstimatorState implements Poolable {
 
     protected final int num_partitions;
     
@@ -27,7 +25,7 @@ public abstract class EstimationState implements Poolable {
      * @param markov - the graph that this txn is using
      * @param estimated_path - the initial path estimation from MarkovPathEstimator
      */
-    protected EstimationState(int num_partitions) {
+    protected EstimatorState(int num_partitions) {
         this.num_partitions = num_partitions;
     }
     
@@ -50,7 +48,7 @@ public abstract class EstimationState implements Poolable {
 
     }
     
-    public long getTransactionId() {
+    public Long getTransactionId() {
         return (this.txn_id);
     }
     public int getBasePartition() {
@@ -63,6 +61,11 @@ public abstract class EstimationState implements Poolable {
         return (this.touched_partitions);
     }
     
+    /**
+     * Return the initial Estimate made for this transaction before it began execution
+     * @return
+     */
+    public abstract Estimation getInitialEstimate();
     public abstract Estimation getLastEstimate();
     
     /**

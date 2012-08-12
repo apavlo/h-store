@@ -27,7 +27,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -78,7 +78,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     // ----------------------------------------------------------------------------
     
     private final int num_partitions;
-    private TransactionEstimator t_estimator;
+    private MarkovEstimator t_estimator;
     private ParameterMappingsSet allMappings;
     private PartitionEstimator p_estimator;
     private int base_partition;
@@ -163,7 +163,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * @param base_partition
      * @param args
      */
-    public MarkovPathEstimator(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
+    public MarkovPathEstimator(MarkovGraph markov, MarkovEstimator t_estimator, int base_partition, Object args[]) {
         super(markov);
         this.num_partitions = t_estimator.getCatalogContext().numberOfPartitions;
         this.estimate = new MarkovEstimate(this.num_partitions);
@@ -180,7 +180,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * @param args
      * @return
      */
-    public MarkovPathEstimator init(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
+    public MarkovPathEstimator init(MarkovGraph markov, MarkovEstimator t_estimator, int base_partition, Object args[]) {
         this.init(markov, TraverseOrder.DEPTH, Direction.FORWARD);
         this.estimate.init(markov.getStartVertex(), MarkovEstimate.INITIAL_ESTIMATE_BATCH);
         this.confidence = 1.0f;
@@ -661,7 +661,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * @param args
      * @return
      */
-    public static MarkovPathEstimator predictPath(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
+    public static MarkovPathEstimator predictPath(MarkovGraph markov, MarkovEstimator t_estimator, Object args[]) {
         int base_partition = HStoreConstants.NULL_PARTITION_ID;
         try {
             base_partition = t_estimator.getPartitionEstimator().getBasePartition(markov.getProcedure(), args);
@@ -696,9 +696,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalog_db, input_path);
         
         // Blah blah blah...
-        Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
+        Map<Integer, MarkovEstimator> t_estimators = new HashMap<Integer, MarkovEstimator>();
         for (Integer id : m.keySet()) {
-            t_estimators.put(id, new TransactionEstimator(p_estimator, args.param_mappings, m.get(id)));
+            t_estimators.put(id, new MarkovEstimator(p_estimator, args.param_mappings, m.get(id)));
         } // FOR
         
         final Set<String> skip = new HashSet<String>();
