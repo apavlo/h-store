@@ -86,6 +86,11 @@ public class ParameterMangler {
         return ParameterMangler.toString(mangled, this.param_isarray);
     }
 
+    /**
+     * Thread-safe
+     * @param orig
+     * @return
+     */
     public Object[] convert(Object orig[]) {
         // Nothing!
         if (this.has_arrays == false)

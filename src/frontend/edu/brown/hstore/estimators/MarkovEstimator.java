@@ -3,6 +3,7 @@ package edu.brown.hstore.estimators;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -30,6 +31,7 @@ import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -79,12 +81,12 @@ public class MarkovEstimator extends TransactionEstimator {
     
     private transient boolean enable_recomputes = false;
     
-    // ----------------------------------------------------------------------------
-    // TRANSACTION STATE
-    // ----------------------------------------------------------------------------
+    /**
+     * If we're using the TransactionEstimator, then we need to convert all 
+     * primitive array ProcParameters into object arrays...
+     */
+    private final Map<Procedure, ParameterMangler> manglers;
     
-    
-
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------
@@ -103,6 +105,15 @@ public class MarkovEstimator extends TransactionEstimator {
         this.mappings = (mappings == null ? new ParameterMappingsSet() : mappings);
         if (this.markovs != null && this.markovs.getHasher() == null) 
             this.markovs.setHasher(this.hasher);
+        
+        // Create all of our parameter manglers
+        this.manglers = new IdentityHashMap<Procedure, ParameterMangler>();
+        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
+            if (catalog_proc.getSystemproc()) continue;
+            this.manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
+        } // FOR
+        if (debug.get()) LOG.debug(String.format("Created ParameterManglers for %d procedures",
+                                   this.manglers.size()));
         
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
@@ -208,10 +219,14 @@ public class MarkovEstimator extends TransactionEstimator {
             
         // Otherwise we have to recalculate everything from scratch again
         if (estimator == null) {
+            ParameterMangler mangler = this.manglers.get(catalog_proc);
+            Object mangledArgs[] = args;
+            if (mangler != null) mangledArgs = mangler.convert(args);
+            
             if (d) LOG.debug("Recalculating initial path estimate for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id)); 
             try {
                 estimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();
-                estimator.init(markov, this, base_partition, args);
+                estimator.init(markov, this, base_partition, mangledArgs);
                 estimator.enableForceTraversal(true);
             } catch (Throwable ex) {
                 String msg = "Failed to intitialize new MarkovPathEstimator for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id); 
