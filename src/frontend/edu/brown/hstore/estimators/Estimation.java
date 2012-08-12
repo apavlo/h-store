@@ -16,18 +16,12 @@ public interface Estimation {
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY
     // ----------------------------------------------------------------------------
-    public void addSingleSitedProbability(float probability);
-    public void setSingleSitedProbability(float probability);
-    public float getSingleSitedProbability();
-    public boolean isSingleSitedProbabilitySet();
-    public boolean isSinglePartition(EstimationThresholds t);
+    public boolean isSinglePartitionProbabilitySet();
+    public boolean isSinglePartitioned(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
-    public void addReadOnlyProbability(int partition, float probability);
-    public void setReadOnlyProbability(int partition, float probability);
-    public float getReadOnlyProbability(int partition);
     public boolean isReadOnlyProbabilitySet(int partition);
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition);
     public boolean isReadOnlyAllPartitions(EstimationThresholds t);
@@ -41,9 +35,6 @@ public interface Estimation {
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY
     // ----------------------------------------------------------------------------
-    public void addWriteProbability(int partition, float probability);
-    public void setWriteProbability(int partition, float probability);
-    public float getWriteProbability(int partition);
     public boolean isWriteProbabilitySet(int partition);
     public boolean isWritePartition(EstimationThresholds t, int partition);
     /**
@@ -53,26 +44,20 @@ public interface Estimation {
     public PartitionSet getWritePartitions(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------
-    // DONE PROBABILITY
+    // FINISH PROBABILITY
     // ----------------------------------------------------------------------------
-    public void addDoneProbability(int partition, float probability);
-    public void setDoneProbability(int partition, float probability);
-    public float getDoneProbability(int partition);
-    public boolean isDoneProbabilitySet(int partition);
-    public boolean isFinishedPartition(EstimationThresholds t, int partition);
+    public boolean isFinishProbabilitySet(int partition);
+    public boolean isFinishPartition(EstimationThresholds t, int partition);
     
     /**
      * Get the partitions that this transaction is finished with at this point in the transaction
      * @param t
      */
-    public PartitionSet getFinishedPartitions(EstimationThresholds t);
+    public PartitionSet getFinishPartitions(EstimationThresholds t);
 
     // ----------------------------------------------------------------------------
     // ABORT PROBABILITY
     // ----------------------------------------------------------------------------
-    public void addAbortProbability(float probability);
-    public void setAbortProbability(float probability);
-    public float getAbortProbability();
     public boolean isAbortProbabilitySet();
     public boolean isAbortable(EstimationThresholds t);
 }

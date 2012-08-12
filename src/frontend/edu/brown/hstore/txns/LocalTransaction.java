@@ -1429,7 +1429,7 @@ public class LocalTransaction extends AbstractTransaction {
             return (null);
         }
         
-        new_done = estimate.getFinishedPartitions(thresholds);
+        new_done = estimate.getFinishPartitions(thresholds);
         
         if (new_done.isEmpty() == false) { 
             // Note that we can actually be done with ourself, if this txn is only going to execute queries

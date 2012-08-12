@@ -537,35 +537,33 @@ public class TransactionInitializer {
                     if (d) LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
                     
-                // We have a TransactionEstimator.State, so let's see what it says...
+                // We have a TransactionEstimator, so let's see what it says...
                 } else {
                     if (t) LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
-                    Estimation m_estimate = t_state.getInitialEstimate();
+                    Estimation t_estimate = t_state.getInitialEstimate();
                     
-                    // Bah! We didn't get back a MarkovEstimate for some reason...
-                    if (m_estimate == null) {
+                    // Bah! We didn't get back a Estimation for some reason...
+                    if (t_estimate == null) {
                         if (d) LOG.debug(String.format("%s - No Estimation was recieved. Using default estimate.",
                                          AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
                     }
-                    // Invalid MarkovEstimate. Stick with defaults
-                    else if (m_estimate.isValid() == false) {
+                    // Invalid Estimation. Stick with defaults
+                    else if (t_estimate.isValid() == false) {
                         if (d) LOG.debug(String.format("%s - Estimation is invalid. Using default estimate.\n%s",
-                                         AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
+                                         AbstractTransaction.formatTxnName(catalog_proc, txn_id), t_estimate));
                     }    
-                    // Use MarkovEstimate to determine things
+                    // Use Estimation to determine things
                     else {
                         if (d) {
                             LOG.debug(String.format("%s - Using Estimation to determine if txn is single-partitioned",
-                                                    AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
                             LOG.trace(String.format("%s %s:\n%s",
-                                                    AbstractTransaction.formatTxnName(catalog_proc, txn_id),
-                                                    m_estimate.getClass().getSimpleName(), m_estimate));
+                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                                      t_estimate.getClass().getSimpleName(), t_estimate));
                         }
-                        // predict_partitions = m_estimate.getTouchedPartitions(this.thresholds);
-                        predict_partitions = new PartitionSet(m_estimate.getTouchedPartitions(this.thresholds));
-                        predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
-                        predict_abortable = (predict_partitions.size() == 1 || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
-//                        LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
+                        predict_partitions = t_estimate.getTouchedPartitions(this.thresholds);
+                        predict_readOnly = t_estimate.isReadOnlyAllPartitions(this.thresholds);
+                        predict_abortable = (predict_partitions.size() == 1 || t_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
                     }
                 }
             } catch (Throwable ex) {

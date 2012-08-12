@@ -191,7 +191,7 @@ public abstract class HStore {
             if (hstore_conf.site.markov_fixed == false && markovs != null) {
                 t_estimator = new MarkovEstimator(p_estimator, mappings, local_markovs);
             } else {
-                t_estimator = FixedEstimator.getFixedEstimator(p_estimator, singleton.getCatalogContext());
+                t_estimator = FixedEstimator.factory(p_estimator, singleton.getCatalogContext());
             }
 
             // setup the EE

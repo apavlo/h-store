@@ -151,8 +151,6 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEstimate;
-import edu.brown.markov.MarkovGraph;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -2252,8 +2250,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
                 undoToken = this.getNextUndoToken();
             } else if (d) {
-                LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
-                                        ts, est.getAbortProbability(), est, plan.toString()));
+                LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s\n%s\n%s",
+                          ts, est, plan.toString()));
             }
         }
         // If the transaction is predicted to be read-only, then we won't bother with an undo buffer
@@ -2338,7 +2336,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (d) {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("%s - Executing %d fragments [lastTxnId=%d, undoToken=%d]",
-                                    ts, batchSize, this.lastCommittedTxnId, undoToken));
+                      ts, batchSize, this.lastCommittedTxnId, undoToken));
             if (t) {
                 Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("Fragments", Arrays.toString(fragmentIds));
@@ -2408,7 +2406,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         Throwable error = null;
         try {
             if (t) LOG.trace(String.format("%s - Executing fragments %s at partition %d",
-                                           ts, Arrays.toString(fragmentIds), this.partitionId));
+                             ts, Arrays.toString(fragmentIds), this.partitionId));
             
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                             fragmentIds,

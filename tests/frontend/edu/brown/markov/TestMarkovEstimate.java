@@ -44,20 +44,20 @@ public class TestMarkovEstimate extends BaseTestCase {
             est.setReadOnlyProbability(p, 1.0f);
             if (p == BASE_PARTITION) {
                 est.setWriteProbability(p, 0.08f);
-                est.setDoneProbability(p, 0.0f);
+                est.setFinishProbability(p, 0.0f);
                 est.incrementTouchedCounter(p);
             } else {
                 est.setWriteProbability(p, 0.0f);
-                est.setDoneProbability(p, 1.0f);
+                est.setFinishProbability(p, 1.0f);
             }
         } // FOR
         est.setConfidenceProbability(0.92f);
-        est.setSingleSitedProbability(1.0f);
+        est.setSinglePartitionProbability(1.0f);
         est.setAbortProbability(0.0f);
         assert(this.est.isValid());
 //        System.err.println(est);
         
-        assertEquals(true, est.isSinglePartition(thresholds));
+        assertEquals(true, est.isSinglePartitioned(thresholds));
         assertEquals(true, est.isReadOnlyAllPartitions(thresholds));
         assertEquals(false, est.isAbortable(thresholds));
     }
