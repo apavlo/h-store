@@ -7,7 +7,6 @@ import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.CatalogContext;
 
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEstimate;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
@@ -46,7 +45,6 @@ public abstract class FixedEstimator extends AbstractEstimator {
     protected static class FixedEstimatorState extends EstimatorState {
         private final List<FixedEstimation> estimates = new ArrayList<FixedEstimation>();
         
-        
         protected FixedEstimatorState(int num_partitions) {
             super(num_partitions);
         }
@@ -54,7 +52,7 @@ public abstract class FixedEstimator extends AbstractEstimator {
         protected FixedEstimation createNextEstimate(PartitionSet partitions,
                                                      PartitionSet readonly,
                                                      PartitionSet finished) {
-            FixedEstimation next = new FixedEstimation(partitions);
+            FixedEstimation next = new FixedEstimation(partitions, readonly, finished);
             this.estimates.add(next);
             return (next);
         }

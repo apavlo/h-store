@@ -1,18 +1,13 @@
 package edu.brown.hstore.estimators;
 
-import java.util.Map;
-
 import org.apache.log4j.Logger;
-import org.voltdb.CatalogContext;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
-import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
@@ -74,17 +69,14 @@ public class SEATSEstimator extends FixedEstimator {
         return null;
     }
 
-
     @Override
     public Estimation executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
-        // TODO Auto-generated method stub
-        return null;
+        return (state.getInitialEstimate());
     }
 
     @Override
-    protected EstimatorState completeTransaction(EstimatorState state, Status status) {
-        // TODO Auto-generated method stub
-        return null;
+    protected void completeTransaction(EstimatorState state, Status status) {
+        // Nothing to do
     }
 
     @Override

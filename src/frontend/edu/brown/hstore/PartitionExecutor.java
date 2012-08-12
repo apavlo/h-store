@@ -2555,7 +2555,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         EstimatorState t_state = ts.getEstimatorState();
-        if (t_state != null) {
+        if (this.t_estimator != null && t_state != null) {
             if (needs_profiling) ts.profiler.startExecEstimation();
             try {
                 this.t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions(), true);

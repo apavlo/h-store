@@ -148,24 +148,23 @@ public abstract class AbstractEstimator implements Loggable {
      * The transaction with provided txn_id is finished
      * @param txn_id finished transaction
      */
-    public EstimatorState commit(EstimatorState state) {
-        return (this.completeTransaction(state, Status.OK));
+    public void commit(EstimatorState state) {
+        this.completeTransaction(state, Status.OK);
     }
 
     /**
      * The transaction with provided txn_id has aborted
      * @param txn_id
      */
-    public EstimatorState abort(EstimatorState state, Status status) {
-        return (this.completeTransaction(state, status));
+    public void abort(EstimatorState state, Status status) {
+        this.completeTransaction(state, status);
     }
 
     /**
      * 
      * @param txn_id
      * @param vtype
-     * @return
      */
-    protected abstract EstimatorState completeTransaction(EstimatorState state, Status status);
+    protected abstract void completeTransaction(EstimatorState state, Status status);
     
 }
