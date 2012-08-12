@@ -2,7 +2,6 @@ package edu.brown.hstore.estimators;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -18,7 +17,6 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -45,12 +43,6 @@ public abstract class TransactionEstimator implements Loggable {
     protected final AbstractHasher hasher;
     protected final int num_partitions;
     
-    /**
-     * If we're using the TransactionEstimator, then we need to convert all 
-     * primitive array ProcParameters into object arrays...
-     */
-    protected final Map<Procedure, ParameterMangler> manglers;
-    
     protected final AtomicInteger txn_count = new AtomicInteger(0);
     
     /**
@@ -65,14 +57,6 @@ public abstract class TransactionEstimator implements Loggable {
         this.hasher = p_estimator.getHasher();
         this.num_partitions = this.catalogContext.numberOfPartitions;
         
-        // Create all of our parameter manglers
-        this.manglers = new IdentityHashMap<Procedure, ParameterMangler>();
-        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
-            if (catalog_proc.getSystemproc()) continue;
-            this.manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
-        } // FOR
-        if (debug.get()) LOG.debug(String.format("Created ParameterManglers for %d procedures",
-                                   this.manglers.size()));
         
         for (Integer p : catalogContext.getAllPartitionIdArray()) {
             this.singlePartitionSets.put(p, catalogContext.getPartitionSetSingleton(p));

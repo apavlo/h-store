@@ -19,7 +19,6 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
-import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
