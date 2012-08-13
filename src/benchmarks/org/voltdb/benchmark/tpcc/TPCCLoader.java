@@ -44,6 +44,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
@@ -76,6 +77,8 @@ public class TPCCLoader extends BenchmarkComponent {
     private final LoadThread m_loadThreads[];
     final TPCCConfig m_tpccConfig;
     final int replicated_batch_size;
+    final AtomicInteger finishedWarehouses = new AtomicInteger(0);
+    final AtomicInteger finishedCounter = new AtomicInteger(0);
 
     private int MAX_BATCH_SIZE = 10000;
     
@@ -210,23 +213,13 @@ public class TPCCLoader extends BenchmarkComponent {
                 makeWarehouse(warehouseId);
                 for (int i = 0; i < data_tables.length; ++i)
                     data_tables[i] = null;
-                LOG.info("Finished WAREHOUSE " + warehouseId);
+                LOG.info(String.format("Finished WAREHOUSE %02d [%d/%d]",
+                         warehouseId, finishedWarehouses.incrementAndGet(), m_tpccConfig.num_warehouses));
             } // WHILE
             
             makeItems(this.itemStart, itemEnd);
-            LOG.debug(String.format("Finished ITEM [%d - %d]", this.itemStart, this.itemEnd));
-            
-//            if (m_doMakeReplicated) {
-//                try {
-//                    m_finishedLoadThreads.acquire(m_loadThreads.length - 1);
-//                } catch (InterruptedException e) {
-//                    throw new RuntimeException(e);
-//                }
-//                makeCustomerName();
-//                m_doMakeReplicated = false;
-//            } else {
-//                m_finishedLoadThreads.release();
-//            }
+            LOG.info(String.format("Finished ITEM %d - %d [%d/%d]",
+                     this.itemStart, this.itemEnd, finishedCounter.incrementAndGet(), m_tpccConfig.num_loadthreads));
 
 //            VoltTable results[] = null;
 //            try {
