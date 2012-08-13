@@ -204,6 +204,8 @@ TEST_F(AntiCacheEvictionManagerTest, OldestTupleID)
     ASSERT_EQ(inserted_tuple_id, oldest_tuple_id); 
 }
 
+/*
+
 TEST_F(AntiCacheEvictionManagerTest, InsertMultipleTuples)
 {
     int num_tuples = 0; 
@@ -258,6 +260,7 @@ TEST_F(AntiCacheEvictionManagerTest, DeleteSingleTuple)
 
 TEST_F(AntiCacheEvictionManagerTest, DeleteMultipleTuples)
 {
+ 
     int num_tuples = 100; 
 
     initTable(true); 
@@ -291,10 +294,12 @@ TEST_F(AntiCacheEvictionManagerTest, DeleteMultipleTuples)
 	}
 	
 	ASSERT_EQ((num_tuples - num_tuples_deleted), m_table->getNumTuplesInEvictionChain()); 
+  
 }
 
 TEST_F(AntiCacheEvictionManagerTest, UpdateTuple)
 {
+  
     int num_tuples = 0; 
 
     initTable(true); 
@@ -322,10 +327,10 @@ TEST_F(AntiCacheEvictionManagerTest, UpdateTuple)
     
     // the oldest tuple was updated, so should now be the newest
     ASSERT_EQ(oldest_tuple_id, m_table->getNewestTupleID()); 
-
+  
 }
 
-
+*/
 
 int main() {
     return TestSuite::globalInstance()->runAll();
