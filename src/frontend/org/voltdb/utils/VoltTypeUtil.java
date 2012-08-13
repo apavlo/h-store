@@ -362,7 +362,7 @@ public abstract class VoltTypeUtil {
             // INTEGERS
             // --------------------------------
             case TINYINT: {
-                byte valArray[] = new byte[objArray.length];
+                Byte valArray[] = new Byte[objArray.length];
                 for (int i = 0; i < objArray.length; i++) {
                     valArray[i] = ((Integer)objArray[i]).byteValue();
                 } // FOR
@@ -370,7 +370,7 @@ public abstract class VoltTypeUtil {
                 break;
             }
             case SMALLINT: {
-                short valArray[] = new short[objArray.length];
+                Short valArray[] = new Short[objArray.length];
                 for (int i = 0; i < objArray.length; i++) {
                     valArray[i] = ((Integer)objArray[i]).shortValue();
                 } // FOR
@@ -378,7 +378,7 @@ public abstract class VoltTypeUtil {
                 break;
             }
             case INTEGER: {
-                int valArray[] = new int[objArray.length];
+                Integer valArray[] = new Integer[objArray.length];
                 for (int i = 0; i < objArray.length; i++) {
                     valArray[i] = (Integer)objArray[i];
                 } // FOR
@@ -386,7 +386,7 @@ public abstract class VoltTypeUtil {
                 break;
             }
             case BIGINT: {
-                long valArray[] = new long[objArray.length];
+                Long valArray[] = new Long[objArray.length];
                 for (int i = 0; i < objArray.length; i++) {
                     valArray[i] = (Long)objArray[i];
                 } // FOR
@@ -398,7 +398,7 @@ public abstract class VoltTypeUtil {
             // --------------------------------
             case FLOAT:
             case DECIMAL: {
-                double valArray[] = new double[objArray.length];
+                Double valArray[] = new Double[objArray.length];
                 for (int i = 0; i < objArray.length; i++) {
                     valArray[i] = (Double)objArray[i];
                 } // FOR
@@ -431,7 +431,7 @@ public abstract class VoltTypeUtil {
             // BOOLEAN
             // --------------------------------
             case BOOLEAN: {
-                boolean valArray[] = new boolean[objArray.length];
+                Boolean valArray[] = new Boolean[objArray.length];
                 for (int i = 0; i < objArray.length; i++) {
                     valArray[i] = (Boolean)objArray[i];
                 } // FOR
