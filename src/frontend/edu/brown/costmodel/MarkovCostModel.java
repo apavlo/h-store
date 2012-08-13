@@ -17,7 +17,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
@@ -770,9 +769,13 @@ public class MarkovCostModel extends AbstractCostModel {
     @SuppressWarnings("unchecked")
     public static void main(String vargs[]) throws Exception {
         final ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_MARKOV, ArgumentsParser.PARAM_WORKLOAD, ArgumentsParser.PARAM_MAPPINGS, ArgumentsParser.PARAM_MARKOV_THRESHOLDS);
+        args.require(ArgumentsParser.PARAM_CATALOG,
+                     ArgumentsParser.PARAM_MARKOV,
+                     ArgumentsParser.PARAM_WORKLOAD,
+                     ArgumentsParser.PARAM_MAPPINGS,
+                     ArgumentsParser.PARAM_MARKOV_THRESHOLDS);
         HStoreConf.initArgumentsParser(args, null);
-        final int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
+        final int num_partitions = args.catalogContext.numberOfPartitions;
         final int base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.first(args.workload_base_partitions) : HStoreConstants.NULL_PARTITION_ID);
         final int num_threads = ThreadUtil.getMaxGlobalThreads();
         final boolean stop_on_error = true;

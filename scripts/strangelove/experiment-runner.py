@@ -165,8 +165,8 @@ EXPERIMENT_SETTINGS = {
         "client.output_exec_profiling":         "execprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
-        "client.output_txn_counters":           "txncounters.csv",
-        "client.output_txn_counters_combine":   True,
+        #"client.output_txn_counters":           "txncounters.csv",
+        #"client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
         "benchmark.neworder_abort":             False,
         "benchmark.neworder_multip_mix":        100,
@@ -315,7 +315,7 @@ if __name__ == '__main__':
     agroup.add_argument("--fast-start", action='store_true')
     agroup.add_argument("--force-reboot", action='store_true')
     agroup.add_argument("--single-client", action='store_true')
-    agroup.add_argument("--no-execute", action='store_true', help='Do no execute any experimetns after starting cluster')
+    agroup.add_argument("--no-execute", action='store_true', help='Do no execute any experiments after starting cluster')
     agroup.add_argument("--no-compile", action='store_true', help='Disable compiling before running benchmark')
     agroup.add_argument("--no-update", action='store_true', help='Disable synching git repository')
     agroup.add_argument("--no-jar", action='store_true', help='Disable constructing benchmark jar')
@@ -331,7 +331,7 @@ if __name__ == '__main__':
     
     ## Benchmark Parameters
     agroup = aparser.add_argument_group('Benchmark Configuration Parameters')
-    agroup.add_argument("--multiply-scalefactor", action='store_true', default=True)
+    agroup.add_argument("--multiply-scalefactor", action='store_true')
     agroup.add_argument("--stop-on-error", action='store_true')
     agroup.add_argument("--retry-on-zero", action='store_true')
     agroup.add_argument("--clear-logs", action='store_true')
