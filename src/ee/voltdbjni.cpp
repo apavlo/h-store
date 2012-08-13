@@ -63,13 +63,15 @@
 #include <unistd.h>
 #ifndef __USE_GNU
 #define  __USE_GNU
-#endif
+#endif // __USE_GNU
 #include <sched.h>
-#endif
+#endif // LINUX
 #ifdef MACOSX
 #include <mach/task.h>
 #include <mach/mach.h>
 #endif // MACOSX
+
+#define __x86_64
 
 #ifdef LINUX
 #if __SIZEOF_POINTER__ == 4
