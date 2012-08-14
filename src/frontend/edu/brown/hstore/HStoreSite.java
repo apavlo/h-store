@@ -2370,6 +2370,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(status != Status.ABORT_MISPREDICT && status != Status.ABORT_EVICTEDACCESS) :
             "Trying to send back a client response for " + ts + " but the status is " + status;
         
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostClient();
         boolean sendResponse = true;
         if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
             sendResponse = this.commandLogger.appendToLog(ts, cresponse);
@@ -2385,6 +2386,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else if (d) { 
             LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
         }
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopPostClient();
     }
     
     /**

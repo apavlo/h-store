@@ -326,6 +326,10 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * The amount of time spent committing or aborting a txn in the EE
      */
     protected final ProfileMeasurement pm_post_ee = new ProfileMeasurement("POST_EE");
+    /**
+     * The amount of time spent sending back the ClientResponse
+     */
+    protected final ProfileMeasurement pm_post_client = new ProfileMeasurement("POST_CLIENT");
 
     /**
      * Indicate that the txn is the post-processing stage. This should only
@@ -378,6 +382,17 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (this.disabled) return;
         ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
         this.stopInner(this.pm_post_ee, parent);
+    }
+    
+    public void startPostClient() {
+        if (this.disabled) return;
+        ProfileMeasurement parent = this.stack.peek();
+        this.startInner(parent, this.pm_post_client);
+    }
+    public void stopPostClient() {
+        if (this.disabled) return;
+        ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
+        this.stopInner(this.pm_post_client, parent);
     }
     
 
