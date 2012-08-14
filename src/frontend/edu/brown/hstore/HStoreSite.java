@@ -2481,13 +2481,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.txn_profiling) {
             LocalTransaction ts = (LocalTransaction)this.inflight_txns.get(txn_id);
             // XXX: Should we include totals for mispredicted txns?
-            if (ts != null && ts.profiler != null && status != Status.ABORT_MISPREDICT) {
+            if (ts != null && ts.profiler != null && status != Status.ABORT_MISPREDICT &&
+                    ts.profiler.isDisabled() == false) {
                 ts.profiler.stopTransaction();
                     
-                if (this.txnProfilerStats != null && ts.profiler.isDisabled() == false) {
+                if (this.txnProfilerStats != null) {
                     this.txnProfilerStats.addTxnProfile(ts.getProcedure(), ts.profiler);
                 }
-                if (this.status_monitor != null && ts.profiler.isDisabled() == false) {
+                if (this.status_monitor != null) {
                     this.status_monitor.addTxnProfile(ts.getProcedure(), ts.profiler);
                 }
             }
