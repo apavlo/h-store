@@ -3420,13 +3420,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (d) LOG.debug(String.format("%s - Committing on partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                      ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                     this.ee.releaseUndoToken(undoToken);
-    
+                }
                 // Evan says that txns will be aborted LIFO. This means the first txn that
                 // we get in abortWork() will have a the greatest undoToken, which means that 
                 // it will automagically rollback all other outstanding txns.
                 // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
                 // we should be able to check whether our undoToken has already been rolled back
-                } else {
+                else {
                     if (d) LOG.debug(String.format("%s - Aborting on partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                      ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                     this.ee.undoUndoToken(undoToken);

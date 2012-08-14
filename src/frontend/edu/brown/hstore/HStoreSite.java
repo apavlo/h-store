@@ -2473,12 +2473,31 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void queueDeleteTransaction(Long txn_id, Status status) {
         assert(txn_id != null) : "Unexpected null transaction id";
         if (t) LOG.trace(String.format("Queueing txn #%d for deletion [status=%s]", txn_id, status));
+        
+        // Update Transaction profiler
+        // We want to call this before we queue it so that the post-finish time is more accurate
+        if (hstore_conf.site.txn_profiling) {
+            LocalTransaction ts = (LocalTransaction)this.inflight_txns.get(txn_id);
+            // XXX: Should we include totals for mispredicted txns?
+            if (ts != null && ts.profiler != null && status != Status.ABORT_MISPREDICT) {
+                ts.profiler.stopTransaction();
+                    
+                if (this.txnProfilerStats != null && ts.profiler.isDisabled() == false) {
+                    this.txnProfilerStats.addTxnProfile(ts.getProcedure(), ts.profiler);
+                }
+                if (this.status_monitor != null && ts.profiler.isDisabled() == false) {
+                    this.status_monitor.addTxnProfile(ts.getProcedure(), ts.profiler);
+                }
+            }
+        }
+        
+        // Queue it up for deletion! There is no return for the txn from this!
         this.deletable_txns.add(Pair.of(txn_id, status));
     }
     
     /**
-     * Clean-up all of the state information about a LocalTransaction that is finished
-     * <B>Note:</B> This should only be invoked for single-partition txns
+     * Clean-up all of the state information about a RemoteTransaction that is finished
+     * <B>Note:</B> This should only be invoked for non-local distributed txns
      * @param ts
      * @param status
      */
@@ -2506,21 +2525,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (t) LOG.trace(ts + " - State before delete:\n" + ts.debug());
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
-        
-        // Update Transaction profiles
-        // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
-        // XXX: Should we include totals for mispredicted txns?
-        if (hstore_conf.site.txn_profiling && status != Status.ABORT_MISPREDICT &&
-             ts.profiler != null && ts.profiler.isDisabled() == false) {
-            ts.profiler.stopTransaction();
-            
-            if (this.txnProfilerStats != null) {
-                this.txnProfilerStats.addTxnProfile(catalog_proc, ts.profiler);
-            }
-            if (this.status_monitor != null) {
-                this.status_monitor.addTxnProfile(catalog_proc, ts.profiler);
-            }
-        }
         
         // Clean-up any extra information that we may have for the txn
         TransactionEstimator t_estimator = null;
