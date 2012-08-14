@@ -46,13 +46,10 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Trans
     
     @Override
     protected boolean unblockTransactionCallback() {
-        // There is nothing that we need to do here.
         this.setFinishStatus(this.status);
-        
         if (this.needs_requeue) {
             this.hstore_site.transactionRequeue(this.ts, this.status);
         }
-        
         return (true);
     }
     

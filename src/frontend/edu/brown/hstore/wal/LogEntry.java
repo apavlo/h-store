@@ -49,6 +49,13 @@ public class LogEntry implements FastSerializable, Poolable {
     protected int procId;
     protected ParameterSet procParams;
     
+    /**
+     * Initialization method.
+     * Note that even though we take in a LocalTransaction handle, we will
+     * only store its txnId and its procedure information
+     * @param ts
+     * @return
+     */
     public LogEntry init(LocalTransaction ts) {
         this.txnId = ts.getTransactionId();
         assert(this.txnId != null);

@@ -9,6 +9,8 @@ import junit.framework.TestCase;
  * @author pavlo
  */
 public class TestAbstractProfiler extends TestCase {
+    
+    private static final int NUM_COUNTERS = 4;
 
     protected class MockProfiler extends AbstractProfiler {
         public final ProfileMeasurement pm0 = new ProfileMeasurement("PM0");
@@ -22,13 +24,38 @@ public class TestAbstractProfiler extends TestCase {
     final MockProfiler profiler = new MockProfiler();
     
     /**
+     * testGetTuple
+     */
+    @Test
+    public void testGetTuple() throws Exception {
+        ProfileMeasurement pms[] = profiler.getProfileMeasurements();
+        ProfileMeasurement last = null;
+        for (int i = 0; i < 10000; i++) {
+            for (ProfileMeasurement pm : pms) {
+                if (last != null) ProfileMeasurement.swap(last, pm);
+                else pm.start();
+                last = pm;
+            } // FOR
+        } // FOR
+        assertNotNull(last);
+        last.stop();
+        
+        long tuple[] = profiler.getTuple();
+        assertNotNull(tuple);
+        assertEquals(NUM_COUNTERS*2, tuple.length);
+        for (int i = 0; i < tuple.length; i++) {
+            assertNotSame("OFFSET[" + i + "]", 0l, tuple[i]);
+        } // FOR
+    }
+    
+    /**
      * testGetProfileMeasurements
      */
     @Test
     public void testGetProfileMeasurements() throws Exception {
         ProfileMeasurement pms[] = profiler.getProfileMeasurements();
         assertNotNull(pms);
-        assertEquals(4, pms.length);
+        assertEquals(NUM_COUNTERS, pms.length);
         for (int i = 0; i < pms.length; i++) {
             assertNotNull(Integer.toString(i), pms[i]);
         } // FOR
@@ -41,7 +68,7 @@ public class TestAbstractProfiler extends TestCase {
     public void testReset() throws Exception {
         ProfileMeasurement pms[] = profiler.getProfileMeasurements();
         assertNotNull(pms);
-        assertEquals(4, pms.length);
+        assertEquals(NUM_COUNTERS, pms.length);
         
         ProfileMeasurement last = null;
         for (int i = 0; i < 10000; i++) {
