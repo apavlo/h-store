@@ -161,8 +161,8 @@ import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 
 /**
- * The main executor of transactional work in the system. Controls running
- * stored procedures and manages the execution engine's running of plan
+ * The main executor of transactional work in the system for a single partition.
+ * Controls running stored procedures and manages the execution engine's running of plan
  * fragments. Interacts with the DTXN system to get work to do. The thread might
  * do other things, but this is where the good stuff happens.
  */
@@ -3412,11 +3412,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
             else {
                 boolean needs_profiling = false;
-                if (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ts.isPredictSinglePartition()) {
-                    if (((LocalTransaction)ts).profiler != null) {
-                        needs_profiling = true;
-                        ((LocalTransaction)ts).profiler.startPostEE();
-                    }
+                if (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ((LocalTransaction)ts).profiler != null) {
+                    needs_profiling = true;
+                    ((LocalTransaction)ts).profiler.startPostEE();
                 }
                 if (commit) {
                     if (d) LOG.debug(String.format("%s - Committing on partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
