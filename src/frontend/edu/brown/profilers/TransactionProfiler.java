@@ -97,6 +97,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     protected final ProfileMeasurement pm_serialize = new ProfileMeasurement("SERIALIZE");
     protected final ProfileMeasurement pm_deserialize = new ProfileMeasurement("DESERIALIZE");
     
+    protected boolean singlePartitioned;
     
     public void startTransaction(long timestamp) {
         if (this.disabled) return;
@@ -322,7 +323,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      */
     protected final ProfileMeasurement pm_post_finish = new ProfileMeasurement("POST_FINISH");
     /**
-     * The amount of time spent commiting or aborting a txn in the EE
+     * The amount of time spent committing or aborting a txn in the EE
      */
     protected final ProfileMeasurement pm_post_ee = new ProfileMeasurement("POST_EE");
 
@@ -384,6 +385,15 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     // UTILITY METHODS
     // ---------------------------------------------------------------
     
+//    @Override
+//    public long[] getTuple() {
+//        ProfileMeasurement pms[] = this.getProfileMeasurements();
+//        long tuple[] = new long[(pms.length*2) + 1];
+//        tuple[0] = (this.singlePartitioned ? 1 : 0);
+//        this.populateTuple(tuple, 1, this.getProfileMeasurements());
+//        return (tuple);
+//    }
+    
     @Override
     public void copy(AbstractProfiler other) {
         assert(other instanceof TransactionProfiler);
@@ -399,7 +409,10 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         } // FOR
         this.pm_total.reset();
         this.pm_exec_total.reset();
-        this.startTransaction(((TransactionProfiler)other).pm_total.getMarker());
+        
+        TransactionProfiler otherProfiler = (TransactionProfiler)other;
+        this.startTransaction(otherProfiler.pm_total.getMarker());
+        this.setSingledPartitioned(otherProfiler.singlePartitioned);
     }
     
     @Override
@@ -427,6 +440,10 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (debug.get()) LOG.debug("Enabling transaction profiling");
         this.disabled = false;
     }
+    public boolean isDisabled() {
+        return (this.disabled);
+    }
+    
     
     /**
      * Return the topmost ProfileMeasurement handle on this profiler's stack
@@ -440,13 +457,16 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public Collection<ProfileMeasurement> history() {
         return (Collections.unmodifiableCollection(this.history));
     }
-    
-    public boolean isDisabled() {
-        return (this.disabled);
-    }
-    
+
     public boolean isStopped() {
         return (this.pm_total.isStarted() == false);
+    }
+    
+    public void setSingledPartitioned(boolean val) {
+        this.singlePartitioned = val;
+    }
+    public boolean isSinglePartitioned() {
+        return (this.singlePartitioned);
     }
     
     @Override
@@ -457,6 +477,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     @Override
     public Map<String, Object> debugMap() {
         Map<String, Object> m = super.debugMap();
+        m.put("Single-Partitioned", this.singlePartitioned);
         
         // HISTORY
         String history = "";

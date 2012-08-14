@@ -71,16 +71,19 @@ public abstract class AbstractProfiler {
      *  (1) The total think time in nanoseconds
      *  (2) The number of invocations 
      */
-    public final long[] getTuple() {
+    public long[] getTuple() {
         ProfileMeasurement pms[] = this.getProfileMeasurements();
         long tuple[] = new long[pms.length*2];
-        int offset = 0;
+        this.populateTuple(tuple, 0, this.getProfileMeasurements());
+        return (tuple);
+    }
+    
+    protected final void populateTuple(long tuple[], int offset, ProfileMeasurement pms[]) {
         for (ProfileMeasurement pm : pms) {
             tuple[offset++] = pm.getTotalThinkTime();
             if (offset == 1) assert(tuple[0] > 0) : "Missing data " + pm.debug(true);
             tuple[offset++] = pm.getInvocations();
         } // FOR
-        return (tuple);
     }
     
     public Map<String, Object> debugMap() {

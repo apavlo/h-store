@@ -380,6 +380,7 @@ public class TransactionInitializer {
 //                new_ts.profiler.copy(orig_ts.profiler);
 //            } else {
                 new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+                new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);
 //            }
         } else if (new_ts.profiler != null) {
             new_ts.profiler.disableProfiling();
@@ -616,6 +617,8 @@ public class TransactionInitializer {
                 params,
                 client_callback);
         if (t_state != null) ts.setEstimatorState(t_state);
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) 
+            ts.profiler.setSingledPartitioned(ts.isPredictSinglePartition());
         
         if (d) {
             LOG.debug(String.format("Initializing %s on partition %d " +

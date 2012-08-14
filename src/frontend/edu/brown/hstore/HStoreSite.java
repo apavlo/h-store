@@ -90,10 +90,8 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.MarkovEstimator;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
 import edu.brown.hstore.stats.PoolCounterStats;
 import edu.brown.hstore.stats.TransactionCounterStats;
@@ -2381,9 +2379,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // NO GROUP COMMIT -- SEND OUT AND COMPLETE
             // NO COMMAND LOGGING OR TXN ABORTED -- SEND OUT AND COMPLETE
             this.responseSend(cresponse,
-                                    ts.getClientCallback(),
-                                    ts.getInitiateTime(),
-                                    ts.getRestartCounter());
+                              ts.getClientCallback(),
+                              ts.getInitiateTime(),
+                              ts.getRestartCounter());
         } else if (d) { 
             LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
         }
