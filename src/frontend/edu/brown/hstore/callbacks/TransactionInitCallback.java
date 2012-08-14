@@ -2,6 +2,7 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.TransactionQueueManager;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -23,7 +24,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private transient Integer reject_partition = null;
+    private transient int reject_partition;
     private transient Long reject_txnId = null;
     
     // ----------------------------------------------------------------------------
@@ -40,7 +41,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
 
     public void init(LocalTransaction ts) {
         super.init(ts, ts.getPredictTouchedPartitions().size(), null);
-        this.reject_partition = null;
+        this.reject_partition = HStoreConstants.NULL_PARTITION_ID;
         this.reject_txnId = null;
     }
     
@@ -91,18 +92,14 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
     @Override
     protected int runImpl(TransactionInitResponse response) {
         if (debug.get())
-            LOG.debug(String.format("Got %s with status %s for %s [partitions=%s, rejectPartition=%s, rejectTxn=%s]",
-                                    response.getClass().getSimpleName(),
-                                    response.getStatus(),
-                                    this.ts, 
-                                    response.getPartitionsList(),
-                                    (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
-                                    (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
-        
-        // HACK: We can ignore requests from different txns
-//        if (this.sameTransaction(response, response.getTransactionId()) == false) {
-//            return (0);
-//        }
+            LOG.debug(String.format("Got %s with status %s for %s " +
+            		  "[partitions=%s, rejectPartition=%s, rejectTxn=%s]",
+                      response.getClass().getSimpleName(),
+                      response.getStatus(),
+                      this.ts, 
+                      response.getPartitionsList(),
+                      (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
+                      (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
         
         assert(this.ts != null) :
             String.format("Missing LocalTransaction handle for txn #%d [status=%s]",

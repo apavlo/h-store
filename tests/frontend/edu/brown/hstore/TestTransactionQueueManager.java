@@ -24,6 +24,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     
     HStoreSite hstore_site;
     TransactionQueueManager queue;
+    TransactionQueueManager.Debug dbg;
     
     class MockCallback implements RpcCallback<TransactionInitResponse> {
         Semaphore lock = new Semaphore(0);
@@ -46,6 +47,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertNotNull(catalog_site);
         this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
         this.queue = new TransactionQueueManager(hstore_site);
+        this.dbg = this.queue.getDebugContext();
     }
     
     /**
@@ -56,7 +58,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     @Test
     public void testSingleTransaction() throws InterruptedException {
         long txn_id = 1000;
-        PartitionSet partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+        PartitionSet partitions = catalogContext.getAllPartitionIds();
         
         MockCallback inner_callback = new MockCallback();
         TransactionInitQueueCallback outer_callback = new TransactionInitQueueCallback(hstore_site);
@@ -68,7 +70,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assert(ret);
         
         int tries = 10;
-        while (queue.isLockQueuesEmpty() == false && tries-- > 0) {
+        while (dbg.isLockQueuesEmpty() == false && tries-- > 0) {
             queue.checkLockQueues();
             ThreadUtil.sleep(100);
         }
@@ -86,8 +88,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
     public void testTwoTransactions() throws InterruptedException {
         final long txn_id0 = 1000;
         final long txn_id1 = 2000;
-        PartitionSet partitions0 = CatalogUtil.getAllPartitionIds(catalog_db);
-        PartitionSet partitions1 = CatalogUtil.getAllPartitionIds(catalog_db);
+        PartitionSet partitions0 = new PartitionSet(catalogContext.getAllPartitionIds());
+        PartitionSet partitions1 = new PartitionSet(catalogContext.getAllPartitionIds());
         
         final MockCallback inner_callback0 = new MockCallback();
         TransactionInitQueueCallback outer_callback0 = new TransactionInitQueueCallback(hstore_site);
@@ -121,7 +123,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         t.setUncaughtExceptionHandler(this);
         t.start();
         
-        while (queue.isLockQueuesEmpty() == false) {
+        while (dbg.isLockQueuesEmpty() == false) {
             queue.checkLockQueues();
             ThreadUtil.sleep(10);
         }
@@ -147,7 +149,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         PartitionSet partitions1 = new PartitionSet();
         partitions1.add(1);
         partitions1.add(3);
-        PartitionSet partitions2 = CatalogUtil.getAllPartitionIds(catalog_db);
+        PartitionSet partitions2 = new PartitionSet(catalogContext.getAllPartitionIds());
         
         final MockCallback inner_callback0 = new MockCallback();
         TransactionInitQueueCallback outer_callback0 = new TransactionInitQueueCallback(hstore_site);
@@ -193,11 +195,9 @@ public class TestTransactionQueueManager extends BaseTestCase {
         while (queue.checkLockQueues() == false) {
             ThreadUtil.sleep(10);
         }
-        assertTrue(queue.isLockQueuesEmpty());
-        
         // add the third txn and wait for it
         this.queue.lockInsert(txn_id2, partitions2, outer_callback2, false);
-        while (queue.isLockQueuesEmpty() == false) {
+        while (dbg.isLockQueuesEmpty() == false) {
             queue.checkLockQueues();
             ThreadUtil.sleep(10);
         }
@@ -259,9 +259,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         while (queue.checkLockQueues() == false) {
             ThreadUtil.sleep(10);
         }
-        assertFalse(queue.isLockQueuesEmpty());
-        
-        while (queue.isLockQueuesEmpty() == false) {
+        while (dbg.isLockQueuesEmpty() == false) {
             queue.checkLockQueues();
             ThreadUtil.sleep(10);
         }
