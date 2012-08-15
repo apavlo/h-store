@@ -72,9 +72,18 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
             boolean isTxn0 = (msg0 instanceof InternalTxnMessage);
             boolean isTxn1 = (msg1 instanceof InternalTxnMessage);
             if (isTxn0) {
-                return (isTxn1 ? ((InternalTxnMessage)msg0).getTransactionId()
-                                    .compareTo(((InternalTxnMessage)msg1).getTransactionId()) : -1); 
+                assert(((InternalTxnMessage)msg0).getTransactionId() != null) :
+                    "Unexpected null txnId for " + msg0;
+                if (isTxn1) {
+                    assert(((InternalTxnMessage)msg1).getTransactionId() != null) :
+                        "Unexpected null txnId for " + msg1;
+                    return ((InternalTxnMessage)msg0).getTransactionId().compareTo(
+                                ((InternalTxnMessage)msg1).getTransactionId());
+                }
+                return (-1); 
             } else if (isTxn1) {
+                assert(((InternalTxnMessage)msg1).getTransactionId() != null) :
+                    "Unexpected null txnId for " + msg1;
                 return (1);
             }
             

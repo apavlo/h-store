@@ -109,6 +109,7 @@ import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.HStoreSiteProfiler;
@@ -122,6 +123,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.StringUtil;
 
 /**
  * THE ALL POWERFUL H-STORE SITE!
@@ -1292,6 +1294,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (this.executors[p] != null) 
                 this.executors[p].prepareShutdown(error);
         } // FOR
+        
     }
     
     /**
@@ -1300,13 +1303,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	@Override
     public synchronized void shutdown(){
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
-            if (d) LOG.debug("Already told to shutdown... Ignoring");
+//            if (d)
+                LOG.warn("Already told to shutdown... Ignoring");
             return;
         }
         if (this.shutdown_state != ShutdownState.PREPARE_SHUTDOWN) this.prepareShutdown(false);
         this.shutdown_state = ShutdownState.SHUTDOWN;
-        if (d) 
-            LOG.debug("Shutting down everything at " + this.getSiteName());
+        if (d) LOG.debug("Shutting down everything at " + this.getSiteName());
 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();
@@ -1375,6 +1378,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]",
                                this.getSiteName(), this.hashCode()));
+        
+        RingBufferAppender appender = RingBufferAppender.getRingBufferAppender(LOG);
+        if (appender != null) {
+            System.err.println("Dumping " + appender.getClass().getSimpleName());
+            System.err.println(StringUtil.join("", appender.getLogMessages()));
+            System.err.flush();
+        }
     }
     
     /**
@@ -2279,7 +2289,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 predict_touchedPartitions.addAll(partitions);
             }
-            if (d) LOG.debug(orig_ts + " Mispredicted Partitions: " + partitions);
+            if (t) LOG.trace(orig_ts + " Mispredicted Partitions: " + partitions);
         }
         
         if (predict_touchedPartitions.contains(base_partition) == false) {
@@ -2647,7 +2657,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	    
 	    // Delete txn handles
 	    Pair<Long, Status> p = null;
-	    while ((p = this.deletable_txns.peek()) != null) {
+	    List<Pair<Long, Status>> addBack = null;
+	    while ((p = this.deletable_txns.poll()) != null) {
 	        // It's ok for us to not have a transaction handle, because it could be
 	        // for a remote transaction that told us that they were going to need one
 	        // of our partitions but then they never actually sent work to us
@@ -2668,16 +2679,26 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 // We can't delete this yet, so we'll just stop checking
                 else {
-                    if (t) LOG.trace(String.format("%s - Cannot delete txn at this point [status=%s]\n%s",
+//                    if (t) 
+                        LOG.info(String.format("%s - Cannot delete txn at this point [status=%s]\n%s",
                                      ts, status, ts.debug()));
-                    break;
+                    if (addBack == null) {
+                        addBack = new ArrayList<Pair<Long,Status>>();
+                    }
+                    addBack.add(p);
+//                    break;
     	        }
 	        } else if (d) {
-	            LOG.warn(String.format("Ignoring clean-up request for txn #%d because we don't " +
-	            		 "have a handle [status=%s]", p.getFirst(), p.getSecond()));
+	            LOG.warn(String.format("Ignoring clean-up request for txn #%d because we do not have a handle " +
+	            		 "[status=%s]", p.getFirst(), p.getSecond()));
 	        }
-	        this.deletable_txns.poll();
+//	        this.deletable_txns.poll();
 	    } // WHILE
+	    if (addBack != null    ) {
+    	    LOG.info(String.format("Added %d deletable txns back to queue", addBack.size()));
+    	    this.deletable_txns.addAll(addBack);
+	    }
+	    
 
         return;
 	}

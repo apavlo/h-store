@@ -98,12 +98,8 @@ public class MapReduceTransaction extends LocalTransaction {
         for (int i = 0; i < this.partitions_size; i++) {
             this.local_txns[i] = new LocalTransaction(hstore_site) {
                 @Override
-                public String toString() {
-                    if (this.isInitialized()) {
-                        return MapReduceTransaction.this.toString() + "/" + this.base_partition;
-                    } else {
-                        return ("<Uninitialized>");
-                    }
+                public String toStringImpl() {
+                    return MapReduceTransaction.this.toString() + "/" + this.base_partition;
                 }
             };
         } // FOR
@@ -432,21 +428,12 @@ public class MapReduceTransaction extends LocalTransaction {
     
 
     @Override
-    public String toString() {
-        if (this.isInitialized()) {
-            return String.format("%s-%s #%d/%d", this.getProcedure().getName(), (this.getState().toString()), this.txn_id, this.base_partition);
-        } else {
-            return ("<Uninitialized>");
-        }
+    public String toStringImpl() {
+        return String.format("%s-%s #%d/%d", this.getProcedure().getName(),
+                                             (this.getState().toString()),
+                                             this.txn_id, this.base_partition);
     }
 
-//    @Override
-//    public boolean isPredictSinglePartition() {
-//        if (debug.get() && !this.hstore_site.getHStoreConf().site.mr_map_blocking) 
-//            LOG.debug("Trying to do asynchronous map execution way, txs:" + this);
-//        return !this.hstore_site.getHStoreConf().site.mr_map_blocking;
-//    }
-    
 
     @Override
     public void initRound(int partition, long undoToken) {

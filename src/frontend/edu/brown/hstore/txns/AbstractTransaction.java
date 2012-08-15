@@ -756,7 +756,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     public ParameterSet[] getAttachedParameterSets() {
-        assert(this.attached_parameterSets != null);
+        assert(this.attached_parameterSets != null) :
+            String.format("The attached ParameterSets for %s is null?", this);
         return (this.attached_parameterSets);
     }
     
@@ -784,7 +785,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public final void initializePrefetch() {
         if (this.prefetch == null) {
             try {
-                this.prefetch = hstore_site.getObjectPools().getPrefetchStatePool(base_partition).borrowObject();
+                this.prefetch = hstore_site.getObjectPools()
+                                           .getPrefetchStatePool(this.base_partition)
+                                           .borrowObject();
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize PrefetchState for " + this, ex);
             }
@@ -840,17 +843,21 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         this.prefetch.partitions.set(offset);
     }
-    
 
     @Override
-    public String toString() {
+    public final String toString() {
+        String str = null;
         if (this.isInitialized()) {
-            return "Txn #" + this.txn_id;
+            str = this.toStringImpl();
         } else {
-            return ("<Uninitialized>");
+            str = String.format("<Uninitialized-%s>", this.getClass().getSimpleName());
         }
+        // Include hashCode for debugging
+        str += "/" + this.hashCode();
+        return (str);
     }
     
+    public abstract String toStringImpl();
     public abstract String debug();
     
     protected Map<String, Object> getDebugMap() {

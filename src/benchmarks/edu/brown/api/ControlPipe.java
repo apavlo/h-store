@@ -138,6 +138,7 @@ public class ControlPipe implements Runnable {
                     break;
                 }
                 case SHUTDOWN: {
+                    LOG.info("Shutting down client + cluster");
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
                         cmp.invokeStopCallback();
                         try {
@@ -153,6 +154,7 @@ public class ControlPipe implements Runnable {
                 }
                 case STOP: {
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
+                        LOG.info("Stopping client");
                         cmp.invokeStopCallback();
                         
                         if (profile) {
