@@ -44,6 +44,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.log4j.Appender;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
@@ -1273,7 +1274,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     @Override
     public void prepareShutdown(boolean error) {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
-                
+
+        if (error && RingBufferAppender.getRingBufferAppender(LOG) != null) {
+            Logger root = Logger.getRootLogger();
+            for (Appender appender : CollectionUtil.iterable(root.getAllAppenders(), Appender.class)) {
+                LOG.addAppender(appender);    
+            } // FOR
+        }
+        
         if (this.hstore_coordinator != null)
             this.hstore_coordinator.prepareShutdown(false);
         
@@ -1587,7 +1595,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                if (catalog_proc.getName().equalsIgnoreCase("@Quiesce"))
                 if (d) LOG.debug(String.format("Hit with a %s response from partition %d " +
                 		         "[queueSize=%d]",
-                                 status, base_partition, executor.getWorkQueueSize()));
+                                 status, base_partition, executor.getDebugContext().getWorkQueueSize()));
                 this.responseError(client_handle,
                                    status,
                                    REJECTION_MESSAGE + " - [1]",
@@ -1835,7 +1843,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d) LOG.debug(String.format("%s - Hit with a %s response from partition %d " +
             		         "[queueSize=%d]",
                              ts, status, base_partition,
-                             this.executors[base_partition].getWorkQueueSize()));
+                             this.executors[base_partition].getDebugContext().getWorkQueueSize()));
             if (singlePartitioned == false) {
                 TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
@@ -2084,11 +2092,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         String msg = this.REJECTION_MESSAGE + " - [0]";
         if (ts.getProcedure().getSystemproc()) {
             try {
-                throw new Exception("");
+                throw new Exception(msg);
             } catch (Exception ex) {
                 StringWriter writer = new StringWriter();
                 ex.printStackTrace(new PrintWriter(writer));
-                msg += "\n" + writer.toString();
+                msg = writer.toString();
                 LOG.warn(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
                          ts, status, ts.getClientHandle()), ex);
             }
@@ -2486,17 +2494,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Update Transaction profiler
         // We want to call this before we queue it so that the post-finish time is more accurate
         if (hstore_conf.site.txn_profiling) {
-            LocalTransaction ts = (LocalTransaction)this.inflight_txns.get(txn_id);
+            AbstractTransaction ts = this.inflight_txns.get(txn_id);
             // XXX: Should we include totals for mispredicted txns?
-            if (ts != null && ts.profiler != null && status != Status.ABORT_MISPREDICT &&
-                    ts.profiler.isDisabled() == false) {
-                ts.profiler.stopTransaction();
-                    
-                if (this.txnProfilerStats != null) {
-                    this.txnProfilerStats.addTxnProfile(ts.getProcedure(), ts.profiler);
-                }
-                if (this.status_monitor != null) {
-                    this.status_monitor.addTxnProfile(ts.getProcedure(), ts.profiler);
+            if (ts != null && status != Status.ABORT_MISPREDICT && ts instanceof LocalTransaction) {
+                LocalTransaction local_ts = (LocalTransaction)ts;
+                if (local_ts.profiler != null && local_ts.profiler.isDisabled() == false) {
+                    local_ts.profiler.stopTransaction();
+                    if (this.txnProfilerStats != null) {
+                        this.txnProfilerStats.addTxnProfile(local_ts.getProcedure(), local_ts.profiler);
+                    }
+                    if (this.status_monitor != null) {
+                        this.status_monitor.addTxnProfile(local_ts.getProcedure(), local_ts.profiler);
+                    }
                 }
             }
         }
@@ -2611,7 +2620,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // SANITY CHECK
         if (hstore_conf.site.exec_validate_work) {
             for (Integer p : this.local_partitions_arr) {
-                assert(ts.equals(this.executors[p.intValue()].getCurrentDtxn()) == false) :
+                assert(ts.equals(this.executors[p.intValue()].getDebugContext().getCurrentDtxn()) == false) :
                     String.format("About to finish %s but it is still the current DTXN at partition %d", ts, p);
             } // FOR
         }

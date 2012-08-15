@@ -509,7 +509,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         public Host getHost();
         public ExecutionEngine getExecutionEngine();
         public long getLastCommittedTxnId();
-        public long getNextUndo();
         public PartitionExecutor getPartitionExecutor();
         public HStoreSite getHStoreSite();
         public Long getCurrentTxnId();
@@ -522,8 +521,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         public Site getSite()                       { return site; }
         public Host getHost()                       { return site.getHost(); }
         public ExecutionEngine getExecutionEngine() { return ee; }
-        public long getLastCommittedTxnId()         { return PartitionExecutor.this.getLastCommittedTxnId(); }
-        public long getNextUndo()                   { return getNextUndoToken(); }
+        public long getLastCommittedTxnId()         { return lastCommittedTxnId; }
         public PartitionExecutor getPartitionExecutor() { return PartitionExecutor.this; }
         public HStoreSite getHStoreSite()           { return hstore_site; }
         public Long getCurrentTxnId()               { return PartitionExecutor.this.currentTxnId; }
@@ -1273,71 +1271,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         return (this.partitionId);
     }
     
-    public Long getLastExecutedTxnId() {
-        return (this.lastExecutedTxnId);
-    }
-    public Long getLastCommittedTxnId() {
-        return (this.lastCommittedTxnId);
-    }
-    
     /**
      * Returns the next undo token to use when hitting up the EE with work
      * MAX_VALUE = no undo
      * @param txn_id
      * @return
      */
-    public long getNextUndoToken() {
+    private long getNextUndoToken() {
         return (++this.lastUndoToken);
-    }
-    
-
-    public ExecutionMode getExecutionMode() {
-        return (this.currentExecMode);
-    }
-    
-    /**
-     * Get the txnId of the current distributed transaction at this partition
-     * <B>FOR TESTING ONLY</B> 
-     */
-    public AbstractTransaction getCurrentDtxn() {
-        return (this.currentDtxn);
-    }
-    /**
-     * Get the txnId of the current distributed transaction at this partition
-     * <B>FOR TESTING ONLY</B>
-     */
-    public Long getCurrentDtxnId() {
-        Long ret = null;
-        // This is a race condition, so we'll just ignore any errors
-        if (this.currentDtxn != null) { 
-            try {
-                ret = this.currentDtxn.getTransactionId();
-            } catch (NullPointerException ex) {
-                // IGNORE
-            }
-        } 
-        return (ret);
-    }
-    public Long getCurrentTxnId() {
-        return (this.currentTxnId);
-    }
-    
-    public int getBlockedQueueSize() {
-        return (this.currentBlockedTxns.size());
-    }
-    public int getWaitingQueueSize() {
-        return (this.queued_responses.size());
-    }
-    public int getWorkQueueSize() {
-        return (this.work_queue.size());
-    }
-    
-    /**
-     * Returns the number of txns that have been invoked on this partition
-     * @return
-     */
-    public int getTransactionCounter() {
-        return (this.profiler.exec_time.getInvocations());
     }
     
     /**
@@ -3743,9 +3684,58 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         public void setExecutionMode(AbstractTransaction ts, ExecutionMode newMode) {
             PartitionExecutor.this.setExecutionMode(ts, newMode);
         }
+        public ExecutionMode getExecutionMode() {
+            return (PartitionExecutor.this.currentExecMode);
+        }
+        public Long getLastExecutedTxnId() {
+            return (PartitionExecutor.this.lastExecutedTxnId);
+        }
+        public Long getLastCommittedTxnId() {
+            return (PartitionExecutor.this.lastCommittedTxnId);
+        }
+        /**
+         * Get the txnId of the current distributed transaction at this partition
+         * <B>FOR TESTING ONLY</B> 
+         */
+        public AbstractTransaction getCurrentDtxn() {
+            return (PartitionExecutor.this.currentDtxn);
+        }
+        /**
+         * Get the txnId of the current distributed transaction at this partition
+         * <B>FOR TESTING ONLY</B>
+         */
+        public Long getCurrentDtxnId() {
+            Long ret = null;
+            // This is a race condition, so we'll just ignore any errors
+            if (PartitionExecutor.this.currentDtxn != null) { 
+                try {
+                    ret = PartitionExecutor.this.currentDtxn.getTransactionId();
+                } catch (NullPointerException ex) {
+                    // IGNORE
+                }
+            } 
+            return (ret);
+        }
+        public Long getCurrentTxnId() {
+            return (PartitionExecutor.this.currentTxnId);
+        }
+        public int getBlockedQueueSize() {
+            return (PartitionExecutor.this.currentBlockedTxns.size());
+        }
+        public int getWaitingQueueSize() {
+            return (PartitionExecutor.this.queued_responses.size());
+        }
+        public int getWorkQueueSize() {
+            return (PartitionExecutor.this.work_queue.size());
+        }
     }
     
+    private static PartitionExecutor.Debug cachedDebugContext;
     public PartitionExecutor.Debug getDebugContext() {
-        return new PartitionExecutor.Debug();
+        if (cachedDebugContext == null) {
+            // We don't care if we're thread-safe here...
+            cachedDebugContext = new PartitionExecutor.Debug();
+        }
+        return cachedDebugContext;
     }
 }

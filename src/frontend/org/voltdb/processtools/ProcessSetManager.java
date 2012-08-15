@@ -75,7 +75,8 @@ public class ProcessSetManager implements Shutdownable {
      */
     public static final Pattern OUTPUT_CLEAN[] = {
         Pattern.compile("__(FILE|LINE)__[:]?"),
-        Pattern.compile("[A-Z][\\w\\_]+\\.java:[\\d]+ ")
+        Pattern.compile("[A-Z][\\w\\_]+\\.java:[\\d]+ "),
+        Pattern.compile("^[\\s]+\\[java\\] ")
     };
     
     public enum StreamType { STDERR, STDOUT; }

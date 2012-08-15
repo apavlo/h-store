@@ -975,12 +975,15 @@ public class BenchmarkController {
                                                                               threadsPerHost,
                                                                               hstore_conf.client.txnrate);
         if (hstore_conf.client.blocking) {
-            debugOpts += ", blockingConcurrent=" + hstore_conf.client.blocking_concurrent; 
+            debugOpts += ", concurrent=" + hstore_conf.client.blocking_concurrent; 
         }
         debugOpts += "]";
-        LOG.info(String.format("Starting %s execution with %d clients %s",
-                                m_projectBuilder.getProjectName().toUpperCase(),
-                                m_clientThreads.size(), debugOpts));
+        LOG.info(String.format("Starting %s execution with %d %sclient%s %s",
+                 m_projectBuilder.getProjectName().toUpperCase(),
+                 m_clientThreads.size(), 
+                 (hstore_conf.client.blocking ? "blocking " : ""),
+                 (m_clientThreads.size() > 1 ? "s" : ""),
+                 debugOpts));
         if (m_config.statsDatabaseURL != null) {
             LOG.info("Client Stats Database: " + m_config.statsDatabaseURL);
         }

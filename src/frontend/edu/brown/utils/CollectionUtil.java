@@ -531,7 +531,6 @@ public abstract class CollectionUtil {
 
     /**
      * Wrap an Iterable around an Enumeration
-     * 
      * @param <T>
      * @param e
      * @return
@@ -545,12 +544,40 @@ public abstract class CollectionUtil {
                     public boolean hasNext() {
                         return (e.hasMoreElements());
                     }
-
                     @Override
                     public T next() {
                         return (e.nextElement());
                     }
-
+                    @Override
+                    public void remove() {
+                        throw new NotImplementedException();
+                    }
+                };
+            }
+        });
+    }
+    
+    /**
+     * Wrap an Iterable around an Enumeration that is automatically
+     * cast to the specified type
+     * @param <T>
+     * @param e
+     * @return
+     */
+    public static <T> Iterable<T> iterable(final Enumeration<?> e, Class<T> castType) {
+        return (new Iterable<T>() {
+            @Override
+            public Iterator<T> iterator() {
+                return new Iterator<T>() {
+                    @Override
+                    public boolean hasNext() {
+                        return (e.hasMoreElements());
+                    }
+                    @SuppressWarnings("unchecked")
+                    @Override
+                    public T next() {
+                        return ((T)e.nextElement());
+                    }
                     @Override
                     public void remove() {
                         throw new NotImplementedException();
