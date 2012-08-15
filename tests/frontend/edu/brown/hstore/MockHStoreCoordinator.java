@@ -10,6 +10,8 @@ import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
 import edu.brown.hstore.Hstoreservice.ShutdownResponse;
 import edu.brown.hstore.Hstoreservice.TimeSyncRequest;
@@ -173,6 +175,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         @Override
         public void transactionPrefetch(RpcController controller, TransactionPrefetchResult request,
                 RpcCallback<TransactionPrefetchAcknowledgement> done) {
+            // TODO Auto-generated method stub
+            
+        }
+
+        @Override
+        public void shutdownPrepare(RpcController controller, ShutdownPrepareRequest request, RpcCallback<ShutdownPrepareResponse> done) {
             // TODO Auto-generated method stub
             
         }

@@ -795,6 +795,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     public void prepareShutdown(boolean error) {
         // Nothing for now
         // Probably should abort all queued txns.
+        this.clearQueues();
     }
 
     @Override
