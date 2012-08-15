@@ -3410,25 +3410,32 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
                 if (d) LOG.debug(String.format("%s - undoToken == DISABLE_UNDO_LOGGING_TOKEN", ts));
             }
+            // COMMIT / ABORT
             else {
                 boolean needs_profiling = false;
                 if (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ((LocalTransaction)ts).profiler != null) {
                     needs_profiling = true;
                     ((LocalTransaction)ts).profiler.startPostEE();
                 }
+                // COMMIT!
                 if (commit) {
-                    if (d) LOG.debug(String.format("%s - Committing on partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                     ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
+                    if (d) LOG.debug(String.format("%s - Committing on partition=%d " +
+                    		         "[lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                                     ts, this.partitionId,
+                                     this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                     this.ee.releaseUndoToken(undoToken);
                 }
-                // Evan says that txns will be aborted LIFO. This means the first txn that
-                // we get in abortWork() will have a the greatest undoToken, which means that 
-                // it will automagically rollback all other outstanding txns.
-                // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
-                // we should be able to check whether our undoToken has already been rolled back
+                // ABORT!
                 else {
-                    if (d) LOG.debug(String.format("%s - Aborting on partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                     ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
+                    // Evan says that txns will be aborted LIFO. This means the first txn that
+                    // we get in abortWork() will have a the greatest undoToken, which means that 
+                    // it will automagically rollback all other outstanding txns.
+                    // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
+                    // we should be able to check whether our undoToken has already been rolled back
+                    if (d) LOG.debug(String.format("%s - Aborting on partition=%d " +
+                    		         "[lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                                     ts, this.partitionId,
+                                     this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                     this.ee.undoUndoToken(undoToken);
                 }
                 if (needs_profiling) ((LocalTransaction)ts).profiler.stopPostEE();
