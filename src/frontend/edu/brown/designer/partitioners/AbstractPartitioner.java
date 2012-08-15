@@ -56,7 +56,7 @@ public abstract class AbstractPartitioner {
     public AbstractPartitioner(Designer designer, DesignerInfo info) {
         this.designer = designer;
         this.info = info;
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(info.catalog_db);
+        this.num_partitions = info.catalogContext.numberOfPartitions;
         this.checkpoint = info.getCheckpointFile();
         if (this.checkpoint != null)
             LOG.debug("Checkpoint File: " + this.checkpoint.getAbsolutePath());
@@ -91,12 +91,12 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     protected void setProcedureSinglePartitionFlags(final PartitionPlan pplan, final DesignerHints hints) {
-        pplan.apply(info.catalog_db);
+        pplan.apply(info.catalogContext.database);
         if (debug.get())
             LOG.debug("Processing workload and checking which procedures are single-partitioned");
         if (info.getCostModel() != null) {
             try {
-                info.getCostModel().estimateWorkloadCost(info.catalog_db, info.workload);
+                info.getCostModel().estimateWorkloadCost(info.catalogContext, info.workload);
             } catch (Throwable ex) {
                 LOG.warn("Failed to estimate workload cost", ex);
                 return;
@@ -130,8 +130,8 @@ public abstract class AbstractPartitioner {
             LOG.debug("Generating AccessGraph for entire catalog");
         assert (info.workload != null);
 
-        AccessGraph agraph = new AccessGraph(info.catalog_db);
-        for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
+        AccessGraph agraph = new AccessGraph(info.catalogContext.database);
+        for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             // Skip if there are no transactions in the workload for this
             // procedure
             if (info.workload.getTraces(catalog_proc).isEmpty()) {

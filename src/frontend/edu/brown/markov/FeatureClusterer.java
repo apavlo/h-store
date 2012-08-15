@@ -21,6 +21,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
@@ -218,7 +219,7 @@ public class FeatureClusterer {
                 this.clusters_per_partition[p] = new Histogram<Integer>();
                 this.markovs_per_partition[p] = new TxnToClusterMarkovGraphsContainer();
                 this.t_estimators_per_partition[p] = new TransactionEstimator(FeatureClusterer.this.p_estimator, FeatureClusterer.this.correlations, this.markovs_per_partition[p]);
-                this.costmodels_per_partition[p] = new MarkovCostModel(catalog_db, p_estimator, this.t_estimators_per_partition[p], thresholds);
+                this.costmodels_per_partition[p] = new MarkovCostModel(catalogContext, p_estimator, this.t_estimators_per_partition[p], thresholds);
             } // FOR
         }
         
@@ -239,7 +240,7 @@ public class FeatureClusterer {
                 this.markovs_per_partition[p].clear();
 
                 // It's lame, but we need to put this here so that...
-                this.costmodels_per_partition[p] = new MarkovCostModel(catalog_db, p_estimator, this.t_estimators_per_partition[p], thresholds);
+                this.costmodels_per_partition[p] = new MarkovCostModel(catalogContext, p_estimator, this.t_estimators_per_partition[p], thresholds);
             } // FOR
             
             // Reset Counters
@@ -290,7 +291,7 @@ public class FeatureClusterer {
     private final double split_percentages[] = new double[SplitType.values().length];
     private final int split_counts[] = new int[SplitType.values().length];
 
-    private final Database catalog_db;
+    private final CatalogContext catalogContext;
     private final Procedure catalog_proc;
     private final Workload workload;
     private final EstimationThresholds thresholds;
@@ -320,13 +321,13 @@ public class FeatureClusterer {
      */
     public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterMappingsSet correlations, Collection<Integer> all_partitions, int num_threads) {
         this.catalog_proc = catalog_proc;
-        this.catalog_db = CatalogUtil.getDatabase(catalog_proc);
+        this.catalogContext = new CatalogContext(catalog_proc.getCatalog());
         this.workload = workload;
         this.correlations = correlations;
         this.thresholds = new EstimationThresholds(); // FIXME
-        this.p_estimator = new PartitionEstimator(catalog_db);
+        this.p_estimator = new PartitionEstimator(catalogContext);
         this.all_partitions = all_partitions;
-        this.total_num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
+        this.total_num_partitions = catalogContext.numberOfPartitions;
         this.calculate_threadPool = Executors.newFixedThreadPool(num_threads);
         
         for (SplitType type : SplitType.values()) {
@@ -334,7 +335,7 @@ public class FeatureClusterer {
         } // FOR
         
         this.global_t_estimator = new TransactionEstimator(this.p_estimator, this.correlations, this.global_markov);
-        this.global_costmodel = new MarkovCostModel(this.catalog_db, this.p_estimator, this.global_t_estimator, this.thresholds);
+        this.global_costmodel = new MarkovCostModel(catalogContext, this.p_estimator, this.global_t_estimator, this.thresholds);
         for (Integer p : FeatureClusterer.this.all_partitions) {
             this.global_markov.getOrCreate(p, FeatureClusterer.this.catalog_proc).initialize();
         } // FOR
@@ -670,7 +671,7 @@ public class FeatureClusterer {
             boolean singlepartitioned = (partitions.size() == 1);
             
             // Estimate Global MarkovGraph Cost
-            double g_cost = this.global_costmodel.estimateTransactionCost(this.catalog_db, txn_trace);
+            double g_cost = this.global_costmodel.estimateTransactionCost(catalogContext, txn_trace);
             if (g_cost > 0) {
                 this.total_g_cost += g_cost;
                 this.g_counters[singlepartitioned ? 0 : 1]++;
@@ -785,7 +786,7 @@ public class FeatureClusterer {
                 // state.t_estimators_per_partition[base_partition.intValue()].processTransactionTrace(txn_trace);
                 c_counters[2]++; // Unknown Clusters
             }
-            c_cost = c_costmodel.estimateTransactionCost(this.catalog_db, txn_trace);
+            c_cost = c_costmodel.estimateTransactionCost(catalogContext, txn_trace);
             if (c_cost > 0) {
                 total_c_cost += c_cost;
                 c_counters[singlepartitioned ? 0 : 1]++;
@@ -1111,7 +1112,7 @@ public class FeatureClusterer {
         Instances data = null;
         {
             // Hopefully this will get garbage collected if we put it here...
-            FeatureExtractor fextractor = new FeatureExtractor(args.catalog_db);
+            FeatureExtractor fextractor = new FeatureExtractor(args.catalogContext);
             Map<Procedure, FeatureSet> fsets = fextractor.calculate(args.workload);
             FeatureSet fset = fsets.get(catalog_proc);
             assert(fset != null) : "Failed to get FeatureSet for " + catalog_proc;
@@ -1122,7 +1123,7 @@ public class FeatureClusterer {
         
         FeatureClusterer fclusterer = null;
         if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_RANDOM_PARTITIONS)) {
-            Histogram<Integer> h = new PartitionEstimator(args.catalog_db).buildBasePartitionHistogram(args.workload);
+            Histogram<Integer> h = new PartitionEstimator(args.catalogContext).buildBasePartitionHistogram(args.workload);
 //            System.err.println("# OF PARTITIONS: " + h.getValueCount());
 //            h.setKeepZeroEntries(true);
 //            for (Integer p : CatalogUtil.getAllPartitionIds(args.catalog_db)) {

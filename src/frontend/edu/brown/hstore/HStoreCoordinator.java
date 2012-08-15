@@ -14,6 +14,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -101,6 +102,7 @@ public class HStoreCoordinator implements Shutdownable {
 
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
+    private final CatalogContext catalogContext;
     private final Site catalog_site;
     private final int num_sites;
     private final int local_site_id;
@@ -188,10 +190,11 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public HStoreCoordinator(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
-        this.hstore_conf = hstore_site.getHStoreConf();
-        this.catalog_site = hstore_site.getSite();
+        this.hstore_conf = this.hstore_site.getHStoreConf();
+        this.catalogContext = this.hstore_site.getCatalogContext();
+        this.catalog_site = this.hstore_site.getSite();
         this.local_site_id = this.catalog_site.getId();
-        this.num_sites = CatalogUtil.getNumberOfSites(this.catalog_site);
+        this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;
         this.channels = new HStoreService[this.num_sites];
         
         if (debug.get()) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + hstore_site.getLocalPartitionIds());
@@ -592,7 +595,7 @@ public class HStoreCoordinator implements Shutdownable {
             ByteBuffer serializedRequest = request.getWork().asReadOnlyByteBuffer();
             TransactionRedirectResponseCallback callback = null;
             try {
-                callback = (TransactionRedirectResponseCallback)hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECTRESPONSE.borrowObject();
+                callback = (TransactionRedirectResponseCallback)hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_RESPONSE.borrowObject();
                 callback.init(local_site_id, request.getSenderSite(), done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);
@@ -786,7 +789,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                  ts.getBasePartition()));
         assert(request.hasResult()) :
             String.format("No WorkResults in %s for %s", request.getClass().getSimpleName(), ts);
-        int site_id = hstore_site.getSiteIdForPartitionId(ts.getBasePartition());
+        int site_id = catalogContext.getSiteIdForPartitionId(ts.getBasePartition());
         assert(site_id != this.local_site_id);
         
         ProtoRpcController controller = ts.getTransactionPrefetchController(request.getSourcePartition());
@@ -795,10 +798,9 @@ public class HStoreCoordinator implements Shutdownable {
                                                    this.transactionPrefetch_callback);
     }
     
-    
     /**
      * Notify the given partitions that this transaction is finished with them
-     * This can also be used for the "early prepare" optimization.
+     * <B>Note:</B> This can also be used for the "early prepare" optimization.
      * @param ts
      * @param callback
      * @param partitions
@@ -807,11 +809,20 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit", partitions, ts));
         
-        TransactionPrepareRequest request = TransactionPrepareRequest.newBuilder()
-                                                        .setTransactionId(ts.getTransactionId())
-                                                        .addAllPartitions(partitions)
-                                                        .build();
-        this.transactionPrepare_handler.sendMessages(ts, request, callback, partitions);
+        // FAST PATH: If all of the partitions that this txn needs are on this
+        // HStoreSite, then we don't need to bother with making this request
+        if (hstore_site.isLocalPartitions(partitions)) {
+            hstore_site.transactionPrepare(ts.getTransactionId(), partitions, null);
+        }
+        // SLOW PATH: Since we have to go over the network, we have to use our trusty ol'
+        // TransactionPrepareHandler to route the request to proper sites.
+        else {
+            TransactionPrepareRequest request = TransactionPrepareRequest.newBuilder()
+                                                            .setTransactionId(ts.getTransactionId())
+                                                            .addAllPartitions(partitions)
+                                                            .build();
+            this.transactionPrepare_handler.sendMessages(ts, request, callback, partitions);
+        }
     }
 
     /**
@@ -829,12 +840,21 @@ public class HStoreCoordinator implements Shutdownable {
             LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]",
                                     partitions, ts, status));
         
-        TransactionFinishRequest request = TransactionFinishRequest.newBuilder()
-                                                        .setTransactionId(ts.getTransactionId())
-                                                        .setStatus(status)
-                                                        .addAllPartitions(partitions)
-                                                        .build();
-        this.transactionFinish_handler.sendMessages(ts, request, callback, partitions);
+        // FAST PATH: If all of the partitions that this txn needs are on this
+        // HStoreSite, then we don't need to bother with making this request
+        if (ts.isPredictAllLocal()) {
+            hstore_site.transactionFinish(ts.getTransactionId(), status, partitions);
+        }
+        // SLOW PATH: Since we have to go over the network, we have to use our trusty ol'
+        // TransactionFinishHandler to route the request to proper sites.
+        else {
+            TransactionFinishRequest request = TransactionFinishRequest.newBuilder()
+                                                            .setTransactionId(ts.getTransactionId())
+                                                            .setStatus(status)
+                                                            .addAllPartitions(partitions)
+                                                            .build();
+            this.transactionFinish_handler.sendMessages(ts, request, callback, partitions);
+        }
     }
     
     /**
@@ -844,7 +864,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param partition
      */
     public void transactionRedirect(byte[] serializedRequest, RpcCallback<TransactionRedirectResponse> callback, int partition) {
-        int dest_site_id = hstore_site.getSiteIdForPartitionId(partition);
+        int dest_site_id = catalogContext.getSiteIdForPartitionId(partition);
         if (debug.get()) {
             LOG.debug(String.format("Redirecting transaction request to partition #%d on %s",
                                     partition, HStoreThreadManager.formatSiteName(dest_site_id)));

@@ -60,7 +60,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
-        ALL_PARTITIONS = CatalogUtil.getAllPartitionIds(catalog_db);
+        ALL_PARTITIONS = catalogContext.getAllPartitionIds();
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
@@ -166,7 +166,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 //
 //        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
         
-        Set<Integer> est_partitions = est.getTouchedPartitions(thresholds);
+        Collection<Integer> est_partitions = est.getTouchedPartitions(thresholds);
         assertNotNull(est_partitions);
         assertEquals(partitions.size(), est_partitions.size());
         assertEquals(partitions, est_partitions);

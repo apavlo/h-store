@@ -50,7 +50,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     // PAVLO
     private long txn_id;
-    private int requestCounter = -1;
     private boolean singlepartition = false;
     private int basePartition = -1;
     private int restartCounter = 0;
@@ -137,49 +136,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.restartCounter = 0;
     }
     
-    
-    // ----------------------------------------------------------------------------
-    // SPECIAL BYTEBUFFER MODIFIERS
-    // ----------------------------------------------------------------------------
-
-    /**
-     * Set the server timestamp marker without deserializing it first
-     * @param arr
-     * @param flag
-     */
-    public static void setServerTimestamp(ByteBuffer b, int val) {
-        b.putInt(1, val); 
-    }
-    
-    /**
-     * Set the client handle without deserializing it first
-     * @param b
-     * @param handle
-     */
-    public static void setClientHandle(ByteBuffer b, long handle) {
-        b.putLong(13, handle); // 1 + 4 + 8 
-    }
-    
-    /**
-     * Set the base partition for the client response without deserializing it
-     * @param arr
-     * @param flag
-     */
-    public static void setBasePartition(ByteBuffer b, int basePartition) {
-        b.putInt(22, basePartition); // 1 + 4 + 8 + 8 + 1 = 22 
-    }
-    
-    /**
-     * Set the status without deserializing it first
-     * @param arr
-     * @param flag
-     */
-    public static void setStatus(ByteBuffer b, Status status) {
-        b.put(26, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 4 = 26 
-    }
-    
-    // ----------------------------------------------------------------------------
-    
     private void setResults(Status status, VoltTable[] results, String statusString) {
         assert results != null;
         for (VoltTable result : results) {
@@ -201,17 +157,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     public void setStatus(Status status) {
         this.status = status;
-    }
-    
-    @Override
-    public int getRequestCounter() {
-        return this.requestCounter;
-    }
-    /**
-     * Set the internal request counter
-     */
-    public void setRequestCounter(int val) {
-        this.requestCounter = val;
     }
     
     @Override
@@ -270,76 +215,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return (this.txn_id);
     }
     
-    @Override
-    public void readExternal(FastDeserializer in) throws IOException {
-        in.readByte();//Skip version byte   // 1 byte
-        requestCounter = in.readInt();      // 4 bytes
-        txn_id = in.readLong();             // 8 bytes
-        clientHandle = in.readLong();       // 8 bytes
-        singlepartition = in.readBoolean(); // 1 byte
-        basePartition = in.readInt();       // 4 bytes
-        status = Status.valueOf(in.readByte()); // 1 byte
-        
-        byte presentFields = in.readByte(); // 1 byte
-        if ((presentFields & (1 << 5)) != 0) {
-            statusString = in.readString();
-        } else {
-            statusString = null;
-        }
-        appStatus = in.readByte();
-        if ((presentFields & (1 << 7)) != 0) {
-            appStatusString = in.readString();
-        } else {
-            appStatusString = null;
-        }
-        clusterRoundTripTime = in.readInt();
-        if ((presentFields & (1 << 6)) != 0) {
-            m_exception = SerializableException.deserializeFromBuffer(in.buffer());
-        } else {
-            m_exception = null;
-        }
-        results = (VoltTable[]) in.readArray(VoltTable.class);
-        setProperly = true;
-    }
-
-    @Override
-    public void writeExternal(FastSerializer out) throws IOException {
-        assert setProperly;
-        out.writeByte(0);//version
-        out.writeInt(requestCounter);
-        out.writeLong(txn_id);
-        out.writeLong(clientHandle);
-        out.writeBoolean(singlepartition);
-        out.writeInt(basePartition);
-        out.write((byte)status.ordinal());
-        
-        byte presentFields = 0;
-        if (appStatusString != null) {
-            presentFields |= 1 << 7;
-        }
-        if (m_exception != null) {
-            presentFields |= 1 << 6;
-        }
-        if (statusString != null) {
-            presentFields |= 1 << 5;
-        }
-        out.writeByte(presentFields);
-        
-        if (statusString != null) {
-            out.writeString(statusString);
-        }
-        out.write(appStatus);
-        if (appStatusString != null) {
-            out.writeString(appStatusString);
-        }
-        out.writeInt(clusterRoundTripTime);
-        if (m_exception != null) {
-            final ByteBuffer b = ByteBuffer.allocate(m_exception.getSerializedSize());
-            m_exception.serializeToBuffer(b);
-            out.write(b.array());
-        }
-        out.writeArray(results);
-    }
     
     @Override
     public int getClusterRoundtrip() {
@@ -377,14 +252,85 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void setRestartCounter(int restarts) {
         restartCounter = restarts;
     }
+    
+    
+    @Override
+    public void readExternal(FastDeserializer in) throws IOException {
+        in.readByte();//Skip version byte   // 1 byte
+        restartCounter = in.readByte();     // 1 byte
+        txn_id = in.readLong();             // 8 bytes
+        clientHandle = in.readLong();       // 8 bytes
+        singlepartition = in.readBoolean(); // 1 byte
+        basePartition = in.readInt();       // 4 bytes
+        status = Status.valueOf(in.readByte()); // 1 byte
+        
+        byte presentFields = in.readByte(); // 1 byte
+        if ((presentFields & (1 << 5)) != 0) {
+            statusString = in.readString();
+        } else {
+            statusString = null;
+        }
+        appStatus = in.readByte();
+        if ((presentFields & (1 << 7)) != 0) {
+            appStatusString = in.readString();
+        } else {
+            appStatusString = null;
+        }
+        clusterRoundTripTime = in.readInt();
+        if ((presentFields & (1 << 6)) != 0) {
+            m_exception = SerializableException.deserializeFromBuffer(in.buffer());
+        } else {
+            m_exception = null;
+        }
+        results = (VoltTable[]) in.readArray(VoltTable.class);
+        setProperly = true;
+    }
 
+    @Override
+    public void writeExternal(FastSerializer out) throws IOException {
+        assert setProperly;
+        out.writeByte(0);//version
+        out.writeByte(restartCounter);
+        out.writeLong(txn_id);
+        out.writeLong(clientHandle);
+        out.writeBoolean(singlepartition);
+        out.writeInt(basePartition);
+        out.write((byte)status.ordinal());
+        
+        byte presentFields = 0;
+        if (appStatusString != null) {
+            presentFields |= 1 << 7;
+        }
+        if (m_exception != null) {
+            presentFields |= 1 << 6;
+        }
+        if (statusString != null) {
+            presentFields |= 1 << 5;
+        }
+        out.writeByte(presentFields);
+        
+        if (statusString != null) {
+            out.writeString(statusString);
+        }
+        out.write(appStatus);
+        if (appStatusString != null) {
+            out.writeString(appStatusString);
+        }
+        out.writeInt(clusterRoundTripTime);
+        if (m_exception != null) {
+            final ByteBuffer b = ByteBuffer.allocate(m_exception.getSerializedSize());
+            m_exception.serializeToBuffer(b);
+            out.write(b.array());
+        }
+        out.writeArray(results);
+    }
+    
     @Override
     public String toString() {
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Status", this.status +
                         (this.statusString == null || this.statusString.isEmpty() ? "" : " / " + this.statusString));
         m.put("Handle", this.clientHandle);
-        m.put("Request Counter", this.requestCounter);
         m.put("Restart Counter", this.restartCounter);
         m.put("Single-Partition", this.singlepartition);
         m.put("Base Partition", this.basePartition);
@@ -406,4 +352,45 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
     }
 
+    // ----------------------------------------------------------------------------
+    // SPECIAL BYTEBUFFER MODIFIERS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Set the txn restart counter without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setRestartCounter(ByteBuffer b, int val) {
+        b.put(1, (byte)val); 
+    }
+    
+    /**
+     * Set the client handle without deserializing it first
+     * @param b
+     * @param handle
+     */
+    public static void setClientHandle(ByteBuffer b, long handle) {
+        b.putLong(10, handle); // 1 + 1 + 8 = 10 
+    }
+    
+    /**
+     * Set the base partition for the client response without deserializing it
+     * @param arr
+     * @param flag
+     */
+    public static void setBasePartition(ByteBuffer b, int basePartition) {
+        b.putInt(19, basePartition); // 1 + 1 + 8 + 8 + 1 = 19 
+    }
+    
+    /**
+     * Set the status without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setStatus(ByteBuffer b, Status status) {
+        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 = 23 
+    }
+    
+    // ----------------------------------------------------------------------------
 }

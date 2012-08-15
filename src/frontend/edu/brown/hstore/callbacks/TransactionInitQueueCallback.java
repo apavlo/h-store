@@ -49,8 +49,8 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     }
     
     public void init(Long txn_id,
-                      Collection<Integer> partitions,
-                      RpcCallback<TransactionInitResponse> orig_callback) {
+                     Collection<Integer> partitions,
+                     RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
         assert(orig_callback != null) :
@@ -63,7 +63,8 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
             if (partitions.contains(p)) counter++;
         } // FOR
-        assert(counter > 0);
+        assert(counter > 0) : String.format("InitPartitions:%s / LocalPartitions:%s", 
+                                            partitions, this.hstore_site.getLocalPartitionIds());
         this.partitions = partitions;
         this.builder = TransactionInitResponse.newBuilder()
                              .setTransactionId(txn_id.longValue())
@@ -144,8 +145,6 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
                 }
             }
         }
-        
-
     }
     
     /**

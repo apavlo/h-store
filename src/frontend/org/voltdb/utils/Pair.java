@@ -26,12 +26,12 @@ public class Pair<T, U> implements Comparable<Pair<T, U>> {
 
     private final T m_first;
     private final U m_second;
-    private transient Integer m_hash;
+    private transient int m_hash;
 
     public Pair(T first, U second, boolean precomputeHash) {
         m_first = first;
         m_second = second;
-        m_hash = (precomputeHash ? this.computeHashCode() : null);
+        m_hash = (precomputeHash ? this.computeHashCode() : Integer.MIN_VALUE);
     }
 
     public Pair(T first, U second) {
@@ -44,7 +44,7 @@ public class Pair<T, U> implements Comparable<Pair<T, U>> {
     }
     
     public int hashCode() {
-        if (m_hash != null) return (m_hash.intValue());
+        if (m_hash != Integer.MIN_VALUE) return (m_hash);
         return (this.computeHashCode());
     }
 

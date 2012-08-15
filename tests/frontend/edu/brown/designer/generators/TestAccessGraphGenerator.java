@@ -57,7 +57,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         
         // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
-            this.applyCatalogCorrelations(ProjectType.TPCC);
+            this.applyParameterMappings(ProjectType.TPCC);
             
             // Load up the workload!
             File workload_file = this.getWorkloadFile(ProjectType.TPCC); 
@@ -73,7 +73,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         
         // Setup everything else
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        this.info = new DesignerInfo(catalog_db, workload);
+        this.info = new DesignerInfo(catalogContext, workload);
         
         this.agraph = new AccessGraph(catalog_db);
         this.generator = new AccessGraphGenerator(this.info, this.catalog_proc);

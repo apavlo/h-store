@@ -59,27 +59,34 @@ public class TestCommandLogger extends BaseTestCase {
     static final int BASE_PARTITION = 0;
     
     @SuppressWarnings("unchecked")
-    static final Class<? extends VoltProcedure>[] TARGET_PROC = (Class<? extends VoltProcedure>[])new Class<?>[]{
+    static final Class<? extends VoltProcedure>[] TARGET_PROCS = (Class<? extends VoltProcedure>[])new Class<?>[]{
         UpdateLocation.class,
         UpdateSubscriberData.class
     };
-    static final Object TARGET_PARAMS[][] = new Object[][]{{ 12345l, "ABCDEF"},{ 666l, 777l, 888l, 999l}};
+    static final Object TARGET_PARAMS[][] = new Object[][]{
+        { 12345l, "ABCDEF"},
+        { 666l, 777l, 888l, 999l}
+    };
     
     HStoreSite hstore_site; 
     CommandLogWriter logger;
-    Procedure catalog_proc[];
+    Procedure catalog_procs[];
     File outputFile;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
-        this.catalog_proc = new Procedure[2];
-        this.catalog_proc[0] = this.getProcedure(TARGET_PROC[0]);
-        this.catalog_proc[1] = this.getProcedure(TARGET_PROC[1]);
-        
-        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
+
+        this.catalog_procs = new Procedure[TARGET_PROCS.length];
+        for (int i = 0; i < this.catalog_procs.length; i++) {
+            this.catalog_procs[i] = this.getProcedure(TARGET_PROCS[i]);
+        } // FOR
+
         HStoreConf hstore_conf = HStoreConf.singleton();
+        hstore_conf.site.commandlog_enable = false;
         hstore_conf.site.commandlog_timeout = 1000;
+
+        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         assert(hstore_site.isLocalPartition(0));
         
@@ -96,15 +103,16 @@ public class TestCommandLogger extends BaseTestCase {
     @Test
     public void testWithGroupCommit() throws Exception {
         // Write out a new txn invocation to the log
-        long txnId[] = new long[2];
-        for (int i = 0; i < 2; i++) {
+        int num_txns = 1000;
+        long txnId[] = new long[num_txns];
+        for (int i = 0; i < num_txns; i++) {
             LocalTransaction ts = new LocalTransaction(hstore_site);
             txnId[i] = TXN_ID.incrementAndGet(); 
-            ts.testInit(new Long(txnId[i]),
+            ts.testInit(txnId[i],
                         BASE_PARTITION,
                         new PartitionSet(BASE_PARTITION),
-                        catalog_proc[i],
-                        TARGET_PARAMS[i]);
+                        catalog_procs[i % 2],
+                        TARGET_PARAMS[i % 2]);
             
             ClientResponseImpl cresponse = new ClientResponseImpl(txnId[i],
                                                                   0l,
@@ -125,12 +133,12 @@ public class TestCommandLogger extends BaseTestCase {
         for (LogEntry entry : reader) {
             assertNotNull(entry);
             assertEquals(txnId[ctr], entry.txnId.longValue());
-            assertEquals(catalog_proc[ctr].getId(), entry.procId);
+            assertEquals(catalog_procs[ctr % 2].getId(), entry.procId);
             
             Object[] entryParams = entry.procParams.toArray();
-            assertEquals(TARGET_PARAMS[ctr].length, entryParams.length);
-            for (int i = 0; i < TARGET_PARAMS[ctr].length; i++)
-                assertEquals(TARGET_PARAMS[ctr][i], entryParams[i]);
+            assertEquals(TARGET_PARAMS[ctr % 2].length, entryParams.length);
+            for (int i = 0; i < TARGET_PARAMS[ctr % 2].length; i++)
+                assertEquals(TARGET_PARAMS[ctr % 2][i], entryParams[i]);
             
             ctr++;
         }

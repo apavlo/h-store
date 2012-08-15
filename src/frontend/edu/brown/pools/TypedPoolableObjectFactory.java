@@ -51,6 +51,13 @@ public abstract class TypedPoolableObjectFactory<T extends Poolable> extends Bas
 
     public abstract T makeObjectImpl() throws Exception;
 
+    public void setEnableCounting(boolean enable) {
+        this.enable_counting = enable;
+    }
+    public boolean isCountingEnabled() {
+        return (this.enable_counting);
+    }
+    
     @Override
     public final T makeObject() throws Exception {
         T obj = this.makeObjectImpl();
@@ -86,6 +93,18 @@ public abstract class TypedPoolableObjectFactory<T extends Poolable> extends Bas
 
     public int getDestroyedCount() {
         return (this.destroyed.get());
+    }
+    
+    @Override
+    public String toString() {
+        String ret = super.toString();
+        if (this.enable_counting) {
+            ret += String.format("[created:%d / passivated:%s / destroyed: %d]",
+                                 this.created.get(),
+                                 this.passivated.get(),
+                                 this.destroyed.get());
+        }
+        return (ret);
     }
 
     /**

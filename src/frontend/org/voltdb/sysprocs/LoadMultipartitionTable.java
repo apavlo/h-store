@@ -23,9 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
@@ -33,18 +31,15 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.MaterializedViewInfo;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.PartitionEstimator;
 
 /**
  * Given a VoltTable with a schema corresponding to a persistent table, load all
@@ -67,14 +62,10 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     private Histogram<Integer> allPartitionsHistogram = new Histogram<Integer>();
     
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        
-        site.registerPlanFragment(SysProcFragmentId.PF_loadDistribute, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_loadAggregate, this);
-        
-        this.allPartitionsHistogram.putAll(CatalogUtil.getAllPartitionIds(catalog_proc));
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_loadDistribute, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_loadAggregate, this);
+        this.allPartitionsHistogram.put(catalogContext.getAllPartitionIds());
     }
     
     @Override
@@ -122,7 +113,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     
     private SynthesizedPlanFragment[] createReplicatedPlan(Table catalog_tbl, VoltTable table) {
         if (debug.get()) LOG.debug(String.format("%s - %s is replicated. Creating %d fragments to send to all partitions",
-                                   this.getTransactionState(), catalog_tbl.getName(), num_partitions));
+                                   this.getTransactionState(), catalog_tbl.getName(), catalogContext.numberOfPartitions));
         ParameterSet params = new ParameterSet(catalog_tbl.getName(), table);
         
         final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[2];
@@ -155,7 +146,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         if (debug.get()) LOG.debug(catalog_tbl + " is not replicated. Splitting table data into separate pieces for partitions");
         
         // Create a table for each partition
-        VoltTable partitionedTables[] = new VoltTable[num_partitions];
+        VoltTable partitionedTables[] = new VoltTable[catalogContext.numberOfPartitions];
 
         // Split the input table into per-partition units
         if (debug.get()) LOG.debug("Splitting original table of " + table.getRowCount() + " rows into partitioned tables");
@@ -218,7 +209,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pf.nonExecSites = false;
             pf.destPartitionId = partition; // partitionsToSites[i - 1];
             pf.parameters = params;
-            pf.last_task = true;
+            pf.last_task = false;
             pfs.add(pf);
             if (trace.get()) sb.append("\n  Partition #").append(partition).append(": ")
                          .append(partitionedTables[partition].getRowCount()).append(" tuples");
@@ -273,7 +264,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         VoltTable[] results;
         SynthesizedPlanFragment pfs[];
 
-        Table catalog_tbl = database.getTables().getIgnoreCase(tableName);
+        Table catalog_tbl = catalogContext.database.getTables().getIgnoreCase(tableName);
         if (catalog_tbl == null) {
             throw new VoltAbortException("Table '" + tableName + "' does not exist");
         }

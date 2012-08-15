@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.*;
 import org.voltdb.utils.JarReader;
@@ -158,18 +159,13 @@ public class ArgumentsParser {
     public static final String PARAM_PARTITION_MAP = "partitionmap";
     public static final String PARAM_PARTITION_MAP_OUTPUT = PARAM_PARTITION_MAP + ".output";
 
-    public static final String PARAM_INDEX_PLAN = "indexplan";
-    public static final String PARAM_INDEX_PLAN_OUTPUT = PARAM_INDEX_PLAN + ".output";
-
-    public static final String PARAM_HASHER = "hasher";
+    private static final String PARAM_HASHER = "hasher";
     public static final String PARAM_HASHER_CLASS = PARAM_HASHER + ".class";
     public static final String PARAM_HASHER_PROFILE = PARAM_HASHER + ".profile";
     public static final String PARAM_HASHER_OUTPUT = PARAM_HASHER + ".output";
-
-    private static final String PARAM_COORDINATOR = "coordinator";
-    public static final String PARAM_COORDINATOR_HOST = PARAM_COORDINATOR + ".host";
-    public static final String PARAM_COORDINATOR_PORT = PARAM_COORDINATOR + ".port";
-    public static final String PARAM_COORDINATOR_PARTITION = PARAM_COORDINATOR + ".partition";
+    
+    private static final String PARAM_TERMINAL = "terminal";
+    public static final String PARAM_TERMINAL_CSV = PARAM_TERMINAL + ".csv";
 
     private static final String PARAM_SITE = "site";
     public static final String PARAM_SITE_HOST = PARAM_SITE + ".host";
@@ -177,30 +173,12 @@ public class ArgumentsParser {
     public static final String PARAM_SITE_PARTITION = PARAM_SITE + ".partition";
     public static final String PARAM_SITE_ID = PARAM_SITE + ".id";
     public static final String PARAM_SITE_IGNORE_DTXN = PARAM_SITE + ".ignore_dtxn";
-    // public static final String PARAM_SITE_ENABLE_SPECULATIVE_EXECUTION =
-    // PARAM_SITE + ".exec_speculative_execution";
-    // public static final String PARAM_SITE_ENABLE_DB2_REDIRECTS = PARAM_SITE +
-    // ".exec_db2_redirects";
-    // public static final String PARAM_SITE_FORCE_SINGLEPARTITION = PARAM_SITE
-    // + ".exec_force_singlepartitioned";
-    // public static final String PARAM_SITE_FORCE_LOCALEXECUTION = PARAM_SITE +
-    // ".exec_force_localexecution";
-    // public static final String PARAM_SITE_FORCE_NEWORDERINSPECT = PARAM_SITE
-    // + ".exec_neworder_cheat";
-    // public static final String PARAM_SITE_FORCE_NEWORDERINSPECT_DONE =
-    // PARAM_SITE + ".exec_neworder_cheat_done_partitions";
     public static final String PARAM_SITE_STATUS_INTERVAL = PARAM_SITE + ".statusinterval";
     public static final String PARAM_SITE_STATUS_INTERVAL_KILL = PARAM_SITE + ".statusinterval_kill";
     public static final String PARAM_SITE_CLEANUP_INTERVAL = PARAM_SITE + ".cleanup_interval";
     public static final String PARAM_SITE_CLEANUP_TXN_EXPIRE = PARAM_SITE + ".cleanup_txn_expire";
     public static final String PARAM_SITE_ENABLE_PROFILING = PARAM_SITE + ".enable_profiling";
     public static final String PARAM_SITE_MISPREDICT_CRASH = PARAM_SITE + ".mispredict_crash";
-
-    private static final String PARAM_DTXN = "dtxn";
-    public static final String PARAM_DTXN_CONF = PARAM_DTXN + ".conf";
-    public static final String PARAM_DTXN_CONF_OUTPUT = PARAM_DTXN + ".conf.output";
-    public static final String PARAM_DTXN_ENGINE = PARAM_DTXN + ".engine";
-    public static final String PARAM_DTXN_COORDINATOR = PARAM_DTXN + ".coordinator";
 
     public static final List<String> PARAMS = new ArrayList<String>();
     static {
@@ -236,6 +214,7 @@ public class ArgumentsParser {
     /**
      * Catalog Attributes
      */
+    public CatalogContext catalogContext = null;
     public Catalog catalog = null;
     public Database catalog_db = null;
     public File catalog_path = null;
@@ -520,7 +499,7 @@ public class ArgumentsParser {
 
             // BASE PARTITIONS
             if (params.containsKey(PARAM_WORKLOAD_RANDOM_PARTITIONS) || params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
-                BasePartitionTxnFilter filter = new BasePartitionTxnFilter(new PartitionEstimator(catalog_db));
+                BasePartitionTxnFilter filter = new BasePartitionTxnFilter(new PartitionEstimator(this.catalogContext));
 
                 // FIXED LIST
                 if (params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
@@ -530,7 +509,7 @@ public class ArgumentsParser {
                     // RANDOM
                 } else {
                     double factor = this.getDoubleParam(PARAM_WORKLOAD_RANDOM_PARTITIONS);
-                    List<Integer> all_partitions = new ArrayList<Integer>(CatalogUtil.getAllPartitionIds(catalog_db));
+                    List<Integer> all_partitions = new ArrayList<Integer>(catalogContext.getAllPartitionIds());
                     Collections.shuffle(all_partitions, new Random());
                     workload_base_partitions.addAll(all_partitions.subList(0, (int) (all_partitions.size() * factor)));
                 }
@@ -702,6 +681,7 @@ public class ArgumentsParser {
 
     public void updateCatalog(Catalog catalog, File catalog_path) {
         this.catalog = catalog;
+        this.catalogContext = new CatalogContext(catalog, catalog_path);
         this.catalog_db = CatalogUtil.getDatabase(catalog);
         if (catalog_path != null)
             this.catalog_path = catalog_path;
@@ -837,7 +817,7 @@ public class ArgumentsParser {
                 LOG.debug("Loaded catalog from schema file '" + path + "'");
             this.updateCatalog(catalog, new File(path));
         }
-
+        
         // Catalog Type
         if (this.params.containsKey(PARAM_CATALOG_TYPE)) {
             String catalog_type = this.params.get(PARAM_CATALOG_TYPE);
@@ -922,9 +902,9 @@ public class ArgumentsParser {
 
                     // Special Case: TimeIntervalCostModel
                     if (target_name.endsWith(TimeIntervalCostModel.class.getSimpleName())) {
-                        this.costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(this.catalog_db, SingleSitedCostModel.class, this.num_intervals);
+                        this.costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(this.catalogContext, SingleSitedCostModel.class, this.num_intervals);
                     } else {
-                        this.costmodel = ClassUtil.newInstance(this.costmodel_class, new Object[] { this.catalog_db }, new Class[] { Database.class });
+                        this.costmodel = ClassUtil.newInstance(this.costmodel_class, new Object[] { this.catalogContext }, new Class[] { Database.class });
                     }
                 } else {
                     assert (false) : "Invalid key '" + key + "'";
@@ -972,7 +952,7 @@ public class ArgumentsParser {
                 this.hasher_class = (Class<? extends AbstractHasher>) loader.loadClass(hasherClassName);
             }
             Constructor<? extends AbstractHasher> constructor = this.hasher_class.getConstructor(new Class[] { Database.class, int.class });
-            int num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
+            int num_partitions = this.catalogContext.numberOfPartitions;
             this.hasher = constructor.newInstance(new Object[] { this.catalog_db, num_partitions });
             if (!(this.hasher instanceof DefaultHasher))
                 LOG.debug("Loaded hasher " + this.hasher.getClass());

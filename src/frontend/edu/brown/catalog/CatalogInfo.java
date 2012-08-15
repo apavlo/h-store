@@ -3,11 +3,11 @@ package edu.brown.catalog;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -91,8 +91,10 @@ public class CatalogInfo {
         int num_sites = CatalogUtil.getCluster(catalog).getSites().size();
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
 
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("Catalog File", catalog_path.getAbsolutePath());
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        if (catalog_path != null) {
+            m.put("Catalog File", catalog_path.getAbsolutePath());
+        }
         m.put("# of Hosts", num_hosts);
         m.put("# of Sites", num_sites);
         m.put("# of Partitions", num_partitions);

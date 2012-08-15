@@ -112,12 +112,7 @@ begin Procedure                 "A stored procedure (transaction) in the system"
     AuthProgram* authPrograms   "The set of authorized programs for this procedure (users)"
     Statement* statements       "The set of SQL statements this procedure may call"
     ProcParameter* parameters   "The set of parameters to this stored procedure"
-    ProcedureRef* readConflicts  "Procedures whose Statements have a read-write conflict with this procedure"
-    ProcedureRef* writeConflicts "Procedures whose Statements have a write-write conflict with this procedure"
-end
-
-begin ProcedureRef
-    Procedure? procedure
+    ConflictSet* conflicts      "The conflict sets that this stored procedure has with other procedures"
 end
 
 begin Table                   "A table (relation) in the database"
@@ -132,6 +127,9 @@ begin Table                   "A table (relation) in the database"
     bool systable               "Is this table an internal system table?"
     bool mapreduce              "Is this table a MapReduce transaction table?"
     bool evictable              "Can contents of this table be evicted by the anti-cache?"
+end
+begin TableRef
+    Table? table
 end
 
 begin MaterializedViewInfo "Information used to build and update a materialized view"
@@ -238,4 +236,10 @@ begin SnapshotSchedule          "A schedule for the database to follow when crea
     int retain                    "How many snapshots to retain"
     string path                   "Path where snapshots should be stored"
     string prefix                 "Prefix for snapshot filenames"
+end
+
+begin ConflictSet               "A set of conflicts with another procedures"
+    Procedure? procedure        "The other procedure that this conflict set is for"
+    TableRef* readWriteConflicts  "Tables that the parent Procedure has a read-write conflict with the target procedure"
+    TableRef* writeWriteConflicts "Tables that the parent Procedure has a write-write conflict with the target procedure"
 end

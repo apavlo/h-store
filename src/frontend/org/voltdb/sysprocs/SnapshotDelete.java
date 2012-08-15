@@ -23,9 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltDB;
@@ -33,13 +31,10 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
-import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo(singlePartition = false)
 public class SnapshotDelete extends VoltSystemProcedure {
@@ -52,11 +47,9 @@ public class SnapshotDelete extends VoltSystemProcedure {
         SysProcFragmentId.PF_snapshotDeleteResults;
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_snapshotDelete, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_snapshotDeleteResults, this);
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_snapshotDelete, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_snapshotDeleteResults, this);
     }
 
     private String errorString = null;
@@ -76,11 +69,11 @@ public class SnapshotDelete extends VoltSystemProcedure {
         {
             // Choose the lowest site ID on this host to do the deletion.
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
+            int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id =
                 VoltDB.instance().getCatalogContext().siteTracker.
                 getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getExecutionSite().getSiteId() == lowest_site_id)
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 assert(params.toArray()[0] != null);
                 assert(params.toArray()[0] instanceof String[]);

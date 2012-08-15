@@ -1,7 +1,6 @@
 package edu.brown.hstore;
 
 import java.io.File;
-import java.util.concurrent.Semaphore;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -20,8 +19,6 @@ import edu.brown.benchmark.voter.VoterProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.EventObservable;
-import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
@@ -41,21 +38,12 @@ public class TestAntiCacheManager extends BaseTestCase {
     
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
-    private Thread thread;
     private File anticache_dir;
-    private Semaphore readyLock;
     
     private PartitionExecutor executor;
     private ExecutionEngine ee;
     private Table catalog_tbl;
 
-    private EventObserver<HStoreSite> ready = new EventObserver<HStoreSite>() {
-        @Override
-        public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-            readyLock.release();
-        }
-    };
-    
     private final AbstractProjectBuilder builder = new VoterProjectBuilder() {
         {
             this.markTableEvictable(TARGET_TABLE);
@@ -66,14 +54,12 @@ public class TestAntiCacheManager extends BaseTestCase {
     @Before
     public void setUp() throws Exception {
         super.setUp(builder, false);
-        initializeCluster(1, 1, NUM_PARTITIONS);
+        initializeCatalog(1, 1, NUM_PARTITIONS);
+        this.anticache_dir = FileUtil.getTempDirectory();
         
         // Just make sure that the Table has the evictable flag set to true
         this.catalog_tbl = getTable(TARGET_TABLE);
         assertTrue(catalog_tbl.getEvictable());
-        
-        this.anticache_dir = FileUtil.getTempDirectory();
-        this.readyLock = new Semaphore(0);
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         this.hstore_conf = HStoreConf.singleton();
@@ -82,16 +68,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         this.hstore_conf.site.anticache_check_interval = Integer.MAX_VALUE;
         this.hstore_conf.site.anticache_dir = this.anticache_dir.getAbsolutePath();
         
-        this.hstore_site = HStore.initialize(catalog_site, hstore_conf);
-        this.hstore_site.getReadyObservable().addObserver(this.ready);
-        this.thread = new Thread(this.hstore_site);
-        this.thread.start();
-        
-        // Wait until we know that our HStoreSite has started
-        this.readyLock.acquire();
-        // I added an extra little sleep just to be sure...
-        ThreadUtil.sleep(3000);
-        
+        this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
         this.executor = hstore_site.getPartitionExecutor(0);
         assertNotNull(this.executor);
         this.ee = executor.getExecutionEngine();
@@ -100,7 +77,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     
     @Override
     protected void tearDown() throws Exception {
-        this.hstore_site.shutdown();
+        if (this.hstore_site != null) this.hstore_site.shutdown();
         FileUtil.deleteDirectory(this.anticache_dir);
     }
     

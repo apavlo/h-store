@@ -2,6 +2,7 @@ package edu.brown.designer.partitioners;
 
 import java.io.File;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Database;
 
 import edu.brown.BaseTestCase;
@@ -58,7 +59,7 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
                 System.err.println("Failed to load " + stats_file.getAbsolutePath());
                 throw ex;
             }
-            this.applyCatalogCorrelations(type);
+            this.applyParameterMappings(type);
             mappings_file = this.getParameterMappingsFile(type);
             assertNotNull(mappings_file);
             assert(mappings_file.exists());
@@ -67,12 +68,12 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
         }
         
         // Setup everything else (that's just how we roll up in this ma)
-        this.info = this.generateInfo(catalog_db); 
+        this.info = this.generateInfo(catalogContext); 
         this.hints = new DesignerHints();
     }
     
-    protected DesignerInfo generateInfo(Database catalog_db) {
-        DesignerInfo info = new DesignerInfo(catalog_db, workload);
+    protected DesignerInfo generateInfo(CatalogContext catalogContext) {
+        DesignerInfo info = new DesignerInfo(catalogContext, workload);
         info.setStats(stats);
         info.setMappings(mappings);
         info.setMappingsFile(mappings_file);

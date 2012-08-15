@@ -128,22 +128,24 @@ public class MapReduceTransaction extends LocalTransaction {
     
     @Override
     public LocalTransaction init(Long txn_id,
-                                  long clientHandle,
-                                  int base_partition,
-                                  PartitionSet predict_touchedPartitions,
-                                  boolean predict_readOnly,
-                                  boolean predict_canAbort,
-                                  Procedure catalog_proc, ParameterSet params,
-                                  RpcCallback<ClientResponseImpl> client_callback) {
+                                 long initiateTime,
+                                 long clientHandle,
+                                 int base_partition,
+                                 PartitionSet predict_touchedPartitions,
+                                 boolean predict_readOnly,
+                                 boolean predict_canAbort,
+                                 Procedure catalog_proc, ParameterSet params,
+                                 RpcCallback<ClientResponseImpl> client_callback) {
         super.init(txn_id,
-                    clientHandle,
-                    base_partition,
-                    predict_touchedPartitions,
-                    predict_readOnly,
-                    predict_canAbort,
-                    catalog_proc,
-                    params,
-                    client_callback);
+                   initiateTime,
+                   clientHandle,
+                   base_partition,
+                   predict_touchedPartitions,
+                   predict_readOnly,
+                   predict_canAbort,
+                   catalog_proc,
+                   params,
+                   client_callback);
         
         // Intialize MapReduce properties
         this.mapEmit = hstore_site.getDatabase().getTables().get(this.catalog_proc.getMapemittable());
@@ -158,9 +160,10 @@ public class MapReduceTransaction extends LocalTransaction {
             //int offset = partition;
             LOG.info(String.format("Partition[%d] -> Offset[%d]", partition, offset));
             this.local_txns[offset].init(this.txn_id,
+                                         initiateTime,
                                          this.client_handle,
                                          partition,
-                                         hstore_site.getSingletonPartitionList(partition),
+                                         hstore_site.getCatalogContext().getPartitionSetSingleton(partition),
                                          this.predict_readOnly,
                                          this.predict_abortable,
                                          catalog_proc,
@@ -195,14 +198,16 @@ public class MapReduceTransaction extends LocalTransaction {
     }
 
     public MapReduceTransaction init(Long txn_id,
-                                      long client_handle,
-                                      int base_partition,
-                                      Procedure catalog_proc,
-                                      ParameterSet params) {
+                                     long initiateTime,
+                                     long client_handle,
+                                     int base_partition,
+                                     Procedure catalog_proc,
+                                     ParameterSet params) {
         this.init(txn_id,
+                  initiateTime,
                   client_handle,
                   base_partition,
-                  hstore_site.getAllPartitionIds(),
+                  hstore_site.getCatalogContext().getAllPartitionIds(),
                   false,
                   true,
                   catalog_proc,
@@ -429,7 +434,7 @@ public class MapReduceTransaction extends LocalTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return String.format("%s-%s #%d/%d", this.getProcedureName(), (this.getState().toString()), this.txn_id, this.base_partition);
+            return String.format("%s-%s #%d/%d", this.getProcedure().getName(), (this.getState().toString()), this.txn_id, this.base_partition);
         } else {
             return ("<Uninitialized>");
         }

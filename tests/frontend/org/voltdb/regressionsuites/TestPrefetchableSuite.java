@@ -7,14 +7,11 @@ import org.junit.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.prefetchprocs.SquirrelsDistributed;
@@ -22,7 +19,6 @@ import org.voltdb.regressionsuites.prefetchprocs.SquirrelsSingle;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.utils.CollectionUtil;
 
 /**
  * Special test cases for checking complex operations in the PlanOptimizer

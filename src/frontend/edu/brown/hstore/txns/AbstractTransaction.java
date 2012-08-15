@@ -141,17 +141,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected boolean predict_readOnly = false;
     
     // ----------------------------------------------------------------------------
-    // GLOBAL EXECUTION FLAGS
-    // ----------------------------------------------------------------------------
-    
-    private boolean exec_readOnlyAll = true;
-    
-    // ----------------------------------------------------------------------------
     // PER PARTITION EXECUTION FLAGS
     // ----------------------------------------------------------------------------
     
     // TODO(pavlo): Document what these arrays are and how the offsets are calculated
     
+    private final boolean prepared[];
     private final boolean finished[];
     private final long last_undo_token[];
     protected final RoundState round_state[];
@@ -181,6 +176,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.hstore_site = hstore_site;
         
         int numLocalPartitions = hstore_site.getLocalPartitionIdArray().length;
+        this.prepared = new boolean[numLocalPartitions];
         this.finished = new boolean[numLocalPartitions];
         this.last_undo_token = new long[numLocalPartitions];
         this.round_state = new RoundState[numLocalPartitions];
@@ -253,7 +249,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.pending_error = null;
         this.status = null;
         this.sysproc = false;
-        this.exec_readOnlyAll = true;
         
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
@@ -261,11 +256,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         // If this transaction handle was keeping track of pre-fetched queries,
         // then go ahead and reset those state variables.
         if (this.prefetch != null) {
-            hstore_site.getObjectPools().STATES_PREFETCH.returnObject(this.prefetch);
+            hstore_site.getObjectPools().getPrefetchStatePool(this.base_partition).returnObject(this.prefetch);
             this.prefetch = null;
         }
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
+            this.prepared[i] = false;
             this.finished[i] = false;
             this.round_state[i] = null;
             this.round_ctr[i] = 0;
@@ -395,27 +391,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public void markExecNotReadOnly(int partition) {
         this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)] = false;
     }
-    /**
-     * Mark this transaction as having issued a SQLStmt batch that modifies data on
-     * some partition. This doesn't need to specify which partition that this txn modified
-     * data on, it's just to say that somewhere we are going to try to change something.
-     */
-    public void markExecNotReadOnlyAllPartitions() {
-        this.exec_readOnlyAll = false;
-    }
 
     /**
      * Returns true if this transaction has not executed any modifying work at this partition
      */
     public boolean isExecReadOnly(int partition) {
         return (this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)]);
-    }
-    /**
-     * Returns true if this transaction has not executed any modifying work at all the
-     * partitions that it accessed
-     */
-    public boolean isExecReadOnlyAllPartitions() {
-        return (this.exec_readOnlyAll);
     }
     
     /**
@@ -616,10 +597,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.readTables[offset].set(catalog_tbl.getRelativeIndex());
     }
     public void markTableIdsAsRead(int partition, int...tableIds) {
-        int offset = hstore_site.getLocalPartitionOffset(partition);
-        for (int id : tableIds) {
-            this.readTables[offset].set(id);
-        } // FOR
+        if (tableIds != null) {
+            int offset = hstore_site.getLocalPartitionOffset(partition);
+            for (int id : tableIds) {
+                this.readTables[offset].set(id);
+            } // FOR
+        }
     }
     public boolean isTableRead(int partition, Table catalog_tbl) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
@@ -631,14 +614,33 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.writeTables[offset].set(catalog_tbl.getRelativeIndex());
     }
     public void markTableIdsAsWritten(int partition, int...tableIds) {
-        int offset = hstore_site.getLocalPartitionOffset(partition);
-        for (int id : tableIds) {
-            this.writeTables[offset].set(id);
-        } // FOR
+        if (tableIds != null) {
+            int offset = hstore_site.getLocalPartitionOffset(partition);
+            for (int id : tableIds) {
+                this.writeTables[offset].set(id);
+            } // FOR
+        }
     }
     public boolean isTableWritten(int partition, Table catalog_tbl) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         return (this.writeTables[offset].get(catalog_tbl.getRelativeIndex()));
+    }
+    
+    public boolean isTableReadOrWritten(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        int tableId = catalog_tbl.getRelativeIndex();
+        return (this.readTables[offset].get(tableId) || this.writeTables[offset].get(tableId));
+    }
+    
+    /**
+     * Clear read/write table sets
+     * <B>NOTE:</B> This should only be used for testing
+     */
+    public final void clearReadWriteSets() {
+        for (int i = 0; i < this.readTables.length; i++) {
+            this.readTables[i].clear();
+            this.writeTables[i].clear();
+        } // FOR
     }
     
     
@@ -647,9 +649,34 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // ----------------------------------------------------------------------------
     
     /**
+     * Mark this txn as prepared and return the original value
+     * This is a thread-safe operation
+     * @param partition - The partition to mark this txn as "prepared"
+     */
+    public boolean markPrepared(int partition) {
+        if (d) LOG.debug(String.format("%s - Marking as prepared on partition %d %s [hashCode=%d, offset=%d]",
+                                       this, partition, Arrays.toString(this.prepared),
+                                       this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
+        boolean orig = false;
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        synchronized (this.prepared) {
+            orig = this.prepared[offset];
+            this.prepared[offset] = true;
+        } // SYNCH
+        return (orig == false);
+    }
+    /**
+     * Is this TransactionState marked as prepared
+     * @return
+     */
+    public boolean isMarkedPrepared(int partition) {
+        return (this.prepared[hstore_site.getLocalPartitionOffset(partition)]);
+    }
+    
+    /**
      * Mark this txn as finished (and thus ready for clean-up)
      */
-    public void setFinishedEE(int partition) {
+    public void markFinished(int partition) {
         if (d) LOG.debug(String.format("%s - Marking as finished on partition %d %s [hashCode=%d, offset=%d]",
                                        this, partition, Arrays.toString(this.finished),
                                        this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
@@ -659,7 +686,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Is this TransactionState marked as finished
      * @return
      */
-    public boolean isFinishedEE(int partition) {
+    public boolean isMarkedFinished(int partition) {
         return (this.finished[hstore_site.getLocalPartitionOffset(partition)]);
     }
 
@@ -715,7 +742,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public final void initializePrefetch() {
         if (this.prefetch == null) {
             try {
-                this.prefetch = hstore_site.getObjectPools().STATES_PREFETCH.borrowObject();
+                this.prefetch = hstore_site.getObjectPools().getPrefetchStatePool(base_partition).borrowObject();
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize PrefetchState for " + this, ex);
             }

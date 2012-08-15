@@ -14,7 +14,7 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 
 public class TestConflictCalculator extends BaseTestCase {
     
-    ConflictCalculator cc;
+    ConflictSetCalculator cc;
     
     private final AbstractProjectBuilder builder = new TPCCProjectBuilder() {
         {
@@ -33,7 +33,7 @@ public class TestConflictCalculator extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(builder);
-        this.cc = new ConflictCalculator(catalog);
+        this.cc = new ConflictSetCalculator(catalog);
     }
     
     /**
@@ -44,7 +44,7 @@ public class TestConflictCalculator extends BaseTestCase {
         Procedure proc0 = this.getProcedure("NonConflictRead");
         Procedure proc1 = this.getProcedure(slev.class);
         
-        boolean conflicts = this.cc.checkReadWriteConflict(proc0, proc1);
+        boolean conflicts = !this.cc.checkReadWriteConflict(proc0, proc1).isEmpty();
         assertFalse(conflicts);
     }
     
@@ -56,7 +56,7 @@ public class TestConflictCalculator extends BaseTestCase {
         Procedure proc0 = this.getProcedure("NonConflictRead");
         Procedure proc1 = this.getProcedure("NonConflictUpdate");
         
-        boolean conflicts = this.cc.checkReadWriteConflict(proc0, proc1);
+        boolean conflicts = !this.cc.checkReadWriteConflict(proc0, proc1).isEmpty();
         assertFalse(conflicts);
     }
     
@@ -69,11 +69,11 @@ public class TestConflictCalculator extends BaseTestCase {
         Procedure proc1 = this.getProcedure(slev.class);
         
         // There is no conflict between #1 and #2
-        boolean conflicts = this.cc.checkReadWriteConflict(proc0, proc1);
+        boolean conflicts = !this.cc.checkReadWriteConflict(proc0, proc1).isEmpty();
         assertFalse(conflicts);
         
         // But there should be one between #2 and #1
-        conflicts = this.cc.checkReadWriteConflict(proc1, proc0);
+        conflicts = !this.cc.checkReadWriteConflict(proc1, proc0).isEmpty();
         assertTrue(conflicts);
     }
     
@@ -85,11 +85,11 @@ public class TestConflictCalculator extends BaseTestCase {
         Procedure proc0 = this.getProcedure(paymentByCustomerId.class);
         Procedure proc1 = this.getProcedure(paymentByCustomerName.class);
         
-        boolean conflicts = this.cc.checkWriteWriteConflict(proc0, proc1);
+        boolean conflicts = !this.cc.checkWriteWriteConflict(proc0, proc1).isEmpty();
         assertTrue(conflicts);
         
         // Should be symmetrical
-        conflicts = this.cc.checkWriteWriteConflict(proc1, proc0);
+        conflicts = !this.cc.checkWriteWriteConflict(proc1, proc0).isEmpty();
         assertTrue(conflicts);
     }
     
@@ -102,14 +102,14 @@ public class TestConflictCalculator extends BaseTestCase {
         Procedure proc1 = this.getProcedure(GetTableCounts.class);
         boolean conflicts;
         
-        conflicts = this.cc.checkReadWriteConflict(proc0, proc1);
+        conflicts = !this.cc.checkReadWriteConflict(proc0, proc1).isEmpty();
         assertFalse(conflicts);
-        conflicts = this.cc.checkReadWriteConflict(proc1, proc0);
+        conflicts = !this.cc.checkReadWriteConflict(proc1, proc0).isEmpty();
         assertTrue(conflicts);
         
-        conflicts = this.cc.checkWriteWriteConflict(proc0, proc1);
+        conflicts = !this.cc.checkWriteWriteConflict(proc0, proc1).isEmpty();
         assertFalse(conflicts);
-        conflicts = this.cc.checkWriteWriteConflict(proc1, proc0);
+        conflicts = !this.cc.checkWriteWriteConflict(proc1, proc0).isEmpty();
         assertFalse(conflicts);
     }
 

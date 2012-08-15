@@ -3,14 +3,11 @@ package edu.brown.hstore;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
-import java.util.HashSet;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.ParameterSet;
@@ -21,10 +18,10 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -47,7 +44,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
 
     private static Procedure catalog_proc;
     private static Workload workload;
-    private static Collection<Integer> all_partitions;
+    private static PartitionSet all_partitions;
 
     private static SQLStmt batch[][];
     private static ParameterSet args[][];
@@ -66,7 +63,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
 
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-            all_partitions = CatalogUtil.getAllPartitionIds(catalog_proc);
+            all_partitions = catalogContext.getAllPartitionIds();
             
             File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
@@ -180,7 +177,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         
         // Ask the planner to plan a multi-partition transaction where we have predicted it
         // as single-partitioned. It should throw a nice MispredictionException
-        Set<Integer> partitions = new HashSet<Integer>();
+        PartitionSet partitions = new PartitionSet();
         partitions.add(BASE_PARTITION);
         partitions.add(BASE_PARTITION+1);
         
@@ -197,7 +194,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         
         // Ask the planner to plan a multi-partition transaction where we have predicted it
         // as single-partitioned. It should throw a nice MispredictionException
-        Set<Integer> partitions = new HashSet<Integer>();
+        PartitionSet partitions = new PartitionSet();
         partitions.add(BASE_PARTITION);
 //        partitions.add(BASE_PARTITION+1);
         
@@ -220,12 +217,12 @@ public class TestBatchPlannerUtil extends BaseTestCase {
             assertNotNull(catalog_stmts);
             assertEquals(query_batch[batch_idx].size(), catalog_stmts.length);
             
-            Set<Integer> partitions[] = plan.getStatementPartitions();
+            PartitionSet partitions[] = plan.getStatementPartitions();
             assertNotNull(partitions);
             
             for (int i = 0; i < catalog_stmts.length; i++) {
                 assertEquals(query_batch[batch_idx].get(i).getCatalogItem(catalog_db), catalog_stmts[i]);
-                Set<Integer> p = partitions[i];
+                PartitionSet p = partitions[i];
                 assertNotNull(p);
                 assertFalse(p.isEmpty());
             } // FOR
@@ -244,7 +241,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         ParameterSet params[] = new ParameterSet[]{
                 VoltProcedure.getCleanParams(batch[0], new Object[]{ new Long(1) })
         };
-        Collection<Integer> partitions = Collections.singleton(0);
+        PartitionSet partitions = new PartitionSet(0);
         
         // Check to make sure that if we do a SELECT on a replicated table, that
         // it doesn't get added to our touched partitions histogram

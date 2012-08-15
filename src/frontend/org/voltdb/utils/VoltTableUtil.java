@@ -16,26 +16,26 @@ import edu.brown.utils.TableUtil;
 
 public abstract class VoltTableUtil {
 
-    /**
-     * Dump out a VoltTable
-     * @param out
-     * @param vt
-     * @param write_header
-     */
-    public static void csv(Writer out, VoltTable vt) {
-        VoltTableUtil.csv(out, vt, true);
+    public static VoltTable.ColumnInfo[] extractColumnInfo(VoltTable vt) {
+        VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[vt.getColumnCount()];
+        for (int i = 0; i < cols.length; i++) {
+            cols[i] = new VoltTable.ColumnInfo(vt.getColumnName(i), vt.getColumnType(i));
+        } // FOR
+        return (cols);
     }
     
     /**
-     * Dump out a VoltTable
+     * Dump out a VoltTable as a CSV to the given writer
+     * If the header flag is set to true, then the output will include 
+     * the column names in the first row
      * @param out
      * @param vt
      * @param write_header
      */
-    public static void csv(Writer out, VoltTable vt, boolean write_header) {
+    public static void csv(Writer out, VoltTable vt, boolean header) {
         CSVWriter writer = new CSVWriter(out);
         
-        if (write_header) {
+        if (header) {
             String cols[] = new String[vt.getColumnCount()];
             for (int i = 0; i < cols.length; i++) {
                 cols[i] = vt.getColumnName(i);
@@ -128,7 +128,7 @@ public abstract class VoltTableUtil {
      * @param tables
      * @return
      */
-    public static VoltTable combine(Collection<VoltTable> tables) {
+    public static VoltTable union(Collection<VoltTable> tables) {
         VoltTable result = null;
         if (tables != null) {
             for (VoltTable vt : tables) {

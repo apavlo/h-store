@@ -12,6 +12,7 @@ files/
 *.arff
 *.pyc
 *.png
+*.csv
 junitvmwatcher*
 *.hprof
 buildstring.txt

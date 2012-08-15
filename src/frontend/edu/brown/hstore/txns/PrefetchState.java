@@ -13,6 +13,10 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.pools.Poolable;
 
+/**
+ * Special internal state information for when the txn prefetches queries
+ * @author pavlo
+ */
 public class PrefetchState implements Poolable {
 
     /**

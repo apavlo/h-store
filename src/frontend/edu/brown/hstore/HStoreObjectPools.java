@@ -8,7 +8,6 @@ import java.util.Map.Entry;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
@@ -18,9 +17,11 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.PrefetchState;
 import edu.brown.hstore.txns.RemoteTransaction;
+import edu.brown.interfaces.Configurable;
 import edu.brown.pools.TypedObjectPool;
+import edu.brown.pools.TypedPoolableObjectFactory;
 
-public final class HStoreObjectPools {
+public final class HStoreObjectPools implements Configurable {
 
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -39,7 +40,7 @@ public final class HStoreObjectPools {
     /**
      * ForwardTxnResponseCallback Pool
      */
-    public final TypedObjectPool<TransactionRedirectResponseCallback> CALLBACKS_TXN_REDIRECTRESPONSE;
+    public final TypedObjectPool<TransactionRedirectResponseCallback> CALLBACKS_TXN_REDIRECT_RESPONSE;
     
     // ----------------------------------------------------------------------------
     // INTERNAL STATE OBJECTS
@@ -63,7 +64,7 @@ public final class HStoreObjectPools {
     /**
      * PrefetchState ObjectPool
      */
-    public final TypedObjectPool<PrefetchState> STATES_PREFETCH;
+    private final TypedObjectPool<PrefetchState> STATES_PREFETCH[];
     
     /**
      * DistributedState ObjectPool
@@ -91,7 +92,7 @@ public final class HStoreObjectPools {
         this.CALLBACKS_TXN_REDIRECT_REQUEST = TypedObjectPool.factory(TransactionRedirectCallback.class,
                 (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-        this.CALLBACKS_TXN_REDIRECTRESPONSE = TypedObjectPool.factory(TransactionRedirectResponseCallback.class,
+        this.CALLBACKS_TXN_REDIRECT_RESPONSE = TypedObjectPool.factory(TransactionRedirectResponseCallback.class,
                 (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
 
@@ -99,11 +100,25 @@ public final class HStoreObjectPools {
         // LOCAL PARTITION POOLS
         // -------------------------------
         
+        // If there are no prefetchable queries or MapReduce procedures in the catalog, then we will not
+        // create these special object pools
+        boolean needsPrefetch = false;
+        for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
+            if (catalog_proc.getPrefetchable() && hstore_conf.site.exec_prefetch_queries) {
+                needsPrefetch = true;
+                break;
+            }
+        } // FOR
+        
         // We will have one object pool per local partition
         int num_local_partitions = hstore_site.getLocalPartitionIds().size();
         
         this.STATES_TXN_LOCAL = (TypedObjectPool<LocalTransaction>[])new TypedObjectPool<?>[num_local_partitions];
         this.STATES_DISTRIBUTED = (TypedObjectPool<DistributedState>[])new TypedObjectPool<?>[num_local_partitions];
+        
+        if (needsPrefetch) {
+            this.STATES_PREFETCH = (TypedObjectPool<PrefetchState>[])new TypedObjectPool<?>[num_local_partitions];
+        } else this.STATES_PREFETCH = null;
         
         for (int i = 0; i < num_local_partitions; i++) {
             
@@ -117,6 +132,11 @@ public final class HStoreObjectPools {
                 (int)(hstore_conf.site.pool_dtxnstates_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
             
+            if (needsPrefetch) {
+                this.STATES_PREFETCH[i] = TypedObjectPool.factory(PrefetchState.class,
+                    (int)(hstore_conf.site.pool_prefetchstates_idle * hstore_conf.site.pool_scale_factor),
+                    hstore_conf.site.pool_profiling, hstore_site);
+            }
         } // FOR
         
         // -------------------------------
@@ -124,7 +144,7 @@ public final class HStoreObjectPools {
         // -------------------------------
         
         CatalogContext catalogContext = hstore_site.getCatalogContext();
-        boolean has_mapreduce = (CatalogUtil.getMapReduceProcedures(hstore_site.getDatabase()).isEmpty() == false);
+        boolean has_mapreduce = (catalogContext.getMapReduceProcedures().isEmpty() == false);
         
         this.STATES_TXN_REMOTE = (TypedObjectPool<RemoteTransaction>[])new TypedObjectPool<?>[catalogContext.numberOfPartitions];
         this.STATES_TXN_MAPREDUCE = (TypedObjectPool<MapReduceTransaction>[])new TypedObjectPool<?>[catalogContext.numberOfPartitions];
@@ -150,27 +170,32 @@ public final class HStoreObjectPools {
 //                (int)(hstore_conf.site.pool_parametersets_idle * hstore_conf.site.pool_scale_factor),
 //                hstore_conf.site.pool_profiling);
         
-        // If there are no prefetchable queries or MapReduce procedures in the catalog, then we will not
-        // create these special object pools
-        TypedObjectPool<PrefetchState> STATES_PREFETCH = null;
-        for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
-            if (STATES_PREFETCH == null && catalog_proc.getPrefetchable() && hstore_conf.site.exec_prefetch_queries) {
-                STATES_PREFETCH = TypedObjectPool.factory(PrefetchState.class,
-                        (int)(hstore_conf.site.pool_prefetchstates_idle * hstore_conf.site.pool_scale_factor),
-                        hstore_conf.site.pool_profiling, hstore_site);
-            }
-        } // FOR
-        this.STATES_PREFETCH = STATES_PREFETCH;
         
         // Sanity Check: Make sure that we allocated an object pool for all of the 
         // fields that we have defined except for STATES_PREFETCH_STATE
-        for (Entry<String, TypedObjectPool<?>> e : this.getAllPools().entrySet()) {
+        for (Entry<String, TypedObjectPool<?>> e : this.getGlobalPools().entrySet()) {
             String poolName = e.getKey();
             if (poolName.equals("STATES_PREFETCH") || poolName.equals("STATES_TXN_MAPREDUCE")) continue;
             assert(e.getValue() != null) : poolName + " is null!";
         } // FOR
     }
 
+    @Override
+    public void updateConf(HStoreConf hstore_conf) {
+        for (TypedObjectPool<?> pool : this.getGlobalPools().values()) {
+            TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+            factory.setEnableCounting(hstore_conf.site.pool_profiling);
+        } // FOR
+        for (TypedObjectPool<?> pools[] : this.getPartitionedPools().values()) {
+            if (pools == null) continue;
+            for (TypedObjectPool<?> pool : pools) {
+                if (pool == null) continue;
+                TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+                factory.setEnableCounting(hstore_conf.site.pool_profiling);
+            } // FOR
+        } // FOR
+    }
+    
     public TypedObjectPool<LocalTransaction> getLocalTransactionPool(int partition) {
         int offset = this.hstore_site.getLocalPartitionOffset(partition);
         return this.STATES_TXN_LOCAL[offset];
@@ -181,6 +206,7 @@ public final class HStoreObjectPools {
     }
     
     public TypedObjectPool<MapReduceTransaction> getMapReduceTransactionPool(int partition) {
+        if (this.STATES_TXN_MAPREDUCE == null) return (null);
         return this.STATES_TXN_MAPREDUCE[partition];
     }
     
@@ -189,7 +215,13 @@ public final class HStoreObjectPools {
         return this.STATES_DISTRIBUTED[offset];
     }
     
-    public Map<String, TypedObjectPool<?>> getAllPools() {
+    public TypedObjectPool<PrefetchState> getPrefetchStatePool(int partition) {
+        if (this.STATES_PREFETCH == null) return (null);
+        int offset = this.hstore_site.getLocalPartitionOffset(partition);
+        return this.STATES_PREFETCH[offset];
+    }
+    
+    public Map<String, TypedObjectPool<?>> getGlobalPools() {
         Map<String, TypedObjectPool<?>> m = new LinkedHashMap<String, TypedObjectPool<?>>();
         Object val = null;
         for (Field f : HStoreObjectPools.class.getFields()) {
@@ -201,8 +233,23 @@ public final class HStoreObjectPools {
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-        }
-        
+        } // FOR
+        return (m);
+    }
+    
+    public Map<String, TypedObjectPool<?>[]> getPartitionedPools() {
+        Map<String, TypedObjectPool<?>[]> m = new LinkedHashMap<String, TypedObjectPool<?>[]>();
+        Object val = null;
+        for (Field f : HStoreObjectPools.class.getDeclaredFields()) {
+            try {
+                val = f.get(this);
+                if (val instanceof TypedObjectPool<?>[]) {
+                    m.put(f.getName(), (TypedObjectPool<?>[])val);
+                }
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        } // FOR
         return (m);
     }
 }

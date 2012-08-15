@@ -473,6 +473,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         try {
             this.validate();
         } catch (InvalidGraphElementException ex) {
+            ex.printStackTrace();
             return (false);
         }
         return (true);
@@ -538,6 +539,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
                 // Make sure that this the destination vertex has the same partitions as the past+current partitions
                 // for the destination vertex
                 if (v0.isQueryVertex() && v1.isQueryVertex() && v1.past_partitions.equals(all_partitions) == false) {
+                    v1.past_partitions.equals(all_partitions);
                     throw new InvalidGraphElementException(this, e, "Destination vertex in edge does not have the correct past partitions");
                 }
                 
@@ -749,7 +751,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
             ArgumentsParser.PARAM_WORKLOAD,
             ArgumentsParser.PARAM_MARKOV_OUTPUT
         );
-        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
+        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalogContext, args.hasher);
         Class<? extends MarkovGraphsContainer> containerClass = MarkovGraphsContainer.class;
         
         // Check whether we are generating the global graphs or the clustered versions

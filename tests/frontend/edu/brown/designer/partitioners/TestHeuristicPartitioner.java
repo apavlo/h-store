@@ -56,7 +56,7 @@ public class TestHeuristicPartitioner extends BaseTestCase {
         }
         
         // Setup everything else (that's just how we roll up in this ma)
-        this.info = new DesignerInfo(catalog_db, workload);
+        this.info = new DesignerInfo(catalogContext, workload);
         this.info.setNumThreads(NUM_THREADS);
         this.info.setPartitionerClass(HeuristicPartitioner.class);
         this.hints = new DesignerHints();

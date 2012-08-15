@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -58,7 +59,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         super.setUp(ProjectType.TM1, true);
         
         // BasePartitionerTestCase will setup most of what we need
-        this.info.setCostModel(new SingleSitedCostModel(catalog_db));
+        this.info.setCostModel(new SingleSitedCostModel(catalogContext));
         this.info.setPartitionerClass(MockPartitioner.class);
         assertNotNull(info.getStats());
         
@@ -95,8 +96,10 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
      */
     public void testTimeIntervalCostModel() throws Exception {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
-        info = this.generateInfo(clone_db);
-        TimeIntervalCostModel<SingleSitedCostModel> costModel = new TimeIntervalCostModel<SingleSitedCostModel>(clone_db, SingleSitedCostModel.class, 10);
+        CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
+        
+        info = this.generateInfo(clone_catalogContext);
+        TimeIntervalCostModel<SingleSitedCostModel> costModel = new TimeIntervalCostModel<SingleSitedCostModel>(clone_catalogContext, SingleSitedCostModel.class, 10);
         costModel.setCachingEnabled(true);
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
@@ -115,14 +118,14 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         } // FOR
         
         // Calculate the cost *BEFORE* applying the vertical partition optimization
-        double expected_cost = costModel.estimateWorkloadCost(clone_db, workload, filter, null);
+        double expected_cost = costModel.estimateWorkloadCost(clone_catalogContext, workload, filter, null);
         System.err.println("ORIGINAL COST: " + expected_cost);
         
         // Now apply the update and get the new cost. It should be lower
         // We have to clear the cache for these queries first though
         vpc.applyUpdate();
         costModel.invalidateCache(vpc.getOptimizedQueries());
-        double new_cost = costModel.estimateWorkloadCost(clone_db, workload, filter, null);
+        double new_cost = costModel.estimateWorkloadCost(clone_catalogContext, workload, filter, null);
         System.err.println("NEW COST: " + new_cost);
         assert(new_cost < expected_cost) : String.format("%f < %f", new_cost, expected_cost);
     }
@@ -132,8 +135,10 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
      */
     public void testSingleSitedCostModel() throws Exception {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
-        info = this.generateInfo(clone_db);
-        SingleSitedCostModel costModel = new SingleSitedCostModel(clone_db);
+        CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
+        
+        info = this.generateInfo(clone_catalogContext);
+        SingleSitedCostModel costModel = new SingleSitedCostModel(clone_catalogContext);
         costModel.setCachingEnabled(true);
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
@@ -152,7 +157,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         } // FOR
         
         // Calculate the cost *BEFORE* applying the vertical partition optimization
-        double expected_cost = costModel.estimateWorkloadCost(clone_db, workload, filter, null);
+        double expected_cost = costModel.estimateWorkloadCost(clone_catalogContext, workload, filter, null);
         System.err.println("ORIGINAL COST: " + expected_cost);
         Map<Long, TransactionCacheEntry> expected_entries = new HashMap<Long, TransactionCacheEntry>(); 
         for (TransactionCacheEntry txn_entry : costModel.getTransactionCacheEntries()) {
@@ -179,7 +184,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         // We have to clear the cache for these queries first though
         vpc.applyUpdate();
         costModel.invalidateCache(vpc.getOptimizedQueries());
-        double new_cost = costModel.estimateWorkloadCost(clone_db, workload, filter, null);
+        double new_cost = costModel.estimateWorkloadCost(clone_catalogContext, workload, filter, null);
         System.err.println("NEW COST: " + new_cost);
         Collection<TransactionCacheEntry> new_entries = costModel.getTransactionCacheEntries();
         assertNotNull(new_entries);
@@ -212,8 +217,9 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
     public void testPartitionEstimator() throws Exception {
         Integer base_partition = 1;
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
-        PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
-        info = this.generateInfo(clone_db);
+        CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
+        PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
+        info = this.generateInfo(clone_catalogContext);
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
         Column target_col = this.getColumn(catalog_tbl, "S_ID");
@@ -264,7 +270,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
      */
     public void testCatalogUpdates() throws Exception {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
-        info = this.generateInfo(clone_db);
+        CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog());
+        info = this.generateInfo(clone_catalogContext);
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
         Column target_col = this.getColumn(catalog_tbl, "S_ID");

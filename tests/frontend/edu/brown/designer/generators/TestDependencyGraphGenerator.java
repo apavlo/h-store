@@ -23,10 +23,10 @@ public class TestDependencyGraphGenerator extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC, true);
         
-        this.applyCatalogCorrelations(ProjectType.TPCC);
+        this.applyParameterMappings(ProjectType.TPCC);
         
         Workload workload = new Workload(catalog);
-        info = new DesignerInfo(catalog_db, workload);
+        info = new DesignerInfo(catalogContext, workload);
     }
 
     /**

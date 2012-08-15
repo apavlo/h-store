@@ -655,7 +655,7 @@ public class AuctionMarkProfile {
         // This is very inefficient, but it's probably good enough for now
         Histogram<UserId> new_h = new Histogram<UserId>(previousBidders);
         new_h.setKeepZeroEntries(false);
-        for (UserId ex : exclude) new_h.removeAll(ex);
+        for (UserId ex : exclude) new_h.remove(ex);
         new_h.put(this.getRandomBuyerId(exclude));
         try {
             LOG.trace("New Histogram:\n" + new_h);

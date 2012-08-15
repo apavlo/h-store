@@ -262,6 +262,7 @@ public class FeatureSet implements JSONSerializable {
      * @param prefix_include
      * @return
      */
+    @SuppressWarnings("unchecked")
     public Instances export(String name, boolean normalize, Collection<String> prefix_include) {
         // Figure out what attributes we want to export
         Set<String> export_attrs = new ListOrderedSet<String>();
@@ -277,14 +278,14 @@ public class FeatureSet implements JSONSerializable {
         } // FOR
         if (debug.get()) LOG.debug("# of Attributes to Export: " + export_attrs.size());
         
-        List<SortedMap<Object, Double>> normalized_values = null;
+        List<Map<Object, Double>> normalized_values = null;
         Set<String> normalize_ignore = new HashSet<String>();
         if (normalize) {
             normalize_ignore.add(FeatureUtil.getFeatureKeyPrefix(TransactionIdFeature.class));
             normalize_ignore.add(FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class));
             
             if (debug.get()) LOG.debug("Normalizing values!");
-            normalized_values = new ArrayList<SortedMap<Object,Double>>();
+            normalized_values = new ArrayList<Map<Object,Double>>();
             for (String key : export_attrs) {
                 if (normalize_ignore.contains(key) == false) {
                     normalized_values.add(this.attribute_histograms.get(key).normalize());

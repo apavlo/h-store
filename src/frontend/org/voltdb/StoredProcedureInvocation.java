@@ -35,27 +35,27 @@ import edu.brown.hstore.HStoreConstants;
  */
 public class StoredProcedureInvocation implements FastSerializable {
 
-    int procId = -1;
-    String procName = null;
-    ParameterSet params = null;
-    ByteBuffer unserializedParams = null;
+    protected int procId = -1;
+    protected String procName = null;
+    protected ParameterSet params = null;
+    protected ByteBuffer unserializedParams = null;
 
     /**
      * The number of times the txn for this request has been
      * restarted
      */
-    int restartCounter = 0;
+    protected int restartCounter = 0;
     
     /** A descriptor provided by the client, opaque to the server,
         returned to the client in the ClientResponse */
-    long clientHandle = -1;
+    protected long clientHandle = -1;
     
     /** Whether this invocation should be specifically executed at a particular partition **/
-    int base_partition = HStoreConstants.NULL_PARTITION_ID;
+    protected int base_partition = HStoreConstants.NULL_PARTITION_ID;
     
     /** What partitions this invocation will touch **/
     @Deprecated
-    Set<Integer> partitions = null;
+    protected Set<Integer> partitions = null;
     
     public StoredProcedureInvocation() {
         super();
@@ -153,6 +153,10 @@ public class StoredProcedureInvocation implements FastSerializable {
         this.partitions.addAll(partitions);
     }
 
+    // ----------------------------------------------------------------------------
+    // INTERNAL SERIALIZATION METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Build the ParameterSet embedded in this StoredProcedureInvocation
      * <B>Note:</B> This is the slow version because it will create a new

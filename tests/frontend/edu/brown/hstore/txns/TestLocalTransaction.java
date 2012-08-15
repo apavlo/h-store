@@ -1,18 +1,20 @@
 package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.ExecutionState;
@@ -131,7 +133,37 @@ public class TestLocalTransaction extends BaseTestCase {
         assertFalse(ready.isEmpty());
         
         this.ts.startRound(BASE_PARTITION);
+    }
+    
+    /**
+     * testReadWriteSets
+     */
+    public void testReadWriteSets() throws Exception {
+        ExecutionState state = new ExecutionState(this.executor);
+        this.ts.setExecutionState(state);
+        this.ts.fastInitRound(BASE_PARTITION, UNDO_TOKEN);
         
+        int tableIds[] = null;
+        for (Statement catalog_stmt : catalog_proc.getStatements()) {
+            this.ts.clearReadWriteSets();
+            for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
+                tableIds = catalogContext.getReadTableIds(Long.valueOf(catalog_frag.getId()));
+                ts.markTableIdsAsRead(BASE_PARTITION, tableIds);
+                
+                tableIds = catalogContext.getWriteTableIds(Long.valueOf(catalog_frag.getId()));
+                ts.markTableIdsAsWritten(BASE_PARTITION, tableIds);
+            } // FOR
+
+            for (Table catalog_tbl : CatalogUtil.getAllTables(catalog_stmt)) {
+                if (catalog_stmt.getReadonly()) {
+                    assertTrue(catalog_tbl.toString(), ts.isTableRead(BASE_PARTITION, catalog_tbl));
+                    assertFalse(catalog_tbl.toString(), ts.isTableWritten(BASE_PARTITION, catalog_tbl));
+                } else {
+                    assertFalse(catalog_tbl.toString(), ts.isTableRead(BASE_PARTITION, catalog_tbl));
+                    assertTrue(catalog_tbl.toString(), ts.isTableWritten(BASE_PARTITION, catalog_tbl));
+                }
+            } // FOR
+        } // FOR
     }
     
 }

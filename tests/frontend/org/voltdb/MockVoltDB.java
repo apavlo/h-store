@@ -199,13 +199,6 @@ public class MockVoltDB implements VoltDBInterface
     }
 
     @Override
-    public ArrayList<ClientInterface> getClientInterfaces()
-    {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
     public Configuration getConfig()
     {
         // TODO Auto-generated method stub

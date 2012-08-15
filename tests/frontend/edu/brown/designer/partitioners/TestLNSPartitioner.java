@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.junit.Test;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.ProcParameter;
@@ -45,7 +46,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         super.setUp(ProjectType.TM1, true);
         
         // BasePartitionerTestCase will setup most of what we need
-        this.info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, info.getNumIntervals()));
+        this.info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(catalogContext, SingleSitedCostModel.class, info.getNumIntervals()));
         this.info.setPartitionerClass(LNSPartitioner.class);
         this.designer = new Designer(this.info, this.hints, this.info.getArgs());
         this.partitioner = (LNSPartitioner) this.designer.getPartitioner();
@@ -58,12 +59,13 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
     public void testVerticalPartitioning() throws Exception {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         assert(clone_db.hashCode() != catalog_db.hashCode());
+        CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog());
         
         System.err.println("catalog_db => " + catalog_db.hashCode());
         System.err.println("clone_db => " + clone_db.hashCode());
         int num_intervals = info.getNumIntervals();
-        info = this.generateInfo(clone_db);
-        info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(clone_db, SingleSitedCostModel.class, num_intervals));
+        info = this.generateInfo(clone_catalogContext);
+        info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(clone_catalogContext, SingleSitedCostModel.class, num_intervals));
         info.setPartitionerClass(LNSPartitioner.class);
         
         hints.enable_vertical_partitioning = true;
@@ -78,7 +80,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         
         designer = new Designer(info, hints, info.getArgs());
         LNSPartitioner partitioner = (LNSPartitioner)designer.getPartitioner();
-        assertEquals(clone_db, partitioner.info.catalog_db);
+        assertEquals(clone_db, partitioner.info.catalogContext.database);
 
         // 2012-07-20: This is broken for some reason....
         // PartitionPlan pplan = partitioner.generate(hints);
@@ -306,7 +308,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
 
         // First check whether the cost is the same simply right after the first go
         assertEquals(orig_solution, this.partitioner.best_solution);
-        double new_cost = info.getCostModel().estimateWorkloadCost(catalog_db, workload);
+        double new_cost = info.getCostModel().estimateWorkloadCost(catalogContext, workload);
         assert(new_cost > 0);
         assertEquals(this.partitioner.initial_cost, new_cost);
         

@@ -1,5 +1,6 @@
 package edu.brown.terminal;
 
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -59,6 +60,10 @@ public class HStoreTerminal implements Runnable {
         }
     };
     
+    // ---------------------------------------------------------------
+    // STATIC CONFIGURATION MEMBERS
+    // ---------------------------------------------------------------
+    
     private static final String setPlainText = "\033[0;0m";
     private static final String setBoldGreenText = "\033[1;32m"; // 0;1m";
     private static final String setBoldText = "\033[0;1m";
@@ -66,10 +71,21 @@ public class HStoreTerminal implements Runnable {
     private static final String PROMPT = setBoldGreenText + "hstore>" + setPlainText + " ";
     private static final Pattern SPLITTER = Pattern.compile("[ ]+");
     
-    final Catalog catalog;
-    final Database catalog_db;
-    final jline.ConsoleReader reader = new ConsoleReader(); 
-    final TokenCompletor completer;
+    // ---------------------------------------------------------------
+    // INSTANCE CONFIGURATION MEMBERS
+    // ---------------------------------------------------------------
+    
+    private final Catalog catalog;
+    private final Database catalog_db;
+    private final jline.ConsoleReader reader = new ConsoleReader(); 
+    private final TokenCompletor completer;
+    
+    // OPTIONS
+    private boolean enable_csv = false; 
+    
+    // ---------------------------------------------------------------
+    // CONSTRUCTOR
+    // ---------------------------------------------------------------
     
     public HStoreTerminal(Catalog catalog) throws Exception{
         this.catalog = catalog;
@@ -83,26 +99,25 @@ public class HStoreTerminal implements Runnable {
     
     @Override
     public void run() {
-        this.printHeader();
+        if (this.enable_csv == false) this.printHeader();
         
         Pair<Client, Site> p = this.getClientConnection();
         Client client = p.getFirst();
         Site catalog_site = p.getSecond();
-        System.out.printf("Connected to %s:%d / Server Version: %s\n",
-                          catalog_site.getHost().getIpaddr(),
-                          catalog_site.getProc_port(),
-                          client.getBuildString());
-//        System.out.printf("ClusterId: %s / Build Version: %s\n",
-//                          client.getInstanceId().hashCode(), );
+        if (this.enable_csv == false) {
+            System.out.printf("Connected to %s:%d / Server Version: %s\n",
+                              catalog_site.getHost().getIpaddr(),
+                              catalog_site.getProc_port(),
+                              client.getBuildString());
+        }
         
         String query = "";
-        
         ClientResponse cresponse = null;
         boolean stop = false;
         try {
             do {
                 try {
-                    query = reader.readLine(PROMPT);
+                    query = (this.enable_csv ? reader.readLine() : reader.readLine(PROMPT)); 
                     if (query == null || query.isEmpty()) continue;
                     query = query.trim();
                     
@@ -112,6 +127,7 @@ public class HStoreTerminal implements Runnable {
                     int retries = 3;
                     Command targetCmd = null;
                     boolean usage = false;
+                    boolean reconnect = false;
                     while (retries-- > 0 && stop == false) {
                         // Check whether they want to execute a special command
                         for (Command c : Command.values()) {
@@ -129,7 +145,7 @@ public class HStoreTerminal implements Runnable {
                                         if (tokens.length < 2) {
                                             usage = true;
                                         } else {
-                                            cresponse = this.execProcedure(client, tokens[1], query);
+                                            cresponse = this.execProcedure(client, tokens[1], query, reconnect);
                                         }
                                         break;
                                     case QUIT:
@@ -150,7 +166,8 @@ public class HStoreTerminal implements Runnable {
                             LOG.warn("Connection lost. Going to try to connect again...");
                             p = this.getClientConnection();
                             client = p.getFirst();
-                            catalog_site = p.getSecond(); 
+                            catalog_site = p.getSecond();
+                            reconnect = true;
                             continue;
                         }
                         break;
@@ -159,7 +176,7 @@ public class HStoreTerminal implements Runnable {
                     // Just print out the result
                     if (cresponse != null) {
                         if (cresponse.getStatus() == Status.OK) {
-                            System.out.println(formatResult(cresponse));    
+                            System.out.println(this.formatResult(cresponse));    
                         } else {
                             System.out.printf("Server Response: %s / %s\n",
                                               cresponse.getStatus(),
@@ -258,7 +275,7 @@ public class HStoreTerminal implements Runnable {
      * @return
      * @throws Exception
      */
-    private ClientResponse execProcedure(Client client, String procName, String query) throws Exception {
+    private ClientResponse execProcedure(Client client, String procName, String query, boolean reconnect) throws Exception {
         Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
         if (catalog_proc == null) {
             throw new Exception("Invalid stored procedure name '" + procName + "'");
@@ -325,8 +342,10 @@ public class HStoreTerminal implements Runnable {
             } // FOR
         }
         
-        LOG.info(String.format("Executing transaction " + setBoldText + "%s(%s)" + setPlainText, 
-                 catalog_proc.getName(), procParamsStr));
+        if (this.enable_csv == false && reconnect == false) {
+            LOG.info(String.format("Executing transaction " + setBoldText + "%s(%s)" + setPlainText, 
+                     catalog_proc.getName(), procParamsStr));
+        }
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), procParams.toArray());
         return (cresponse);
     }
@@ -386,36 +405,52 @@ public class HStoreTerminal implements Runnable {
         return (params);
     }
     
-    private static String formatResult(ClientResponse cr) {
+    private String formatResult(ClientResponse cr) {
         final VoltTable results[] = cr.getResults();
         final int num_results = results.length;
         StringBuilder sb = new StringBuilder();
         
         // MAIN BODY
-        sb.append(VoltTableUtil.format(results));
+        if (this.enable_csv) {
+            StringWriter out = new StringWriter();
+            for (int i = 0; i < num_results; i++) {
+                if (i > 0) out.write("\n\n");
+                VoltTableUtil.csv(out, results[i], true);
+            } // FOR
+            sb.append(out.toString());
+        } else {
+            sb.append(VoltTableUtil.format(results));
+        }
         
         // FOOTER
         String footer = "";
-        if (num_results == 1) {
-            int row_count = results[0].getRowCount(); 
-            footer = String.format("%d row%s in set", row_count, (row_count > 1 ? "s" : ""));
+        if (this.enable_csv == false) {
+            if (num_results == 1) {
+                int row_count = results[0].getRowCount(); 
+                footer = String.format("%d row%s in set", row_count, (row_count > 1 ? "s" : ""));
+            }
+            else if (num_results == 0) {
+                footer = "No results returned";
+            }
+            else {
+                footer = num_results + " tables returned";
+            }
+            sb.append(String.format("\n%s (%.2f sec)\n", footer, (cr.getClientRoundtrip() / 1000d)));
         }
-        else if (num_results == 0) {
-            footer = "No results returned";
-        }
-        else {
-            footer = num_results + " tables returned";
-        }
-        sb.append(String.format("\n%s (%.2f sec)\n", footer, (cr.getClientRoundtrip() / 1000d)));
         return (sb.toString());
     }
-    
+
     public static void main(String vargs[]) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs,
                 ArgumentsParser.PARAM_CATALOG
         );
-        
         HStoreTerminal term = new HStoreTerminal(args.catalog);
+        
+        // Check for CSV output
+        if (args.getBooleanParam(ArgumentsParser.PARAM_TERMINAL_CSV) == true) {
+            term.enable_csv = true;
+        }
+        
         term.run();
     }
 

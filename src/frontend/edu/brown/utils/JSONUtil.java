@@ -85,7 +85,10 @@ public abstract class JSONUtil {
                     List<Field> fields = new ArrayList<Field>();
                     for (Field f : clazz.getFields()) {
                         int modifiers = f.getModifiers();
-                        if (Modifier.isTransient(modifiers) == false && Modifier.isPublic(modifiers) == true && Modifier.isStatic(modifiers) == false && exclude.contains(f.getName()) == false) {
+                        if (Modifier.isTransient(modifiers) == false &&
+                            Modifier.isPublic(modifiers) == true &&
+                            Modifier.isStatic(modifiers) == false &&
+                            exclude.contains(f.getName()) == false) {
                             fields.add(f);
                         }
                     } // FOR
@@ -363,14 +366,15 @@ public abstract class JSONUtil {
      * @throws Exception
      */
     @SuppressWarnings("unchecked")
-    protected static void readMapField(final JSONObject json_object, final Database catalog_db, final Map map, final Stack<Class> inner_classes) throws Exception {
+    protected static void readMapField(final JSONObject json_object, final Database catalog_db, final Map map, final Stack<Class<?>> inner_classes) throws Exception {
         Class<?> key_class = inner_classes.pop();
         Class<?> val_class = inner_classes.pop();
         Collection<Class<?>> val_interfaces = ClassUtil.getInterfaces(val_class);
-
+        final Stack<Class<?>> next_inner_classes = new Stack<Class<?>>();
+        
         assert (json_object != null);
         for (String json_key : CollectionUtil.iterable(json_object.keys())) {
-            final Stack<Class> next_inner_classes = new Stack<Class>();
+            next_inner_classes.clear();
             next_inner_classes.addAll(inner_classes);
             assert (next_inner_classes.equals(inner_classes));
 
@@ -382,14 +386,14 @@ public abstract class JSONUtil {
             if (json_object.isNull(json_key)) {
                 // Nothing...
             } else if (val_interfaces.contains(List.class)) {
-                object = new ArrayList();
-                readCollectionField(json_object.getJSONArray(json_key), catalog_db, (Collection) object, next_inner_classes);
+                object = new ArrayList<Object>();
+                readCollectionField(json_object.getJSONArray(json_key), catalog_db, (Collection<?>) object, next_inner_classes);
             } else if (val_interfaces.contains(Set.class)) {
-                object = new HashSet();
-                readCollectionField(json_object.getJSONArray(json_key), catalog_db, (Collection) object, next_inner_classes);
+                object = new HashSet<Object>();
+                readCollectionField(json_object.getJSONArray(json_key), catalog_db, (Collection<?>) object, next_inner_classes);
             } else if (val_interfaces.contains(Map.class)) {
-                object = new HashMap();
-                readMapField(json_object.getJSONObject(json_key), catalog_db, (Map) object, next_inner_classes);
+                object = new HashMap<Object, Object>();
+                readMapField(json_object.getJSONObject(json_key), catalog_db, (Map<?,?>) object, next_inner_classes);
             } else {
                 String json_string = json_object.getString(json_key);
                 try {
@@ -414,15 +418,16 @@ public abstract class JSONUtil {
      * @throws Exception
      */
     @SuppressWarnings("unchecked")
-    protected static void readCollectionField(final JSONArray json_array, final Database catalog_db, final Collection collection, final Stack<Class> inner_classes) throws Exception {
+    protected static void readCollectionField(final JSONArray json_array, final Database catalog_db, final Collection collection, final Stack<Class<?>> inner_classes) throws Exception {
         // We need to figure out what the inner type of the collection is
         // If it's a Collection or a Map, then we need to instantiate it before
         // we can call readFieldValue() again for it.
-        Class inner_class = inner_classes.pop();
+        Class<?> inner_class = inner_classes.pop();
         Collection<Class<?>> inner_interfaces = ClassUtil.getInterfaces(inner_class);
-
+        final Stack<Class<?>> next_inner_classes = new Stack<Class<?>>();
+        
         for (int i = 0, cnt = json_array.length(); i < cnt; i++) {
-            final Stack<Class> next_inner_classes = new Stack<Class>();
+            if (i > 0) next_inner_classes.clear();
             next_inner_classes.addAll(inner_classes);
             assert (next_inner_classes.equals(inner_classes));
             Object value = null;
@@ -432,16 +437,16 @@ public abstract class JSONUtil {
                 value = null;
                 // Lists
             } else if (inner_interfaces.contains(List.class)) {
-                value = new ArrayList();
-                readCollectionField(json_array.getJSONArray(i), catalog_db, (Collection) value, next_inner_classes);
+                value = new ArrayList<Object>();
+                readCollectionField(json_array.getJSONArray(i), catalog_db, (Collection<?>) value, next_inner_classes);
                 // Sets
             } else if (inner_interfaces.contains(Set.class)) {
-                value = new HashSet();
-                readCollectionField(json_array.getJSONArray(i), catalog_db, (Collection) value, next_inner_classes);
+                value = new HashSet<Object>();
+                readCollectionField(json_array.getJSONArray(i), catalog_db, (Collection<?>) value, next_inner_classes);
                 // Maps
             } else if (inner_interfaces.contains(Map.class)) {
-                value = new HashMap();
-                readMapField(json_array.getJSONObject(i), catalog_db, (Map) value, next_inner_classes);
+                value = new HashMap<Object, Object>();
+                readMapField(json_array.getJSONObject(i), catalog_db, (Map<Object, Object>) value, next_inner_classes);
                 // Values
             } else {
                 String json_string = json_array.getString(i);
@@ -460,7 +465,6 @@ public abstract class JSONUtil {
      * @param object
      * @throws Exception
      */
-    @SuppressWarnings("unchecked")
     public static void readFieldValue(final JSONObject json_object, final Database catalog_db, final String json_key, Field field_handle, Object object) throws Exception {
         assert (json_object.has(json_key)) : "No entry exists for '" + json_key + "'";
         Class<?> field_class = field_handle.getType();
@@ -473,12 +477,12 @@ public abstract class JSONUtil {
                 LOG.debug("Field " + json_key + " is null");
             field_handle.set(object, null);
 
-            // Collections
+        // Collections
         } else if (ClassUtil.getInterfaces(field_class).contains(Collection.class)) {
             if (debug.get())
                 LOG.debug("Field " + json_key + " is a collection");
             assert (field_object != null);
-            Stack<Class> inner_classes = new Stack<Class>();
+            Stack<Class<?>> inner_classes = new Stack<Class<?>>();
             inner_classes.addAll(ClassUtil.getGenericTypes(field_handle));
             Collections.reverse(inner_classes);
 
@@ -487,12 +491,12 @@ public abstract class JSONUtil {
                 throw new JSONException("No array exists for '" + json_key + "'");
             readCollectionField(json_inner, catalog_db, (Collection) field_object, inner_classes);
 
-            // Maps
+        // Maps
         } else if (field_object instanceof Map) {
             if (debug.get())
                 LOG.debug("Field " + json_key + " is a map");
             assert (field_object != null);
-            Stack<Class> inner_classes = new Stack<Class>();
+            Stack<Class<?>> inner_classes = new Stack<Class<?>>();
             inner_classes.addAll(ClassUtil.getGenericTypes(field_handle));
             Collections.reverse(inner_classes);
 
@@ -503,7 +507,7 @@ public abstract class JSONUtil {
 
             // Everything else...
         } else {
-            Class explicit_field_class = JSONUtil.getClassForField(json_object, json_key);
+            Class<?> explicit_field_class = JSONUtil.getClassForField(json_object, json_key);
             if (explicit_field_class != null) {
                 field_class = explicit_field_class;
                 if (debug.get())
@@ -558,9 +562,8 @@ public abstract class JSONUtil {
 
     /**
      * For the given list of Fields, load in the values from the JSON object
-     * into the current object If ignore_missing is false, then JSONUtil will
-     * not throw an error if a field is missing
-     * 
+     * into the current object.
+     * If ignore_missing is false, then JSONUtil will not throw an error if a field is missing
      * @param <E>
      * @param <T>
      * @param json_object
@@ -680,26 +683,29 @@ public abstract class JSONUtil {
      * @return
      * @throws Exception
      */
-    @SuppressWarnings("unchecked")
     private static Object getPrimitiveValue(String json_value, Class<?> field_class, Database catalog_db) throws Exception {
         Object value = null;
 
         // VoltDB Catalog Object
         if (ClassUtil.getSuperClasses(field_class).contains(CatalogType.class)) {
+            @SuppressWarnings("unchecked")
+            Class<? extends CatalogType> catalog_class = (Class<? extends CatalogType>)field_class;
             try {
-                value = CatalogKey.getFromKey(catalog_db, json_value, (Class<? extends CatalogType>) field_class);
+                value = CatalogKey.getFromKey(catalog_db, json_value, catalog_class);
             } catch (Throwable ex) {
                 throw new Exception("Failed to get catalog object from \"" + json_value + "\"", ex);
             }
             if (value == null)
                 throw new JSONException("Failed to get catalog object from \"" + json_value + "\"");
-            // Class
-        } else if (field_class.equals(Class.class)) {
+        }
+        // Class
+        else if (field_class.equals(Class.class)) {
             value = ClassUtil.getClass(json_value);
             if (value == null)
                 throw new JSONException("Failed to get class from '" + json_value + "'");
-            // Enum
-        } else if (field_class.isEnum()) {
+        }
+        // Enum
+        else if (field_class.isEnum()) {
             if (field_class.equals(VoltType.class)) {
                 json_value = json_value.replace("VoltType.", "");
             }
@@ -709,22 +715,27 @@ public abstract class JSONUtil {
                     return (e);
             } // FOR
             throw new JSONException("Invalid enum value '" + json_value + "': " + Arrays.toString(field_class.getEnumConstants()));
-            // Boolean
-        } else if (field_class.equals(Boolean.class) || field_class.equals(boolean.class)) {
+        }
+        // Boolean
+        else if (field_class.equals(Boolean.class) || field_class.equals(boolean.class)) {
             // We have to use field_class.equals() because the value may be null
             value = Boolean.parseBoolean(json_value);
-            // Integer
-        } else if (field_class.equals(Integer.class) || field_class.equals(int.class)) {
+        }
+        // Integer
+        else if (field_class.equals(Integer.class) || field_class.equals(int.class)) {
             value = Integer.parseInt(json_value);
-            // Float
-        } else if (field_class.equals(Float.class) || field_class.equals(float.class)) {
+        }
+        // Float
+        else if (field_class.equals(Float.class) || field_class.equals(float.class)) {
             value = Float.parseFloat(json_value);
-            // JSONSerializable
-        } else if (ClassUtil.getInterfaces(field_class).contains(JSONSerializable.class)) {
+        }
+        // JSONSerializable
+        else if (ClassUtil.getInterfaces(field_class).contains(JSONSerializable.class)) {
             value = ClassUtil.newInstance(field_class, null, null);
             ((JSONSerializable) value).fromJSON(new JSONObject(json_value), catalog_db);
-            // Everything else
-        } else {
+        }
+        // Everything else
+        else {
             // LOG.debug(json_value + " -> " + field_class);
             VoltType volt_type = VoltType.typeFromClass(field_class);
             value = VoltTypeUtil.getObjectFromString(volt_type, json_value);

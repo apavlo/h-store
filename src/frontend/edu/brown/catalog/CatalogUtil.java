@@ -27,6 +27,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.ConstantValue;
 import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.Database;
@@ -37,11 +38,11 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.TableRef;
 import org.voltdb.compiler.JarBuilder;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.AbstractValueExpression;
@@ -109,6 +110,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // CACHES
     // ------------------------------------------------------------
 
+    @Deprecated
     private static class Cache {
 
         /**
@@ -464,12 +466,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Collection<Procedure> getReadWriteConflicts(Procedure catalog_proc) {
         List<Procedure> conflicts = new ArrayList<Procedure>();
-        for (ProcedureRef ref : catalog_proc.getReadconflicts()) {
-            Procedure ref_proc = ref.getProcedure();
-            if (debug.get()) LOG.debug(catalog_proc + ": " + ref + " -> " + ref_proc);
-            assert(ref_proc.equals(catalog_proc) == false) :
-                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getReadconflicts());
-            conflicts.add(ref_proc);
+        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
+        for (ConflictSet cs : catalog_proc.getConflicts().values()) {
+            if (cs.getReadwriteconflicts().isEmpty() == false) {
+                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
+            }
         } // FOR
         return (conflicts);
     }
@@ -482,12 +483,31 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Collection<Procedure> getWriteWriteConflicts(Procedure catalog_proc) {
         List<Procedure> conflicts = new ArrayList<Procedure>();
-        for (ProcedureRef ref : catalog_proc.getWriteconflicts()) {
-            Procedure ref_proc = ref.getProcedure();
-            if (debug.get()) LOG.debug(catalog_proc + ": " + ref + " -> " + ref_proc);
-            assert(ref_proc.equals(catalog_proc) == false) :
-                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getWriteconflicts());
-            conflicts.add(ref_proc);
+        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
+        for (String procName : catalog_proc.getConflicts().keySet()) {
+            ConflictSet cs = catalog_proc.getConflicts().get(procName);
+            if (cs.getWritewriteconflicts().isEmpty() == false) {
+                conflicts.add(catalog_db.getProcedures().get(procName));
+            }
+        } // FOR
+        return (conflicts);
+    }
+    
+    /**
+     * Get the Procedure handles that have any conflict with the given Procedure
+     * @param catalog_proc
+     * @return
+     */
+    public static Collection<Procedure> getAllConflicts(Procedure catalog_proc) {
+        List<Procedure> conflicts = new ArrayList<Procedure>();
+        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
+        for (ConflictSet cs : catalog_proc.getConflicts().values()) {
+            if (cs.getReadwriteconflicts().isEmpty() == false) {
+                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
+            }
+            if (cs.getWritewriteconflicts().isEmpty() == false) {
+                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
+            }
         } // FOR
         return (conflicts);
     }
@@ -495,6 +515,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the internal system Procedures for the database
      */
+    @Deprecated
     public static Collection<Procedure> getSysProcedures(Database catalog_db) {
         List<Procedure> sysprocs = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -505,24 +526,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         }
         return (sysprocs);
     }
-    
-    /**
-     * Returns true if the Procedure catalog object identified by the given id
-     * is a system procedure
-     * @param catalog_db
-     * @param proc_id
-     * @return
-     */
-    public static boolean isSysProcedure(Database catalog_db, int proc_id) {
-        // TODO: Optimize!
-        Procedure catalog_proc = catalog_db.getProcedures().get("id", proc_id);
-        assert (catalog_proc) != null : "Invalid Procedure Id " + proc_id;
-        return (catalog_proc.getSystemproc());
-    }
 
     /**
      * Return all of the MapReduce Procedures for the database
      */
+    @Deprecated
     public static Collection<Procedure> getMapReduceProcedures(Database catalog_db) {
         Set<Procedure> mrprocs = new ListOrderedSet<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -706,6 +714,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
+    @Deprecated
     public static Site getSiteFromId(CatalogType catalog_item, int site_id) {
         assert (site_id >= 0);
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
@@ -722,6 +731,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
+    @Deprecated
     public static int getNumberOfHosts(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
         int ret = catalog_clus.getHosts().size();
@@ -735,6 +745,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
+    @Deprecated
     public static int getNumberOfSites(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
         int ret = catalog_clus.getSites().size();
@@ -748,6 +759,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
+    @Deprecated
     public static int getNumberOfPartitions(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
         int ret = catalog_clus.getNum_partitions();
@@ -769,37 +781,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         Partition catalog_part = cache.PARTITION_XREF.get(id);
         return (catalog_part);
     }
-
-    /**
-     * Return the InetSocketAddress used by the Dtxn.Engine for the given
-     * PartitionId
-     * 
-     * @param catalog_item
-     * @param id
-     * @param engine
-     *            - Whether to use the direct engine port number
-     * @return
-     */
-    // public static InetSocketAddress getPartitionAddressById(CatalogType
-    // catalog_item, Integer id, boolean engine) {
-    // final CatalogUtil.Cache cache =
-    // CatalogUtil.getCatalogCache(catalog_item);
-    // if (cache.PARTITION_XREF.isEmpty())
-    // cache.buildPartitionCache(catalog_item);
-    // Partition catalog_part = cache.PARTITION_XREF.get(id);
-    // if (catalog_part == null) {
-    // LOG.warn(String.format("Invalid partition id '%d'", id));
-    // return (null);
-    // }
-    // Site catalog_site = catalog_part.getParent();
-    // assert(catalog_site != null) : "No site for " + catalog_part;
-    // Host catalog_host = catalog_site.getHost();
-    // assert(catalog_host != null) : "No host for " + catalog_site;
-    // int port = (engine ? catalog_part.getEngine_port() :
-    // catalog_part.getDtxn_port());
-    // return (new InetSocketAddress(catalog_host.getIpaddr(), port));
-    // }
-
+    
     /**
      * Return a Collection of all the Partition catalog objects
      * 
@@ -818,6 +800,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * 
      * @return
      */
+    @Deprecated
     public static PartitionSet getAllPartitionIds(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         if (cache.PARTITION_XREF.isEmpty())
@@ -1034,6 +1017,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // TABLES + COLUMNS
     // ------------------------------------------------------------
 
+    /**
+     * Return the tables encoded in the given TableRefs
+     * @param tableRefs
+     * @return
+     */
+    public static Collection<Table> getTablesFromRefs(Collection<TableRef> tableRefs) {
+        List<Table> tables = new ArrayList<Table>();
+        for (TableRef ref : tableRefs) {
+            tables.add(ref.getTable());
+        } // FOR
+        return (tables);
+    }
+    
     /**
      * Return all of the internal system tables for the database
      */

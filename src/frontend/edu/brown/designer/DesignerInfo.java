@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Database;
 
 import edu.brown.catalog.CatalogUtil;
@@ -42,7 +43,9 @@ public class DesignerInfo {
      * The base database catalog object that the designer is creating a physical
      * plan for
      */
+    @Deprecated
     public final Database catalog_db;
+    public final CatalogContext catalogContext;
 
     /**
      * The DependencyGraph of the schema
@@ -113,6 +116,7 @@ public class DesignerInfo {
     public DesignerInfo(DesignerInfo src) {
         this.args = src.args;
         this.catalog_db = src.catalog_db;
+        this.catalogContext = src.catalogContext;
         this.workload = src.workload;
         this.stats = src.stats;
         this.partitioner_class = src.partitioner_class;
@@ -140,6 +144,7 @@ public class DesignerInfo {
     public DesignerInfo(ArgumentsParser args) {
         this.args = args;
         this.catalog_db = args.catalog_db;
+        this.catalogContext = args.catalogContext;
         this.workload = args.workload;
         this.stats = args.stats;
         this.partitioner_class = args.partitioner_class;
@@ -181,10 +186,11 @@ public class DesignerInfo {
      * 
      * @param args
      */
-    public DesignerInfo(final Database _catalog_db, final Workload _workload, final WorkloadStatistics _stats) {
+    public DesignerInfo(final CatalogContext _catalogContext, final Workload _workload, final WorkloadStatistics _stats) {
         this(new ArgumentsParser() {
             {
-                this.catalog_db = _catalog_db;
+                this.catalogContext = _catalogContext;
+                this.catalog_db = _catalogContext.database;
                 this.workload = _workload;
                 this.stats = _stats;
             }
@@ -197,8 +203,8 @@ public class DesignerInfo {
      * @param catalog_db
      * @param workload
      */
-    public DesignerInfo(Database catalog_db, Workload workload) {
-        this(catalog_db, workload, new WorkloadStatistics(catalog_db));
+    public DesignerInfo(CatalogContext catalogContext, Workload workload) {
+        this(catalogContext, workload, new WorkloadStatistics(catalogContext.database));
     }
 
     public Workload getWorkload() {

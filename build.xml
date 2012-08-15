@@ -27,16 +27,12 @@
 <!-- allow env.VOLTBUILD to override "build" property -->
 <envdefault prop="build" var="VOLTBUILD" default="release" />
 
-<!-- HStoreConf Arguments -->
-<!-- <property name='build.common'                location='build-common.xml' /> -->
-
 <!-- <property name='build.dir'                   location='obj/${build}' /> -->
 <property name='output.dir'                  location='obj' />
 <property name='build.dir'                   location='${output.dir}/release' />
 <property name='build.prod.dir'              location='${build.dir}/prod' />
 <property name='build.benchmarks.dir'        location='${build.dir}/benchmarks' />
 <property name='build.test.dir'              location='${build.dir}/test' />
-<property name='build.dtxn.dir'              location='${build.dir}/dtxn' />
 <property name='build.preprocessor.dir'      location='${build.dir}/preprocessor' />
 <property name='dist.dir'                    location='${build.dir}/dist' />
 <property name='dist.examples.dir'           location='${dist.dir}/examples' />
@@ -49,7 +45,6 @@
 <property name='src.dir'                     location='src' />
 <property name='src.frontend.dir'            location='${src.dir}/frontend' />
 <property name='src.benchmarks.dir'          location='${src.dir}/benchmarks' />
-<property name='src.dtxn.dir'                location='${src.dir}/dtxn' />
 <property name='src.hsqldb.dir'              location='${src.dir}/hsqldb19b3' />
 <property name='src.protorpc.dir'            location='${src.dir}/protorpc' />
 <property name='src.test.dir'                location='tests/frontend' />
@@ -60,8 +55,8 @@
 <property name='build.testoutput.dir'        location='${build.dir}/testoutput' />
 <property name='build.testobjects.dir'       location='${build.dir}/testobjects' />
 <property name='build.protorpc.dir'          location='${build.dir}/protorpc' />
-<property name='vendor.lib.dir'              location='third_party/java/jars' />
-<property name='vendor.src.dir'              location='third_party/java/src'  />
+<property name='thirdpartylib.dir'              location='third_party/java/jars' />
+<property name='thirdpartysrc.dir'              location='third_party/java/src'  />
 <property name='m1catalog'                   location='${src.test.dir}/org/voltdb/catalog/catalog.txt' />
 <property name='depcache'                    value='.depcache' />
 
@@ -87,10 +82,16 @@
 <property name='jprofiler.dir'                  location='/home/ubuntu/jprofiler' />
 <property name='jprofiler.port'                 value='8849' />
 
+<taskdef resource="net/sf/antcontrib/antcontrib.properties">
+    <classpath>
+        <pathelement location="${thirdpartylib.dir}/ant-contrib.jar"/>
+    </classpath>
+</taskdef>
+
 <!--
 ******************************************************************************
 ** H-STORE CONFIGURATION
-**************************************
+******************************************************************************
 -->
 
 <!-- Default H-Store Configuration File  -->
@@ -104,10 +105,38 @@
     <not><isset property="global.defaulthost"/></not>
 </condition>
 
+<!-- SITE ASSERTS -->
+<condition property="site.jvm_asserts" value="true">
+    <not><isset property="site.jvm_asserts"/></not>
+</condition>
+<if>
+    <equals arg1="${site.jvm_asserts}" arg2="true" />
+    <then>
+        <assertions id="site.assertions"><enable /></assertions>
+    </then>
+    <else>
+        <assertions id="site.assertions"><disable /></assertions>
+    </else>
+</if>
+
+<!-- CLIENT ASSERTS -->
+<condition property="client.jvm_asserts" value="true">
+    <not><isset property="client.jvm_asserts"/></not>
+</condition>
+<if>
+    <equals arg1="${client.jvm_asserts}" arg2="true" />
+    <then>
+        <assertions id="client.assertions"><enable /></assertions>
+    </then>
+    <else>
+        <assertions id="client.assertions"><disable /></assertions>
+    </else>
+</if>
+
 <!--
 ******************************************************************************
 ** BENCHMARK CONFIGURATION
-**************************************
+******************************************************************************
 -->
 
 <!-- Default Project -->
@@ -124,7 +153,7 @@
 <!--
 ******************************************************************************
 ** ADDITIONAL CONFIGURATION
-**************************************
+******************************************************************************
 -->
 
 <!-- Default heap size for Volt server (MB)  -->
@@ -146,18 +175,12 @@
     <pathelement location='${build.prod.dir}' />
     <pathelement location='${build.benchmarks.dir}' />
     <pathelement location='${build.test.dir}' />
-    <fileset dir='${vendor.lib.dir}'>
+    <fileset dir='${thirdpartylib.dir}'>
         <include name='*.jar' />
         <exclude name='ant.jar' />
     </fileset>
     <pathelement path="${java.class.path}"/>
 </path>
-
-<taskdef resource="net/sf/antcontrib/antcontrib.properties">
-    <classpath>
-        <pathelement location="${vendor.lib.dir}/ant-contrib.jar"/>
-    </classpath>
-</taskdef>
 
 <!-- select which set of regression suite configuration types to run -->
 <condition property="regressions" value="${regressions}" else="all">
@@ -505,7 +528,7 @@ JAVA COMPILATION
     </exec>-->
 
     <depend
-        srcdir="${src.hsqldb.dir}:${src.hsqldb.test.dir}:${src.frontend.dir}:${src.benchmarks.dir}:${src.test.dir}:${vendor.src.dir}"
+        srcdir="${src.hsqldb.dir}:${src.hsqldb.test.dir}:${src.frontend.dir}:${src.benchmarks.dir}:${src.test.dir}:${thirdpartysrc.dir}"
         destdir="${build.prod.dir}:${build.test.dir}"
         cache="${depcache}">
         <classpath refid="project.classpath" />
@@ -575,7 +598,7 @@ JAVA COMPILATION
 
     <javac includeantruntime="false"
         target="${javac.version}"
-        srcdir="${vendor.src.dir}"
+        srcdir="${thirdpartysrc.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
         <classpath refid="project.classpath" />
@@ -660,7 +683,7 @@ DOCUMENTATION
 <taskdef
     name="doxygen"
     classname="org.doxygen.tools.DoxygenTask"
-    classpath="${vendor.lib.dir}/ant_doxygen.jar"
+    classpath="${thirdpartylib.dir}/ant_doxygen.jar"
 />
 <target name="eedoc"
     description="Generate doxygen C++ execution engine documentation.">
@@ -844,8 +867,8 @@ TEST CASES
 <target name='with.emma' description="enable code coverage analysis" >
     <!-- set up emma -->
     <path id="emma.lib" >
-        <pathelement location="${vendor.lib.dir}/emma.jar" />
-        <pathelement location="${vendor.lib.dir}/emma_ant.jar" />
+        <pathelement location="${thirdpartylib.dir}/emma.jar" />
+        <pathelement location="${thirdpartylib.dir}/emma_ant.jar" />
     </path>
     <taskdef resource="emma_ant.properties" classpathref="emma.lib" />
     <!-- enable emma -->
@@ -992,7 +1015,6 @@ TEST CASES
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
-                <exclude name="**/TestFailuresSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestPrefetchableSuite.class" />
                 
@@ -1080,7 +1102,6 @@ TEST CASES
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
-                <exclude name="**/TestFailuresSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestPrefetchableSuite.class" />
 
@@ -1159,7 +1180,6 @@ TEST CASES
                     <exclude name="**/TestSystemProcedureSuite.class" />
                     <exclude name="**/TestMaliciousClientSuite.class" />
                     <exclude name="**/TestELTSuite.class" />
-                    <exclude name="**/TestFailuresSuite.class" />
                     <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                     <exclude name="**/TestPrefetchableSuite.class" />
                 </fileset>
@@ -1309,10 +1329,10 @@ TEST CASES
     description="produce Google Code testability-explorer report">
     <path id="testability.lib">
         <pathelement
-            location="${vendor.lib.dir}/ant-testability-explorer.jar"
+            location="${thirdpartylib.dir}/ant-testability-explorer.jar"
         />
         <pathelement
-            location="${vendor.lib.dir}/testability-explorer.jar"
+            location="${thirdpartylib.dir}/testability-explorer.jar"
         />
     </path>
     <taskdef
@@ -1335,7 +1355,7 @@ TEST CASES
     <taskdef
         name="cpdtask"
         classname="net.sourceforge.pmd.cpd.CPDTask"
-        classpath="${vendor.lib.dir}/pmd-4.2.5.jar"
+        classpath="${thirdpartylib.dir}/pmd-4.2.5.jar"
     />
     <macrodef name="cpd">
         <attribute name="language"/>
@@ -1642,7 +1662,8 @@ TEST CASES
         <jvmarg value="-Xcheck:jni"/>
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <assertions><enable/></assertions>
+        
+        <assertions refid="site.assertions"/>
 
         <arg value="CONF=${conf}" />
         <arg value="CLIENTHEAP=${client.memory}" />
@@ -1669,7 +1690,6 @@ TEST CASES
 
         <!-- Execution Options -->
         <arg value="TRACE=${trace}" />
-        <arg value="JSONOUTPUT=${jsonoutput}" />
 
         <arg value="DUMPDATABASE=${client.dump_database}" />
         <arg value="DUMPDATABASEDIR=${client.dump_database_dir}" />
@@ -1862,7 +1882,6 @@ UTILITIES
         <arg value="catalog.type=${type}" />
         <arg value="catalog.cluster=${cluster}" />
         <arg value="catalog.output=${global.temp_dir}/fixcatalog/catalog.txt" />
-        <arg value="dtxn.conf.output=${global.temp_dir}/fixcatalog/dtxn.conf" />
         <arg value="mappings=${mappings}" />
         <arg value="catalog.hosts=${hosts}" />
         <arg value="catalog.hosts.cores=${cores}" />
@@ -2392,9 +2411,6 @@ UTILITIES
     <condition property="markov" value="${files.markovs.dir}/${project}.markovs">
         <not><isset property="markov"/></not>
     </condition>
-<!--    <condition property="mappings" value="${files.mappings.dir}/${project}.mappings">
-        <not><isset property="mappings"/></not>
-    </condition>-->
 
     <java fork="yes" classname="edu.brown.hstore.HStore">
         <!-- Use to identify what process this for killing -->
@@ -2443,7 +2459,7 @@ UTILITIES
         &common;
 
         <classpath refid='project.classpath' />
-        <assertions><enable /></assertions>
+        <assertions refid="site.assertions"/>
     </java>
 </target>
 

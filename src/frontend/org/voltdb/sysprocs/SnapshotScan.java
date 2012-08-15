@@ -29,9 +29,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltDB;
@@ -40,15 +38,12 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.client.ConnectionUtil;
 import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 import org.voltdb.sysprocs.saverestore.TableSaveFile;
 
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
-import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo(singlePartition = false)
 public class SnapshotScan extends VoltSystemProcedure {
@@ -72,15 +67,13 @@ public class SnapshotScan extends VoltSystemProcedure {
         SysProcFragmentId.PF_hostDiskFreeScanResults;
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_snapshotDigestScan, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_snapshotDigestScanResults, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_snapshotScan, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_snapshotScanResults, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_hostDiskFreeScan, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_hostDiskFreeScanResults, this);
+    public void initImpl() {
+        this.registerPlanFragment(SysProcFragmentId.PF_snapshotDigestScan);
+        this.registerPlanFragment(SysProcFragmentId.PF_snapshotDigestScanResults);
+        this.registerPlanFragment(SysProcFragmentId.PF_snapshotScan);
+        this.registerPlanFragment(SysProcFragmentId.PF_snapshotScanResults);
+        this.registerPlanFragment(SysProcFragmentId.PF_hostDiskFreeScan);
+        this.registerPlanFragment(SysProcFragmentId.PF_hostDiskFreeScanResults);
     }
 
     private String errorString = null;
@@ -100,11 +93,11 @@ public class SnapshotScan extends VoltSystemProcedure {
             final VoltTable results = constructFragmentResultsTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
+            int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id =
                 VoltDB.instance().getCatalogContext().siteTracker.
                 getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getExecutionSite().getSiteId() == lowest_site_id)
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 assert(params.toArray()[0] != null);
                 assert(params.toArray()[0] instanceof String);
@@ -216,11 +209,11 @@ public class SnapshotScan extends VoltSystemProcedure {
             final VoltTable results = constructDigestResultsTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
+            int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id =
                 VoltDB.instance().getCatalogContext().siteTracker.
                 getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getExecutionSite().getSiteId() == lowest_site_id)
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 assert(params.toArray()[0] != null);
                 assert(params.toArray()[0] instanceof String);
@@ -283,11 +276,11 @@ public class SnapshotScan extends VoltSystemProcedure {
             final VoltTable results = constructDiskFreeResultsTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
+            int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id =
                 VoltDB.instance().getCatalogContext().siteTracker.
                 getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getExecutionSite().getSiteId() == lowest_site_id)
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 assert(params.toArray()[0] != null);
                 assert(params.toArray()[0] instanceof String);

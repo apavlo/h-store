@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.exceptions.ClientConnectionLostException;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastDeserializer;
 
@@ -82,6 +83,8 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
                 LOG.debug("Returning redirected ClientResponse to client:\n" + cresponse);
             try {
                 this.orig_callback.run(cresponse);
+            } catch (ClientConnectionLostException ex) {
+                if (debug.get()) LOG.warn("Lost connection to client for txn #" + cresponse.getTransactionId());
             } catch (Throwable ex) {
                 LOG.fatal("Failed to forward ClientResponse data back!", ex);
                 throw new RuntimeException(ex);

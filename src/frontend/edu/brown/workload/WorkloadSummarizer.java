@@ -403,7 +403,7 @@ public class WorkloadSummarizer {
                  (intervals != null ? " over " + intervals + " intervals" : "")));
         LOG.info("BEFORE:\n" + args.workload.getProcedureHistogram());
         
-        PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
+        PartitionEstimator p_estimator = new PartitionEstimator(args.catalogContext);
         WorkloadSummarizer ws = new WorkloadSummarizer(args.catalog_db, p_estimator, args.param_mappings);
         if (intervals != null) ws.setIntervals(intervals);
         Workload new_workload = ws.process(args.workload);

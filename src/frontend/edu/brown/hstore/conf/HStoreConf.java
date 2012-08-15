@@ -119,6 +119,14 @@ public final class HStoreConf {
         public boolean log_backup;
         
         @ConfigProperty(
+            description="Execute each HStoreSite with JVM asserts enabled. " +
+            		    "This should be set to false when running benchmark experiments.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public String jvm_asserts;
+        
+        @ConfigProperty(
             description="The amount of memory to allocate for each site process (in MB)",
             defaultInt=2048,
             experimental=false
@@ -401,6 +409,13 @@ public final class HStoreConf {
         )
         public boolean specexec_enable;
         
+        @ConfigProperty(
+            description="",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean specexec_idle;
+        
         // ----------------------------------------------------------------------------
         // Command Logging Options
         // ----------------------------------------------------------------------------
@@ -421,7 +436,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
-            defaultInt=500,
+            defaultInt=100,
             experimental=true
         )
         public int commandlog_timeout;
@@ -519,6 +534,15 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean txn_profiling;
+        
+        @ConfigProperty(
+            description="Enable transaction execution mode counting. This will cause the HStoreSite to keep " +
+            		    "track of various properties about tranasctions, such as the number that were speculatively " +
+            		    "executed or had to be restarted.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean txn_counters;
         
         @ConfigProperty(
             description="The amount of time the TransactionQueueManager will wait before letting a " +
@@ -1031,6 +1055,15 @@ public final class HStoreConf {
         public boolean log_backup;
         
         @ConfigProperty(
+            description="Execute each HStoreSite with JVM asserts enabled. " +
+                        "The client asserts will not affect the runtime performance of the " +
+                        "database cluster, but it may increase the overhead of each client thread.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public String jvm_asserts;
+        
+        @ConfigProperty(
             description="Additional JVM arguments to include when launching each benchmark client process. " +
             		    "These arguments will be automatically split and escaped based on spaces.",
             defaultNull=true,
@@ -1356,6 +1389,13 @@ public final class HStoreConf {
         public boolean output_clients;
         
         @ConfigProperty(
+            description="Include latency measurements in output.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean output_latencies;
+        
+        @ConfigProperty(
             description="Output a histogram at the end of a benchmark run of the number of transactions " +
             		    "that each partition executed.",
             defaultBoolean=false,
@@ -1385,6 +1425,52 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean output_csv;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+            		    "PartitionExecutor profiling stats. Note that this will automatically enable " +
+            		    "${site.exec_profiling}, which will affect the runtime performance.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_exec_profiling;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                    "transaction profiling stats. Note that this will automatically enable " +
+                    "${site.txn_profiling}, which will affect the runtime performance.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_txn_profiling;
+        
+        @ConfigProperty(
+            description="If set to true, then the data generated for ${client.output_txn_profiling} will " +
+            		    "be aggregated based on the Procedure handle.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean output_txn_profiling_combine;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "transaction counter stats. This will contain information about how the " +
+                        "transactions were executed (i.e., whether they were single-partitioned or not," +
+                        "whether they were speculatively executed). " +
+                        "Note that this will automatically enable ${site.txn_counters}, which will " +
+                        "affect the runtime performance.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_txn_counters;
+        
+        @ConfigProperty(
+            description="If set to true, then the data generated for ${client.output_txn_counters} will " +
+                        "be aggregated based on the Procedure handle.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean output_txn_counters_combine;
         
         @ConfigProperty(
             description="", // TODO

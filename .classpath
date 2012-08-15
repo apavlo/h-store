@@ -23,9 +23,9 @@
 	<classpathentry kind="lib" path="third_party/java/jars/japex.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/jcommon-1.0.16.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/jfreechart-1.0.13.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/jung-algorithms-2.0.jar" sourcepath="SourceJars/jung-source/jung-algorithms-2.0-sources.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/jung-api-2.0.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/jung-graph-impl-2.0.jar" sourcepath="SourceJars/jung-source/jung-graph-impl-2.0-sources.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/jung-algorithms-2.0.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/jung-api-2.0.jar" sourcepath="SourceJars/jung-source/jung-api-2.0-sources.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/jung-graph-impl-2.0.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/jung-visualization-2.0.jar" sourcepath="SourceJars/jung-source/jung-visualization-2.0-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/junit-4.4.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/log4j-1.2.15.jar" sourcepath="SourceJars/log4j-1.2.15-sources.jar"/>
@@ -46,6 +46,6 @@
 	<classpathentry kind="lib" path="third_party/java/jars/gdata-media-1.0.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/mail.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/google-oauth-client-1.8.0-beta.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/jline-1.0.jar" sourcepath="SourceJars/jline-1.0/src"/>
+	<classpathentry kind="lib" path="third_party/java/jars/jline-1.0.jar"/>
 	<classpathentry kind="output" path="obj/eclipse"/>
 </classpath>

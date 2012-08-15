@@ -15,18 +15,18 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.MarkovCostModel.Penalty;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.MarkovVertex.Type;
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
@@ -129,7 +129,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
         }
         
-        this.costmodel = new MarkovCostModel(catalog_db, p_estimator, t_estimator, thresholds);
+        this.costmodel = new MarkovCostModel(catalogContext, p_estimator, t_estimator, thresholds);
         
         // Take a TransactionTrace and throw it at the estimator to get our path info
         this.txn_trace = CollectionUtil.first(workload.getTransactions());
@@ -220,14 +220,14 @@ public class TestMarkovCostModel extends BaseTestCase {
         costmodel.comparePathsFast(this.txn_state.getInitialPath(), this.txn_state.getActualPath());
         
         // Remove all of the estimated read partitions except for one
-        Set<Integer> e_read_partitions = costmodel.getLastEstimatedReadPartitions();
+        PartitionSet e_read_partitions = costmodel.getLastEstimatedReadPartitions();
         assertNotNull(e_read_partitions);
         Set<Integer> retain = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), CollectionUtil.first(e_read_partitions)); 
         e_read_partitions.retainAll(retain);
         
         // Then add all of our partitions to the actual read partitions
-        Set<Integer> a_read_partitions = costmodel.getLastActualReadPartitions();
-        a_read_partitions.addAll(CatalogUtil.getAllPartitionIds(catalog_db));
+        PartitionSet a_read_partitions = costmodel.getLastActualReadPartitions();
+        a_read_partitions.addAll(catalogContext.getAllPartitionIds());
         
         double cost = costmodel.comparePathsFull(this.txn_state);
         

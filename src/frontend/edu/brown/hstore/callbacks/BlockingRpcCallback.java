@@ -12,6 +12,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.conf.HStoreConf;
 
 /**
  * 
@@ -27,10 +28,12 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     }
     
     protected final HStoreSite hstore_site;
+    protected final HStoreConf hstore_conf;
     protected Long txn_id = null;
     private final AtomicInteger counter = new AtomicInteger(0);
     private int orig_counter;
     private RpcCallback<T> orig_callback;
+    protected Long lastTxnId = null;
 
     /**
      * We'll flip this flag if one of our partitions replies with an
@@ -59,6 +62,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      */
     protected BlockingRpcCallback(HStoreSite hstore_site, boolean invoke_even_if_aborted) {
         this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
         this.invoke_even_if_aborted = invoke_even_if_aborted;
     }
     
@@ -76,6 +80,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
         this.counter.set(counter_val);
         this.orig_callback = orig_callback;
         this.txn_id = txn_id;
+        this.lastTxnId = txn_id;
     }
     
     @Override

@@ -50,7 +50,7 @@ public class TestSkewFactorUtil extends BaseTestCase {
         }
         double base_skew = SkewFactorUtil.calculateSkew(NUM_PARTITIONS, h.getSampleCount(), h);
         
-        h.remove(0, QUERIES_PER_PARTITION);
+        h.dec(0, QUERIES_PER_PARTITION);
         double skew = SkewFactorUtil.calculateSkew(NUM_PARTITIONS, h.getSampleCount(), h);
         assert(base_skew < skew) : "Invalid skew value " + skew;
 

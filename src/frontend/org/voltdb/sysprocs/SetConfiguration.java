@@ -7,23 +7,19 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionEstimator;
 
 /** 
  * Set HStoreConf parameters throughout the cluster
@@ -50,11 +46,9 @@ public class SetConfiguration extends VoltSystemProcedure {
     
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(AGGREGATE_ID, this);
-        site.registerPlanFragment(DISTRIBUTE_ID, this);
+    public void initImpl() {
+        executor.registerPlanFragment(AGGREGATE_ID, this);
+        executor.registerPlanFragment(DISTRIBUTE_ID, this);
     }
 
     @Override
@@ -72,6 +66,10 @@ public class SetConfiguration extends VoltSystemProcedure {
             case DISTRIBUTE_ID: {
                 HStoreConf hstore_conf = executor.getHStoreConf();
                 assert(hstore_conf != null);
+                
+                // Put the conf name+value pairs into a map and shove that to
+                // the HStoreConf. It will know how to process them and convert
+                // the string values into the proper types
                 Map<String, String> m = new HashMap<String, String>();
                 for (int i = 0; i < confNames.length; i++) {
                     m.put(confNames[i], confValues[i]);
@@ -81,6 +79,10 @@ public class SetConfiguration extends VoltSystemProcedure {
                     LOG.debug(String.format("Updating %d conf parameters on %s",
                               m.size(), executor.getHStoreSite().getSiteName()));
                 
+                // Update our local HStoreSite
+                context.getHStoreSite().updateConf(hstore_conf);
+
+                // Create the result table
                 VoltTable vt = new VoltTable(nodeResultsColumns);
                 for (int i = 0; i < confNames.length; i++) {
                     Object row[] = {

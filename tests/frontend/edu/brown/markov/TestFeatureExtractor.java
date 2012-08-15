@@ -46,7 +46,7 @@ public class TestFeatureExtractor extends BaseTestCase {
             assert(workload.getTransactionCount() > 0);
             
             // Now extract the FeatureSet that we will use in our tests
-            Map<Procedure, FeatureSet> fsets = new FeatureExtractor(catalog_db, p_estimator).calculate(workload);
+            Map<Procedure, FeatureSet> fsets = new FeatureExtractor(catalogContext, p_estimator).calculate(workload);
             FeatureSet fset = fsets.get(catalog_proc);
             assertNotNull(fset);
             System.err.println(JSONUtil.format(fset.toJSONString()));

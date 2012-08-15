@@ -84,6 +84,7 @@ import org.voltdb.client.StatsUploaderSettings;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
+import edu.brown.api.results.BenchmarkComponentResults;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hstore.HStoreConstants;
@@ -292,7 +293,7 @@ public abstract class BenchmarkComponent {
     private final Histogram<String> m_tableTuples = new Histogram<String>();
     private final Histogram<String> m_tableBytes = new Histogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
-    protected final TransactionCounter m_txnStats;
+    protected final BenchmarkComponentResults m_txnStats;
 
     private final Map<String, ProfileMeasurement> computeTime = new HashMap<String, ProfileMeasurement>();
     
@@ -314,73 +315,6 @@ public abstract class BenchmarkComponent {
     private final String m_statsDatabasePass;
     private final String m_statsDatabaseJDBC;
     private final int m_statsPollerInterval;
-
-    public void printControlMessage(ControlState state) {
-        printControlMessage(state, null);
-    }
-    
-    public void printControlMessage(ControlState state, String message) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%s %d,%d,%s", CONTROL_MESSAGE_PREFIX,
-                                               this.getClientId(),
-                                               System.currentTimeMillis(),
-                                               state));
-        if (message != null && message.isEmpty() == false) {
-            sb.append(",").append(message);
-        }
-        System.out.println(sb);
-    }
-    
-    public void answerWithError() {
-        this.printControlMessage(m_controlState, m_reason);
-    }
-
-    public void answerPoll() {
-        TransactionCounter copy = this.m_txnStats; // .copy();
-        this.printControlMessage(m_controlState, copy.toJSONString());
-        m_txnStats.basePartitions.clear();
-        m_txnStats.responseStatuses.clear();
-    }
-
-    public void answerOk() {
-        this.printControlMessage(m_controlState, "OK");
-    }
-
-    /**
-     * Implemented by derived classes. Loops indefinitely invoking stored
-     * procedures. Method never returns and never receives any updates.
-     */
-    abstract protected void runLoop() throws IOException;
-    
-    /**
-     * Get the display names of the transactions that will be invoked by the
-     * derived class. As a side effect this also retrieves the number of
-     * transactions that can be invoked.
-     *
-     * @return
-     */
-    abstract protected String[] getTransactionDisplayNames();
-    
-    /**
-     * Increment the internal transaction counter. This should be invoked
-     * after the client has received a ClientResponse from the DBMS cluster
-     * The txn_index is the offset of the transaction that was executed. This offset
-     * is the same order as the array returned by getTransactionDisplayNames
-     * @param txn_idx
-     */
-    protected final void incrementTransactionCounter(ClientResponse cresponse, int txn_idx) {
-        // Only include it if it wasn't rejected
-        // This is actually handled in the Distributer, but it doesn't hurt to have this here
-        Status status = cresponse.getStatus();
-        if (status == Status.OK || status == Status.ABORT_USER) {
-            m_txnStats.transactions.fastPut(txn_idx);
-            
-            if (m_txnStats.isBasePartitionsEnabled())
-                m_txnStats.basePartitions.put(cresponse.getBasePartition());
-        }
-        if (m_txnStats.isResponsesStatusesEnabled())
-            m_txnStats.responseStatuses.put(status.name());
-    }
 
     public BenchmarkComponent(final Client client) {
         m_voltClient = client;
@@ -678,7 +612,7 @@ public abstract class BenchmarkComponent {
 
         m_countDisplayNames = getTransactionDisplayNames();
         if (m_countDisplayNames != null) {
-            m_txnStats = new TransactionCounter(m_countDisplayNames.length);
+            m_txnStats = new BenchmarkComponentResults(m_countDisplayNames.length);
             Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
             for (int i = 0; i < m_countDisplayNames.length; i++) {
                 m_txnStats.transactions.put(i, 0);
@@ -686,6 +620,7 @@ public abstract class BenchmarkComponent {
             } // FOR
             m_txnStats.transactions.setDebugLabels(debugLabels);
             
+            m_txnStats.setEnableLatencies(m_hstoreConf.client.output_latencies);
             m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
             m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_response_status);
         } else {
@@ -853,6 +788,93 @@ public abstract class BenchmarkComponent {
         m_voltClient.createConnection(site_id, hostname, port, m_username, m_password);
     }
 
+    // ----------------------------------------------------------------------------
+    // CONTROLLER COMMUNICATION METHODS
+    // ----------------------------------------------------------------------------
+    
+    public void printControlMessage(ControlState state) {
+        printControlMessage(state, null);
+    }
+    
+    public void printControlMessage(ControlState state, String message) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%s %d,%d,%s", CONTROL_MESSAGE_PREFIX,
+                                               this.getClientId(),
+                                               System.currentTimeMillis(),
+                                               state));
+        if (message != null && message.isEmpty() == false) {
+            sb.append(",").append(message);
+        }
+        System.out.println(sb);
+    }
+    
+    public void answerWithError() {
+        this.printControlMessage(m_controlState, m_reason);
+    }
+
+    public void answerPoll() {
+        BenchmarkComponentResults copy = this.m_txnStats.copy();
+        this.m_txnStats.clear(false);
+        this.printControlMessage(m_controlState, copy.toJSONString());
+    }
+
+    public void answerOk() {
+        this.printControlMessage(m_controlState, "OK");
+    }
+
+    /**
+     * Implemented by derived classes. Loops indefinitely invoking stored
+     * procedures. Method never returns and never receives any updates.
+     */
+    abstract protected void runLoop() throws IOException;
+    
+    /**
+     * Get the display names of the transactions that will be invoked by the
+     * derived class. As a side effect this also retrieves the number of
+     * transactions that can be invoked.
+     *
+     * @return
+     */
+    abstract protected String[] getTransactionDisplayNames();
+    
+    /**
+     * Increment the internal transaction counter. This should be invoked
+     * after the client has received a ClientResponse from the DBMS cluster
+     * The txn_index is the offset of the transaction that was executed. This offset
+     * is the same order as the array returned by getTransactionDisplayNames
+     * @param txn_idx
+     */
+    protected final void incrementTransactionCounter(ClientResponse cresponse, int txn_idx) {
+        // Only include it if it wasn't rejected
+        // This is actually handled in the Distributer, but it doesn't hurt to have this here
+        Status status = cresponse.getStatus();
+        if (status == Status.OK || status == Status.ABORT_USER) {
+            m_txnStats.transactions.fastPut(txn_idx);
+
+            if (m_txnStats.isLatenciesEnabled()) {
+                Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
+                if (latencies == null) {
+                    synchronized (m_txnStats.latencies) {
+                        latencies = m_txnStats.latencies.get(txn_idx);
+                        if (latencies == null) {
+                            latencies = new Histogram<Integer>();
+                            m_txnStats.latencies.put(txn_idx, latencies);
+                        }
+                    } // SYNCH
+                }
+                synchronized (latencies) {
+                    latencies.put(cresponse.getClusterRoundtrip());
+                } // SYNCH
+            }
+            if (m_txnStats.isBasePartitionsEnabled()) {
+                m_txnStats.basePartitions.put(cresponse.getBasePartition());
+            }
+        }
+        if (m_txnStats.isResponsesStatusesEnabled()) {
+            m_txnStats.responseStatuses.put(status.name());
+        }
+    }
+    
     // ----------------------------------------------------------------------------
     // PUBLIC UTILITY METHODS
     // ----------------------------------------------------------------------------

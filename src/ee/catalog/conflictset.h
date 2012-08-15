@@ -19,8 +19,8 @@
             DO NOT MODIFY THIS SOURCE
             ALL CHANGES MUST BE MADE IN THE CATALOG GENERATOR */
 
-#ifndef CATALOG_PROCEDUREREF_H_
-#define CATALOG_PROCEDUREREF_H_
+#ifndef CATALOG_CONFLICTSET_H_
+#define CATALOG_CONFLICTSET_H_
 
 #include <string>
 #include "catalogtype.h"
@@ -29,13 +29,19 @@
 namespace catalog {
 
 class Procedure;
-class ProcedureRef : public CatalogType {
+class TableRef;
+/**
+ * A set of conflicts with another procedures
+ */
+class ConflictSet : public CatalogType {
     friend class Catalog;
-    friend class CatalogMap<ProcedureRef>;
+    friend class CatalogMap<ConflictSet>;
 
 protected:
-    ProcedureRef(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
+    ConflictSet(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
     CatalogType* m_procedure;
+    CatalogMap<TableRef> m_readWriteConflicts;
+    CatalogMap<TableRef> m_writeWriteConflicts;
 
     virtual void update();
 
@@ -44,11 +50,16 @@ protected:
     virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
-    ~ProcedureRef();
+    ~ConflictSet();
 
+    /** GETTER: The other procedure that this conflict set is for */
     const Procedure * procedure() const;
+    /** GETTER: Tables that the parent Procedure has a read-write conflict with the target procedure */
+    const CatalogMap<TableRef> & readWriteConflicts() const;
+    /** GETTER: Tables that the parent Procedure has a write-write conflict with the target procedure */
+    const CatalogMap<TableRef> & writeWriteConflicts() const;
 };
 
 } // namespace catalog
 
-#endif //  CATALOG_PROCEDUREREF_H_
+#endif //  CATALOG_CONFLICTSET_H_

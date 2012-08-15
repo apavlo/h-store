@@ -64,7 +64,7 @@ public class TransactionCleanupCallback extends BlockingRpcCallback<Integer, Int
     
     @Override
     protected void unblockCallback() {
-        hstore_site.deleteTransaction(this.getTransactionId(), this.status);
+        hstore_site.queueDeleteTransaction(this.getTransactionId(), this.status);
     }
     
     @Override

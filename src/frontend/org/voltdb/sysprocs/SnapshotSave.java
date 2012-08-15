@@ -23,18 +23,25 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.*;
+import org.voltdb.DependencySet;
+import org.voltdb.ParameterSet;
+import org.voltdb.ProcInfo;
+import org.voltdb.SnapshotSaveAPI;
+import org.voltdb.SnapshotSiteProcessor;
+import org.voltdb.VoltSystemProcedure;
+import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
-import org.voltdb.catalog.*;
+import org.voltdb.VoltType;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.ConnectionUtil;
 import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo(singlePartition = false)
 public class SnapshotSave extends VoltSystemProcedure
@@ -80,13 +87,11 @@ public class SnapshotSave extends VoltSystemProcedure
 
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_saveTest, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_saveTestResults, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_createSnapshotTargets, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_createSnapshotTargetsResults, this);
+    public void initImpl() {
+        this.registerPlanFragment(SysProcFragmentId.PF_saveTest);
+        this.registerPlanFragment(SysProcFragmentId.PF_saveTestResults);
+        this.registerPlanFragment(SysProcFragmentId.PF_createSnapshotTargets);
+        this.registerPlanFragment(SysProcFragmentId.PF_createSnapshotTargetsResults);
     }
 
     @Override
@@ -174,7 +179,7 @@ public class SnapshotSave extends VoltSystemProcedure
             Host catalog_host = context.getHost();
             Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
             Integer lowest_site_id = catalog_site.getId();
-            if (context.getExecutionSite().getSiteId() == lowest_site_id)
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 LOG.trace("Checking feasibility of save with path and nonce: "
                                 + file_path + ", " + file_nonce);

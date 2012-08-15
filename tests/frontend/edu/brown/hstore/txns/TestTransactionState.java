@@ -24,7 +24,6 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
@@ -85,9 +84,9 @@ public class TestTransactionState extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
         
         if (executor == null) {
-            PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
+            PartitionEstimator p_estimator = new PartitionEstimator(catalogContext);
             executor = new MockPartitionExecutor(LOCAL_PARTITION, catalog, p_estimator);
-            p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
+            p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, NUM_PARTITIONS));
             
             // Setup a BatchPlanner for ourselves here
             Procedure catalog_proc = catalog_db.getProcedures().get(TARGET_PROCEDURE);
@@ -108,7 +107,8 @@ public class TestTransactionState extends BaseTestCase {
                 args[i] = VoltProcedure.getCleanParams(batch[i], raw_args); 
             } // FOR
          
-            Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
+            Partition catalog_part = catalogContext.getPartitionById(LOCAL_PARTITION);
+            assertNotNull(catalog_part);
             hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
             hstore_site.addPartitionExecutor(LOCAL_PARTITION, executor);
             
@@ -126,7 +126,7 @@ public class TestTransactionState extends BaseTestCase {
         this.ts = new LocalTransaction(hstore_site);
         this.ts.testInit(TXN_ID,
                          LOCAL_PARTITION,
-                         hstore_site.getAllPartitionIds(),
+                         catalogContext.getAllPartitionIds(),
                          this.getProcedure(TARGET_PROCEDURE));
         this.ts.setExecutionState(this.execState);
         assertNull(this.ts.getCurrentRoundState(LOCAL_PARTITION));
@@ -185,23 +185,23 @@ public class TestTransactionState extends BaseTestCase {
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
         this.addFragments();
         this.ts.startRound(LOCAL_PARTITION);
-        CountDownLatch latch = this.ts.getDependencyLatch();
+        CountDownLatch latch = this.execState.getDependencyLatch();
         assertNotNull(latch);
         
 //        System.err.println(this.ts.toString());
         assertEquals(NUM_EXPECTED_DEPENDENCIES, latch.getCount());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getOutputOrder().size());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execState.getOutputOrder().size());
         
         // Although there will be a single blocked FragmentTaskMessage, it will contain
         // the same number of PlanFragments as we have duplicate Statements
-        System.err.println(this.ts.getBlockedWorkFragments());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getBlockedWorkFragments().size());
+        System.err.println(this.execState.getBlockedWorkFragments());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execState.getBlockedWorkFragments().size());
         
         // We now need to make sure that our output order is correct
         // We should be getting back the same number of results as how
         // many Statements that we queued up
         for (int i = 0; i < NUM_DUPLICATE_STATEMENTS; i++) {
-            Integer dependency_id = this.ts.getOutputOrder().get(i);
+            Integer dependency_id = this.execState.getOutputOrder().get(i);
             assertNotNull(dependency_id);
             assert(this.output_dependency_ids.contains(dependency_id));
             assertNotNull(this.ts.getDependencyInfo(dependency_id));
@@ -217,13 +217,13 @@ public class TestTransactionState extends BaseTestCase {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
         
-        assertEquals(NUM_EXPECTED_DEPENDENCIES, this.ts.getDependencyCount());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getStatementCount());
+        assertEquals(NUM_EXPECTED_DEPENDENCIES, this.execState.getDependencyCount());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execState.getStatementCount());
         
         // For each Statement that we have queued, make sure that they have the proper
         // partitions setup for the dependencies that we expect to show up
         for (int i = 0; i < NUM_DUPLICATE_STATEMENTS; i++) {
-            Map<Integer, DependencyInfo> stmt_dinfos = this.ts.getStatementDependencies(i);
+            Map<Integer, DependencyInfo> stmt_dinfos = this.execState.getStatementDependencies(i);
             assertNotNull(stmt_dinfos);
             assertFalse(stmt_dinfos.isEmpty());
             
@@ -337,7 +337,7 @@ public class TestTransactionState extends BaseTestCase {
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
 
         this.ts.startRound(LOCAL_PARTITION);
-        CountDownLatch latch = this.ts.getDependencyLatch();
+        CountDownLatch latch = this.execState.getDependencyLatch();
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
         assertEquals(AbstractTransaction.RoundState.STARTED, this.ts.getCurrentRoundState(LOCAL_PARTITION));

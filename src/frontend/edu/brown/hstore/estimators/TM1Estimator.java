@@ -1,14 +1,18 @@
 package edu.brown.hstore.estimators;
 
+import java.util.Map;
+
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hashing.AbstractHasher;
+import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionSet;
 
 public class TM1Estimator extends AbstractEstimator {
 
-    public TM1Estimator(HStoreSite hstore_site) {
-        super(hstore_site);
+    public TM1Estimator(CatalogContext catalogContext, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
+        super(catalogContext, manglers, hasher);
     }
     
     @Override

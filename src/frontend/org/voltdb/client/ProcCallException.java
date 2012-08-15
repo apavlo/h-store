@@ -25,9 +25,9 @@ package org.voltdb.client;
  */
 public class ProcCallException extends Exception {
     private static final long serialVersionUID = 1L;
-    String m_message;
-    Exception m_cause;
-    ClientResponse m_response;
+    private String m_message;
+    private Exception m_cause;
+    private ClientResponse m_response;
 
    ProcCallException(ClientResponse response, String lastCallInfo, Exception cause) {
        m_message = lastCallInfo;

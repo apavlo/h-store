@@ -40,9 +40,8 @@ import edu.brown.BaseTestCase;
  */
 public class TestFastIntHistogram extends BaseTestCase {
 
-    public static final int NUM_PARTITIONS = 100;
-    public static final int NUM_SAMPLES = 100;
-    public static final int RANGE = 20;
+    private static final int NUM_SAMPLES = 1000;
+    private static final int RANGE = 32;
     
     private Histogram<Integer> h = new Histogram<Integer>();
     private FastIntHistogram fast_h = new FastIntHistogram(RANGE);
@@ -50,7 +49,7 @@ public class TestFastIntHistogram extends BaseTestCase {
     
     protected void setUp() throws Exception {
         // Cluster a bunch in the center
-        int min = RANGE / 3;
+        int min = Math.min(1, RANGE / 3);
         for (int i = 0; i < NUM_SAMPLES; i++) {
             int val = rand.nextInt(min) + min; 
             h.put(val);
@@ -81,16 +80,69 @@ public class TestFastIntHistogram extends BaseTestCase {
     }
     
     /**
+     * testKeepZeroEntries
+     */
+    public void testKeepZeroEntries() {
+        h.setKeepZeroEntries(true);
+        fast_h.setKeepZeroEntries(true);
+        
+        for (int i = 0; i < RANGE; i++) {
+            long cnt = h.get(i, 0l);
+            if (cnt > 0) {
+                h.dec(i, cnt);
+                fast_h.dec(i, cnt);
+            }
+        } // FOR
+        assertEquals(h.toString(), RANGE, h.getValueCount());
+        assertEquals(fast_h.toString(), RANGE, fast_h.getValueCount());
+        
+        for (Integer val : h.values()) {
+            assertEquals(val.toString(), 0, h.get(val).intValue());
+            assertEquals(h.get(val), fast_h.get(val));
+            assertEquals(h.get(val).intValue(), fast_h.fastGet(val));
+        } // FOR
+    }
+    
+    
+    /**
+     * testDec
+     */
+    public void testDec() {
+        h.setKeepZeroEntries(false);
+        fast_h.setKeepZeroEntries(false);
+        
+        int to_remove = rand.nextInt(NUM_SAMPLES);
+        for (int i = 0; i < to_remove; i++) {
+            int val = rand.nextInt(RANGE);
+            if (h.get(val) != null) {
+                h.dec(val);
+                fast_h.fastDec(val);
+            }
+        } // FOR
+        
+        for (Integer val : h.values()) {
+            assertEquals(h.get(val), fast_h.get(val));
+            assertEquals(h.get(val).intValue(), fast_h.fastGet(val));
+        } // FOR
+    }
+    
+    /**
      * testMinCount
      */
     public void testMinCount() throws Exception {
         assertEquals(h.getMinCount(), fast_h.getMinCount());
     }
     
+    /**
+     * testMinValue
+     */
     public void testMinValue() {
         assertEquals(h.getMinValue(), fast_h.getMinValue());
     }
     
+    /**
+     * testMinCountValues
+     */
     public void testMinCountValues() {
         Collection<Integer> vals0 = h.getMinCountValues();
         Collection<Integer> vals1 = fast_h.getMinCountValues();
@@ -105,10 +157,16 @@ public class TestFastIntHistogram extends BaseTestCase {
         assertEquals(h.getMaxCount(), fast_h.getMaxCount());
     }
     
+    /**
+     * testMaxValue
+     */
     public void testMaxValue() {
         assertEquals(h.getMaxValue(), fast_h.getMaxValue());
     }
     
+    /**
+     * testMaxCountValues
+     */
     public void testMaxCountValues() {
         Collection<Integer> vals0 = h.getMaxCountValues();
         Collection<Integer> vals1 = fast_h.getMaxCountValues();

@@ -69,7 +69,7 @@ public class MarkovViewer extends AbstractViewer {
         graph_panel.getRenderContext().setEdgeLabelTransformer(
                 new ToStringLabeller<MarkovEdge>());
         PluggableGraphMouse gm = new PluggableGraphMouse();
-        gm.add(new PopupMousePlugin());
+        gm.add(new PopupMousePlugin<MarkovVertex, MarkovEdge>());
         gm.add(new TranslatingGraphMousePlugin(MouseEvent.BUTTON1_MASK));
         graph_panel.setGraphMouse(gm);
         Transformer<MarkovVertex, String> labelTransform = new VertexLabelTransformer<MarkovVertex, String>();

@@ -14,15 +14,16 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.TableRef;
 import org.voltdb.compiler.VoltCompiler;
 
 import edu.brown.BaseTestCase;
@@ -135,13 +136,13 @@ public class TestCatalogCloner extends BaseTestCase {
                     System.err.println(CatalogUtil.getDisplayName(ref0) + " <-> " + CatalogUtil.getDisplayName(ref1));
                 this.checkFields(Column.class, ref0.getConstraint(), ref1.getConstraint());
             }
-            // ProcedureRefs
-            else if (field_val0 instanceof ProcedureRef) {
-                ProcedureRef ref0 = (ProcedureRef) field_val0;
-                ProcedureRef ref1 = (ProcedureRef) field_val1;
+            // TableRefs
+            else if (field_val0 instanceof TableRef) {
+                TableRef ref0 = (TableRef) field_val0;
+                TableRef ref1 = (TableRef) field_val1;
                 if (debug)
                     System.err.println(CatalogUtil.getDisplayName(ref0) + " <-> " + CatalogUtil.getDisplayName(ref1));
-                this.checkFields(Procedure.class, ref0.getProcedure(), ref1.getProcedure());
+                this.checkFields(Table.class, ref0.getTable(), ref1.getTable());
             }
             // ColumnRefs
             else if (field_val0 instanceof ColumnRef) {
@@ -168,15 +169,28 @@ public class TestCatalogCloner extends BaseTestCase {
         } // FOR (field)
     }
     
-    private void checkProcedureConflicts(Procedure catalog_proc, CatalogMap<ProcedureRef> conflicts0, CatalogMap<ProcedureRef> conflicts1) {
+    private void checkProcedureConflicts(Procedure catalog_proc, CatalogMap<ConflictSet> conflicts0, CatalogMap<ConflictSet> conflicts1) {
         assertEquals(catalog_proc.toString(), conflicts0.size(), conflicts1.size());
-        for (ProcedureRef ref : conflicts0) {
-            assertNotNull(ref);
-            assertNotNull(ref.getProcedure());
-            ProcedureRef clone_ref = conflicts1.get(ref.getName());
-            assertNotNull(clone_ref);
-            assertNotNull(clone_ref.getProcedure());
-            assertEquals(ref.getName(), clone_ref.getName());
+        for (String procName : conflicts0.keySet()) {
+            assertNotNull(procName);
+            ConflictSet cs0 = conflicts0.get(procName);
+            assertNotNull(cs0);
+            ConflictSet cs1 = conflicts1.get(procName);
+            assertNotNull(cs1);
+            
+            assertEquals(cs0.getReadwriteconflicts().size(), cs1.getReadwriteconflicts().size());
+            for (TableRef ref0 : cs0.getReadwriteconflicts()) {
+                TableRef ref1 = cs1.getReadwriteconflicts().get(ref0.getName());
+                assertNotNull(ref1);
+                assertEquals(ref0.getTable().getName(), ref1.getTable().getName());
+            } // FOR
+            
+            assertEquals(cs0.getWritewriteconflicts().size(), cs1.getWritewriteconflicts().size());
+            for (TableRef ref0 : cs0.getWritewriteconflicts()) {
+                TableRef ref1 = cs1.getWritewriteconflicts().get(ref0.getName());
+                assertNotNull(ref1);
+                assertEquals(ref0.getTable().getName(), ref1.getTable().getName());
+            } // FOR
         } // FOR
     }
 
@@ -253,8 +267,8 @@ public class TestCatalogCloner extends BaseTestCase {
             assertEquals(clone_proc.getParameters().toString(), catalog_proc.getParameters().size(), clone_proc.getParameters().size());
 
             // Procedure Conflicts
-            this.checkProcedureConflicts(catalog_proc, catalog_proc.getReadconflicts(), clone_proc.getReadconflicts());
-            this.checkProcedureConflicts(catalog_proc, catalog_proc.getWriteconflicts(), clone_proc.getWriteconflicts());
+            this.checkProcedureConflicts(catalog_proc, catalog_proc.getConflicts(), clone_proc.getConflicts());
+            this.checkProcedureConflicts(catalog_proc, catalog_proc.getConflicts(), clone_proc.getConflicts());
             
             for (ProcParameter catalog_param : catalog_proc.getParameters()) {
                 ProcParameter clone_param = clone_proc.getParameters().get(catalog_param.getIndex());

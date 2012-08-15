@@ -21,19 +21,15 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.dtxn.DtxnConstants;
 
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.utils.PartitionEstimator;
 
 /** A wholly improper shutdown. The only guarantee is that a transaction
  * is committed or not committed - never partially committed. However, no
@@ -53,11 +49,9 @@ public class Shutdown extends VoltSystemProcedure {
     static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_shutdownCommand, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_procedureDone, this);
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_shutdownCommand, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_procedureDone, this);
     }
 
     @Override
@@ -95,7 +89,7 @@ public class Shutdown extends VoltSystemProcedure {
 
     public VoltTable[] run() {
         LOG.info("Got shutdown request. Notifying HStoreSite and returning to client");
-        executor.getHStoreSite().getHStoreCoordinator().shutdownCluster();
+        executor.getHStoreSite().getCoordinator().shutdownCluster();
         
 //        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[this.all_partitions.size() + 1];
 //        for (int i = 1; i < pfs.length; i++) {

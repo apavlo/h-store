@@ -4,22 +4,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.util.ThrottlingQueue;
-import edu.brown.utils.PartitionEstimator;
 
 /** 
  * Get a status snapshot of the PartitionExecutors in the cluster
@@ -27,7 +21,6 @@ import edu.brown.utils.PartitionEstimator;
  */
 @ProcInfo(singlePartition = true)
 public class ExecutorStatus extends VoltSystemProcedure {
-    private static final Logger LOG = Logger.getLogger(ExecutorStatus.class);
 
     public static final ColumnInfo nodeResultsColumns[] = {
         new ColumnInfo("SITE",          VoltType.INTEGER),
@@ -44,10 +37,8 @@ public class ExecutorStatus extends VoltSystemProcedure {
     };
     
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_execStatus, this);
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_execStatus, this);
     }
 
     @Override
@@ -63,7 +54,8 @@ public class ExecutorStatus extends VoltSystemProcedure {
         VoltTable vt = new VoltTable(nodeResultsColumns);
         for (Integer p : hstore_site.getLocalPartitionIdArray()) {
             PartitionExecutor es = hstore_site.getPartitionExecutor(p.intValue());
-            Queue<?> es_queue = this.executor.getWorkQueue();
+            PartitionExecutor.Debug dbg = es.getDebugContext();
+            Queue<?> es_queue = dbg.getWorkQueue();
                 
             Long currentTxnId = es.getCurrentTxnId();
             Long currentDtxnId = es.getCurrentDtxnId();

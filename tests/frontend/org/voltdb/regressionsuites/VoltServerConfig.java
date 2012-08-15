@@ -106,14 +106,9 @@ public abstract class VoltServerConfig {
     public abstract boolean isValgrind();
     
     // ---------------------------------------------------------------------------
-    
+
+    protected final Map<String, String> confParams = new HashMap<String, String>();
     protected String nameSuffix = "";
-    protected final Map<String, String> confParams = new HashMap<String, String>(); 
-    {
-        this.setConfParameter("site.coordinator_sync_time", false);
-        this.setConfParameter("site.preload", false);
-        this.setConfParameter("site.status_enable", false);
-    }
     
     public final void setTestNameSuffix(String suffix) {
         this.nameSuffix = suffix;

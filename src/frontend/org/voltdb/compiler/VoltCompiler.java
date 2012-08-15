@@ -91,6 +91,7 @@ import org.voltdb.sysprocs.GetCatalog;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.MarkovUpdate;
+import org.voltdb.sysprocs.Quiesce;
 import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Shutdown;
@@ -110,7 +111,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.ConflictCalculator;
+import edu.brown.catalog.ConflictSetCalculator;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
@@ -506,7 +507,7 @@ public class VoltCompiler {
         
         // Optimization: Calculate Procedure conflicts
         try {
-            new ConflictCalculator(m_catalog).process();
+            new ConflictSetCalculator(m_catalog).process();
         } catch (Exception ex) {
             LOG.warn("Unexpected error", ex);
             addErr("Failed to calculate procedure conflicts");
@@ -1001,7 +1002,8 @@ public class VoltCompiler {
                     include = (((MultiColumn)partition_col).contains(catalog_col) == false);
                 }
                 else if (catalog_col.equals(partition_col)) {
-                    LOG.info(catalog_col.fullName() + " = " + partition_col.fullName());
+                    if (debug.get())
+                        LOG.debug("VerticalParition -> " + catalog_col.fullName() + " = " + partition_col.fullName());
                     include = false;
                 }
                 if (include) indexColumns.add(virtual_col);
@@ -1271,13 +1273,12 @@ public class VoltCompiler {
             {SnapshotStatus.class,                  false,      true},
             {SnapshotScan.class,                    false,      true},
             {SnapshotDelete.class,                  false,      true},
-         
+            {Quiesce.class,                         true,       true},
             {Statistics.class,                      true,       false},
             
             // Anti-Cache Operations
             {EvictTuples.class,               false,      false},
          
-//       {"org.voltdb.sysprocs.Quiesce",                      false,    false},
 //         {"org.voltdb.sysprocs.StartSampler",                 false,    false},
 //         {"org.voltdb.sysprocs.SystemInformation",            true,     false},
 //         {"org.voltdb.sysprocs.UpdateApplicationCatalog",     false,    true},

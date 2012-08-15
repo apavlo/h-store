@@ -17,6 +17,7 @@
 
 package org.voltdb;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -28,6 +29,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
@@ -51,12 +53,16 @@ public class CatalogContext {
     // PUBLIC IMMUTABLE CACHED INFORMATION
     public final Cluster cluster;
     public final Database database;
-    public final CatalogMap<Procedure> procedures;
+    public final CatalogMap<Host> hosts;
     public final CatalogMap<Site> sites;
+    
+    /** The total number of unique Hosts in the cluster */
+    public final int numberOfHosts;
+    /** The total number of unique Sites in the cluster */
+    public final int numberOfSites;
+    /** The total number of unique Partitions in the cluster */
     public final int numberOfPartitions;
-    public final int numberOfExecSites;
-    public final int numberOfNodes;
-
+    
     @Deprecated
     public final AuthSystem authSystem;
     
@@ -66,10 +72,31 @@ public class CatalogContext {
     // PRIVATE
     private final String m_path;
     private final JarClassLoader m_catalogClassLoader;
+
+    // ------------------------------------------------------------
+    // PARTITIONS
+    // ------------------------------------------------------------
     
     private final Partition partitions[];
     private final PartitionSet partitionIdCollection = new PartitionSet();
     private final Integer partitionIdArray[];
+    
+    /** PartitionId -> Singleton set of that PartitionId */
+    private final PartitionSet partitionSingletons[];
+    
+    /** PartitionId -> SiteId */
+    private final int partitionSiteXref[];
+    
+    // ------------------------------------------------------------
+    // PROCEDURES
+    // ------------------------------------------------------------
+    
+    public final CatalogMap<Procedure> procedures;
+    
+    private final Collection<Procedure> regularProcedures = new ArrayList<Procedure>();
+    private final Collection<Procedure> sysProcedures = new ArrayList<Procedure>();
+    private final Collection<Procedure> mrProcedures = new ArrayList<Procedure>();
+    private final Procedure proceduresArray[];
     
     // ------------------------------------------------------------
     // TABLES
@@ -92,7 +119,14 @@ public class CatalogContext {
     private final Map<Long, int[]> fragmentReadTables = new HashMap<Long, int[]>(); 
     private final Map<Long, int[]> fragmentWriteTables = new HashMap<Long, int[]>();
     
+    public CatalogContext(Catalog catalog) {
+        this(catalog, CatalogContext.NO_PATH);
+    }
 
+    public CatalogContext(Catalog catalog, File pathToCatalogJar) {
+        this(catalog, pathToCatalogJar.getAbsolutePath());
+    }
+    
     public CatalogContext(Catalog catalog, String pathToCatalogJar) {
         // check the heck out of the given params in this immutable class
         assert(catalog != null);
@@ -108,32 +142,59 @@ public class CatalogContext {
         else
             m_catalogClassLoader = null;
         this.catalog = catalog;
-        cluster = catalog.getClusters().get("cluster");
-        database = cluster.getDatabases().get("database");
-        procedures = database.getProcedures();
+        this.cluster = CatalogUtil.getCluster(this.catalog);
+        this.database = CatalogUtil.getDatabase(this.catalog);
+        this.hosts = this.cluster.getHosts();
+        this.sites = cluster.getSites();
+        
+        // ------------------------------------------------------------
+        // PROCEDURES
+        // ------------------------------------------------------------
+        this.procedures = database.getProcedures();
+        this.proceduresArray = new Procedure[this.procedures.size()+1];
+        for (Procedure proc : this.procedures) {
+            this.proceduresArray[proc.getId()] = proc;
+            if (proc.getSystemproc()) {
+                this.sysProcedures.add(proc);
+            }
+            else if (proc.getMapreduce()) {
+                this.mrProcedures.add(proc);
+            }
+            else {
+                this.regularProcedures.add(proc);
+            }
+        } // FOR
+        
         authSystem = new AuthSystem(database, cluster.getSecurityenabled());
-        sites = cluster.getSites();
+        
         siteTracker = null; // new SiteTracker(cluster.getSites());
 
         // count nodes
-        numberOfNodes = cluster.getHosts().size();
+        numberOfHosts = cluster.getHosts().size();
 
         // count exec sites
-        numberOfExecSites = cluster.getSites().size();
+        numberOfSites = cluster.getSites().size();
 
-        // count partitions
-        numberOfPartitions = cluster.getNum_partitions();
-        this.partitions = new Partition[numberOfPartitions];
-        for (Partition p : CatalogUtil.getAllPartitions(catalog)) {
-            this.partitions[p.getId()] = p;
-        }
-        this.partitionIdArray = new Integer[numberOfPartitions];
-        for (int i = 0; i < numberOfPartitions; i++) {
-            this.partitionIdArray[i] = Integer.valueOf(i);
-            this.partitionIdCollection.add(this.partitionIdArray[i]);
-        }
+        // ------------------------------------------------------------
+        // PARTITIONS
+        // ------------------------------------------------------------
+        this.numberOfPartitions = cluster.getNum_partitions();
+        this.partitions = new Partition[this.numberOfPartitions];
+        this.partitionIdArray = new Integer[this.numberOfPartitions];
+        this.partitionSingletons = new PartitionSet[this.numberOfPartitions];
+        this.partitionSiteXref = new int[this.numberOfPartitions];
+        for (Partition part : CatalogUtil.getAllPartitions(catalog)) {
+            int p = part.getId();
+            this.partitions[p] = part;
+            this.partitionIdArray[p] = Integer.valueOf(p);
+            this.partitionSingletons[p] = new PartitionSet(p);
+            this.partitionIdCollection.add(this.partitionIdArray[p]);
+            this.partitionSiteXref[part.getId()] = ((Site)part.getParent()).getId();
+        } // FOR
         
+        // ------------------------------------------------------------
         // TABLES
+        // ------------------------------------------------------------
         for (Table tbl : database.getTables()) {
             if (tbl.getSystable()) {
                 sysTables.add(tbl);
@@ -214,10 +275,43 @@ public class CatalogContext {
         return m_catalogClassLoader.loadClass(procedureClassName);
     }
     
+    
+    // ------------------------------------------------------------
+    // SITES
+    // ------------------------------------------------------------
+    
+    /**
+     * Return the unique Site catalog object for the given id
+     * @param catalog_item
+     * @return
+     */
+    public Site getSiteById(int site_id) {
+        assert(site_id >= 0);
+        return (this.sites.get("id", site_id));
+    }
+    
+    /**
+     * Return the site id for the given partition
+     * @param partition_id
+     * @return
+     */
+    public int getSiteIdForPartitionId(int partition_id) {
+        return (this.partitionSiteXref[partition_id]);
+    }
+
+    // ------------------------------------------------------------
+    // PARTITIONS
+    // ------------------------------------------------------------
+    
+    /**
+     * Return an array containing all the Partition handles in the cluster
+     */
+    public Partition[] getAllPartitions() {
+        return (this.partitions);
+    }
+    
     /**
      * Return the Partition catalog object for the given PartitionId
-     * 
-     * @param catalog_item
      * @param id
      * @return
      */
@@ -228,7 +322,7 @@ public class CatalogContext {
     /**
      * Return  of all the partition ids in this H-Store database cluster
      */
-    public PartitionSet getAllPartitionIdCollection() {
+    public PartitionSet getAllPartitionIds() {
         return (this.partitionIdCollection);
     }
     
@@ -237,6 +331,14 @@ public class CatalogContext {
      */
     public Integer[] getAllPartitionIdArray() {
         return (this.partitionIdArray);
+    }
+    
+    /**
+     * Return a PartitionSet that only contains the given partition id
+     * @param partition
+     */
+    public PartitionSet getPartitionSetSingleton(int partition) {
+        return (this.partitionSingletons[partition]);
     }
     
     // ------------------------------------------------------------
@@ -283,6 +385,38 @@ public class CatalogContext {
      */
     public Collection<Table> getEvictableTables() {
         return (evictableTables);
+    }
+
+    // ------------------------------------------------------------
+    // PROCEDURES
+    // ------------------------------------------------------------
+    
+    public Procedure getProcedureById(int procId) {
+        if (procId >= 0 && procId < this.proceduresArray.length) {
+            return (this.proceduresArray[procId]);
+        }
+        return (null);
+    }
+    
+    /**
+     * Return all of the regular transactional Procedures in the catalog
+     */
+    public Collection<Procedure> getRegularProcedures() {
+        return (this.regularProcedures);
+    }
+    
+    /**
+     * Return all of the internal system Procedures in the catalog
+     */
+    public Collection<Procedure> getSysProcedures() {
+        return (this.sysProcedures);
+    }
+    
+    /**
+     * Return all of the MapReduce Procedures in the catalog
+     */
+    public Collection<Procedure> getMapReduceProcedures() {
+        return (this.mrProcedures);
     }
     
     // ------------------------------------------------------------

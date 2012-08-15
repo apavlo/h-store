@@ -4,23 +4,19 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.utils.PartitionEstimator;
 
 /** 
  * Force the garbage collector run at each HStoreSite
@@ -38,11 +34,9 @@ public class GarbageCollection extends VoltSystemProcedure {
     private final ProfileMeasurement gcTime = new ProfileMeasurement(this.getClass().getSimpleName());
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_gcAggregate, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_gcDistribute, this);
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_gcAggregate, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_gcDistribute, this);
     }
 
     @Override
@@ -80,7 +74,7 @@ public class GarbageCollection extends VoltSystemProcedure {
                     throw new ServerFaultException(msg, txn_id);
                 }
                 
-                VoltTable vt = VoltTableUtil.combine(siteResults);
+                VoltTable vt = VoltTableUtil.union(siteResults);
                 result = new DependencySet(SysProcFragmentId.PF_gcAggregate, vt);
                 break;
             default:

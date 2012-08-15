@@ -43,7 +43,7 @@ public class TestPrimaryKeyPartitioner extends BaseTestCase {
         
         // Setup everything else (that's just how we roll up in this ma)
         this.workload = new Workload(catalog);
-        this.info = new DesignerInfo(catalog_db, this.workload);
+        this.info = new DesignerInfo(catalogContext, this.workload);
         this.info.setPartitionerClass(PrimaryKeyPartitioner.class);
         this.info.setMappings(correlations);
         this.info.setMappingsFile(correlations_file);
@@ -61,7 +61,7 @@ public class TestPrimaryKeyPartitioner extends BaseTestCase {
     public void testGenerate() throws Exception {
         PartitionPlan pplan = this.partitioner.generate(this.hints);
         assertNotNull(pplan);
-        assertEquals(CatalogUtil.getDataTables(catalog_db).size(), pplan.getTableEntries().size());
+        assertEquals(catalogContext.getDataTables().size(), pplan.getTableEntries().size());
 
         for (Table catalog_tbl : pplan.getTableEntries().keySet()) {
             if (catalog_tbl.getSystable()) continue;

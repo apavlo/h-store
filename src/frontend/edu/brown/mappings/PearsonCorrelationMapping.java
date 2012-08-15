@@ -9,7 +9,6 @@ import java.util.Vector;
  * 
  */
 public class PearsonCorrelationMapping extends AbstractMapping {
-    private static final long serialVersionUID = 1L;
     
     private final Vector<Number> values0 = new Vector<Number>();
     private final Vector<Number> values1 = new Vector<Number>();

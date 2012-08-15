@@ -12,12 +12,14 @@ import com.google.protobuf.RpcCallback;
 public class InitializeTxnMessage extends InternalMessage {
 
     final ByteBuffer serializedRequest; 
+    final long initiateTime;
     final Procedure catalog_proc;
     final ParameterSet procParams;
     final RpcCallback<ClientResponseImpl> clientCallback;
     
     
-    public InitializeTxnMessage(ByteBuffer serializedRequest, 
+    public InitializeTxnMessage(ByteBuffer serializedRequest,
+                                long initiateTime,
                                 Procedure catalog_proc,
                                 ParameterSet procParams,
                                 RpcCallback<ClientResponseImpl> clientCallback) {
@@ -28,6 +30,7 @@ public class InitializeTxnMessage extends InternalMessage {
         assert(clientCallback != null);
         
         this.serializedRequest = serializedRequest;
+        this.initiateTime = initiateTime;
         this.catalog_proc = catalog_proc;
         this.procParams = procParams;
         this.clientCallback = clientCallback;
@@ -37,23 +40,19 @@ public class InitializeTxnMessage extends InternalMessage {
     public ByteBuffer getSerializedRequest() {
         return (this.serializedRequest);
     }
-
+    public long getInitiateTime() {
+        return (this.initiateTime);
+    }
     public Procedure getProcedure() {
         return (this.catalog_proc);
     }
-
     public ParameterSet getProcParams() {
         return (this.procParams);
     }
-
     public RpcCallback<ClientResponseImpl> getClientCallback() {
         return (this.clientCallback);
     }
-    
     public long getClientHandle() {
         return StoredProcedureInvocation.getClientHandle(this.serializedRequest);
     }
-    
-    
-    
 }

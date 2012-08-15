@@ -90,7 +90,7 @@ public class SchemaVisualization extends AbstractViewer {
         
         DependencyGraph dgraph = new DependencyGraph(this.args.catalog_db);
         try {
-            new DependencyGraphGenerator(new DesignerInfo(args.catalog_db, args.workload, args.stats)).generate(dgraph);
+            new DependencyGraphGenerator(new DesignerInfo(args.catalogContext, args.workload, args.stats)).generate(dgraph);
             this.graph_panel = GraphVisualizationPanel.factory(dgraph);
         } catch (Exception ex) {
             ex.printStackTrace();

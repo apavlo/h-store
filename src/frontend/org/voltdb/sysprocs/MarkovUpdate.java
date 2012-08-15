@@ -6,26 +6,21 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo(singlePartition = false)
 public class MarkovUpdate extends VoltSystemProcedure {
@@ -33,11 +28,9 @@ public class MarkovUpdate extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(MarkovUpdate.class);
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsDistribute, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsAggregate, this);
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsDistribute, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsAggregate, this);
     }
     
     @Override
@@ -120,41 +113,9 @@ public class MarkovUpdate extends VoltSystemProcedure {
      * @throws VoltAbortException
      */
     public VoltTable[] run(boolean save_to_file) throws VoltAbortException {
-//        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
-        VoltTable[] results;
-        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[num_partitions  + 1];
-        for (int i = 1; i <= num_partitions; ++i) {
-            int partition = i - 1;
-            ParameterSet params = new ParameterSet();
-            params.setParameters(new Object[]{save_to_file});
-            
-            pfs[i] = new SynthesizedPlanFragment();
-            pfs[i].fragmentId = SysProcFragmentId.PF_recomputeMarkovsDistribute;
-            pfs[i].inputDependencyIds = new int[] { };
-            pfs[i].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_recomputeMarkovsDistribute };
-            pfs[i].multipartition = true;
-            pfs[i].nonExecSites = false;
-            pfs[i].destPartitionId = partition;
-            pfs[i].parameters = params;
-            pfs[i].last_task = true;
-        } // FOR
-
-        // a final plan fragment to aggregate the results
-        pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].destPartitionId = partitionId;
-        pfs[0].fragmentId = SysProcFragmentId.PF_recomputeMarkovsAggregate;
-        pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_recomputeMarkovsDistribute };
-        pfs[0].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_recomputeMarkovsAggregate };
-        pfs[0].multipartition = false;
-        pfs[0].nonExecSites = false;
-        pfs[0].parameters = new ParameterSet();
-
-        // send these forth in to the world .. and wait
-        if (debug) LOG.debug("Passing " + pfs.length + " sysproc fragments to executeSysProcPlanFragments()");
-        results = executeSysProcPlanFragments(pfs, (int)SysProcFragmentId.PF_recomputeMarkovsAggregate);
-        return results;
+        return this.executeOncePerPartition(SysProcFragmentId.PF_recomputeMarkovsDistribute,
+                                            SysProcFragmentId.PF_recomputeMarkovsAggregate,
+                                            new ParameterSet(save_to_file));
     }
 
 }

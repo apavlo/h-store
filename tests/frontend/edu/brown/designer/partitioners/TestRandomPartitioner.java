@@ -34,7 +34,7 @@ public class TestRandomPartitioner extends BaseTestCase {
         
         // Setup everything else (that's just how we roll up in this ma)
         this.workload = new Workload(catalog);
-        this.info = new DesignerInfo(catalog_db, this.workload);
+        this.info = new DesignerInfo(catalogContext, this.workload);
         this.info.setPartitionerClass(RandomPartitioner.class);
         this.hints = new DesignerHints();
 

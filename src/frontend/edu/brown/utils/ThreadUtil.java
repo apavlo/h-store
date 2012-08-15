@@ -70,28 +70,30 @@ public abstract class ThreadUtil {
         }
     }
     
-    /*
-    * Have shutdown actually means shutdown. Tasks that need to complete should use
-    * futures.
-    */
+    /**
+     * Have shutdown actually means shutdown. Tasks that need to complete should use
+     * futures.
+     */
     public static ScheduledThreadPoolExecutor getScheduledThreadPoolExecutor(String name, UncaughtExceptionHandler handler, int poolSize, int stackSize) {
-        ScheduledThreadPoolExecutor ses = new ScheduledThreadPoolExecutor(poolSize, getThreadFactory(name, handler));
-        ses.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
-        ses.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
-        return ses;
+        // HACK: ScheduledThreadPoolExecutor won't let use the handler so
+        // if we're using ExceptionHandlingRunnable then we'll be able to 
+        // pick up the exceptions
+        Thread.setDefaultUncaughtExceptionHandler(handler);
+        
+        ThreadFactory factory = getThreadFactory(name, handler);
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(poolSize, factory);
+        executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+        executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        return executor;
     }
     
-    public static ThreadFactory getThreadFactory(String name, UncaughtExceptionHandler handler) {
-        return getThreadFactory(name, handler, 1024 * 1024);
-    }
-
-    public static ThreadFactory getThreadFactory(final String name, final UncaughtExceptionHandler hander, final int stackSize) {
+    public static ThreadFactory getThreadFactory(final String name, final UncaughtExceptionHandler handler) {
         return new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
-                Thread t = new Thread(null, r, name, stackSize);
+                Thread t = new Thread(null, r, name, 1024*1024);
                 t.setDaemon(true);
-                t.setUncaughtExceptionHandler(hander);
+                t.setUncaughtExceptionHandler(handler);
                 return t;
             }
         };
@@ -248,8 +250,14 @@ public abstract class ThreadUtil {
                 ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, factory);
             }
         } // SYNCHRONIZED
-
         ThreadUtil.run(runnables, ThreadUtil.pool, false);
+    }
+    
+    public static synchronized void shutdownGlobalPool() {
+        if (ThreadUtil.pool != null) {
+            ThreadUtil.pool.shutdown();
+            ThreadUtil.pool = null;
+        }
     }
 
     /**

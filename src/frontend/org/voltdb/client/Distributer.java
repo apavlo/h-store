@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -285,7 +284,6 @@ class Distributer {
             
             final long clientHandle = response.getClientHandle();
             final Status status = response.getStatus();
-            final int timestamp = response.getRequestCounter();
             final int restart_counter = response.getRestartCounter();
             
             boolean abort = false;
@@ -307,7 +305,6 @@ class Distributer {
                         m0.put("Txn #", response.getTransactionId());
                         m0.put("Status", response.getStatus());
                         m0.put("ClientHandle", clientHandle);
-                        m0.put("Timestamp", timestamp);
                         m0.put("RestartCounter", restart_counter);
                         
                         Map<String, Object> m1 = new LinkedHashMap<String, Object>();
@@ -698,7 +695,12 @@ class Distributer {
             synchronized (this) {
                 for (int i=0; i < totalConnections; ++i) {
                     int idx = Math.abs(++m_nextConnection % totalConnections);
-                    cxn = m_connections.get(idx);
+                    try {
+                        cxn = m_connections.get(idx);
+                    } catch (IndexOutOfBoundsException ex) {
+                        String msg = String.format("Failed to get connection #%d / %d", idx, totalConnections);
+                        throw new RuntimeException(msg, ex);
+                    }
                     if (trace.get())
                         LOG.trace("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
                     // queuedInvocations += cxn.m_callbacks.size();

@@ -7,14 +7,13 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.Constraint;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.ConstraintType;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
@@ -40,9 +39,9 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
      * @param catalog_db
      * @return
      */
-    public static DependencyGraph generate(Database catalog_db) {
-        DependencyGraph dgraph = new DependencyGraph(catalog_db);
-        DesignerInfo info = new DesignerInfo(catalog_db, new Workload(catalog_db.getCatalog()));
+    public static DependencyGraph generate(CatalogContext catalogContext) {
+        DependencyGraph dgraph = new DependencyGraph(catalogContext.database);
+        DesignerInfo info = new DesignerInfo(catalogContext, new Workload(catalogContext.catalog));
         try {
             new DependencyGraphGenerator(info).generate(dgraph);
         } catch (Exception ex) {
@@ -53,7 +52,7 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
     }
 
     public void generate(AbstractDirectedGraph<DesignerVertex, DesignerEdge> graph) throws Exception {
-        Collection<Table> catalog_tables = CatalogUtil.getDataTables(info.catalog_db);
+        Collection<Table> catalog_tables = info.catalogContext.getDataTables();
         for (Table catalog_table : catalog_tables) {
             assert (catalog_table.getSystable() == false) : "Unexpected " + catalog_table;
             graph.addVertex(new DesignerVertex(catalog_table));

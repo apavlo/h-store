@@ -32,12 +32,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
@@ -78,8 +78,8 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
      */
     public static class Children<E> implements Poolable {
         private E parent;
-        private final Queue<E> before_list = new ConcurrentLinkedQueue<E>();
-        private final Queue<E> after_list = new ConcurrentLinkedQueue<E>();
+        private final Queue<E> before_list = new LinkedList<E>();
+        private final Queue<E> after_list = new LinkedList<E>();
 
         private Children() {
             // Nothing...

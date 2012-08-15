@@ -263,7 +263,7 @@ public class SEATSProfile {
     
     private SEATSProfile copy(SEATSProfile other) {
         this.scale_factor = other.scale_factor;
-        this.airport_max_customer_id.putHistogram(other.airport_max_customer_id);
+        this.airport_max_customer_id.put(other.airport_max_customer_id);
         this.flight_start_date = other.flight_start_date;
         this.flight_upcoming_date = other.flight_upcoming_date;
         this.flight_past_days = other.flight_past_days;

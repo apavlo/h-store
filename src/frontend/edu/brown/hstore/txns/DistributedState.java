@@ -1,6 +1,9 @@
 package edu.brown.hstore.txns;
 
-import edu.brown.catalog.CatalogUtil;
+import java.util.BitSet;
+
+import org.voltdb.CatalogContext;
+
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
@@ -14,11 +17,15 @@ import edu.brown.protorpc.ProtoRpcController;
  */
 public class DistributedState implements Poolable {
 
-    // ----------------------------------------------------------------------------
-    // CURRENT TXN
-    // ----------------------------------------------------------------------------
-    
+    /**
+     * Current txn
+     */
     private LocalTransaction ts = null;
+    
+    /**
+     * 
+     */
+    protected final BitSet notified_prepare;
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -63,22 +70,23 @@ public class DistributedState implements Poolable {
      * @param hstore_site
      */
     public DistributedState(HStoreSite hstore_site) {
-        int num_sites = CatalogUtil.getNumberOfSites(hstore_site.getSite());
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
+        this.notified_prepare = new BitSet(catalogContext.numberOfPartitions);
         
         this.init_callback = new TransactionInitCallback(hstore_site);
         this.prepare_callback = new TransactionPrepareCallback(hstore_site);
         this.finish_callback = new TransactionFinishCallback(hstore_site);
         
-        this.rpc_transactionInit = new ProtoRpcController[num_sites];
-        this.rpc_transactionWork = new ProtoRpcController[num_sites];
-        this.rpc_transactionPrepare = new ProtoRpcController[num_sites];
-        this.rpc_transactionFinish = new ProtoRpcController[num_sites];
+        this.rpc_transactionInit = new ProtoRpcController[catalogContext.numberOfSites];
+        this.rpc_transactionWork = new ProtoRpcController[catalogContext.numberOfSites];
+        this.rpc_transactionPrepare = new ProtoRpcController[catalogContext.numberOfSites];
+        this.rpc_transactionFinish = new ProtoRpcController[catalogContext.numberOfSites];
         
     }
     
-    public void init(LocalTransaction ts) {
+    public DistributedState init(LocalTransaction ts) {
         this.ts = ts;
-        this.init_callback.init(ts);
+        return (this);
     }
     
     @Override

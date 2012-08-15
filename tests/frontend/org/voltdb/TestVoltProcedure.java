@@ -56,6 +56,7 @@ import java.util.Date;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.catalog.*;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.utils.PartitionEstimator;
@@ -125,7 +126,6 @@ public class TestVoltProcedure extends TestCase {
         }
     }
 
-    MockExecutionSite site;
     ParameterSet nullParam;
 
     public void testDummyTest() {
@@ -175,7 +175,7 @@ public class TestVoltProcedure extends TestCase {
 //        Procedure catalog_proc = site.database.getProcedures().get(LongProcedure.class.getName());
 //        Cluster catalog_clus = null;
 //        Database catalog_db = (Database)catalog_proc.getParent();
-//        PartitionEstimator p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, 1));
+//        PartitionEstimator p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, 1));
 //        wrapper.init(site, catalog_proc, BackendTarget.NATIVE_EE_JNI, null, catalog_clus, p_estimator, 1);
 //        
 //        ParameterSet params = new ParameterSet();
@@ -221,23 +221,9 @@ public class TestVoltProcedure extends TestCase {
 //        Procedure catalog_proc = site.database.getProcedures().get(procedure.getName());
 //        Cluster catalog_clus = null;
 //        Database catalog_db = (Database)catalog_proc.getParent();
-//        PartitionEstimator p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, 1));
+//        PartitionEstimator p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, 1));
 //        wrapper.init(site, catalog_proc, BackendTarget.NATIVE_EE_JNI, null, catalog_clus, p_estimator, 1);
 //        return wrapper.callAndBlock(1l, CLIENT_HANDLE++, (Object) null);
 //    }
 
-    private class MockExecutionSite extends PartitionExecutor {
-        public MockExecutionSite(int siteId, String serializedCatalog) {
-            this.siteId = siteId;
-
-            // get some catalog shortcuts ready
-            catalog = new Catalog();
-            catalog.execute(serializedCatalog);
-            cluster = catalog.getClusters().get("cluster");
-            this.site = cluster.getSites().get(Integer.toString(siteId));
-            //host = cluster.getHosts().get("host");
-            //site = host.getSites().get(String.valueOf(siteId));
-            database = cluster.getDatabases().get("database");
-        }
-    }
 }

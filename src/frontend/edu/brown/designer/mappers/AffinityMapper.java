@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
@@ -81,15 +82,11 @@ public class AffinityMapper extends AbstractMapper {
         // order to figure
         // out where multi-site transactions are going.
         //
-        SingleSitedCostModel cost_model = new SingleSitedCostModel(info.catalog_db);
+        SingleSitedCostModel cost_model = new SingleSitedCostModel(info.catalogContext);
         LOG.info("Generating cost model information for given PartitionPlan");
-        cost_model.estimateWorkloadCost(info.catalog_db, this.info.workload);
+        cost_model.estimateWorkloadCost(info.catalogContext, this.info.workload);
 
-        //
-        // FIXME
-        //
-        int num_partitions = CatalogUtil.getNumberOfPartitions(info.catalog_db);
-        // System.out.println("num_partitions="+num_partitions);
+        int num_partitions = info.catalogContext.numberOfPartitions;
         AbstractHasher hasher = new DefaultHasher(info.catalog_db, num_partitions);
 
         Collection<Table> roots = pplan.getNonReplicatedRoots();

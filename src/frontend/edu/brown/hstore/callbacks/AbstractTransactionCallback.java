@@ -25,7 +25,6 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    protected final boolean txn_profiling;
     protected LocalTransaction ts;
     private Status finishStatus;
     
@@ -50,7 +49,6 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
      */
     protected AbstractTransactionCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
-        this.txn_profiling = hstore_site.getHStoreConf().site.txn_profiling;
     }
     
     protected void init(LocalTransaction ts, int counter_val, RpcCallback<T> orig_callback) {
@@ -75,6 +73,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
     
     @Override
     protected final void unblockCallback() {
+        assert(this.isUnblocked());
         assert(this.ts != null) :
             "Unexpected null transaction handle for txn #" + this.getTransactionId();
         assert(this.ts.isInitialized()) :
@@ -85,11 +84,12 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
             delete = this.unblockTransactionCallback();
         }
         this.unblockFinished = true;
-        if (delete) this.deleteTransaction(this.finishStatus);
+        if (delete) this.hstore_site.queueDeleteTransaction(this.txn_id, this.finishStatus);
     }
     
     @Override
     protected final void abortCallback(Status status) {
+        assert(this.isAborted());
         this.finishStatus = status;
         
         // We can't abort if we've already invoked the regular callback
@@ -104,20 +104,25 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
         if (finish) {
-            if (this.txn_profiling) {
-                this.ts.profiler.stopPostPrepare();
-                this.ts.profiler.startPostFinish();
-            }
+            
             this.finishTransaction(status);
         }
         this.abortFinished = true;
-        this.deleteTransaction(status);
+        this.hstore_site.queueDeleteTransaction(this.txn_id, status);
     }
-    
+
     /**
-     * 
+     * Transaction unblocking callback implementation
+     * If this returns true, then we will invoke deleteTransaction()
+     * @return
      */
     protected abstract boolean unblockTransactionCallback();
+    
+    /**
+     * Transaction abort callback implementation
+     * If this returns true, then we will invoke finishTransaction() 
+     * @return
+     */
     protected abstract boolean abortTransactionCallback(Status status);
     
     // ----------------------------------------------------------------------------
@@ -129,8 +134,11 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
      * and have finished their processing
      */
     public final boolean allCallbacksFinished() {
-        return (this.getCounter() == 0 &&
-                ((this.isUnblocked() && this.unblockFinished) || (this.isAborted() && this.abortFinished)));
+        if (this.isInitialized()) {
+            if (this.getCounter() != 0) return (false);
+            return ((this.isUnblocked() && this.unblockFinished) || (this.isAborted() && this.abortFinished));
+        }
+        return (true);
     }
     
     // ----------------------------------------------------------------------------
@@ -146,18 +154,18 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
      * This is thread-safe
      * @param status
      */
-    private final void deleteTransaction(Status status) {
-        if (this.ts.isDeletable()) {
-            if (this.txn_profiling) ts.profiler.stopPostFinish();
-            if (debug.get()) 
-                LOG.debug(String.format("%s - Deleting from %s [status=%s]",
-                                                     this.ts, this.getClass().getSimpleName(), status));
-            this.hstore_site.deleteTransaction(this.getTransactionId(), status);
-        } else if (debug.get()) {
-            LOG.debug(String.format("%s - Not deleting from %s [status=%s]\n%s",
-                                   this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
-        }
-    }
+//    private final void deleteTransaction(Status status) {
+//        if (this.ts.isDeletable()) {
+//            if (this.txn_profiling) ts.profiler.stopPostFinish();
+////            if (debug.get()) 
+//                LOG.info(String.format("%s - Deleting from %s [status=%s]",
+//                                                     this.ts, this.getClass().getSimpleName(), status));
+//            this.hstore_site.deleteTransaction(this.getTransactionId(), status);
+//        } else { // if (debug.get()) {
+//            LOG.warn(String.format("%s - Not deleting from %s [status=%s]\n%s",
+//                                   this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
+//        }
+//    }
     
     /**
      * Tell the HStoreCoordinator to invoke the TransactionFinish process
@@ -171,7 +179,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         
         // Let everybody know that the party is over!
         TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
-        this.hstore_site.getHStoreCoordinator().transactionFinish(this.ts, status, finish_callback);
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
     }
     
     @Deprecated

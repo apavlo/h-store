@@ -1,8 +1,11 @@
-package edu.brown.api;
+package edu.brown.api.results;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -14,9 +17,16 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
-public class TransactionCounter implements JSONSerializable {
+/**
+ * Raw results collected for each BenchmarkComponent instance
+ * @author pavlo
+ */
+public class BenchmarkComponentResults implements JSONSerializable {
 
     public FastIntHistogram transactions;
+    
+    private boolean enableLatencies = false;
+    public final Map<Integer, Histogram<Integer>> latencies = new HashMap<Integer, Histogram<Integer>>();
     
     private boolean enableBasePartitions = false;
     public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
@@ -24,27 +34,43 @@ public class TransactionCounter implements JSONSerializable {
     private boolean enableResponseStatuses = false;
     public Histogram<String> responseStatuses = new Histogram<String>(true);
 
-    public TransactionCounter() {
+    public BenchmarkComponentResults() {
         // Needed for deserialization
     }
     
-    public TransactionCounter(int numTxns) {
+    public BenchmarkComponentResults(int numTxns) {
         this.transactions = new FastIntHistogram(numTxns);
         this.transactions.setKeepZeroEntries(true);
     }
     
-    public TransactionCounter copy() {
-        TransactionCounter copy = null;
-        if (this.transactions != null) {
-            copy = new TransactionCounter(this.transactions.fastSize());
-            copy.transactions.putHistogram(this.transactions);
-        } else {
-            copy = new TransactionCounter();
-        }
+    public BenchmarkComponentResults copy() {
+        final BenchmarkComponentResults copy = new BenchmarkComponentResults(this.transactions.fastSize());
+        copy.transactions.setDebugLabels(this.transactions.getDebugLabels());
+        copy.transactions.put(this.transactions);
+        copy.enableLatencies = this.enableLatencies;
+        copy.latencies.clear();
+        for (Entry<Integer, Histogram<Integer>> e : this.latencies.entrySet()) {
+            Histogram<Integer> h = new Histogram<Integer>();
+            synchronized (e.getValue()) {
+                h.put(e.getValue());
+            } // SYNCH
+            copy.latencies.put(e.getKey(), h);
+        } // FOR
+        
         copy.enableBasePartitions = this.enableBasePartitions;
-        copy.basePartitions.putHistogram(this.basePartitions);
+        copy.basePartitions.put(this.basePartitions);
+        
         copy.enableResponseStatuses = this.enableResponseStatuses;
+        copy.responseStatuses.put(this.responseStatuses);
+        
         return (copy);
+    }
+    
+    public boolean isLatenciesEnabled() {
+        return (this.enableLatencies);
+    }
+    public void setEnableLatencies(boolean val) {
+        this.enableLatencies = val;
     }
     
     public boolean isBasePartitionsEnabled() {
@@ -61,16 +87,13 @@ public class TransactionCounter implements JSONSerializable {
         this.enableResponseStatuses = val;
     }
     
-    public void clear() {
-        if (this.transactions != null) {
+    public void clear(boolean includeTxns) {
+        if (includeTxns && this.transactions != null) {
             this.transactions.clearValues();
         }
-        if (this.enableBasePartitions) {
-            this.basePartitions.clearValues();
-        }
-        if (this.enableResponseStatuses) {
-            this.responseStatuses.clearValues();
-        }
+        this.latencies.clear();
+        this.basePartitions.clearValues();
+        this.responseStatuses.clearValues();
     }
     
     // ----------------------------------------------------------------------------
@@ -91,15 +114,18 @@ public class TransactionCounter implements JSONSerializable {
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
         String exclude[] = {
+            (this.enableLatencies == false ? "latencies" : ""),
             (this.enableBasePartitions == false ? "basePartitions" : ""),
             (this.enableResponseStatuses == false ? "responseStatuses" : ""),
-            
         };
         Field fields[] = JSONUtil.getSerializableFields(this.getClass(), exclude);
-        JSONUtil.fieldsToJSON(stringer, this, TransactionCounter.class, fields);
+        JSONUtil.fieldsToJSON(stringer, this, BenchmarkComponentResults.class, fields);
     }
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, TransactionCounter.class, true, JSONUtil.getSerializableFields(this.getClass()));
+        this.latencies.clear();
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true,
+                JSONUtil.getSerializableFields(this.getClass()));
+        assert(this.transactions != null);
     }
 } // END CLASS

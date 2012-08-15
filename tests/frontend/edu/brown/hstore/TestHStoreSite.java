@@ -1,36 +1,60 @@
 package edu.brown.hstore;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
+import org.voltdb.VoltSystemProcedure;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcedureCallback;
+import org.voltdb.sysprocs.Statistics;
+import org.voltdb.utils.EstTime;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
-import edu.brown.catalog.CatalogUtil;
+import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.MockClientCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.util.TransactionCounter;
+import edu.brown.pools.TypedObjectPool;
+import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.ThreadUtil;
 
 public class TestHStoreSite extends BaseTestCase {
     
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = GetNewDestination.class;
     private static final long CLIENT_HANDLE = 1l;
-    private static final int NUM_PARTITIONS = 10;
+    private static final int NUM_PARTITIONS = 2;
     private static final int BASE_PARTITION = 0;
     
     private HStoreSite hstore_site;
+    private HStoreSite.Debug hstore_debug;
+    private HStoreObjectPools objectPools;
     private HStoreConf hstore_conf;
-    
-    private LocalTransaction ts;
-    private MockClientCallback callback;
+    private TransactionQueueManager.Debug queue_debug;
+    private Client client;
 
     private static final ParameterSet PARAMS = new ParameterSet(
         new Long(0), // S_ID
@@ -43,27 +67,235 @@ public class TestHStoreSite extends BaseTestCase {
     @Before
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
+        initializeCatalog(1, 1, NUM_PARTITIONS);
+     
+        for (TransactionCounter tc : TransactionCounter.values()) {
+            tc.clear();
+        } // FOR
         
-        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
+        Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
-        this.hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
+        this.hstore_conf.site.pool_profiling = true;
+        this.hstore_conf.site.status_enable = false;
+        this.hstore_conf.site.anticache_enable = false;
         
-        this.ts = new LocalTransaction(hstore_site);
-        this.callback = new MockClientCallback();
-        PartitionSet predict_touchedPartitions = new PartitionSet(BASE_PARTITION);
-        boolean predict_readOnly = true;
-        boolean predict_canAbort = true;
-        
-        
-        ts.init(1000l, CLIENT_HANDLE, BASE_PARTITION,
-                predict_touchedPartitions, predict_readOnly, predict_canAbort,
-                catalog_proc, PARAMS, this.callback);
+        this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
+        this.objectPools = this.hstore_site.getObjectPools();
+        this.hstore_debug = this.hstore_site.getDebugContext();
+        this.queue_debug = this.hstore_site.getTransactionQueueManager().getDebugContext();
+        this.client = createClient();
     }
     
     @Override
     protected void tearDown() throws Exception {
-//        hstore_site.shutdown();
+        if (this.client != null) this.client.close();
+        if (this.hstore_site != null) this.hstore_site.shutdown();
+    }
+    
+    /**
+     * testTransactionCounters
+     */
+    @Test
+    public void testTransactionCounters() throws Exception {
+        hstore_conf.site.txn_counters = true;
+        hstore_site.updateConf(hstore_conf);
+        
+        Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
+        ClientResponse cr = null;
+        int num_txns = 500;
+        
+        Object params[] = { 1234l, "XXXX" };
+        for (int i = 0; i < num_txns; i++) {
+            this.client.callProcedure(catalog_proc.getName(), params);
+        } // FOR
+        ThreadUtil.sleep(1000);
+        assertEquals(num_txns, TransactionCounter.RECEIVED.get());
+        
+        // Now try invoking @Statistics to get back more information
+        params = new Object[]{ SysProcSelector.TXNCOUNTER.name(), 0 };
+        cr = this.client.callProcedure(VoltSystemProcedure.getProcCallName(Statistics.class), params);
+//        System.err.println(cr);
+        assertNotNull(cr);
+        assertEquals(Status.OK, cr.getStatus());
+        
+        VoltTable results[] = cr.getResults();
+        assertEquals(1, results.length);
+        boolean found = false;
+        while (results[0].advanceRow()) {
+            if (results[0].getString(3).equalsIgnoreCase(catalog_proc.getName())) {
+                for (int i = 4; i < results[0].getColumnCount(); i++) {
+                    String counterName = results[0].getColumnName(i);
+                    TransactionCounter tc = TransactionCounter.get(counterName);
+                    assertNotNull(counterName, tc);
+                    
+                    Long tcVal = tc.get(catalog_proc);
+                    if (tcVal == null) tcVal = 0l;
+                    assertEquals(counterName, tcVal.intValue(), (int)results[0].getLong(i));
+                } // FOR
+                found = true;
+                break;
+            }
+        } // WHILE
+        assertTrue(found);
+    }
+    
+    /**
+     * testTransactionProfilers
+     */
+    @Test
+    public void testTransactionProfilers() throws Exception {
+        hstore_conf.site.txn_counters = true;
+        hstore_conf.site.txn_profiling = true;
+        hstore_site.updateConf(hstore_conf);
+        
+        Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
+        ClientResponse cr = null;
+        int num_txns = 500;
+        
+        Object params[] = { 1234l, "XXXX" };
+        for (int i = 0; i < num_txns; i++) {
+            this.client.callProcedure(catalog_proc.getName(), params);
+        } // FOR
+        ThreadUtil.sleep(1000);
+        assertEquals(num_txns, TransactionCounter.RECEIVED.get());
+        
+        // Now try invoking @Statistics to get back more information
+        params = new Object[]{ SysProcSelector.TXNPROFILER.name(), 0 };
+        cr = this.client.callProcedure(VoltSystemProcedure.getProcCallName(Statistics.class), params);
+        System.err.println(cr);
+        assertNotNull(cr);
+        assertEquals(Status.OK, cr.getStatus());
+        
+        String fields[] = { "TOTAL", "INIT_TOTAL" };
+        
+        VoltTable results[] = cr.getResults();
+        assertEquals(1, results.length);
+        boolean found = false;
+        while (results[0].advanceRow()) {
+            if (results[0].getString(3).equalsIgnoreCase(catalog_proc.getName())) {
+                for (String f : fields) {
+                    int i = results[0].getColumnIndex(f);
+                    assertEquals(f, results[0].getColumnName(i));
+                    long val = results[0].getLong(i);
+                    assertFalse(f, results[0].wasNull());
+                    assertTrue(f, val > 0);
+                } // FOR
+                found = true;
+                break;
+            }
+        } // WHILE
+        assertTrue(found);
+    }
+    
+    /**
+     * testAbortReject
+     */
+    @Test
+    public void testAbortReject() throws Exception {
+        // Check to make sure that we reject a bunch of txns that all of our
+        // handles end up back in the object pool. To do this, we first need
+        // to set the PartitionExecutor's to reject all incoming txns
+        hstore_conf.site.queue_incoming_max_per_partition = 1;
+        hstore_conf.site.queue_incoming_release_factor = 0;
+        hstore_conf.site.queue_incoming_increase = 0;
+        hstore_conf.site.queue_incoming_increase_max = 0;
+        hstore_site.updateConf(hstore_conf);
+
+        final Set<LocalTransaction> expectedHandles = new HashSet<LocalTransaction>(); 
+        final List<Long> expectedIds = new ArrayList<Long>();
+        
+        EventObserver<LocalTransaction> newTxnObserver = new EventObserver<LocalTransaction>() {
+            @Override
+            public void update(EventObservable<LocalTransaction> o, LocalTransaction ts) {
+                expectedHandles.add(ts);
+                assertFalse(ts.toString(), expectedIds.contains(ts.getTransactionId()));
+                expectedIds.add(ts.getTransactionId());
+            }
+        };
+        hstore_site.getTransactionInitializer().newTxnObservable.addObserver(newTxnObserver);
+        
+        // We need to get at least one ABORT_REJECT
+        final int num_txns = 500;
+        final CountDownLatch latch = new CountDownLatch(num_txns);
+        final AtomicInteger numAborts = new AtomicInteger(0);
+        final List<Long> actualIds = new ArrayList<Long>();
+        
+        ProcedureCallback callback = new ProcedureCallback() {
+            @Override
+            public void clientCallback(ClientResponse cr) {
+                if (cr.getStatus() == Status.ABORT_REJECT) {
+                    numAborts.incrementAndGet();
+                }
+                if (cr.getTransactionId() > 0) actualIds.add(cr.getTransactionId());
+                latch.countDown();
+            }
+        };
+        
+        // Then blast out a bunch of txns that should all come back as rejected
+        Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
+        Object params[] = { 1234l, "XXXX" };
+        for (int i = 0; i < num_txns; i++) {
+            this.client.callProcedure(callback, catalog_proc.getName(), params);
+        } // FOR
+        
+        boolean result = latch.await(20, TimeUnit.SECONDS);
+//        System.err.println("InflightTxnCount: " + hstore_debug.getInflightTxnCount());
+//        System.err.println("DeletableTxnCount: " + hstore_debug.getDeletableTxnCount());
+//        System.err.println("--------------------------------------------");
+//        System.err.println("EXPECTED IDS:");
+//        System.err.println(StringUtil.join("\n", CollectionUtil.sort(expectedIds)));
+//        System.err.println("--------------------------------------------");
+//        System.err.println("ACTUAL IDS:");
+//        System.err.println(StringUtil.join("\n", CollectionUtil.sort(actualIds)));
+//        System.err.println("--------------------------------------------");
+        
+        assertTrue("Timed out [latch="+latch.getCount() + "]", result);
+        assertNotSame(0, numAborts.get());
+        assertNotSame(0, expectedHandles.size());
+        assertNotSame(0, expectedIds.size());
+        assertNotSame(0, actualIds.size());
+        
+        // HACK: Wait a little to know that the periodic thread has attempted
+        // to clean-up our deletable txn handles
+        ThreadUtil.sleep(2500);
+
+        assertEquals(0, hstore_debug.getInflightTxnCount());
+        assertEquals(0, hstore_debug.getDeletableTxnCount());
+        
+        // Make sure that there is nothing sitting around in our queues
+        assertEquals("INIT", 0, queue_debug.getInitQueueSize());
+        assertEquals("BLOCKED", 0, queue_debug.getBlockedQueueSize());
+        assertEquals("RESTART", 0, queue_debug.getRestartQueueSize());
+        
+        // Check to make sure that all of our handles are not initialized
+        for (LocalTransaction ts : expectedHandles) {
+            assertNotNull(ts);
+            if (ts.isInitialized()) {
+                System.err.println(ts.debug());
+            }
+            assertFalse(ts.debug(), ts.isInitialized());
+        } // FOR
+        
+        // Then check to make sure that there aren't any active objects in the
+        // the various object pools
+        Map<String, TypedObjectPool<?>[]> allPools = this.objectPools.getPartitionedPools(); 
+        assertNotNull(allPools);
+        assertFalse(allPools.isEmpty());
+        for (String name : allPools.keySet()) {
+            TypedObjectPool<?> pools[] = allPools.get(name);
+            TypedPoolableObjectFactory<?> factory = null;
+            assertNotNull(name, pools);
+            assertNotSame(0, pools.length);
+            for (int i = 0; i < pools.length; i++) {
+                if (pools[i] == null) continue;
+                String poolName = String.format("%s-%02d", name, i);  
+                factory = (TypedPoolableObjectFactory<?>)pools[i].getFactory();
+                assertTrue(poolName, factory.isCountingEnabled());
+                
+                System.err.println(poolName + ": " + pools[i].toString());
+                assertEquals(poolName, 0, pools[i].getNumActive());
+            } // FOR
+        } // FOR
     }
     
     /**
@@ -71,6 +303,18 @@ public class TestHStoreSite extends BaseTestCase {
      */
     @Test
     public void testSendClientResponse() throws Exception {
+        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        PartitionSet predict_touchedPartitions = new PartitionSet(BASE_PARTITION);
+        boolean predict_readOnly = true;
+        boolean predict_canAbort = true;
+        
+        MockClientCallback callback = new MockClientCallback();
+        
+        LocalTransaction ts = new LocalTransaction(hstore_site);
+        ts.init(1000l, EstTime.currentTimeMillis(), CLIENT_HANDLE, BASE_PARTITION,
+                predict_touchedPartitions, predict_readOnly, predict_canAbort,
+                catalog_proc, PARAMS, callback);
+        
         ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
                                                               ts.getClientHandle(),
                                                               ts.getBasePartition(),
@@ -81,49 +325,15 @@ public class TestHStoreSite extends BaseTestCase {
         
         // Check to make sure our callback got the ClientResponse
         // And just make sure that they're the same
-        assertEquals(this.callback, ts.getClientCallback());
-        ClientResponseImpl clone = this.callback.getResponse();
+        assertEquals(callback, ts.getClientCallback());
+        ClientResponseImpl clone = callback.getResponse();
         assertNotNull(clone);
         assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
         assertEquals(cresponse.getClientHandle(), clone.getClientHandle());
     }
     
 //    @Test
-//    public void testHStoreSite_AdHoc(){
-//    	this.hstore_site.run();
-//    	Client client = ClientFactory.createClient();
-//        try {
-//			client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "password");
-//		} catch (UnknownHostException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		} catch (IOException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		}
-//        VoltTable result;
-//		try {
-//			result = client.callProcedure("@AdHoc", "SELECT * FROM NEW_ORDER;").getResults()[0];
-//			assertTrue(result.getRowCount() == 1);
-//	        System.out.println(result.toString());
-//		} catch (NoConnectionsException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (ProcCallException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//        
-//    	
-//    }
-    
-  
-    
-    @Test
-    public void testSinglePartitionPassThrough() {
+//    public void testSinglePartitionPassThrough() {
         // FIXME This won't work because the HStoreCoordinatorNode is now the thing that
         // actually fires off the txn in the ExecutionSite
         
@@ -150,5 +360,5 @@ public class TestHStoreSite extends BaseTestCase {
 //                .setPartitionId(0).setOutput(ByteString.copyFrom(output)));
 //        dtxnCoordinator.done.run(response.build());
 //        assertArrayEquals(output, done.getResult());
-    }
+//    }
 }

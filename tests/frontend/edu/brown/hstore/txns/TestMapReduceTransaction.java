@@ -52,7 +52,7 @@ public class TestMapReduceTransaction extends BaseTestCase{
         
         // Create a fake cluster of two HStoreSites, each with two partitions
         // This will allow us to test same site communication as well as cross-site communication
-        this.initializeCluster(NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
+        this.initializeCatalog(NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
         for (int i = 0; i < NUM_SITES; i++) {
             Site catalog_site = this.getSite(i);
             this.sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());

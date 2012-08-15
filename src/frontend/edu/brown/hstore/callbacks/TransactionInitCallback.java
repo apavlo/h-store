@@ -47,15 +47,17 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
     @Override
     protected boolean unblockTransactionCallback() {
         assert(this.isAborted() == false);
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopInitDtxn();
         if (debug.get())
             LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
-        if (this.txn_profiling) ts.profiler.stopInitDtxn();
+        
         hstore_site.transactionStart(ts, ts.getBasePartition());
         return (false);
     }
     
     @Override
     protected boolean abortTransactionCallback(Status status) {
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopInitDtxn();
         if (debug.get())
             LOG.debug(this.ts + " - Transaction was aborted with status " + status);
         
@@ -131,7 +133,9 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                     }
                 } // SYNCH
             }
+            // this.decrementCounter(response.getPartitionsCount());
             this.abort(response.getStatus());
+            // return (0);
         }
         return (response.getPartitionsCount());
     }

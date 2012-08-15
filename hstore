@@ -44,6 +44,8 @@ if not os.path.exists(realpath):
     if os.path.exists(os.path.join(cwd, basename)):
         basedir = cwd
 sys.path.append(os.path.realpath(os.path.join(basedir, "third_party/python")))
+sys.path.append(os.path.realpath(os.path.join(basedir, "tools")))
+import hstore
 import argparse
 
 logging.basicConfig(level = logging.INFO,
@@ -63,28 +65,20 @@ JVM_ARGS = [
 JVM_CLASSPATH = [ BUILD_DIR ] + glob("%s/*.jar" % THIRD_PARTY_DIR)
 JVM_TARGET = "edu.brown.terminal.HStoreTerminal"
 
-def getBenchmarks():
-    global basedir
-    benchmarkDir = os.path.join(basedir, "properties/benchmarks")
-    benchmarks = [ ]
-    for file in glob("%s/*.properties" % benchmarkDir):
-        benchmarks.append(os.path.basename(file).split(".")[0])
-    # FOR
-    return benchmarks
-## DEF
-
 ## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
     aparser = argparse.ArgumentParser(description='H-Store Terminal Client')
     aparser.add_argument('project', help='Benchmark name or Project Jar')
+    aparser.add_argument('--csv', action='store_true',
+                         help='Output all tables as CSV results')
     args = vars(aparser.parse_args())
     
     # Check whether we have a jar file
     # Otherwise make sure it's a valid benchmarks
     if not os.path.exists(args['project']):
-        benchmarks = getBenchmarks()
+        benchmarks = hstore.getBenchmarks()
         if not args['project'] in benchmarks:
             logging.error("Invalid benchmark name '%s'" % args['project'])
             logging.error("Valid benchmarks: %s" % ", ".join(benchmarks))
@@ -93,13 +87,17 @@ if __name__ == '__main__':
     if not os.path.exists(args['project']):
         logging.error("Project jar '%s' does not exist" % (args['project']))
         sys.exit(1)
+
+    # Enable CSV output
+    options = "terminal.csv=%s" % args['csv']
         
     # Invoke java directly
-    cmd = "java %s -classpath %s %s catalog.jar=%s" % (\
+    cmd = "java %s -classpath %s %s catalog.jar=%s %s" % (\
         " ".join(JVM_ARGS), \
         ":".join(JVM_CLASSPATH), \
         JVM_TARGET, \
-        args['project'])
+        args['project'],
+        options)
     logging.debug(cmd)
     try:
         p = subprocess.Popen(cmd, shell=True)

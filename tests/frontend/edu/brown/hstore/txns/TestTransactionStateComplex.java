@@ -24,7 +24,6 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
@@ -91,9 +90,9 @@ public class TestTransactionStateComplex extends BaseTestCase {
         catalog_stmt = this.getStatement(catalog_proc, TARGET_STATEMENT);
         
         if (executor == null) {
-            PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
+            PartitionEstimator p_estimator = new PartitionEstimator(catalogContext);
             executor = new MockPartitionExecutor(LOCAL_PARTITION, catalog, p_estimator);
-            p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
+            p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, NUM_PARTITIONS));
             
             // Setup a BatchPlanner for ourselves here
 
@@ -110,7 +109,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
                 args[i] = VoltProcedure.getCleanParams(batch[i], raw_args); 
             } // FOR
             
-            Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
+            Partition catalog_part = catalogContext.getPartitionById(LOCAL_PARTITION);
             hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
             hstore_site.addPartitionExecutor(LOCAL_PARTITION, executor);
             
@@ -243,7 +242,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
 
         this.ts.startRound(LOCAL_PARTITION);
-        CountDownLatch latch = this.ts.getDependencyLatch(); 
+        CountDownLatch latch = this.execState.getDependencyLatch(); 
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
     }

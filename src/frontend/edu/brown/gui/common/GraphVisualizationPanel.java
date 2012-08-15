@@ -51,6 +51,7 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
     DefaultModalGraphMouse<V, E> visualizer_mouse;
     MouseListener<E> edge_listener;
     MouseListener<V> vertex_listener;
+    final ViewScalingControl viewScalingControl = new ViewScalingControl();
 
     public static <V, E> EventObserver<V> makeVertexObserver(final Graph<V, E> graph) {
         return new EventObserver<V>() {
@@ -67,9 +68,9 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
      * @param <V>
      */
     public final static class VertexFontTransformer<V> implements Transformer<V, Font> {
-        protected boolean bold;
-        Font f = new Font("Helvetica", Font.PLAIN, 12);
-        Font b = new Font("Helvetica", Font.BOLD, 12);
+        private boolean bold;
+        private final Font f = new Font("Helvetica", Font.PLAIN, 12);
+        private final Font b = new Font("Helvetica", Font.BOLD, 12);
 
         public VertexFontTransformer(boolean bold) {
             this.bold = bold;
@@ -83,10 +84,7 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         }
         
         public Font transform(V v) {
-            if (bold)
-                return b;
-            else
-                return f;
+            return (bold ? b : f);
         }
     }
 
@@ -96,9 +94,9 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
      * @param <E>
      */
     public final static class EdgeFontTransformer<E> implements Transformer<E, Font> {
-        protected boolean bold;
-        Font f = new Font("Helvetica", Font.PLAIN, 12);
-        Font b = new Font("Helvetica", Font.BOLD, 12);
+        private boolean bold;
+        private final Font f = new Font("Helvetica", Font.PLAIN, 12);
+        private final Font b = new Font("Helvetica", Font.BOLD, 12);
 
         public EdgeFontTransformer(boolean bold) {
             this.bold = bold;
@@ -112,10 +110,7 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         }
 
         public Font transform(E e) {
-            if (bold)
-                return b;
-            else
-                return f;
+            return (bold ? b : f);
         }
     }
     
@@ -191,8 +186,6 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         this.visualizer_mouse = new DefaultModalGraphMouse<V, E>();
         this.visualizer_mouse.setMode(ModalGraphMouse.Mode.TRANSFORMING);
         
-        this.setBackground(Color.white);
-        
         // Auto-resize
         this.addComponentListener(new ComponentAdapter() {
             private Dimension last_size = null;
@@ -248,12 +241,8 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         //this.visualizer.setBorder(BorderFactory.createLineBorder(Color.blue));
         this.repaint();
         
-        
-        //
         // Zoom in a little bit
-        //
         this.zoom(0.85);
-        //new LayoutScalingControl().scale();
     }
 
     
@@ -272,7 +261,7 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
      * @param scale
      */
     public void zoom(Double scale) {
-        new ViewScalingControl().scale(this, scale.floatValue(), this.getCenter());
+        this.viewScalingControl.scale(this, scale.floatValue(), this.getCenter());
     }
     
     /**

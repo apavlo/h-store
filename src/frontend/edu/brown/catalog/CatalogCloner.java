@@ -13,6 +13,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
@@ -21,11 +22,11 @@ import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.TableRef;
 import org.voltdb.types.ConstraintType;
 
 import edu.brown.catalog.special.MultiColumn;
@@ -369,14 +370,18 @@ public abstract class CatalogCloner {
     public static void cloneConflicts(Database src_db, Database dest_db) {
         for (Procedure src_proc : src_db.getProcedures()) {
             Procedure dest_proc = dest_db.getProcedures().get(src_proc.getName());
-            if (dest_proc != null) {
-                for (ProcedureRef src_ref : src_proc.getReadconflicts()) {
-                    ProcedureRef dest_ref = dest_proc.getReadconflicts().add(src_ref.getName());
-                    dest_ref.setProcedure(dest_db.getProcedures().get(src_ref.getProcedure().getName()));
+            assert(dest_proc != null) : src_proc;
+            
+            for (ConflictSet src_conflicts : src_proc.getConflicts()) {
+                ConflictSet dest_conflicts = dest_proc.getConflicts().add(src_conflicts.getName());
+                
+                for (TableRef src_ref : src_conflicts.getReadwriteconflicts()) {
+                    TableRef dest_ref = dest_conflicts.getReadwriteconflicts().add(src_ref.getName());
+                    dest_ref.setTable(dest_db.getTables().get(src_ref.getTable().getName()));
                 } // FOR
-                for (ProcedureRef src_ref : src_proc.getWriteconflicts()) {
-                    ProcedureRef dest_ref = dest_proc.getWriteconflicts().add(src_ref.getName());
-                    dest_ref.setProcedure(dest_db.getProcedures().get(src_ref.getProcedure().getName()));
+                for (TableRef src_ref : src_conflicts.getWritewriteconflicts()) {
+                    TableRef dest_ref = dest_conflicts.getWritewriteconflicts().add(src_ref.getName());
+                    dest_ref.setTable(dest_db.getTables().get(src_ref.getTable().getName()));
                 } // FOR
             }
         } // FOR

@@ -1,12 +1,16 @@
 package edu.brown.hstore.estimators;
 
+import java.util.Map;
+
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hashing.AbstractHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionSet;
 
 public class SEATSEstimator extends AbstractEstimator {
@@ -21,8 +25,8 @@ public class SEATSEstimator extends AbstractEstimator {
      * Constructor
      * @param hstore_site
      */
-    public SEATSEstimator(HStoreSite hstore_site) {
-        super(hstore_site);
+    public SEATSEstimator(CatalogContext catalogContext, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
+        super(catalogContext, manglers, hasher);
     }
     
     @Override
@@ -61,7 +65,7 @@ public class SEATSEstimator extends AbstractEstimator {
             ret = this.singlePartitionSets.get(hasher.hash(c_id));    
         }
         else {
-            ret = hstore_site.getAllPartitionIds();
+            ret = this.catalogContext.getAllPartitionIds();
         }
 
         return (ret);

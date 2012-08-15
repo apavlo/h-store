@@ -28,6 +28,7 @@ import edu.brown.hstore.txns.AbstractTransaction;
  * execution sites if needed.
  *
  */
+@Deprecated
 public class FinishTaskMessage extends TransactionInfoBaseMessage {
 
     AbstractTransaction ts;

@@ -164,7 +164,7 @@ public class PartitionExecutorHelper implements Runnable {
 //            } // WHILE
             if (d && cleaned > 0) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d [total=%d]", cleaned, es.getPartitionId(), this.total_cleaned));
             // Only call tick here!
-            es.tick();
+//            es.tick();
         } // FOR
         
         // Recompute MarkovGraphs if we have them
@@ -176,7 +176,7 @@ public class PartitionExecutorHelper implements Runnable {
             if (d && m.isValid() == false) {
                 LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
                 Exception error = new Exception(String.format("Invalid %s MarkovGraph for after recomputing", m.getProcedure().getName()));
-                this.hstore_site.getHStoreCoordinator().shutdownCluster(error);
+                this.hstore_site.getCoordinator().shutdownCluster(error);
             }
         } // WHILE
     }

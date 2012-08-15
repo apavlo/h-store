@@ -4,10 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hashing.AbstractHasher;
-import edu.brown.hstore.HStoreSite;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ParameterMangler;
@@ -20,8 +20,8 @@ public abstract class AbstractEstimator {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
-    protected final HStoreSite hstore_site;
+
+    protected final CatalogContext catalogContext;
     protected final AbstractHasher hasher;
     protected final Map<Procedure, ParameterMangler> manglers;
     
@@ -30,12 +30,12 @@ public abstract class AbstractEstimator {
      */
     protected final Map<Integer, PartitionSet> singlePartitionSets = new HashMap<Integer, PartitionSet>();
     
-    public AbstractEstimator(HStoreSite hstore_site) {
-        this.hstore_site = hstore_site;
-        this.hasher = hstore_site.getHasher();
-        this.manglers = hstore_site.getParameterManglers();
+    public AbstractEstimator(CatalogContext catalogContext, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
+        this.catalogContext = catalogContext;
+        this.hasher = hasher;
+        this.manglers = manglers;
         
-        for (Integer p : this.hstore_site.getLocalPartitionIds()) {
+        for (Integer p : catalogContext.getAllPartitionIdArray()) {
             this.singlePartitionSets.put(p, new PartitionSet(p));
         } // FOR
         

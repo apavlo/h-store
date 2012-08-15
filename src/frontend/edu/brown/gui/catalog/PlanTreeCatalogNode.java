@@ -99,6 +99,55 @@ public class PlanTreeCatalogNode {
         this.mainPanel.add(splitPane, BorderLayout.CENTER);
     }
     
+    /**
+     * 
+     */
+    public void centerOnRoot() {
+        if (this.zoomed == false) {
+            this.visualizationPanel.zoom(1.2);
+            this.zoomed = true;
+        }
+        
+        final int depth = PlanNodeUtil.getDepth(this.root) / 2;
+        new PlanNodeTreeWalker(false) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                if (depth == this.getDepth()) {
+                    PlanTreeCatalogNode.this.visualizationPanel.centerVisualization(element, true);
+                    this.stop();
+                }
+            }
+        }.traverse(this.root);
+    }
+    
+    /**
+     * 
+     * @param node
+     */
+    private void selectNode(AbstractPlanNode node) {
+        this.nodeField.setText(PlanNodeUtil.debugNode(node));
+        this.tabbedPane.setSelectedIndex(1);
+//        this.visualizationPanel.centerVisualization(node);
+    }
+    
+    @Override
+    public String toString() {
+        return (this.label);
+    }
+    
+    public JPanel getPanel() {
+        return (this.mainPanel);
+    }
+    
+    // -----------------------------------------------------------------
+    // PLANFRAGMENT BOUNDARY BOXES
+    // -----------------------------------------------------------------
+    
+    /**
+     * An attempt to draw PlanFragment boundaries
+     * @author pavlo
+     */
+    @SuppressWarnings("unused")
     private class PlanFragmentBoundaries implements Paintable {
         private PlanFragment fragments[];
         private Pair<AbstractPlanNode, AbstractPlanNode> fragment_boundaries[];
@@ -236,45 +285,5 @@ public class PlanTreeCatalogNode {
             return false;
         }
     } // END CLASS
-
-    /**
-     * 
-     */
-    public void centerOnRoot() {
-        if (this.zoomed == false) {
-            this.visualizationPanel.zoom(1.2);
-            this.zoomed = true;
-        }
-        
-        final int depth = PlanNodeUtil.getDepth(this.root) / 2;
-        new PlanNodeTreeWalker(false) {
-            @Override
-            protected void callback(AbstractPlanNode element) {
-                if (depth == this.getDepth()) {
-                    PlanTreeCatalogNode.this.visualizationPanel.centerVisualization(element, true);
-                    this.stop();
-                }
-            }
-        }.traverse(this.root);
-    }
-    
-    /**
-     * 
-     * @param node
-     */
-    private void selectNode(AbstractPlanNode node) {
-        this.nodeField.setText(PlanNodeUtil.debugNode(node));
-        this.tabbedPane.setSelectedIndex(1);
-//        this.visualizationPanel.centerVisualization(node);
-    }
-    
-    @Override
-    public String toString() {
-        return (this.label);
-    }
-    
-    public JPanel getPanel() {
-        return (this.mainPanel);
-    }
     
 }

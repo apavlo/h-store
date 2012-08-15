@@ -4,21 +4,17 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.jni.ExecutionEngine;
 
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.utils.PartitionEstimator;
 
 /** 
  * 
@@ -41,10 +37,8 @@ public class EvictTuples extends VoltSystemProcedure {
     };
     
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_antiCacheEviction, this);
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_antiCacheEviction, this);
     }
 
     @Override
@@ -67,7 +61,7 @@ public class EvictTuples extends VoltSystemProcedure {
         }
         Table tables[] = new Table[tableNames.length];
         for (int i = 0; i < tableNames.length; i++) {
-            tables[i] = database.getTables().getIgnoreCase(tableNames[i]);
+            tables[i] = catalogContext.database.getTables().getIgnoreCase(tableNames[i]);
             if (tables[i] == null) {
                 String msg = String.format("Unknown table '%s'", tableNames[i]);
                 throw new VoltAbortException(msg);

@@ -46,8 +46,7 @@ public final class TransactionPostProcessor extends AbstractProcessingThread<Pai
                                                  ts, ts.getBasePartition(), cr.getStatus()));
         try {
             hstore_site.responseSend(ts, cr);
-            ts.markAsDeletable();
-            hstore_site.deleteTransaction(ts, cr.getStatus());
+            hstore_site.queueDeleteTransaction(ts.getTransactionId(), cr.getStatus());
         } catch (Throwable ex) {
             LOG.error(String.format("Failed to process %s properly\n%s", ts, cr));
             if (this.isShuttingDown() == false) throw new RuntimeException(ex);

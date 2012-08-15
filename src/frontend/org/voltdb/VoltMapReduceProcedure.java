@@ -110,7 +110,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
                 // execute the MAP phase of this job
                 if (debug.get())
                     LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Map>...local!!!....\n");
-                this.executor.getHStoreCoordinator().transactionMap(mr_ts, mr_ts.getTransactionMapCallback());
+                this.executor.getHStoreSite().getCoordinator().transactionMap(mr_ts, mr_ts.getTransactionMapCallback());
             }
             
             this.map_output = mr_ts.getMapOutputByPartition(this.partitionId);
@@ -163,7 +163,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
                 if (debug.get())
                     LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Reduce>...local!!!....\n");
                 // Send out network messages to all other partitions to tell them to execute the Reduce phase of this job
-                this.executor.getHStoreCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
+                this.executor.getHStoreSite().getCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
             }
             this.reduce_input = null; // 
             this.reduce_input = mr_ts.getReduceInputByPartition(this.partitionId);

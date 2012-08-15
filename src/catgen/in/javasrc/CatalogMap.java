@@ -25,6 +25,7 @@ import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 
 import edu.brown.catalog.CatalogUtil;
@@ -58,6 +59,10 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
 
     public Class<T> getGenericClass() {
         return (m_cls);
+    }
+    
+    public Set<String> keySet() {
+        return (this.m_items.keySet());
     }
     
     @Override

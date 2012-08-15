@@ -3,20 +3,16 @@ package org.voltdb.sysprocs;
 import java.util.List;
 import java.util.Map;
 
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.utils.PartitionEstimator;
 
 /** 
  * Get a status snapshot of the PartitionExecutors in the cluster
@@ -31,10 +27,8 @@ public class GetCatalog extends VoltSystemProcedure {
     };
     
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-                            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_getCatalog, this);
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_getCatalog, this);
     }
 
     @Override

@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -166,7 +167,8 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
      */
     public void testMultiColumnPartitioning() throws Exception {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
-        PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
+        CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
+        PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
 
         Procedure catalog_proc = this.getProcedure(clone_db, GetNewDestination.class);
         ProcParameter catalog_params[] = new ProcParameter[] {
@@ -189,7 +191,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         MultiColumn mc = MultiColumn.get(catalog_cols);
         assertNotNull(mc);
         catalog_tbl.setPartitioncolumn(mc);
-        p_estimator.initCatalog(clone_db);
+        p_estimator.initCatalog(clone_catalogContext);
         
         Statement catalog_stmt = this.getStatement(clone_db, catalog_proc, "GetData");
         Long params[] = new Long[] {
@@ -221,7 +223,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         mc = MultiColumn.get(catalog_cols);
         assertNotNull(mc);
         catalog_tbl.setPartitioncolumn(mc);
-        p_estimator.initCatalog(clone_db);
+        p_estimator.initCatalog(clone_catalogContext);
 
         partitions = p_estimator.getTablePartitions(catalog_stmt, params, base_partition);
         assertNotNull(partitions);
@@ -240,7 +242,8 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
      */
     public void testMultiColumnPartitioningIncomplete() throws Exception {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
-        PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
+        CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
+        PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
 
         Procedure catalog_proc = this.getProcedure(clone_db, GetAccessData.class);
         ProcParameter catalog_params[] = new ProcParameter[] {
@@ -251,7 +254,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         assertNotNull(mpp);
         assert(mpp.getIndex() >= 0);
         catalog_proc.setPartitionparameter(mpp.getIndex());
-        p_estimator.initCatalog(clone_db);
+        p_estimator.initCatalog(clone_catalogContext);
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_ACCESS_INFO);
         Column catalog_cols[] = new Column[] {
@@ -261,7 +264,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         MultiColumn mc = MultiColumn.get(catalog_cols);
         assertNotNull(mc);
         catalog_tbl.setPartitioncolumn(mc);
-        p_estimator.initCatalog(clone_db);
+        p_estimator.initCatalog(clone_catalogContext);
         
         Statement catalog_stmt = this.getStatement(clone_db, catalog_proc, "GetData");
         Long params[] = new Long[] {

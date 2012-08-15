@@ -15,10 +15,12 @@ import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.util.TxnCounter;
+import edu.brown.hstore.util.TransactionCounter;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
@@ -230,6 +232,46 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         } // WHILE
     }
     
+    /**
+     * Reject any and all transactions that are in our queues!
+     */
+    public synchronized void clearQueues() {
+        LocalTransaction ts = null;
+        Long txn_id = null;
+        
+        // LOCK QUEUES
+        for (int partition : this.localPartitionsArray) {
+            synchronized (this.lockQueues[partition]) {
+                while ((txn_id = this.lockQueues[partition].poll()) != null) {
+                    TransactionInitQueueCallback callback = this.lockQueuesCallbacks.get(txn_id);
+                    this.rejectTransaction(txn_id,
+                                           callback,
+                                           Status.ABORT_REJECT,
+                                           partition,
+                                           this.lockQueuesLastTxn[partition]);
+                } // WHILE
+            } // SYNCH
+        }
+        
+        // INIT QUEUE
+        while ((ts = this.initQueue.poll()) != null) {
+            TransactionInitCallback callback = ts.initTransactionInitCallback();
+            callback.abort(Status.ABORT_REJECT);
+        } // WHILE
+        
+        // BLOCKED QUEUE
+        while ((ts = this.blockedQueue.poll()) != null) {
+            this.blockedQueueTransactions.remove(ts);
+            hstore_site.transactionReject(ts, Status.ABORT_REJECT);
+        } // WHILE
+        
+        // RESTART QUEUE
+        Pair<LocalTransaction, Status> pair = null;
+        while ((pair = this.restartQueue.poll()) != null) {
+            hstore_site.transactionReject(pair.getFirst(), Status.ABORT_REJECT);
+        } // WHILE
+    }
+    
     // ----------------------------------------------------------------------------
     // INIT QUEUES
     // ----------------------------------------------------------------------------
@@ -323,9 +365,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param txn_id
      * @param partitions
      * @param callback
+     * @param sysproc TODO
      * @return
      */
-    public boolean lockInsert(Long txn_id, PartitionSet partitions, TransactionInitQueueCallback callback) {
+    public boolean lockInsert(Long txn_id, PartitionSet partitions, TransactionInitQueueCallback callback, boolean sysproc) {
         if (d) LOG.debug(String.format("Adding new distributed txn #%d into initQueue [partitions=%s]",
                                        txn_id, partitions));
         
@@ -375,7 +418,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 break;
             }
             // Our queue is overloaded. We have to reject the txnId!
-            else if (queue.offer(txn_id, false) == false) {
+            else if (queue.offer(txn_id, sysproc) == false) {
                 if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. Throttling txn #%d",
                                                partition, next_safe, txn_id));
                 this.rejectTransaction(txn_id,
@@ -562,11 +605,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     
     private void checkInitQueue() {
         LocalTransaction ts = null;
-        HStoreCoordinator hstore_coordinator = hstore_site.getHStoreCoordinator();
+        HStoreCoordinator hstore_coordinator = hstore_site.getCoordinator();
         while ((ts = this.initQueue.poll()) != null) {
-            hstore_coordinator.transactionInit(ts, ts.getTransactionInitCallback());
+            TransactionInitCallback callback = ts.initTransactionInitCallback();
+            hstore_coordinator.transactionInit(ts, callback);
         } // WHILE
-        
     }
     
     // ----------------------------------------------------------------------------
@@ -605,7 +648,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
        
         // IMPORTANT: Mark this transaction as not being deletable.
         //            This will prevent it from getting deleted out from under us
-        ts.setNeedsRestart(true);
+        ts.markNeedsRestart();
         
         if (this.blockedQueueTransactions.putIfAbsent(ts, last_txn_id) != null) {
             Long other_txn_id = this.blockedQueueTransactions.get(ts);
@@ -618,8 +661,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (hstore_site.isLocalPartition(partition) == false) {
             this.markLastTransaction(partition, last_txn_id);
         }
-        if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) {
-            TxnCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
+        if (hstore_conf.site.txn_counters && ts.getRestartCounter() == 1) {
+            TransactionCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
             int id = (int)TransactionIdManager.getInitiatorIdFromTransactionId(last_txn_id.longValue());
             this.blockedQueueHistogram.put(id);
         }
@@ -658,10 +701,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.blockedQueue.remove();
                 this.blockedQueueTransactions.remove(ts);
                 this.hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
-                ts.setNeedsRestart(false);
-                if (ts.isDeletable()) {
-                    this.hstore_site.deleteTransaction(ts, Status.ABORT_REJECT);
-                }
+                ts.unmarkNeedsRestart();
+                this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
             // For now we can break, but I think that we may need separate
             // queues for the different partitions...
             } else break;
@@ -680,13 +721,16 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     public void restartTransaction(LocalTransaction ts, Status status) {
         if (d) LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
+        ts.markNeedsRestart();
         
-        // HACK: Store the status in the embedded ClientResponse
         if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
+            if (d) LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
-            ts.markAsDeletable();
-            this.hstore_site.deleteTransaction(ts, Status.ABORT_REJECT);
+            ts.unmarkNeedsRestart();
+            this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
+            return;
         }
+        if (d) LOG.debug(String.format("%s - Successfully added txn to restart queue.", ts));
         if (this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();
     }
@@ -696,12 +740,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         while ((pair = this.restartQueue.poll()) != null) {
             LocalTransaction ts = pair.getFirst();
             Status status = pair.getSecond();
-            ts.markAsNotDeletable();
-            this.hstore_site.transactionRestart(ts, status);
-            ts.markAsDeletable();
-            this.hstore_site.deleteTransaction(ts, status);
+            
+            if (d) LOG.debug(String.format("%s - Ready to restart transaction [status=%s]", ts, status));
+            Status ret = this.hstore_site.transactionRestart(ts, status);
+            if (d) LOG.debug(String.format("%s - Got return result %s after restarting", ts, ret));
+            
+            ts.unmarkNeedsRestart();
+            this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), ret);
         } // WHILE
-
     }
     
     // ----------------------------------------------------------------------------
@@ -740,7 +786,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
 
-    public class DebugContext {
+    public class Debug implements DebugContext {
         public int getInitQueueSize() {
             int ctr = 0;
             for (int p : localPartitionsArray)
@@ -767,8 +813,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
     }
     
-    public TransactionQueueManager.DebugContext getDebugContext() {
-        return new TransactionQueueManager.DebugContext();
+    public TransactionQueueManager.Debug getDebugContext() {
+        return new TransactionQueueManager.Debug();
     }
     
     @Override

@@ -6,7 +6,6 @@ import java.util.Map.Entry;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.LowerBoundsCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
@@ -35,7 +34,7 @@ public class LowerBoundsCalculator {
      */
     public LowerBoundsCalculator(DesignerInfo info, int num_intervals) {
         this.info = info;
-        this.costmodel = new TimeIntervalCostModel<LowerBoundsCostModel>(info.catalog_db, LowerBoundsCostModel.class, num_intervals);
+        this.costmodel = new TimeIntervalCostModel<LowerBoundsCostModel>(info.catalogContext, LowerBoundsCostModel.class, num_intervals);
     }
 
     /**
@@ -45,8 +44,8 @@ public class LowerBoundsCalculator {
      */
     public double calculate(final Workload workload) throws Exception {
         if (LOG.isDebugEnabled())
-            LOG.debug("Calculating lower bounds using " + workload.getTransactionCount() + " transactions" + " on " + CatalogUtil.getNumberOfPartitions(info.catalog_db) + " partitions");
-        return (this.costmodel.estimateWorkloadCost(this.info.catalog_db, workload));
+            LOG.debug("Calculating lower bounds using " + workload.getTransactionCount() + " transactions" + " on " + info.catalogContext.numberOfPartitions + " partitions");
+        return (this.costmodel.estimateWorkloadCost(this.info.catalogContext, workload));
     }
 
     /**
@@ -77,9 +76,9 @@ public class LowerBoundsCalculator {
         initial_solution.apply(args.catalog_db);
 
         // Calculate the actual cost too while we're at it...
-        TimeIntervalCostModel<SingleSitedCostModel> cm = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, args.num_intervals);
+        TimeIntervalCostModel<SingleSitedCostModel> cm = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalogContext, SingleSitedCostModel.class, args.num_intervals);
         cm.applyDesignerHints(args.designer_hints);
-        double upper_bound = cm.estimateWorkloadCost(args.catalog_db, args.workload);
+        double upper_bound = cm.estimateWorkloadCost(args.catalogContext, args.workload);
 
         final ProfileMeasurement timer = new ProfileMeasurement("timer").start();
         LowerBoundsCalculator lb = new LowerBoundsCalculator(info, args.num_intervals);
@@ -87,7 +86,7 @@ public class LowerBoundsCalculator {
         timer.stop();
 
         ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("# of Partitions", CatalogUtil.getNumberOfPartitions(args.catalog_db));
+        m.put("# of Partitions", args.catalogContext.numberOfPartitions);
         m.put("# of Intervals", args.num_intervals);
         m.put("Lower Bound", String.format("%.03f", lower_bound));
         m.put("Upper Bound", String.format("%.03f", upper_bound));

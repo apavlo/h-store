@@ -16,16 +16,18 @@ import org.voltdb.VoltTable;
 import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.pools.Poolable;
 
 /**
  * The internal state of a transaction while it is running at a PartitionExecutor
  * This will be removed from the LocalTransaction once its control code is finished executing 
  * @author pavlo
  */
-public class ExecutionState {
+public class ExecutionState implements Poolable {
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -49,6 +51,20 @@ public class ExecutionState {
      */
     protected final ReentrantLock lock = new ReentrantLock();
 
+    // ----------------------------------------------------------------------------
+    // TEMPORARY DATA COLLECTIONS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Reusable cache of ParameterSet arrays for VoltProcedures
+     */
+    public final ParameterSetArrayCache procParameterSets = new ParameterSetArrayCache(10);
+    
+    /**
+     * 
+     */
+    public final List<WorkFragment> tmp_partitionFragments = new ArrayList<WorkFragment>(); 
+    
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -149,6 +165,54 @@ public class ExecutionState {
         return (this.unblocked_tasks);
     }
     
+    
+    /**
+     * Return the latch that will block the PartitionExecutor's thread until
+     * all of the query results have been retrieved for this transaction's
+     * current SQLStmt batch
+     */
+    public CountDownLatch getDependencyLatch() {
+        return this.dependency_latch;
+    }
+    
+    public int getDependencyCount() { 
+        return (this.dependency_ctr);
+    }
+    
+    /**
+     * Returns true if this transaction still has WorkFragments
+     * that need to be dispatched to the appropriate PartitionExecutor 
+     * @return
+     */
+    public boolean stillHasWorkFragments() {
+        return (this.still_has_tasks);
+    }
+
+    // ----------------------------------------------------------------------------
+    // TESTING STUFF
+    // ----------------------------------------------------------------------------
+    
+    protected Collection<WorkFragment> getBlockedWorkFragments() {
+        return (this.blocked_tasks);
+    }
+    
+    
+    protected List<Integer> getOutputOrder() {
+        return (this.output_order);
+    }
+    
+    /**
+     * Return the number of statements that have been queued up in the last batch
+     * @return
+     */
+    protected int getStatementCount() {
+        return (this.batch_size);
+    }
+    
+    protected Map<Integer, DependencyInfo> getStatementDependencies(int stmt_index) {
+        return (this.dependencies); // [stmt_index]);
+    }
+    
     // ----------------------------------------------------------------------------
     // EXECUTION ROUNDS
     // ----------------------------------------------------------------------------
@@ -169,5 +233,15 @@ public class ExecutionState {
         this.batch_size = 0;
         this.dependency_ctr = 0;
         this.received_ctr = 0;
+    }
+
+    @Override
+    public boolean isInitialized() {
+        return (true);
+    }
+
+    @Override
+    public void finish() {
+        this.procParameterSets.reset();
     }
 }

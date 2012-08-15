@@ -35,9 +35,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.ProcInfo;
@@ -49,7 +47,6 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.VoltTypeException;
 import org.voltdb.catalog.Partition;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ConnectionUtil;
@@ -62,9 +59,7 @@ import org.voltdb.sysprocs.saverestore.TableSaveFileState;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
-import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo (
     singlePartition = false
@@ -131,41 +126,39 @@ public class SnapshotRestore extends VoltSystemProcedure
     }
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_restoreScan, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_restoreScanResults,
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_restoreScan, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_restoreScanResults,
                                   this);
-        site.registerPlanFragment(SysProcFragmentId.
+        executor.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreLoadReplicatedTable,
                                   this);
-        site.registerPlanFragment(SysProcFragmentId.
+        executor.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreLoadReplicatedTableResults,
                                   this);
-        site.registerPlanFragment(SysProcFragmentId.
+        executor.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreDistributeReplicatedTable,
                                   this);
-        site.registerPlanFragment(SysProcFragmentId.
+        executor.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreDistributePartitionedTable,
                                   this);
-        site.registerPlanFragment(SysProcFragmentId.
+        executor.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreDistributePartitionedTableResults,
                                   this);
-        site.registerPlanFragment(SysProcFragmentId.
+        executor.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreSendReplicatedTable,
                                   this);
-        site.registerPlanFragment(SysProcFragmentId.
+        executor.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreSendReplicatedTableResults,
                                   this);
-        site.registerPlanFragment(SysProcFragmentId.
+        executor.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreSendPartitionedTable,
                                   this);
-        site.registerPlanFragment(SysProcFragmentId.
+        executor.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreSendPartitionedTableResults,
                                   this);
-        m_siteId = site.getSiteId();
-        m_hostId = site.getHostId();
+        m_siteId = executor.getSiteId();
+        m_hostId = ((Site)executor.getPartition().getParent()).getHost().getId();
     }
 
     @Override
@@ -184,11 +177,11 @@ public class SnapshotRestore extends VoltSystemProcedure
             VoltTable result = ClusterSaveFileState.constructEmptySaveFileStateVoltTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
+            int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id =
                 VoltDB.instance().getCatalogContext().siteTracker.
                 getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getExecutionSite().getSiteId() == lowest_site_id)
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 m_initializedTableSaveFiles.clear();
                 m_filePath = (String) params.toArray()[0];

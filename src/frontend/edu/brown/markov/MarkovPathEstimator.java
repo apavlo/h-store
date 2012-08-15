@@ -163,9 +163,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      */
     public MarkovPathEstimator(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
         super(markov);
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(markov.getDatabase());
+        this.num_partitions = t_estimator.getCatalogContext().numberOfPartitions;
         this.estimate = new MarkovEstimate(this.num_partitions);
-        this.all_partitions = CatalogUtil.getAllPartitionIds(markov.getDatabase());
+        this.all_partitions = t_estimator.getCatalogContext().getAllPartitionIds();
 
         this.init(markov, t_estimator, base_partition, args);
     }
@@ -194,7 +194,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         if (LOG.isTraceEnabled()) {
             LOG.trace("Procedure:       " + markov.getProcedure().getName());
             LOG.trace("Base Partition:  " + this.base_partition);
-            LOG.trace("# of Partitions: " + CatalogUtil.getNumberOfPartitions(this.p_estimator.getDatabase()));
+            LOG.trace("# of Partitions: " + t_estimator.getCatalogContext().numberOfPartitions);
 //            LOG.trace("Arguments:       " + Arrays.toString(args));
         }
         return (this);
@@ -685,7 +685,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         );
         
         // Word up
-        PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
+        PartitionEstimator p_estimator = new PartitionEstimator(args.catalogContext);
         
         // Create MarkovGraphsContainer
         String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);

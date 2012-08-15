@@ -31,32 +31,46 @@ import java.util.Map;
 import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkInterest;
-import edu.brown.api.results.BenchmarkResults.EntityResult;
-import edu.brown.api.results.BenchmarkResults.FinalResult;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
+/**
+ * Standard printer for displaying benchmark results
+ * @author pavlo
+ */
 public class ResultsPrinter implements BenchmarkInterest {
-
+//
+//    private static final String COL_HEADERS[] = {
+//        "", // NAME
+//        "", // TOTAL
+//        "", // TOTAL %
+//        "THROUGHPUT",
+//        "LATENCY",
+//    };
+//    
     private static final String COL_FORMATS[] = {
         "%23s:",
-        "%10d total",
+        "%8d total",
         "(%5.1f%%)",
         "%8.2f txn/s",
-        "%10.2f txn/m",
+        "%8.2f ms latency",
     };
     
     private static final String RESULT_FORMAT = "%.2f";
+    private static final String SPACER = "  ";
     
     protected final boolean output_interval;
+    protected final boolean output_latencies;
     protected final boolean output_clients;
     protected final boolean output_basepartitions;
     protected final boolean output_responses;
     
     public ResultsPrinter(HStoreConf hstore_conf) {
         this.output_interval = hstore_conf.client.output_interval;
+        this.output_latencies = hstore_conf.client.output_latencies;
         this.output_clients = hstore_conf.client.output_clients;
         this.output_basepartitions = hstore_conf.client.output_basepartitions;
         this.output_responses = hstore_conf.client.output_response_status;
@@ -73,21 +87,33 @@ public class ResultsPrinter implements BenchmarkInterest {
         // -------------------------------
         // GLOBAL TOTALS
         // -------------------------------
-        StringBuilder inner = new StringBuilder();
-        inner.append(String.format(RESULT_FORMAT + " txn/s", fr.getTotalTxnPerSecond()))
+        StringBuilder throughput = new StringBuilder();
+        throughput.append(String.format(RESULT_FORMAT + " txn/s", fr.getTotalTxnPerSecond()))
              .append(" [")
              .append(String.format("min:" + RESULT_FORMAT, fr.getMinTxnPerSecond()))
              .append(" / ")
              .append(String.format("max:" + RESULT_FORMAT, fr.getMaxTxnPerSecond()))
              .append(" / ")
              .append(String.format("stddev:" + RESULT_FORMAT, fr.getStandardDeviationTxnPerSecond()))
-             .append("]\n\n");
+             .append("]");
+        
+        StringBuilder latencies = new StringBuilder();
+        latencies.append(String.format(RESULT_FORMAT + " ms", fr.getTotalAvgLatency()))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, fr.getTotalMinLatency()))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, fr.getTotalMaxLatency()))
+             .append(" / ")
+             .append(String.format("stddev:" + RESULT_FORMAT, fr.getTotalStdDevLatency()))
+             .append("]");
         
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Execution Time", String.format("%d ms", fr.getDuration()));
         m.put("Total Transactions", fr.getTotalTxnCount());
-        m.put("Throughput", inner.toString()); 
+        m.put("Throughput", throughput.toString()); 
+        m.put("Latency", latencies.toString());
         sb.append(StringUtil.formatMaps(m));
+        sb.append("\n");
 
         // -------------------------------
         // TRANSACTION TOTALS
@@ -98,6 +124,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         Object rows[][] = new String[num_rows][COL_FORMATS.length];
         int row_idx = 0;
         
+//        rows[row_idx++] = COL_HEADERS;
         for (String txnName : txnNames) {
             EntityResult er = fr.getTransactionResult(txnName);
             assert(er != null);
@@ -106,7 +133,7 @@ public class ResultsPrinter implements BenchmarkInterest {
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnAvgLatency());
             row_idx++;
         } // FOR
 
@@ -175,22 +202,46 @@ public class ResultsPrinter implements BenchmarkInterest {
         assert(p != null);
         long totalTxnCount = p.getFirst();
         long txnDelta = p.getSecond();
+        
+        double intervalLatency = 0d;
+        double totalLatency = 0d;
+        if (this.output_latencies) {
+            Collection<Integer> latencies = results.getLastLatencies().weightedValues();
+            intervalLatency = MathUtil.sum(latencies) / (double)latencies.size();
+            
+            latencies = results.getAllLatencies().weightedValues();
+            totalLatency = MathUtil.sum(latencies) / (double)latencies.size();
+        }
 
         int pollIndex = results.getCompletedIntervalCount();
         long duration = results.getTotalDuration();
         long pollCount = duration / results.getIntervalDuration();
         long currentTime = pollIndex * results.getIntervalDuration();
 
-        System.out.printf("\nAt time %d out of %d (%d%%):\n", currentTime, duration, currentTime * 100 / duration);
-        System.out.printf("  In the past %d ms:\n", duration / pollCount);
-        System.out.printf("    Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s\n",
-                txnDelta,
-                txnDelta / (double)(results.getIntervalDuration()) * 1000.0);
-        System.out.printf("  Since the benchmark began:\n");
-        System.out.printf("    Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s\n",
-                totalTxnCount,
-                totalTxnCount / (double)(pollIndex * results.getIntervalDuration()) * 1000.0);
-
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n");
+        sb.append(String.format("At time %d out of %d (%d%%):",
+                                currentTime, duration, currentTime * 100 / duration));
+        sb.append("\n" + SPACER);
+        sb.append(String.format("In the past %d ms:",
+                                duration / pollCount));
+        sb.append("\n" + SPACER + SPACER);
+        sb.append(String.format("Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s",
+                                txnDelta, txnDelta / (double)(results.getIntervalDuration()) * 1000d));
+        if (this.output_latencies) {
+            sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", intervalLatency));
+        }
+        
+        sb.append("\n" + SPACER);
+        sb.append("Since the benchmark began:");
+        sb.append("\n" + SPACER + SPACER);
+        sb.append(String.format("Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s",
+                                totalTxnCount, totalTxnCount / (double)(pollIndex * results.getIntervalDuration()) * 1000d));
+        if (this.output_latencies) {
+            sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", totalLatency));
+        }
+        
+        System.out.println(sb);
         System.out.flush();
     }
 

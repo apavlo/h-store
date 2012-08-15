@@ -42,6 +42,7 @@ import java.util.TreeSet;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
@@ -95,9 +96,9 @@ public class PartitionEstimator {
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
     // ----------------------------------------------------------------------------
-    private Database catalog_db;
+    private CatalogContext catalogContext;
     private final AbstractHasher hasher;
-    private final PartitionSet all_partitions = new PartitionSet();
+    private PartitionSet all_partitions = new PartitionSet();
     private int num_partitions;
 
     private final HashMap<Procedure, ProcParameter> cache_procPartitionParameters = new HashMap<Procedure, ProcParameter>();
@@ -223,7 +224,7 @@ public class PartitionEstimator {
                         this.is_replicated = new boolean[this.tables.length];
                         int i = 0;
                         for (String table_key : this.table_keys) {
-                            Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
+                            Table catalog_tbl = CatalogKey.getFromKey(catalogContext.database, table_key, Table.class);
                             this.tables[i] = catalog_tbl;
                             this.is_replicated[i++] = catalog_tbl.getIsreplicated();
                         } // FOR
@@ -297,8 +298,8 @@ public class PartitionEstimator {
     /**
      * Convenience constructor that uses DefaultHasher
      */
-    public PartitionEstimator(Database catalog_db) {
-        this(catalog_db, new DefaultHasher(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db)));
+    public PartitionEstimator(CatalogContext catalogContext) {
+        this(catalogContext, new DefaultHasher(catalogContext.database, catalogContext.numberOfPartitions));
     }
 
     /**
@@ -306,10 +307,10 @@ public class PartitionEstimator {
      * 
      * @param args
      */
-    public PartitionEstimator(Database catalog_db, AbstractHasher hasher) {
-        this.catalog_db = catalog_db;
+    public PartitionEstimator(CatalogContext catalogContext, AbstractHasher hasher) {
+        this.catalogContext = catalogContext;
         this.hasher = hasher;
-        this.initCatalog(catalog_db);
+        this.initCatalog(catalogContext);
         
         if (trace.get())
             LOG.trace("Created a new PartitionEstimator with a " + hasher.getClass() + " hasher!");
@@ -319,8 +320,13 @@ public class PartitionEstimator {
     // BASE DATA MEMBERS METHODS
     // ----------------------------------------------------------------------------
 
+    public CatalogContext getCatalogContext() {
+        return (this.catalogContext);
+    }
+    
+    @Deprecated
     public Database getDatabase() {
-        return catalog_db;
+        return catalogContext.database;
     }
 
     /**
@@ -337,40 +343,17 @@ public class PartitionEstimator {
      * 
      * @param new_catalog_db
      */
-    public void initCatalog(Database new_catalog_db) {
+    public void initCatalog(CatalogContext newCatalogContext) {
         // Check whether any of our cache partition columns have changed
         // In which cache we know need to invalidate our cache entries
-        /*
-         * if (this.catalog_db != null) { for (Table catalog_tbl :
-         * this.catalog_db.getTables()) { String table_key =
-         * CatalogKey.createKey(catalog_tbl); Table new_catalog_tbl =
-         * new_catalog_db.getTables().get(catalog_tbl.getName()); // This table
-         * is not in our new catalog or it doesn't have a partitioning column if
-         * (new_catalog_tbl == null || new_catalog_tbl.getPartitioncolumn() ==
-         * null) { LOG.debug("Removing partitioning information for " +
-         * catalog_tbl); if
-         * (this.table_partition_columns.containsKey(table_key))
-         * this.invalidateTableCache(table_key);
-         * this.table_partition_columns.remove(table_key); continue; } //
-         * Otherwise we will always just update our cache // Invalidate the
-         * table's cache if the partitioning column has changed String
-         * new_partition_key =
-         * CatalogKey.createKey(new_catalog_tbl.getPartitioncolumn()); String
-         * orig_partition_key = this.table_partition_columns.get(table_key); if
-         * (orig_partition_key != null &&
-         * !new_partition_key.equals(orig_partition_key)) {
-         * this.invalidateTableCache(table_key); }
-         * this.table_partition_columns.put(table_key, new_partition_key); } //
-         * FOR }
-         */
-        this.catalog_db = new_catalog_db;
-        this.hasher.init(new_catalog_db);
+        this.catalogContext = newCatalogContext;
+        this.hasher.init(catalogContext.database);
         this.clear();
         this.buildCatalogCache();
     }
 
     private synchronized void buildCatalogCache() {
-        for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
+        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
             if (catalog_proc.getSystemproc() == false && catalog_proc.getParameters().size() > 0) {
                 ProcParameter catalog_param = null;
                 int param_idx = catalog_proc.getPartitionparameter();
@@ -387,7 +370,7 @@ public class PartitionEstimator {
             }
         } // FOR
 
-        for (Table catalog_tbl : this.catalog_db.getTables()) {
+        for (Table catalog_tbl : this.catalogContext.database.getTables()) {
             if (catalog_tbl.getSystable())
                 continue;
             Column catalog_col = catalog_tbl.getPartitioncolumn();
@@ -415,8 +398,7 @@ public class PartitionEstimator {
         // Generate a list of all the partition ids, so that we can quickly
         // add them to the output when estimating later on
         if (this.all_partitions.size() != this.hasher.getNumPartitions()) {
-            this.all_partitions.clear();
-            this.all_partitions.addAll(CatalogUtil.getAllPartitionIds(this.catalog_db));
+            this.all_partitions = this.catalogContext.getAllPartitionIds();
             this.num_partitions = this.all_partitions.size();
             assert (this.hasher.getNumPartitions() == this.num_partitions);
             if (debug.get())
@@ -499,7 +481,7 @@ public class PartitionEstimator {
                 }
 
                 AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
-                Collection<Table> frag_tables = CatalogUtil.getReferencedTablesForTree(catalog_db, root);
+                Collection<Table> frag_tables = CatalogUtil.getReferencedTablesForTree(catalogContext.database, root);
                 // Table tables_arr[] = new Table[frag_tables.size()];
                 // tables_arr = frag_tables.toArray(tables_arr);
                 // assert (tables_arr.length == frag_tables.size());
@@ -509,7 +491,7 @@ public class PartitionEstimator {
                 // Check whether the predicate expression in this PlanFragment contains an OR
                 // We need to know this if we get hit with Multi-Column Partitioning
                 // XXX: Why does this matter??
-                Collection<ExpressionType> exp_types = PlanNodeUtil.getScanExpressionTypes(catalog_db, root);
+                Collection<ExpressionType> exp_types = PlanNodeUtil.getScanExpressionTypes(catalogContext.database, root);
                 if (exp_types.contains(ExpressionType.CONJUNCTION_OR)) {
                     if (debug.get())
                         LOG.warn(CatalogUtil.getDisplayName(catalog_frag) + " contains OR conjunction. Cannot be used with multi-column partitioning");
@@ -709,7 +691,7 @@ public class PartitionEstimator {
                     tables.clear();
                     tables.add(catalog_tbl);
                     AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
-                    CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, update_cset, root_node, true, tables);
+                    CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalogContext.database, update_cset, root_node, true, tables);
 
                     boolean found = false;
                     for (ColumnSet.Entry entry : update_cset) {
@@ -819,9 +801,9 @@ public class PartitionEstimator {
      * @throws Exception
      */
     public int getBasePartition(StoredProcedureInvocation invocation) throws Exception {
-        Procedure catalog_proc = this.catalog_db.getProcedures().get(invocation.getProcName());
+        Procedure catalog_proc = this.catalogContext.database.getProcedures().get(invocation.getProcName());
         if (catalog_proc == null) {
-            catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(invocation.getProcName());
+            catalog_proc = this.catalogContext.database.getProcedures().getIgnoreCase(invocation.getProcName());
         }
         assert(catalog_proc != null) :
             "Invalid procedure name '" + invocation.getProcName() + "'";
@@ -848,7 +830,7 @@ public class PartitionEstimator {
     public Integer getBasePartition(final TransactionTrace txn_trace) throws Exception {
         if (debug.get())
             LOG.debug("Calculating base partition for " + txn_trace.toString());
-        return (this.getBasePartition(txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams(), true));
+        return (this.getBasePartition(txn_trace.getCatalogItem(this.catalogContext.database), txn_trace.getParams(), true));
     }
 
     /**
@@ -946,11 +928,11 @@ public class PartitionEstimator {
      * @throws Exception
      */
     public void getAllPartitions(PartitionSet partitions, TransactionTrace xact) throws Exception {
-        int base_partition = this.getBasePartition(xact.getCatalogItem(this.catalog_db), xact.getParams(), true);
+        int base_partition = this.getBasePartition(xact.getCatalogItem(this.catalogContext.database), xact.getParams(), true);
         partitions.add(base_partition);
         for (QueryTrace query : xact.getQueries()) {
             this.getAllPartitions(partitions,
-                                  query.getCatalogItem(this.catalog_db),
+                                  query.getCatalogItem(this.catalogContext.database),
                                   query.getParams(),
                                   base_partition);
         } // FOR
@@ -965,7 +947,7 @@ public class PartitionEstimator {
      * @throws Exception
      */
     public void getAllPartitions(PartitionSet partitions, QueryTrace query, Integer base_partition) throws Exception {
-        Statement catalog_stmt = query.getCatalogItem(this.catalog_db);
+        Statement catalog_stmt = query.getCatalogItem(this.catalogContext.database);
         this.getAllPartitions(partitions, catalog_stmt, query.getParams(), base_partition);
     }
 
@@ -1000,7 +982,7 @@ public class PartitionEstimator {
      * @throws Exception
      */
     public Map<String, PartitionSet> getTablePartitions(final QueryTrace query, Integer base_partition) throws Exception {
-        return (this.getTablePartitions(query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
+        return (this.getTablePartitions(query.getCatalogItem(this.catalogContext.database), query.getParams(), base_partition));
     }
     
     /**
@@ -1264,8 +1246,7 @@ public class PartitionEstimator {
         }
 
         final PartitionSet table_partitions = this.partitionSetPool.borrowObject();
-        assert (table_partitions != null);
-        table_partitions.clear();
+        assert(table_partitions != null);
 
         // Go through each table referenced in this CacheEntry and look-up the parameters that the 
         // partitioning columns are referenced against to determine what partitions we need to go to
@@ -1489,7 +1470,7 @@ public class PartitionEstimator {
     @Override
     public String toString() {
         String ret = "";
-        for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
+        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
             StringBuilder sb = new StringBuilder();
             boolean has_entries = false;
             sb.append(CatalogUtil.getDisplayName(catalog_proc)).append(":\n");
@@ -1568,8 +1549,8 @@ public class PartitionEstimator {
      * @param catalog_db
      */
     public void preload() {
-        assert (this.catalog_db != null);
-        for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
+        assert (this.catalogContext != null);
+        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 try {
                     this.generateCache(catalog_stmt);

@@ -53,28 +53,24 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
             assert(msg0 != null);
             assert(msg1 != null);
 
-            // (1) Non-Transactional Messages go first
-            boolean isTxn0 = (msg0 instanceof InternalTxnMessage);
-            boolean isTxn1 = (msg1 instanceof InternalTxnMessage);
-            if (!isTxn0 && isTxn1) return (-1);
-            else if (isTxn0 && isTxn1) return (1);
-
             Class<?> class0 = msg0.getClass();
             Class<?> class1 = msg1.getClass();
             
-            // (2) Otherwise, always let the FinishTaskMessage go first
+            // (1) Always let the FinishTaskMessage go first so that we can release locks
             boolean isFinish0 = class0.equals(FinishTxnMessage.class);
             boolean isFinish1 = class1.equals(FinishTxnMessage.class);
             if (isFinish0 && !isFinish1) return (-1);
             else if (!isFinish0 && isFinish1) return (1);
-
-            // (3) Then let a FragmentTaskMessage go before anything else
+            
+            // (2) Then let a WorkFragmentMessage go before anything else
             boolean isWork0 = class0.equals(WorkFragmentMessage.class);
             boolean isWork1 = class1.equals(WorkFragmentMessage.class);
             if (isWork0 && !isWork1) return (-1);
             else if (!isWork0 && isWork1) return (1);
             
-            // (4) Compare Transaction Ids
+            // (3) Compare Transaction Ids
+            boolean isTxn0 = (msg0 instanceof InternalTxnMessage);
+            boolean isTxn1 = (msg1 instanceof InternalTxnMessage);
             if (isTxn0) {
                 return (isTxn1 ? ((InternalTxnMessage)msg0).getTransactionId()
                                     .compareTo(((InternalTxnMessage)msg1).getTransactionId()) : -1); 
@@ -82,9 +78,9 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
                 return (1);
             }
             
-            // (5) They must be the same!
+            // (4) They must be the same!
             // assert(false) : String.format("%s <-> %s", class0, class1);
-            return 0;
+            return msg0.hashCode() - msg1.hashCode();
         }
     };
 

@@ -47,13 +47,15 @@ import edu.brown.utils.JSONUtil;
  * @author pavlo
  */
 public class ProfileMeasurement implements JSONSerializable {
-    public static final Logger LOG = Logger.getLogger(ProfileMeasurement.class);
+    private static final Logger LOG = Logger.getLogger(ProfileMeasurement.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    private static final long NULL_MARKER = -1l;
+    
     /** The profile type */
     private String type;
     /** Total amount of time spent processing the profiled section (in ms) */
@@ -66,7 +68,7 @@ public class ProfileMeasurement implements JSONSerializable {
      * trying to profile starts and stops. When it is zero, the system is
      * outside of the profiled area.
      */
-    private transient Long think_marker;
+    private transient long marker = NULL_MARKER;
 
     private transient boolean reset = false;
 
@@ -106,7 +108,7 @@ public class ProfileMeasurement implements JSONSerializable {
     // ----------------------------------------------------------------------------
 
     public synchronized void reset() {
-        if (this.think_marker != null) {
+        if (this.marker != NULL_MARKER) {
             this.reset = true;
         }
         this.total_time = 0;
@@ -114,7 +116,7 @@ public class ProfileMeasurement implements JSONSerializable {
     }
 
     public void clear() {
-        this.think_marker = null;
+        this.marker = NULL_MARKER;
         this.invocations = 0;
         this.total_time = 0;
     }
@@ -196,6 +198,10 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.invocations);
     }
 
+    protected long getMarker() {
+        return (this.marker);
+    }
+    
     // ----------------------------------------------------------------------------
     // START METHODS
     // ----------------------------------------------------------------------------
@@ -207,10 +213,10 @@ public class ProfileMeasurement implements JSONSerializable {
      */
 
     public synchronized ProfileMeasurement start(long timestamp) {
-        assert (this.think_marker == null) : String.format("Trying to start %s before it was stopped!", this.type);
+        assert (this.marker == NULL_MARKER) : String.format("Trying to start %s before it was stopped!", this.type);
         if (debug.get())
             LOG.debug(String.format("START %s", this));
-        this.think_marker = timestamp;
+        this.marker = timestamp;
         this.invocations++;
         if (this.start_observable != null)
             this.start_observable.notifyObservers(this);
@@ -222,7 +228,7 @@ public class ProfileMeasurement implements JSONSerializable {
     }
 
     public boolean isStarted() {
-        return (this.think_marker != null);
+        return (this.marker != NULL_MARKER);
     }
 
     public synchronized void addStartObserver(EventObserver<ProfileMeasurement> observer) {
@@ -245,19 +251,21 @@ public class ProfileMeasurement implements JSONSerializable {
     public synchronized ProfileMeasurement stop(long timestamp) {
         if (this.reset) {
             this.reset = false;
-            this.think_marker = null;
+            this.marker = NULL_MARKER;
             return (this);
         }
         if (debug.get())
             LOG.debug(String.format("STOP %s", this));
-        assert (this.think_marker != null) : String.format("Trying to stop %s before it was started!", this.type);
-        long added = (timestamp - this.think_marker);
+        assert (this.marker != NULL_MARKER) : 
+            String.format("Trying to stop %s before it was started!", this.type);
+        long added = (timestamp - this.marker);
         if (added < 0) {
-            LOG.warn(String.format("Invalid stop timestamp for %s [timestamp=%d, marker=%d, added=%d]", this.type, timestamp, this.think_marker, added));
+            LOG.warn(String.format("Invalid stop timestamp for %s [timestamp=%d, marker=%d, added=%d]",
+                                   this.type, timestamp, this.marker, added));
         } else {
             this.total_time += added;
         }
-        this.think_marker = null;
+        this.marker = NULL_MARKER;
         if (this.stop_observable != null)
             this.stop_observable.notifyObservers(this);
         // if (type == Type.JAVA)
@@ -282,11 +290,10 @@ public class ProfileMeasurement implements JSONSerializable {
     // ----------------------------------------------------------------------------
 
     public ProfileMeasurement appendTime(ProfileMeasurement other, boolean checkType) {
-        assert (other != null);
-        if (checkType)
-            assert (this.type == other.type);
+        assert(other != null);
+        if (checkType) assert(this.type == other.type);
         this.total_time += other.total_time;
-        this.think_marker = other.think_marker;
+        this.marker = other.marker;
         this.invocations += other.invocations;
         return (this);
     }
@@ -296,7 +303,7 @@ public class ProfileMeasurement implements JSONSerializable {
     }
 
     public void addThinkTime(long start, long stop, int invocations) {
-        assert (this.think_marker == null) : this.type;
+        assert(this.marker == NULL_MARKER) : this.type;
         this.total_time += (stop - start);
         this.invocations += invocations;
     }
@@ -380,9 +387,14 @@ public class ProfileMeasurement implements JSONSerializable {
         to_start.start(timestamp);
     }
 
+    // --------------------------------------------------------------------------------------------
+    // DEBUG METHODS
+    // --------------------------------------------------------------------------------------------
+    
     @Override
     public String toString() {
         return (this.debug(false));
+//        return (this.debug(false));
     }
 
     public String debug() {
@@ -390,10 +402,16 @@ public class ProfileMeasurement implements JSONSerializable {
     }
 
     public String debug(boolean verbose) {
+        String prefix = this.type + "/" + this.hashCode();
         if (verbose) {
-            return (String.format("%s[total=%d, marker=%s, invocations=%d, avg=%.2f ms]", this.type, this.total_time, this.think_marker, this.invocations, this.getAverageThinkTimeMS()));
+            return (String.format("%s[total=%d, marker=%s, invocations=%d, avg=%.2f ms]",
+                                  prefix,
+                                  this.total_time,
+                                  this.marker,
+                                  this.invocations,
+                                  this.getAverageThinkTimeMS()));
         } else {
-            return (this.type);
+            return (prefix);
         }
     }
 

@@ -4,16 +4,13 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
@@ -23,7 +20,6 @@ import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.utils.PartitionEstimator;
 
 /** 
  * Reset internal profiling statistics
@@ -41,11 +37,9 @@ public class ResetProfiling extends VoltSystemProcedure {
     private final ProfileMeasurement gcTime = new ProfileMeasurement(this.getClass().getSimpleName());
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_resetProfilingAggregate, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_resetProfilingDistribute, this);
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_resetProfilingAggregate, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_resetProfilingDistribute, this);
     }
 
     @Override
@@ -63,7 +57,7 @@ public class ResetProfiling extends VoltSystemProcedure {
                 
                 // EXECUTOR
                 if (hstore_conf.site.exec_profiling) {
-                    this.executor.getProfiler().reset();
+                    this.executor.getDebugContext().getProfiler().reset();
                 }
                 
                 // The first partition at this HStoreSite will have to reset
@@ -103,7 +97,7 @@ public class ResetProfiling extends VoltSystemProcedure {
                     throw new ServerFaultException(msg, txn_id);
                 }
                 
-                VoltTable vt = VoltTableUtil.combine(siteResults);
+                VoltTable vt = VoltTableUtil.union(siteResults);
                 result = new DependencySet(SysProcFragmentId.PF_resetProfilingAggregate, vt);
                 break;
             default:
@@ -116,6 +110,6 @@ public class ResetProfiling extends VoltSystemProcedure {
 
     public VoltTable[] run() {
         return this.executeOncePerSite(SysProcFragmentId.PF_resetProfilingDistribute,
-                                   SysProcFragmentId.PF_resetProfilingAggregate);
+                                       SysProcFragmentId.PF_resetProfilingAggregate);
     }
 }

@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -134,15 +135,15 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
      * Constructor
      */
     @SuppressWarnings("unchecked")
-    public TimeIntervalCostModel(Database catalog_db, Class<? extends T> inner_class, int num_intervals) {
-        super(TimeIntervalCostModel.class, catalog_db, new PartitionEstimator(catalog_db));
+    public TimeIntervalCostModel(CatalogContext catalogContext, Class<? extends T> inner_class, int num_intervals) {
+        super(TimeIntervalCostModel.class, catalogContext, new PartitionEstimator(catalogContext));
         this.num_intervals = num_intervals;
         this.cost_models = (T[]) (new AbstractCostModel[num_intervals]);
 
         try {
             Constructor<?> constructor = ClassUtil.getConstructor(inner_class, Database.class, PartitionEstimator.class);
             for (int i = 0; i < this.cost_models.length; i++) {
-                this.cost_models[i] = (T) constructor.newInstance(catalog_db, this.p_estimator);
+                this.cost_models[i] = (T) constructor.newInstance(catalogContext, this.p_estimator);
             } // FOR
         } catch (Exception ex) {
             LOG.fatal("Failed to create the inner cost models", ex);
@@ -177,7 +178,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     }
 
     // @Override
-    // public AbstractCostModel clone(Database catalog_db) throws
+    // public AbstractCostModel clone(CatalogContext catalogContext) throws
     // CloneNotSupportedException {
     // TimeIntervalCostModel<T> clone = new TimeIntervalCostModel<T>(catalog_db,
     // this.inner_class, this.cost_models.length);
@@ -249,12 +250,12 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     }
 
     @Override
-    public void prepareImpl(final Database catalog_db) {
-        this.all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+    public void prepareImpl(final CatalogContext catalogContext) {
+        this.all_partitions = catalogContext.getAllPartitionIds();
         assert (this.all_partitions.isEmpty() == false) : "No partitions???";
 
         for (int i = 0; i < num_intervals; i++) {
-            this.cost_models[i].prepare(catalog_db);
+            this.cost_models[i].prepare(catalogContext);
             if (!this.use_caching) {
                 this.cost_models[i].clear(true);
                 assert (this.cost_models[i].getTxnPartitionAccessHistogram().isEmpty());
@@ -275,18 +276,18 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
      * edu.brown.workload.AbstractWorkload.Filter)
      */
     @Override
-    public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace xact) throws Exception {
+    public double estimateTransactionCost(CatalogContext catalogContext, Workload workload, Filter filter, TransactionTrace xact) throws Exception {
         assert (workload != null) : "The workload handle is null";
         // First figure out the time interval of this
         int interval = workload.getTimeInterval(xact, this.cost_models.length);
-        return (this.cost_models[interval].estimateTransactionCost(catalog_db, workload, filter, xact));
+        return (this.cost_models[interval].estimateTransactionCost(catalogContext, workload, filter, xact));
     }
 
     /**
      * 
      */
     @Override
-    protected double estimateWorkloadCostImpl(final Database catalog_db, final Workload workload, final Filter filter, final Double upper_bound) throws Exception {
+    protected double estimateWorkloadCostImpl(final CatalogContext catalogContext, final Workload workload, final Filter filter, final Double upper_bound) throws Exception {
 
         if (debug.get())
             LOG.debug("Calculating workload execution cost across " + num_intervals + " intervals for " + num_partitions + " partitions");
@@ -324,8 +325,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             @Override
             public Pair<Consumer<Pair<TransactionTrace, Integer>>, Pair<TransactionTrace, Integer>> transform(TransactionTrace txn_trace) {
                 int i = workload.getTimeInterval(txn_trace, num_intervals);
-                assert (i >= 0) : "Invalid time interval '" + i + "'\n" + txn_trace.debug(catalog_db);
-                assert (i < num_intervals) : "Invalid interval: " + i + "\n" + txn_trace.debug(catalog_db);
+                assert (i >= 0) : "Invalid time interval '" + i + "'\n" + txn_trace.debug(catalogContext.database);
+                assert (i < num_intervals) : "Invalid interval: " + i + "\n" + txn_trace.debug(catalogContext.database);
                 total_txns.incrementAndGet();
                 Pair<TransactionTrace, Integer> p = Pair.of(txn_trace, i);
                 return (Pair.of(tmp_consumers.get(i), p));
@@ -337,7 +338,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         int interval_ctr = 0;
         for (int thread = 0; thread < num_threads; thread++) {
             // First create a new IntervalProcessor/Consumer
-            IntervalProcessor ip = new IntervalProcessor(catalog_db, workload, filter);
+            IntervalProcessor ip = new IntervalProcessor(catalogContext, workload, filter);
 
             // Then assign it to some number of intervals
             for (int i = 0, cnt = (int) Math.ceil(num_intervals / (double) num_threads); i < cnt; i++) {
@@ -405,7 +406,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 if (trace.get())
                     LOG.trace("Adding " + (total_txns_in_interval - num_txns) + " entries to the incomplete histogram for interval #" + i);
                 for (long ii = num_txns; ii < total_txns_in_interval; ii++) {
-                    missing_txn_histogram[i].putAll(all_partitions);
+                    missing_txn_histogram[i].put(all_partitions);
                 } // WHILE
             }
 
@@ -458,7 +459,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         for (int i = 0; i < this.num_intervals; i++) {
             Histogram<Integer> histogram_txn = this.cost_models[i].getTxnPartitionAccessHistogram();
             Histogram<Integer> histogram_query = this.cost_models[i].getQueryPartitionAccessHistogram();
-            this.histogram_query_partitions.putHistogram(histogram_query);
+            this.histogram_query_partitions.put(histogram_query);
             long num_queries = this.cost_models[i].query_ctr.get();
             this.query_ctr.addAndGet(num_queries);
 
@@ -469,7 +470,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 LOG.error("Transaction Entries: " + inner_costModel.getTransactionCacheEntries().size());
                 Histogram<Integer> check = new Histogram<Integer>();
                 for (TransactionCacheEntry tce : inner_costModel.getTransactionCacheEntries()) {
-                    check.putAll(tce.getTouchedPartitions());
+                    check.put(tce.getTouchedPartitions());
                     // LOG.error(tce.debug() + "\n");
                 }
                 LOG.error("Check Touched Partitions: sample=" + check.getSampleCount() + ", values=" + check.getValueCount());
@@ -490,8 +491,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     + "(histogram_txn[%d] + exec_mismatch_ctrs[%d])", i, partitions_touched[i], singlepartition_with_partitions_ctrs[i], this.cost_models[i].getTxnPartitionAccessHistogram()
                     .getSampleCount(), exec_mismatch_ctrs[i]);
 
-            this.histogram_java_partitions.putHistogram(this.cost_models[i].getJavaExecutionHistogram());
-            this.histogram_txn_partitions.putHistogram(histogram_txn);
+            this.histogram_java_partitions.put(this.cost_models[i].getJavaExecutionHistogram());
+            this.histogram_txn_partitions.put(histogram_txn);
             long num_txns = this.cost_models[i].txn_ctr.get();
             assert (num_txns >= 0) : "The transaction counter at interval #" + i + " is " + num_txns;
             this.txn_ctr.addAndGet(num_txns);
@@ -503,7 +504,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             //      I guess the cost just needs to be zero?
             // XXX: What histogram do we want to use?
             target_histogram.clear();
-            target_histogram.putHistogram(histogram_txn);
+            target_histogram.put(histogram_txn);
 
             // For each txn that we haven't gotten an estimate for at this interval, 
             // we're going mark it as being broadcast to all partitions. That way the access
@@ -519,9 +520,9 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
             // Merge the values from incomplete histogram into the target
             // histogram
-            target_histogram.putHistogram(incomplete_txn_histogram[i]);
-            target_histogram.putHistogram(missing_txn_histogram[i]);
-            exec_histogram[i].putHistogram(missing_txn_histogram[i]);
+            target_histogram.put(incomplete_txn_histogram[i]);
+            target_histogram.put(missing_txn_histogram[i]);
+            exec_histogram[i].put(missing_txn_histogram[i]);
 
             long num_elements = target_histogram.getSampleCount();
 
@@ -617,12 +618,12 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     private class IntervalProcessor extends Consumer<Pair<TransactionTrace, Integer>> {
 
         final Set<Integer> tmp_missingPartitions = new HashSet<Integer>();
-        final Database catalog_db;
+        final CatalogContext catalogContext;
         final Workload workload;
         final Filter filter;
 
-        public IntervalProcessor(Database catalog_db, final Workload workload, final Filter filter) {
-            this.catalog_db = catalog_db;
+        public IntervalProcessor(CatalogContext catalogContext, final Workload workload, final Filter filter) {
+            this.catalogContext = catalogContext;
             this.workload = workload;
             this.filter = filter;
         }
@@ -646,7 +647,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             histogram_procs.put(proc_key, txn_weight);
 
             try {
-                singlesited_cost_model.estimateTransactionCost(catalog_db, workload, filter, txn_trace);
+                singlesited_cost_model.estimateTransactionCost(catalogContext, workload, filter, txn_trace);
                 TransactionCacheEntry txn_entry = singlesited_cost_model.getTransactionCacheEntry(txn_trace);
                 assert (txn_entry != null) : "No txn entry for " + txn_trace;
                 Collection<Integer> partitions = txn_entry.getTouchedPartitions();
@@ -689,12 +690,12 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 if (base_partition != null) {
                     exec_histogram[i].put(base_partition, txn_weight);
                 } else {
-                    exec_histogram[i].putAll(all_partitions, txn_weight);
+                    exec_histogram[i].put(all_partitions, txn_weight);
                 }
                 if (debug.get()) { // &&
                                    // txn_trace.getCatalogItemName().equalsIgnoreCase("DeleteCallForwarding"))
                                    // {
-                    Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
+                    Procedure catalog_proc = txn_trace.getCatalogItem(catalogContext.database);
                     Map<String, Object> inner = new LinkedHashMap<String, Object>();
                     for (Statement catalog_stmt : catalog_proc.getStatements()) {
                         inner.put(catalog_stmt.fullName(), CatalogUtil.getReferencedTables(catalog_stmt));
@@ -723,7 +724,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     // Update the histogram for this interval to keep track of
                     // how many times we need to
                     // increase the partition access histogram
-                    incomplete_txn_histogram[i].putAll(tmp_missingPartitions, txn_weight);
+                    incomplete_txn_histogram[i].put(tmp_missingPartitions, txn_weight);
                     if (trace.get()) {
                         Map<String, Object> m = new LinkedHashMap<String, Object>();
                         m.put(String.format("Marking %s as incomplete in interval #%d", txn_trace, i), null);
@@ -735,7 +736,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     }
                 }
             } catch (Exception ex) {
-                CatalogUtil.saveCatalog(catalog_db.getCatalog(), CatalogUtil.CATALOG_FILENAME);
+                CatalogUtil.saveCatalog(catalogContext.catalog, CatalogUtil.CATALOG_FILENAME);
                 throw new RuntimeException("Failed to estimate cost for " + txn_trace.getCatalogItemName() + " at interval " + i, ex);
             }
         }
@@ -803,10 +804,10 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         System.out.flush();
 
         int num_intervals = args.num_intervals; // getIntParam(ArgumentsParser.PARAM_DESIGNER_INTERVALS);
-        TimeIntervalCostModel<SingleSitedCostModel> costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, num_intervals);
+        TimeIntervalCostModel<SingleSitedCostModel> costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalogContext, SingleSitedCostModel.class, num_intervals);
         if (args.hasParam(ArgumentsParser.PARAM_DESIGNER_HINTS))
             costmodel.applyDesignerHints(args.designer_hints);
-        double cost = costmodel.estimateWorkloadCost(args.catalog_db, args.workload);
+        double cost = costmodel.estimateWorkloadCost(args.catalogContext, args.workload);
 
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("PARTITIONS", CatalogUtil.getNumberOfPartitions(args.catalog_db));

@@ -14,13 +14,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Database;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
@@ -73,7 +72,7 @@ public class TransactionEstimator implements Loggable {
     // DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    private final Database catalog_db;
+    private final CatalogContext catalogContext;
     private final int num_partitions;
     private final PartitionEstimator p_estimator;
     private final ParameterMappingsSet correlations;
@@ -341,8 +340,8 @@ public class TransactionEstimator implements Loggable {
     public TransactionEstimator(PartitionEstimator p_estimator, ParameterMappingsSet correlations, MarkovGraphsContainer markovs) {
         this.p_estimator = p_estimator;
         this.markovs = markovs;
-        this.catalog_db = this.p_estimator.getDatabase();
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
+        this.catalogContext = this.p_estimator.getCatalogContext();
+        this.num_partitions = this.catalogContext.numberOfPartitions;
         this.correlations = (correlations == null ? new ParameterMappingsSet() : correlations);
         this.hstore_conf = HStoreConf.singleton();
         if (this.markovs != null && this.markovs.getHasher() == null) this.markovs.setHasher(this.p_estimator.getHasher());
@@ -387,18 +386,18 @@ public class TransactionEstimator implements Loggable {
        this.enable_recomputes = true;
     }
     
+    public CatalogContext getCatalogContext() {
+        return this.catalogContext;
+    }
     public ParameterMappingsSet getParameterMappings() {
         return this.correlations;
     }
-
     public PartitionEstimator getPartitionEstimator() {
         return this.p_estimator;
     }
-
     public MarkovGraphsContainer getMarkovs() {
         return (this.markovs);
     }
-    
     public void addMarkovGraphs(MarkovGraphsContainer markovs) {
         this.markovs.copy(markovs);
     }
@@ -816,9 +815,9 @@ public class TransactionEstimator implements Loggable {
         long txn_id = txn_trace.getTransactionId();
         if (d) {
             LOG.debug("Processing TransactionTrace #" + txn_id);
-            if (t) LOG.trace(txn_trace.debug(this.catalog_db));
+            if (t) LOG.trace(txn_trace.debug(this.catalogContext.database));
         }
-        State s = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
+        State s = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalogContext.database), txn_trace.getParams());
         assert(s != null) : "Null TransactionEstimator.State for txn #" + txn_id;
         
         for (Entry<Integer, List<QueryTrace>> e : txn_trace.getBatches().entrySet()) {
@@ -847,7 +846,7 @@ public class TransactionEstimator implements Loggable {
         boolean readOnly = true;
         for (QueryTrace query_trace : queries) {
             assert(query_trace != null);
-            catalog_stmts[i] = query_trace.getCatalogItem(catalog_db);
+            catalog_stmts[i] = query_trace.getCatalogItem(catalogContext.database);
             partitions[i] = new PartitionSet();
             this.p_estimator.getAllPartitions(partitions[i], query_trace, base_partition);
             assert(partitions[i].isEmpty() == false) : "No partitions for " + query_trace;

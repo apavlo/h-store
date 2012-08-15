@@ -40,7 +40,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
@@ -66,7 +65,6 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -110,13 +108,27 @@ public class LocalTransaction extends AbstractTransaction {
     protected Procedure catalog_proc;
     
     /**
+     * Final RpcCallback to the client
+     */
+    private RpcCallback<ClientResponseImpl> client_callback;
+    
+    /**
+     * The final ClientResponse for this txn that needs to get sent
+     * back to the client.
+     */
+    private ClientResponseImpl cresponse;
+    
+    /**
      * The number of times that this transaction has been restarted 
      */
     private int restart_ctr = 0;
     
+    // ----------------------------------------------------------------------------
+    // INTERNAL STATE
+    // ----------------------------------------------------------------------------
+    
     private boolean needs_restart = false; // FIXME
     private boolean deletable = false; // FIXME
-    private boolean not_deletable = false; // FIXME
     
     /**
      * Is this transaction part of a large MapReduce transaction  
@@ -135,6 +147,9 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private long initiateTime;
     
+    /**
+     * This is where we will store all of the special state information for distributed txns
+     */
     private DistributedState dtxnState;
     
     /**
@@ -142,6 +157,11 @@ public class LocalTransaction extends AbstractTransaction {
      * before it starts executing
      */
     private Table anticache_table = null;
+    
+    /**
+     * Special TransactionProfiler handle
+     */
+    public TransactionProfiler profiler;
     
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
@@ -155,7 +175,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * TransctionEstimator State Handle
      */
-    private TransactionEstimator.State estimator_state;
+    private TransactionEstimator.State predict_tState;
     
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
@@ -172,7 +192,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
-    private final BitSet done_partitions;
+    private final BitSet exec_donePartitions;
     
     /**
      * Whether this txn is being executed specutatively
@@ -188,20 +208,10 @@ public class LocalTransaction extends AbstractTransaction {
 //    private final FastIntHistogram exec_touchedPartitions;
     
     /**
-     * 
-     */
-    public final TransactionProfiler profiler;
-
-    /**
      * Whether this transaction's control code was executed on
      * its base partition.
      */
-    private boolean executed = false;
-    
-    /**
-     * Final RpcCallback to the client
-     */
-    private RpcCallback<ClientResponseImpl> client_callback;
+    private boolean exec_controlCode = false;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -214,12 +224,8 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public LocalTransaction(HStoreSite hstore_site) {
         super(hstore_site);
-        
-        HStoreConf hstore_conf = hstore_site.getHStoreConf(); 
-        this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfiler() : null);
-      
         int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
-        this.done_partitions = new BitSet(num_partitions);
+        this.exec_donePartitions = new BitSet(num_partitions);
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
     }
 
@@ -237,6 +243,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public LocalTransaction init(Long txn_id,
+                                 long initiateTime,
                                  long clientHandle,
                                  int base_partition,
                                  PartitionSet predict_touchedPartitions,
@@ -245,10 +252,11 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc,
                                  ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
-        assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
+        assert(predict_touchedPartitions != null);
+        assert(predict_touchedPartitions.isEmpty() == false);
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
-        this.initiateTime = EstTime.currentTimeMillis();
+        this.initiateTime = initiateTime;
         this.catalog_proc = catalog_proc;
         this.client_callback = client_callback;
         this.parameters = params;
@@ -298,7 +306,11 @@ public class LocalTransaction extends AbstractTransaction {
                                       Procedure catalog_proc) {
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
+        this.initiateTime = EstTime.currentTimeMillis();
         boolean predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
+        if (predict_singlePartition == false) {
+            this.dtxnState = new DistributedState(hstore_site).init(this);
+        }
         
         return (LocalTransaction)super.init(
                           txn_id,                       // TxnId
@@ -332,9 +344,9 @@ public class LocalTransaction extends AbstractTransaction {
             public void run(ClientResponseImpl parameter) {}
         };
         return this.testInit(txn_id,
-                              base_partition,
-                              predict_touchedPartitions,
-                              catalog_proc);
+                             base_partition,
+                             predict_touchedPartitions,
+                             catalog_proc);
     }
     
     @Override
@@ -354,9 +366,9 @@ public class LocalTransaction extends AbstractTransaction {
             this.dtxnState = null;
         }
         // Return our TransactionEstimator.State handle
-        if (this.estimator_state != null) {
-            TransactionEstimator.POOL_STATES.returnObject(this.estimator_state);
-            this.estimator_state = null;
+        if (this.predict_tState != null) {
+            TransactionEstimator.POOL_STATES.returnObject(this.predict_tState);
+            this.predict_tState = null;
         }
         
         this.resetExecutionState();
@@ -365,19 +377,19 @@ public class LocalTransaction extends AbstractTransaction {
         this.catalog_proc = null;
         this.client_callback = null;
         this.initiateTime = 0;
+        this.cresponse = null;
         
-        this.executed = false;
+        this.exec_controlCode = false;
         this.exec_speculative = false;
         this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
-        this.done_partitions.clear();
+        this.exec_donePartitions.clear();
         this.restart_ctr = 0;
 
         this.anticache_table = null;
         this.log_enabled = false;
         this.needs_restart = false;
         this.deletable = false;
-        this.not_deletable = false;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -386,6 +398,19 @@ public class LocalTransaction extends AbstractTransaction {
     // SPECIAL SETTER METHODS
     // ----------------------------------------------------------------------------
     
+    public final void setClientResponse(ClientResponseImpl cresponse) {
+        assert(this.cresponse == null);
+        this.cresponse = cresponse;
+    }
+    public final ClientResponseImpl getClientResponse() {
+        return (this.cresponse);
+    }
+    
+    
+    /**
+     * <B>Note:</B> This should never be called by anything other than the TransactionInitializer
+     * @param txn_id
+     */
     public void setTransactionId(Long txn_id) { 
         this.txn_id = txn_id;
     }
@@ -417,7 +442,7 @@ public class LocalTransaction extends AbstractTransaction {
      * Marks that this transaction's control code was executed at its base partition 
      */
     public void markAsExecuted() {
-        this.executed = true;
+        this.exec_controlCode = true;
     }
     
     // ----------------------------------------------------------------------------
@@ -610,20 +635,24 @@ public class LocalTransaction extends AbstractTransaction {
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
     
-    public TransactionInitCallback getTransactionInitCallback() {
+    public TransactionInitCallback initTransactionInitCallback() {
+        assert(this.dtxnState != null) :
+            "Trying to access DistributedState for non distributed txn " + this + "\n" + this.debug();
+        assert(this.dtxnState.init_callback.isInitialized() == false) :
+            String.format("Trying initialize the %s for %s more than once",
+                          this.dtxnState.init_callback.getClass().getSimpleName(), this);
+        this.dtxnState.init_callback.init(this);
         return (this.dtxnState.init_callback);
     }
-    public TransactionPrepareCallback initTransactionPrepareCallback(ClientResponseImpl cresponse) {
-        assert(this.dtxnState.prepare_callback.isInitialized() == false) :
-            "Trying initialize the TransactionPrepareCallback for " + this + " more than once";
-        this.dtxnState.prepare_callback.init(this, cresponse);
+    public TransactionPrepareCallback getOrInitTransactionPrepareCallback() {
+        assert(this.dtxnState != null) :
+            "Trying to access DistributedState for non distributed txn " + this + "\n" + this.debug();
+        if (this.dtxnState.prepare_callback.isInitialized() == false) {
+            this.dtxnState.prepare_callback.init(this);
+        }
         return (this.dtxnState.prepare_callback);
     }
-    public TransactionPrepareCallback getTransactionPrepareCallback() {
-        assert(this.dtxnState != null);
-        return (this.dtxnState.prepare_callback);
-    }
-    
+
     /**
      * Initialize the TransactionFinishCallback for this transaction using the
      * given status indicator. You should always use this callback and not allocate
@@ -632,14 +661,19 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
+        assert(this.dtxnState != null) :
+            "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized() == false) :
-            "Trying initialize the TransactionFinishCallback for " + this + " more than once";
+            String.format("Trying initialize the %s for %s more than once",
+                    this.dtxnState.finish_callback.getClass().getSimpleName(), this);
         // Don't initialize this until later, because we need to know 
         // what the final status of the txn
         this.dtxnState.finish_callback.init(this, status);
         return (this.dtxnState.finish_callback);
     }
     public TransactionFinishCallback getTransactionFinishCallback() {
+        assert(this.dtxnState != null) :
+            "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized()) :
             "Trying to use TransactionFinishCallback for " + this + " before it is intialized";
         return (this.dtxnState.finish_callback);
@@ -656,20 +690,56 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
+    
+    /**
+     * Return the underlying procedure catalog object
+     * The VoltProcedure must have already been set
+     * @return
+     */
+    public Procedure getProcedure() {
+        return (this.catalog_proc);
+    }
+    
+    /**
+     * Return the ParameterSet that contains the procedure input
+     * parameters for this transaction. These are the original parameters
+     * that were sent from the client for this txn.
+     */
+    public ParameterSet getProcedureParameters() {
+        return (this.parameters);
+    }
+    
+    public void removeProcedureParameters() {
+        this.parameters = null;
+    }
 
+    /**
+     * Returns true if all of the partitions that this txn is predicted
+     * to access are all on the same HStoreSite as its base partition
+     */
+    public boolean isPredictAllLocal() {
+        if (this.dtxnState != null) {
+            for (Integer p : this.predict_touchedPartitions) {
+                if (hstore_site.isLocalPartition(p.intValue()) == false) {
+                    return (false);
+                }
+            } // FOR
+        }
+        return (true);
+    }
     
     /**
      * Returns true if the control code for this LocalTransaction was actually started
      * in the PartitionExecutor
      */
     public boolean wasExecuted() {
-        return (this.executed);
+        return (this.exec_controlCode);
     }
     
     @Override
     public boolean needsFinish(int partition) {
         if (this.base_partition == partition) {
-            return (this.executed);
+            return (this.exec_controlCode);
         }
         return super.needsFinish(partition);
     }
@@ -677,18 +747,26 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Mark this transaction as needing to be restarted. This will prevent it from
      * being deleted immediately
-     * @param value
      */
-    public final void setNeedsRestart(boolean value) {
-        assert(this.needs_restart != value) :
-            "Trying to set " + this + " internal needs_restart flag to " + value + " twice";
-        this.needs_restart = value;
+    public final void markNeedsRestart() {
+        assert(this.needs_restart == false) :
+            "Trying to enable " + this + " internal needs_restart flag twice";
+        this.needs_restart = true;
+    }
+    
+    /**
+     * Unmark this transaction as needing to be restarted. This can be safely 
+     * invoked multiple times 
+     */
+    public final void unmarkNeedsRestart() {
+        this.needs_restart = false;
     }
     
     /**
      * Returns true if we believe that this transaction can be deleted
      * Note that this will only return true once and only once for each transaction invocation.
-     * That ensures that only one thread is allowed to delete a transaction
+     * <B>Note:</B> This is not thread safe!
+     * @return
      */
     public boolean isDeletable() {
         if (this.isInitialized() == false) {
@@ -696,34 +774,28 @@ public class LocalTransaction extends AbstractTransaction {
         }
         if (this.dtxnState != null) {
             if (this.dtxnState.init_callback.allCallbacksFinished() == false) {
+                if (t) LOG.warn(String.format("%s - %s is not finished", this,
+                                this.dtxnState.init_callback.getClass().getSimpleName()));
                 return (false);
             }
             if (this.dtxnState.prepare_callback.allCallbacksFinished() == false) {
+                if (t) LOG.warn(String.format("%s - %s is not finished", this,
+                                this.dtxnState.prepare_callback.getClass().getSimpleName()));
                 return (false);
             }
             if (this.dtxnState.finish_callback.allCallbacksFinished() == false) {
+                if (t) LOG.warn(String.format("%s - %s is not finished", this,
+                                this.dtxnState.finish_callback.getClass().getSimpleName()));
                 return (false);
             }
         }
-        if (this.needs_restart || this.not_deletable) {
+        if (this.needs_restart) {
+            if (t) LOG.warn(String.format("%s - Needs restart, can't delete now", this));
             return (false);
         }
-        synchronized (this) {
-            if (this.deletable) return (false);
-            this.deletable = true;
-        }
-        return (true);
-    }
-    public final void markAsNotDeletable() {
-        assert(this.not_deletable == false) :
-            "Trying to mark " + this + " as not-deletable more than once";
-        this.not_deletable = true;
-    }
-    public final void markAsDeletable() {
-        assert(this.deletable == false) :
-            "Trying to mark " + this + " as deletable more than once";
+        if (this.deletable) return (false);
         this.deletable = true;
-        this.not_deletable = false;
+        return (true);
     }
     public final boolean checkDeletableFlag() {
         return (this.deletable);
@@ -773,91 +845,37 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     public boolean hasDonePartitions() {
-        return (this.done_partitions.cardinality() > 0);
+        return (this.exec_donePartitions.cardinality() > 0);
     }
+    
+    /**
+     * Get all of the partitions that have been marked done for this txn
+     * @return
+     */
     public BitSet getDonePartitions() {
-        return (this.done_partitions);
+        return (this.exec_donePartitions);
     }
+    
+    
     public Histogram<Integer> getTouchedPartitions() {
         return (this.exec_touchedPartitions);
     }
-    
-    public String getProcedureName() {
-        return (this.catalog_proc != null ? this.catalog_proc.getName() : null);
-    }
-    
-    /**
-     * Return the underlying procedure catalog object
-     * The VoltProcedure must have already been set
-     * @return
-     */
-    public Procedure getProcedure() {
-        return (this.catalog_proc);
-    }
-    
-    /**
-     * Return the ParameterSet that contains the procedure input
-     * parameters for this transaction. These are the original parameters
-     * that were sent from the client for this txn.
-     */
-    public ParameterSet getProcedureParameters() {
-    	return (this.parameters);
-    }
-    
-    public void removeProcedureParameters() {
-        this.parameters = null;
-    }
-    
-    public int getDependencyCount() { 
-        return (this.state.dependency_ctr);
-    }
-    
-    /**
-     * Returns true if this transaction still has WorkFragments
-     * that need to be dispatched to the appropriate PartitionExecutor 
-     * @return
-     */
-    public boolean stillHasWorkFragments() {
-        return (this.state.still_has_tasks);
-//        this.state.lock.lock();
-//        try {
-//            return (this.state.blocked_tasks.isEmpty() == false ||
-//                    this.state.unblocked_tasks.isEmpty() == false);
-//        } finally {
-//            this.state.lock.unlock();
-//        }
-    }
-    
-    protected Collection<WorkFragment> getBlockedWorkFragments() {
-        return (this.state.blocked_tasks);
-    }
+
     
     public TransactionEstimator.State getEstimatorState() {
-        return (this.estimator_state);
+        return (this.predict_tState);
     }
     public void setEstimatorState(TransactionEstimator.State state) {
-        this.estimator_state = state;
+        this.predict_tState = state;
     }
     
-    /**
-     * Return the latch that will block the PartitionExecutor's thread until
-     * all of the query results have been retrieved for this transaction's
-     * current SQLStmt batch
-     */
-    public CountDownLatch getDependencyLatch() {
-        return this.state.dependency_latch;
+    public TransactionProfiler getProfiler() {
+        return (this.profiler);
+    }
+    public void setProfiler(TransactionProfiler profiler) {
+        this.profiler = profiler;
     }
     
-    /**
-     * Return the number of statements that have been queued up in the last batch
-     * @return
-     */
-    protected int getStatementCount() {
-        return (this.state.batch_size);
-    }
-    protected Map<Integer, DependencyInfo> getStatementDependencies(int stmt_index) {
-        return (this.state.dependencies); // [stmt_index]);
-    }
     /**
      * 
      * @param d_id Output Dependency Id
@@ -867,26 +885,7 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.state.dependencies.get(d_id));
         // return (this.state.dependencies[stmt_index].get(d_id));
     }
-    
-    
-    protected List<Integer> getOutputOrder() {
-        return (this.state.output_order);
-    }
 
-    /**
-     * Set the flag that indicates whether this transaction was executed speculatively
-     */
-    public void setSpeculative(boolean speculative) {
-        this.exec_speculative = speculative;
-    }
-
-    /**
-     * Returns true if this transaction was executed speculatively
-     */
-    public boolean isSpeculative() {
-        return (this.exec_speculative);
-    }
-    
     @Override
     public boolean isExecReadOnly(int partition) {
         if (catalog_proc.getReadonly()) return (true);
@@ -916,6 +915,24 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public PartitionSet getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // SPECULATIVE EXECUTION
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Set the flag that indicates whether this transaction was executed speculatively
+     */
+    public void setSpeculative(boolean speculative) {
+        this.exec_speculative = speculative;
+    }
+
+    /**
+     * Returns true if this transaction was executed speculatively
+     */
+    public boolean isSpeculative() {
+        return (this.exec_speculative);
     }
     
     // ----------------------------------------------------------------------------
@@ -1112,8 +1129,8 @@ public class LocalTransaction extends AbstractTransaction {
             // the executor before it is allowed to start executing
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
             if (input_dep_ids.getIdsCount() > 0) {
-                for (int dependency_id : input_dep_ids.getIdsList()) {
-                    if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                for (Integer dependency_id : input_dep_ids.getIdsList()) {
+                    if (dependency_id.intValue() != HStoreConstants.NULL_DEPENDENCY_ID) {
                         DependencyInfo dinfo = this.getOrCreateDependencyInfo(stmt_index, dependency_id);
                         dinfo.addBlockedWorkFragment(fragment);
                         dinfo.markInternal();
@@ -1362,15 +1379,16 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Figure out what partitions this transaction is done with and notify those partitions
      * that they are done
+     * Returns true if the done partitions has changed for this transaction
      * @param ts
      */
-    public boolean calculateDonePartitions(EstimationThresholds thresholds) {
-        final int ts_done_partitions_size = this.done_partitions.size();
-        Set<Integer> new_done = null;
+    public PartitionSet calculateDonePartitions(EstimationThresholds thresholds) {
+        final int ts_done_partitions_size = this.exec_donePartitions.size();
+        PartitionSet new_done = null;
 
         TransactionEstimator.State t_state = this.getEstimatorState();
         if (t_state == null) {
-            return (false);
+            return (null);
         }
         
         if (d) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
@@ -1379,7 +1397,7 @@ public class LocalTransaction extends AbstractTransaction {
         MarkovEstimate estimate = t_state.getLastEstimate();
         assert(estimate != null) : "Got back null MarkovEstimate for " + this;
         if (estimate.isValid()) {
-            return (false);
+            return (null);
         }
         
         new_done = estimate.getFinishedPartitions(thresholds);
@@ -1393,32 +1411,35 @@ public class LocalTransaction extends AbstractTransaction {
             
             // Make sure that we only tell partitions that we actually touched, otherwise they will
             // be stuck waiting for a finish request that will never come!
-            Collection<Integer> ts_touched = this.getTouchedPartitions().values();
+            Collection<Integer> ts_touched = this.exec_touchedPartitions.values();
 
             // Mark the txn done at this partition if the MarkovEstimate said we were done
             for (Integer p : new_done) {
-                if (this.done_partitions.get(p.intValue()) == false && ts_touched.contains(p)) {
+                if (this.exec_donePartitions.get(p.intValue()) == false && ts_touched.contains(p)) {
                     if (t) LOG.trace(String.format("Marking partition %d as done for %s", p, this));
-                    this.done_partitions.set(p.intValue());
+                    this.exec_donePartitions.set(p.intValue());
                 }
             } // FOR
         }
-        return (this.done_partitions.cardinality() != ts_done_partitions_size);
+        return (this.exec_donePartitions.cardinality() != ts_done_partitions_size ? new_done : null);
     }
     
     // ----------------------------------------------------------------------------
-    // We can attach input dependencies used on non-local partitions
+    // DEBUG STUFF
     // ----------------------------------------------------------------------------
 
     
     @Override
     public String toString() {
+        String ret = null;
         if (this.isInitialized()) {
-            return (String.format("%s #%d/%d", this.getProcedureName(), this.txn_id, this.base_partition));
-//            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
+            ret = String.format("%s #%d/%d", this.catalog_proc.getName(), this.txn_id, this.base_partition);
         } else {
-            return ("<Uninitialized>");
+            ret = "<Uninitialized>";
         }
+        // Include hashCode for debugging
+        ret += "/" + this.hashCode();
+        return (ret);
     }
     
     @Override
@@ -1428,27 +1449,26 @@ public class LocalTransaction extends AbstractTransaction {
         
         // Basic Info
         m = super.getDebugMap();
-        m.put("Procedure", this.getProcedureName());
+        m.put("Procedure", (this.catalog_proc == null ? "???" : this.catalog_proc.getName()));
         
         maps.add(m);
         
         // Predictions
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         m.put("Predict Single-Partitioned", (this.predict_touchedPartitions != null ? this.isPredictSinglePartition() : "???"));
         m.put("Predict Touched Partitions", this.getPredictTouchedPartitions());
         m.put("Predict Read Only", this.isPredictReadOnly());
         m.put("Predict Abortable", this.isPredictAbortable());
         m.put("Restart Counter", this.restart_ctr);
         m.put("Deletable", this.deletable);
-        m.put("Not Deletable", this.not_deletable);
         m.put("Needs Restart", this.needs_restart);
         m.put("Needs CommandLog", this.log_enabled);
-        m.put("Estimator State", this.estimator_state);
+        m.put("Estimator State", this.predict_tState);
         maps.add(m);
 
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
-        m.put("Exec Touched Partitions", this.exec_touchedPartitions);
+        m.put("Exec Touched Partitions", this.exec_touchedPartitions.toString(30));
         
         // Actual Execution
         if (this.state != null) {
@@ -1464,7 +1484,7 @@ public class LocalTransaction extends AbstractTransaction {
         maps.add(m);
 
         // Additional Info
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         m.put("Client Callback", this.client_callback);
         if (this.dtxnState != null) {
             m.put("Init Callback", this.dtxnState.init_callback);

@@ -17,8 +17,7 @@
 
 package org.voltdb.sysprocs;
 
-public class SysProcFragmentId
-{
+public class SysProcFragmentId {
     // @LastCommittedTransaction
     public static final int PF_lastCommittedScan = 1;
     public static final int PF_lastCommittedResults = 2;
@@ -42,117 +41,124 @@ public class SysProcFragmentId
     public static final int PF_partitionCount = 17;
     public static final int PF_ioData = 18;
     public static final int PF_ioDataAggregator = 19;
+    public static final int PF_txnCounterData = 20;
+    public static final int PF_txnCounterDataAggregator = 21;
+    public static final int PF_txnProfilerData = 22;
+    public static final int PF_txnProfilerDataAggregator = 23;
+    public static final int PF_execProfilerData = 24;
+    public static final int PF_execProfilerDataAggregator = 25;
+    public static final int PF_poolData = 26;
+    public static final int PF_poolDataAggregator = 27;
 
     // @Shutdown
-    public static final int PF_shutdownCommand = 21;
-    public static final int PF_procedureDone = 22;
+    public static final int PF_shutdownCommand = 50;
+    public static final int PF_procedureDone = 51;
 
     // @AdHoc
-    public static final int PF_runAdHocFragment = 31;
+    public static final int PF_runAdHocFragment = 55;
 
     // @SnapshotSave
     /*
      * Once per host confirm the file is accessible
      */
-    public static final int PF_saveTest = 40;
+    public static final int PF_saveTest = 60;
     /*
      * Agg test results
      */
-    public static final int PF_saveTestResults = 41;
+    public static final int PF_saveTestResults = 61;
     /*
     * Create and distribute tasks and targets to each EE
     */
-    public static final int PF_createSnapshotTargets = 42;
+    public static final int PF_createSnapshotTargets = 62;
     /*
     * Confirm the targets were successfully created
     */
-    public static final int PF_createSnapshotTargetsResults = 43;
+    public static final int PF_createSnapshotTargetsResults = 63;
     /*
     * Quiesce the export data as part of the snapshot
     */
-    public static final int PF_snapshotSaveQuiesce = 44;
+    public static final int PF_snapshotSaveQuiesce = 64;
     /*
     * Aggregate the results of snapshot quiesce
     */
-    public static final int PF_snapshotSaveQuiesceResults = 45;
+    public static final int PF_snapshotSaveQuiesceResults = 65;
 
     // @LoadMultipartitionTable
-    public static final int PF_loadDistribute = 50;
-    public static final int PF_loadAggregate = 51;
+    public static final int PF_loadDistribute = 70;
+    public static final int PF_loadAggregate = 71;
     
     // @SnapshotRestore
-    public static final int PF_restoreScan = 60;
-    public static final int PF_restoreScanResults = 61;
-    public static final int PF_restoreLoadReplicatedTable = 62;
-    public static final int PF_restoreLoadReplicatedTableResults = 63;
-    public static final int PF_restoreDistributeReplicatedTable = 64;
-    public static final int PF_restoreDistributePartitionedTable = 65;
-    public static final int PF_restoreDistributePartitionedTableResults = 66;
-    public static final int PF_restoreSendReplicatedTable = 67;
-    public static final int PF_restoreSendReplicatedTableResults = 68;
-    public static final int PF_restoreSendPartitionedTable = 69;
-    public static final int PF_restoreSendPartitionedTableResults = 70;
+    public static final int PF_restoreScan = 80;
+    public static final int PF_restoreScanResults = 81;
+    public static final int PF_restoreLoadReplicatedTable = 82;
+    public static final int PF_restoreLoadReplicatedTableResults = 83;
+    public static final int PF_restoreDistributeReplicatedTable = 84;
+    public static final int PF_restoreDistributePartitionedTable = 85;
+    public static final int PF_restoreDistributePartitionedTableResults = 86;
+    public static final int PF_restoreSendReplicatedTable = 87;
+    public static final int PF_restoreSendReplicatedTableResults = 88;
+    public static final int PF_restoreSendPartitionedTable = 89;
+    public static final int PF_restoreSendPartitionedTableResults = 90;
 
     // @StartSampler
-    public static final int PF_startSampler = 80;
+    public static final int PF_startSampler = 100;
 
     // @SystemInformation
-    public static final int PF_systemInformation_distribute = 90;
-    public static final int PF_systemInformation_aggregate = 91;
+    public static final int PF_systemInformation_distribute = 110;
+    public static final int PF_systemInformation_aggregate = 111;
 
     // @Quiesce
-    public static final int PF_quiesce_sites = 100;
-    public static final int PF_quiesce_processed_sites = 101;
+    public static final int PF_quiesceDistribute = 120;
+    public static final int PF_quiesceAggregate = 121;
     
     // @SnapshotStatus
-    public static final int PF_scanSnapshotRegistries = 110;
-    public static final int PF_scanSnapshotRegistriesResults = 111;
+    public static final int PF_scanSnapshotRegistries = 130;
+    public static final int PF_scanSnapshotRegistriesResults = 131;
 
     // @SnapshotScan
-    public static final int PF_snapshotDigestScan = 124;
-    public static final int PF_snapshotDigestScanResults = 125;
-    public static final int PF_snapshotScan = 120;
-    public static final int PF_snapshotScanResults = 121;
-    public static final int PF_hostDiskFreeScan = 122;
-    public static final int PF_hostDiskFreeScanResults = 123;
+    public static final int PF_snapshotDigestScan = 144;
+    public static final int PF_snapshotDigestScanResults = 145;
+    public static final int PF_snapshotScan = 150;
+    public static final int PF_snapshotScanResults = 151;
+    public static final int PF_hostDiskFreeScan = 152;
+    public static final int PF_hostDiskFreeScanResults = 153;
 
     // @SnapshotScan
-    public static final int PF_snapshotDelete = 130;
-    public static final int PF_snapshotDeleteResults = 131;
+    public static final int PF_snapshotDelete = 160;
+    public static final int PF_snapshotDeleteResults = 161;
 
     // @InstanceId
-    public static final int PF_retrieveInstanceId = 160;
-    public static final int PF_retrieveInstanceIdAggregator = 161;
-    public static final int PF_setInstanceId = 162;
-    public static final int PF_setInstanceIdAggregator = 163;
+    public static final int PF_retrieveInstanceId = 170;
+    public static final int PF_retrieveInstanceIdAggregator = 171;
+    public static final int PF_setInstanceId = 172;
+    public static final int PF_setInstanceIdAggregator = 173;
     
     // @DatabaseDump
-    public static final int PF_dumpDistribute = 170;
-    public static final int PF_dumpAggregate = 171;
+    public static final int PF_dumpDistribute = 180;
+    public static final int PF_dumpAggregate = 181;
     
     // @RecomputeMarkovs
-    public static final int PF_recomputeMarkovsDistribute = 175;
+    public static final int PF_recomputeMarkovsDistribute = 185;
     public static final int PF_recomputeMarkovsAggregate = 186;
 
     // @GarbageCollection
-    public static final int PF_gcDistribute = 180;
-    public static final int PF_gcAggregate = 181;
+    public static final int PF_gcDistribute = 190;
+    public static final int PF_gcAggregate = 191;
     
     // @ExecutorStatus
-    public static final int PF_execStatus = 185;
+    public static final int PF_execStatus = 195;
     
     // @GetCatalog
-    public static final int PF_getCatalog = 190;
+    public static final int PF_getCatalog = 200;
     
     // @ResetStats
-    public static final int PF_resetProfilingDistribute = 195;
-    public static final int PF_resetProfilingAggregate = 196;
+    public static final int PF_resetProfilingDistribute = 205;
+    public static final int PF_resetProfilingAggregate = 206;
     
     // @AntiCacheEviction
-    public static final int PF_antiCacheEviction = 200;
+    public static final int PF_antiCacheEviction = 210;
     
     // @SetConfiguration
-    public static final int PF_setConfDistribute = 205;
-    public static final int PF_setConfAggregate = 206;
-    
+    public static final int PF_setConfDistribute = 215;
+    public static final int PF_setConfAggregate = 216;
 }

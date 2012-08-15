@@ -266,13 +266,13 @@ public class RealVoltDB implements VoltDBInterface
                 throw new RuntimeException(ex);
             }
             // ensure at least one host (catalog compiler should check this too
-            if (m_catalogContext.numberOfNodes <= 0) {
-                hostLog.l7dlog( Level.FATAL, LogKeys.host_VoltDB_InvalidHostCount.name(), new Object[] { m_catalogContext.numberOfNodes }, null);
+            if (m_catalogContext.numberOfHosts <= 0) {
+                hostLog.l7dlog( Level.FATAL, LogKeys.host_VoltDB_InvalidHostCount.name(), new Object[] { m_catalogContext.numberOfHosts }, null);
                 HStore.crashDB();
             }
 
-            hostLog.l7dlog( Level.INFO, LogKeys.host_VoltDB_CreatingVoltDB.name(), new Object[] { m_catalogContext.numberOfNodes, leader }, null);
-            m_messenger = new HostMessenger(m_network, leader, m_catalogContext.numberOfNodes, catalogCRC, hostLog);
+            hostLog.l7dlog( Level.INFO, LogKeys.host_VoltDB_CreatingVoltDB.name(), new Object[] { m_catalogContext.numberOfHosts, leader }, null);
+            m_messenger = new HostMessenger(m_network, leader, m_catalogContext.numberOfHosts, catalogCRC, hostLog);
             m_instanceId = m_messenger.waitForGroupJoin();
 
             // Use the host messenger's hostId.
@@ -486,9 +486,6 @@ public class RealVoltDB implements VoltDBInterface
             m_adminListener.shutdown(true);
 
             // shut down the client interface
-            for (ClientInterface ci : m_clientInterfaces) {
-                ci.shutdown();
-            }
 
             // shut down ELT and its connectors.
             ELTManager.instance().shutdown();
@@ -642,10 +639,6 @@ public class RealVoltDB implements VoltDBInterface
         return m_messenger;
     }
 
-    public ArrayList<ClientInterface> getClientInterfaces() {
-        return m_clientInterfaces;
-    }
-
     public Hashtable<Integer, PartitionExecutor> getLocalSites() {
         return m_localSites;
     }
@@ -690,9 +683,6 @@ public class RealVoltDB implements VoltDBInterface
         out.print("Content-type: multipart/mixed; boundary=\"reportsection\"");
 
         out.print("\n\n--reportsection\nContent-Type: text/plain\n\nClientInterface Report\n");
-        for (ClientInterface ci : getClientInterfaces()) {
-          out.print(ci.toString() + "\n");
-        }
 
         out.print("\n\n--reportsection\nContent-Type: text/plain\n\nLocalSite Report\n");
         for(PartitionExecutor es : getLocalSites().values()) {

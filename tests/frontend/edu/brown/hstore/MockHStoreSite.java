@@ -8,6 +8,8 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.utils.EstTime;
+import org.voltdb.utils.EstTimeUpdater;
 
 import com.google.protobuf.RpcCallback;
 
@@ -41,7 +43,7 @@ public class MockHStoreSite extends HStoreSite {
         
         CatalogContext catalogContext = hstore_site.getCatalogContext();
         int base_partition = CollectionUtil.random(hstore_site.getLocalPartitionIds());
-        PartitionSet predict_touchedPartitions = catalogContext.getAllPartitionIdCollection();
+        PartitionSet predict_touchedPartitions = catalogContext.getAllPartitionIds();
         boolean predict_readOnly = false;
         boolean predict_canAbort = true;
         Procedure catalog_proc = hstore_site.getDatabase().getProcedures().getIgnoreCase("@NoOp");
@@ -49,9 +51,10 @@ public class MockHStoreSite extends HStoreSite {
         RpcCallback<ClientResponseImpl> client_callback = null;
         
         LocalTransaction ts = new LocalTransaction(hstore_site);
-        ts.init(txnId, clientHandle, base_partition,
+        ts.init(txnId, EstTime.currentTimeMillis(), clientHandle, base_partition,
                 predict_touchedPartitions, predict_readOnly, predict_canAbort,
                 catalog_proc, params, client_callback);
+        EstTimeUpdater.update(System.currentTimeMillis());
         return (ts);
     }
     
@@ -72,8 +75,7 @@ public class MockHStoreSite extends HStoreSite {
         hstore_conf.site.status_enable = false;
         
         for (Integer p : CatalogUtil.getLocalPartitionIds(catalog_site)) {
-            MockPartitionExecutor executor = new MockPartitionExecutor(p,
-                                                                       catalog_site.getCatalog(),
+            MockPartitionExecutor executor = new MockPartitionExecutor(p, catalog_site.getCatalog(),
                                                                        this.getPartitionEstimator());
             this.addPartitionExecutor(p, executor);
         } // FOR
@@ -122,7 +124,7 @@ public class MockHStoreSite extends HStoreSite {
         
         final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         hstore_site.init().run(); // Blocks until all connections are established
-        final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getHStoreCoordinator();
+        final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getCoordinator();
         assert(hstore_coordinator.isStarted());
         
         final CountDownLatch latch = new CountDownLatch(1);

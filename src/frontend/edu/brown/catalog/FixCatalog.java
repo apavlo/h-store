@@ -62,7 +62,6 @@ public abstract class FixCatalog {
         ClusterConfiguration cc = new ClusterConfiguration(hostname_format, num_hosts, num_sites_per_host, num_partitions_per_site);
         return (FixCatalog.cloneCatalog(orig_catalog, cc));
     }
-    
 
     /**
      * Write the host/sites/partitions directly to the given catalog

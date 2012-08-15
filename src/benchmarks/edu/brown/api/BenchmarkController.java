@@ -51,11 +51,13 @@ package edu.brown.api;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -64,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -74,6 +77,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -86,12 +90,16 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
+import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.MarkovUpdate;
 import org.voltdb.sysprocs.NoOp;
+import org.voltdb.sysprocs.Quiesce;
 import org.voltdb.sysprocs.ResetProfiling;
+import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
@@ -532,6 +540,18 @@ public class BenchmarkController {
         if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
         
+        // If they want to dump profiling information, then we need to make sure
+        // that these parameters are turned on 
+        if (hstore_conf.client.output_exec_profiling != null) {
+            m_config.siteParameters.put("site.exec_profiling", Boolean.TRUE.toString());
+        }
+        if (hstore_conf.client.output_txn_profiling != null) {
+            m_config.siteParameters.put("site.txn_profiling", Boolean.TRUE.toString());
+        }
+        if (hstore_conf.client.output_txn_counters != null) {
+            m_config.siteParameters.put("site.txn_counters", Boolean.TRUE.toString());
+        }
+        
         List<String> siteBaseCommand = new ArrayList<String>();
         if (hstore_conf.global.sshprefix != null &&
             hstore_conf.global.sshprefix.isEmpty() == false) {
@@ -565,7 +585,8 @@ public class BenchmarkController {
                 continue;
             }
             
-            LOG.info(String.format("Starting HStoreSite %s on %s", HStoreThreadManager.formatSiteName(site_id), host));
+            LOG.info(String.format("Starting HStoreSite %s on %s",
+                                   HStoreThreadManager.formatSiteName(site_id), host));
 
 //            String debugString = "";
 //            if (m_config.listenForDebugger) {
@@ -1021,6 +1042,7 @@ public class BenchmarkController {
         m_currentResults = new BenchmarkResults(hstore_conf.client.interval,
                                                 hstore_conf.client.duration,
                                                 m_clientThreads.size());
+        m_currentResults.setEnableLatencies(hstore_conf.client.output_latencies);
         m_currentResults.setEnableBasePartitions(hstore_conf.client.output_basepartitions);
         m_currentResults.setEnableResponsesStatuses(hstore_conf.client.output_response_status);
         
@@ -1149,30 +1171,9 @@ public class BenchmarkController {
             nowTime = System.currentTimeMillis();
         } // WHILE
         
-        // Dump database
-        if (m_config.dumpDatabase && this.stop == false) {
-            assert(m_config.dumpDatabaseDir != null);
-            
-            // We have to tell all our clients to pause first
-            m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
-            
-            if (local_client == null) local_client = this.getClientConnection();
-            try {
-                local_client.callProcedure("@DatabaseDump", m_config.dumpDatabaseDir);
-            } catch (Exception ex) {
-                LOG.error("Failed to dump database contents", ex);
-            }
-        }
+        if (local_client == null) local_client = this.getClientConnection();
+        if (this.stop == false) this.postProcessBenchmark(local_client);
         
-        // Recompute MarkovGraphs
-        if (m_config.markovRecomputeAfterEnd && this.stop == false) {
-            // We have to tell all our clients to pause first
-            m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
-            
-            if (local_client == null) local_client = this.getClientConnection();
-            this.recomputeMarkovs(local_client);
-        }
-
         this.stop = true;
         if (m_config.noShutdown == false && this.failed == false) m_sitePSM.prepareShutdown(false);
         
@@ -1222,7 +1223,117 @@ public class BenchmarkController {
         } else if (debug.get()) {
             LOG.debug("Benchmark failed. Not displaying final results");
         }
-
+    }
+    
+    /**
+     * Perform various post-processing tasks that we may need
+     * @param client
+     * @throws Exception
+     */
+    private void postProcessBenchmark(Client client) throws Exception {
+        // We have to tell all our clients to pause first
+        m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
+        
+        // Then tell the cluster to drain all txns
+        ClientResponse cresponse = null;
+        String procName = VoltSystemProcedure.getProcCallName(Quiesce.class);
+        try {
+            cresponse = client.callProcedure(procName);
+        } catch (Exception ex) {
+            throw new Exception("Failed to execute " + procName, ex);
+        }
+        assert(cresponse.getStatus() == Status.OK) :
+            String.format("Failed to quiesce cluster!\n%s", cresponse);
+        
+        // Dump database
+        if (m_config.dumpDatabase && this.stop == false) {
+            assert(m_config.dumpDatabaseDir != null);
+            try {
+                client.callProcedure(VoltSystemProcedure.getProcCallName(DatabaseDump.class),
+                                     m_config.dumpDatabaseDir);
+            } catch (Exception ex) {
+                throw new Exception("Failed to dump database contents", ex);
+            }
+        }
+        
+        // Dump Exec Profiling Info
+        if (hstore_conf.client.output_exec_profiling != null) {
+            this.writeStats(client,
+                            SysProcSelector.EXECPROFILER,
+                            hstore_conf.client.output_exec_profiling);
+        }
+        
+        // Dump Txn Profiling Info
+        if (hstore_conf.client.output_txn_profiling != null) {
+            this.writeStats(client,
+                            SysProcSelector.TXNPROFILER,
+                            hstore_conf.client.output_txn_profiling);
+        }
+        // Dump Txn Counters Info
+        if (hstore_conf.client.output_txn_counters != null) {
+            this.writeStats(client,
+                            SysProcSelector.TXNCOUNTER,
+                            hstore_conf.client.output_txn_counters);
+        }
+        
+        // Recompute MarkovGraphs
+        if (m_config.markovRecomputeAfterEnd && this.stop == false) {
+            this.recomputeMarkovs(client);
+        }
+    }
+    
+    private void writeStats(Client client, SysProcSelector sps, String outputPath) throws Exception {
+        Object params[] = { sps.name(), 0 };
+        ClientResponse cresponse = null;
+        String procName = VoltSystemProcedure.getProcCallName(Statistics.class);
+        try {
+            cresponse = client.callProcedure(procName, params);
+        } catch (Exception ex) {
+            throw new Exception("Failed to execute " + procName, ex);
+        }
+        assert(cresponse.getStatus() == Status.OK) :
+            String.format("Failed to get %s stats\n%s", sps, cresponse); 
+        assert(cresponse.getResults().length == 1) :
+            String.format("Failed to get %s stats\n%s", sps, cresponse);
+        VoltTable vt = cresponse.getResults()[0];
+        
+        // Combine results (optional)
+        boolean needCombine = false;
+        if (sps == SysProcSelector.TXNPROFILER) needCombine = hstore_conf.client.output_txn_profiling_combine;
+        if (sps == SysProcSelector.TXNCOUNTER) needCombine = hstore_conf.client.output_txn_counters_combine;
+        if (needCombine) {
+            int offset = vt.getColumnIndex("PROCEDURE");
+            VoltTable.ColumnInfo cols[] = Arrays.copyOfRange(VoltTableUtil.extractColumnInfo(vt), offset, vt.getColumnCount());
+            Map<String, Object[]> totalRows = new TreeMap<String, Object[]>();
+            while (vt.advanceRow()) {
+                String name = vt.getString(offset);
+                Object row[] = totalRows.get(name);
+                if (row == null) {
+                    row = new Object[cols.length];
+                    row[0] = name;
+                    for (int i = 1; i < row.length; i++) {
+                        row[i] = new Long(0l);
+                    } // FOR
+                    totalRows.put(name, row);
+                }
+                for (int i = 1; i < row.length; i++) {
+                    row[i] = ((Long)row[i]) + vt.getLong(offset + i);
+                } // FOR
+            } // WHILE
+            
+            vt = new VoltTable(cols);
+            for (Object[] row : totalRows.values()) {
+                vt.addRow(row);
+            } // FOR
+        }
+        
+        // Write out CSV
+        FileWriter out = new FileWriter(outputPath);
+        VoltTableUtil.csv(out, vt, true);
+        out.close();
+        LOG.info(String.format("Write %s information to '%s'",
+                               sps, FileUtil.realpath(outputPath)));
+        return;
     }
     
     private void resetCluster(Client client) {
@@ -1234,7 +1345,7 @@ public class BenchmarkController {
         
         ClientResponse cr = null;
         for (Class<VoltSystemProcedure> sysproc : sysprocs) {
-            String procName = "@"+sysproc.getSimpleName();
+            String procName = VoltSystemProcedure.getProcCallName(sysproc);
             try {
                 cr = client.callProcedure(procName);
             } catch (Exception ex) {
@@ -1402,7 +1513,6 @@ public class BenchmarkController {
     }
 
     public static void main(final String[] vargs) throws Exception {
-        boolean jsonOutput = false;
         int hostCount = 1;
         int sitesPerHost = 2;
         int k_factor = 0;
@@ -1511,9 +1621,6 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase(HStoreConstants.BENCHMARK_PARAM_PREFIX + "CONF")) {
                 benchmark_conf_path = parts[1];
 
-            /* Whether to enable JSON output formatting of the final result */
-            } else if (parts[0].equalsIgnoreCase("JSONOUTPUT")) {
-                jsonOutput = Boolean.parseBoolean(parts[1]);
             /* Whether to kill the benchmark if we get consecutive intervals with zero results */
             } else if (parts[0].equalsIgnoreCase("KILLONZERO")) {
                 killOnZeroResults = Boolean.parseBoolean(parts[1]);
@@ -1843,8 +1950,7 @@ public class BenchmarkController {
                 evictable,
                 deferrable,
                 dumpDatabase,
-                dumpDatabaseDir,
-                jsonOutput
+                dumpDatabaseDir
         );
         
         // Always pass these parameters

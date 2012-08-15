@@ -32,23 +32,22 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.exceptions.MispredictionException;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
@@ -105,7 +104,7 @@ public class BatchPlanner implements Loggable {
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
 
-    protected final Catalog catalog;
+    protected final CatalogContext catalogContext;
     protected final Procedure catalog_proc;
     protected final Statement catalog_stmts[];
     private final boolean stmt_is_readonly[];
@@ -460,11 +459,11 @@ public class BatchPlanner implements Loggable {
 
         HStoreConf hstore_conf = HStoreConf.singleton();
 
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
+        this.catalog_proc = catalog_proc;
+        this.catalogContext = p_estimator.getCatalogContext();
+        this.num_partitions = this.catalogContext.numberOfPartitions;
         this.batchSize = batchSize;
         this.maxRoundSize = hstore_conf.site.planner_max_round_size;
-        this.catalog_proc = catalog_proc;
-        this.catalog = catalog_proc.getCatalog();
         this.p_estimator = p_estimator;
         this.hasher = p_estimator.getHasher();
         this.plan = new BatchPlan(this.maxRoundSize);
@@ -650,6 +649,7 @@ public class BatchPlanner implements Loggable {
                     LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id, base_partition, Arrays.toString(this.catalog_stmts)));
                 if (this.enable_profiling)
                     time_plan.stop();
+                touched_partitions.put(base_partition, this.batchSize);
                 return (cache_singlePartitionPlans[base_partition.intValue()]);
             }
         }
@@ -661,7 +661,7 @@ public class BatchPlanner implements Loggable {
         // DEBUG DUMP
         // ----------------------
         if (t) {
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Batch Size", this.batchSize);
             for (int i = 0; i < this.batchSize; i++) {
                 m.put(String.format("[%02d] %s", i, this.catalog_stmts[i].getName()), Arrays.toString(batchArgs[i].toArray()));
@@ -818,7 +818,8 @@ public class BatchPlanner implements Loggable {
                 }
             }
             if (d)
-                LOG.debug(String.format("[#%d-%02d] is_singlepartition=%s, partitions=%s", txn_id, stmt_index, is_singlepartition, stmt_all_partitions));
+                LOG.debug(String.format("[#%d-%02d] is_singlepartition=%s, partitions=%s",
+                          txn_id, stmt_index, is_singlepartition, stmt_all_partitions));
 
             // Get a sorted list of the PlanFragments that we need to execute
             // for this query
@@ -829,9 +830,9 @@ public class BatchPlanner implements Loggable {
                 plan.frag_list[stmt_index] = this.sorted_singlep_fragments[stmt_index];
 
                 // Only mark that we touched these partitions if the Statement
-                // is not on a replicated table
-                if (is_replicated_only == false) {
-                    touched_partitions.putAll(stmt_all_partitions);
+                // is not on a replicated table or it's not read-only
+                if (is_replicated_only == false || is_read_only == false) {
+                    touched_partitions.put(stmt_all_partitions);
                 }
 
             } else {
@@ -841,7 +842,7 @@ public class BatchPlanner implements Loggable {
                 plan.frag_list[stmt_index] = this.sorted_multip_fragments[stmt_index];
 
                 // Always mark that we are touching these partitions
-                touched_partitions.putAll(stmt_all_partitions);
+                touched_partitions.put(stmt_all_partitions);
             }
 
             plan.readonly = plan.readonly && catalog_stmt.getReadonly();
@@ -871,11 +872,12 @@ public class BatchPlanner implements Loggable {
 
                     // Make sure that we don't count the local partition if it
                     // was reading a replicated table.
-                    if (this.stmt_is_replicatedonly[i] == false || (this.stmt_is_replicatedonly[i] && this.stmt_is_readonly[i] == false)) {
+                    if (this.stmt_is_replicatedonly[i] == false ||
+                         (this.stmt_is_replicatedonly[i] && this.stmt_is_readonly[i] == false)) {
                         if (t)
                             LOG.trace(String.format("%s touches non-replicated table. Including %d partitions in mispredict histogram for txn #%d", this.catalog_stmts[i].fullName(),
                                     plan.stmt_partitions[i].size(), txn_id));
-                        mispredict_h.putAll(plan.stmt_partitions[i]);
+                        mispredict_h.put(plan.stmt_partitions[i]);
                     }
                 } // FOR
                 continue;
@@ -885,10 +887,13 @@ public class BatchPlanner implements Loggable {
             // DEBUG DUMP
             // ----------------------
             if (d) {
-                Map<?, ?> maps[] = new Map[fragments.size() + 1];
+                List<PlanFragment> _fragments = (is_singlepartition ?
+                        this.sorted_singlep_fragments[stmt_index] : this.sorted_multip_fragments[stmt_index]);
+                
+                Map<?, ?> maps[] = new Map[_fragments.size() + 1];
                 int ii = 0;
-                for (PlanFragment catalog_frag : fragments) {
-                    Map<String, Object> m = new ListOrderedMap<String, Object>();
+                for (PlanFragment catalog_frag : _fragments) {
+                    Map<String, Object> m = new LinkedHashMap<String, Object>();
                     PartitionSet p = plan.frag_partitions[stmt_index].get(catalog_frag);
                     boolean frag_local = (p.size() == 1 && p.contains(base_partition));
                     m.put(String.format("[%02d] Fragment", ii), catalog_frag.fullName());
@@ -898,7 +903,7 @@ public class BatchPlanner implements Loggable {
                     maps[ii] = m;
                 } // FOR
 
-                Map<String, Object> header = new ListOrderedMap<String, Object>();
+                Map<String, Object> header = new LinkedHashMap<String, Object>();
                 header.put("Batch Statement#", String.format("%02d / %02d", stmt_index, this.batchSize));
                 header.put("Catalog Statement", catalog_stmt.fullName());
                 header.put("Statement SQL", catalog_stmt.getSqltext());
@@ -908,7 +913,7 @@ public class BatchPlanner implements Loggable {
                 header.put("IsStmtLocal", is_local);
                 header.put("IsReplicatedOnly", is_replicated_only);
                 header.put("IsBatchLocal", plan.all_local);
-                header.put("Fragments", fragments.size());
+                header.put("Fragments", _fragments.size());
                 maps[0] = header;
 
                 LOG.debug("\n" + StringUtil.formatMapsBoxed(maps));

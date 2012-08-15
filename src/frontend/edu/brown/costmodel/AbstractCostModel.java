@@ -36,8 +36,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.CatalogType;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
@@ -165,7 +165,7 @@ public abstract class AbstractCostModel {
     /**
      * Constructor
      */
-    public AbstractCostModel(final Class<? extends AbstractCostModel> child_class, final Database catalog_db, final PartitionEstimator p_estimator) {
+    public AbstractCostModel(final Class<? extends AbstractCostModel> child_class, final CatalogContext catalogContext, final PartitionEstimator p_estimator) {
         this.child_class = child_class;
         this.p_estimator = p_estimator;
     }
@@ -203,17 +203,17 @@ public abstract class AbstractCostModel {
      * 
      * @param catalog_db
      */
-    public final void prepare(final Database catalog_db) {
+    public final void prepare(final CatalogContext catalogContext) {
         // This is the start of a new run through the workload, so we need to
         // reinit our PartitionEstimator so that we are getting the proper
         // catalog objects back
-        this.p_estimator.initCatalog(catalog_db);
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
-        this.num_tables = catalog_db.getTables().size();
-        this.num_procedures = catalog_db.getProcedures().size();
+        this.p_estimator.initCatalog(catalogContext);
+        this.num_partitions = catalogContext.numberOfPartitions;
+        this.num_tables = catalogContext.database.getTables().size();
+        this.num_procedures = catalogContext.database.getProcedures().size();
 
         // final boolean trace = LOG.isTraceEnabled();
-        this.prepareImpl(catalog_db);
+        this.prepareImpl(catalogContext);
 
         // Construct a PartitionPlan for the current state of the catalog so
         // that we
@@ -234,7 +234,7 @@ public abstract class AbstractCostModel {
      * Additional initialization that is needed before beginning the next round
      * of estimations
      */
-    public abstract void prepareImpl(final Database catalog_db);
+    public abstract void prepareImpl(final CatalogContext catalogContext);
 
     // ----------------------------------------------------------------------------
     // BASE METHODS
@@ -536,7 +536,7 @@ public abstract class AbstractCostModel {
      * @return
      * @throws Exception
      */
-    public abstract double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace xact) throws Exception;
+    public abstract double estimateTransactionCost(CatalogContext catalogContext, Workload workload, Filter filter, TransactionTrace xact) throws Exception;
 
     /**
      * Estimate the cost of a single TransactionTrace object
@@ -546,8 +546,8 @@ public abstract class AbstractCostModel {
      * @return
      * @throws Exception
      */
-    public final double estimateTransactionCost(Database catalog_db, TransactionTrace xact) throws Exception {
-        return (this.estimateTransactionCost(catalog_db, null, null, xact));
+    public final double estimateTransactionCost(CatalogContext catalogContext, TransactionTrace xact) throws Exception {
+        return (this.estimateTransactionCost(catalogContext, null, null, xact));
     }
 
     /**
@@ -557,35 +557,35 @@ public abstract class AbstractCostModel {
      * @return
      * @throws Exception
      */
-    public final double estimateWorkloadCost(Database catalog_db, Workload workload, Filter filter, Double upper_bound) throws Exception {
-        this.prepare(catalog_db);
+    public final double estimateWorkloadCost(CatalogContext catalogContext, Workload workload, Filter filter, Double upper_bound) throws Exception {
+        this.prepare(catalogContext);
         // Always make sure that we reset the filter
         if (filter != null)
             filter.reset();
-        return (this.estimateWorkloadCostImpl(catalog_db, workload, filter, upper_bound));
+        return (this.estimateWorkloadCostImpl(catalogContext, workload, filter, upper_bound));
     }
 
     /**
      * Base implementation to estimate cost of a Workload
      * 
-     * @param catalog_db
+     * @param catalogContext
      * @param workload
      * @param filter
      * @param upper_bound
      * @return
      * @throws Exception
      */
-    protected double estimateWorkloadCostImpl(Database catalog_db, Workload workload, Filter filter, Double upper_bound) throws Exception {
+    protected double estimateWorkloadCostImpl(CatalogContext catalogContext, Workload workload, Filter filter, Double upper_bound) throws Exception {
         double cost = 0.0d;
         Iterator<TransactionTrace> it = workload.iterator(filter);
         while (it.hasNext()) {
             TransactionTrace xact = it.next();
-            // System.out.println(xact.debug(this.catalog_db) + "\n");
+            // System.out.println(xact.debug(this.catalogContext) + "\n");
             try {
-                cost += this.estimateTransactionCost(catalog_db, workload, filter, xact);
+                cost += this.estimateTransactionCost(catalogContext, workload, filter, xact);
             } catch (Exception ex) {
                 LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
-                CatalogUtil.saveCatalog(catalog_db.getCatalog(), CatalogUtil.CATALOG_FILENAME);
+                CatalogUtil.saveCatalog(catalogContext.catalog, CatalogUtil.CATALOG_FILENAME);
                 throw ex;
             }
             if (upper_bound != null && cost > upper_bound.doubleValue()) {
@@ -603,8 +603,8 @@ public abstract class AbstractCostModel {
      * @return
      * @throws Exception
      */
-    public final double estimateWorkloadCost(Database catalog_db, Workload workload) throws Exception {
-        return (this.estimateWorkloadCost(catalog_db, workload, null, null));
+    public final double estimateWorkloadCost(CatalogContext catalogContext, Workload workload) throws Exception {
+        return (this.estimateWorkloadCost(catalogContext, workload, null, null));
     }
 
     // ----------------------------------------------------------------------------
@@ -658,10 +658,10 @@ public abstract class AbstractCostModel {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public String debugHistograms(Database catalog_db) {
+    public String debugHistograms(CatalogContext catalogContext) {
         int num_histograms = 6;
         Map<String, Object> maps[] = new Map[num_histograms];
-        Map<Object, String> debugMap = CatalogKey.getDebugMap(catalog_db, Table.class, Procedure.class);
+        Map<Object, String> debugMap = CatalogKey.getDebugMap(catalogContext.database, Table.class, Procedure.class);
 
         String labels[] = {
             "Procedures",

@@ -72,17 +72,31 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     /** Standard success return value for sysprocs returning STATUS_SCHEMA */
     protected static long STATUS_OK = 0L;
     
+    protected CatalogContext catalogContext;
+    
+    @Deprecated
     protected Database database = null;
+    @Deprecated
     protected Cluster cluster = null;
+    @Deprecated
     protected int num_partitions;
+    
     protected final List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+
+    public abstract void initImpl();
     
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, pEstimator);
+    public final void globalInit(PartitionExecutor executor,
+                                 Procedure catalog_proc,
+                                 BackendTarget eeType,
+                                 HsqlBackend hsql,
+                                 PartitionEstimator pEstimator) {
+        super.globalInit(executor, catalog_proc, eeType, hsql, pEstimator);
+        this.catalogContext = executor.getCatalogContext();
         this.database = CatalogUtil.getDatabase(catalog_proc);
         this.cluster = CatalogUtil.getCluster(this.database);
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
+        this.num_partitions = this.catalogContext.numberOfPartitions;
+        this.initImpl();
     }
 
     protected final void registerPlanFragment(long fragId) {
@@ -154,7 +168,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             int partitions[] = null;
             if (pf.destPartitionId < 0) {
                 if (pf.multipartition) {
-                    partitions = CollectionUtil.toIntArray(hstore_site.getAllPartitionIds());
+                    partitions = CollectionUtil.toIntArray(catalogContext.getAllPartitionIds());
                 }
                 // If it's not multipartitioned and they still don't have a destPartitionId,
                 // then we'll make it just go to this PartitionExecutor's local partition
@@ -208,7 +222,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
         // For some reason we have problems if we're using the transaction profiler
         // with sysprocs, so we'll just always turn it off
-        if (hstore_conf.site.txn_profiling) ts.profiler.disableProfiling();
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.disableProfiling();
         
         // Bombs away!
         return (this.executor.dispatchWorkFragments(ts, 1, this.fragments, parameters));
@@ -262,11 +276,10 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
      * @return
      */
     protected final VoltTable[] executeOncePerSite(final int distributeId, final int aggregateId, final ParameterSet params) {
-        final int num_sites = CatalogUtil.getNumberOfSites(this.database);
-        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[num_sites + 1];
+        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[catalogContext.numberOfSites + 1];
         
         int i = 0;
-        for (Site catalog_site : CatalogUtil.getAllSites(this.database)) {
+        for (Site catalog_site : catalogContext.sites.values()) {
             Partition catalog_part = CollectionUtil.first(catalog_site.getPartitions());
             pfs[i] = new SynthesizedPlanFragment();
             pfs[i].fragmentId = distributeId;
@@ -276,7 +289,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             pfs[i].nonExecSites = false;
             pfs[i].destPartitionId = catalog_part.getId();
             pfs[i].parameters = params;
-            pfs[i].last_task = (catalog_site.getId() == hstore_site.getSiteId());
+            pfs[i].last_task = (catalog_site.getId() != hstore_site.getSiteId());
             i += 1;
         } // FOR
 
@@ -287,10 +300,54 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         pfs[i].outputDependencyIds = new int[] { aggregateId };
         pfs[i].multipartition = false;
         pfs[i].nonExecSites = false;
-        pfs[i].destPartitionId = CollectionUtil.first(hstore_site.getLocalPartitionIds());
+        pfs[i].destPartitionId = this.partitionId;
         pfs[i].parameters = params;
         pfs[i].last_task = true;
         
         return (this.executeSysProcPlanFragments(pfs, aggregateId));
+    }
+    
+    /**
+     * Helper method that will queue up the distributed SynthesizedPlanFragment (distributeId)
+     * at all of the partitions in the cluster. Note that the same ParameterSet will be given 
+     * to both the distributed and aggregate operations
+     * @param distributeId
+     * @param aggregateId
+     * @param params
+     * @return
+     */
+    protected final VoltTable[] executeOncePerPartition(final int distributeId, final int aggregateId, final ParameterSet params) {
+        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[catalogContext.numberOfPartitions + 1];
+        
+        int i = 0;
+        for (Partition catalog_part : catalogContext.getAllPartitions()) {
+            pfs[i] = new SynthesizedPlanFragment();
+            pfs[i].fragmentId = distributeId;
+            pfs[i].inputDependencyIds = new int[] { };
+            pfs[i].outputDependencyIds = new int[] { distributeId };
+            pfs[i].multipartition = true;
+            pfs[i].nonExecSites = false;
+            pfs[i].destPartitionId = catalog_part.getId();
+            pfs[i].parameters = params;
+            pfs[i].last_task = false; // (catalog_part.getId() != this.partitionId);
+            i += 1;
+        } // FOR
+
+        // a final plan fragment to aggregate the results
+        pfs[i] = new SynthesizedPlanFragment();
+        pfs[i].fragmentId = aggregateId;
+        pfs[i].inputDependencyIds = new int[] { distributeId };
+        pfs[i].outputDependencyIds = new int[] { aggregateId };
+        pfs[i].multipartition = false;
+        pfs[i].nonExecSites = false;
+        pfs[i].destPartitionId = this.partitionId;
+        pfs[i].parameters = params;
+        pfs[i].last_task = true;
+        
+        return (this.executeSysProcPlanFragments(pfs, aggregateId));
+    }
+    
+    public static final String getProcCallName(Class<? extends VoltSystemProcedure> procClass) {
+        return "@" + procClass.getSimpleName();
     }
 }

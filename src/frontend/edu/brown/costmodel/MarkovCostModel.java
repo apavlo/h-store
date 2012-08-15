@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -206,11 +207,11 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param catalog_db
      * @param p_estimator
      */
-    public MarkovCostModel(Database catalog_db, PartitionEstimator p_estimator, TransactionEstimator t_estimator, EstimationThresholds thresholds) {
-        super(MarkovCostModel.class, catalog_db, p_estimator);
+    public MarkovCostModel(CatalogContext catalogContext, PartitionEstimator p_estimator, TransactionEstimator t_estimator, EstimationThresholds thresholds) {
+        super(MarkovCostModel.class, catalogContext, p_estimator);
         this.thresholds = thresholds;
         this.t_estimator = t_estimator;
-        this.all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+        this.all_partitions = catalogContext.getAllPartitionIds();
 
         assert (this.t_estimator != null) : "Missing TransactionEstimator";
     }
@@ -259,7 +260,7 @@ public class MarkovCostModel extends AbstractCostModel {
     }
 
     @Override
-    public synchronized double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
+    public synchronized double estimateTransactionCost(CatalogContext catalogContext, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
         // Throw the txn at the estimator and let it come up with the initial
         // path estimation.
         // Now execute the queries and see what path the txn actually takes
@@ -315,7 +316,7 @@ public class MarkovCostModel extends AbstractCostModel {
                 this.fast_path_counter.put(s.getProcedure());
             }
         } catch (Throwable ex) {
-            System.err.println(txn_trace.debug(catalog_db));
+            System.err.println(txn_trace.debug(catalogContext.database));
             System.err.println("COST = " + cost);
             System.err.println("BASE PARTITION = " + s.getBasePartition());
             System.err.println("PENALTIES = " + this.penalties);
@@ -659,7 +660,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
                 // For each partition that we don't touch here, we want to
                 // increase their idle counter
-                this.idle_partition_ctrs.putAll(this.all_partitions);
+                this.idle_partition_ctrs.put(this.all_partitions);
             } // FOR
             last_est_idx = stop;
             touched_partitions.addAll(new_touched_partitions);
@@ -757,12 +758,10 @@ public class MarkovCostModel extends AbstractCostModel {
     }
 
     @Override
-    public void prepareImpl(Database catalog_db) {
-        // This is the start of a new run through the workload, so we need to
-        // re-init
-        // our PartitionEstimator so that we are getting the proper catalog
-        // objects back
-        this.p_estimator.initCatalog(catalog_db);
+    public void prepareImpl(CatalogContext catalogContext) {
+        // This is the start of a new run through the workload, so we need to re-init 
+        // our PartitionEstimator so that we are getting the proper catalog objects back
+        this.p_estimator.initCatalog(catalogContext);
     }
 
     /**
@@ -841,7 +840,7 @@ public class MarkovCostModel extends AbstractCostModel {
             } // FOR
         }
 
-        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
+        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalogContext);
         final MarkovCostModel thread_costmodels[][] = new MarkovCostModel[num_threads][num_partitions];
         final ProfileMeasurement profilers[] = new ProfileMeasurement[num_threads];
         final LinkedBlockingDeque<Pair<Integer, TransactionTrace>> queues[] = (LinkedBlockingDeque<Pair<Integer, TransactionTrace>>[]) new LinkedBlockingDeque<?>[num_threads];
@@ -906,7 +905,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     for (int p = 0; p < num_partitions; p++) {
                         MarkovGraphsContainer markovs = (global ? thread_markovs[thread_id].get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) : thread_markovs[thread_id].get(p));
                         TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_mappings, markovs);
-                        costmodels[p] = new MarkovCostModel(args.catalog_db, p_estimator, t_estimator, args.thresholds);
+                        costmodels[p] = new MarkovCostModel(args.catalogContext, p_estimator, t_estimator, args.thresholds);
                         if (force_fullpath)
                             thread_costmodels[thread_id][p].forceFullPathComparison();
                         if (force_regenerate)
@@ -961,7 +960,7 @@ public class MarkovCostModel extends AbstractCostModel {
                         try {
                             profiler.start();
                             if (skip_processing == false) {
-                                cost = costmodels[partition].estimateTransactionCost(args.catalog_db, txn_trace);
+                                cost = costmodels[partition].estimateTransactionCost(args.catalogContext, txn_trace);
                             }
                         } catch (Throwable ex) {
                             error = ex;
@@ -984,9 +983,9 @@ public class MarkovCostModel extends AbstractCostModel {
                                 penalty_groups.add(p.getGroup());
                                 penalties.add(p);
                             } // FOR
-                            proc_h.putAll(penalty_groups);
-                            optimizations_h.putAll(penalty_groups);
-                            penalties_h.putAll(penalties);
+                            proc_h.put(penalty_groups);
+                            optimizations_h.put(penalty_groups);
+                            penalties_h.put(penalties);
                             missed_h.put(catalog_proc);
                         } else {
                             accurate_h.put(catalog_proc);
@@ -1013,8 +1012,8 @@ public class MarkovCostModel extends AbstractCostModel {
         for (int i = 0; i < num_threads; i++) {
             for (int p = 0; p < num_partitions; p++) {
                 MarkovCostModel mc = thread_costmodels[i][p];
-                fastpath_h.putHistogram(mc.fast_path_counter);
-                fullpath_h.putHistogram(mc.full_path_counter);
+                fastpath_h.put(mc.fast_path_counter);
+                fullpath_h.put(mc.full_path_counter);
                 total_time.appendTime(profilers[i]);
             }
         } // FOR
