@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
@@ -37,6 +38,8 @@ import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
 import edu.brown.hstore.Hstoreservice.ShutdownResponse;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -58,6 +61,7 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
@@ -79,6 +83,7 @@ import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.PrefetchQueryPlanner;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.RingBufferAppender;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.NIOEventLoop;
 import edu.brown.protorpc.ProtoRpcChannel;
@@ -332,7 +337,8 @@ public class HStoreCoordinator implements Shutdownable {
      */
     @Override
     public synchronized void shutdown() {
-        assert(this.state == ShutdownState.STARTED || this.state == ShutdownState.PREPARE_SHUTDOWN) : "Invalid MessengerState " + this.state;
+        assert(this.state == ShutdownState.STARTED || this.state == ShutdownState.PREPARE_SHUTDOWN) :
+            "Invalid MessengerState " + this.state;
         
         this.state = ShutdownState.SHUTDOWN;
         
@@ -633,23 +639,31 @@ public class HStoreCoordinator implements Shutdownable {
         }
         
         @Override
-        public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
+        public void shutdownPrepare(RpcController controller, ShutdownPrepareRequest request, RpcCallback<ShutdownPrepareResponse> done) {
             String originName = HStoreThreadManager.formatSiteName(request.getSenderSite());
             
             // See if they gave us the original error. If they did, then we'll
             // try to be helpful and print it out here
             SerializableException error = null;
-
             if (request.hasError() && request.getError().isEmpty() == false) {
                 error = SerializableException.deserializeFromBuffer(request.getError().asReadOnlyByteBuffer());
-
-//                LOG.fatal("Error that caused shutdown from HStoreSite " + originName, error);
             }
+            LOG.warn(String.format("Got %s from HStoreSite%s",
+                     request.getClass().getSimpleName(), originName, (error != null ? " - " + error : "")));
             
-            LOG.warn(String.format("Got shutdown request from HStoreSite %s", originName, error));
+            // Tell the HStoreSite to prepare to shutdown
+            HStoreCoordinator.this.hstore_site.prepareShutdown(request.hasError());
             
-            // Tell the HStoreSite to shutdown
-            HStoreCoordinator.this.hstore_site.prepareShutdown(false);
+            // Then send back the acknowledgment that we're good to go
+            ShutdownPrepareResponse response = ShutdownPrepareResponse.newBuilder()
+                                                   .setSenderSite(HStoreCoordinator.this.local_site_id)
+                                                   .build();
+            done.run(response);
+        }
+        
+        @Override
+        public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
+            String originName = HStoreThreadManager.formatSiteName(request.getSenderSite());
             
 
             // Then send back the acknowledgment right away
@@ -664,10 +678,6 @@ public class HStoreCoordinator implements Shutdownable {
             if (debug.get())
                 LOG.debug(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
                                         transactionRedirect_dispatcher.getIdleTime().getTotalThinkTimeMS()));
-            // ThreadUtil.sleep(1000); // HACK
-            // LogManager.shutdown();
-            // System.exit(request.getExitStatus());
-            
         }
 
         @Override
@@ -1151,27 +1161,13 @@ public class HStoreCoordinator implements Shutdownable {
         LOG.info("Shutting down cluster", error);
 
         final int exit_status = (error == null ? 0 : 1);
-        final CountDownLatch latch = new CountDownLatch(this.num_sites);
+        final CountDownLatch latch = new CountDownLatch(this.num_sites-1);
         
         try {
             if (this.num_sites > 1) {
-                RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
-                    private final Set<Integer> siteids = new HashSet<Integer>(); 
-                    
-                    @Override
-                    public void run(ShutdownResponse parameter) {
-                        int siteId = parameter.getSenderSite();
-                        assert(this.siteids.contains(siteId) == false) :
-                            "Duplicate response from remote HStoreSite " + HStoreThreadManager.formatSiteName(siteId);
-                        this.siteids.add(siteId);
-                        if (trace.get()) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
-                        latch.countDown();
-                    }
-                };
-                
-                ShutdownRequest.Builder builder = ShutdownRequest.newBuilder()
-                                                        .setSenderSite(catalog_site.getId())
-                                                        .setExitStatus(exit_status);
+                RpcCallback<ShutdownPrepareResponse> callback = new ShutdownPrepareCallback(this.num_sites, latch);
+                ShutdownPrepareRequest.Builder builder = ShutdownPrepareRequest.newBuilder()
+                                                            .setSenderSite(this.catalog_site.getId());
                 // Pack the error into a SerializableException
                 if (error != null) {
                     SerializableException sError = new SerializableException(error);
@@ -1179,8 +1175,44 @@ public class HStoreCoordinator implements Shutdownable {
                     builder.setError(ByteString.copyFrom(buffer));
                     LOG.info("Serializing error message in shutdown request");
                 }
+                ShutdownPrepareRequest request = builder.build();
                 
-                ShutdownRequest request = builder.build();
+                if (debug.get()) LOG.debug(String.format("Sending %s to %d remote sites",
+                                           request.getClass().getSimpleName(), this.num_sites));
+                for (int site_id = 0; site_id < this.num_sites; site_id++) {
+                    if (site_id == this.local_site_id) continue;
+                    this.channels[site_id].shutdownPrepare(new ProtoRpcController(), request, callback);
+                    if (trace.get()) LOG.trace(String.format("Sent %s to %s",
+                                               request.getClass().getSimpleName(),
+                                               HStoreThreadManager.formatSiteName(site_id)));
+                } // FOR
+            }
+            
+            // Tell ourselves to get ready
+            this.hstore_site.prepareShutdown(error != null);
+            
+            // Block until the latch releases us
+            if (this.num_sites > 1) {
+                LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
+                boolean result = latch.await(10, TimeUnit.SECONDS);
+                if (result == false) {
+                    LOG.warn("Failed to recieve all shutdown responses");
+                }
+            }
+            
+            // Now send the final shutdown request
+            if (this.num_sites > 1) {
+                LOG.info(String.format("Sending final shutdown message for %d sites", this.num_sites-1));
+                RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
+                    @Override
+                    public void run(ShutdownResponse parameter) {
+                        // Nothing to do...
+                    }
+                };
+                ShutdownRequest request = ShutdownRequest.newBuilder()
+                                                            .setSenderSite(this.catalog_site.getId())
+                                                            .build();
+                
                 if (debug.get()) LOG.debug(String.format("Sending %s to %d remote sites",
                                            request.getClass().getSimpleName(), this.num_sites));
                 for (int site_id = 0; site_id < this.num_sites; site_id++) {
@@ -1191,17 +1223,14 @@ public class HStoreCoordinator implements Shutdownable {
                                                HStoreThreadManager.formatSiteName(site_id)));
                 } // FOR
             }
+            
         
             // Tell ourselves to shutdown while we wait
 //            if (debug.get()) 
                 LOG.info("Telling local site to shutdown");
             this.hstore_site.shutdown();
             
-            // Block until the latch releases us
-            if (this.num_sites > 1) {
-                LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
-                latch.await(5, TimeUnit.SECONDS);
-            }
+
         } catch (Throwable ex) {
             // IGNORE
         } finally {
@@ -1209,10 +1238,6 @@ public class HStoreCoordinator implements Shutdownable {
             if (error != null) {
                 LOG.fatal("A fatal error caused this shutdown", error);
             }
-            
-            // XXX: I forget why I had commented these two guys out...
-//            LogManager.shutdown();
-//            System.exit(exit_status);
         }
     }
 

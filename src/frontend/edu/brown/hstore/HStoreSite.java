@@ -1263,6 +1263,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.hstore_coordinator.prepareShutdown(false);
         
         this.txnQueueManager.prepareShutdown(error);
+        this.clientInterface.prepareShutdown(error);
         
         if (this.preProcessors != null) {
             for (TransactionPreProcessor tpp : this.preProcessors) {
@@ -1378,7 +1379,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]",
                                this.getSiteName(), this.hashCode()));
-        
         RingBufferAppender appender = RingBufferAppender.getRingBufferAppender(LOG);
         if (appender != null) {
             System.err.println("Dumping " + appender.getClass().getSimpleName());
