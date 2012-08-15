@@ -13,7 +13,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * This callback is meant to block a transaction from executing until all of the
- * partitions that it needs come back and say they're ready to execute it
+ * partitions that it needs come back and say they're ready to execute it.
+ * This is created at the base partition's site.
  * @author pavlo
  */
 public class TransactionInitCallback extends AbstractTransactionCallback<TransactionInitResponse, TransactionInitResponse> {

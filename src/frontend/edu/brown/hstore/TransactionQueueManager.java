@@ -15,7 +15,10 @@ import org.voltdb.CatalogContext;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.Pair;
 
+import com.google.protobuf.RpcCallback;
+
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -379,14 +382,24 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param sysproc TODO
      * @return
      */
-    public boolean lockInsert(Long txn_id, PartitionSet partitions, TransactionInitQueueCallback callback, boolean sysproc) {
+    public boolean lockInsert(Long txn_id, PartitionSet partitions, RpcCallback<TransactionInitResponse> callback, boolean sysproc) {
         if (d) LOG.debug(String.format("Adding new distributed txn #%d into initQueue " +
         		         "[partitions=%s]",
                          txn_id, partitions));
         
+        // Wrap the callback around a TransactionInitWrapperCallback that will wait until
+        // our HStoreSite gets an acknowledgment from all the ...
+        TransactionInitQueueCallback wrapper = null;
+        try {
+            wrapper = hstore_site.getObjectPools().CALLBACKS_TXN_INITQUEUE.borrowObject();
+            wrapper.init(txn_id, partitions, callback);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        
         // Always put in the callback first, because we may end up rejecting
         // this txnId in the loop below
-        this.lockQueuesCallbacks.put(txn_id, callback);
+        this.lockQueuesCallbacks.put(txn_id, wrapper);
         
         boolean should_notify = false;
         boolean ret = true;
@@ -400,7 +413,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 if (d) LOG.debug(String.format("The last initQueue txnId for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
                                  partition, this.lockQueuesLastTxn[partition], txn_id));
                 this.rejectTransaction(txn_id,
-                                       callback,
+                                       wrapper,
                                        Status.ABORT_RESTART,
                                        partition,
                                        this.lockQueuesLastTxn[partition]);
@@ -422,7 +435,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 if (d) LOG.debug(String.format("The next safe initQueue txnId for partition #%d is txn #%d but this is greater than our new txn #%d. Rejecting...",
                                  partition, next_safe, txn_id));
                 this.rejectTransaction(txn_id,
-                                       callback,
+                                       wrapper,
                                        Status.ABORT_RESTART,
                                        partition,
                                        next_safe);
@@ -434,7 +447,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. Throttling txn #%d",
                                  partition, next_safe, txn_id));
                 this.rejectTransaction(txn_id,
-                                       callback,
+                                       wrapper,
                                        Status.ABORT_REJECT,
                                        partition,
                                        next_safe);
@@ -568,8 +581,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             } catch (Throwable ex) {
                 // XXX
                 if (d) {
-                    String msg = String.format("Unexpected error when trying to abort txn #%d [status=%s, rejectPartition=%d, rejectTxnId=%s]",
-                                              txn_id, status, reject_partition, reject_txnId);
+                    String msg = String.format("Unexpected error when trying to abort txn #%d " +
+                    		                   "[status=%s, rejectPartition=%d, rejectTxnId=%s]",
+                                               txn_id, status, reject_partition, reject_txnId);
                     LOG.warn(msg, ex); 
                     // throw new RuntimeException(msg, ex);
                 }
@@ -591,7 +605,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             
             // We don't need to acquire a lock here because we know that
             // nobody else can update us unless the lock flag is false
-            if (removed == false && this.lockQueuesBlocked[partition] && this.lockQueuesLastTxn[partition].equals(txn_id)) {
+            if (removed == false && this.lockQueuesBlocked[partition] && 
+                    this.lockQueuesLastTxn[partition].equals(txn_id)) {
                 this.lockQueuesBlocked[partition] = false;
                 poke = true;
             }

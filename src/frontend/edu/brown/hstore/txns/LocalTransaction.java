@@ -731,11 +731,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public boolean isPredictAllLocal() {
         if (this.dtxnState != null) {
-            for (Integer p : this.predict_touchedPartitions) {
-                if (hstore_site.isLocalPartition(p.intValue()) == false) {
-                    return (false);
-                }
-            } // FOR
+            return (this.dtxnState.is_all_local);
         }
         return (true);
     }

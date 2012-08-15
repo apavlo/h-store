@@ -23,7 +23,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 /**
  * This callback is used for when a transaction is waiting in the TransactionQueueManager at this site 
  * Only when we get all the acknowledgments (through the run method) for the local partitions at 
- * this HStoreSite will we invoke the original callback.
+ * this HStoreSite will we invoke the original callback. It is used as a wrapper around
+ * the RpcCallback created by the ProtoRPC framework.
  * @author pavlo
  */
 public class TransactionInitQueueCallback extends BlockingRpcCallback<TransactionInitResponse, Integer> {
