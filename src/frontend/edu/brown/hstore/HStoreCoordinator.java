@@ -743,7 +743,7 @@ public class HStoreCoordinator implements Shutdownable {
             } // FOR
             assert(sent_ctr > 0) : "No TransactionInitRequests available for " + ts;
             if (debug.get()) LOG.debug(String.format("%s - Sent %d TransactionInitRequests with %d prefetch WorkFragments",
-                                                     ts, sent_ctr, prefetch_ctr));
+                                       ts, sent_ctr, prefetch_ctr));
             
         }
         // Otherwise we will send the same TransactionInitRequest to all of the remote sites 
@@ -767,8 +767,9 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      */
     public void transactionWork(LocalTransaction ts, int site_id, TransactionWorkRequest request, RpcCallback<TransactionWorkResponse> callback) {
-        if (debug.get()) LOG.debug(String.format("%s - Sending TransactionWorkRequest to remote site %d [numFragments=%d]",
-                                                 ts, site_id, request.getFragmentsCount()));
+        if (debug.get()) LOG.debug(String.format("%s - Sending TransactionWorkRequest to remote site %d " +
+        		                   "[numFragments=%d]",
+                                   ts, site_id, request.getFragmentsCount()));
         
         assert(request.getFragmentsCount() > 0) :
             String.format("No WorkFragments for Site %d in %s", site_id, ts);
@@ -785,8 +786,8 @@ public class HStoreCoordinator implements Shutdownable {
     
     public void transactionPrefetchResult(RemoteTransaction ts, TransactionPrefetchResult request) {
         if (debug.get()) LOG.debug(String.format("%s - Sending %s back to base partition %d",
-                                                 ts, request.getClass().getSimpleName(),
-                                                 ts.getBasePartition()));
+                                   ts, request.getClass().getSimpleName(),
+                                   ts.getBasePartition()));
         assert(request.hasResult()) :
             String.format("No WorkResults in %s for %s", request.getClass().getSimpleName(), ts);
         int site_id = catalogContext.getSiteIdForPartitionId(ts.getBasePartition());
