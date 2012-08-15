@@ -1426,7 +1426,7 @@ public class LocalTransaction extends AbstractTransaction {
         }
         
         if (d) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
-                                       this, this.getCurrentRound(this.base_partition)));
+                         this, this.getCurrentRound(this.base_partition)));
         
         TransactionEstimate estimate = t_state.getLastEstimate();
         assert(estimate != null) : "Got back null MarkovEstimate for " + this;

@@ -202,6 +202,8 @@ public class SpecExecScheduler {
         // If TS is going to write to something that DTXN will read or write, then 
         // we can let that slide as long as DTXN hasn't read from or written to those tables yet
         if (dtxn_hasRWConflict || dtxn_hasWWConflict) {
+            assert(dtxn_conflicts != null) :
+                "Unexpected null ConflictSet for " + dtxn_proc;
             for (TableRef ref : dtxn_conflicts.getReadwriteconflicts().values()) {
                 if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
                     return (true);

@@ -59,8 +59,8 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
      */
     public MockHStoreCoordinator(final MockHStoreSite hstore_site) {
         super(hstore_site);
-        this.hstore_site = getHStoreSite();
-        this.hstore_conf = this.getHStoreConf();
+        this.hstore_site = hstore_site;
+        this.hstore_conf = this.hstore_site.getHStoreConf();
         this.txnQueueManager = this.hstore_site.getTransactionQueueManager();
         
         Thread t = new Thread(this.txnQueueManager);

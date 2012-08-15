@@ -212,6 +212,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final Queue<Pair<Long, Status>> deletable_txns =
                         new ConcurrentLinkedQueue<Pair<Long,Status>>(); 
     
+    private final List<Pair<Long, Status>> deletable_txns_requeue = new ArrayList<Pair<Long,Status>>();
+    
     /**
      * Reusable Object Pools
      */
@@ -391,7 +393,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final Histogram<Integer> network_incoming_partitions = new Histogram<Integer>();
     
-    private final HStoreSiteProfiler profiler;
+    private HStoreSiteProfiler profiler; 
     
     // ----------------------------------------------------------------------------
     // CACHED STRINGS
@@ -699,6 +701,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     @Override
     public void updateConf(HStoreConf hstore_conf) {
+        if (hstore_conf.site.network_profiling && this.profiler == null) {
+            this.profiler = new HStoreSiteProfiler();
+        }
         
         // Push the updates to all of our PartitionExecutors
         for (PartitionExecutor executor : this.executors) {
@@ -1233,13 +1238,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         System.out.println(msg);
         System.out.flush();
         
-        // XXX: We have to join on all of our PartitionExecutor threads
+        // We will join on our HStoreCoordinator thread. When that goes
+        // down then we know that the whole party is over
         try {
-            for (Thread t : this.executor_threads) {
-                if (t != null) t.join();
-            }
+            this.hstore_coordinator.getListenerThread().join();
         } catch (InterruptedException ex) {
             throw new RuntimeException(ex);
+        } finally {
+            RingBufferAppender appender = RingBufferAppender.getRingBufferAppender(LOG);
+            if (appender != null) {
+                int width = 100;
+                System.err.println(StringUtil.header(appender.getClass().getSimpleName(), width));
+                System.err.print(StringUtil.join("", appender.getLogMessages()));
+                System.err.println(StringUtil.repeat("-", width));
+                System.err.flush();
+            }
         }
     }
     
@@ -1351,16 +1364,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
         this.shutdown_observable.notifyObservers();
         
-        // Tell all of our event loops to stop
-//        if (t) LOG.trace("Telling Procedure Listener event loops to exit");
-//        for (int i = 0; i < this.voltListeners.length; i++) {
-//            this.procEventLoops[i].exitLoop();
-//            if (this.voltListeners[i] != null) this.voltListeners[i].close();
-//        } // FOR
-        
-        if (this.hstore_coordinator != null) {
-            this.hstore_coordinator.shutdown();
-        }
+        // Tell our local boys to go down too
+        for (int p : this.local_partitions_arr) {
+            this.executors[p].shutdown();
+        } // FOR
         
         if (this.voltNetwork != null) {
             try {
@@ -1371,20 +1378,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.clientInterface.shutdown();
         }
         
-        
-        // Tell our local boys to go down too
-        for (int p : this.local_partitions_arr) {
-            this.executors[p].shutdown();
-        } // FOR
-        
         LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]",
                                this.getSiteName(), this.hashCode()));
-        RingBufferAppender appender = RingBufferAppender.getRingBufferAppender(LOG);
-        if (appender != null) {
-            System.err.println("Dumping " + appender.getClass().getSimpleName());
-            System.err.println(StringUtil.join("", appender.getLogMessages()));
-            System.err.flush();
-        }
     }
     
     /**
@@ -1393,7 +1388,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     @Override
     public boolean isShuttingDown() {
-        return (this.shutdown_state == ShutdownState.SHUTDOWN || this.shutdown_state == ShutdownState.PREPARE_SHUTDOWN);
+        return (this.shutdown_state == ShutdownState.SHUTDOWN);
     }
     
     // ----------------------------------------------------------------------------
@@ -2657,7 +2652,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	    
 	    // Delete txn handles
 	    Pair<Long, Status> p = null;
-	    List<Pair<Long, Status>> addBack = null;
+	    this.deletable_txns_requeue.clear();
 	    while ((p = this.deletable_txns.poll()) != null) {
 	        // It's ok for us to not have a transaction handle, because it could be
 	        // for a remote transaction that told us that they were going to need one
@@ -2682,10 +2677,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                    if (t) 
                         LOG.info(String.format("%s - Cannot delete txn at this point [status=%s]\n%s",
                                      ts, status, ts.debug()));
-                    if (addBack == null) {
-                        addBack = new ArrayList<Pair<Long,Status>>();
-                    }
-                    addBack.add(p);
+                    this.deletable_txns_requeue.add(p);
 //                    break;
     	        }
 	        } else if (d) {
@@ -2694,9 +2686,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	        }
 //	        this.deletable_txns.poll();
 	    } // WHILE
-	    if (addBack != null    ) {
-    	    LOG.info(String.format("Added %d deletable txns back to queue", addBack.size()));
-    	    this.deletable_txns.addAll(addBack);
+	    if (this.deletable_txns_requeue.isEmpty() == false) {
+    	    LOG.info(String.format("Added %d deletable txns back to queue", this.deletable_txns_requeue.size()));
+    	    this.deletable_txns.addAll(this.deletable_txns_requeue);
 	    }
 	    
 

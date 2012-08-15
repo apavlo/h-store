@@ -4,13 +4,14 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.hstore.HStoreCoordinator;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 
 public class TransactionInitDispatcher extends AbstractDispatcher<Object[]> {
     
-    public TransactionInitDispatcher(HStoreCoordinator hStoreCoordinator) {
-        super(hStoreCoordinator);
+    public TransactionInitDispatcher(HStoreSite hstore_site, HStoreCoordinator hstore_coordinator) {
+        super(hstore_site, hstore_coordinator);
     }
 
     @SuppressWarnings("unchecked")

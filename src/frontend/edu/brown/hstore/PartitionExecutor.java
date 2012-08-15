@@ -832,7 +832,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                         this.partitionId, this.currentTxn), ex);
                 if (this.currentTxn != null) LOG.fatal("TransactionState Dump:\n" + this.currentTxn.debug());
             }
-            this.hstore_coordinator.shutdownCluster(ex);
+            this.shutdown_latch.release();
+            this.hstore_coordinator.shutdownClusterBlocking(ex);
         } finally {
             if (d) {
                 String txnDebug = "";
@@ -847,11 +848,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             // Release the shutdown latch in case anybody waiting for us
             this.shutdown_latch.release();
-            
-            // Stop HStoreMessenger (because we're nice)
-//            if (this.isShuttingDown() == false) {
-//                if (this.hstore_coordinator != null) this.hstore_coordinator.shutdown();
-//            }
         }
     }
     
