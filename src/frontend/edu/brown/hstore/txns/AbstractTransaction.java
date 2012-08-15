@@ -174,6 +174,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected final boolean exec_readOnly[];
     
     /**
+     * Whether this Transaction has queued work that may need to be removed
+     * from this partition
+     */
+    protected final boolean exec_queueWork[];
+    
+    /**
      * Whether this Transaction has submitted work to the EE that may need to be 
      * rolled back on a local partition
      */
@@ -211,6 +217,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.round_state = new RoundState[numLocalPartitions];
         this.round_ctr = new int[numLocalPartitions];
         this.exec_readOnly = new boolean[numLocalPartitions];
+        this.exec_queueWork = new boolean[numLocalPartitions];
         this.exec_eeWork = new boolean[numLocalPartitions];
         
         this.exec_firstUndoToken = new long[numLocalPartitions];
@@ -231,6 +238,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         Arrays.fill(this.exec_firstUndoToken, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_lastUndoToken, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_readOnly, true);
+        Arrays.fill(this.exec_queueWork, false);
+        Arrays.fill(this.exec_eeWork, false);
     }
 
     /**
@@ -301,6 +310,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.round_state[i] = null;
             this.round_ctr[i] = 0;
             this.exec_readOnly[i] = true;
+            this.exec_queueWork[i] = false;
             this.exec_eeWork[i] = false;
             this.exec_firstUndoToken[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
             this.exec_lastUndoToken[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
@@ -470,8 +480,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      */
     public boolean needsFinish(int partition) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
-        
-        return (this.round_state[offset] != null);
+        return (this.round_state[offset] != null || this.exec_queueWork[offset]);
         
 //        // If this is the base partition, check to see whether it has
 //        // even executed the procedure control code
@@ -615,20 +624,37 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     /**
      * Should be called whenever the txn submits work to the EE 
      */
-    public void setSubmittedEE(int partition) {
+    public void markQueuedWork(int partition) {
+        if (d) LOG.debug(String.format("%s - Marking as having queued work on partition %d [exec_queueWork=%s]",
+                         this, partition, Arrays.toString(this.exec_queueWork)));
+        this.exec_queueWork[hstore_site.getLocalPartitionOffset(partition)] = true;
+    }
+    
+    /**
+     * Returns true if this txn has queued work at the given partition
+     * @return
+     */
+    public boolean hasQueuedWork(int partition) {
+        return (this.exec_queueWork[hstore_site.getLocalPartitionOffset(partition)]);
+    }
+    
+    /**
+     * Should be called whenever the txn submits work to the EE 
+     */
+    public void markExecutedWork(int partition) {
         if (d) LOG.debug(String.format("%s - Marking as having submitted to the EE on partition %d [exec_eeWork=%s]",
-                                       this, partition, Arrays.toString(this.exec_eeWork)));
+                         this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
     
-    public void unsetSubmittedEE(int partition) {
+    public void unmarkExecutedWork(int partition) {
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = false;
     }
     /**
      * Returns true if this txn has submitted work to the EE that needs to be rolled back
      * @return
      */
-    public boolean hasSubmittedEE(int partition) {
+    public boolean hasExecutedWork(int partition) {
         return (this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)]);
     }
     
