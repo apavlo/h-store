@@ -92,15 +92,14 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
     
     @Override
     protected int runImpl(TransactionInitResponse response) {
-        if (debug.get())
-            LOG.debug(String.format("Got %s with status %s for %s " +
-            		  "[partitions=%s, rejectPartition=%s, rejectTxn=%s]",
-                      response.getClass().getSimpleName(),
-                      response.getStatus(),
-                      this.ts, 
-                      response.getPartitionsList(),
-                      (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
-                      (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
+        if (debug.get()) LOG.debug(String.format("Got %s with status %s for %s " +
+            		               "[partitions=%s, rejectPartition=%s, rejectTxn=%s]",
+            		               response.getClass().getSimpleName(),
+            		               response.getStatus(),
+            		               this.ts, 
+            		               response.getPartitionsList(),
+            		               (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
+            		               (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
         
         assert(this.ts != null) :
             String.format("Missing LocalTransaction handle for txn #%d [status=%s]",
