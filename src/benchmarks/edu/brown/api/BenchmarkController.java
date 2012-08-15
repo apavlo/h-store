@@ -1969,7 +1969,7 @@ public class BenchmarkController {
         } finally {
             controller.cleanUpBenchmark();
         }
-        if (failed || controller.failed) System.exit(1);
+        if (config.noShutdown == false && (failed || controller.failed)) System.exit(1);
         
         // Upload Results to CodeSpeed
         if (hstore_conf.client.codespeed_url != null) {

@@ -152,29 +152,46 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected final int round_ctr[];
 
     /**
-     * The first undo token used at each partition
+     * The first undo token used at each local partition
      * When we abort a txn we will need to give the EE this value
      */
     private final long exec_firstUndoToken[];
     /**
-     * The last undo token used at each partition
+     * The last undo token used at each local partition
      * When we commit a txn we will need to give the EE this value 
      */
     private final long exec_lastUndoToken[];
     /**
-     * This is set to true if the transaction did some work without an undo buffer
-     * This is used to just check that we aren't trying to rollback changes
-     * without having used the undo log
+     * This is set to true if the transaction did some work without an undo 
+     * buffer at a local partition. This is used to just check that we aren't 
+     * trying to rollback changes without having used the undo log.
      */
     private final boolean exec_noUndoBuffer[];
     
-    /** Whether this transaction has been read-only so far */
+    /**
+     * Whether this transaction has been read-only so far on a local partition
+     */
     protected final boolean exec_readOnly[];
     
-    /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
+    /**
+     * Whether this Transaction has submitted work to the EE that may need to be 
+     * rolled back on a local partition
+     */
     protected final boolean exec_eeWork[];
     
+    /**
+     * BitSets for whether this txn has read from a particular table on each
+     * local partition.
+     * PartitionId -> TableId 
+     */
     protected final BitSet readTables[];
+    
+    /**
+     * BitSets for whether this txn has executed a modifying query against a particular table
+     * on each partition. Note that it does not actually record whether any rows were changed,
+     * but just we executed a query that targeted that table.
+     * PartitionId -> TableId
+     */
     protected final BitSet writeTables[];
     
     // ----------------------------------------------------------------------------
@@ -272,7 +289,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         // If this transaction handle was keeping track of pre-fetched queries,
         // then go ahead and reset those state variables.
         if (this.prefetch != null) {
-            hstore_site.getObjectPools().getPrefetchStatePool(this.base_partition).returnObject(this.prefetch);
+            hstore_site.getObjectPools()
+                       .getPrefetchStatePool(this.base_partition)
+                       .returnObject(this.prefetch);
             this.prefetch = null;
         }
         
@@ -353,7 +372,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.round_state[offset] = RoundState.INITIALIZED;
         
         if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d]",
-                                       this, this.round_ctr[offset], partition, undoToken));
+                         this, this.round_ctr[offset], partition, undoToken));
     }
     
     /**
@@ -364,11 +383,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.round_state[offset] == RoundState.INITIALIZED) :
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
-                    this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
+                          this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
         this.round_state[offset] = RoundState.STARTED;
         if (d) LOG.debug(String.format("%s - Starting batch ROUND #%d on partition %d",
-                                       this, this.round_ctr[offset], partition));
+                         this, this.round_ctr[offset], partition));
     }
     
     /**
@@ -382,7 +401,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
                           this.round_state[offset], this, partition);
         
         if (d) LOG.debug(String.format("%s - Finishing batch ROUND #%d on partition %d",
-                                       this, this.round_ctr[offset], partition));
+                         this, this.round_ctr[offset], partition));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
     }
@@ -444,6 +463,27 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (this.base_partition == partition);
     }
     
+    /**
+     * Returns true if this transaction has done something at this partition and therefore
+     * the PartitionExecutor needs to be told that they are finished
+     * This could be either executing a query or executing the transaction's control code
+     */
+    public boolean needsFinish(int partition) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        
+        return (this.round_state[offset] != null);
+        
+//        // If this is the base partition, check to see whether it has
+//        // even executed the procedure control code
+//        if (this.base_partition == partition) {
+//            return (this.round_state[offset] != null);
+//        }
+//        // Otherwise check whether they have executed a query that
+//        else {
+//            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+//        }
+    }
+    
     // ----------------------------------------------------------------------------
     // GENERAL METHODS
     // ----------------------------------------------------------------------------
@@ -490,27 +530,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     /**
-     * Returns true if this transaction has done something at this partition and therefore
-     * the PartitionExecutor needs to be told that they are finished
-     * This could be either executing a query or executing the transaction's control code
-     */
-    public boolean needsFinish(int partition) {
-        int offset = hstore_site.getLocalPartitionOffset(partition);
-        
-        return (this.round_state[offset] != null);
-        
-//        // If this is the base partition, check to see whether it has
-//        // even executed the procedure control code
-//        if (this.base_partition == partition) {
-//            return (this.round_state[offset] != null);
-//        }
-//        // Otherwise check whether they have executed a query that
-//        else {
-//            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
-//        }
-    }
-    
-    /**
      * Return a TransactionCleanupCallback
      * Note that this will be null for LocalTransactions
      */
@@ -518,15 +537,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (null);
     }
     
-    /**
-     * Get the current round counter at the given partition.
-     * Note that a round is different than a batch. A "batch" contains multiple queries
-     * that the txn wants to execute, of which their PlanFragments are broken
-     * up into separate execution "rounds" in the PartitionExecutor.
-     */
-    public int getCurrentRound(int partition) {
-        return (this.round_ctr[hstore_site.getLocalPartitionOffset(partition)]);
-    }
+
     
     /**
      * Returns true if this transaction has a pending error
@@ -842,6 +853,20 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         assert(this.prefetch != null);
         int offset = hstore_site.getLocalPartitionOffset(partition);
         this.prefetch.partitions.set(offset);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Get the current round counter at the given partition.
+     * Note that a round is different than a batch. A "batch" contains multiple queries
+     * that the txn wants to execute, of which their PlanFragments are broken
+     * up into separate execution "rounds" in the PartitionExecutor.
+     */
+    protected int getCurrentRound(int partition) {
+        return (this.round_ctr[hstore_site.getLocalPartitionOffset(partition)]);
     }
 
     @Override
