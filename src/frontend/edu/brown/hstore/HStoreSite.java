@@ -82,6 +82,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.ClientInterface.ClientInputHandler;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
@@ -1781,7 +1782,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions The list of partitions that this transaction needs to access
      * @param callback
      */
-    public void transactionInit(Long txn_id, int procedureId, PartitionSet partitions, TransactionInitQueueCallback callback) {
+    public void transactionInit(Long txn_id, int procedureId, PartitionSet partitions, RpcCallback<TransactionInitResponse> callback) {
         Procedure catalog_proc = catalogContext.getProcedureById(procedureId);
         
         // We should always force a txn from a remote partition into the queue manager

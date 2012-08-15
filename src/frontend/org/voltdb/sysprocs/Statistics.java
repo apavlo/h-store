@@ -35,9 +35,11 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -141,21 +143,24 @@ public class Statistics extends VoltSystemProcedure {
                 ArrayList<Integer> catalogIds = new ArrayList<Integer>();
                 catalogIds.add(0);
                 
-                Pair<SysProcSelector, Integer> pair = STATS_DATA.get(fragmentId);; 
-                VoltTable result = executor.getHStoreSite().getStatsAgent().getStats(
-                                pair.getFirst(),
-                                catalogIds,
-                                interval,
-                                now);
-                if (debug.get()) HOST_LOG.debug(pair.getFirst() + ":\n" + result);
-    
+                VoltTable result = null;
+
                 // Choose the lowest site ID on this host to do the scan
                 // All other sites should just return empty results tables.
                 if (isFirstLocalPartition()) {
+                    Pair<SysProcSelector, Integer> pair = STATS_DATA.get(fragmentId);; 
+                    result = executor.getHStoreSite().getStatsAgent().getStats(
+                                    pair.getFirst(),
+                                    catalogIds,
+                                    interval,
+                                    now);
+                    if (debug.get()) HOST_LOG.debug(pair.getFirst() + ":\n" + result);
                     assert(result.getRowCount() >= 0);
                 }
                 else {
-                    assert(result.getRowCount() == 0);
+                    String msg = String.format("Unexpected execution of SysProc #%d on partition %d",
+                                               fragmentId, this.partitionId);
+                    throw new ServerFaultException(msg, txn_id);
                 }
                 return new DependencySet(fragmentId, result);
             }
