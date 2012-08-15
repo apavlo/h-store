@@ -436,7 +436,16 @@ public class LocalTransaction extends AbstractTransaction {
     public void resetExecutionState() {
         if (d) LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
                                        this, (this.state == null)));
-        this.state = null;
+        if (this.state != null) {
+            ReentrantLock lock = state.lock;
+            lock.lock();
+            try {
+                this.state = null;
+            } finally {
+                lock.unlock();
+            }
+        }
+        
     }
     
     /**
@@ -1455,16 +1464,10 @@ public class LocalTransaction extends AbstractTransaction {
 
     
     @Override
-    public String toString() {
-        String ret = null;
-        if (this.isInitialized()) {
-            ret = String.format("%s #%d/%d", this.catalog_proc.getName(), this.txn_id, this.base_partition);
-        } else {
-            ret = "<Uninitialized>";
-        }
-        // Include hashCode for debugging
-        ret += "/" + this.hashCode();
-        return (ret);
+    public String toStringImpl() {
+        return String.format("%s #%d/%d", this.catalog_proc.getName(),
+                                          this.txn_id,
+                                          this.base_partition);
     }
     
     @Override

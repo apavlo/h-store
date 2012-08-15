@@ -1182,18 +1182,19 @@ public class HStoreCoordinator implements Shutdownable {
                 
                 ShutdownRequest request = builder.build();
                 if (debug.get()) LOG.debug(String.format("Sending %s to %d remote sites",
-                                                         request.getClass().getSimpleName(), this.num_sites));
+                                           request.getClass().getSimpleName(), this.num_sites));
                 for (int site_id = 0; site_id < this.num_sites; site_id++) {
                     if (site_id == this.local_site_id) continue;
                     this.channels[site_id].shutdown(new ProtoRpcController(), request, callback);
                     if (trace.get()) LOG.trace(String.format("Sent %s to %s",
-                                                             request.getClass().getSimpleName(),
-                                                             HStoreThreadManager.formatSiteName(site_id)));
+                                               request.getClass().getSimpleName(),
+                                               HStoreThreadManager.formatSiteName(site_id)));
                 } // FOR
             }
         
             // Tell ourselves to shutdown while we wait
-            if (debug.get()) LOG.debug("Telling local site to shutdown");
+//            if (debug.get()) 
+                LOG.info("Telling local site to shutdown");
             this.hstore_site.shutdown();
             
             // Block until the latch releases us
