@@ -45,28 +45,39 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * 
      * @param expected_parent - The expected parent
      * @param next
+     * @param stopParent TODO
      */
-    private void startInner(ProfileMeasurement expected_parent, ProfileMeasurement next) {
+    private void startInner(ProfileMeasurement expected_parent, ProfileMeasurement next, boolean stopParent) {
         if (debug.get()) LOG.debug(String.format("Start PARENT[%s] -> NEXT[%s]", expected_parent, next));
         assert(this.stack.size() > 0);
         assert(this.stack.peek() == expected_parent) :
             String.format("Unexpected state %s: PARENT[%s] -> NEXT[%s]\n%s",
                           this.stack.peek(), expected_parent.getType(), next.getType(),
                           StringUtil.join("\n", this.stack));
-        next.start();
+        long timestamp = ProfileMeasurement.getTime();
+        if (stopParent) {
+            ProfileMeasurement.swap(timestamp, expected_parent, next);
+        } else {
+            next.start(timestamp);
+        }
         this.stack.push(next);
     }
-    private void stopInner(ProfileMeasurement expected_current, ProfileMeasurement expected_next) {
-        if (debug.get()) LOG.debug(String.format("Stop PARENT[%s] <- CURRENT[%s]", expected_next, expected_current));
+    private void stopInner(ProfileMeasurement expected_current, ProfileMeasurement next, boolean startNext) {
+        if (debug.get()) LOG.debug(String.format("Stop PARENT[%s] <- CURRENT[%s]", next, expected_current));
         assert(this.stack.size() > 0);
         ProfileMeasurement pm = this.stack.pop();
         assert(pm == expected_current) :
             String.format("Expected current state %s but was %s! [expectedParent=%s]\n%s",
-                          expected_current, pm, expected_next, this.stack);
-        assert(expected_next == this.stack.peek()) :
+                          expected_current, pm, next, this.stack);
+        assert(next == this.stack.peek()) :
             String.format("Expected current parent %s but was %s! [inner=%s]",
-                          expected_next, this.stack.peek(), expected_current);
-        pm.stop();
+                          next, this.stack.peek(), expected_current);
+        long timestamp = ProfileMeasurement.getTime();
+        if (startNext) {
+            ProfileMeasurement.swap(timestamp, expected_current, next);
+        } else {
+            pm.stop(timestamp);
+        }
     }
     
 //    private void startGlobal(ProfileMeasurement global_pm) {
@@ -168,20 +179,20 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      */
     public void startInitEstimation() {
         if (this.disabled) return;
-        this.startInner(this.pm_init_total, this.pm_init_est);
+        this.startInner(this.pm_init_total, this.pm_init_est, false);
     }
     public void stopInitEstimation() {
         if (this.disabled) return;
-        this.stopInner(this.pm_init_est, this.pm_init_total);
+        this.stopInner(this.pm_init_est, this.pm_init_total, false);
     }
     
     public void startInitDtxn() {
         if (this.disabled) return;
-        this.startInner(this.pm_init_total, this.pm_init_dtxn);
+        this.startInner(this.pm_init_total, this.pm_init_dtxn, false);
     }
     public void stopInitDtxn() {
         if (this.disabled) return;
-        this.stopInner(this.pm_init_dtxn, this.pm_init_total);
+        this.stopInner(this.pm_init_dtxn, this.pm_init_total, false);
     }
     
     // ---------------------------------------------------------------
@@ -264,46 +275,46 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     
     public void startExecJava() {
         if (this.disabled) return;
-        this.startInner(this.pm_exec_total, this.pm_exec_java);
+        this.startInner(this.pm_exec_total, this.pm_exec_java, false);
     }
     public void stopExecJava() {
         if (this.disabled) return;
-        this.stopInner(this.pm_exec_java, this.pm_exec_total);
+        this.stopInner(this.pm_exec_java, this.pm_exec_total, false);
     }
     public void startExecPlanning() {
         if (this.disabled) return;
-        this.startInner(this.pm_exec_total, this.pm_exec_planner);
+        this.startInner(this.pm_exec_total, this.pm_exec_planner, false);
     }
     public void stopExecPlanning() {
         if (this.disabled) return;
-        this.stopInner(this.pm_exec_planner, this.pm_exec_total);
+        this.stopInner(this.pm_exec_planner, this.pm_exec_total, false);
     }
     
     public void startExecEstimation() {
         if (this.disabled) return;
-        this.startInner(this.pm_exec_total, this.pm_exec_est);
+        this.startInner(this.pm_exec_total, this.pm_exec_est, false);
     }
     public void stopExecEstimation() {
         if (this.disabled) return;
-        this.stopInner(this.pm_exec_est, this.pm_exec_total);
+        this.stopInner(this.pm_exec_est, this.pm_exec_total, false);
     }
     
     public void startExecDtxnWork() {
         if (this.disabled) return;
-        this.startInner(this.pm_exec_total, this.pm_exec_dtxn_work);
+        this.startInner(this.pm_exec_total, this.pm_exec_dtxn_work, false);
     }
     public void stopExecDtxnWork() {
         if (this.disabled) return;
-        this.stopInner(this.pm_exec_dtxn_work, this.pm_exec_total);
+        this.stopInner(this.pm_exec_dtxn_work, this.pm_exec_total, false);
     }
     
     public void startExecEE() {
         if (this.disabled) return;
-        this.startInner(this.pm_exec_total, this.pm_exec_ee);
+        this.startInner(this.pm_exec_total, this.pm_exec_ee, false);
     }
     public void stopExecEE() {
         if (this.disabled) return;
-        this.stopInner(this.pm_exec_ee, this.pm_exec_total);
+        this.stopInner(this.pm_exec_ee, this.pm_exec_total, false);
     }
 
     // ---------------------------------------------------------------
@@ -356,43 +367,42 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     
     public void startPostPrepare() {
         if (this.disabled) return;
-        this.startInner(this.pm_post_total, this.pm_post_prepare);
+        this.startInner(this.pm_post_total, this.pm_post_prepare, false);
     }
     public void stopPostPrepare() {
         if (this.disabled) return;
-        this.stopInner(this.pm_post_prepare, this.pm_post_total);
+        this.stopInner(this.pm_post_prepare, this.pm_post_total, false);
     }
     
     public void startPostFinish() {
         if (this.disabled) return;
-        this.startInner(this.pm_post_total, this.pm_post_finish);
+        this.startInner(this.pm_post_total, this.pm_post_finish, false);
     }
     public void stopPostFinish() {
         if (this.disabled) return;
-        this.stopInner(this.pm_post_finish, this.pm_post_total);
+        this.stopInner(this.pm_post_finish, this.pm_post_total, false);
     }
     
     public void startPostEE() {
         if (this.disabled) return;
-        // Need to figure out whether we are in POST_FINISH or not
         ProfileMeasurement parent = this.stack.peek();
-        this.startInner(parent, this.pm_post_ee);
+        this.startInner(parent, this.pm_post_ee, true);
     }
     public void stopPostEE() {
         if (this.disabled) return;
         ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
-        this.stopInner(this.pm_post_ee, parent);
+        this.stopInner(this.pm_post_ee, parent, true);
     }
     
     public void startPostClient() {
         if (this.disabled) return;
         ProfileMeasurement parent = this.stack.peek();
-        this.startInner(parent, this.pm_post_client);
+        this.startInner(parent, this.pm_post_client, true);
     }
     public void stopPostClient() {
         if (this.disabled) return;
         ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
-        this.stopInner(this.pm_post_client, parent);
+        this.stopInner(this.pm_post_client, parent, true);
     }
     
 
