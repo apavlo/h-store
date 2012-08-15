@@ -1249,7 +1249,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (appender != null) {
                 int width = 100;
                 System.err.println(StringUtil.header(appender.getClass().getSimpleName(), "=", width));
-                System.err.print(StringUtil.join("", appender.getLogMessages()));
+                for (String log : appender.getLogMessages()) {
+                    System.err.println(log.trim());
+                }
                 System.err.println(StringUtil.repeat("=", width));
                 System.err.flush();
             }
@@ -1957,7 +1959,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             ts.setStatus(status);
             
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
-                if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
+                if (d) LOG.debug(ts + " - Initializing the TransactionCleanupCallback");
                 // TODO(xin): We should not be invoking this callback at the basePartition's site
                 if ( !(ts instanceof MapReduceTransaction && this.isLocalPartition(ts.getBasePartition()))) {
                     cleanup_callback = ts.getCleanupCallback();
