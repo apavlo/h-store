@@ -1248,9 +1248,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             RingBufferAppender appender = RingBufferAppender.getRingBufferAppender(LOG);
             if (appender != null) {
                 int width = 100;
-                System.err.println(StringUtil.header(appender.getClass().getSimpleName(), width));
+                System.err.println(StringUtil.header(appender.getClass().getSimpleName(), "=", width));
                 System.err.print(StringUtil.join("", appender.getLogMessages()));
-                System.err.println(StringUtil.repeat("-", width));
+                System.err.println(StringUtil.repeat("=", width));
                 System.err.flush();
             }
         }
@@ -2674,20 +2674,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 // We can't delete this yet, so we'll just stop checking
                 else {
-//                    if (t) 
-                        LOG.info(String.format("%s - Cannot delete txn at this point [status=%s]\n%s",
+                    if (t) LOG.trace(String.format("%s - Cannot delete txn at this point [status=%s]\n%s",
                                      ts, status, ts.debug()));
                     this.deletable_txns_requeue.add(p);
-//                    break;
     	        }
 	        } else if (d) {
 	            LOG.warn(String.format("Ignoring clean-up request for txn #%d because we do not have a handle " +
 	            		 "[status=%s]", p.getFirst(), p.getSecond()));
 	        }
-//	        this.deletable_txns.poll();
 	    } // WHILE
 	    if (this.deletable_txns_requeue.isEmpty() == false) {
-    	    LOG.info(String.format("Added %d deletable txns back to queue", this.deletable_txns_requeue.size()));
+    	    if (t) LOG.trace(String.format("Adding %d undeletable txns back to deletable queue",
+    	                     this.deletable_txns_requeue.size()));
     	    this.deletable_txns.addAll(this.deletable_txns_requeue);
 	    }
 	    
