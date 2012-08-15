@@ -132,6 +132,13 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         } // WHILE
         assert(this.stack.isEmpty());
         assert(this.isStopped());
+        
+        // Decrement POST_EE/POST_CLIENT from POST_FINISH
+        for (ProfileMeasurement pm : new ProfileMeasurement[]{pm_post_ee, pm_post_client}) {
+            if (pm.getInvocations() > 0) {
+                this.pm_post_finish.decrementTime(pm);
+            }
+        } // FOR
     }
     
     public void startSerialization() {
@@ -385,24 +392,28 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     
     public void startPostEE() {
         if (this.disabled) return;
-        ProfileMeasurement parent = this.stack.peek();
-        this.startInner(parent, this.pm_post_ee, true);
+        this.pm_post_ee.start();
+//        ProfileMeasurement parent = this.stack.peek();
+//        this.startInner(parent, this.pm_post_ee, false);
     }
     public void stopPostEE() {
         if (this.disabled) return;
-        ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
-        this.stopInner(this.pm_post_ee, parent, true);
+        this.pm_post_ee.stop();
+//        ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
+//        this.stopInner(this.pm_post_ee, parent, false);
     }
     
     public void startPostClient() {
         if (this.disabled) return;
-        ProfileMeasurement parent = this.stack.peek();
-        this.startInner(parent, this.pm_post_client, true);
+        this.pm_post_client.start();
+//        ProfileMeasurement parent = this.stack.peek();
+//        this.startInner(parent, this.pm_post_client, false);
     }
     public void stopPostClient() {
         if (this.disabled) return;
-        ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
-        this.stopInner(this.pm_post_client, parent, true);
+        this.pm_post_client.stop();
+//        ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
+//        this.stopInner(this.pm_post_client, parent, false);
     }
     
 
