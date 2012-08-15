@@ -217,12 +217,7 @@ public abstract class HStore {
      */
     public static void main(String[] vargs) throws Exception {
         if (ClassUtil.isAssertsEnabled()) {
-            String url = HStoreConstants.HSTORE_WEBSITE + "/documentation/deployment/client-configuration";
-            String msg = "!!! WARNING !!!\n" +
-            		     "H-Store is executing with JVM asserts enabled. This will degrade runtime performance.\n" +
-            		     "You can disable them by setting the config option 'site.jvm_asserts' to FALSE\n" +
-            		     "See the online documentation for more information:\n   " + url;
-            LOG.warn("\n" + StringBoxUtil.heavyBox(msg));
+            LOG.warn("\n" + HStore.getAssertWarning());
         }
         
         ArgumentsParser args = ArgumentsParser.load(vargs,
@@ -265,6 +260,15 @@ public abstract class HStore {
         if (debug.get())
             LOG.debug("Instantiating HStoreSite network connections for " + hstore_site.getSiteName());
         hstore_site.run();
+    }
+    
+    public static String getAssertWarning() {
+        String url = HStoreConstants.HSTORE_WEBSITE + "/documentation/deployment/client-configuration";
+        String msg = "!!! WARNING !!!\n" +
+                     "H-Store is executing with JVM asserts enabled. This will degrade runtime performance.\n" +
+                     "You can disable them by setting the config option 'site.jvm_asserts' to FALSE\n" +
+                     "See the online documentation for more information:\n   " + url;
+        return StringBoxUtil.heavyBox(msg);
     }
     
     public static String getBuildString() {

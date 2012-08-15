@@ -1475,11 +1475,8 @@ public class LocalTransaction extends AbstractTransaction {
         List<Map<String, Object>> maps = new ArrayList<Map<String,Object>>();
         Map<String, Object> m;
         
-        // Basic Info
-        m = super.getDebugMap();
-        m.put("Procedure", (this.catalog_proc == null ? "???" : this.catalog_proc.getName()));
-        
-        maps.add(m);
+        // Base Class Info
+        maps.add(super.getDebugMap());
         
         // Predictions
         m = new LinkedHashMap<String, Object>();

@@ -75,10 +75,11 @@ public class TPCCLoader extends BenchmarkComponent {
      * Number of threads to create to do the loading.
      */
     private final LoadThread m_loadThreads[];
-    final TPCCConfig m_tpccConfig;
-    final int replicated_batch_size;
-    final AtomicInteger finishedWarehouses = new AtomicInteger(0);
-    final AtomicInteger finishedCounter = new AtomicInteger(0);
+    private final TPCCConfig m_tpccConfig;
+    private final int replicated_batch_size;
+    private final AtomicInteger finishedWarehouses = new AtomicInteger(0);
+    private final AtomicInteger finishedCounter = new AtomicInteger(0);
+    private Throwable pendingError;
 
     private int MAX_BATCH_SIZE = 10000;
     
@@ -153,19 +154,6 @@ public class TPCCLoader extends BenchmarkComponent {
     @Override
     protected int getExpectedOutgoingMessageSize() {
         return 10485760;
-    }
-
-    private void rethrowExceptionLoad(String procedureName, Object... parameters) {
-        try {
-            VoltTable ret[] = this.getClientHandle().callProcedure(procedureName, parameters).getResults();
-            assert ret.length == 0;
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
     }
 
     @Override
@@ -653,8 +641,7 @@ public class TPCCLoader extends BenchmarkComponent {
                     batch.clearRowData();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
-                System.exit(-1);
+                throw new RuntimeException(e);
             } finally {
                 table.clearRowData();
             }
@@ -788,8 +775,27 @@ public class TPCCLoader extends BenchmarkComponent {
         final EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
         handler.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
             public void update(edu.brown.utils.EventObservable<Pair<Thread,Throwable>> o, Pair<Thread,Throwable> t) {
-                t.getSecond().printStackTrace();
-                System.exit(-1);                
+                synchronized (TPCCLoader.this) {
+                    if (TPCCLoader.this.pendingError != null) {
+                        return;
+                    }
+                    TPCCLoader.this.pendingError = t.getSecond();
+                } // SYNCH
+                
+                assert(TPCCLoader.this.pendingError != null);
+                LOG.warn(String.format("Hit with %s from %s. Halting the loading process...",
+                         t.getSecond().getClass().getSimpleName(), t.getFirst().getName()));
+                
+                for (LoadThread loadThread : m_loadThreads) {
+                    loadThread.interrupt();
+                } // FOR
+                for (LoadThread loadThread : m_loadThreads) {
+                    try {
+                        loadThread.join();
+                    } catch (InterruptedException ex) {
+                        // IGNORE
+                    }
+                } // FOR
             };
         });
         
@@ -816,8 +822,7 @@ public class TPCCLoader extends BenchmarkComponent {
             try {
                 m_loadThreads[ii].join();
             } catch (InterruptedException e) {
-                e.printStackTrace();
-                System.exit(-1);
+                throw new RuntimeException(e);
             }
         }
         LOG.info("Finished loading all warehouses");
@@ -825,6 +830,10 @@ public class TPCCLoader extends BenchmarkComponent {
             this.getClientHandle().drain();
         } catch (Exception ex) {
             throw new RuntimeException(ex);
+        }
+        
+        if (this.pendingError != null) {
+            throw new RuntimeException(this.pendingError);
         }
     }
 }

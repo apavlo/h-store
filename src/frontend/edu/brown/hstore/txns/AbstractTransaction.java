@@ -914,6 +914,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected Map<String, Object> getDebugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
+        m.put("Procedure", hstore_site.getCatalogContext().getProcedureById(this.proc_id));
         m.put("Hash Code", this.hashCode());
         m.put("SysProc", this.sysproc);
         m.put("Current Round State", Arrays.toString(this.round_state));
