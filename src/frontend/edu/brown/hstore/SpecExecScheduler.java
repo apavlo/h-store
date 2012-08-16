@@ -221,7 +221,7 @@ public class SpecExecScheduler {
         // writes to, then we can allow TS to execute if DTXN hasn't written anything to 
         // those tables yet
         if (ts_hasRWConflict && ts_hasWWConflict == false) {
-            assert(dtxn_conflicts != null) :
+            assert(ts_conflicts != null) :
                 String.format("Unexpected null ConflictSet for %s -> %s",
                               ts_proc.getName(), dtxn_proc.getName());
             if (debug.get())
