@@ -39,7 +39,6 @@ import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
-import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -95,6 +94,8 @@ public class Statistics extends VoltSystemProcedure {
                        Pair.of(SysProcSelector.TXNPROFILER, SysProcFragmentId.PF_txnProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_execProfilerData,
                        Pair.of(SysProcSelector.EXECPROFILER, SysProcFragmentId.PF_execProfilerDataAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_queueProfilerData,
+                       Pair.of(SysProcSelector.QUEUEPROFILER, SysProcFragmentId.PF_queueProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_poolData,
                        Pair.of(SysProcSelector.POOL, SysProcFragmentId.PF_poolDataAggregator));
     } // STATIC
@@ -135,6 +136,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_txnCounterData:
             case SysProcFragmentId.PF_txnProfilerData:
             case SysProcFragmentId.PF_execProfilerData:
+            case SysProcFragmentId.PF_queueProfilerData:
             case SysProcFragmentId.PF_poolData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =
@@ -177,6 +179,10 @@ public class Statistics extends VoltSystemProcedure {
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_execProfilerDataAggregator: {
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_queueProfilerData));
+                return new DependencySet(fragmentId, result);
+            }
+            case SysProcFragmentId.PF_queueProfilerDataAggregator: {
                 VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_execProfilerData));
                 return new DependencySet(fragmentId, result);
             }

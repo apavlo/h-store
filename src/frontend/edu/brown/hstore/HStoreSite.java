@@ -213,7 +213,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final Queue<Pair<Long, Status>> deletable_txns =
                         new ConcurrentLinkedQueue<Pair<Long,Status>>(); 
     
-    private final List<Pair<Long, Status>> deletable_txns_requeue = new ArrayList<Pair<Long,Status>>();
+    private final List<Pair<Long, Status>> deletable_txns_requeue = 
+                        new ArrayList<Pair<Long,Status>>();
     
     /**
      * Reusable Object Pools

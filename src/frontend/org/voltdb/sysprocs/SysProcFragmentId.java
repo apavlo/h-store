@@ -47,8 +47,10 @@ public class SysProcFragmentId {
     public static final int PF_txnProfilerDataAggregator = 23;
     public static final int PF_execProfilerData = 24;
     public static final int PF_execProfilerDataAggregator = 25;
-    public static final int PF_poolData = 26;
-    public static final int PF_poolDataAggregator = 27;
+    public static final int PF_queueProfilerData = 26;
+    public static final int PF_queueProfilerDataAggregator = 27;
+    public static final int PF_poolData = 28;
+    public static final int PF_poolDataAggregator = 29;
 
     // @Shutdown
     public static final int PF_shutdownCommand = 50;
