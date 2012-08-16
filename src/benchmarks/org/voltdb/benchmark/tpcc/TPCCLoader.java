@@ -165,6 +165,7 @@ public class TPCCLoader extends BenchmarkComponent {
         private final ScaleParameters m_parameters;
         private final int itemStart;
         private final int itemEnd;
+        private boolean stop = false;
 
         /**
          * table data FOR CURRENT WAREHOUSE (LoadWarehouse is partitioned on
@@ -190,7 +191,7 @@ public class TPCCLoader extends BenchmarkComponent {
         public void run() {
             Integer warehouseId = null;
             LOG.debug("Total # of Remaining Warehouses: " + availableWarehouseIds.size());
-            while (this.isInterrupted() == false && (warehouseId = availableWarehouseIds.poll()) != null) {
+            while (this.stop == false && (warehouseId = availableWarehouseIds.poll()) != null) {
                 LOG.debug(String.format("Loading warehouse %d / %d", (m_tpccConfig.num_warehouses - availableWarehouseIds.size()), m_tpccConfig.num_warehouses));
                 makeStock(warehouseId); // STOCK is made separately to reduce
                                         // memory consumption
@@ -198,10 +199,11 @@ public class TPCCLoader extends BenchmarkComponent {
                 makeWarehouse(warehouseId);
                 for (int i = 0; i < data_tables.length; ++i)
                     data_tables[i] = null;
-                LOG.info(String.format("Finished WAREHOUSE %02d [%d/%d]",
-                         warehouseId, finishedWarehouses.incrementAndGet(), m_tpccConfig.num_warehouses));
+                if (this.stop == false) 
+                    LOG.info(String.format("Finished WAREHOUSE %02d [%d/%d]",
+                             warehouseId, finishedWarehouses.incrementAndGet(), m_tpccConfig.num_warehouses));
             } // WHILE
-            if (this.isInterrupted()) return;
+            if (this.stop) return;
             
             makeItems(this.itemStart, itemEnd);
             LOG.info(String.format("Finished ITEM %d - %d [%d/%d]",
@@ -524,6 +526,8 @@ public class TPCCLoader extends BenchmarkComponent {
             if (m_doMakeReplicated) customerNames = new VoltTable(CUSTOMER_NAME_COLUMNS);
             
             for (int d_id = 1; d_id <= m_parameters.districtsPerWarehouse; ++d_id) {
+                if (this.stop) return;
+                
                 // System.err.printf("Beginning District: %d\n", d_id);
                 generateDistrict(w_id, d_id);
 
@@ -609,6 +613,7 @@ public class TPCCLoader extends BenchmarkComponent {
                     loadVoltTable("ITEM", items);
                     items.clearRowData();
                 }
+                if (this.stop) return;
             } // FOR
             if (items.getRowCount() > 0) {
                 String extra = "";
@@ -627,6 +632,7 @@ public class TPCCLoader extends BenchmarkComponent {
             LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d]", table.getRowCount()));
             try {
                 for (int i = 0, cnt = table.getRowCount(); i < cnt; i++) {
+                    if (this.stop) return;
                     batch.add(table.fetchRow(i));
                     if (batch.getRowCount() == replicated_batch_size) {
                         LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i, cnt));
@@ -785,9 +791,11 @@ public class TPCCLoader extends BenchmarkComponent {
                          t.getSecond().getClass().getSimpleName(), t.getFirst().getName()));
                 
                 for (LoadThread loadThread : m_loadThreads) {
-                    loadThread.interrupt();
+                    loadThread.stop = true;
                 } // FOR
+                LOG.info("Waiting for all threads to clean themselves up");
                 for (LoadThread loadThread : m_loadThreads) {
+                    if (loadThread == Thread.currentThread()) continue;
                     try {
                         loadThread.join();
                     } catch (InterruptedException ex) {
