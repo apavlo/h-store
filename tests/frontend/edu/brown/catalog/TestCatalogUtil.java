@@ -65,8 +65,7 @@ public class TestCatalogUtil extends BaseTestCase {
         // slev doesn't write anything, so there should be no READ-WRITE conflict
         Collection<Procedure> conflicts = CatalogUtil.getReadWriteConflicts(proc0);
         assertNotNull(conflicts);
-        assertFalse(proc0+": "+conflicts.toString(), conflicts.contains(proc0));
-        assertFalse(proc0+": "+conflicts.toString(), conflicts.contains(proc0));
+        assertFalse(proc0+": "+conflicts.toString(), conflicts.contains(proc1));
         
         // But it's not symmetrical, because neworder writes some stuff out
         conflicts = CatalogUtil.getReadWriteConflicts(proc1);
