@@ -142,7 +142,9 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
             catalog_stmt = CatalogKey.getFromKey(CatalogUtil.getDatabase(catalog_proc), this.catalog_item_name, Statement.class);
         }
         if (catalog_stmt == null) {
-            throw new JSONException("Procedure '" + catalog_proc.getName() + "' does not have a Statement '" + this.catalog_item_name + "'");
+            String msg = "Procedure '" + catalog_proc.getName() + "' does not have a Statement '" + this.catalog_item_name + "'";
+            msg += "\nValid Statements: " + CatalogUtil.debug(catalog_proc.getStatements());
+            throw new JSONException(msg);
         }
         // HACK
         this.catalog_item_name = CatalogKey.createKey(catalog_stmt);
