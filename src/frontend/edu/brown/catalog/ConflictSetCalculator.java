@@ -77,7 +77,7 @@ public class ConflictSetCalculator {
         // Then check whether there is a R-W or W-R conflict with other procedures
         for (Procedure proc0 : this.procedures.keySet()) {
             for (Procedure proc1 : this.procedures.keySet()) {
-                if (proc0.equals(proc1)) continue;
+                // if (proc0.equals(proc1)) continue;
                 
                 conflicts = this.checkReadWriteConflict(proc0, proc1);
                 if (conflicts.isEmpty() == false) {
