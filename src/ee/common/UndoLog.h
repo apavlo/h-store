@@ -43,7 +43,7 @@ namespace voltdb
 
         inline UndoQuantum* generateUndoQuantum(int64_t nextUndoToken)
         {
-            VOLT_DEBUG("Generating token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
+            VOLT_TRACE("Generating token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
                        nextUndoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
             // Since ExecutionSite is using monotonically increasing
@@ -73,7 +73,7 @@ namespace voltdb
          * until the undo quantum with the specified undo token.
          */
         inline void undo(const int64_t undoToken) {
-            VOLT_DEBUG("Undoing token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
+            VOLT_TRACE("Undoing token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
             // This ensures that undo is only ever called after
@@ -123,7 +123,7 @@ namespace voltdb
          * impossible to undo these actions in the future.
          */
         inline void release(const int64_t undoToken) {
-            VOLT_DEBUG("Releasing token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
+            VOLT_TRACE("Releasing token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
             assert(m_lastReleaseToken < undoToken);
