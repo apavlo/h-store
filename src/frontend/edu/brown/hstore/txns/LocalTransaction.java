@@ -1211,10 +1211,9 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public void addResult(int partition, int dependency_id, VoltTable result) {
         assert(result != null) :
-            "The result for DependencyId " + dependency_id + " is null in txn #" + this.txn_id;
-        if (this.state != null) {
-            this.addResult(Pair.of(partition, dependency_id), result, false);
-        }
+            String.format("%s - The result for DependencyId %d from partition %d is null",
+                          this, dependency_id, partition);
+        this.addResult(Pair.of(partition, dependency_id), result, false);
     }
 
     /**

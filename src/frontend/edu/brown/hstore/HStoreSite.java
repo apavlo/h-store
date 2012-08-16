@@ -97,6 +97,7 @@ import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
 import edu.brown.hstore.stats.PoolCounterStats;
 import edu.brown.hstore.stats.TransactionCounterStats;
 import edu.brown.hstore.stats.TransactionProfilerStats;
+import edu.brown.hstore.stats.TransactionQueueManagerProfilerStats;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
@@ -230,6 +231,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final TransactionCounterStats txnCounterStats;
     private final TransactionProfilerStats txnProfilerStats;
     private final PartitionExecutorProfilerStats execProfilerStats;
+    private final TransactionQueueManagerProfilerStats queueProfilerStats;
     private final PoolCounterStats poolStats;
     
     // ----------------------------------------------------------------------------
@@ -570,6 +572,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // EXECUTOR PROFILERS
         this.execProfilerStats = new PartitionExecutorProfilerStats(this);
         this.statsAgent.registerStatsSource(SysProcSelector.EXECPROFILER, 0, this.execProfilerStats);
+        
+        // QUEUE PROFILER
+        this.queueProfilerStats = new TransactionQueueManagerProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.QUEUEPROFILER, 0, this.queueProfilerStats);
         
         // OBJECT POOL COUNTERS
         this.poolStats = new PoolCounterStats(this.objectPools);
