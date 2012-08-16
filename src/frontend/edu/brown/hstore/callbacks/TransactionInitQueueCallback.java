@@ -83,6 +83,8 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     
     @Override
     protected void finishImpl() {
+        if (debug.get()) LOG.debug(String.format("Txn #%d - Clearing out %s",
+                                   this.getTransactionId(), this.builder.getClass().getSimpleName()));
         this.builder = null;
     }
     
@@ -93,6 +95,10 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     
     @Override
     public void unblockCallback() {
+        if (debug.get()) LOG.debug(String.format("Txn #%d - Checking whether we can send back %s with status %s",
+                                   this.getTransactionId(),
+                                   TransactionInitResponse.class.getSimpleName(),
+                                   (this.builder != null ? this.builder.getStatus() : "???")));
         if (this.builder != null) {
             if (debug.get()) {
                 LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
@@ -146,6 +152,10 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
                 }
             }
         }
+        else if (debug.get()) {
+            LOG.debug(String.format("Txn #%d - No builder is available? Unable to send back %s",
+                      this.getTransactionId(), TransactionInitResponse.class.getSimpleName()));
+        }
     }
     
     /**
@@ -158,8 +168,8 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
      */
     public void abort(Status status, int partition, Long txn_id) {
         if (this.builder != null) {
-//            assert(this.builder != null) :
-//                "Unexpected null TransactionInitResponse builder for txn #" + this.getTransactionId();
+            if (debug.get()) LOG.debug(String.format("Txn #%d - Setting abort status to %s",
+                                       this.getTransactionId(), status));
             if (txn_id != null) {
                 this.builder.setRejectPartition(partition);
                 this.builder.setRejectTransactionId(txn_id);
@@ -170,15 +180,11 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     
     @Override
     protected void abortCallback(Status status) {
-        if (debug.get())
-            LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
-                                    this.getTransactionId(), this.getClass().getSimpleName(), status));
-        
         // Uh... this might have already been sent out?
         if (this.builder != null) {
-//        assert(this.builder != null) :
-//            "Unexpected null TransactionInitResponse builder for txn #" + this.getTransactionId();
-
+            if (debug.get()) LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
+                                       this.getTransactionId(), this.getClass().getSimpleName(), status));
+            
             // Ok so where's what going on here. We need to send back
             // an abort message, so we're going use the builder that we've been 
             // working on and send out the bomb back to the base partition tells it that this

@@ -30,11 +30,12 @@ public class ClientResponseCallback implements RpcCallback<ClientResponseImpl> {
     
     @Override
     public void run(ClientResponseImpl parameter) {
+        // Always reduce backpressure before we throw the exception
         boolean ret = this.conn.writeStream().enqueue(parameter);
+        this.clientInterface.reduceBackpressure(this.messageSize);
         if (ret == false) {
             throw new ClientConnectionLostException(parameter.getTransactionId());
         }
-        this.clientInterface.reduceBackpressure(this.messageSize);
     }
 
 }

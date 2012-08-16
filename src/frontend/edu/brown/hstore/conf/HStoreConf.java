@@ -1962,20 +1962,26 @@ public final class HStoreConf {
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
-            if (debug.get()) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type [class=%s]", v, k, f_class));
-            
-            if (f_class.equals(int.class) || f_class.equals(Integer.class)) {
-                value = Integer.parseInt(v);
-            } else if (f_class.equals(long.class) || f_class.equals(Long.class)) {
-                value = Long.parseLong(v);
-            } else if (f_class.equals(double.class) || f_class.equals(Double.class)) {
-                value = Double.parseDouble(v);
-            } else if (f_class.equals(boolean.class) || f_class.equals(Boolean.class)) {
-                value = Boolean.parseBoolean(v.toLowerCase());
-            } else if (f_class.equals(String.class)) {
-                value = v;
-            } else {
-                LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
+            if (debug.get()) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type [class=%s]",
+                                       v, k, f_class));
+
+            try {
+                if (f_class.equals(int.class) || f_class.equals(Integer.class)) {
+                    value = Integer.parseInt(v);
+                } else if (f_class.equals(long.class) || f_class.equals(Long.class)) {
+                    value = Long.parseLong(v);
+                } else if (f_class.equals(double.class) || f_class.equals(Double.class)) {
+                    value = Double.parseDouble(v);
+                } else if (f_class.equals(boolean.class) || f_class.equals(Boolean.class)) {
+                    value = Boolean.parseBoolean(v.toLowerCase());
+                } else if (f_class.equals(String.class)) {
+                    value = v;
+                } else {
+                    LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
+                    continue;
+                }
+            } catch (Exception ex) {
+                LOG.error(String.format("Invalid value '%s' for configuration parameter '%s'", v, k), ex);
                 continue;
             }
             if (debug.get()) LOG.debug(String.format("CAST %s => %s", k, value));
