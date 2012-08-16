@@ -546,9 +546,9 @@ public final class HStoreConf {
         public boolean txn_counters;
         
         @ConfigProperty(
-            description="The amount of time the TransactionQueueManager will wait before letting a " +
-                        "distributed transaction id from aquiring a lock on a partition.",
-            defaultInt=1,
+            description="The amount of time in milliseconds that the TransactionQueueManager will wait " +
+            		    "before letting a distributed transaction acquire a lock on a partition.",
+            defaultInt=5,
             experimental=true
         )
         public int txn_incoming_delay;
