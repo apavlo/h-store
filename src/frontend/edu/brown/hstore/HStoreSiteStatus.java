@@ -489,7 +489,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             status = String.format("%-5s [limit=%d, release=%d] %s",
                                    dtxn_queue.size(), dtxn_queue.getQueueMax(), dtxn_queue.getQueueRelease(),
                                    (dtxn_queue.isThrottled() ? "*THROTTLED* " : ""));
-            txn_id = queueManager.getCurrentTransaction(partition);
+            txn_id = queueManagerDebug.getCurrentTransaction(partition);
             if (txn_id != null) {
                 TransactionInitQueueCallback callback = queueManagerDebug.getInitCallback(txn_id);
                 int len = status.length();

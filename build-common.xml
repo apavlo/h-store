@@ -120,6 +120,7 @@
 <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />
 <arg value="site.txn_restart_limit_sysproc=${site.txn_restart_limit_sysproc}" />
 <arg value="site.txn_partition_id_managers=${site.txn_partition_id_managers}" />
+<arg value="site.queue_profiling=${site.queue_profiling}" />
 <arg value="site.queue_incoming_max_per_partition=${site.queue_incoming_max_per_partition}" />
 <arg value="site.queue_incoming_release_factor=${site.queue_incoming_release_factor}" />
 <arg value="site.queue_incoming_increase=${site.queue_incoming_increase}" />

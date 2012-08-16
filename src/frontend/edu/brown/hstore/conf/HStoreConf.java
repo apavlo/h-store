@@ -528,8 +528,9 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable transaction profiling. This will measure the amount of time a transaction spends" +
-                        "in different parts of the system (e.g., waiting in the work queue, planning, executing).",
+            description="Enable transaction profiling. This will measure the amount of time a " +
+            		    "transaction spends in different parts of the system (e.g., waiting in " +
+            		    "the work queue, planning, executing).",
             defaultBoolean=false,
             experimental=false
         )
@@ -581,6 +582,13 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         // Distributed Transaction Queue Options
         // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="Enable profiling in the TransactionQueueManager.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean queue_profiling;
         
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +

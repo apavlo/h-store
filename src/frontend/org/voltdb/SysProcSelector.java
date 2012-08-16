@@ -28,5 +28,6 @@ public enum SysProcSelector {
     TXNCOUNTER,     // transaction counter information
     TXNPROFILER,    // transaction profiler information
     EXECPROFILER,   // executor profiler information
+    QUEUEPROFILER,  // transaction queue manager profiler information
     POOL,           // info about how object pools
 }

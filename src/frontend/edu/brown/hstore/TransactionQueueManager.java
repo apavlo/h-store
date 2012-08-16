@@ -31,6 +31,7 @@ import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.TransactionQueueManagerProfiler;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -64,6 +65,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * 
      */
     private final long wait_time;
+    
+    private final TransactionQueueManagerProfiler profiler = new TransactionQueueManagerProfiler();
     
     // ----------------------------------------------------------------------------
     // TRANSACTION PARTITION LOCKS QUEUES
@@ -200,7 +203,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         });
         
         if (d) LOG.debug(String.format("Created %d TransactionInitQueues for %s",
-                                       num_ids, hstore_site.getSiteName()));
+                         num_ids, hstore_site.getSiteName()));
     }
     
     @Override
@@ -226,26 +229,37 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug("Starting distributed transaction queue manager thread");
         
         while (this.stop == false) {
+            if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
                 this.checkFlag.tryAcquire(this.wait_time*2, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 // Nothing...
+            } finally {
+                if (hstore_conf.site.queue_profiling && profiler.idle.isStarted()) profiler.idle.stop();
             }
             
             if (t) LOG.trace("Checking partition queues for dtxns to release!");
+            if (hstore_conf.site.queue_profiling) profiler.lock_queue.start();
             while (this.checkLockQueues()) {
                 // Keep checking the queue as long as they have more stuff in there
                 // for us to process
             }
+            if (hstore_conf.site.queue_profiling && profiler.lock_queue.isStarted()) profiler.lock_queue.stop();
             
             // Release transactions for initialization to the HStoreCoordinator
+            if (hstore_conf.site.queue_profiling) profiler.init_queue.start();
             this.checkInitQueue();
+            if (hstore_conf.site.queue_profiling && profiler.init_queue.isStarted()) profiler.init_queue.stop();
             
             // Release blocked distributed transactions
+            if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
             this.checkBlockedQueue();
+            if (hstore_conf.site.queue_profiling && profiler.block_queue.isStarted()) profiler.block_queue.stop();
             
             // Requeue mispredicted local transactions
+            if (hstore_conf.site.queue_profiling) profiler.restart_queue.start();
             this.checkRestartQueue();
+            if (hstore_conf.site.queue_profiling && profiler.restart_queue.isStarted()) profiler.restart_queue.stop();
         } // WHILE
     }
     
@@ -857,16 +871,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
-    /**
-     * Return the current transaction that is executing at this partition
-     * @param partition
-     * @return
-     */
-    public Long getCurrentTransaction(int partition) {
-        if (this.lockQueuesBlocked[partition]) {
-            return (this.lockQueuesLastTxn[partition]);
-        }
-        return (null);
+    public TransactionQueueManagerProfiler getProfiler() {
+        return this.profiler;
     }
     
     @Override
@@ -920,6 +926,17 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 if (lockQueues[i].isEmpty() == false) return (false);
             }
             return (true);
+        }
+        /**
+         * Return the current transaction that is executing at this partition
+         * @param partition
+         * @return
+         */
+        public Long getCurrentTransaction(int partition) {
+            if (lockQueuesBlocked[partition]) {
+                return (lockQueuesLastTxn[partition]);
+            }
+            return (null);
         }
     }
     
