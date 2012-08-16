@@ -32,6 +32,8 @@ import java.util.Map;
 
 import org.apache.commons.collections15.map.LRUMap;
 
+import edu.brown.statistics.Histogram;
+
 /**
  * @author pavlo
  */
@@ -130,6 +132,18 @@ public abstract class MathUtil {
             weight_sum += weights[i];
         } // FOR
         return (total / (double) weight_sum);
+    }
+    
+    public static <T extends Number> double weightedMean(Histogram<T> h) {
+        double values[] = new double[h.getValueCount()];
+        double weights[] = new double[h.getValueCount()];
+        int i = 0;
+        for (T val : h.values()) {
+            values[i] = val.doubleValue();
+            weights[i] = h.get(val, 0l); 
+            i++;
+        } // FOR
+        return (MathUtil.weightedMean(values, weights));
     }
 
     /**
