@@ -12,7 +12,7 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
 
-public class TestConflictCalculator extends BaseTestCase {
+public class TestConflictSetCalculator extends BaseTestCase {
     
     ConflictSetCalculator cc;
     
