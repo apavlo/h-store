@@ -1219,7 +1219,6 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         } finally {
             LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
             this.hstore_site.shutdown();
-            this.shutdown();
             if (error != null) {
                 LOG.fatal("A fatal error caused this shutdown", error);
             }

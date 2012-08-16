@@ -1388,6 +1388,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.clientInterface.shutdown();
         }
         
+        this.hstore_coordinator.shutdown();
+        
         LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]",
                                this.getSiteName(), this.hashCode()));
     }
