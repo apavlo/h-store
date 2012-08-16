@@ -940,8 +940,13 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
     }
     
+    private static TransactionQueueManager.Debug cachedDebugContext;
     public TransactionQueueManager.Debug getDebugContext() {
-        return new TransactionQueueManager.Debug();
+        if (cachedDebugContext == null) {
+            // We don't care if we're thread-safe here...
+            cachedDebugContext = new TransactionQueueManager.Debug();
+        }
+        return cachedDebugContext;
     }
     
     @Override

@@ -1,7 +1,7 @@
 package edu.brown.profilers;
 
 public class TransactionQueueManagerProfiler extends AbstractProfiler {
-
+    
     public final ProfileMeasurement idle = new ProfileMeasurement("IDLE");
     
     public final ProfileMeasurement lock_queue = new ProfileMeasurement("LOCK_QUEUE");
