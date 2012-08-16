@@ -203,7 +203,8 @@ public class SpecExecScheduler {
         // we can let that slide as long as DTXN hasn't read from or written to those tables yet
         if (dtxn_hasRWConflict || dtxn_hasWWConflict) {
             assert(dtxn_conflicts != null) :
-                "Unexpected null ConflictSet for " + dtxn_proc;
+                String.format("Unexpected null ConflictSet for %s -> %s",
+                              dtxn_proc.getName(), ts_proc.getName());
             for (TableRef ref : dtxn_conflicts.getReadwriteconflicts().values()) {
                 if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
                     return (true);
@@ -220,6 +221,9 @@ public class SpecExecScheduler {
         // writes to, then we can allow TS to execute if DTXN hasn't written anything to 
         // those tables yet
         if (ts_hasRWConflict && ts_hasWWConflict == false) {
+            assert(dtxn_conflicts != null) :
+                String.format("Unexpected null ConflictSet for %s -> %s",
+                              ts_proc.getName(), dtxn_proc.getName());
             if (debug.get())
                 LOG.debug(String.format("%s has R-W conflict with %s. Checking read/write sets", ts, dtxn));
             for (TableRef ref : ts_conflicts.getReadwriteconflicts().values()) {
