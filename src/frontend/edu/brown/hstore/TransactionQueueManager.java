@@ -66,7 +66,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     private final long wait_time;
     
-    private final TransactionQueueManagerProfiler profiler = new TransactionQueueManagerProfiler();
+    private final TransactionQueueManagerProfiler profiler;
     
     // ----------------------------------------------------------------------------
     // TRANSACTION PARTITION LOCKS QUEUES
@@ -168,14 +168,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param hstore_site
      */
     public TransactionQueueManager(HStoreSite hstore_site) {
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
+        Integer allPartitions[] = catalogContext.getAllPartitionIdArray();
+        int num_partitions = allPartitions.length;
+        
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
-        
-        CatalogContext catalogContext = hstore_site.getCatalogContext();
-        
-        Integer allPartitions[] = catalogContext.getAllPartitionIdArray();
-        int num_ids = allPartitions.length;
-        this.lockQueues = new TransactionInitPriorityQueue[num_ids];
+        this.profiler = new TransactionQueueManagerProfiler(num_partitions);
+        this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
         this.lockQueuesBlocked = new boolean[this.lockQueues.length];
         this.lockQueuesLastTxn = new Long[this.lockQueues.length];
         this.localPartitionsArray = CollectionUtil.toIntArray(hstore_site.getLocalPartitionIds());
@@ -203,7 +203,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         });
         
         if (d) LOG.debug(String.format("Created %d TransactionInitQueues for %s",
-                         num_ids, hstore_site.getSiteName()));
+                         num_partitions, hstore_site.getSiteName()));
     }
     
     @Override
@@ -260,6 +260,18 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             if (hstore_conf.site.queue_profiling) profiler.restart_queue.start();
             this.checkRestartQueue();
             if (hstore_conf.site.queue_profiling && profiler.restart_queue.isStarted()) profiler.restart_queue.stop();
+            
+            // Count the number of unique concurrent dtxns
+            if (hstore_conf.site.queue_profiling) {
+                profiler.concurrent_dtxn_ids.clear();
+                for (int partition: this.localPartitionsArray) {
+                    if (this.lockQueuesLastTxn[partition] != null) {
+                        profiler.concurrent_dtxn_ids.add(this.lockQueuesLastTxn[partition]);   
+                    }
+                } // FOR
+                profiler.concurrent_dtxn.fastPut(profiler.concurrent_dtxn_ids.size());
+            }
+            
         } // WHILE
     }
     

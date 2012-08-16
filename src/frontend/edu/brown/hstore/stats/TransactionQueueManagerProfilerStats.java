@@ -17,6 +17,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
+import edu.brown.utils.MathUtil;
 
 public class TransactionQueueManagerProfilerStats extends StatsSource {
     private static final Logger LOG = Logger.getLogger(PartitionExecutorProfilerStats.class);
@@ -61,9 +62,10 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         super.populateColumnSchema(columns);
         
         // Make a dummy profiler just so that we can get the fields from it
-        TransactionQueueManagerProfiler profiler = new TransactionQueueManagerProfiler();
+        TransactionQueueManagerProfiler profiler = new TransactionQueueManagerProfiler(1);
         assert(profiler != null);
         
+        columns.add(new VoltTable.ColumnInfo("AVG_CONCURRENT", VoltType.FLOAT));
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             String name = pm.getType().toUpperCase();
             // We need two columns per ProfileMeasurement
@@ -77,11 +79,11 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
         TransactionQueueManagerProfiler profiler = this.queue_manager.getProfiler();
-        int offset = -1;
+        
+        int offset = this.columnNameToIndex.get("AVG_CONCURRENT");
+        rowValues[offset++] = MathUtil.weightedMean(profiler.concurrent_dtxn);
+        
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
-            if (offset == -1) {
-                offset = this.columnNameToIndex.get(pm.getType().toUpperCase());
-            }
             rowValues[offset++] = pm.getTotalThinkTime();
             rowValues[offset++] = pm.getInvocations();
         } // FOR
