@@ -1610,7 +1610,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             (success ? TransactionCounter.EXECUTED : TransactionCounter.REJECTED).inc(catalog_proc);
         }
         
-        if (d) LOG.debug(String.format("Finished initial processing of new txn. [success=%s]", success));
+        if (t) LOG.trace(String.format("Finished initial processing of new txn. [success=%s]", success));
         EstTimeUpdater.update(System.currentTimeMillis());
         if (hstore_conf.site.network_profiling) {
             ProfileMeasurement.swap(this.profiler.network_processing_time, this.profiler.network_idle_time);
@@ -1738,7 +1738,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.startMapReduceHelper();
         }
                 
-        if (d) LOG.debug(ts + " - Dispatching new transaction invocation");
+        if (t) LOG.trace(ts + " - Dispatching new transaction invocation");
         
         // -------------------------------
         // SINGLE-PARTITION or NON-BLOCKING MAPREDUCE TRANSACTION
@@ -2176,7 +2176,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // XXX: We should probably decrement the base partition by one 
             //      so that we only consider where they actually executed queries
-            if (d) LOG.debug(String.format("Touched partitions for mispredicted %s%s",
+            if (t) LOG.trace(String.format("Touched partitions for mispredicted %s%s",
                                            orig_ts, (t ? "\n"+touched : " " + touched.values())));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
@@ -2474,7 +2474,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // There is nothing else we can really do here. We'll clean up
             // the transaction just as normal and report the error
             // in our logs if they have debugging turned on
-            if (d) LOG.debug("Failed to send back ClientResponse for txn #" + cresponse.getTransactionId(), ex);
+            if (t) LOG.warn("Failed to send back ClientResponse for txn #" + cresponse.getTransactionId(), ex);
         }
     }
     

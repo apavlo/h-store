@@ -2530,7 +2530,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 LOG.fatal(String.format("Crashing because site.exec_mispredict_crash is true [txn=%s]", ts));
                 this.crash(ex);
             } else if (d) {
-                LOG.debug(ts + " mispredicted! Aborting and restarting!");
+                LOG.debug(ts + " - Aborting and restarting mispredicted txn.");
             }
             throw ex;
         }
