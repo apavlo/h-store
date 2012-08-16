@@ -179,11 +179,11 @@ public class Statistics extends VoltSystemProcedure {
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_execProfilerDataAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_queueProfilerData));
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_execProfilerData));
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_queueProfilerDataAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_execProfilerData));
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_queueProfilerData));
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_poolDataAggregator: {
