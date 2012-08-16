@@ -2,6 +2,7 @@ package edu.brown.hstore;
 
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,11 +11,11 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -326,6 +327,16 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     protected boolean checkLockQueues() {
         if (t) LOG.trace("Checking initQueues for " + this.localPartitionsArray.length + " partitions");
+        EstTimeUpdater.update(System.currentTimeMillis());
+        
+        // Process anything in our finished queue first
+        Object triplet[];
+        while ((triplet = this.lockFinishQueue.poll()) != null) {
+            Long txn_id = (Long)triplet[0];
+            Status status = (Status)triplet[1];
+            Integer partition = (Integer)triplet[2];
+            this.processLockFinished(txn_id, status, partition.intValue());
+        } // WHILE
         
         boolean txn_released = false;
         for (int partition : this.localPartitionsArray) {
@@ -379,8 +390,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 continue;
             }
 
-            if (d) LOG.debug(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking initQueue callback!",
-                                           partition, next_id));
+            if (d) LOG.debug(String.format("Good news! Partition #%d is ready to execute txn #%d! " +
+            		         "Invoking initQueue callback!",
+                             partition, next_id));
             this.lockQueuesLastTxn[partition] = next_id;
             this.lockQueuesBlocked[partition] = true;
             
@@ -391,30 +403,22 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             } catch (NullPointerException ex) {
                 // HACK: Ignore...
                 if (d) LOG.warn(String.format("Unexpected error when invoking %s for txn #%d at partition %d",
-                                              callback.getClass().getSimpleName(), next_id, partition), ex);
+                                callback.getClass().getSimpleName(), next_id, partition), ex);
             } catch (Throwable ex) {
                 String msg = String.format("Failed to invoke %s for txn #%d at partition %d",
                                            callback.getClass().getSimpleName(), next_id, partition);
                 throw new ServerFaultException(msg, ex, next_id);
             }
-            txn_released = true;
                 
             // remove the callback when this partition is the last one to start the job
             if (counter == 0) {
                 if (d) LOG.debug(String.format("All local partitions needed by txn #%d are ready. Removing callback", next_id));
                 this.cleanupTransaction(next_id);
+                txn_released = true;
             }
         } // FOR
         
-        // Process anything in our finished queue
-        Object triplet[];
-        while ((triplet = this.lockFinishQueue.poll()) != null) {
-            Long txn_id = (Long)triplet[0];
-            Status status = (Status)triplet[1];
-            Integer partition = (Integer)triplet[2];
-            this.processLockFinished(txn_id, status, partition.intValue());
-        } // WHILE
-        
+        if (t) LOG.trace("Finished processing lock queues [released=" + txn_released + "]");
         return (txn_released);
     }
     
@@ -442,8 +446,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param sysproc TODO
      * @return
      */
-    public boolean lockInsert(Long txn_id, PartitionSet partitions, RpcCallback<TransactionInitResponse> callback, boolean sysproc) {
-        if (d) LOG.debug(String.format("Adding new distributed txn #%d into initQueue [partitions=%s]",
+    public boolean lockQueueInsert(Long txn_id, PartitionSet partitions, RpcCallback<TransactionInitResponse> callback, boolean sysproc) {
+        if (d) LOG.debug(String.format("Adding new txn #%d into lockQueue [partitions=%s]",
                          txn_id, partitions));
         
         // Wrap the callback around a TransactionInitWrapperCallback that will wait until
@@ -459,7 +463,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // all that we care about is that whatever value is in there now is greater than
             // the what the transaction was trying to use.
             if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
-                if (d) LOG.debug(String.format("The last initQueue txnId for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
+                if (d) LOG.debug(String.format("The last lockQueue txnId for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
                                  partition, this.lockQueuesLastTxn[partition], txn_id));
                 if (wrapper != null) {
                     this.rejectTransaction(txn_id,
@@ -489,7 +493,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // The next txnId that we're going to try to execute is already greater
             // than this new txnId that we were given! Rejection!
             if (next_safe.compareTo(txn_id) > 0) {
-                if (d) LOG.debug(String.format("The next safe initQueue txnId for partition #%d is txn #%d but this is greater than our new txn #%d. Rejecting...",
+                if (d) LOG.debug(String.format("The next safe lockQueue txnId for partition #%d is txn #%d but this is greater than our new txn #%d. Rejecting...",
                                  partition, next_safe, txn_id));
                 if (wrapper != null) {
                     this.rejectTransaction(txn_id,
@@ -550,7 +554,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param status
      * @param partition
      */
-    public void lockFinished(Long txn_id, Status status, int partition) {
+    public void lockQueueFinished(Long txn_id, Status status, int partition) {
         this.lockFinishQueue.add(new Object[]{ txn_id, status, Integer.valueOf(partition) });
     }    
         
@@ -904,6 +908,34 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         return (this.stop);
     }
     
+    @Override
+    public String toString() {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> m[] = (Map<String, Object>[])new Map[2];
+        int idx = -1;
+
+        // Basic Information
+        m[++idx] = new LinkedHashMap<String, Object>();
+        m[idx].put("Wait Time", this.wait_time + " ms");
+        m[idx].put("# of Callbacks", this.lockQueuesCallbacks.size());
+        m[idx].put("# of Blocked Txns", this.blockedQueue.size());
+        m[idx].put("# of Finished Queue Entries", this.lockFinishQueue.size());
+        
+        // Local Partitions
+        m[++idx] = new LinkedHashMap<String, Object>();
+        for (int p = 0; p < this.lockQueuesLastTxn.length; p++) {
+            Map<String, Object> inner = new LinkedHashMap<String, Object>();
+            inner.put("Current Txn", this.lockQueuesLastTxn[p]);
+            if (hstore_site.isLocalPartition(p)) {
+                inner.put("Locked?", this.lockQueuesBlocked[p]);
+                inner.put("Queue Size", this.lockQueues[p].size());
+            }
+            m[idx].put(String.format("Partition #%02d", p), inner);
+        } // FOR
+        
+        return StringUtil.formatMaps(m);
+    }
+    
     // ----------------------------------------------------------------------------
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
@@ -952,40 +984,13 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
     }
     
-    private static TransactionQueueManager.Debug cachedDebugContext;
+    private TransactionQueueManager.Debug cachedDebugContext;
     public TransactionQueueManager.Debug getDebugContext() {
         if (cachedDebugContext == null) {
             // We don't care if we're thread-safe here...
             cachedDebugContext = new TransactionQueueManager.Debug();
         }
         return cachedDebugContext;
-    }
-    
-    @Override
-    public String toString() {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> m[] = (Map<String, Object>[])new Map[2];
-        int idx = -1;
-
-        // Basic Information
-        m[++idx] = new ListOrderedMap<String, Object>();
-        m[idx].put("Wait Time", this.wait_time + " ms");
-        m[idx].put("# of Callbacks", this.lockQueuesCallbacks.size());
-        m[idx].put("# of Blocked Txns", this.blockedQueue.size());
-        
-        // Local Partitions
-        m[++idx] = new ListOrderedMap<String, Object>();
-        for (int p = 0; p < this.lockQueuesLastTxn.length; p++) {
-            Map<String, Object> inner = new ListOrderedMap<String, Object>();
-            inner.put("Current Txn", this.lockQueuesLastTxn[p]);
-            if (hstore_site.isLocalPartition(p)) {
-                inner.put("Locked?", this.lockQueuesBlocked[p]);
-                inner.put("Queue Size", this.lockQueues[p].size());
-            }
-            m[idx].put(String.format("Partition #%02d", p), inner);
-        } // FOR
-        
-        return StringUtil.formatMaps(m);
     }
     
 }

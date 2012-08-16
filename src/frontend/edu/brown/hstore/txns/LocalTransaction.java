@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Copyright (C) 2012 by H-Store Project                                 *
  *   Brown University                                                      *
  *   Massachusetts Institute of Technology                                 *
  *   Yale University                                                       *
@@ -1294,6 +1294,10 @@ public class LocalTransaction extends AbstractTransaction {
                               debugPartDep(partition, dependency_id), this, stmt_index, result);
         } catch (NullPointerException ex) {
             // HACK: IGNORE!
+        }
+        if (dinfo == null) {
+            // HACK: IGNORE!
+            return;
         }
         dinfo.addResult(partition, result);
         

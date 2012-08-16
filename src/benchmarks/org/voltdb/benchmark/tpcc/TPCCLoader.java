@@ -37,28 +37,25 @@
 
 package org.voltdb.benchmark.tpcc;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
-import edu.brown.hstore.conf.HStoreConf;
 
 /**
  * TPC-C database loader. Note: The methods order id parameters from "top level"
@@ -193,7 +190,7 @@ public class TPCCLoader extends BenchmarkComponent {
         public void run() {
             Integer warehouseId = null;
             LOG.debug("Total # of Remaining Warehouses: " + availableWarehouseIds.size());
-            while ((warehouseId = availableWarehouseIds.poll()) != null) {
+            while (this.isInterrupted() == false && (warehouseId = availableWarehouseIds.poll()) != null) {
                 LOG.debug(String.format("Loading warehouse %d / %d", (m_tpccConfig.num_warehouses - availableWarehouseIds.size()), m_tpccConfig.num_warehouses));
                 makeStock(warehouseId); // STOCK is made separately to reduce
                                         // memory consumption
@@ -204,6 +201,7 @@ public class TPCCLoader extends BenchmarkComponent {
                 LOG.info(String.format("Finished WAREHOUSE %02d [%d/%d]",
                          warehouseId, finishedWarehouses.incrementAndGet(), m_tpccConfig.num_warehouses));
             } // WHILE
+            if (this.isInterrupted()) return;
             
             makeItems(this.itemStart, itemEnd);
             LOG.info(String.format("Finished ITEM %d - %d [%d/%d]",

@@ -1809,7 +1809,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         Procedure catalog_proc = catalogContext.getProcedureById(procedureId);
         
         // We should always force a txn from a remote partition into the queue manager
-        this.txnQueueManager.lockInsert(txn_id, partitions, callback, catalog_proc.getSystemproc());
+        this.txnQueueManager.lockQueueInsert(txn_id, partitions, callback, catalog_proc.getSystemproc());
     }
 
     /**
@@ -1921,7 +1921,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Always tell the queue stuff that the transaction is finished at this partition
             if (t) LOG.trace(String.format("Telling queue manager that txn #%d is finished at partition %d",
                              txn_id, p));
-            this.txnQueueManager.lockFinished(txn_id, Status.OK, p);
+            this.txnQueueManager.lockQueueFinished(txn_id, Status.OK, p);
             
             // TODO: If this txn is read-only, then we should invoke finish right here
             // Because this txn didn't change anything at this partition, we should
@@ -1998,7 +1998,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // We only need to tell the queue stuff that the transaction is finished
             // if it's not a commit because there won't be a 2PC:PREPARE message
-            if (commit == false) this.txnQueueManager.lockFinished(txn_id, status, p.intValue());
+            if (commit == false) this.txnQueueManager.lockQueueFinished(txn_id, status, p.intValue());
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
@@ -2816,8 +2816,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	    }
 	}
 	
+	private HStoreSite.Debug cachedDebugContext;
 	public HStoreSite.Debug getDebugContext() {
-	    return new HStoreSite.Debug();
+	    if (cachedDebugContext == null) {
+	        // We don't care if we're thread-safe here...
+            cachedDebugContext = new HStoreSite.Debug(); 
+	    }
+	    return cachedDebugContext;
 	}
 
 }

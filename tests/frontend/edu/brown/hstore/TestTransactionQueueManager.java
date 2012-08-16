@@ -41,6 +41,9 @@ public class TestTransactionQueueManager extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         addPartitions(NUM_PARTITONS);
         
+        HStoreConf hstore_conf = HStoreConf.singleton();
+        hstore_conf.site.txn_incoming_delay = 1;
+        
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         assertNotNull(catalog_site);
         this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
@@ -62,7 +65,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         // Insert the txn into our queue and then call check
         // This should immediately release our transaction and invoke the inner_callback
-        boolean ret = this.queue.lockInsert(txn_id, partitions, inner_callback, false);
+        boolean ret = this.queue.lockQueueInsert(txn_id, partitions, inner_callback, false);
         assert(ret);
         
         int tries = 10;
@@ -88,40 +91,33 @@ public class TestTransactionQueueManager extends BaseTestCase {
         PartitionSet partitions1 = new PartitionSet(catalogContext.getAllPartitionIds());
         
         final MockCallback inner_callback0 = new MockCallback();
-        
         final MockCallback inner_callback1 = new MockCallback();
         
         // insert the higher ID first but make sure it comes out second
-        this.queue.lockInsert(txn_id1, partitions1, inner_callback1, false);
-        this.queue.lockInsert(txn_id0, partitions0, inner_callback0, false);
+        assertFalse(queue.checkLockQueues());
+        assertTrue(this.queue.lockQueueInsert(txn_id1, partitions1, inner_callback1, false));
+        assertTrue(this.queue.lockQueueInsert(txn_id0, partitions0, inner_callback0, false));
+        assertTrue(queue.checkLockQueues());
         
-        // create another thread to get the locks in order
-        Thread t = new Thread() {
-            public void run() {
-                try {
-                    inner_callback0.lock.acquire();
-                    for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.lockFinished(txn_id0, Status.OK, partition);
-                    }
-                } catch (InterruptedException e) {}
-                try {
-                    inner_callback1.lock.acquire();
-                    for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.lockFinished(txn_id1, Status.OK, partition);
-                    }
-                } catch (InterruptedException e) {}
-            }
-        };
-        t.setUncaughtExceptionHandler(this);
-        t.start();
+        assertTrue(inner_callback0.lock.tryAcquire());
+        System.err.println("Got callback0");
+        assertFalse(inner_callback1.lock.tryAcquire());
+        assertFalse(dbg.isLockQueuesEmpty());
+        for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
+            queue.lockQueueFinished(txn_id0, Status.OK, partition);
+        }
+        assertFalse(dbg.isLockQueuesEmpty());
         
-        while (dbg.isLockQueuesEmpty() == false) {
-            queue.checkLockQueues();
-            ThreadUtil.sleep(10);
+        assertTrue(queue.checkLockQueues());
+        assertTrue(inner_callback1.lock.tryAcquire());
+        System.err.println("Got callback1");
+        assertTrue(dbg.isLockQueuesEmpty());
+        for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
+            queue.lockQueueFinished(txn_id1, Status.OK, partition);
         }
         
-        // wait for all the locks to be acquired
-        t.join();
+        assertFalse(queue.checkLockQueues());
+        assertTrue(dbg.isLockQueuesEmpty());
     }
     
     /**
@@ -132,66 +128,47 @@ public class TestTransactionQueueManager extends BaseTestCase {
      */
     @Test
     public void testDisjointTransactions() throws InterruptedException {
-        final long txn_id0 = 1000;
-        final long txn_id1 = 2000;
-        final long txn_id2 = 3000;
-        PartitionSet partitions0 = new PartitionSet();
-        partitions0.add(0);
-        partitions0.add(2);
-        PartitionSet partitions1 = new PartitionSet();
-        partitions1.add(1);
-        partitions1.add(3);
-        PartitionSet partitions2 = new PartitionSet(catalogContext.getAllPartitionIds());
+        long txn_id = 1000;
+        final long txn_id0 = txn_id++;
+        final long txn_id1 = txn_id++;
+        final long txn_id2 = txn_id++;
+        PartitionSet partitions0 = new PartitionSet(0, 2);
+        PartitionSet partitions1 = new PartitionSet(1, 3);
+        PartitionSet partitions2 = catalogContext.getAllPartitionIds();
         
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
         final MockCallback inner_callback2 = new MockCallback();
         
-        this.queue.lockInsert(txn_id0, partitions0, inner_callback0, false);
-        this.queue.lockInsert(txn_id1, partitions1, inner_callback1, false);
+        this.queue.lockQueueInsert(txn_id0, partitions0, inner_callback0, false);
+        this.queue.lockQueueInsert(txn_id1, partitions1, inner_callback1, false);
+        this.queue.lockQueueInsert(txn_id2, partitions2, inner_callback2, false);
         
-        // create another thread to get the locks in order
-        Thread t = new Thread() {
-            public void run() {
-                try {
-                    inner_callback0.lock.acquire();
-                    for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.lockFinished(txn_id0, Status.OK, partition);
-                    }
-                } catch (InterruptedException e) {}
-                try {
-                    inner_callback1.lock.acquire();
-                    for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.lockFinished(txn_id1, Status.OK, partition);
-                    }
-                } catch (InterruptedException e) {}
-                try {
-                    inner_callback2.lock.acquire();
-                    for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.lockFinished(txn_id2, Status.OK, partition);
-                    }
-                } catch (InterruptedException e) {}
-            }
-        };
-        t.start();
+        // Both of the first two disjoint txns should be released on the same call to checkQueues()
+        assertTrue(queue.checkLockQueues());
+        assertTrue(inner_callback0.lock.tryAcquire());
+        assertTrue(inner_callback1.lock.tryAcquire());
+        assertFalse(inner_callback2.lock.tryAcquire());
+        assertFalse(dbg.isLockQueuesEmpty());
         
-        // both of the first two disjoint txns should be released on the same call to checkQueues()
-        while (queue.checkLockQueues() == false) {
-            ThreadUtil.sleep(10);
+        // Now release mark the first txn as finished. We should still 
+        // not be able to get the third txn's lock
+        for (int partition : partitions0) {
+            queue.lockQueueFinished(txn_id0, Status.OK, partition);
         }
-        // add the third txn and wait for it
-        this.queue.lockInsert(txn_id2, partitions2, inner_callback2, false);
-        while (dbg.isLockQueuesEmpty() == false) {
-            queue.checkLockQueues();
-            ThreadUtil.sleep(10);
-        }
+        assertFalse(queue.toString(), queue.checkLockQueues());
+        assertFalse(inner_callback2.lock.tryAcquire());
+        assertFalse(dbg.isLockQueuesEmpty());
         
-        // wait for all the locks to be acquired
-        t.join();
+        // Release the second txn. That should release the third txn
+        for (int partition : partitions1) {
+            queue.lockQueueFinished(txn_id1, Status.OK, partition);
+        }
+        assertTrue(queue.checkLockQueues());
+        assertTrue(inner_callback2.lock.tryAcquire());
+        assertTrue(dbg.isLockQueuesEmpty());
     }
     
-    // 
-    // 
     /**
      * Add two overlapping partitions, lowest id comes out
      * Mark first as done, second comes out
@@ -201,49 +178,38 @@ public class TestTransactionQueueManager extends BaseTestCase {
     public void testOverlappingTransactions() throws InterruptedException {
         final long txn_id0 = 1000;
         final long txn_id1 = 2000;
-        PartitionSet partitions0 = new PartitionSet();
-        partitions0.add(0);
-        partitions0.add(1);
-        partitions0.add(2);
-        PartitionSet partitions1 = new PartitionSet();
-        partitions1.add(2);
-        partitions1.add(3);
+        PartitionSet partitions0 = new PartitionSet(0, 1, 2);
+        PartitionSet partitions1 = new PartitionSet(2, 3);
         
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
         
-        this.queue.lockInsert(txn_id0, partitions0, inner_callback0, false);
-        this.queue.lockInsert(txn_id1, partitions1, inner_callback1, false);
+        this.queue.lockQueueInsert(txn_id0, partitions0, inner_callback0, false);
+        this.queue.lockQueueInsert(txn_id1, partitions1, inner_callback1, false);
         
-        // create another thread to get the locks in order
-        Thread t = new Thread() {
-            public void run() {
-                try {
-                    inner_callback0.lock.acquire();
-                    for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.lockFinished(txn_id0, Status.OK, partition);
-                    }
-                } catch (InterruptedException e) {}
-                try {
-                    inner_callback1.lock.acquire();
-                    for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.lockFinished(txn_id1, Status.OK, partition);
-                    }
-                } catch (InterruptedException e) {}
-            }
-        };
-        t.start();
+        // We should get the callback for the first txn right away
+        assertTrue(queue.checkLockQueues());
+        inner_callback0.lock.acquire();
+        System.err.println("Got callback0");
         
-        // only the first txn should be released because they are not disjoint
-        while (queue.checkLockQueues() == false) {
-            ThreadUtil.sleep(10);
+        // And then checkLockQueues should always return false
+        assertFalse(queue.checkLockQueues());
+        assertFalse(dbg.isLockQueuesEmpty());
+        
+        // Now if we mark the txn as finished, we should be able to acquire the
+        // locks for the second txn. We actually need to call checkLockQueues()
+        // twice because we only process the finished txns after the first one
+        for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
+            queue.lockQueueFinished(txn_id0, Status.OK, partition);
         }
-        while (dbg.isLockQueuesEmpty() == false) {
-            queue.checkLockQueues();
-            ThreadUtil.sleep(10);
-        }
+        assertTrue(queue.checkLockQueues());
+        inner_callback1.lock.acquire();
+        System.err.println("Got callback1");
         
-        // wait for all the locks to be acquired
-        t.join();
+        for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
+            queue.lockQueueFinished(txn_id1, Status.OK, partition);
+        }
+        assertFalse(queue.checkLockQueues());
+        assertTrue(dbg.isLockQueuesEmpty());
     }
 }

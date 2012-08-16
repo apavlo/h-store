@@ -6,6 +6,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.logging.LoggerUtil;
@@ -31,6 +32,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
     
     public enum QueueState {
         UNBLOCKED,
@@ -43,7 +46,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
     final int m_partitionId;
     final long m_waitTime;
     
-    Long m_lastSeenTxnId = -1l;
+    Long m_lastSeenTxnId = null;
     Long m_newestCandidateTransaction = -1l;
     long m_txnsPopped = 0;
     Long m_lastTxnPopped = 0l;
@@ -85,10 +88,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
             retval = super.poll();
             assert(retval != null);
         }
-        if (debug.get())
-            LOG.debug(String.format("Partition %d poll() -> %s",
-                                    m_partitionId, 
-                                    (retval != null ? String.format("#%d/%d", retval, TransactionIdManager.getInitiatorIdFromTransactionId(retval)) : retval)));
+        if (d) LOG.debug(String.format("Partition %d poll() -> %s",
+                         m_partitionId, 
+                         (retval != null ? String.format("#%d/%d", retval, TransactionIdManager.getInitiatorIdFromTransactionId(retval)) : retval)));
         if (retval != null) {
             assert(m_nextTxn.equals(retval)) : 
                 String.format("Partition %d - Next txn is #%d/%d but our poll returned txn #%d/%d\n%s",
@@ -118,10 +120,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
             retval = super.peek();
             assert(retval != null);
         }
-        if (debug.get()) 
-            LOG.debug(String.format("Partition %d peek() -> %s",
-                                    m_partitionId, 
-                                    (retval != null ? String.format("#%d/%d", retval, TransactionIdManager.getInitiatorIdFromTransactionId(retval)) : retval)));
+        if (d) LOG.debug(String.format("Partition %d peek() -> %s",
+                         m_partitionId, 
+                         (retval != null ? String.format("#%d/%d", retval, TransactionIdManager.getInitiatorIdFromTransactionId(retval)) : retval)));
         return retval;
     }
 
@@ -129,35 +130,35 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * Drop data for unknown initiators. This is the only valid add interface.
      */
     @Override
-    public synchronized boolean offer(Long txnID, boolean force) {
-        assert(txnID != null);
+    public synchronized boolean offer(Long txnId, boolean force) {
+        assert(txnId != null);
         
         // Check whether this new txn is less than the current m_nextTxn
         // If it is and there is still time remaining before it is released,
         // then we'll switch and become the new next m_nextTxn
-        if (m_nextTxn != null && txnID.compareTo(m_nextTxn) < 0) {
+        if (m_nextTxn != null && txnId.compareTo(m_nextTxn) < 0) {
             checkQueueState();
             if (m_state != QueueState.UNBLOCKED) {
-                if (debug.get()) LOG.debug(String.format("Partition %d Switching #%d/%d as new next txn [old=#%d/%d]",
-                                                         m_partitionId,
-                                                         txnID, TransactionIdManager.getInitiatorIdFromTransactionId(txnID),
-                                                         m_nextTxn, TransactionIdManager.getInitiatorIdFromTransactionId(m_nextTxn)));
-                m_nextTxn = txnID;
+                if (d) LOG.debug(String.format("Partition %d Switching #%d/%d as new next txn [old=#%d/%d]",
+                                 m_partitionId,
+                                 txnId, TransactionIdManager.getInitiatorIdFromTransactionId(txnId),
+                                 m_nextTxn, TransactionIdManager.getInitiatorIdFromTransactionId(m_nextTxn)));
+                m_nextTxn = txnId;
             } else {
-                if (debug.get()) LOG.debug(String.format("Partition %d offer(#%d/%d) -> %s",
-                                                         m_partitionId, 
-                                                         txnID, TransactionIdManager.getInitiatorIdFromTransactionId(txnID),
-                                                         "REJECTED"));
+                if (d) LOG.debug(String.format("Partition %d offer(#%d/%d) -> %s",
+                                 m_partitionId, 
+                                 txnId, TransactionIdManager.getInitiatorIdFromTransactionId(txnId),
+                                 "REJECTED"));
                 return (false);
             }
         }
         
-        boolean retval = super.offer(txnID, force);
+        boolean retval = super.offer(txnId, force);
         // update the queue state
         if (retval) checkQueueState();
-        if (debug.get()) LOG.debug(String.format("Partition %d offer(#%d/%d) -> %s",
-                                                 m_partitionId, 
-                                                 txnID, TransactionIdManager.getInitiatorIdFromTransactionId(txnID), retval));
+        if (d) LOG.debug(String.format("Partition %d offer(#%d/%d) -> %s",
+                         m_partitionId, 
+                         txnId, TransactionIdManager.getInitiatorIdFromTransactionId(txnId), retval));
         return retval;
     }
 
@@ -165,9 +166,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
     public synchronized boolean remove(Object txnID) {
         boolean retval = super.remove(txnID);
         if (retval) checkQueueState();
-        if (debug.get()) LOG.debug(String.format("Partition %d remove(#%d/%d) -> %s",
-                                                 m_partitionId, 
-                                                 txnID, TransactionIdManager.getInitiatorIdFromTransactionId((Long)txnID), retval));
+        if (d) LOG.debug(String.format("Partition %d remove(#%d/%d) -> %s",
+                         m_partitionId, 
+                         txnID, TransactionIdManager.getInitiatorIdFromTransactionId((Long)txnID), retval));
         return retval;
     }
 
@@ -181,7 +182,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
 
         // we've decided that this can happen, and it's fine... just ignore it
         if (m_lastTxnPopped.compareTo(txnId) > 0) {
-            if (debug.get()) {
+            if (d) {
                 LOG.warn(String.format("Txn ordering deadlock at partition %d -> LastTxn: %d / NewTxn: %d",
                                        m_partitionId, m_lastTxnPopped, txnId));
                 LOG.warn("LAST: " + TransactionIdManager.toString(m_lastTxnPopped));
@@ -190,13 +191,16 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         }
 
         // update the latest transaction for the specified initiator
-        if (m_lastSeenTxnId.compareTo(txnId) < 0)
+        if (m_lastSeenTxnId == null || txnId.compareTo(m_lastSeenTxnId) < 0) {
+            if (t) LOG.trace("SET lastSeenTxnId = " + txnId);
             m_lastSeenTxnId = txnId;
+        }
 
         // this minimum is the newest safe transaction to run
         // but you still need to check if a transaction has been confirmed
         //  by its initiator
         //  (note: this check is done when peeking/polling from the queue)
+        if (t) LOG.trace("SET m_newestCandidateTransaction = " + m_lastSeenTxnId);
         m_newestCandidateTransaction = m_lastSeenTxnId;
 
         // this will update the state of the queue if needed
@@ -238,29 +242,31 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         QueueState newState = QueueState.UNBLOCKED;
         Long ts = super.peek();
         if (ts == null) {
-            if (debug.get()) LOG.debug(String.format("Partition %d - Queue is empty.", m_partitionId));
+            if (d) LOG.debug(String.format("Partition %d - Queue is empty.", m_partitionId));
             newState = QueueState.BLOCKED_EMPTY;
         }
         // Check whether can unblock now
         else if (ts == m_nextTxn && m_state != QueueState.UNBLOCKED) {
-            if (System.currentTimeMillis() < m_blockTime) {
+            if (EstTime.currentTimeMillis() < m_blockTime) {
                 newState = QueueState.BLOCKED_SAFETY;
-            } else if (debug.get()) {
-                LOG.debug(String.format("Partition %d - Wait time for txn #%d has passed. Unblocking...", m_partitionId, m_nextTxn));
+            } else if (d) {
+                LOG.debug(String.format("Partition %d - Wait time for txn #%d has passed. Unblocking...",
+                          m_partitionId, m_nextTxn));
             }
         }
         // This is a new txn and we should wait...
         else if (m_nextTxn == null || m_nextTxn != ts) {
-            if (debug.get()) LOG.debug(String.format("Partition %d - Blocking next txn #%d for %d ms", m_partitionId, ts, m_waitTime));
+            if (d) LOG.debug(String.format("Partition %d - Blocking next txn #%d for %d ms",
+                             m_partitionId, ts, m_waitTime));
             newState = QueueState.BLOCKED_SAFETY;
-            m_blockTime = System.currentTimeMillis() + this.m_waitTime;
+            m_blockTime = EstTime.currentTimeMillis() + this.m_waitTime;
             m_nextTxn = ts;
         }
         
         if (newState != m_state) {
             m_state = newState;
-            if (debug.get()) LOG.debug(String.format("Partition %d - State:%s / NextTxn:%s",
-                                                     m_partitionId, m_state, m_nextTxn));
+            if (d) LOG.debug(String.format("Partition %d - State:%s / NextTxn:%s",
+                             m_partitionId, m_state, m_nextTxn));
         }
         return m_state;
     }
