@@ -23,10 +23,9 @@
 #include <cstddef> // NULL
 #include <boost/config.hpp>
 #include <boost/noncopyable.hpp>
-#include <boost/serialization/config.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/weak_ptr.hpp>
+#include <boost/mpl/bool.hpp>
 
+#include <boost/serialization/config.hpp>
 #include <boost/config/abi_prefix.hpp> // must be the last header
 #ifdef BOOST_MSVC
 #  pragma warning(push)
@@ -37,11 +36,16 @@
 
 namespace boost { 
 namespace serialization {
+
+namespace void_cast_detail{
+    class void_caster;
+}
+
 class BOOST_SERIALIZATION_DECL(BOOST_PP_EMPTY()) extended_type_info :
     private boost::noncopyable
 {
-private: 
-    boost::shared_ptr<const extended_type_info> m_this;
+private:
+    friend class boost::serialization::void_cast_detail::void_caster;
 
     // used to uniquely identify the type of class derived from this one
     // so that different derivations of this class can be simultaneously
@@ -49,13 +53,18 @@ private:
     const unsigned int m_type_info_key;
     virtual bool is_less_than(const extended_type_info & /*rhs*/) const = 0;
     virtual bool is_equal(const extended_type_info & /*rhs*/) const = 0;
-    void key_unregister();
-protected:
     const char * m_key;
+
+protected:
+    void key_unregister() const;
+    void key_register() const;
     // this class can't be used as is. It's just the 
     // common functionality for all type_info replacement
     // systems.  Hence, make these protected
-    extended_type_info(const unsigned int type_info_key = 0);
+    extended_type_info(
+        const unsigned int type_info_key,
+        const char * key
+    );
     // account for bogus gcc warning
     #if defined(__GNUC__)
     virtual
@@ -65,26 +74,24 @@ public:
     const char * get_key() const {
         return m_key;
     }
-    void key_register(const char *key);
+    virtual const char * get_debug_info() const = 0;
     bool operator<(const extended_type_info &rhs) const;
     bool operator==(const extended_type_info &rhs) const;
     bool operator!=(const extended_type_info &rhs) const {
         return !(operator==(rhs));
     }
-    boost::weak_ptr<const extended_type_info>
-    get_weak_ptr() const {
-        return m_this;
-    }
     static const extended_type_info * find(const char *key);
     // for plugins
-    virtual void * construct(unsigned int /*count*/ = 0, ...) const {
-        assert(false); // must be implemented if used
-        return NULL;
-    };
-    virtual void destroy(void const * const /*p*/) const {
-        assert(false); // must be implemented if used
-    }
+    virtual void * construct(unsigned int /*count*/ = 0, ...) const = 0;
+    virtual void destroy(void const * const /*p*/) const = 0;
 };
+
+template<class T>
+struct guid_defined : boost::mpl::false_ {};
+template<class T>
+inline const char * guid(){
+    return NULL;
+}
 
 } // namespace serialization 
 } // namespace boost
@@ -96,4 +103,3 @@ public:
 #include <boost/config/abi_suffix.hpp> // pops abi_suffix.hpp pragmas
 
 #endif // BOOST_SERIALIZATION_EXTENDED_TYPE_INFO_HPP
-

@@ -229,7 +229,7 @@ class history_key
 
 //////////////////////////////////////////////////////////////////////////////
 template< class MostDerived,
-          class InitialState, 
+          class InitialState,
           class Allocator = std::allocator< void >,
           class ExceptionTranslator = null_exception_translator >
 class state_machine : noncopyable
@@ -246,7 +246,7 @@ class state_machine : noncopyable
       terminate();
 
       {
-        terminator guard( *this );
+        terminator guard( *this, 0 );
         detail::result_utility::get_result( translator_(
           initial_construct_function( *this ),
           exception_event_handler( *this ) ) );
@@ -258,7 +258,7 @@ class state_machine : noncopyable
 
     void terminate()
     {
-      terminator guard( *this );
+      terminator guard( *this, 0 );
       detail::result_utility::get_result( translator_(
         terminate_function( *this ),
         exception_event_handler( *this ) ) );
@@ -411,7 +411,8 @@ class state_machine : noncopyable
       currentStatesEnd_( currentStates_.end() ),
       pOutermostState_( 0 ),
       isInnermostCommonOuter_( false ),
-      performFullExit_( true )
+      performFullExit_( true ),
+      pTriggeringEvent_( 0 )
     {
     }
 
@@ -422,20 +423,70 @@ class state_machine : noncopyable
       terminate_impl( false );
     }
 
+    void post_event( const event_base_ptr_type & pEvent )
+    {
+      post_event_impl( pEvent );
+    }
+
+    void post_event( const event_base & evt )
+    {
+      post_event_impl( evt );
+    }
+
   public:
     //////////////////////////////////////////////////////////////////////////
     // The following declarations should be protected.
     // They are only public because many compilers lack template friends.
     //////////////////////////////////////////////////////////////////////////
-    void post_event( const event_base_ptr_type & pEvent )
+    template<
+      class HistoryContext,
+      detail::orthogonal_position_type orthogonalPosition >
+    void clear_shallow_history()
     {
-      BOOST_ASSERT( get_pointer( pEvent ) != 0 );
-      eventQueue_.push_back( pEvent );
+      // If you receive a
+      // "use of undefined type 'boost::STATIC_ASSERTION_FAILURE<x>'" or
+      // similar compiler error here then you tried to clear shallow history
+      // for a state that does not have shallow history. That is, the state
+      // does not pass either statechart::has_shallow_history or
+      // statechart::has_full_history to its base class template.
+      BOOST_STATIC_ASSERT( HistoryContext::shallow_history::value );
+
+      typedef typename mpl::at_c<
+        typename HistoryContext::inner_initial_list,
+        orthogonalPosition >::type historized_state;
+
+      store_history_impl(
+        shallowHistoryMap_,
+        history_key_type::make_history_key< historized_state >(),
+        0 );
     }
 
-    void post_event( const event_base & evt )
+    template<
+      class HistoryContext,
+      detail::orthogonal_position_type orthogonalPosition >
+    void clear_deep_history()
     {
-      post_event( evt.intrusive_from_this() );
+      // If you receive a
+      // "use of undefined type 'boost::STATIC_ASSERTION_FAILURE<x>'" or
+      // similar compiler error here then you tried to clear deep history for
+      // a state that does not have deep history. That is, the state does not
+      // pass either statechart::has_deep_history or
+      // statechart::has_full_history to its base class template
+      BOOST_STATIC_ASSERT( HistoryContext::deep_history::value );
+
+      typedef typename mpl::at_c<
+        typename HistoryContext::inner_initial_list,
+        orthogonalPosition >::type historized_state;
+
+      store_history_impl(
+        deepHistoryMap_,
+        history_key_type::make_history_key< historized_state >(),
+        0 );
+    }
+
+    const event_base_type * triggering_event() const
+    {
+        return pTriggeringEvent_;
     }
 
   public:
@@ -462,6 +513,17 @@ class state_machine : noncopyable
     typedef mpl::bool_< false > shallow_history;
     typedef mpl::bool_< false > deep_history;
     typedef mpl::bool_< false > inherited_deep_history;
+
+    void post_event_impl( const event_base_ptr_type & pEvent )
+    {
+      BOOST_ASSERT( get_pointer( pEvent ) != 0 );
+      eventQueue_.push_back( pEvent );
+    }
+
+    void post_event_impl( const event_base & evt )
+    {
+      post_event_impl( evt.intrusive_from_this() );
+    }
 
     detail::reaction_result react_impl(
       const event_base_type &,
@@ -611,29 +673,6 @@ class state_machine : noncopyable
         reinterpret_cast< void (*)() >( &HistorizedState::deep_construct ) );
     }
 
-    template<
-      class HistoryContext,
-      detail::orthogonal_position_type orthogonalPosition >
-    void clear_shallow_history()
-    {
-      // If you receive a
-      // "use of undefined type 'boost::STATIC_ASSERTION_FAILURE<x>'" or
-      // similar compiler error here then you tried to clear shallow history
-      // for a state that does not have shallow history. That is, the state
-      // does not pass either statechart::has_shallow_history or
-      // statechart::has_full_history to its base class template.
-      BOOST_STATIC_ASSERT( HistoryContext::shallow_history::value );
-
-      typedef typename mpl::at_c<
-        typename HistoryContext::inner_initial_list,
-        orthogonalPosition >::type historized_state;
-
-      store_history_impl(
-        shallowHistoryMap_,
-        history_key_type::make_history_key< historized_state >(),
-        0 );
-    }
-
     template< class DefaultState >
     void construct_with_shallow_history(
       const typename DefaultState::context_ptr_type & pContext )
@@ -658,29 +697,6 @@ class state_machine : noncopyable
         deepHistoryMap_, 
         history_key_type::make_history_key< HistorizedState >(),
         reinterpret_cast< void (*)() >( &constructor_type::construct ) );
-    }
-
-    template<
-      class HistoryContext,
-      detail::orthogonal_position_type orthogonalPosition >
-    void clear_deep_history()
-    {
-      // If you receive a
-      // "use of undefined type 'boost::STATIC_ASSERTION_FAILURE<x>'" or
-      // similar compiler error here then you tried to clear deep history for
-      // a state that does not have deep history. That is, the state does not
-      // pass either statechart::has_deep_history or
-      // statechart::has_full_history to its base class template
-      BOOST_STATIC_ASSERT( HistoryContext::deep_history::value );
-
-      typedef typename mpl::at_c<
-        typename HistoryContext::inner_initial_list,
-        orthogonalPosition >::type historized_state;
-
-      store_history_impl(
-        deepHistoryMap_,
-        history_key_type::make_history_key< historized_state >(),
-        0 );
     }
 
     template< class DefaultState >
@@ -771,6 +787,10 @@ class state_machine : noncopyable
         pCurrentState : pOutermostUnstableState;
 
       BOOST_ASSERT( pHandlingState != 0 );
+      terminator guard( *this, &exceptionEvent );
+      // There is another scope guard up the call stack, which will terminate
+      // the machine. So this guard only sets the triggering event.
+      guard.dismiss();
 
       // Setting a member variable to a special value for the duration of a
       // call surely looks like a kludge (normally it should be a parameter of
@@ -831,12 +851,21 @@ class state_machine : noncopyable
     {
       public:
         //////////////////////////////////////////////////////////////////////
-        terminator( state_machine & machine ) :
-          machine_( machine ), dismissed_( false ) {}
+        terminator(
+          state_machine & machine, const event_base * pNewTriggeringEvent ) :
+          machine_( machine ),
+          pOldTriggeringEvent_(machine_.pTriggeringEvent_),
+          dismissed_( false )
+        {
+            machine_.pTriggeringEvent_ = pNewTriggeringEvent;
+        }
+
         ~terminator()
         {
           if ( !dismissed_ ) { machine_.terminate_impl( false ); }
+          machine_.pTriggeringEvent_ = pOldTriggeringEvent_;
         }
+
         void dismiss() { dismissed_ = true; }
 
       private:
@@ -845,6 +874,7 @@ class state_machine : noncopyable
         terminator & operator=( const terminator & );
 
         state_machine & machine_;
+        const event_base_type * const pOldTriggeringEvent_;
         bool dismissed_;
     };
     friend class terminator;
@@ -852,7 +882,7 @@ class state_machine : noncopyable
 
     void send_event( const event_base_type & evt )
     {
-      terminator guard( *this );
+      terminator guard( *this, &evt );
       BOOST_ASSERT( get_pointer( pOutermostUnstableState_ ) == 0 );
       const typename rtti_policy_type::id_type eventType = evt.dynamic_type();
       detail::reaction_result reactionResult = detail::do_forward_event;
@@ -1055,6 +1085,7 @@ class state_machine : noncopyable
     bool performFullExit_;
     history_map_type shallowHistoryMap_;
     history_map_type deepHistoryMap_;
+    const event_base_type * pTriggeringEvent_;
 };
 
 

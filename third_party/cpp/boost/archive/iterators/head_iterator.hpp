@@ -16,7 +16,6 @@
 
 //  See http://www.boost.org for updates, documentation, and revision history.
 
-#include <boost/type_traits/is_same.hpp>
 #include <boost/iterator/iterator_adaptor.hpp>
 #include <boost/iterator/iterator_traits.hpp>
 

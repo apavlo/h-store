@@ -555,18 +555,18 @@ public:
     {}
 
     explicit
-    tree_match(std::size_t length)
-    : match<T>(length), trees()
+    tree_match(std::size_t length_)
+    : match<T>(length_), trees()
     {}
 
-    tree_match(std::size_t length, parse_node_t const& n)
-    : match<T>(length), trees()
+    tree_match(std::size_t length_, parse_node_t const& n)
+    : match<T>(length_), trees()
     { 
         trees.push_back(node_t(n)); 
     }
 
-    tree_match(std::size_t length, param_type val, parse_node_t const& n)
-    : match<T>(length, val), trees()
+    tree_match(std::size_t length_, param_type val, parse_node_t const& n)
+    : match<T>(length_, val), trees()
     {
 #if !defined(BOOST_SPIRIT_USE_LIST_FOR_TREES)
         trees.reserve(10); // this is more or less an arbitrary number...
@@ -575,14 +575,14 @@ public:
     }
 
     // attention, these constructors will change the second parameter!
-    tree_match(std::size_t length, container_t& c)
-    : match<T>(length), trees()
+    tree_match(std::size_t length_, container_t& c)
+    : match<T>(length_), trees()
     { 
         impl::cp_swap(trees, c);
     }
 
-    tree_match(std::size_t length, param_type val, container_t& c)
-    : match<T>(length, val), trees()
+    tree_match(std::size_t length_, param_type val, container_t& c)
+    : match<T>(length_, val), trees()
     {
         impl::cp_swap(trees, c);
     }

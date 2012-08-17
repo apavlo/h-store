@@ -10,7 +10,6 @@
     #ifndef BOOST_PROTO_TRANSFORM_CALL_HPP_EAN_11_02_2007
     #define BOOST_PROTO_TRANSFORM_CALL_HPP_EAN_11_02_2007
 
-    #include <boost/proto/detail/prefix.hpp>
     #include <boost/preprocessor/cat.hpp>
     #include <boost/preprocessor/facilities/intercept.hpp>
     #include <boost/preprocessor/iteration/iterate.hpp>
@@ -24,10 +23,8 @@
     #include <boost/proto/proto_fwd.hpp>
     #include <boost/proto/traits.hpp>
     #include <boost/proto/transform/impl.hpp>
-    #include <boost/proto/detail/dont_care.hpp>
     #include <boost/proto/detail/as_lvalue.hpp>
     #include <boost/proto/detail/poly_function.hpp>
-    #include <boost/proto/detail/suffix.hpp>
 
     namespace boost { namespace proto
     {
@@ -94,7 +91,7 @@
             struct impl2
               : transform_impl<Expr, State, Data>
             {
-                typedef typename boost::result_of<Fun()>::type result_type;
+                typedef typename boost::tr1_result_of<Fun()>::type result_type;
 
                 result_type operator()(
                     typename impl2::expr_param
@@ -124,8 +121,8 @@
             /// \param d An arbitrary data
 
             /// If \c Fun is a nullary PolymorphicFunctionObject, \c type is a typedef
-            /// for <tt>boost::result_of\<Fun()\>::::type</tt>. Otherwise, it is
-            /// a typedef for <tt>boost::result_of\<Fun(Expr, State, Data)\>::::type</tt>.
+            /// for <tt>boost::result_of\<Fun()\>::type</tt>. Otherwise, it is
+            /// a typedef for <tt>boost::result_of\<Fun(Expr, State, Data)\>::type</tt>.
             template<typename Expr, typename State, typename Data>
             struct impl
               : impl2<Expr, State, Data, is_transform<Fun>::value>
@@ -178,8 +175,8 @@
             /// Let \c x be <tt>when\<_, A0\>()(e, s, d)</tt> and \c X
             /// be the type of \c x.
             /// If \c Fun is a unary PolymorphicFunctionObject that accepts \c x,
-            /// then \c type is a typedef for <tt>boost::result_of\<Fun(X)\>::::type</tt>.
-            /// Otherwise, it is a typedef for <tt>boost::result_of\<Fun(X, State, Data)\>::::type</tt>.
+            /// then \c type is a typedef for <tt>boost::result_of\<Fun(X)\>::type</tt>.
+            /// Otherwise, it is a typedef for <tt>boost::result_of\<Fun(X, State, Data)\>::type</tt>.
 
             /// Either call the PolymorphicFunctionObject with 1 argument:
             /// the result of applying the \c A0 transform; or
@@ -254,8 +251,8 @@
                 /// be the type of \c y.
                 /// If \c Fun is a binary PolymorphicFunction object that accepts \c x
                 /// and \c y, then \c type is a typedef for
-                /// <tt>boost::result_of\<Fun(X, Y)\>::::type</tt>. Otherwise, it is
-                /// a typedef for <tt>boost::result_of\<Fun(X, Y, Data)\>::::type</tt>.
+                /// <tt>boost::result_of\<Fun(X, Y)\>::type</tt>. Otherwise, it is
+                /// a typedef for <tt>boost::result_of\<Fun(X, Y, Data)\>::type</tt>.
 
             /// Either call the PolymorphicFunctionObject with 2 arguments:
             /// the result of applying the \c A0 transform, and the

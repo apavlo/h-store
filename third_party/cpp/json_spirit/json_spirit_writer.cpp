@@ -1,332 +1,96 @@
-//          Copyright John W. Wilkinson 2007 - 2009.
+//          Copyright John W. Wilkinson 2007 - 2011
 // Distributed under the MIT License, see accompanying file LICENSE.txt
 
-// json spirit version 4.02
+// json spirit version 4.05
 
 #include "json_spirit_writer.h"
-#include "json_spirit_value.h"
-
-#include <cassert>
-#include <sstream>
-#include <iomanip>
+#include "json_spirit_writer_template.h"
 
 using namespace json_spirit;
-using namespace std;
 
-namespace
-{
-    char to_hex_char( unsigned int c )
+#ifdef JSON_SPIRIT_VALUE_ENABLED
+    void json_spirit::write( const Value& value, std::ostream& os, unsigned int options )
     {
-        assert( c <= 0xF );
-
-        const char ch = static_cast< char >( c );
-
-        if( ch < 10 ) return static_cast<char>('0' + ch);
-
-        return static_cast<char>('A' - 10 + ch);
+        write_stream( value, os, options );
+    }
+    std::string json_spirit::write( const Value& value, unsigned int options )
+    {
+        return write_string( value, options );
     }
 
-    template< class String_type >
-    String_type non_printable_to_string( unsigned int c )
+    void json_spirit::write_formatted( const Value& value, std::ostream& os )
     {
-        typedef typename String_type::value_type Char_type;
-
-        String_type result( 6, '\\' );
-
-        result[1] = 'u';
-
-        result[ 5 ] = to_hex_char( c & 0x000F ); c >>= 4;
-        result[ 4 ] = to_hex_char( c & 0x000F ); c >>= 4;
-        result[ 3 ] = to_hex_char( c & 0x000F ); c >>= 4;
-        result[ 2 ] = to_hex_char( c & 0x000F );
-
-        return result;
+        write_stream( value, os, pretty_print );
     }
 
-    template< typename Char_type, class String_type >
-    bool add_esc_char( Char_type c, String_type& s )
+    std::string json_spirit::write_formatted( const Value& value )
     {
-        switch( c )
-        {
-            case '"':  s += to_str< String_type >( "\\\"" ); return true;
-            case '\\': s += to_str< String_type >( "\\\\" ); return true;
-            case '\b': s += to_str< String_type >( "\\b"  ); return true;
-            case '\f': s += to_str< String_type >( "\\f"  ); return true;
-            case '\n': s += to_str< String_type >( "\\n"  ); return true;
-            case '\r': s += to_str< String_type >( "\\r"  ); return true;
-            case '\t': s += to_str< String_type >( "\\t"  ); return true;
-        }
-
-        return false;
+        return write_string( value, pretty_print );
     }
-
-    template< class String_type >
-    String_type add_esc_chars( const String_type& s )
-    {
-        typedef typename String_type::const_iterator Iter_type;
-        typedef typename String_type::value_type     Char_type;
-
-        String_type result;
-
-        const Iter_type end( s.end() );
-
-        for( Iter_type i = s.begin(); i != end; ++i )
-        {
-            const Char_type c( *i );
-
-            if( add_esc_char( c, result ) ) continue;
-
-            const wint_t unsigned_c( ( c >= 0 ) ? c : 256 + c );
-
-            if( iswprint( unsigned_c ) )
-            {
-                result += c;
-            }
-            else
-            {
-                result += non_printable_to_string< String_type >( unsigned_c );
-            }
-        }
-
-        return result;
-    }
-
-    // this class generates the JSON text,
-    // it keeps track of the indentation level etc.
-    //
-    template< class Value_type, class Ostream_type >
-    class Generator
-    {
-        typedef typename Value_type::Config_type Config_type;
-        typedef typename Config_type::String_type String_type;
-        typedef typename Config_type::Object_type Object_type;
-        typedef typename Config_type::Array_type Array_type;
-        typedef typename String_type::value_type Char_type;
-        typedef typename Object_type::value_type Obj_member_type;
-
-    public:
-
-        Generator( const Value_type& value, Ostream_type& os, bool pretty )
-        :   os_( os )
-        ,   indentation_level_( 0 )
-        ,   pretty_( pretty )
-        {
-            output( value );
-        }
-
-    private:
-
-        void output( const Value_type& value )
-        {
-            switch( value.type() )
-            {
-                case obj_type:   output( value.get_obj() );   break;
-                case array_type: output( value.get_array() ); break;
-                case str_type:   output( value.get_str() );   break;
-                case bool_type:  output( value.get_bool() );  break;
-                case int_type:   output_int( value );         break;
-                case real_type:  os_ << showpoint << setprecision( 16 ) 
-                                     << value.get_real();     break;
-                case null_type:  os_ << "null";               break;
-                default: assert( false );
-            }
-        }
-
-        void output( const Object_type& obj )
-        {
-            output_array_or_obj( obj, '{', '}' );
-        }
-
-        void output( const Array_type& arr )
-        {
-            output_array_or_obj( arr, '[', ']' );
-        }
-
-        void output( const Obj_member_type& member )
-        {
-            output( Config_type::get_name( member ) ); space(); 
-            os_ << ':'; space(); 
-            output( Config_type::get_value( member ) );
-        }
-
-        void output_int( const Value_type& value )
-        {
-            if( value.is_uint64() )
-            {
-                os_ << value.get_uint64();
-            }
-            else
-            {
-               os_ << value.get_int64();
-            }
-        }
-
-        void output( const String_type& s )
-        {
-            os_ << '"' << add_esc_chars( s ) << '"';
-        }
-
-        void output( bool b )
-        {
-            os_ << to_str< String_type >( b ? "true" : "false" );
-        }
-
-        template< class T >
-        void output_array_or_obj( const T& t, Char_type start_char, Char_type end_char )
-        {
-            os_ << start_char; new_line();
-
-            ++indentation_level_;
-            
-            for( typename T::const_iterator i = t.begin(); i != t.end(); ++i )
-            {
-                indent(); output( *i );
-
-                typename T::const_iterator next = i;
-
-                if( ++next != t.end())
-                {
-                    os_ << ',';
-                }
-
-                new_line();
-            }
-
-            --indentation_level_;
-
-            indent(); os_ << end_char;
-        }
-        
-        void indent()
-        {
-            if( !pretty_ ) return;
-
-            for( int i = 0; i < indentation_level_; ++i )
-            { 
-                os_ << "    ";
-            }
-        }
-
-        void space()
-        {
-            if( pretty_ ) os_ << ' ';
-        }
-
-        void new_line()
-        {
-            if( pretty_ ) os_ << '\n';
-        }
-
-        Generator& operator=( const Generator& ); // to prevent "assignment operator could not be generated" warning
-
-        Ostream_type& os_;
-        int indentation_level_;
-        bool pretty_;
-    };
-
-    template< class Value_type, class Ostream_type >
-    void write_( const Value_type& value, Ostream_type& os, bool pretty )
-    {
-        Generator< Value_type, Ostream_type >( value, os, pretty );
-    }
-
-    template< class Value_type >
-    typename Value_type::String_type write_( const Value_type& value, bool pretty )
-    {
-        typedef typename Value_type::String_type::value_type Char_type;
-
-        basic_ostringstream< Char_type > os;
-
-        write_( value, os, pretty );
-
-        return os.str();
-    }
-}
-
-void json_spirit::write( const Value& value, std::ostream& os )
-{
-    write_( value, os, false );
-}
-
-void json_spirit::write_formatted( const Value& value, std::ostream& os )
-{
-    write_( value, os, true );
-}
-
-std::string json_spirit::write( const Value& value )
-{
-    return write_( value, false );
-}
-
-std::string json_spirit::write_formatted( const Value& value )
-{
-    return write_( value, true );
-}
-
-#ifndef BOOST_NO_STD_WSTRING
-
-void json_spirit::write( const wValue& value, std::wostream& os )
-{
-    write_( value, os, false );
-}
-
-void json_spirit::write_formatted( const wValue& value, std::wostream& os )
-{
-    write_( value, os, true );
-}
-
-std::wstring json_spirit::write( const wValue&  value )
-{
-    return write_( value, false );
-}
-
-std::wstring json_spirit::write_formatted( const wValue&  value )
-{
-    return write_( value, true );
-}
-
 #endif
 
-void json_spirit::write( const mValue& value, std::ostream& os )
-{
-    write_( value, os, false );
-}
+#ifdef JSON_SPIRIT_MVALUE_ENABLED
+    void json_spirit::write( const mValue& value, std::ostream& os, unsigned int options )
+    {
+        write_stream( value, os, options );
+    }
 
-void json_spirit::write_formatted( const mValue& value, std::ostream& os )
-{
-    write_( value, os, true );
-}
+    std::string json_spirit::write( const mValue& value, unsigned int options )
+    {
+        return write_string( value, options );
+    }
 
-std::string json_spirit::write( const mValue& value )
-{
-    return write_( value, false );
-}
+    void json_spirit::write_formatted( const mValue& value, std::ostream& os )
+    {
+        write_stream( value, os, pretty_print );
+    }
 
-std::string json_spirit::write_formatted( const mValue& value )
-{
-    return write_( value, true );
-}
+    std::string json_spirit::write_formatted( const mValue& value )
+    {
+        return write_string( value, pretty_print );
+    }
+#endif
 
-#ifndef BOOST_NO_STD_WSTRING
+#if defined( JSON_SPIRIT_WVALUE_ENABLED ) && !defined( BOOST_NO_STD_WSTRING )
+    void json_spirit::write( const wValue& value, std::wostream& os, unsigned int options )
+    {
+        write_stream( value, os, options );
+    }
 
-void json_spirit::write( const wmValue& value, std::wostream& os )
-{
-    write_( value, os, false );
-}
+    std::wstring json_spirit::write( const wValue& value, unsigned int options )
+    {
+        return write_string( value, options );
+    }
 
-void json_spirit::write_formatted( const wmValue& value, std::wostream& os )
-{
-    write_( value, os, true );
-}
+    void json_spirit::write_formatted( const wValue& value, std::wostream& os )
+    {
+        write_stream( value, os, pretty_print );
+    }
 
-std::wstring json_spirit::write( const wmValue&  value )
-{
-    return write_( value, false );
-}
+    std::wstring json_spirit::write_formatted( const wValue& value )
+    {
+        return write_string( value, pretty_print );
+    }
+#endif
 
-std::wstring json_spirit::write_formatted( const wmValue&  value )
-{
-    return write_( value, true );
-}
+#if defined( JSON_SPIRIT_WMVALUE_ENABLED ) && !defined( BOOST_NO_STD_WSTRING )
+    void json_spirit::write_formatted( const wmValue& value, std::wostream& os )
+    {
+        write_stream( value, os, pretty_print );
+    }
 
+    std::wstring json_spirit::write_formatted( const wmValue& value )
+    {
+        return write_string( value, pretty_print );
+    }
+
+    void json_spirit::write( const wmValue& value, std::wostream& os, unsigned int options )
+    {
+        write_stream( value, os, options );
+    }
+
+    std::wstring json_spirit::write( const wmValue& value, unsigned int options )
+    {
+        return write_string( value, options );
+    }
 #endif

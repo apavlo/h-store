@@ -64,7 +64,7 @@ BOOST_SPIRIT_CLASSIC_NAMESPACE_BEGIN
             template<typename CharT, typename T>
             static bool digit(CharT ch, T& val)
             {
-                val = static_cast<T>(ch - '0');
+                val = ch - '0';
                 return ('0' == ch || '1' == ch);
             }
         };
@@ -76,7 +76,7 @@ BOOST_SPIRIT_CLASSIC_NAMESPACE_BEGIN
             template<typename CharT, typename T>
             static bool digit(CharT ch, T& val)
             {
-                val = static_cast<T>(ch - '0');
+                val = ch - '0';
                 return ('0' <= ch && ch <= '7');
             }
         };
@@ -88,7 +88,7 @@ BOOST_SPIRIT_CLASSIC_NAMESPACE_BEGIN
             template<typename CharT, typename T>
             static bool digit(CharT ch, T& val)
             {
-                val = static_cast<T>(ch - '0');
+                val = ch - '0';
                 return impl::isdigit_(ch);
             }
         };
@@ -106,7 +106,7 @@ BOOST_SPIRIT_CLASSIC_NAMESPACE_BEGIN
                 CharT lc = impl::tolower_(ch);
                 if ('a' <= lc && lc <= 'f')
                 {
-                    val = static_cast<T>(lc - 'a' + 10);
+                    val = lc - 'a' + 10;
                     return true;
                 }
                 return false;
@@ -151,6 +151,11 @@ BOOST_SPIRIT_CLASSIC_NAMESPACE_BEGIN
         //              initialized before calling this function.
         //
         ///////////////////////////////////////////////////////////////////////
+#if defined(BOOST_MSVC)
+#pragma warning(push) 
+#pragma warning(disable:4127) //conditional expression is constant
+#endif
+        
         template <typename T, int Radix>
         struct positive_accumulate
         {
@@ -164,18 +169,18 @@ BOOST_SPIRIT_CLASSIC_NAMESPACE_BEGIN
 
                     if (n > max_div_radix)
                         return false;
-                    n = static_cast<T>(n * Radix);
+                    n *= Radix;
 
                     if (n > max - digit)
                         return false;
-                    n = static_cast<T>(n + digit);
+                    n += digit;
 
                     return true;
                 }
                 else
                 {
-                    n = static_cast<T>(n * Radix);
-                    n = static_cast<T>(n + digit);
+                    n *= Radix;
+                    n += digit;
                     return true;
                 }
             }
@@ -197,18 +202,18 @@ BOOST_SPIRIT_CLASSIC_NAMESPACE_BEGIN
 
                     if (n < min_div_radix)
                         return false;
-                    n = static_cast<T>(n * Radix);
+                    n *= Radix;
 
                     if (n < min + digit)
                         return false;
-                    n = static_cast<T>(n - digit);
+                    n -= digit;
 
                     return true;
                 }
                 else
                 {
-                    n = static_cast<T>(n * Radix);
-                    n = static_cast<T>(n - digit);
+                    n *= Radix;
+                    n -= digit;
                     return true;
                 }
             }
@@ -351,11 +356,6 @@ BOOST_SPIRIT_CLASSIC_NAMESPACE_BEGIN
         //  real_parser_impl class
         //
         ///////////////////////////////////////////////////////////////////////
-#if (defined(BOOST_MSVC) && (BOOST_MSVC <= 1310))
-#pragma warning(push)
-#pragma warning(disable:4127)
-#endif
-
         template <typename RT, typename T, typename RealPoliciesT>
         struct real_parser_impl
         {
@@ -464,7 +464,7 @@ BOOST_SPIRIT_CLASSIC_NAMESPACE_BEGIN
             }
         };
 
-#if (defined(BOOST_MSVC) && (BOOST_MSVC <= 1310))
+#if defined(BOOST_MSVC)
 #pragma warning(pop)
 #endif
 

@@ -12,12 +12,12 @@
 #define BOOST_SIGNALS2_LAST_VALUE_HPP
 
 #include <boost/optional.hpp>
+#include <boost/signals2/expired_slot.hpp>
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 
 namespace boost {
   namespace signals2 {
-    class expired_slot;
 
     // no_slots_error is thrown when we are unable to generate a return value
     // due to no slots being connected to the signal.
@@ -35,7 +35,6 @@ namespace boost {
       template<typename InputIterator>
       T operator()(InputIterator first, InputIterator last) const
       {
-        T * resolver = 0;
         if(first == last)
         {
           boost::throw_exception(no_slots_error());

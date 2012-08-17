@@ -16,7 +16,10 @@
 
 #include <boost/config.hpp>
 
+#include <boost/archive/detail/basic_iarchive.hpp>
+
 #include <boost/optional.hpp>
+#include <boost/serialization/item_version_type.hpp>
 #include <boost/serialization/split_free.hpp>
 #include <boost/serialization/level.hpp>
 #include <boost/serialization/nvp.hpp>
@@ -37,10 +40,17 @@ void save(
     const bool tflag = t.is_initialized();
     ar << boost::serialization::make_nvp("initialized", tflag);
     if (tflag){
-        if(3 < ar.get_library_version()){
-            const int v = version<T>::value;
-            ar << boost::serialization::make_nvp("item_version", v);
+        const boost::serialization::item_version_type item_version(version<T>::value);
+        #if 0
+        const boost::archive::library_version_type library_version(
+            ar.get_library_version()
+        };
+        if(boost::archive::library_version_type(3) < library_version){
+            ar << BOOST_SERIALIZATION_NVP(item_version);
         }
+        #else
+            ar << BOOST_SERIALIZATION_NVP(item_version);
+        #endif
         ar << boost::serialization::make_nvp("value", *t);
     }
 }
@@ -54,11 +64,15 @@ void load(
     bool tflag;
     ar >> boost::serialization::make_nvp("initialized", tflag);
     if (tflag){
-        unsigned int v = 0;
-        if(3 < ar.get_library_version()){
-            ar >> boost::serialization::make_nvp("item_version", v);
+        boost::serialization::item_version_type item_version(0);
+        boost::archive::library_version_type library_version(
+            ar.get_library_version()
+        );
+        if(boost::archive::library_version_type(3) < library_version){
+            // item_version is handled as an attribute so it doesnt need an NVP
+           ar >> BOOST_SERIALIZATION_NVP(item_version);
         }
-        detail::stack_construct<Archive, T> aux(ar, v);
+        detail::stack_construct<Archive, T> aux(ar, item_version);
         ar >> boost::serialization::make_nvp("value", aux.reference());
         t.reset(aux.reference());
     }

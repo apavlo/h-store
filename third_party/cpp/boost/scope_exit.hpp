@@ -28,29 +28,39 @@
 #define BOOST_SCOPE_EXIT_AUX_TPL_WORKAROUND
 #endif
 
-// Steven Watanabe's trick
+// Steven Watanabe's trick with a modification suggested by Kim Barrett
 namespace boost { namespace scope_exit { namespace aux {
 
-    template<int> struct declare;
+    // Type of a local boost_scope_exit_args variable.
+    // First use in a local scope will declare the boost_scope_exit_args
+    // variable, subsequent uses will be resolved as two comparisons
+    // (cmp1 with 0 and cmp2 with boost_scope_exit_args).
+    template<int Dummy = 0>
+    struct declared
+    {
+        void* value;
+        static int const cmp2 = 0;
+        friend void operator>(int, declared const&) {}
+    };
 
-    typedef void* declared;
-    struct undeclared { declared dummy[2]; };
+    struct undeclared { declared<> dummy[2]; };
+
+    template<int> struct resolve;
 
     template<>
-    struct declare<sizeof(undeclared)>
+    struct resolve<sizeof(declared<>)>
     {
-        template<int>
-        struct apply
-        {
-            declared value;
-            friend void operator>(bool, const apply&) {}
-        };
+        static const int cmp1 = 0;
     };
 
     template<>
-    struct declare<sizeof(declared)>
+    struct resolve<sizeof(undeclared)>
     {
-        static const int apply = 0;
+        template<int>
+        struct cmp1
+        {
+            static int const cmp2 = 0;
+        };
     };
 } } }
 
@@ -208,14 +218,14 @@ BOOST_TYPEOF_REGISTER_TEMPLATE(boost::scope_exit::aux::wrapper, 1)
 
 #define BOOST_SCOPE_EXIT_AUX_IMPL(id, seq, ty)                                 \
     BOOST_PP_SEQ_FOR_EACH_I(BOOST_SCOPE_EXIT_AUX_TAG_DECL, id, seq)            \
-    BOOST_PP_SEQ_FOR_EACH_I(BOOST_SCOPE_EXIT_AUX_CAPTURE_DECL, (id,ty), seq)  \
+    BOOST_PP_SEQ_FOR_EACH_I(BOOST_SCOPE_EXIT_AUX_CAPTURE_DECL, (id,ty), seq)   \
     struct BOOST_SCOPE_EXIT_AUX_PARAMS_T(id) {                                 \
-        BOOST_PP_SEQ_FOR_EACH_I(BOOST_SCOPE_EXIT_AUX_PARAM_DECL, (id,ty), seq)\
+        BOOST_PP_SEQ_FOR_EACH_I(BOOST_SCOPE_EXIT_AUX_PARAM_DECL, (id,ty), seq) \
         BOOST_PP_SEQ_FOR_EACH_I(BOOST_SCOPE_EXIT_AUX_MEMBER, id, seq)          \
         BOOST_SCOPE_EXIT_AUX_PARAMS_T_CTOR(id, seq)                            \
-    } BOOST_SCOPE_EXIT_AUX_PARAMS(id) BOOST_SCOPE_EXIT_AUX_PARAMS_INIT(id, seq)\
-    boost::scope_exit::aux::declare<sizeof(boost_scope_exit_args)>             \
-        ::apply<0> boost_scope_exit_args;                                      \
+    } BOOST_SCOPE_EXIT_AUX_PARAMS(id) BOOST_SCOPE_EXIT_AUX_PARAMS_INIT(id,seq) \
+    boost::scope_exit::aux::declared< boost::scope_exit::aux::resolve<         \
+        sizeof(boost_scope_exit_args)>::cmp1<0>::cmp2 > boost_scope_exit_args; \
     boost_scope_exit_args.value = &BOOST_SCOPE_EXIT_AUX_PARAMS(id);            \
     struct BOOST_SCOPE_EXIT_AUX_GUARD_T(id) {                                  \
         BOOST_SCOPE_EXIT_AUX_PARAMS_T(id)* boost_se_params_;                   \

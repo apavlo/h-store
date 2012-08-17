@@ -7,7 +7,7 @@
  *
  * See http://www.boost.org for most recent version including documentation.
  *
- * $Id: gamma_distribution.hpp 52492 2009-04-19 14:55:57Z steven_watanabe $
+ * $Id: gamma_distribution.hpp 60755 2010-03-22 00:45:06Z steven_watanabe $
  *
  */
 
@@ -23,7 +23,14 @@
 
 namespace boost {
 
-// Knuth
+// The algorithm is taken from Knuth
+
+/**
+ * The gamma distribution is a continuous distribution with a single
+ * parameter alpha.
+ *
+ * It has \f$p(x) = x^{\alpha-1}\frac{e^{-x}}{\Gamma(\alpha)}\f$.
+ */
 template<class RealType = double>
 class gamma_distribution
 {
@@ -114,6 +121,7 @@ public:
 #endif
 
 private:
+  /// \cond hide_private_members
   void init()
   {
 #ifndef BOOST_NO_STDC_NAMESPACE
@@ -122,6 +130,7 @@ private:
 #endif
     _p = exp(result_type(1)) / (_alpha + exp(result_type(1)));
   }
+  /// \endcond
 
   exponential_distribution<RealType> _exp;
   result_type _alpha;

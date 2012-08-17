@@ -129,7 +129,7 @@ namespace boost
         too_many_files_open_in_system = ENFILE,
         too_many_files_open = EMFILE,
         too_many_links = EMLINK,
-        too_many_synbolic_link_levels = ELOOP,
+        too_many_symbolic_link_levels = ELOOP,
         value_too_large = EOVERFLOW,
         wrong_protocol_type = EPROTOTYPE
       };
@@ -183,11 +183,14 @@ namespace boost
     {
     public:
       virtual ~error_category(){}
-      virtual inline const char *    name() const;  // see implementation note below
-      virtual inline std::string     message( int ev ) const;   // see implementation note below
-      virtual inline error_condition default_error_condition( int ev ) const;
-      virtual inline bool equivalent( int code, const error_condition & condition ) const;
-      virtual inline bool equivalent( const error_code & code, int condition ) const;
+
+      virtual const char *     name() const = 0;
+      virtual std::string      message( int ev ) const = 0;
+      virtual error_condition  default_error_condition( int ev ) const;
+      virtual bool             equivalent( int code, 
+                                           const error_condition & condition ) const;
+      virtual bool             equivalent( const error_code & code,
+                                           int condition ) const;
 
       bool operator==(const error_category & rhs) const { return this == &rhs; }
       bool operator!=(const error_category & rhs) const { return this != &rhs; }
@@ -199,18 +202,18 @@ namespace boost
 
     //  predefined error categories  -----------------------------------------//
 
-    BOOST_SYSTEM_DECL const error_category &  get_system_category();
-    BOOST_SYSTEM_DECL const error_category &  get_generic_category();
+    BOOST_SYSTEM_DECL const error_category &  system_category();
+    BOOST_SYSTEM_DECL const error_category &  generic_category();
 
-    static const error_category &  system_category = get_system_category();
-    static const error_category &  generic_category = get_generic_category();
-    
+    //  deprecated synonyms --------------------------------------------------//
+
 # ifndef BOOST_SYSTEM_NO_DEPRECATED
-    //  deprecated synonyms
-    inline const error_category &  get_posix_category() { return get_generic_category(); }
-    static const error_category &  posix_category = get_generic_category();
-    static const error_category &  errno_ecat     = get_generic_category();
-    static const error_category &  native_ecat    = get_system_category();
+    inline const error_category &  get_system_category() { return system_category(); }
+    inline const error_category &  get_generic_category() { return generic_category(); }
+    inline const error_category &  get_posix_category() { return generic_category(); }
+    static const error_category &  posix_category = generic_category();
+    static const error_category &  errno_ecat     = generic_category();
+    static const error_category &  native_ecat    = system_category();
 # endif
 
     //  class error_condition  -----------------------------------------------//
@@ -222,7 +225,7 @@ namespace boost
     public:
 
       // constructors:
-      error_condition() : m_val(0), m_cat(&get_generic_category()) {}
+      error_condition() : m_val(0), m_cat(&generic_category()) {}
       error_condition( int val, const error_category & cat ) : m_val(val), m_cat(&cat) {}
 
       template <class ErrorConditionEnum>
@@ -251,7 +254,7 @@ namespace boost
       void clear()
       {
         m_val = 0;
-        m_cat = &get_generic_category();
+        m_cat = &generic_category();
       }
 
       // observers:
@@ -309,7 +312,7 @@ namespace boost
     public:
 
       // constructors:
-      error_code() : m_val(0), m_cat(&get_system_category()) {}
+      error_code() : m_val(0), m_cat(&system_category()) {}
       error_code( int val, const error_category & cat ) : m_val(val), m_cat(&cat) {}
 
       template <class ErrorCodeEnum>
@@ -337,7 +340,7 @@ namespace boost
       void clear()
       {
         m_val = 0;
-        m_cat = &get_system_category();
+        m_cat = &system_category();
       }
 
       // observers:
@@ -470,11 +473,11 @@ namespace boost
     {
       //  explicit conversion:
       inline error_code make_error_code( errc_t e )
-        { return error_code( e, get_generic_category() ); }
+        { return error_code( e, generic_category() ); }
 
       //  implicit conversion:
       inline error_condition make_error_condition( errc_t e )
-        { return error_condition( e, get_generic_category() ); }
+        { return error_condition( e, generic_category() ); }
     }
 
     //  error_category default implementation  -------------------------------//
@@ -494,19 +497,6 @@ namespace boost
       int condition ) const
     {
       return *this == code.category() && code.value() == condition;
-    }
-
-    //  error_category implementation note: VC++ 8.0 objects to name() and
-    //  message() being pure virtual functions. Thus these implementations.
-    inline const char * error_category::name() const
-    { 
-      return "error: should never be called";
-    }
-
-    inline std::string error_category::message( int ) const
-    { 
-      static std::string s("error: should never be called");
-      return s;
     }
 
   } // namespace system

@@ -55,12 +55,16 @@
 
 #  define BOOST_IOSTREAMS_FD_SEEK      lseek64
 #  define BOOST_IOSTREAMS_FD_TRUNCATE  ftruncate64
+#  define BOOST_IOSTREAMS_FD_MMAP      mmap64
 #  define BOOST_IOSTREAMS_FD_STAT      stat64
+#  define BOOST_IOSTREAMS_FD_FSTAT     fstat64
 #  define BOOST_IOSTREAMS_FD_OFFSET    off64_t
 # else
 #  define BOOST_IOSTREAMS_FD_SEEK      lseek
 #  define BOOST_IOSTREAMS_FD_TRUNCATE  ftruncate
+#  define BOOST_IOSTREAMS_FD_MMAP      mmap
 #  define BOOST_IOSTREAMS_FD_STAT      stat
+#  define BOOST_IOSTREAMS_FD_FSTAT     fstat
 #  define BOOST_IOSTREAMS_FD_OFFSET    off_t
 # endif
 #endif

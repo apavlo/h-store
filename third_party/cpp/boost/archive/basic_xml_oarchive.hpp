@@ -28,6 +28,11 @@
 
 #include <boost/archive/detail/abi_prefix.hpp> // must be the last header
 
+#ifdef BOOST_MSVC
+#  pragma warning(push)
+#  pragma warning(disable : 4511 4512)
+#endif
+
 namespace boost {
 namespace archive {
 
@@ -88,7 +93,7 @@ public:
         this->detail_common_oarchive::save_override(t, 0);
     }
 
-   // special treatment for name-value pairs.
+    // special treatment for name-value pairs.
     typedef detail::common_oarchive<Archive> detail_common_oarchive;
     template<class T>
     void save_override(
@@ -130,6 +135,10 @@ public:
 
 } // namespace archive
 } // namespace boost
+
+#ifdef BOOST_MSVC
+#pragma warning(pop)
+#endif
 
 #include <boost/archive/detail/abi_suffix.hpp> // pops abi_suffix.hpp pragmas
 

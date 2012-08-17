@@ -33,12 +33,12 @@
         > type;
 
         static type const call(
-            Expr &expr
+            Expr &e
             BOOST_PP_ENUM_TRAILING_BINARY_PARAMS(BOOST_PP_ITERATION(), A, &a)
         )
         {
             type that = {
-                expr
+                e
                 BOOST_PP_ENUM_TRAILING(BOOST_PP_ITERATION(), M1, ~)
             };
             return that;
@@ -50,22 +50,7 @@
     template<typename Expr BOOST_PP_ENUM_TRAILING_PARAMS(BOOST_PP_ITERATION(), typename A), typename This, typename Domain>
     struct funop<Expr(BOOST_PP_ENUM_PARAMS(BOOST_PP_ITERATION(), A)), This, Domain>
       : BOOST_PP_CAT(funop, BOOST_PP_ITERATION())<
-            This
-          , Domain
-            BOOST_PP_ENUM_TRAILING_BINARY_PARAMS(
-                BOOST_PP_ITERATION()
-              , typename remove_reference<A
-              , >::type BOOST_PP_INTERCEPT
-            )
-        >
-    {};
-
-    /// \brief A helper metafunction for computing the
-    /// return type of \c proto::expr\<\>::operator().
-    template<typename Expr BOOST_PP_ENUM_TRAILING_PARAMS(BOOST_PP_ITERATION(), typename A), typename This, typename Domain>
-    struct funop<Expr const(BOOST_PP_ENUM_PARAMS(BOOST_PP_ITERATION(), A)), This, Domain>
-      : BOOST_PP_CAT(funop, BOOST_PP_ITERATION())<
-            This const
+            typename detail::same_cv<Expr, This>::type
           , Domain
             BOOST_PP_ENUM_TRAILING_BINARY_PARAMS(
                 BOOST_PP_ITERATION()

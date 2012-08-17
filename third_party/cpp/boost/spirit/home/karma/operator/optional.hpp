@@ -1,5 +1,5 @@
-//  Copyright (c) 2001-2007 Joel de Guzman
-//  Copyright (c) 2001-2009 Hartmut Kaiser
+//  Copyright (c) 2001-2010 Joel de Guzman
+//  Copyright (c) 2001-2010 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -7,107 +7,89 @@
 #if !defined(SPIRIT_KARMA_OPTIONAL_MARCH_31_2007_0852AM)
 #define SPIRIT_KARMA_OPTIONAL_MARCH_31_2007_0852AM
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1020)
-#pragma once      // MS compatible compilers support #pragma once
+#if defined(_MSC_VER)
+#pragma once
 #endif
 
-#include <boost/spirit/home/support/component.hpp>
-#include <boost/spirit/home/support/attribute_of.hpp>
-#include <boost/spirit/home/support/attribute_transform.hpp>
+#include <boost/spirit/home/karma/domain.hpp>
+#include <boost/spirit/home/karma/generator.hpp>
+#include <boost/spirit/home/karma/meta_compiler.hpp>
+#include <boost/spirit/home/support/info.hpp>
+#include <boost/spirit/home/support/unused.hpp>
+#include <boost/spirit/home/karma/detail/attributes.hpp>
+#include <boost/spirit/home/support/container.hpp>
 #include <boost/mpl/assert.hpp>
 #include <boost/optional.hpp>
+#include <boost/type_traits/is_convertible.hpp>
 
+namespace boost { namespace spirit
+{
+    ///////////////////////////////////////////////////////////////////////////
+    // Enablers
+    ///////////////////////////////////////////////////////////////////////////
+    template <>
+    struct use_operator<karma::domain, proto::tag::negate> // enables -g
+      : mpl::true_ {};
+
+}}
+
+///////////////////////////////////////////////////////////////////////////////
 namespace boost { namespace spirit { namespace karma
 {
-    namespace detail
+    ///////////////////////////////////////////////////////////////////////////
+    template <typename Subject>
+    struct optional : unary_generator<optional<Subject> >
     {
-        template <typename Parameter>
-        inline bool
-        optional_is_valid(boost::optional<Parameter> const& opt)
+        typedef Subject subject_type;
+        typedef typename subject_type::properties properties;
+
+        // Build a boost::optional from the subject's attribute. Note
+        // that boost::optional may return unused_type if the
+        // subject's attribute is an unused_type.
+        template <typename Context, typename Iterator = unused_type>
+        struct attribute
+          : traits::build_optional<
+                typename traits::attribute_of<Subject, Context, Iterator>::type
+            >
+        {};
+
+        optional(Subject const& subject)
+          : subject(subject) {}
+
+        template <
+            typename OutputIterator, typename Context, typename Delimiter
+          , typename Attribute>
+        bool generate(OutputIterator& sink, Context& ctx
+          , Delimiter const& d, Attribute const& attr) const
         {
-            return opt;
+            if (traits::has_optional_value(attr)) 
+                subject.generate(sink, ctx, d, traits::optional_value(attr));
+            return sink_is_good(sink);
         }
 
-        template <typename Parameter>
-        inline bool
-        optional_is_valid(Parameter const& opt)
+        template <typename Context>
+        info what(Context& context) const
         {
-            return true;
+            return info("optional", subject.what(context));
         }
 
-        inline bool
-        optional_is_valid(unused_type)
-        {
-            return true;
-        }
-
-        template <typename Parameter>
-        inline Parameter const&
-        optional_get(boost::optional<Parameter> const& opt)
-        {
-            return get(opt);
-        }
-
-        template <typename Parameter>
-        inline Parameter const&
-        optional_get(Parameter const& opt)
-        {
-            return opt;
-        }
-
-        inline unused_type
-        optional_get(unused_type)
-        {
-            return unused;
-        }
-    }
-
-    struct optional
-    {
-        template <typename T>
-        struct build_attribute_container
-        {
-            typedef boost::optional<T> type;
-        };
-
-        template <typename Component, typename Context, typename Iterator>
-        struct attribute :
-            build_container<optional, Component, Iterator, Context>
-        {
-        };
-
-        template <typename Component, typename OutputIterator,
-            typename Context, typename Delimiter, typename Parameter>
-        static bool
-        generate(Component const& component, OutputIterator& sink,
-            Context& ctx, Delimiter const& d, Parameter const& param)
-        {
-            typedef typename
-                result_of::subject<Component>::type::director
-            director;
-
-            if (detail::optional_is_valid(param))
-            {
-                director::generate(subject(component), sink, ctx, d,
-                    detail::optional_get(param));
-            }
-            return true;
-        }
-
-        template <typename Component, typename Context>
-        static std::string what(Component const& component, Context const& ctx)
-        {
-            std::string result = "optional[";
-
-            typedef typename
-                spirit::result_of::subject<Component>::type::director
-            director;
-
-            result += director::what(spirit::subject(component), ctx);
-            result += "]";
-            return result;
-        }
+        Subject subject;
     };
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Generator generators: make_xxx function (objects)
+    ///////////////////////////////////////////////////////////////////////////
+    template <typename Elements, typename Modifiers>
+    struct make_composite<proto::tag::negate, Elements, Modifiers>
+      : make_unary_composite<Elements, optional> {};
+
+}}}
+
+namespace boost { namespace spirit { namespace traits
+{
+    template <typename Subject>
+    struct has_semantic_action<karma::optional<Subject> >
+      : unary_has_semantic_action<Subject> {};
 
 }}}
 

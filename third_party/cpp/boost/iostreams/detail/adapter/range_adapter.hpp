@@ -21,6 +21,7 @@
 #include <boost/iostreams/detail/error.hpp>
 #include <boost/iostreams/positioning.hpp>
 #include <boost/mpl/if.hpp>
+#include <boost/throw_exception.hpp>
 #include <boost/type_traits/is_convertible.hpp>
 #include <boost/utility/enable_if.hpp>
 
@@ -116,7 +117,7 @@ struct range_adapter_impl<std::forward_iterator_tag> {
     {
         while (cur != last && n-- > 0) *cur++ = *s++;
         if (cur == last && n > 0)
-            throw write_area_exhausted();
+            boost::throw_exception(write_area_exhausted());
         return n;
     }
 };
@@ -144,7 +145,7 @@ struct range_adapter_impl<std::random_access_iterator_tag> {
         std::copy(s, s + count, cur);
         cur += count;
         if (count < n) 
-            throw write_area_exhausted();
+            boost::throw_exception(write_area_exhausted());
         return n;
     }
 
@@ -156,18 +157,21 @@ struct range_adapter_impl<std::random_access_iterator_tag> {
         using namespace std;
         switch (way) {
         case BOOST_IOS::beg:
-            if (off > last - first || off < 0) throw bad_seek();
+            if (off > last - first || off < 0)
+                boost::throw_exception(bad_seek());
             cur = first + off;
             break;
         case BOOST_IOS::cur:
             {
                 std::ptrdiff_t newoff = cur - first + off;
-                if (newoff > last - first || newoff < 0) throw bad_seek();
+                if (newoff > last - first || newoff < 0)
+                    boost::throw_exception(bad_seek());
                 cur += off;
                 break;
             }
         case BOOST_IOS::end:
-            if (last - first + off < 0 || off > 0) throw bad_seek();
+            if (last - first + off < 0 || off > 0)
+                boost::throw_exception(bad_seek());
             cur = last + off;
             break;
         default:
