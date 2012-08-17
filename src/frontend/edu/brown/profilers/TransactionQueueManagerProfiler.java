@@ -21,6 +21,6 @@ public class TransactionQueueManagerProfiler extends AbstractProfiler {
     public final ProfileMeasurement restart_queue = new ProfileMeasurement("RESTART_QUEUE");
     
     public TransactionQueueManagerProfiler(int num_partitions) {
-        this.concurrent_dtxn = new FastIntHistogram(num_partitions);
+        this.concurrent_dtxn = new FastIntHistogram(num_partitions+1);
     }
 }
