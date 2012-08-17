@@ -43,8 +43,6 @@ package edu.brown.hstore;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -123,9 +121,9 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
@@ -1094,7 +1092,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // keep all of our speculative execution txn results around
             if (work != null) {
                 if (d) LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
-                                       this.currentDtxn, ((StartTxnMessage)work).getTransaction()));
+                                 this.currentDtxn, ((StartTxnMessage)work).getTransaction()));
                 this.setExecutionMode(((StartTxnMessage)work).getTransaction(), ExecutionMode.COMMIT_NONE);
             }
         }
@@ -1192,9 +1190,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         
         if (newMode != null) {
-            if (d)
-                LOG.debug(String.format("%s - Attempting to enable %s speculative execution at partition %d [currentMode=%s]",
-                                           ts, newMode, this.partitionId, this.currentExecMode));
+            if (d) LOG.debug(String.format("%s - Attempting to enable %s speculative execution at partition %d [currentMode=%s]",
+                             ts, newMode, this.partitionId, this.currentExecMode));
             exec_lock.lock();
             try {
                 // Make sure that our txn is still the current dtxn and that the 
@@ -1204,7 +1201,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     this.releaseBlockedTransactions(ts);
                     if (d)
                         LOG.debug(String.format("%s - Enabled %s speculative execution at partition %d",
-                                                   ts, this.currentExecMode, partitionId));
+                                  ts, this.currentExecMode, partitionId));
                     return (true);
                 }
             } finally {
@@ -1224,7 +1221,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private void setExecutionMode(AbstractTransaction ts, ExecutionMode newMode) {
         if (d && this.currentExecMode != newMode) {
             LOG.debug(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
-                                    this.partitionId, newMode, ts, this.currentDtxn, this.currentExecMode));
+                      this.partitionId, newMode, ts, this.currentDtxn, this.currentExecMode));
         }
         assert(newMode != ExecutionMode.COMMIT_READONLY ||
               (newMode == ExecutionMode.COMMIT_READONLY && this.currentDtxn != null)) :
@@ -1315,7 +1312,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         boolean is_local = (ts instanceof LocalTransaction);
         
         if (d) LOG.debug(String.format("%s - Attempting to retrieve input dependencies for WorkFragment [isLocal=%s]",
-                                       ts, is_local));
+                         ts, is_local));
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
             for (int input_dep_id : input_dep_ids.getIdsList()) {
@@ -1329,7 +1326,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
                     if (t) LOG.trace(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d\n" + deps,
-                                                   ts, deps.size(), input_dep_id));
+                                     ts, deps.size(), input_dep_id));
                 }
                 // Otherwise they will be "attached" inputs to the RemoteTransaction handle
                 // We should really try to merge these two concepts into a single function call
@@ -1352,7 +1349,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     }
                     inputs.put(input_dep_id, pDeps); 
                     if (d) LOG.debug(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
-                                                   ts, deps.size(), input_dep_id));
+                                     ts, deps.size(), input_dep_id));
                 }
 
             } // FOR (inputs)
@@ -1386,7 +1383,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
         if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition #%d [previous=%s]",
-                                       ts, this.partitionId, this.currentDtxn));
+                         ts, this.partitionId, this.currentDtxn));
         this.currentDtxn = ts;
     }
     
@@ -1397,7 +1394,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.currentDtxn != null) :
             "Trying to reset the currentDtxn when it is already null";
         if (d) LOG.debug(String.format("Resetting current DTXN for partition #%d to null [previous=%s]",
-                                       this.partitionId, this.currentDtxn));
+                         this.partitionId, this.currentDtxn));
         this.currentDtxn = null;
     }
 
@@ -1435,7 +1432,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(ret);
         ts.markQueuedWork(this.partitionId);
         if (d) LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
-                                       ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+                         ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
 
     /**
@@ -1443,8 +1440,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param work
      */
     public void queueUtilityWork(InternalMessage work) {
-        if (debug.get())
-            LOG.debug(String.format("Queuing utility work on partition %d\n%s", this.partitionId, work));
+        if (debug.get()) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
+                                   this.partitionId, work));
         this.utility_queue.offer(work);
     }
     
@@ -1459,7 +1456,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         boolean success = this.work_queue.offer(work, true);
         assert(success);
         if (d) LOG.debug(String.format("%s - Added distributed %s to front of partition %d work queue [size=%d]",
-                                       ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+                         ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
 
     /**
@@ -1515,7 +1512,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                        this.currentDtxn, this.currentExecMode, force, this.work_queue.size()));
         if (this.currentExecMode == ExecutionMode.DISABLED_REJECT) {
             if (d) LOG.warn(String.format("%s - Not queuing txn at partition %d because current mode is %s",
-                                          ts, this.partitionId, this.currentExecMode));
+                            ts, this.partitionId, this.currentExecMode));
             return (false);
         }
         
@@ -2151,7 +2148,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                        fragmentParams,
                                                        this.m_systemProcedureContext);
             } catch (Throwable ex) {
-                LOG.error("Failed to execute " + ts + " - " + ex.getClass().getSimpleName() + " => " + ex.getMessage(), ex);
                 String msg = "Unexpected error when executing system procedure";
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
             }
