@@ -1,0 +1,502 @@
+Buildfile: /Users/mrjd225/Desktop/Dropbox/h-store/build.xml
+
+junit-getfiles.check:
+
+junit-getfiles:
+     [exec] 06-25-2012 12:58:32 [<module>:056] WARNING: Unable to copy from local cache. The directory '${localcopy}' does not exist
+     [exec] 06-25-2012 12:58:32 [<module>:061] INFO : git clone --branch master git://github.com/apavlo/h-store-files.git /Users/mrjd225/Desktop/Dropbox/h-store/files
+     [exec] Cloning into /Users/mrjd225/Desktop/Dropbox/h-store/files...
+     [exec] fatal: The remote end hung up unexpectedly
+     [exec] fatal: early EOF
+     [exec] fatal: index-pack failed
+     [exec] Traceback (most recent call last):
+     [exec]   File "./getfiles.py", line 62, in <module>
+     [exec]     subprocess.check_call(cmd, shell=True)
+     [exec]   File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/subprocess.py", line 504, in check_call
+     [exec]     raise CalledProcessError(retcode, cmd)
+     [exec] subprocess.CalledProcessError: Command 'git clone --branch master git://github.com/apavlo/h-store-files.git /Users/mrjd225/Desktop/Dropbox/h-store/files' returned non-zero exit status 128
+
+junit:
+    [junit] Running edu.brown.catalog.TestCatalogCloner
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 16.69 sec
+    [junit] Running edu.brown.catalog.TestCatalogKey
+    [junit] Tests run:   7, Failures:   0, Errors:   0, Time elapsed: 6.34 sec
+    [junit] Running edu.brown.catalog.TestCatalogUtil
+    [junit] Tests run:  20, Failures:   0, Errors:   0, Time elapsed: 13.21 sec
+    [junit] Running edu.brown.catalog.TestCatalogUtil2
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 4.55 sec
+    [junit] Running edu.brown.catalog.TestFixCatalog
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 24.64 sec
+    [junit] Running edu.brown.catalog.TestPlanFragmentIdGenerator
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 0.17 sec
+    [junit] Running edu.brown.hstore.TestBatchPlanner
+    [junit] Tests run:   9, Failures:   0, Errors:   0, Time elapsed: 6.56 sec
+    [junit] Running edu.brown.hstore.TestBatchPlannerComplex
+    [junit] Tests run:   3, Failures:   0, Errors:   0, Time elapsed: 22.14 sec
+    [junit] Running edu.brown.hstore.TestBatchPlannerMapReduce
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 2.50 sec
+    [junit] Running edu.brown.hstore.TestBatchPlannerUtil
+    [junit]     testBatchHashCode failed an assertion.
+    [junit]     testPlanMultiPartition failed an assertion.
+    [junit]     testMispredict failed an assertion.
+    [junit]     testMispredictPartitions failed an assertion.
+    [junit]     testGetStatementPartitions failed an assertion.
+    [junit]     testReplicatedTableTouchedPartitions failed an assertion.
+    [junit] Tests run:   6, Failures:   6, Errors:   0, Time elapsed: 17.98 sec
+    [junit] Running edu.brown.hstore.TestHStoreCoordinator
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 13.45 sec
+    [junit] Running edu.brown.hstore.TestHStoreSite
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 8.46 sec
+    [junit] Running edu.brown.hstore.TestHStoreThreadManager
+    [junit]     testRegisterProcessingThread failed an assertion.
+    [junit] Tests run:   1, Failures:   1, Errors:   0, Time elapsed: 6.96 sec
+    [junit] Running edu.brown.hstore.TestPartitionExecutor
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 
+    [junit] 8.20 sec
+    [junit] Running edu.brown.hstore.TestTransactionQueueManager
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 20.26 sec
+    [junit] Running edu.brown.hstore.TestVoltProcedureListener
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 1.27 sec
+    [junit] Running edu.brown.hstore.conf.TestHStoreConf
+    [junit] Tests run:   8, Failures:   0, Errors:   0, Time elapsed: 0.98 sec
+    [junit] Running edu.brown.hstore.txns.TestLocalTransaction
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 18.21 sec
+    [junit] Running edu.brown.hstore.txns.TestMapReduceTransaction
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 3.38 sec
+    [junit] Running edu.brown.hstore.txns.TestTransactionState
+    [junit] Tests run:   7, Failures:   0, Errors:   0, Time elapsed: 9.83 sec
+    [junit] Running edu.brown.hstore.txns.TestTransactionStateComplex
+    [junit] Tests run:   3, Failures:   0, Errors:   0, Time elapsed: 44.00 sec
+    [junit] Running edu.brown.hstore.util.TestArrayCache
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 0.20 sec
+    [junit] Running edu.brown.hstore.util.TestPrefetchQueryPlanner
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 23.09 sec
+    [junit] Running edu.brown.hstore.util.TestQueryCache
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 7.12 sec
+    [junit] Running edu.brown.hstore.util.TestThrottlingQueue
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 0.09 sec
+    [junit] Running edu.brown.hstore.wal.TestCommandLogger
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 11.69 sec
+    [junit] Running org.hsqldb.TestHSQLDB
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 1.72 sec
+    [junit] Running org.hsqldb.TestJDBC
+    [junit] Tests run:   3, Failures:   0, Errors:   0, Time elapsed: 0.97 sec
+    [junit] Running org.voltdb.TestClientResponseImpl
+    [junit] Tests run:   3, Failures:   0, Errors:   0, Time elapsed: 0.08 sec
+    [junit] Running org.voltdb.TestEELibraryLoader
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 0.33 sec
+    [junit] Running org.voltdb.TestNewVoltProcedure
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 10.76 sec
+    [junit] Running org.voltdb.TestParameterSet
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 0.47 sec
+    [junit] Running org.voltdb.TestStoredProcedureInvocation
+    [junit] Tests run:   8, Failures:   0, Errors:   0, Time elapsed: 7.98 sec
+    [junit] Running org.voltdb.TestTheHashinator
+    [junit]     testSameLongHash failed an assertion.
+    [junit]         org.voltdb.TestTheHashinator(TestTheHashinator.java:58)
+    [junit] Tests run:   2, Failures:   1, Errors:   0, Time elapsed: 0.96 sec
+    [junit] Running org.voltdb.TestTransactionIdManager
+    [junit] Tests run:   6, Failures:   0, Errors:   0, Time elapsed: 0.35 sec
+    [junit] Running org.voltdb.TestVoltDB
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 0.13 sec
+    [junit] Running org.voltdb.TestVoltProcedure
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 0.12 sec
+    [junit] Running org.voltdb.TestVoltTable
+    [junit] Tests run:  24, Failures:   0, Errors:   0, Time elapsed: 0.49 sec
+    [junit] Running org.voltdb.TestVoltType
+    [junit] Tests run:   9, Failures:   0, Errors:   0, Time elapsed: 0.18 sec
+    [junit] Running org.voltdb.catalog.TestCatalogDiffs
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 25.92 sec
+    [junit] Running org.voltdb.catalog.TestCatalogSerialization
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 0.95 sec
+    [junit] Running org.voltdb.catalog.TestCatalogVersioning
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 0.88 sec
+    [junit] Running org.voltdb.client.TestDistributer
+    [junit] Tests run:   3, Failures:   0, Errors:   0, Time elapsed: 2.92 sec
+    [junit] Running org.voltdb.compiler.TestClusterCompiler
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 0.40 sec
+    [junit] Running org.voltdb.compiler.TestDDLCompiler
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 1.80 sec
+    [junit] Running org.voltdb.compiler.TestMapReduceProcedures
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 3.68 sec
+    [junit] Running org.voltdb.compiler.TestMilestoneOneCompile
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 
+    [junit] 2.70 sec
+    [junit] Running org.voltdb.compiler.TestVoltCompiler
+    [junit] Tests run:  24, Failures:   0, Errors:   0, Time elapsed: 12.47 sec
+    [junit] Running org.voltdb.exceptions.TestSerializableException
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 
+    [junit] 0.51 sec
+    [junit] Running org.voltdb.expressions.TestExpressionUtil
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 0.18 sec
+    [junit] Running org.voltdb.fault.TestFaultDistributor
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 0.17 sec
+    [junit] Running org.voltdb.jni.TestExecutionEngine
+    [junit] 13:11:07,198 [EE] (../../src/ee//voltdbjni.cpp:329) ERROR - loadCatalog failed
+    [junit] Tests run:   6, Failures:   0, Errors:   0, Time elapsed: 1.39 sec
+    [junit] Running org.voltdb.messaging.FastSerializerTest
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 0.56 sec
+    [junit] Running org.voltdb.messaging.TestFragmentResponseMessage
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 0.09 sec
+    [junit] Running org.voltdb.messaging.TestFragmentTaskMessage
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 0.16 sec
+    [junit] Running org.voltdb.messaging.TestMessaging
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 29.13 sec
+    [junit] Running org.voltdb.messaging.TestVoltMessageSerialization
+    [junit] Tests run:   7, Failures:   0, Errors:   0, Time elapsed: 0.79 sec
+    [junit] Running org.voltdb.network.NIOReadStreamTest
+    [junit] Tests run:   8, Failures:   0, Errors:   0, Time elapsed: 0.24 sec
+    [junit] Running org.voltdb.network.NIOWriteStreamTest
+    [junit] Tests run:   6, Failures:   0, Errors:   0, Time elapsed: 0.43 sec
+    [junit] Running org.voltdb.network.VoltNetworkTest
+    [junit] Tests run:   2, Failures:   0, Errors:   0, Time elapsed: 0.39 sec
+    [junit] Running org.voltdb.network.VoltPortTest
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 0.31 sec
+    [junit] Running org.voltdb.planner.TestOutOfProcessPlanning
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 23.32 sec
+    [junit] Running org.voltdb.planner.TestParsedStatements
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 52.10 sec
+    [junit] Running org.voltdb.planner.TestPlannerContext
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 0.21 sec
+    [junit] Running org.voltdb.planner.TestPlansGroupBy
+    [junit] Tests run:   6, Failures:   0, Errors:   0, Time elapsed: 2.19 sec
+    [junit] Running org.voltdb.planner.TestPlansOrderBy
+    [junit] Tests run:   7, Failures:   0, Errors:   0, Time elapsed: 2.08 sec
+    [junit] Running org.voltdb.planner.TestPlansTPCC
+    [junit] Tests run:   7, Failures:   0, Errors:   0, Time elapsed: 5.93 sec
+    [junit] Running org.voltdb.planner.TestVerticalPartitionPlanner
+    [junit] Tests run:   5, Failures:   0, Errors:   0, Time elapsed: 11.32 sec
+    [junit] Running org.voltdb.regressionsuites.TestFixedSQLSuite
+    [junit] 13:13:48,128 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket309-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:54)
+    [junit] 13:13:48,743 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testAndExpressionComparingSameTableColumns-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:106)
+    [junit] 13:13:49,215 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSeqScanFailedPredicateDoesntCountAgainstLimit-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:151)
+    [junit] 13:13:49,640 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectExpression-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:183)
+    [junit] 13:13:50,160 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testNestLoopJoinPredicates-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:223)
+    [junit] 13:13:50,514 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testNestLoopJoinPredicatesWithExpressions-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:294)
+    [junit] 13:13:51,139 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testNestLoopJoinPredicatesWithAliases-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:342)
+    [junit] 13:13:51,726 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testGreaterThanOnOrderedIndex-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:395)
+    [junit] 13:13:52,298 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket196-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:424)
+    [junit] 13:13:52,802 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket201-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:493)
+    [junit] 13:13:53,159 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket194-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:573)
+    [junit] 13:13:53,739 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTickets227And228-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:597)
+    [junit] 13:13:54,544 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket220-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:634)
+    [junit] 13:14:00,952 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket221-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:724)
+    [junit] 13:14:01,473 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket222-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:746)
+    [junit] 13:14:01,866 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket224-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:766)
+    [junit] 13:14:02,352 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket226-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:789)
+    [junit] 13:14:02,727 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket232-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:846)
+    [junit] 13:14:03,073 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket293-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:869)
+    [junit] 13:14:03,437 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicketEng397-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestFixedSQLSuite(TestFixedSQLSuite.java:888)
+    [junit] Tests run:  22, Failures:   0, Errors:  20, Time elapsed: 16.40 sec
+    [junit] Running org.voltdb.regressionsuites.TestIndexesSuite
+    [junit] 13:14:31,258 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testParameterizedLimitOnIndexScan-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestIndexesSuite(TestIndexesSuite.java:60)
+    [junit] 13:14:36,424 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testOrderedUniqueOneColumnIntIndex-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestIndexesSuite(TestIndexesSuite.java:79)
+    [junit] 13:14:41,903 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testOrderedMultiOneColumnIntIndex-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestIndexesSuite(TestIndexesSuite.java:156)
+    [junit] 13:14:47,231 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testTicket195-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestIndexesSuite(TestIndexesSuite.java:219)
+    [junit] 13:14:52,588 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testOrderedMultiMultiColumnIntIndex-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestIndexesSuite(TestIndexesSuite.java:244)
+    [junit] Tests run:  10, Failures:   0, Errors:   5, Time elapsed: 41.73 sec
+    [junit] Running org.voltdb.regressionsuites.TestMapReduceTransactionSuite
+    [junit] Tests run:   1, Failures:   0, Errors:   0, Time elapsed: 3.05 sec
+    [junit] Running org.voltdb.regressionsuites.TestMaterializedViewSuite
+    [junit] 13:15:19,426 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testInsertSinglePartition-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:58)
+    [junit] 13:15:19,931 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testDeleteSinglePartition-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:80)
+    [junit] 13:15:20,336 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testUpdateSinglePartition-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:117)
+    [junit] 13:15:20,774 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSinglePartitionWithPredicates-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:156)
+    [junit] 13:15:21,208 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testMultiPartitionSimple-localSingleProcess-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:200)
+    [junit] 13:15:27,029 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testInsertSinglePartition-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:58)
+    [junit] 13:15:31,760 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testDeleteSinglePartition-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:80)
+    [junit] 13:15:37,148 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testUpdateSinglePartition-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:117)
+    [junit] 13:15:42,466 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSinglePartitionWithPredicates-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:156)
+    [junit] 13:15:47,364 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testMultiPartitionSimple-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestMaterializedViewSuite(TestMaterializedViewSuite.java:200)
+    [junit] Tests run:  18, Failures:   0, Errors:  10, Time elapsed: 38.64 sec
+    [junit] Running org.voltdb.regressionsuites.TestMultiPartitionSuite
+    [junit] 13:16:07,803 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSimpleScan-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestMultiPartitionSuite(TestMultiPartitionSuite.java:79)
+    [junit] 13:16:09,072 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testIndexScan-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestMultiPartitionSuite(TestMultiPartitionSuite.java:109)
+    [junit] 13:16:10,194 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testDelete-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestMultiPartitionSuite(TestMultiPartitionSuite.java:141)
+    [junit] 13:16:11,195 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testUpdate-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestMultiPartitionSuite(TestMultiPartitionSuite.java:160)
+    [junit] 13:16:16,056 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSimpleScan-localCluster-2-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestMultiPartitionSuite(TestMultiPartitionSuite.java:79)
+    [junit] 13:16:21,977 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testIndexScan-localCluster-2-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestMultiPartitionSuite(TestMultiPartitionSuite.java:109)
+    [junit] 13:16:27,571 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testDelete-localCluster-2-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestMultiPartitionSuite(TestMultiPartitionSuite.java:141)
+    [junit] 13:16:32,770 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testUpdate-localCluster-2-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestMultiPartitionSuite(TestMultiPartitionSuite.java:160)
+    [junit] Tests run:  12, Failures:   8, Errors:   0, Time elapsed: 29.27 sec
+    [junit] Running org.voltdb.regressionsuites.TestOrderBySuite
+    [junit] 13:16:48,186 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,188 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,195 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - 13:16:48,195 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.Mispartitioned Tuple in single-partition plan.
+    [junit] 
+    [junit] 13:16:48,222 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,224 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,226 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,227 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,228 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,229 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,230 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,231 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:48,231 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testOrderBySingleColumnAscending-localSingleProcess-3-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestOrderBySuite(TestOrderBySuite.java:179)
+    [junit] 13:16:50,085 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,086 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,087 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,087 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,088 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,089 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,089 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,090 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,091 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,091 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,092 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,092 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:50,093 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testOrderBySingleColumnDescending-localSingleProcess-3-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestOrderBySuite(TestOrderBySuite.java:244)
+    [junit] 13:16:51,778 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:51,779 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:51,780 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:51,780 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:51,781 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:51,782 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testMultiColumnOrderBy-localSingleProcess-3-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestOrderBySuite(TestOrderBySuite.java:325)
+    [junit] 13:16:53,540 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:53,543 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:53,544 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:53,545 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:53,548 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:16:53,549 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testAggOrderByGroupBy-localSingleProcess-3-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestOrderBySuite(TestOrderBySuite.java:435)
+    [junit] 13:17:07,506 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:07,588 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:07,589 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:07,591 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:07,592 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testOrderBySingleColumnAscending-localCluster-2-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestOrderBySuite(TestOrderBySuite.java:179)
+    [junit] 13:17:13,868 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:13,870 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:13,872 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:13,875 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:13,881 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testOrderBySingleColumnDescending-localCluster-2-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestOrderBySuite(TestOrderBySuite.java:244)
+    [junit] 13:17:20,574 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:20,576 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:20,577 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testMultiColumnOrderBy-localCluster-2-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestOrderBySuite(TestOrderBySuite.java:325)
+    [junit] 13:17:27,266 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:27,267 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit] 13:17:27,268 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testAggOrderByGroupBy-localCluster-2-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestOrderBySuite(TestOrderBySuite.java:435)
+    [junit] Tests run:  16, Failures:   8, Errors:   0, Time elapsed: 49.57 sec
+    [junit] Running org.voltdb.regressionsuites.TestPlanOptimizerSuite
+    [junit] Tests run:   4, Failures:   0, Errors:   0, Time elapsed: 13.11 sec
+    [junit] Running org.voltdb.regressionsuites.TestPlansGroupBySuite
+    [junit] 13:18:05,475 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectAGroubyA-localSingleProcess-3-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:134)
+    [junit] 13:18:06,312 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectCountAGroupbyA-localSingleProcess-3-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:167)
+    [junit] 13:18:06,850 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectSumAGroupbyA-localSingleProcess-3-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:195)
+    [junit] 13:18:07,470 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectCountDistinct-localSingleProcess-3-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:224)
+    [junit] 13:18:08,121 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectCount-localSingleProcess-3-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:240)
+    [junit] 13:18:08,834 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectDistinctA-localSingleProcess-3-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:257)
+    [junit] 13:18:13,564 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectAGroubyA-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:134)
+    [junit] 13:18:18,922 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectCountAGroupbyA-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:167)
+    [junit] 13:18:24,091 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectSumAGroupbyA-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:195)
+    [junit] 13:18:28,957 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectCountDistinct-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:224)
+    [junit] 13:18:33,897 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectCount-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:240)
+    [junit] 13:18:39,069 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelectDistinctA-localCluster-2-2-JNI had an error.
+    [junit]         org.voltdb.client.ClientImpl(ClientImpl.java:207)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:64)
+    [junit]         org.voltdb.regressionsuites.TestPlansGroupBySuite(TestPlansGroupBySuite.java:257)
+    [junit] Tests run:  18, Failures:   0, Errors:  12, Time elapsed: 46.90 sec
+    [junit] Running org.voltdb.regressionsuites.TestRollbackSuite
+    [junit] Tests run:  30, Failures:   0, Errors:   0, Time elapsed: 204.49 sec
+    [junit] Running org.voltdb.regressionsuites.TestSQLFeaturesSuite
+    [junit] 13:23:03,100 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testUpdates-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestSQLFeaturesSuite(TestSQLFeaturesSuite.java:87)
+    [junit] 13:23:04,734 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testSelfJoins-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestSQLFeaturesSuite(TestSQLFeaturesSuite.java:112)
+    [junit] 13:23:06,546 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testUTF8Storage-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestSQLFeaturesSuite(TestSQLFeaturesSuite.java:140)
+    [junit] 13:23:08,851 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testUTF8Predicate-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestSQLFeaturesSuite(TestSQLFeaturesSuite.java:168)
+    [junit] 13:23:10,890 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testLongStringUsage-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestSQLFeaturesSuite(TestSQLFeaturesSuite.java:206)
+    [junit] 13:23:12,743 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testStringAsByteArrayParam-localSingleProcess-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestSQLFeaturesSuite(TestSQLFeaturesSuite.java:234)
+    [junit] 13:23:25,396 [EE] (../../src/ee/executors/insertexecutor.cpp:152) ERROR - Mispartitioned Tuple in single-partition plan.
+    [junit]     testUpdates-localCluster-2-2-JNI failed an assertion.
+    [junit]         org.voltdb.regressionsuites.TestSQLFeaturesSuite(TestSQLFeaturesSuite.java:87)
