@@ -242,6 +242,14 @@ public final class HStoreConf {
         public boolean exec_force_singlepartitioned;
         
         @ConfigProperty(
+            description="Always execute all requests as distributed transactions that lock all " +
+                        "partitions in the cluster.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_force_allpartitions;
+        
+        @ConfigProperty(
             description="Use the VoltDB @ProcInfo annotations for stored procedures to determine whether " +
             		    "a new request will be executed as a single-partitioned or distributed transaction. " +
             		    "Note that if this option is enabled, any distributed transaction will have to lock all " +

@@ -84,6 +84,7 @@
 <arg value="site.exec_force_undo_logging_all=${site.exec_force_undo_logging_all}" />
 <arg value="site.exec_db2_redirects=${site.exec_db2_redirects}" />
 <arg value="site.exec_force_singlepartitioned=${site.exec_force_singlepartitioned}" />
+<arg value="site.exec_force_allpartitions=${site.exec_force_allpartitions}" />
 <arg value="site.exec_voltdb_procinfo=${site.exec_voltdb_procinfo}" />
 <arg value="site.exec_force_localexecution=${site.exec_force_localexecution}" />
 <arg value="site.exec_mispredict_crash=${site.exec_mispredict_crash}" />
