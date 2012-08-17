@@ -124,8 +124,7 @@ public class ControlPipe implements Runnable {
                 }
                 case PAUSE: {
                     assert(cmp.m_controlState == ControlState.RUNNING) : "Unexpected " + cmp.m_controlState;
-                    
-                    LOG.info("Pausing client");
+                    if (debug.get()) LOG.debug("Pausing client");
                     
                     // Enable the lock and then change our state
                     try {
@@ -138,7 +137,7 @@ public class ControlPipe implements Runnable {
                     break;
                 }
                 case SHUTDOWN: {
-                    LOG.info("Shutting down client + cluster");
+                    if (debug.get()) LOG.debug("Shutting down client + cluster");
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
                         cmp.invokeStopCallback();
                         try {
@@ -154,7 +153,7 @@ public class ControlPipe implements Runnable {
                 }
                 case STOP: {
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
-                        LOG.info("Stopping client");
+                        if (debug.get()) LOG.debug("Stopping client");
                         cmp.invokeStopCallback();
                         
                         if (profile) {

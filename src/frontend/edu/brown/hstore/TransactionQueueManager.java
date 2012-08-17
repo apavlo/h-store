@@ -680,6 +680,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                          txn_id, reject_partition, reject_txnId));
         assert(txn_id.equals(reject_txnId) == false) :
             String.format("Rejected txn %d's blocked-until-id is also %d", txn_id, reject_txnId); 
+        assert(callback != null) :
+            String.format("Unexpected null callback for txn #%d [status=%s, rejectPartition=%d]",
+                          txn_id, status, reject_partition);
         
         // First send back an ABORT message to the initiating HStoreSite (if we haven't already)
         if (callback.isAborted() == false && callback.isUnblocked() == false) {
