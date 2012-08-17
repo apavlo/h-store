@@ -43,6 +43,8 @@ package edu.brown.hstore;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -2149,6 +2151,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                        fragmentParams,
                                                        this.m_systemProcedureContext);
             } catch (Throwable ex) {
+                LOG.error("Failed to execute " + ts + " - " + ex.getClass().getSimpleName() + " => " + ex.getMessage(), ex);
                 String msg = "Unexpected error when executing system procedure";
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
             }
