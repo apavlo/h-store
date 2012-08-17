@@ -512,6 +512,12 @@ public class TransactionInitializer {
             }
         }
         // -------------------------------
+        // FORCE DISTRIBUTED
+        // -------------------------------
+        else if (hstore_conf.site.exec_force_allpartitions) {
+            predict_partitions = catalogContext.getAllPartitionIds();
+        }
+        // -------------------------------
         // TRANSACTION ESTIMATORS
         // -------------------------------
         else if (hstore_conf.site.markov_enable || hstore_conf.site.markov_fixed) {
