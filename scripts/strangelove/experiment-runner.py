@@ -137,22 +137,22 @@ BASE_SETTINGS = {
     "site.status_enable":                       False,
     "site.status_show_thread_info":             False,
     "site.status_show_executor_info":           False,
-    "site.txn_incoming_delay":                  1,
+    "site.txn_incoming_delay":                  10,
     "site.coordinator_init_thread":             False,
     "site.coordinator_finish_thread":           False,
     "site.txn_restart_limit":                   5,
     "site.txn_restart_limit_sysproc":           100,
     "site.exec_force_singlepartitioned":        True,
     "site.memory":                              61440,
-    "site.queue_incoming_max_per_partition":            150,
-    "site.queue_incoming_release_factor":               0.90,
-    "site.queue_incoming_increase":                     10,
-    "site.queue_dtxn_max_per_partition":                1000,
-    "site.queue_dtxn_release_factor":                   0.90,
-    "site.queue_dtxn_increase":                         0,
-    "site.exec_db2_redirects":                          False,
-    "site.cpu_affinity":                                True,
-    "site.cpu_affinity_one_partition_per_core":         True,
+    "site.queue_incoming_max_per_partition":    150,
+    "site.queue_incoming_release_factor":       0.90,
+    "site.queue_incoming_increase":             10,
+    "site.queue_dtxn_max_per_partition":        1000,
+    "site.queue_dtxn_release_factor":           0.90,
+    "site.queue_dtxn_increase":                 0,
+    "site.exec_db2_redirects":                  False,
+    "site.cpu_affinity":                        True,
+    "site.cpu_affinity_one_partition_per_core": True,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -162,9 +162,10 @@ EXPERIMENT_SETTINGS = {
         "site.markov_enable":                   False,
         "client.blocking":                      True,
         "client.output_response_status":        True,
-        "client.output_exec_profiling":         "execprofile.csv",
-        "client.output_txn_profiling":          "txnprofile.csv",
-        "client.output_txn_profiling_combine":  True,
+        #"client.output_exec_profiling":         "execprofile.csv",
+        "client.output_queue_profiling":        "queueprofile.csv",
+        #"client.output_txn_profiling":          "txnprofile.csv",
+        #"client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",
         #"client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
@@ -541,7 +542,7 @@ if __name__ == '__main__':
                         ## IF
                         
                         # CSV RESULT FILES
-                        for key in ["output_txn_profiling", "output_exec_profiling", "output_txn_counters"]:
+                        for key in ["output_txn_profiling", "output_exec_profiling", "output_queue_profiling", "output_txn_counters"]:
                             key = "client.%s" % key
                             LOG.debug("Checking whether '%s' is enabled" % (key))
                             if key in env and not env[key] is None:

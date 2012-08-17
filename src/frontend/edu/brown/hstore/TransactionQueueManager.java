@@ -232,7 +232,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         while (this.stop == false) {
             if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
-                this.checkFlag.tryAcquire(this.wait_time*2, TimeUnit.MILLISECONDS);
+                // this.checkFlag.tryAcquire(this.wait_time*2, TimeUnit.MILLISECONDS);
+                this.checkFlag.tryAcquire(5, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 // Nothing...
             } finally {

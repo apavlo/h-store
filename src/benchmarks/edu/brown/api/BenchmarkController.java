@@ -494,6 +494,9 @@ public class BenchmarkController {
         if (hstore_conf.client.output_exec_profiling != null) {
             m_config.siteParameters.put("site.exec_profiling", Boolean.TRUE.toString());
         }
+        if (hstore_conf.client.output_queue_profiling != null) {
+            m_config.siteParameters.put("site.queue_profiling", Boolean.TRUE.toString());
+        }
         if (hstore_conf.client.output_txn_profiling != null) {
             m_config.siteParameters.put("site.txn_profiling", Boolean.TRUE.toString());
         }
@@ -1219,6 +1222,13 @@ public class BenchmarkController {
             this.writeStats(client,
                             SysProcSelector.EXECPROFILER,
                             hstore_conf.client.output_exec_profiling);
+        }
+        
+        // Dump Queue Profiling Info
+        if (hstore_conf.client.output_queue_profiling != null) {
+            this.writeStats(client,
+                            SysProcSelector.QUEUEPROFILER,
+                            hstore_conf.client.output_queue_profiling);
         }
         
         // Dump Txn Profiling Info
