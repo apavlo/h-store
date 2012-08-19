@@ -260,6 +260,12 @@ class NValue {
     static const uint16_t kMaxDecScale = 12;
     static const int64_t kMaxScaleFactor = 1000000000000;
 
+    
+    const int32_t& getInteger() const {
+        assert(getValueType() == VALUE_TYPE_INTEGER);
+        return *reinterpret_cast<const int32_t*>(m_data);
+    }
+    
   private:
     /*
      * Private methods are private for a reason. Don't expose the raw
@@ -516,11 +522,6 @@ class NValue {
     int16_t& getSmallInt() {
         assert(getValueType() == VALUE_TYPE_SMALLINT);
         return *reinterpret_cast<int16_t*>(m_data);
-    }
-
-    const int32_t& getInteger() const {
-        assert(getValueType() == VALUE_TYPE_INTEGER);
-        return *reinterpret_cast<const int32_t*>(m_data);
     }
 
     int32_t& getInteger() {

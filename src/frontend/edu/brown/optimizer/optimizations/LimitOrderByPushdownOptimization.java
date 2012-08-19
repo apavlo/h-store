@@ -32,12 +32,9 @@ public class LimitOrderByPushdownOptimization extends AbstractOptimization {
 
     @Override
     public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode root) {
-        // Check whether this PlanTree contains an OrderByPlanNode and a
-        // LimitPlanNode
-        // If it does and there are no joins, then we should be able to push
-        // duplicates
-        // down into the ScanPlanNode so that we can prune out as much as we can
-        // before
+        // Check whether this PlanTree contains an OrderByPlanNode and a LimitPlanNode
+        // If it does and there are no joins, then we should be able to push duplicates
+        // down into the ScanPlanNode so that we can prune out as much as we can before
         // we send it over the wire. This is a basic a Merge-Sort operation
         Collection<OrderByPlanNode> orderby_nodes = PlanNodeUtil.getPlanNodes(root, OrderByPlanNode.class);
         Collection<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);

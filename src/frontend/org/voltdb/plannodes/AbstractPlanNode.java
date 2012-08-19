@@ -80,13 +80,25 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
      *
      * @param id the id
      */
-    protected AbstractPlanNode(PlannerContext context, Integer id) {
+    protected AbstractPlanNode(PlannerContext context, int id) {
         assert(context != null);
         assert(id != 0);
         m_context = context;
         m_id = id;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof AbstractPlanNode) {
+            AbstractPlanNode other = (AbstractPlanNode)obj;
+            return (m_id == other.m_id &&
+                    m_isInline == other.m_isInline &&
+                    this.getPlanNodeType() == other.getPlanNodeType() &&
+                    this.getOutputColumnGUIDs().equals(other.getOutputColumnGUIDs()));
+        }
+        return (false);
+    }
+    
     protected final int getId() {
         return (m_id);
     }
@@ -656,8 +668,8 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
         }
         catch (JSONException e)
         {
-            e.printStackTrace();
-            System.exit(-1);
+            throw new RuntimeException("Failed to serialize " + this, e);
+//            System.exit(-1);
         }
         return stringer.toString();
     }

@@ -83,8 +83,7 @@ public class RemoveDistributedReplicatedTableJoinOptimization extends AbstractOp
                 } // FOR
                 assert (join_tbl != null);
 
-                // If either table is replicated, then the leaf scan should be
-                // linked
+                // If either table is replicated, then the leaf scan should be linked
                 // directly with the Join PlanNode
                 if (join_tbl.getIsreplicated() || leaf_tbl.getIsreplicated()) {
                     AbstractPlanNode parent = join_node.getParent(0);
@@ -102,10 +101,9 @@ public class RemoveDistributedReplicatedTableJoinOptimization extends AbstractOp
                     state.markDirty(join_node);
                     state.markDirty(leaf_node);
 
-                    // HACK: If the parent is a ProjectionPlanNode, then we'll
-                    // want to duplicate it so that we make sure that our
-                    // original Send/Recieve
-                    // nodes have the right offset
+                    // HACK: If the parent is a ProjectionPlanNode, then we'll want 
+                    // to duplicate it so that we make sure that our original 
+                    // SEND/RECIEVE nodes have the right offsets
                     if (parent instanceof ProjectionPlanNode) {
                         AbstractPlanNode parent_clone = null;
                         try {

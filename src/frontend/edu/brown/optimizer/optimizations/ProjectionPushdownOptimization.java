@@ -36,13 +36,17 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(ProjectionPushdownOptimization.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
+    private final Set<PlanColumn> new_output_cols = new ListOrderedSet<PlanColumn>();
+    private final Set<Table> new_output_tables = new HashSet<Table>();
+    private final AtomicBoolean modified = new AtomicBoolean(false);
+    
     public ProjectionPushdownOptimization(PlanOptimizerState state) {
         super(state);
     }
 
     @Override
     public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode root) {
-        final AtomicBoolean modified = new AtomicBoolean(false);
+        modified.set(false);
         new PlanNodeTreeWalker(false) {
             @Override
             protected void callback(AbstractPlanNode element) {
@@ -68,8 +72,7 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
                 // ---------------------------------------------------
                 // Distributed NestLoopIndexPlanNode
                 // This is where the NestLoopIndexPlanNode immediately passes
-                // its
-                // intermediate results to a SendPlanNode
+                // its intermediate results to a SendPlanNode
                 // ---------------------------------------------------
                 else if (element instanceof NestLoopIndexPlanNode && element.getParent(0) instanceof SendPlanNode) {
                     assert (state.join_node_index.size() == state.join_tbl_mapping.size()) : "Join data structures don't have the same size";
@@ -95,19 +98,16 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
     private boolean addProjection(final AbstractPlanNode node, boolean inline) {
         assert ((node instanceof ProjectionPlanNode) == false) : String.format("Trying to add a new Projection after " + node);
 
-        // Look at the output columns of the given AbstractPlanNode and figure
-        // out
+        // Look at the output columns of the given AbstractPlanNode and figure out
         // which of those columns we're going to need up above in the tree
         Set<PlanColumn> referenced = PlanOptimizerUtil.extractReferencedColumns(state, node);
         if (debug.get())
             LOG.debug(String.format("All referenced columns above %s:\n%s", node, StringUtil.join("\n", referenced)));
 
-        // Look over the PlanColumns that we need above us, and add the ones
-        // that
-        // are coming out of the parent. Those are the ones that we want to
-        // include
-        Set<PlanColumn> new_output_cols = new ListOrderedSet<PlanColumn>();
-        Set<Table> new_output_tables = new HashSet<Table>();
+        // Look over the PlanColumns that we need above us, and add the ones that
+        // are coming out of the parent. Those are the ones that we want to include
+        new_output_cols.clear();
+        new_output_tables.clear();
         for (Integer col_guid : node.getOutputColumnGUIDs()) {
             PlanColumn col = state.plannerContext.get(col_guid);
             assert (col != null) : "Invalid PlanColumn #" + col_guid;
@@ -171,10 +171,6 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
 
         if (debug.get())
             LOG.debug(String.format("PLANOPT - Added %s%s with %d columns for node %s", (inline ? "inline " : ""), proj_node, proj_node.getOutputColumnGUIDCount(), node));
-
-        // Should we be doing this here?
-        // PlanOptimizerUtil.updateAllColumns(state,
-        // PlanNodeUtil.getRoot(node));
 
         return (true);
     }
