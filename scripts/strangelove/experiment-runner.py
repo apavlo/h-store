@@ -132,7 +132,7 @@ BASE_SETTINGS = {
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
     
-    "site.jvm_asserts":                         True,
+    "site.jvm_asserts":                         False,
     "site.log_backup":                          False,
     "site.status_enable":                       False,
     "site.status_show_thread_info":             False,
@@ -164,29 +164,32 @@ EXPERIMENT_SETTINGS = {
         "ec2.client_type":                      "c1.xlarge",
         "ec2.change_type":                      False,
         "ec2.cluster_group":                    "hstore-hvm",
-        "hstore.partitions_per_site":           8,
+        "hstore.partitions_per_site":           32,
         
+        "site.txn_incoming_delay":              5,
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
         "site.markov_enable":                   False,
+        "client.txnrate":                       100000,
         "client.blocking":                      True,
         "client.output_response_status":        True,
         #"client.output_exec_profiling":         "execprofile.csv",
         "client.output_queue_profiling":        "queueprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
-        #"client.output_txn_counters":           "txncounters.csv",
-        #"client.output_txn_counters_combine":   True,
+        "client.output_txn_counters":           "txncounters.csv",
+        "client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
         "benchmark.neworder_abort":             False,
         "benchmark.neworder_multip_mix":        100,
+        "benchmark.loadthread_per_warehouse":   False,
     },
 }
 
 ## ==============================================
 ## updateEnv
 ## ==============================================
-def updateEnv(env, benchmark, exp_type):
+def updateEnv(env, benchmark, exp_type, partitions):
     global OPT_BASE_TXNRATE_PER_PARTITION
   
     ## ----------------------------------------------
@@ -202,6 +205,8 @@ def updateEnv(env, benchmark, exp_type):
         else:
             env['site.markov_fixed'] = True
         ## IF
+        env["client.threads_per_host"] = partitions
+        env["benchmark.loadthreads"] = min(16, partitions)
         
         pplan = "%s.lns.pplan" % benchmark
         env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
@@ -477,7 +482,7 @@ if __name__ == '__main__':
             LOG.info("%s - %s - %d Partitions" % (args['exp_type'].upper(), benchmark.upper(), partitions))
             env["hstore.partitions"] = partitions
             all_results = [ ]
-            updateEnv(env, benchmark, args['exp_type'])
+            updateEnv(env, benchmark, args['exp_type'], partitions)
                 
             # Increase the client.scalefactor based on the number of partitions
             if args['multiply_scalefactor']:
