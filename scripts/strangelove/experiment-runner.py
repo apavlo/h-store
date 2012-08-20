@@ -164,6 +164,7 @@ EXPERIMENT_SETTINGS = {
         "ec2.client_type":                      "c1.xlarge",
         "ec2.change_type":                      False,
         "ec2.cluster_group":                    "hstore-hvm",
+        "hstore.partitions_per_site":           8,
         
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
@@ -187,10 +188,6 @@ EXPERIMENT_SETTINGS = {
 ## ==============================================
 def updateEnv(env, benchmark, exp_type):
     global OPT_BASE_TXNRATE_PER_PARTITION
-  
-    for k,v in BASE_SETTINGS.iteritems():
-        env[k] = v
-    ## FOR
   
     ## ----------------------------------------------
     ## MOTIVATION
@@ -275,8 +272,8 @@ def processResults(args, partitions, output, workloads, results):
             last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
         else:
             last_changed_rev, last_changed_date = hstore.fabfile.get_version()
-        print "last_changed_rev:", last_changed_rev
-        print "last_changed_date:", last_changed_date
+        LOG.info("last_changed_rev:", last_changed_rev)
+        LOG.info("last_changed_date:", last_changed_date)
             
         codespeedBenchmark = benchmark
         if not args["codespeed_benchmark"] is None:
@@ -433,18 +430,22 @@ if __name__ == '__main__':
         env["hstore.exec_prefix"] += " -Dkillonzero=true"
     
     # Update Fabric env
-    exp_opts = dict(BASE_SETTINGS.items() + EXPERIMENT_SETTINGS[args['exp_type']].items())
-    assert exp_opts
     conf_remove = set()
-    for key,val in exp_opts.items():
-        if val == None: 
-            LOG.debug("Parameter to Remove: %s" % key)
-            conf_remove.add(key)
-            del exp_opts[key]
-            assert not key in exp_opts
-        elif type(val) != types.FunctionType:
-            env[key] = val
+    for exp_opts in [ BASE_SETTINGS, EXPERIMENT_SETTINGS[args['exp_type']] ]:
+        assert exp_opts
+        exp_conf_remove = [ ]
+        for key,val in exp_opts.iteritems():
+            if val == None: 
+                LOG.debug("Parameter to Remove: %s" % key)
+                exp_conf_remove.append(key)
+            elif type(val) != types.FunctionType:
+                env[key] = val
+                LOG.debug("env[\"%s\"] = %s", key, val)
+        ## FOR
+        map(exp_opts.pop, exp_conf_remove)
+        conf_remove.update(exp_conf_remove)
     ## FOR
+    
     # Figure out what keys we need to remove to ensure that one experiment
     # doesn't contaminate another
     for other_type in EXPERIMENT_SETTINGS.keys():
@@ -476,6 +477,7 @@ if __name__ == '__main__':
             LOG.info("%s - %s - %d Partitions" % (args['exp_type'].upper(), benchmark.upper(), partitions))
             env["hstore.partitions"] = partitions
             all_results = [ ]
+            updateEnv(env, benchmark, args['exp_type'])
                 
             # Increase the client.scalefactor based on the number of partitions
             if args['multiply_scalefactor']:
@@ -507,7 +509,6 @@ if __name__ == '__main__':
                 needUpdateLog4j = False
                 
             updateJar = (args['no_jar'] == False)
-            updateEnv(env, benchmark, args['exp_type'])
             LOG.debug("Parameters:\n%s" % pformat(env))
             conf_remove = conf_remove - set(env.keys())
             

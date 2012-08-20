@@ -971,6 +971,7 @@ TEST CASES
         unless="junit-getfiles.exists">
     <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--copy=${localcopy}" />
+        <arg line="--symlink=${symlink}" />
         <arg line="${files.dir}" />
     </exec>
 </target>
