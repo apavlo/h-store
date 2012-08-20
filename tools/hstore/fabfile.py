@@ -614,7 +614,16 @@ def deploy_hstore(build=True, update=True):
         ## Checkout Extra Files
         if need_files:
             LOG.debug("Initializing H-Store research files directory for branch '%s'" %  env["hstore.git_branch"])
-            run("ant junit-getfiles")
+            
+            # 2012-08-20 - Create a symlink into /mnt/h-store so that we store 
+            #              the larger files out in EBS
+            ebsDir = "/mnt/h-store"
+            with settings(warn_only=True):
+                if run("test -d %s" % ebsDir).failed:
+                    run("mkdir -p " + ebsDir)
+                sudo("chown --quiet -R %s %s" % (env.user, ebsDir))
+            ## WITH
+            run("ant junit-getfiles -Dsymlink=%s" % ebsDir)
         elif update:
             LOG.debug("Pulling in latest research files for branch '%s'" % env["hstore.git_branch"])
             # run("ant junit-getfiles")

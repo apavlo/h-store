@@ -47,26 +47,45 @@ if __name__ == '__main__':
     aparser.add_argument('--git-branch', default=GIT_BRANCH, help='Git branch')
     aparser.add_argument('--overwrite', action='store_true', help='Overwrite existing directory')
     aparser.add_argument('--copy', default=None, help='Copy from existing local copy')
+    aparser.add_argument('--symlink', default=None, help='Create a symlink for the directory')
     args = vars(aparser.parse_args())
 
-    if args['git']:
-        cmd = "git clone --branch %(git_branch)s %(git_repo)s %(path)s" % args
-    else:
-        cmd = "svn %(svn_options)s checkout %(svn_repo)s %(path)s" % args
-    
-    if not args['path'].startswith("${") and os.path.exists(args['path']):
-        if not args['overwrite']:
-            LOG.info("Installation directory '%s' already exists. Not overwriting" % args['path'])
-            sys.exit(0)
-        LOG.warn("Deleting directory '%s' and reinstalling" % args['path'])
-        shutil.rmtree(args['path'])
-    if args['copy']:
+    copy = False
+    if args['copy'] and not args['copy'].startswith("${"):
         if not os.path.exists(args['copy']):
             LOG.warn("Unable to copy from local cache. The directory '%s' does not exist" % args['copy'])
         else:
-            cmd = "cp -rvl %(copy)s %(path)s" % args
+            LOG.warn("Copying from local cache directory '%s'" % args['copy'])
+            copy = True
+            
+            
+    # Symlink
+    if args['symlink'] and not args['symlink'].startswith("${"):
+        tmp = args['symlink']
+        args['symlink'] = args['path']
+        args['path'] = tmp
+    else:
+        args['symlink'] = None
+    
+    if copy:
+        cmd = "cp -rvl %(copy)s %(path)s" % args
+    elif args['git']:
+        cmd = "git clone --branch %(git_branch)s %(git_repo)s %(path)s" % args
+    else:
+        cmd = "svn %(svn_options)s checkout %(svn_repo)s %(path)s" % args
+
+    if os.path.exists(args['path']):
+        if not args['overwrite']:
+            LOG.info("Installation directory '%s' already exists. Not overwriting" % os.path.realpath(args['path']))
+            sys.exit(0)
+        LOG.warn("Deleting directory '%s' and reinstalling" % args['path'])
+        shutil.rmtree(args['path'])
 
     # Bombs away!
     LOG.info(cmd)
     subprocess.check_call(cmd, shell=True)
+    
+    if not args['symlink'] is None and not os.path.islink(args['symlink']):
+        LOG.info("Creating symlink from %(path)s to %(symlink)s" % args)
+        os.symlink(args["path"], args["symlink"])
 ## MAIN
