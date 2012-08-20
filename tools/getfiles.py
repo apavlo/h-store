@@ -54,7 +54,7 @@ if __name__ == '__main__':
     else:
         cmd = "svn %(svn_options)s checkout %(svn_repo)s %(path)s" % args
     
-    if os.path.exists(args['path']):
+    if not args['path'].startswith("${") and os.path.exists(args['path']):
         if not args['overwrite']:
             LOG.info("Installation directory '%s' already exists. Not overwriting" % args['path'])
             sys.exit(0)

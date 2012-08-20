@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------
-# Copyright (C) 2011 by H-Store Project
+# Copyright (C) 2012 by H-Store Project
 # Brown University
 # Massachusetts Institute of Technology
 # Yale University
@@ -79,6 +79,10 @@ if not os.path.exists(realpath):
 sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
 import boto
 
+## ==============================================
+## EC2 NODE CONFIGURATION
+## ==============================================
+
 ## List of packages needed on each instance
 ALL_PACKAGES = [
     'git-core',
@@ -117,9 +121,10 @@ env.port = 22
 ENV_DEFAULT = {
     ## EC2 Options
     "ec2.site_type":               "m2.4xlarge",
+    "ec2.site_ami":                "ami-7dae1b14",
     "ec2.client_type":             "m1.xlarge",
+    "ec2.client_ami":              "ami-7dae1b14",
     "ec2.placement_group":         None,
-    "ec2.ami":                     "ami-808220e9",
     "ec2.security_group":          "hstore",
     "ec2.keypair":                 "hstore",
     "ec2.region":                  "us-east-1b",
@@ -277,18 +282,33 @@ def start_cluster(updateSync=True):
         waiting = [ ]
         for inst in stoppedInstances:
             assert not inst in env["ec2.running_instances"]
+            currentType = __getInstanceType__(inst)
+            restart = False
             
             ## Figure out whether this will be a site or a client
+            ## HACK: We should really be tagging the instances rather relying 
+            ## on an offset to determine whether they are a site or a client 
             if sites_needed > 0:
-                inst.modify_attribute("instanceType", env["ec2.site_type"])
-                siteInstances.append(inst)
-                sites_needed -= 1
+                if currentType != env["ec2.site_type"]:
+                    if env["ec2.change_type"]:
+                        inst.modify_attribute("instanceType", env["ec2.site_type"])
+                        siteInstances.append(inst)
+                        sites_needed -= 1
+                        restart = True
+                else:
+                    restart = True
             else:
-                inst.modify_attribute("instanceType", env["ec2.client_type"])
-                clientInstances.append(inst)
-                clients_needed -= 1
+                if currentType != env["ec2.client_type"]:
+                    if env["ec2.change_type"]:
+                        inst.modify_attribute("instanceType", env["ec2.client_type"])
+                        clientInstances.append(inst)
+                        clients_needed -= 1
+                        restart = True
+                else:
+                    restart = True
+            ## IF
                 
-            LOG.info("Restarting stopped instance '%s' / %s" % (__getInstanceName__(inst), __getInstanceType__(inst)))
+            LOG.info("Restarting stopped instance '%s' / %s" % (__getInstanceName__(inst), currentType))
             inst.start()
             waiting.append(inst)
             instances_needed -= 1
@@ -342,10 +362,16 @@ def start_cluster(updateSync=True):
         assert sites_needed == 0
         assert clients_needed == 0
         if len(siteInstance_tags) > 0:
-            __startInstances__(len(siteInstance_tags), env["ec2.site_type"], siteInstance_tags)
+            __startInstances__(len(siteInstance_tags), 
+                               env["ec2.site_ami"], 
+                               env["ec2.site_type"],
+                               siteInstance_tags)
             instances_needed -= len(siteInstance_tags)
         if len(clientInstance_tags) > 0:
-            __startInstances__(len(clientInstance_tags), env["ec2.client_type"], clientInstance_tags)
+            __startInstances__(len(clientInstance_tags),
+                               env["ec2.client_ami"],
+                               env["ec2.client_ami"],
+                               clientInstance_tags)
             instances_needed -= len(clientInstance_tags)
     ## IF
     assert instances_needed == 0
@@ -950,9 +976,9 @@ def __syncTime__():
 ## ----------------------------------------------
 ## __startInstances__
 ## ----------------------------------------------        
-def __startInstances__(instances_count, ec2_type, instance_tags):
+def __startInstances__(instances_count, ec2_ami, ec2_type, instance_tags):
     LOG.info("Attemping to start %d instances." % (instances_count))
-    reservation = ec2_conn.run_instances(env["ec2.ami"],
+    reservation = ec2_conn.run_instances(ec2_ami,
                                          instance_type=ec2_type,
                                          key_name=env["ec2.keypair"],
                                          min_count=instances_count,

@@ -157,6 +157,14 @@ BASE_SETTINGS = {
 
 EXPERIMENT_SETTINGS = {
     "motivation": {
+        # HVM Instances
+        # http://cloud-images.ubuntu.com/desktop/precise/current/
+        "ec2.site_ami":                         "ami-efa81d86",
+        "ec2.site_type":                        "cc1.4xlarge",
+        "ec2.client_type":                      "c1.xlarge",
+        "ec2.change_type":                      False,
+        "ec2.cluster_group":                    "hstore-hvm",
+        
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
         "site.markov_enable":                   False,
@@ -164,8 +172,8 @@ EXPERIMENT_SETTINGS = {
         "client.output_response_status":        True,
         #"client.output_exec_profiling":         "execprofile.csv",
         "client.output_queue_profiling":        "queueprofile.csv",
-        #"client.output_txn_profiling":          "txnprofile.csv",
-        #"client.output_txn_profiling_combine":  True,
+        "client.output_txn_profiling":          "txnprofile.csv",
+        "client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",
         #"client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
