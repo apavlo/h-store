@@ -2416,7 +2416,7 @@ UTILITIES
         <!-- Use to identify what process this for killing -->
         <jvmarg value="-Dhstore.tag=site" />
         <!-- Initial Heap Size -->
-        <jvmarg value="-Xms${site.memory}m" />
+        <!-- jvmarg value="-Xms${site.memory}m" -->
         <!-- Maximum Heap Size -->
         <jvmarg value="-Xmx${site.memory}m" />
 

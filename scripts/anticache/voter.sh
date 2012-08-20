@@ -11,7 +11,7 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=false
+ENABLE_ANTICACHE=true
 
 SITE_HOST="modis"
 
@@ -28,6 +28,9 @@ BASE_SITE_MEMORY=2048
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="voter"
 BASE_DIR=`pwd`
+
+ANTICACHE_EVICT_SIZE=512*1024*1024 # 512MB
+ANTICACHE_THRESHOLD=.75
 
 BASE_ARGS=( \
     "-Dsite.status_enable=false" \
@@ -62,12 +65,14 @@ BASE_ARGS=( \
     
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
-    "-Dsite.anticache_check_interval=99999999" \
+    "-Dsite.anticache_check_interval=30000" \
+    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
+    "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
     "-Dclient.interval=500" \
-    "-Dclient.anticache_enable=${ENABLE_ANTICACHE}" \
+    "-Dclient.anticache_enable=false" \
     "-Dclient.anticache_evict_interval=30000" \
     "-Dclient.anticache_evict_size=4194304" \
-    "-Dclient.output_csv=true" \
+    "-Dclient.output_csv=false" \
     "-Dclient.output_interval=false" \
 
     # CLIENT DEBUG
