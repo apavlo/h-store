@@ -100,6 +100,8 @@ void AntiCacheDB::writeBlock(const std::string tableName,
     VOLT_INFO("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
     m_db->put(NULL, &key, &value, 0);
+
+    m_db->sync(0); 
     
     // TODO(debrabant): Should we do an fsync here?
 }

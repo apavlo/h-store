@@ -71,8 +71,6 @@
 #include <mach/mach.h>
 #endif // MACOSX
 
-#define __x86_64
-
 #ifdef LINUX
 #if __SIZEOF_POINTER__ == 4
 #error VoltDB server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
