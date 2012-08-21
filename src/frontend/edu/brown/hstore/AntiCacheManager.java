@@ -52,6 +52,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
 
     //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
     public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152 * 256;  //512 MB 
+    
+    private boolean evicting;  
 
     
     // ----------------------------------------------------------------------------
@@ -99,7 +101,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         @Override
         public void runImpl() {
             try {
-                if (hstore_conf.site.anticache_enable && checkEviction()) {
+                if (hstore_conf.site.anticache_enable && checkEviction() && !evicting) {
                     executeEviction();
                 }
             } catch (Throwable ex) {
@@ -116,6 +118,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         public void run(ClientResponseImpl parameter) {
             LOG.info("Eviction Response:\n" + VoltTableUtil.format(parameter.getResults()));
             LOG.info(String.format("Execution Time: %.1f sec", parameter.getClusterRoundtrip() / 1000d));
+            
+            evicting = false; 
         }
     };
     
@@ -128,6 +132,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
               HStoreConstants.THREAD_NAME_ANTICACHE,
               new LinkedBlockingQueue<QueueEntry>(),
               false);
+              
+              evicting = false; 
         
         // XXX: Do we want to use Runtime.getRuntime().maxMemory() instead?
         // XXX: We could also use Runtime.getRuntime().totalMemory() instead of getting table stats
@@ -240,6 +246,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     protected void executeEviction() {
         // Invoke our special sysproc that will tell the EE to evict some blocks
         // to save us space.
+        
+        evicting = true; 
 
         String tableNames[] = new String[this.evictableTables.size()];
         long evictBytes[] = new long[this.evictableTables.size()];
