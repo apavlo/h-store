@@ -104,7 +104,6 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
         if (finish) {
-            
             this.finishTransaction(status);
         }
         this.abortFinished = true;

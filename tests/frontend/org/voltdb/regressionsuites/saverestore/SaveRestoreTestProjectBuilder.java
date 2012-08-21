@@ -26,6 +26,8 @@ package org.voltdb.regressionsuites.saverestore;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.BuildDirectoryUtils;
@@ -33,8 +35,9 @@ import org.voltdb.utils.CatalogUtil;
 
 public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
 {
-    public static Class<?> PROCEDURES[] =
-        new Class<?>[] { MatView.class, SaveRestoreSelect.class};
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        MatView.class, SaveRestoreSelect.class};
 
     public static String partitioning[][] =
         new String[][] {{"PARTITION_TESTER", "PT_ID"},

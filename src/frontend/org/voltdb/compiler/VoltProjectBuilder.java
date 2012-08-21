@@ -523,13 +523,13 @@ public class VoltProjectBuilder {
         addProcedures(new ProcedureInfo(new String[0], new String[0], name, sql, partitionInfo));
     }
     
-    public void addProcedure(final Class<?> procedure) {
+    public void addProcedure(final Class<? extends VoltProcedure> procedure) {
         final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
         procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
         addProcedures(procArray);
     }
 
-    public void addProcedures(final Class<?>... procedures) {
+    public void addProcedures(final Class<? extends VoltProcedure>... procedures) {
         if (procedures != null && procedures.length > 0) {
             final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
             for (final Class<?> procedure : procedures)

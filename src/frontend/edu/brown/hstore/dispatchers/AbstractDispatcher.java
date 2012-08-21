@@ -6,6 +6,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import org.apache.log4j.Logger;
 
 import edu.brown.hstore.HStoreCoordinator;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.util.AbstractProcessingThread;
 import edu.brown.utils.ClassUtil;
 
@@ -19,16 +20,15 @@ public abstract class AbstractDispatcher<E> extends AbstractProcessingThread<E> 
     private static final Logger LOG = Logger.getLogger(AbstractDispatcher.class);
     
     protected final HStoreCoordinator hstore_coordinator;
-
     
     /**
-     * @param hstore_coordinator
+     * @param hstore_site
      */
-    public AbstractDispatcher(HStoreCoordinator hstore_coordinator) {
-        super(hstore_coordinator.getHStoreSite(),
+    public AbstractDispatcher(HStoreSite hstore_site, HStoreCoordinator hstore_coordinator) {
+        super(hstore_site,
               "dispatcher",
               new LinkedBlockingDeque<E>(),
-              hstore_coordinator.getHStoreConf().site.exec_profiling);
+              hstore_site.getHStoreConf().site.exec_profiling);
         this.hstore_coordinator = hstore_coordinator;
     }
     

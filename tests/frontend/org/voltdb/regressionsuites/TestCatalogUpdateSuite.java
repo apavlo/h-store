@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltDB.Configuration;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -55,17 +56,25 @@ import edu.brown.hstore.Hstoreservice.Status;
 public class TestCatalogUpdateSuite extends RegressionSuite {
 
     // procedures used by these tests
-    static Class<?>[] BASEPROCS =     { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> BASEPROCS[] = (Class<? extends VoltProcedure>[])new Class<?>[]
+                                      { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
                                         org.voltdb.benchmark.tpcc.procedures.SelectAll.class,
                                         org.voltdb.benchmark.tpcc.procedures.delivery.class };
-    static Class<?>[] EXPANDEDPROCS = { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> EXPANDEDPROCS[] = (Class<? extends VoltProcedure>[])new Class<?>[]
+                                      { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
                                         org.voltdb.benchmark.tpcc.procedures.SelectAll.class,
                                         org.voltdb.benchmark.tpcc.procedures.delivery.class,
                                         org.voltdb.benchmark.tpcc.procedures.InsertOrderLineBatched.class };
-    static Class<?>[] CONFLICTPROCS = { org.voltdb.catalog.InsertNewOrder.class,
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> CONFLICTPROCS[] = (Class<? extends VoltProcedure>[])new Class<?>[]
+                                      { org.voltdb.catalog.InsertNewOrder.class,
                                         org.voltdb.benchmark.tpcc.procedures.SelectAll.class,
                                         org.voltdb.benchmark.tpcc.procedures.delivery.class };
-    static Class<?>[] SOMANYPROCS =   { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> SOMANYPROCS[] = (Class<? extends VoltProcedure>[])new Class<?>[]
+                                      { org.voltdb.benchmark.tpcc.procedures.InsertNewOrder.class,
                                         org.voltdb.benchmark.tpcc.procedures.SelectAll.class,
                                         org.voltdb.benchmark.tpcc.procedures.neworder.class,
                                         org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId.class,

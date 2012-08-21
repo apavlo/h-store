@@ -1,30 +1,47 @@
 package edu.brown.hstore.estimators;
 
-import java.util.Map;
-
-import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
-import edu.brown.hashing.AbstractHasher;
-import edu.brown.utils.ParameterMangler;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
-public class TM1Estimator extends AbstractEstimator {
+/**
+ * TM1 Benchmark Fixed Estimator
+ * @author pavlo
+ */
+public class TM1Estimator extends FixedEstimator {
 
-    public TM1Estimator(CatalogContext catalogContext, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
-        super(catalogContext, manglers, hasher);
+    public TM1Estimator(PartitionEstimator p_estimator) {
+        super(p_estimator);
     }
     
     @Override
-    protected PartitionSet initializeTransactionImpl(Procedure catalog_proc, Object[] args, Object[] mangled) {
+    public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
-        PartitionSet ret = null;
         
+        // TODO
         if (procName.equalsIgnoreCase("UpdateLocation")) {
             
         }
         
-        return (ret);
+        return (null);
     }
 
+    @Override
+    public TransactionEstimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+        return (state.getInitialEstimate());
+    }
+    
+    @Override
+    protected void completeTransaction(EstimatorState state, Status status) {
+        // Nothing to do
+    }
+
+    @Override
+    public void updateLogging() {
+        // TODO Auto-generated method stub
+        
+    }
 }

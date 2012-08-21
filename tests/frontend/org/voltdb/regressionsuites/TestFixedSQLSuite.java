@@ -26,6 +26,7 @@ package org.voltdb.regressionsuites;
 import java.io.IOException;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.client.Client;
@@ -42,7 +43,10 @@ import org.voltdb.regressionsuites.fixedsql.Insert;
 public class TestFixedSQLSuite extends RegressionSuite {
 
     /** Procedures used by this suite */
-    static final Class<?>[] PROCEDURES = { Insert.class };
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Insert.class
+    };
 
 
     public void testTicket309() throws IOException, ProcCallException

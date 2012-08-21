@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
@@ -18,6 +19,7 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.sysprocs.EvictTuples;
+import org.voltdb.utils.SystemStatsCollector;
 import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.RpcCallback;
@@ -234,13 +236,12 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      * the eviction threshold.
      */
     protected boolean checkEviction() {
-//        long currentMemory = MathUtil.sum(this.partitionSizes)/1024;
-        long currentMemory = Runtime.getRuntime().totalMemory();
-        double usage = currentMemory / (double)this.availableMemory;
-        LOG.info(String.format("Current Memory: %s [%.1f%%]",
-                               StringUtil.formatSize(currentMemory), usage*100));
+        SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
+        LOG.info("Current Memory Status:\n" + stats);
         
-        return (usage >= this.memoryThreshold);
+        
+        // return (usage >= this.memoryThreshold);
+        return (false);
     }
     
     protected void executeEviction() {
@@ -261,7 +262,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             i++;
         } // FOR
         Object params[] = new Object[]{ HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
-        String procName = "@" + EvictTuples.class.getSimpleName();
+        String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
         StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
          
         for (Integer p : hstore_site.getLocalPartitionIdArray()) {

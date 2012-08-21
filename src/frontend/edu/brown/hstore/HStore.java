@@ -41,15 +41,19 @@ import org.voltdb.catalog.Site;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.FixedEstimator;
+import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.MarkovUtil;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.Workload;
 
@@ -174,7 +178,8 @@ public abstract class HStore {
                 } else {
                     local_markovs = markovs.get(local_partition);
                 }
-                assert(local_markovs != null) : "Failed to get the proper MarkovGraphsContainer that we need for partition #" + local_partition;
+                assert(local_markovs != null) : 
+                    "Failed to retrieve MarkovGraphsContainer for partition #" + local_partition;
             }
 
             // Initialize TransactionEstimator stuff
@@ -182,16 +187,21 @@ public abstract class HStore {
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
             if (debug.get()) LOG.debug("Creating Estimator for " + HStoreThreadManager.formatSiteName(catalog_site.getId()));
-            TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, mappings, local_markovs);
+            TransactionEstimator t_estimator = null;
+            if (hstore_conf.site.markov_fixed == false && markovs != null) {
+                t_estimator = new MarkovEstimator(p_estimator, mappings, local_markovs);
+            } else if (hstore_conf.site.markov_fixed) {
+                t_estimator = FixedEstimator.factory(p_estimator, singleton.getCatalogContext());
+            }
 
             // setup the EE
             if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
             PartitionExecutor executor = new PartitionExecutor(
-                    local_partition,
-                    singleton.getCatalogContext(),
-                    BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
-                    p_estimator,
-                    t_estimator);
+                                                local_partition,
+                                                singleton.getCatalogContext(),
+                                                BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
+                                                p_estimator,
+                                                t_estimator);
             singleton.addPartitionExecutor(local_partition, executor);
         } // FOR
         
@@ -206,6 +216,10 @@ public abstract class HStore {
      * @throws Exception
      */
     public static void main(String[] vargs) throws Exception {
+        if (ClassUtil.isAssertsEnabled()) {
+            LOG.warn("\n" + HStore.getAssertWarning());
+        }
+        
         ArgumentsParser args = ArgumentsParser.load(vargs,
                     ArgumentsParser.PARAM_CATALOG,
                     ArgumentsParser.PARAM_SITE_ID,
@@ -246,6 +260,15 @@ public abstract class HStore {
         if (debug.get())
             LOG.debug("Instantiating HStoreSite network connections for " + hstore_site.getSiteName());
         hstore_site.run();
+    }
+    
+    public static String getAssertWarning() {
+        String url = HStoreConstants.HSTORE_WEBSITE + "/documentation/deployment/client-configuration";
+        String msg = "!!! WARNING !!!\n" +
+                     "H-Store is executing with JVM asserts enabled. This will degrade runtime performance.\n" +
+                     "You can disable them by setting the config option 'site.jvm_asserts' to FALSE\n" +
+                     "See the online documentation for more information:\n   " + url;
+        return StringBoxUtil.heavyBox(msg);
     }
     
     public static String getBuildString() {

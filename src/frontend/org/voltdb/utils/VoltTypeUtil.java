@@ -354,4 +354,104 @@ public abstract class VoltTypeUtil {
         }
         return (ret);
     }
+    
+    public static Object getPrimitiveArray(VoltType type, Object objArray[]) {
+        Object ret = null;
+        switch (type) {
+            // --------------------------------
+            // INTEGERS
+            // --------------------------------
+            case TINYINT: {
+                Byte valArray[] = new Byte[objArray.length];
+                for (int i = 0; i < objArray.length; i++) {
+                    valArray[i] = ((Integer)objArray[i]).byteValue();
+                } // FOR
+                ret = valArray;
+                break;
+            }
+            case SMALLINT: {
+                Short valArray[] = new Short[objArray.length];
+                for (int i = 0; i < objArray.length; i++) {
+                    valArray[i] = ((Integer)objArray[i]).shortValue();
+                } // FOR
+                ret = valArray;
+                break;
+            }
+            case INTEGER: {
+                Integer valArray[] = new Integer[objArray.length];
+                for (int i = 0; i < objArray.length; i++) {
+                    valArray[i] = (Integer)objArray[i];
+                } // FOR
+                ret = valArray;
+                break;
+            }
+            case BIGINT: {
+                Long valArray[] = new Long[objArray.length];
+                for (int i = 0; i < objArray.length; i++) {
+                    valArray[i] = (Long)objArray[i];
+                } // FOR
+                ret = valArray;
+                break;
+            }
+            // --------------------------------
+            // FLOATS
+            // --------------------------------
+            case FLOAT:
+            case DECIMAL: {
+                Double valArray[] = new Double[objArray.length];
+                for (int i = 0; i < objArray.length; i++) {
+                    valArray[i] = (Double)objArray[i];
+                } // FOR
+                ret = valArray;
+                break;
+            }
+            // --------------------------------
+            // STRINGS
+            // --------------------------------
+            case STRING: {
+                String valArray[] = new String[objArray.length];
+                for (int i = 0; i < objArray.length; i++) {
+                    valArray[i] = (String)objArray[i];
+                } // FOR
+                ret = valArray;
+                break;
+            }
+            // --------------------------------
+            // TIMESTAMP
+            // --------------------------------
+            case TIMESTAMP: {
+                TimestampType valArray[] = new TimestampType[objArray.length];
+                for (int i = 0; i < objArray.length; i++) {
+                    valArray[i] = (TimestampType)objArray[i];
+                } // FOR
+                ret = valArray;
+                break;
+            }
+            // --------------------------------
+            // BOOLEAN
+            // --------------------------------
+            case BOOLEAN: {
+                Boolean valArray[] = new Boolean[objArray.length];
+                for (int i = 0; i < objArray.length; i++) {
+                    valArray[i] = (Boolean)objArray[i];
+                } // FOR
+                ret = valArray;
+                break;
+            }
+            // --------------------------------
+            // NULL
+            // --------------------------------
+            case NULL:
+                ret = null;
+                break;
+            // --------------------------------
+            // INVALID
+            // --------------------------------
+            default: {
+                String msg = "Unable to get object for value with invalid ValueType '" + type + "'";
+                throw new RuntimeException(msg);
+            }
+        } // SWITCH
+        return (ret);
+    }
 }

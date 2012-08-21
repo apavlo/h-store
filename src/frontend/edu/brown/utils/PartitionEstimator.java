@@ -74,10 +74,8 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.pools.FastObjectPool;
-import edu.brown.statistics.Histogram;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload;
 
 /**
  * This class is used to calculate what partitions various operations
@@ -1524,23 +1522,6 @@ public class PartitionEstimator {
         }
         if (new_size != orig_size)
             populateColumnJoins(column_joins);
-    }
-
-    /**
-     * Generate a histogram of the base partitions used for all of the
-     * transactions in the workload
-     * 
-     * @param workload
-     * @return
-     * @throws Exception
-     */
-    public Histogram<Integer> buildBasePartitionHistogram(Workload workload) throws Exception {
-        final Histogram<Integer> h = new Histogram<Integer>();
-        for (TransactionTrace txn_trace : workload.getTransactions()) {
-            int base_partition = this.getBasePartition(txn_trace);
-            h.put(base_partition);
-        } // FOR
-        return (h);
     }
 
     /**

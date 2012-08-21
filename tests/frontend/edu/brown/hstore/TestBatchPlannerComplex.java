@@ -14,14 +14,15 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.seats.SEATSProjectBuilder;
 import edu.brown.benchmark.seats.procedures.DeleteReservation;
 import edu.brown.benchmark.seats.procedures.LoadConfig;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.ProjectType;
-import edu.brown.hstore.HStoreConstants;
 
 public class TestBatchPlannerComplex extends BaseTestCase {
 
@@ -38,11 +39,17 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     private Histogram<Integer> touched_partitions;
     private Procedure catalog_proc;
     private BatchPlanner planner;
-    private BatchPlanner.BatchPlan plan;
 
+    private final AbstractProjectBuilder builder = new SEATSProjectBuilder() {
+        {
+            this.addProcedure(BatchPlannerConflictProc.class);
+            this.addAllDefaults();
+        }
+    };
+    
     @Override
     protected void setUp() throws Exception {
-        super.setUp(ProjectType.SEATS);
+        super.setUp(this.builder);
         this.addPartitions(NUM_PARTITIONS);
         this.touched_partitions = new Histogram<Integer>();
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
@@ -62,22 +69,28 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         volt_proc.globalInit(this.executor, catalog_proc, BackendTarget.NONE, null, p_estimator);
         
         this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);
-        this.plan = planner.plan(TXN_ID,
-                                 CLIENT_HANDLE,
-                                 0,
-                                 CatalogUtil.getAllPartitionIds(catalog_db),
-                                 false,
-                                 this.touched_partitions,
-                                 this.args);
+    }
+    
+    private BatchPlan getPlan() {
+        this.touched_partitions.clear();
+        BatchPlan plan = planner.plan(
+                            TXN_ID,
+                            CLIENT_HANDLE,
+                            0,
+                            catalogContext.getAllPartitionIds(),
+                            false,
+                            this.touched_partitions,
+                            this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
+        return (plan);
     }
 
     /**
      * testGetPlanGraph
      */
     public void testGetPlanGraph() throws Exception {
-        BatchPlanner.PlanGraph graph = plan.getPlanGraph();
+        BatchPlanner.PlanGraph graph = getPlan().getPlanGraph();
         assertNotNull(graph);
         
         // Make sure that only PlanVertexs with input dependencies have a child in the graph
@@ -105,19 +118,11 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
             batch = new SQLStmt[] { new SQLStmt(catalog_stmt) };
             args = new ParameterSet[] {
-                    new ParameterSet(this.makeRandomStatementParameters(catalog_stmt))
+                    new ParameterSet(this.randomStatementParameters(catalog_stmt))
             };
             this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);
             this.touched_partitions.clear();
-            this.plan = planner.plan(TXN_ID,
-                                     CLIENT_HANDLE,
-                                     0,
-                                     CatalogUtil.getAllPartitionIds(catalog_db),
-                                     false,
-                                     this.touched_partitions,
-                                     this.args);
-            assertNotNull(plan);
-            assertFalse(plan.hasMisprediction());
+            BatchPlan plan = this.getPlan();
         
             List<WorkFragment> fragments = new ArrayList<WorkFragment>();
             plan.getWorkFragments(TXN_ID, fragments);
@@ -130,17 +135,72 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                     assertNotNull(catalog_frag);
                     assertEquals(catalog_frag.fullName(), catalog_stmt, catalog_frag.getParent());
                 } // FOR
-//                System.err.println(pf);
+    //            System.err.println(pf);
             } // FOR
         } // FOR
     }
     
+    /**
+     * testFragmentOrder
+     */
+    public void testFragmentOrder() throws Exception {
+        Procedure catalog_proc = this.getProcedure(BatchPlannerConflictProc.class);
+        
+        // Create a big batch and make sure that the fragments are in the correct order
+        Statement stmts[] = new Statement[]{
+            catalog_proc.getStatements().getIgnoreCase("ReplicatedInsert"),
+            catalog_proc.getStatements().getIgnoreCase("ReplicatedSelect")
+        };
+        SQLStmt batch[] = new SQLStmt[stmts.length];
+        ParameterSet params[] = new ParameterSet[stmts.length];
+        for (int i = 0; i < stmts.length; i++) {
+            batch[i] = new SQLStmt(stmts[i]);
+            params[i] = new ParameterSet(this.randomStatementParameters(stmts[i]));
+        } // FOR
+        
+        BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
+        this.touched_partitions.clear();
+        BatchPlan plan = planner.plan(TXN_ID,
+                                      CLIENT_HANDLE,
+                                      BASE_PARTITION,
+                                      catalogContext.getAllPartitionIds(),
+                                      false,
+                                      this.touched_partitions,
+                                      params);
+        assertNotNull(plan);
+        assertFalse(plan.hasMisprediction());
+        
+        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+        plan.getWorkFragments(TXN_ID, fragments);
+        assertFalse(fragments.isEmpty());
+
+        List<Statement> batchStmtOrder = new ArrayList<Statement>();
+        boolean first = true;
+        Statement last = null;
+        for (WorkFragment pf : fragments) {
+            assertNotNull(pf);
+            for (int frag_id : pf.getFragmentIdList()) {
+                PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
+                assertNotNull(catalog_frag);
+                Statement current = catalog_frag.getParent();
+                if (last == null || last.equals(current) == false) {
+                    batchStmtOrder.add(current);
+                }
+                last = current;
+                
+                // Make sure that the select doesn't appear before we execute the inserts
+                if (first) assertNotSame(stmts[1], current);
+                first = false;
+            } // FOR
+        } // FOR
+    }
     
     /**
      * testBuildWorkFragments
      */
     public void testBuildWorkFragments() throws Exception {
         List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+        BatchPlan plan = this.getPlan();
         plan.getWorkFragments(TXN_ID, fragments);
         assertFalse(fragments.isEmpty());
         

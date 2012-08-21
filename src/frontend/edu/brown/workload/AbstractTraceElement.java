@@ -443,11 +443,10 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
                 for (int j = 0; j < jsonInner.length(); j++) {
                     inner[j] = VoltTypeUtil.getObjectFromString(param_type, jsonInner.getString(j), self);
                     if (inner[j] == null) {
-                        LOG.fatal("Array parameter " + j + " for " + catalog_param + " is null");
-                        System.exit(1);
+                        throw new RuntimeException("Array parameter " + j + " for " + catalog_param + " is null");
                     }
                 } // FOR
-                this.params[i] = inner;
+                this.params[i] = VoltTypeUtil.getPrimitiveArray(param_type, inner);
             } else if (jsonParams.isNull(i)) {
                 this.params[i] = null;
             } else {

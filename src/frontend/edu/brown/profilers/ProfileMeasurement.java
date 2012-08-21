@@ -289,6 +289,18 @@ public class ProfileMeasurement implements JSONSerializable {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
 
+    public ProfileMeasurement decrementTime(ProfileMeasurement other, boolean checkType) {
+        assert(other != null);
+        if (checkType) assert(this.type == other.type);
+        this.total_time = Math.max(0, this.total_time - other.total_time);
+        this.invocations = Math.max(0, this.invocations - other.invocations);
+        return (this);
+    }
+    
+    public ProfileMeasurement decrementTime(ProfileMeasurement other) {
+        return (this.decrementTime(other, false));
+    }
+
     public ProfileMeasurement appendTime(ProfileMeasurement other, boolean checkType) {
         assert(other != null);
         if (checkType) assert(this.type == other.type);
@@ -297,7 +309,7 @@ public class ProfileMeasurement implements JSONSerializable {
         this.invocations += other.invocations;
         return (this);
     }
-
+    
     public ProfileMeasurement appendTime(ProfileMeasurement other) {
         return (this.appendTime(other, false));
     }
@@ -312,6 +324,8 @@ public class ProfileMeasurement implements JSONSerializable {
         this.addThinkTime(start, stop, 0);
     }
 
+
+    
     /**
      * Return the current time in nano-seconds
      * 
@@ -322,6 +336,10 @@ public class ProfileMeasurement implements JSONSerializable {
         return System.nanoTime();
     }
 
+    // ----------------------------------------------------------------------------
+    // START METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Start multiple ProfileMeasurements with the same timestamp
      * 
@@ -341,6 +359,10 @@ public class ProfileMeasurement implements JSONSerializable {
         } // FOR
     }
 
+    // ----------------------------------------------------------------------------
+    // STOP METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Stop multiple ProfileMeasurements with the same timestamp
      * 

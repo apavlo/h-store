@@ -26,7 +26,6 @@
 package edu.brown.hstore;
 
 import java.nio.ByteBuffer;
-import java.util.IdentityHashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -41,10 +40,10 @@ import org.voltdb.messaging.FastDeserializer;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.AbstractEstimator;
-import edu.brown.hstore.estimators.SEATSEstimator;
-import edu.brown.hstore.estimators.TM1Estimator;
-import edu.brown.hstore.estimators.TPCCEstimator;
+import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
@@ -52,16 +51,12 @@ import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEstimate;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.utils.EventObservable;
-import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
-import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
+import edu.brown.utils.StringBoxUtil;
 
 /**
  * This class is responsible for figuring out everything about a txn before it 
@@ -94,14 +89,7 @@ public class TransactionInitializer {
     private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
     private final TransactionEstimator t_estimators[];
-    private final AbstractEstimator fixed_estimator;
     private EstimationThresholds thresholds;
-    
-    /**
-     * If we're using the TransactionEstimator, then we need to convert all 
-     * primitive array ProcParameters into object arrays...
-     */
-    private final Map<Procedure, ParameterMangler> manglers;
     
     /**
      * HACK: This is the internal map used to keep track of TxnId->TxnHandles
@@ -131,59 +119,6 @@ public class TransactionInitializer {
         this.thresholds = hstore_site.getThresholds();
         this.p_estimator = hstore_site.getPartitionEstimator();
         this.t_estimators = new TransactionEstimator[catalogContext.numberOfPartitions];
-        
-        // Create all of our parameter manglers
-        this.manglers = new IdentityHashMap<Procedure, ParameterMangler>();
-        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
-            if (catalog_proc.getSystemproc()) continue;
-            this.manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
-        } // FOR
-        if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.manglers.size()));
-        
-        // HACK
-        if (hstore_conf.site.markov_fixed) {
-            ProjectType ptype = ProjectType.get(this.catalogContext.database.getProject());
-            switch (ptype) {
-                case TPCC:
-                    this.fixed_estimator = new TPCCEstimator(
-                                this.catalogContext,
-                                this.manglers,
-                                hstore_site.getHasher());
-                    break;
-                case TM1:
-                    this.fixed_estimator = new TM1Estimator(
-                                this.catalogContext,
-                                this.manglers,
-                                hstore_site.getHasher());
-                    break;
-                case SEATS:
-                    this.fixed_estimator = new SEATSEstimator(
-                                this.catalogContext,
-                                this.manglers,
-                                hstore_site.getHasher());
-                    break;
-                default:
-                    this.fixed_estimator = null;
-            } // SWITCH
-        } else {
-            this.fixed_estimator = null;
-        }
-    }
-    
-    // ----------------------------------------------------------------------------
-    // PARAMETER VALUE "MANGLERS"
-    // ----------------------------------------------------------------------------
-    
-    public Map<Procedure, ParameterMangler> getParameterManglers() {
-        return (this.manglers);
-    }
-    public ParameterMangler getParameterMangler(Procedure catalog_proc) {
-        return (this.manglers.get(catalog_proc));
-    }
-    public ParameterMangler getParameterMangler(String proc_name) {
-        Procedure catalog_proc = catalogContext.database.getProcedures().getIgnoreCase(proc_name);
-        assert(catalog_proc != null) : "Invalid Procedure name '" + proc_name + "'";
-        return (this.manglers.get(catalog_proc));
     }
 
     // ----------------------------------------------------------------------------
@@ -445,6 +380,7 @@ public class TransactionInitializer {
 //                new_ts.profiler.copy(orig_ts.profiler);
 //            } else {
                 new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+                new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);
 //            }
         } else if (new_ts.profiler != null) {
             new_ts.profiler.disableProfiling();
@@ -528,7 +464,7 @@ public class TransactionInitializer {
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
         PartitionSet predict_partitions = null;
-        TransactionEstimator.State t_state = null; 
+        EstimatorState t_state = null; 
         
         // Setup TransactionProfiler
         if (hstore_conf.site.txn_profiling) {
@@ -576,21 +512,18 @@ public class TransactionInitializer {
             }
         }
         // -------------------------------
-        // FIXED ESTIMATORS
+        // FORCE DISTRIBUTED
         // -------------------------------
-        else if (hstore_conf.site.markov_fixed) {
-            if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", ts.getClientHandle()));
-            if (this.fixed_estimator != null)
-                predict_partitions = this.fixed_estimator.initializeTransaction(catalog_proc, params.toArray());
-            if (predict_partitions == null)
-                predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
-        }    
+        else if (hstore_conf.site.exec_force_allpartitions) {
+            predict_partitions = catalogContext.getAllPartitionIds();
+        }
         // -------------------------------
-        // MARKOV ESTIMATORS
+        // TRANSACTION ESTIMATORS
         // -------------------------------
-        else if (hstore_conf.site.markov_enable) {
-            if (d) LOG.debug(String.format("Using TransactionEstimator to check whether new '%s' request is single-partitioned [clientHandle=%d]",
-                                           catalog_proc.getName(), ts.getClientHandle()));
+        else if (hstore_conf.site.markov_enable || hstore_conf.site.markov_fixed) {
+            if (d) LOG.debug(String.format("%s - Using TransactionEstimator to check whether txn is single-partitioned " +
+            		         "[clientHandle=%d]",
+            		         AbstractTransaction.formatTxnName(catalog_proc, txn_id), ts.getClientHandle()));
             
             // Grab the TransactionEstimator for the destination partition and figure out whether
             // this mofo is likely to be single-partition or not. Anything that we can't estimate
@@ -602,55 +535,52 @@ public class TransactionInitializer {
             }
             
             try {
-                // HACK: Convert the array parameters to object arrays...
-                ParameterMangler mangler = this.manglers.get(catalog_proc); 
-                Object cast_args[] = mangler.convert(params.toArray());
-                if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, mangler.toString(cast_args)));
-                
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitEstimation();
-                t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, cast_args);
+                t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
-                    if (d) LOG.debug(String.format("%s - No TransactionEstimator.State was returned. Using default estimate.",
-                                                   AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
+                    if (d) LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
+                                     AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
                     
-                // We have a TransactionEstimator.State, so let's see what it says...
+                // We have a TransactionEstimator, so let's see what it says...
                 } else {
-                    if (t) LOG.trace("\n" + StringUtil.box(t_state.toString()));
-                    MarkovEstimate m_estimate = t_state.getInitialEstimate();
+                    if (t) LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
+                    TransactionEstimate t_estimate = t_state.getInitialEstimate();
                     
-                    // Bah! We didn't get back a MarkovEstimate for some reason...
-                    if (m_estimate == null) {
-                        if (d) LOG.debug(String.format("%s - No MarkovEstimate was recieved. Using default estimate.",
-                                                       AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-                        
-                    // Invalid MarkovEstimate. Stick with defaults
-                    } else if (m_estimate.isValid() == false) {
-                        if (d) LOG.warn(String.format("%s - MarkovEstimate is invalid. Using default estimate.\n%s",
-                                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
-                        
-                    // Use MarkovEstimate to determine things
-                    } else {
+                    // Bah! We didn't get back a Estimation for some reason...
+                    if (t_estimate == null) {
+                        if (d) LOG.debug(String.format("%s - No Estimation was recieved. Using default estimate.",
+                                         AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                    }
+                    // Invalid Estimation. Stick with defaults
+                    else if (t_estimate.isValid() == false) {
+                        if (d) LOG.debug(String.format("%s - Estimation is invalid. Using default estimate.\n%s",
+                                         AbstractTransaction.formatTxnName(catalog_proc, txn_id), t_estimate));
+                    }    
+                    // Use Estimation to determine things
+                    else {
                         if (d) {
-                            LOG.debug(String.format("%s - Using MarkovEstimate to determine if txn is single-partitioned",
-                                                    AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-                            LOG.trace(String.format("%s MarkovEstimate:\n%s",
-                                                    AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
+                            LOG.debug(String.format("%s - Using Estimation to determine if txn is single-partitioned",
+                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                            LOG.trace(String.format("%s %s:\n%s",
+                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                                      t_estimate.getClass().getSimpleName(), t_estimate));
                         }
-                        // predict_partitions = m_estimate.getTouchedPartitions(this.thresholds);
-                        predict_partitions = new PartitionSet(m_estimate.getTouchedPartitions(this.thresholds));
-                        predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
-                        predict_abortable = (predict_partitions.size() == 1 || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
-//                        LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
+                        predict_partitions = t_estimate.getTouchedPartitions(this.thresholds);
+                        predict_readOnly = t_estimate.isReadOnlyAllPartitions(this.thresholds);
+                        predict_abortable = (predict_partitions.size() == 1 || t_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
                     }
                 }
             } catch (Throwable ex) {
-                if (t_state != null) {
-                    LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
+                if (t_state != null && t_state instanceof MarkovEstimatorState) {
+                    LOG.warn("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
                 }
-                LOG.error(String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
+                LOG.error(String.format("Failed calculate estimate for %s request\nParameters: %s",
+                                        AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                                        params), ex);
+                ex.printStackTrace();
                 predict_partitions = catalogContext.getAllPartitionIds();
                 predict_readOnly = false;
                 predict_abortable = true;
@@ -693,6 +623,8 @@ public class TransactionInitializer {
                 params,
                 client_callback);
         if (t_state != null) ts.setEstimatorState(t_state);
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) 
+            ts.profiler.setSingledPartitioned(ts.isPredictSinglePartition());
         
         if (d) {
             LOG.debug(String.format("Initializing %s on partition %d " +

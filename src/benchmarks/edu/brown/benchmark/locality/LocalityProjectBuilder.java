@@ -25,6 +25,8 @@
  ***************************************************************************/
 package edu.brown.benchmark.locality;
 
+import org.voltdb.VoltProcedure;
+
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.locality.procedures.Get;
@@ -37,7 +39,10 @@ public class LocalityProjectBuilder extends AbstractProjectBuilder {
     /** Retrieved via reflection by BenchmarkController */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = LocalityLoader.class;
 
-    public static final Class<?> PROCEDURES[] = new Class<?>[] { Get.class, Set.class, };
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Get.class, Set.class, };
+    
     // Transaction Frequencies
     {
         addTransactionFrequency(Get.class, LocalityConstants.FREQUENCY_GET_LOCAL);

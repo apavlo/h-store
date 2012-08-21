@@ -58,6 +58,7 @@
 <arg value="client.output_json=${client.output_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
+<arg value="client.output_queue_profiling=${client.output_queue_profiling}" />
 <arg value="client.output_txn_profiling=${client.output_txn_profiling}" />
 <arg value="client.output_txn_profiling_combine=${client.output_txn_profiling_combine}" />
 <arg value="client.output_txn_counters=${client.output_txn_counters}" />
@@ -83,6 +84,7 @@
 <arg value="site.exec_force_undo_logging_all=${site.exec_force_undo_logging_all}" />
 <arg value="site.exec_db2_redirects=${site.exec_db2_redirects}" />
 <arg value="site.exec_force_singlepartitioned=${site.exec_force_singlepartitioned}" />
+<arg value="site.exec_force_allpartitions=${site.exec_force_allpartitions}" />
 <arg value="site.exec_voltdb_procinfo=${site.exec_voltdb_procinfo}" />
 <arg value="site.exec_force_localexecution=${site.exec_force_localexecution}" />
 <arg value="site.exec_mispredict_crash=${site.exec_mispredict_crash}" />
@@ -120,6 +122,7 @@
 <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />
 <arg value="site.txn_restart_limit_sysproc=${site.txn_restart_limit_sysproc}" />
 <arg value="site.txn_partition_id_managers=${site.txn_partition_id_managers}" />
+<arg value="site.queue_profiling=${site.queue_profiling}" />
 <arg value="site.queue_incoming_max_per_partition=${site.queue_incoming_max_per_partition}" />
 <arg value="site.queue_incoming_release_factor=${site.queue_incoming_release_factor}" />
 <arg value="site.queue_incoming_increase=${site.queue_incoming_increase}" />

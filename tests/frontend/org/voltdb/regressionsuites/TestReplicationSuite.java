@@ -25,6 +25,7 @@ package org.voltdb.regressionsuites;
 import java.io.IOException;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ProcCallException;
@@ -35,7 +36,8 @@ import org.voltdb.regressionsuites.replication.SelectEmptyTable;
 public class TestReplicationSuite extends RegressionSuite
 {
     /** Procedures used by this suite */
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         SelectEmptyTable.class, EvilDeterminism.class
     };
 

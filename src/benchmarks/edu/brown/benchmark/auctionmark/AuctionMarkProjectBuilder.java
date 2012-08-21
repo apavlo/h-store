@@ -32,6 +32,8 @@
 package edu.brown.benchmark.auctionmark;
 
 
+import org.voltdb.VoltProcedure;
+
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.auctionmark.procedures.*;
@@ -47,7 +49,8 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
     /** Retrieved via reflection by BenchmarkController */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = AuctionMarkLoader.class;
 
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         CloseAuctions.class,
         GetItem.class,
         GetUserInfo.class,

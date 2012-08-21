@@ -32,6 +32,8 @@
  ***************************************************************************/
 package edu.brown.benchmark.tm1;
 
+import org.voltdb.VoltProcedure;
+
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
@@ -54,9 +56,16 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
      */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = TM1Loader.class;
 
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
             // Benchmark Specification
-            DeleteCallForwarding.class, GetAccessData.class, GetNewDestination.class, GetSubscriberData.class, InsertCallForwarding.class, UpdateLocation.class, UpdateSubscriberData.class,
+            DeleteCallForwarding.class,
+            GetAccessData.class,
+            GetNewDestination.class,
+            GetSubscriberData.class,
+            InsertCallForwarding.class,
+            UpdateLocation.class,
+            UpdateSubscriberData.class,
 
             // Testing Procedures
             // InsertSubscriber.class,

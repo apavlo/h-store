@@ -9,6 +9,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.conf.HStoreConf.Conf;
 import edu.brown.utils.FileUtil;
 
 public class TestHStoreConf extends BaseTestCase {
@@ -28,6 +29,78 @@ public class TestHStoreConf extends BaseTestCase {
         assert(HStoreConf.isInitialized());
         hstore_conf = HStoreConf.singleton();
     }
+    
+    /**
+     * testValidateReplacedBy
+     */
+    public void testValidateReplacedBy() throws Exception {
+        // Make sure that if that anything with a replacedBy field is marked as 
+        // deprecated and the replacedBy points to another valid field
+        for (Conf handle : hstore_conf.getHandles().values()) {
+            assertNotNull(handle);
+            Map<Field, ConfigProperty> fields = handle.getConfigProperties();
+            assertFalse(fields.isEmpty());
+            for (Entry<Field, ConfigProperty> e : fields.entrySet()) {
+                Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
+                String name = handle.prefix + "." + f.getName();
+                
+                if (cp.replacedBy().isEmpty() == false) {
+                    Deprecated d = f.getAnnotation(Deprecated.class);
+                    assertNotNull("Missing Deprecated annotation for " + name, d);
+                    String replacedBy = cp.replacedBy();
+                    assertTrue("Invalid mapping " + name + "->" + replacedBy, hstore_conf.hasParameter(replacedBy));
+                }
+            } // FOR
+        }
+    }
+    
+    /**
+     * testValidateDefaultTypes
+     */
+    public void testValidateDefaultTypes() throws Exception {
+        // Make sure that if they have a default value that it matches the type
+        // of the configuration parameter
+        for (Conf handle : hstore_conf.getHandles().values()) {
+            assertNotNull(handle);
+            Map<Field, ConfigProperty> fields = handle.getConfigProperties();
+            assertFalse(fields.isEmpty());
+            for (Entry<Field, ConfigProperty> e : fields.entrySet()) {
+                Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
+                String name = handle.prefix + "." + f.getName();
+                
+                // BOOLEAN
+                if (cp.defaultBoolean()) {
+                    assertEquals(name, boolean.class, f.getType());
+                    assertFalse(name, cp.defaultNull());
+                }
+                // INTEGER
+                else if (cp.defaultInt() != Integer.MIN_VALUE) {
+                    assertEquals(name, int.class, f.getType());
+                    assertFalse(name, cp.defaultNull());
+                }
+                // LONG
+                else if (cp.defaultLong() != Long.MIN_VALUE) {
+                    assertEquals(name, long.class, f.getType());
+                    assertFalse(name, cp.defaultNull());
+                }
+                // DOUBLE
+                else if (cp.defaultDouble() != Double.MIN_VALUE) {
+                    assertEquals(name, double.class, f.getType());
+                    assertFalse(name, cp.defaultNull());
+                }
+                // STRING
+                else if (cp.defaultNull()) {
+                    assertEquals(name, String.class, f.getType());
+                }
+                else if (cp.defaultString().isEmpty() == false) {
+                    assertEquals(name, String.class, f.getType());
+                }
+            } // FOR
+        }
+    }
+    
     
     /**
      * testPopulateDependencies

@@ -10,6 +10,8 @@ import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
 import edu.brown.hstore.Hstoreservice.ShutdownResponse;
 import edu.brown.hstore.Hstoreservice.TimeSyncRequest;
@@ -36,7 +38,6 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 
 public class MockHStoreCoordinator extends HStoreCoordinator {
@@ -58,8 +59,8 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
      */
     public MockHStoreCoordinator(final MockHStoreSite hstore_site) {
         super(hstore_site);
-        this.hstore_site = getHStoreSite();
-        this.hstore_conf = this.getHStoreConf();
+        this.hstore_site = hstore_site;
+        this.hstore_conf = this.hstore_site.getHStoreConf();
         this.txnQueueManager = this.hstore_site.getTransactionQueueManager();
         
         Thread t = new Thread(this.txnQueueManager);
@@ -102,10 +103,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         @Override
         public void transactionInit(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
-            
-            TransactionInitQueueCallback wrapper = new TransactionInitQueueCallback(hstore_site);
-            wrapper.init(request.getTransactionId(), request.getPartitionsList(), done);
-            txnQueueManager.lockInsert(request.getTransactionId(), new PartitionSet(request.getPartitionsList()), wrapper, false);
+            txnQueueManager.lockQueueInsert(request.getTransactionId(), new PartitionSet(request.getPartitionsList()), done, false);
         }
 
         @Override
@@ -177,6 +175,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         @Override
         public void transactionPrefetch(RpcController controller, TransactionPrefetchResult request,
                 RpcCallback<TransactionPrefetchAcknowledgement> done) {
+            // TODO Auto-generated method stub
+            
+        }
+
+        @Override
+        public void shutdownPrepare(RpcController controller, ShutdownPrepareRequest request, RpcCallback<ShutdownPrepareResponse> done) {
             // TODO Auto-generated method stub
             
         }

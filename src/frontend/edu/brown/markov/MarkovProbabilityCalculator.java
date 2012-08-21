@@ -50,21 +50,21 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
     protected void callback(MarkovVertex element) {
         MarkovGraph markov = (MarkovGraph)this.getGraph();
         // HACK
-        Estimation est = (this.markov_est != null ? this.markov_est : element);
+        DynamicTransactionEstimate est = (this.markov_est != null ? this.markov_est : element);
         
-        if (trace.get()) LOG.trace("BEFORE: " + element + " => " + est.getSingleSitedProbability());
+        if (trace.get()) LOG.trace("BEFORE: " + element + " => " + est.getSinglePartitionProbability());
 //            if (element.isSingleSitedProbablitySet() == false) element.setSingleSitedProbability(0.0);
         Type vtype = element.getType(); 
         
         // COMMIT/ABORT is always single-partitioned!
         if (vtype == MarkovVertex.Type.COMMIT || vtype == MarkovVertex.Type.ABORT) {
             if (trace.get()) LOG.trace(element + " is single-partitioned!");
-            est.setSingleSitedProbability(1.0f);
+            est.setSinglePartitionProbability(1.0f);
             
             // And DONE at all partitions!
             // And will not Read/Write Probability
             for (Integer partition : this.all_partitions) {
-                est.setDoneProbability(partition, 1.0f);
+                est.setFinishProbability(partition, 1.0f);
                 est.setReadOnlyProbability(partition, 1.0f);
                 est.setWriteProbability(partition, 0.0f);
             } // FOR
@@ -87,7 +87,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
             boolean element_islocalonly = element.isLocalPartitionOnly(); 
             if (element_islocalonly == false) {
                 if (trace.get()) LOG.trace(element + " NOT is single-partitioned!");
-                est.setSingleSitedProbability(0.0f);
+                est.setSinglePartitionProbability(0.0f);
             }
 
             Statement catalog_stmt = element.getCatalogItem();
@@ -98,16 +98,16 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                 if (visited_edges.contains(e)) continue;
                 MarkovVertex successor = markov.getDest(e);
                 assert(successor != null);
-                assert(successor.isSingleSitedProbabilitySet()) : "Setting " + element + " BEFORE " + successor;
+                assert(successor.isSinglePartitionProbabilitySet()) : "Setting " + element + " BEFORE " + successor;
 
                 // Single-Partition Probability
                 // If our vertex only touches the base partition, then we need to calculate the 
                 // single-partition probability as the sum of the the edge weights times our
                 // successors' single-partition probability
                 if (element_islocalonly) {
-                    float prob = e.getProbability() * successor.getSingleSitedProbability();
-                    est.addSingleSitedProbability(prob);
-                    if (trace.get()) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSingleSitedProbability(), prob) + "\nprob = " + prob);
+                    float prob = e.getProbability() * successor.getSinglePartitionProbability();
+                    est.addSinglePartitionProbability(prob);
+                    if (trace.get()) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSinglePartitionProbability(), prob) + "\nprob = " + prob);
                 }
                 
                 // Abort Probability
@@ -121,13 +121,13 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                 
                 // Done/Read/Write At Partition Probability
                 for (Integer partition : all_partitions) {
-                    assert(successor.isDoneProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
+                    assert(successor.isFinishProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
                     assert(successor.isReadOnlyProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
                     assert(successor.isWriteProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
                     
                     // This vertex accesses this partition
                     if (element.getPartitions().contains(partition)) {
-                        est.setDoneProbability(partition, 0.0f);
+                        est.setFinishProbability(partition, 0.0f);
                         
                         // Figure out whether it is a read or a write
                         if (catalog_stmt.getReadonly()) {
@@ -143,14 +143,14 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                     // This vertex doesn't access the partition, but successor vertices might so
                     // the probability is based on the edge probabilities 
                     } else {
-                        est.addDoneProbability(partition, (e.getProbability() * successor.getDoneProbability(partition)));
+                        est.addFinishProbability(partition, (e.getProbability() * successor.getFinishProbability(partition)));
                         est.addWriteProbability(partition, (e.getProbability() * successor.getWriteProbability(partition)));
                         est.addReadOnlyProbability(partition, (e.getProbability() * successor.getReadOnlyProbability(partition)));
                     }
                 } // FOR (PartitionId)
             } // FOR (Edge)
         }
-        if (trace.get()) LOG.trace("AFTER: " + element + " => " + est.getSingleSitedProbability());
+        if (trace.get()) LOG.trace("AFTER: " + element + " => " + est.getSinglePartitionProbability());
         if (trace.get()) LOG.trace(StringUtil.repeat("-", 40));
     }
     

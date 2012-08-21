@@ -20,6 +20,7 @@
 #include <vector>
 #include <deque>
 #include <stdint.h>
+#include "common/debuglog.h"
 #include "common/Pool.hpp"
 #include "common/UndoQuantum.h"
 #include "boost/pool/object_pool.hpp"
@@ -42,9 +43,9 @@ namespace voltdb
 
         inline UndoQuantum* generateUndoQuantum(int64_t nextUndoToken)
         {
-            //std::cout << "Generating token " << nextUndoToken
-            //          << " lastUndo: " << m_lastUndoToken
-            //          << " lastRelease: " << m_lastReleaseToken << std::endl;
+            VOLT_TRACE("Generating token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
+                       nextUndoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+            
             // Since ExecutionSite is using monotonically increasing
             // token values, every new quanta we're asked to generate should be
             // larger than any token value we've seen before
@@ -63,6 +64,7 @@ namespace voltdb
                 new (pool->allocate(sizeof(UndoQuantum)))
                 UndoQuantum(nextUndoToken, pool);
             m_undoQuantums.push_back(undoQuantum);
+            VOLT_TRACE("Created new UndoQuantum %ld", nextUndoToken);
             return undoQuantum;
         }
 
@@ -71,9 +73,9 @@ namespace voltdb
          * until the undo quantum with the specified undo token.
          */
         inline void undo(const int64_t undoToken) {
-            //std::cout << "Undoing token " << undoToken
-            //          << " lastUndo: " << m_lastUndoToken
-            //          << " lastRelease: " << m_lastReleaseToken << std::endl;
+            VOLT_TRACE("Undoing token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
+                       undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+            
             // This ensures that undo is only ever called after
             // generateUndoToken has been called
             assert(m_lastReleaseToken < m_lastUndoToken);
@@ -97,9 +99,12 @@ namespace voltdb
                 UndoQuantum *undoQuantum = m_undoQuantums.back();
                 const int64_t undoQuantumToken = undoQuantum->getUndoToken();
                 if (undoQuantumToken < undoToken) {
+                    VOLT_TRACE("Skipping UndoQuantum %ld because it is before token %ld",
+                               undoQuantumToken, undoToken);
                     return;
                 }
 
+                VOLT_TRACE("Undoing UndoQuantum %ld", undoQuantumToken);
                 m_undoQuantums.pop_back();
                 Pool *pool = undoQuantum->getDataPool();
                 undoQuantum->undo();
@@ -118,18 +123,21 @@ namespace voltdb
          * impossible to undo these actions in the future.
          */
         inline void release(const int64_t undoToken) {
-            //std::cout << "Releasing token " << undoToken
-            //          << " lastUndo: " << m_lastUndoToken
-            //          << " lastRelease: " << m_lastReleaseToken << std::endl;
+            VOLT_TRACE("Releasing token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
+                       undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+            
             assert(m_lastReleaseToken < undoToken);
             m_lastReleaseToken = undoToken;
             while (m_undoQuantums.size() > 0) {
                 UndoQuantum *undoQuantum = m_undoQuantums.front();
                 const int64_t undoQuantumToken = undoQuantum->getUndoToken();
                 if (undoQuantumToken > undoToken) {
+                    VOLT_TRACE("Skipping UndoQuantum %ld because it is after token %ld",
+                               undoQuantumToken, undoToken);
                     return;
                 }
 
+                VOLT_TRACE("Releasing UndoQuantum %ld", undoQuantumToken);
                 m_undoQuantums.pop_front();
                 Pool *pool = undoQuantum->getDataPool();
                 undoQuantum->release();

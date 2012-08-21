@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkInterest;
@@ -42,6 +43,7 @@ import edu.brown.utils.TableUtil;
  * @author pavlo
  */
 public class ResultsPrinter implements BenchmarkInterest {
+    private static final Logger LOG = Logger.getLogger(ResultsPrinter.class);
 //
 //    private static final String COL_HEADERS[] = {
 //        "", // NAME
@@ -219,7 +221,6 @@ public class ResultsPrinter implements BenchmarkInterest {
         long currentTime = pollIndex * results.getIntervalDuration();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("\n");
         sb.append(String.format("At time %d out of %d (%d%%):",
                                 currentTime, duration, currentTime * 100 / duration));
         sb.append("\n" + SPACER);
@@ -241,6 +242,8 @@ public class ResultsPrinter implements BenchmarkInterest {
             sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", totalLatency));
         }
         
+        System.out.println();
+        if (LOG.isDebugEnabled()) LOG.debug("Printing result information for poll index " + pollIndex);
         System.out.println(sb);
         System.out.flush();
     }

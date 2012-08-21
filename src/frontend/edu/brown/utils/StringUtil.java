@@ -41,6 +41,7 @@ import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import org.voltdb.client.Client;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
@@ -72,7 +73,6 @@ public abstract class StringUtil {
     
     /** Unicode Down Arrow Character */
     public static final String UNICODE_DOWN_ARROW = "\u25BC";
-    
     
     /**
      * http://ubuntuforums.org/showpost.php?p=10215516&postcount=5
@@ -405,7 +405,7 @@ public abstract class StringUtil {
                 sb.append(blocks[i]);
             } // FOR
         }
-        return (box ? StringUtil.box(sb.toString()) : (border_top ? dividing_line + "\n" : "") + sb.toString() + (border_bottom ? dividing_line : ""));
+        return (box ? StringBoxUtil.box(sb.toString()) : (border_top ? dividing_line + "\n" : "") + sb.toString() + (border_bottom ? dividing_line : ""));
     }
 
     /**
@@ -437,84 +437,6 @@ public abstract class StringUtil {
         CACHE_REPEAT_STR = str;
         CACHE_REPEAT_SIZE = size;
         return (CACHE_REPEAT_RESULT);
-    }
-
-    /**
-     * Make a box around some text. If str has multiple lines, then the box will
-     * be the length of the longest string.
-     * 
-     * @param str
-     * @return
-     */
-    public static String box(String str) {
-        return (StringUtil.box(str, "*", null));
-    }
-
-    /**
-     * Make a box around some text using the given marker character.
-     * 
-     * @param str
-     * @param mark
-     * @return
-     */
-    public static String box(String str, String mark) {
-        return (StringUtil.box(str, mark, null));
-    }
-
-    /**
-     * Create a box around some text
-     * 
-     * @param str
-     * @param mark
-     * @param max_len
-     * @return
-     */
-    public static String box(String str, String mark, Integer max_len) {
-        return StringUtil.box(str, mark, mark, max_len, null);
-    }
-    
-    /**
-     * 
-     * @param str
-     * @param horzMark
-     * @param vertMark
-     * @param max_len
-     * @param corners
-     * @return
-     */
-    public static String box(String str, String horzMark, String vertMark, Integer max_len, String corners[]) {
-        String lines[] = LINE_SPLIT.split(str);
-        if (lines.length == 0)
-            return ("");
-
-        // CORNERS: 
-        //  0: Top-Left
-        //  1: Top-Right
-        //  2: Bottom-Left
-        //  3: Bottom-Right
-        if (corners == null) {
-            corners = new String[]{horzMark, horzMark, horzMark, horzMark};
-        }
-        
-        if (max_len == null) {
-            for (String line : lines) {
-                if (max_len == null || line.length() > max_len)
-                    max_len = line.length();
-            } // FOR
-        }
-
-        final String top_line = corners[0] + StringUtil.repeat(horzMark, max_len + 2) + corners[1]; // padding - two corners
-        final String bot_line = corners[2] + StringUtil.repeat(horzMark, max_len + 2) + corners[3]; // padding - two corners
-        final String f = "%s %-" + max_len + "s %s\n";
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(top_line).append("\n");
-        for (String line : lines) {
-            sb.append(String.format(f, vertMark, line, vertMark));
-        } // FOR
-        sb.append(bot_line);
-
-        return (sb.toString());
     }
 
     /**
@@ -727,6 +649,70 @@ public abstract class StringUtil {
             out.append(nibbleToHexChar(b & 0xf));
         }
         return out;
+    }
+
+    /**
+     * Pretty-print an object array
+     * @param params
+     * @param includeOffsets
+     * @param includeClass
+     * @return
+     */
+    public static String toString(Object params[], boolean includeOffsets, boolean includeClass) {
+        if (params == null) return ("null");
+        
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < params.length; ++i) {
+            if (i > 0) sb.append(", ");
+            if (includeOffsets) sb.append("[" + i + "]=");
+            
+            // NULL
+            if (params[i] == null) {
+                sb.append("null");
+            }
+            // ARRAY
+            else if (ClassUtil.isArray(params[i])) {
+                if (params[i] instanceof boolean[]) {
+                    sb.append(Arrays.toString((boolean[])params[i]));
+                }
+                else if (params[i] instanceof byte[]) {
+                    sb.append(Arrays.toString((byte[])params[i]));
+                }
+                else if (params[i] instanceof short[]) {
+                    sb.append(Arrays.toString((short[])params[i]));
+                }
+                else if (params[i] instanceof int[]) {
+                    sb.append(Arrays.toString((int[])params[i]));
+                }
+                else if (params[i] instanceof long[]) {
+                    sb.append(Arrays.toString((long[])params[i]));
+                }
+                else if (params[i] instanceof float[]) {
+                    sb.append(Arrays.toString((float[])params[i]));
+                }
+                else if (params[i] instanceof double[]) {
+                    sb.append(Arrays.toString((double[])params[i]));
+                }
+                else if (params[i] instanceof String[]) {
+                    sb.append(Arrays.toString((String[])params[i]));
+                }
+                else if (params[i] instanceof TimestampType[]) {
+                    sb.append(Arrays.toString((TimestampType[])params[i]));
+                }
+                else if (params[i] instanceof Object[]) {
+                    sb.append(Arrays.toString((Object[])params[i]));
+                }
+                else {
+                    sb.append(params[i].toString());     
+                }
+                if (includeClass) sb.append("(" + params[i].getClass().getSimpleName() + ")");
+            }
+            else {
+                sb.append(params[i].toString());
+                if (includeClass) sb.append("(" + params[i].getClass().getSimpleName() + ")");
+            }
+        }
+        return (sb.toString());
     }
 
 }

@@ -17,7 +17,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
@@ -26,6 +25,8 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.MarkovEstimator;
+import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -34,8 +35,6 @@ import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovProbabilityCalculator;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
-import edu.brown.markov.TransactionEstimator;
-import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.profilers.ProfileMeasurement;
@@ -173,7 +172,7 @@ public class MarkovCostModel extends AbstractCostModel {
     // ----------------------------------------------------------------------------
 
     private final EstimationThresholds thresholds;
-    private final TransactionEstimator t_estimator;
+    private final MarkovEstimator t_estimator;
     private final Collection<Integer> all_partitions;
     private boolean force_full_comparison = false;
     private boolean force_regenerate_markovestimates = false;
@@ -207,7 +206,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param catalog_db
      * @param p_estimator
      */
-    public MarkovCostModel(CatalogContext catalogContext, PartitionEstimator p_estimator, TransactionEstimator t_estimator, EstimationThresholds thresholds) {
+    public MarkovCostModel(CatalogContext catalogContext, PartitionEstimator p_estimator, MarkovEstimator t_estimator, EstimationThresholds thresholds) {
         super(MarkovCostModel.class, catalogContext, p_estimator);
         this.thresholds = thresholds;
         this.t_estimator = t_estimator;
@@ -270,7 +269,7 @@ public class MarkovCostModel extends AbstractCostModel {
         // At this point we know what the transaction actually would do using
         // the TransactionEstimator's
         // internal Markov models.
-        State s = this.t_estimator.processTransactionTrace(txn_trace);
+        MarkovEstimatorState s = this.t_estimator.processTransactionTrace(txn_trace);
         assert (s != null);
 
         if (debug.get()) {
@@ -287,7 +286,7 @@ public class MarkovCostModel extends AbstractCostModel {
         this.e_write_partitions.clear();
         MarkovEstimate est = s.getInitialEstimate();
         for (Integer partition : est.getTouchedPartitions(this.thresholds)) {
-            if (est.isFinishedPartition(this.thresholds, partition.intValue()) == false) {
+            if (est.isFinishPartition(this.thresholds, partition.intValue()) == false) {
                 for (MarkovVertex v : s.getInitialPath()) {
                     if (v.getPartitions().contains(partition) == false)
                         continue;
@@ -333,7 +332,7 @@ public class MarkovCostModel extends AbstractCostModel {
             throw new RuntimeException(ex);
         }
 
-        TransactionEstimator.POOL_STATES.returnObject(s);
+        MarkovEstimator.POOL_STATES.returnObject(s);
 
         return (cost);
     }
@@ -406,7 +405,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param actual
      * @return
      */
-    protected double comparePathsFull(State s) {
+    protected double comparePathsFull(MarkovEstimatorState s) {
         if (debug.get())
             LOG.debug("Performing full comparison of Transaction #" + s.getTransactionId());
 
@@ -454,7 +453,7 @@ public class MarkovCostModel extends AbstractCostModel {
             estimates = s.getEstimates();
         }
 
-        boolean e_singlepartitioned = initial_est.isSinglePartition(this.thresholds);
+        boolean e_singlepartitioned = initial_est.isSinglePartitioned(this.thresholds);
         boolean a_singlepartitioned = (this.a_all_partitions.size() == 1);
 
         boolean first_penalty = true;
@@ -671,7 +670,7 @@ public class MarkovCostModel extends AbstractCostModel {
             // that causes the partition to get touched. This is because our initial 
             // estimation of what partitions we are done at will be based on the total
             // path estimation and not directly on the finished probabilities
-            for (Integer finished_p : est.getFinishedPartitions(this.thresholds)) {
+            for (Integer finished_p : est.getFinishPartitions(this.thresholds)) {
                 if (touched_partitions.contains(finished_p)) {
                     // We are late with identifying that a partition is finished
                     // if it was idle for more than one batch round
@@ -770,9 +769,13 @@ public class MarkovCostModel extends AbstractCostModel {
     @SuppressWarnings("unchecked")
     public static void main(String vargs[]) throws Exception {
         final ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_MARKOV, ArgumentsParser.PARAM_WORKLOAD, ArgumentsParser.PARAM_MAPPINGS, ArgumentsParser.PARAM_MARKOV_THRESHOLDS);
+        args.require(ArgumentsParser.PARAM_CATALOG,
+                     ArgumentsParser.PARAM_MARKOV,
+                     ArgumentsParser.PARAM_WORKLOAD,
+                     ArgumentsParser.PARAM_MAPPINGS,
+                     ArgumentsParser.PARAM_MARKOV_THRESHOLDS);
         HStoreConf.initArgumentsParser(args, null);
-        final int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
+        final int num_partitions = args.catalogContext.numberOfPartitions;
         final int base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.first(args.workload_base_partitions) : HStoreConstants.NULL_PARTITION_ID);
         final int num_threads = ThreadUtil.getMaxGlobalThreads();
         final boolean stop_on_error = true;
@@ -904,7 +907,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     MarkovCostModel costmodels[] = thread_costmodels[thread_id];
                     for (int p = 0; p < num_partitions; p++) {
                         MarkovGraphsContainer markovs = (global ? thread_markovs[thread_id].get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) : thread_markovs[thread_id].get(p));
-                        TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_mappings, markovs);
+                        MarkovEstimator t_estimator = new MarkovEstimator(p_estimator, args.param_mappings, markovs);
                         costmodels[p] = new MarkovCostModel(args.catalogContext, p_estimator, t_estimator, args.thresholds);
                         if (force_fullpath)
                             thread_costmodels[thread_id][p].forceFullPathComparison();

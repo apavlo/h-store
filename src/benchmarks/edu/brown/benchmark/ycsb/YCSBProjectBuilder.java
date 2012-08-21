@@ -29,15 +29,16 @@
 
 package edu.brown.benchmark.ycsb;
 
+import org.voltdb.VoltProcedure;
+
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.ycsb.procedures.DeleteRecord; 
-import edu.brown.benchmark.ycsb.procedures.InsertRecord; 
-import edu.brown.benchmark.ycsb.procedures.ReadRecord; 
-import edu.brown.benchmark.ycsb.procedures.ScanRecord; 
-import edu.brown.benchmark.ycsb.procedures.UpdateRecord; 
-
+import edu.brown.benchmark.ycsb.procedures.DeleteRecord;
+import edu.brown.benchmark.ycsb.procedures.InsertRecord;
+import edu.brown.benchmark.ycsb.procedures.ReadRecord;
+import edu.brown.benchmark.ycsb.procedures.ScanRecord;
+import edu.brown.benchmark.ycsb.procedures.UpdateRecord;
 
 public class YCSBProjectBuilder extends AbstractProjectBuilder {
 
@@ -47,32 +48,29 @@ public class YCSBProjectBuilder extends AbstractProjectBuilder {
     // REQUIRED: Retrieved via reflection by BenchmarkController
     public static final Class<? extends BenchmarkComponent> m_loaderClass = YCSBLoader.class;
 
-	// a list of procedures implemented in this benchmark
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {DeleteRecord.class, 
-																InsertRecord.class, 
-																ReadRecord.class, 
-																ScanRecord.class, 
-																UpdateRecord.class};
-	
-	{
-		addTransactionFrequency(InsertRecord.class, YCSBConstants.FREQUENCY_INSERT_RECORD);
-		addTransactionFrequency(DeleteRecord.class, YCSBConstants.FREQUENCY_DELETE_RECORD);
-		//addTransactionFrequency(DeleteRecord.class, YCSBConstants.FREQUENCY_READ_MODIFY_WRITE_RECORD);
-		addTransactionFrequency(ReadRecord.class, YCSBConstants.FREQUENCY_READ_RECORD);
-		addTransactionFrequency(ScanRecord.class, YCSBConstants.FREQUENCY_SCAN_RECORD);
-		addTransactionFrequency(UpdateRecord.class, YCSBConstants.FREQUENCY_UPDATE_RECORD);
-	}
-	
-	
-	// a list of tables used in this benchmark with corresponding partitioning keys
-    public static final String PARTITIONING[][] = new String[][] {
-            { "USERTABLE", "YCSB_KEY" } };
+    // a list of procedures implemented in this benchmark
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[]) new Class<?>[] {
+        DeleteRecord.class,
+        InsertRecord.class,
+        ReadRecord.class,
+        ScanRecord.class,
+        UpdateRecord.class
+    };
+
+    {
+        addTransactionFrequency(InsertRecord.class, YCSBConstants.FREQUENCY_INSERT_RECORD);
+        addTransactionFrequency(DeleteRecord.class, YCSBConstants.FREQUENCY_DELETE_RECORD);
+        // addTransactionFrequency(DeleteRecord.class, YCSBConstants.FREQUENCY_READ_MODIFY_WRITE_RECORD);
+        addTransactionFrequency(ReadRecord.class, YCSBConstants.FREQUENCY_READ_RECORD);
+        addTransactionFrequency(ScanRecord.class, YCSBConstants.FREQUENCY_SCAN_RECORD);
+        addTransactionFrequency(UpdateRecord.class, YCSBConstants.FREQUENCY_UPDATE_RECORD);
+    }
+
+    // a list of tables used in this benchmark with corresponding partitioning keys
+    public static final String PARTITIONING[][] = new String[][] { { "USERTABLE", "YCSB_KEY" } };
 
     public YCSBProjectBuilder() {
         super("ycsb", YCSBProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
-
-
-
-

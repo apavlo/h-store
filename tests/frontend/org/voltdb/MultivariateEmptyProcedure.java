@@ -32,7 +32,7 @@ import org.voltdb.ProcInfo;
     partitionInfo = "WAREHOUSE.W_ID: 0",
     singlePartition = true
 )
-public class MultivariateEmptyProcedure {
+public class MultivariateEmptyProcedure extends VoltProcedure {
     public static VoltTable[] run(long c_id, long c_d_id, long c_w_id,
             String c_first, String c_middle, String c_last,
             String c_street_1, String c_street_2, String d_city, String d_state, String d_zip,

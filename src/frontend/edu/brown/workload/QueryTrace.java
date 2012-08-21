@@ -137,12 +137,18 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
         
         Statement catalog_stmt = null;
         if (this.catalog_item_name.contains(":") == false) {
-            catalog_stmt = catalog_proc.getStatements().get(this.catalog_item_name);
+            catalog_stmt = catalog_proc.getStatements().getIgnoreCase(this.catalog_item_name);
         } else {
-            catalog_stmt = CatalogKey.getFromKey(CatalogUtil.getDatabase(catalog_proc), this.catalog_item_name, Statement.class);
+            catalog_stmt = CatalogKey.getFromKey(CatalogUtil.getDatabase(catalog_proc),
+                                                 this.catalog_item_name, Statement.class);
         }
         if (catalog_stmt == null) {
-            throw new JSONException("Procedure '" + catalog_proc.getName() + "' does not have a Statement '" + this.catalog_item_name + "'");
+            catalog_stmt = catalog_proc.getStatements().getIgnoreCase(CatalogKey.getNameFromKey(this.catalog_item_name));
+            if (catalog_stmt == null) {
+                String msg = "Procedure '" + catalog_proc.getName() + "' does not have a Statement '" + this.catalog_item_name + "'";
+                msg += "\nValid Statements: " + CatalogUtil.debug(catalog_proc.getStatements());
+                throw new JSONException(msg);
+            }
         }
         // HACK
         this.catalog_item_name = CatalogKey.createKey(catalog_stmt);

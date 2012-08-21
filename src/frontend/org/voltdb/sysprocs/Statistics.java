@@ -35,6 +35,7 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
@@ -93,6 +94,8 @@ public class Statistics extends VoltSystemProcedure {
                        Pair.of(SysProcSelector.TXNPROFILER, SysProcFragmentId.PF_txnProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_execProfilerData,
                        Pair.of(SysProcSelector.EXECPROFILER, SysProcFragmentId.PF_execProfilerDataAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_queueProfilerData,
+                       Pair.of(SysProcSelector.QUEUEPROFILER, SysProcFragmentId.PF_queueProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_poolData,
                        Pair.of(SysProcSelector.POOL, SysProcFragmentId.PF_poolDataAggregator));
     } // STATIC
@@ -133,6 +136,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_txnCounterData:
             case SysProcFragmentId.PF_txnProfilerData:
             case SysProcFragmentId.PF_execProfilerData:
+            case SysProcFragmentId.PF_queueProfilerData:
             case SysProcFragmentId.PF_poolData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =
@@ -141,21 +145,24 @@ public class Statistics extends VoltSystemProcedure {
                 ArrayList<Integer> catalogIds = new ArrayList<Integer>();
                 catalogIds.add(0);
                 
-                Pair<SysProcSelector, Integer> pair = STATS_DATA.get(fragmentId);; 
-                VoltTable result = executor.getHStoreSite().getStatsAgent().getStats(
-                                pair.getFirst(),
-                                catalogIds,
-                                interval,
-                                now);
-                if (debug.get()) HOST_LOG.debug(pair.getFirst() + ":\n" + result);
-    
+                VoltTable result = null;
+
                 // Choose the lowest site ID on this host to do the scan
                 // All other sites should just return empty results tables.
                 if (isFirstLocalPartition()) {
+                    Pair<SysProcSelector, Integer> pair = STATS_DATA.get(fragmentId);; 
+                    result = executor.getHStoreSite().getStatsAgent().getStats(
+                                    pair.getFirst(),
+                                    catalogIds,
+                                    interval,
+                                    now);
+                    if (debug.get()) HOST_LOG.debug(pair.getFirst() + ":\n" + result);
                     assert(result.getRowCount() >= 0);
                 }
                 else {
-                    assert(result.getRowCount() == 0);
+                    String msg = String.format("Unexpected execution of SysProc #%d on partition %d",
+                                               fragmentId, this.partitionId);
+                    throw new ServerFaultException(msg, txn_id);
                 }
                 return new DependencySet(fragmentId, result);
             }
@@ -173,6 +180,10 @@ public class Statistics extends VoltSystemProcedure {
             }
             case SysProcFragmentId.PF_execProfilerDataAggregator: {
                 VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_execProfilerData));
+                return new DependencySet(fragmentId, result);
+            }
+            case SysProcFragmentId.PF_queueProfilerDataAggregator: {
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_queueProfilerData));
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_poolDataAggregator: {
@@ -331,10 +342,10 @@ public class Statistics extends VoltSystemProcedure {
         if (dataFragmentId != null) {
             results = getData(dataFragmentId.intValue(), interval, now);
         }
-        else if (selector.toUpperCase().equals(SysProcSelector.TABLE.name())) {
+        else if (selector.toUpperCase().startsWith(SysProcSelector.TABLE.name())) {
             results = getTableData(interval, now);
         }
-        else if (selector.toUpperCase().equals(SysProcSelector.PROCEDURE.name())) {
+        else if (selector.toUpperCase().startsWith(SysProcSelector.PROCEDURE.name())) {
             results = getProcedureData(interval, now);
         }
         else if (selector.toUpperCase().equals(SysProcSelector.PARTITIONCOUNT.name())) {

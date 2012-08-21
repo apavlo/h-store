@@ -399,7 +399,7 @@ public class WorkloadSummarizer {
         Integer intervals = args.getIntParam(ArgumentsParser.PARAM_DESIGNER_INTERVALS);
         
         LOG.info(String.format("Compressing workload based on %d partitions%s",
-                 CatalogUtil.getNumberOfPartitions(args.catalog),
+                 args.catalogContext.numberOfPartitions,
                  (intervals != null ? " over " + intervals + " intervals" : "")));
         LOG.info("BEFORE:\n" + args.workload.getProcedureHistogram());
         

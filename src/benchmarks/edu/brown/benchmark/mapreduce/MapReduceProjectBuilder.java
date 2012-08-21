@@ -25,6 +25,8 @@
  ***************************************************************************/
 package edu.brown.benchmark.mapreduce;
 
+import org.voltdb.VoltProcedure;
+
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.mapreduce.procedures.*;
@@ -36,7 +38,8 @@ public class MapReduceProjectBuilder extends AbstractProjectBuilder {
     /** Retrieved via reflection by BenchmarkController */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = MapReduceLoader.class;
 
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         MockMapReduce.class,
         NormalWordCount.class
     };

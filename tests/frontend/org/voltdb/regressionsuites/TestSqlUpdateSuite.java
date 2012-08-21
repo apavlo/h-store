@@ -25,6 +25,7 @@ package org.voltdb.regressionsuites;
 
 import java.io.IOException;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ProcCallException;
@@ -39,7 +40,10 @@ import org.voltdb.regressionsuites.fixedsql.*;
 public class TestSqlUpdateSuite extends RegressionSuite {
 
     /** Procedures used by this suite */
-    static final Class<?>[] PROCEDURES = { Insert.class };
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Insert.class
+    };
 
     static final int ROWS = 10;
 

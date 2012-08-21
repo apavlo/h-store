@@ -11,7 +11,9 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
- * 
+ * This callback is invoked at the base partition once the tnx gets all of
+ * the 2PC:PREPARE acknowledgments. This is where we will invoke the HStoreSite
+ * to send the ClientResponse back to the client.
  * @author pavlo
  */
 public class TransactionPrepareCallback extends AbstractTransactionCallback<ClientResponseImpl, TransactionPrepareResponse> {
@@ -43,7 +45,8 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
             this.ts.profiler.startPostFinish();
         }
 
-        // Everybody returned ok, so we'll tell them all commit right now
+        // Everybody returned ok, so we'll tell them to all commit right now
+        // so that they can start executing other things
         this.finishTransaction(Status.OK);
         
         // At this point all of our HStoreSites came back with an OK on the 2PC PREPARE

@@ -63,13 +63,9 @@
 #include <unistd.h>
 #ifndef __USE_GNU
 #define  __USE_GNU
-#endif // __USE_GNU
+#endif
 #include <sched.h>
-#endif // LINUX
-#ifdef MACOSX
-#include <mach/task.h>
-#include <mach/mach.h>
-#endif // MACOSX
+#endif
 
 #ifdef LINUX
 #if __SIZEOF_POINTER__ == 4
@@ -1192,16 +1188,17 @@ SHAREDLIB_JNIEXPORT jbooleanArray JNICALL Java_org_voltdb_utils_ThreadUtils_getT
  * Method:    setThreadAffinity
  * Signature: ([Z)V
  */
-SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_utils_ThreadUtils_setThreadAffinity
+SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_utils_ThreadUtils_setThreadAffinity
   (JNIEnv *env, jclass clazz, jbooleanArray coresArray) {
+    
     jsize numCores = env->GetArrayLength(coresArray);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
-        return;
+        return (false);
     }
     jboolean *cores = env->GetBooleanArrayElements(coresArray, NULL);
     if (cores == NULL) {
-        return;
+        return (false);
     }
 
     //Also get the total number of processors
@@ -1216,10 +1213,17 @@ SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_utils_ThreadUtils_setThreadAffi
         }
     }
 
-    if ( sched_setaffinity( 0, sizeof(mask), &mask) == -1) {
-        VOLT_ERROR("Couldn't set CPU affinity");
-        assert(false);
+    int result = sched_setaffinity(0, sizeof(mask), &mask);
+    if (result == -1) {
+        char buff[256];
+        if (strerror_r(errno, buff, 256) == 0) {
+            VOLT_ERROR("Failed to set CPU -  %s",  buff);
+        } else {
+            VOLT_ERROR("Failed to set CPU affinity for an unknown reason [errno=%d]", errno);
+        }
+        return (false);
     }
+    return (true);
 }
 
 /*

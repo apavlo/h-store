@@ -30,7 +30,7 @@ import org.voltdb.ProcInfo;
     partitionInfo = "WAREHOUSE.W_ID: 0",
     singlePartition = true
 )
-public class EmptyProcedure {
+public class EmptyProcedure extends VoltProcedure {
     public static VoltTable[] run(long arg) {
         return new VoltTable[0];
     }

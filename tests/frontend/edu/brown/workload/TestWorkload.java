@@ -214,8 +214,9 @@ public class TestWorkload extends BaseTestCase {
         List<Integer> stmt_batchids = new ArrayList<Integer>();
         
         String stmt_names[] = { "getStockInfo", "getWarehouseTaxRate", "getDistrict" };
+        int batch_id = -1;
         for (String stmt_name : stmt_names) {
-            int batch_id = this.workload.getNextBatchId(xact);
+            batch_id++;
 
             if (stmt_name.equals("getStockInfo")) {
                 assertEquals(0, batch_id);
@@ -254,7 +255,7 @@ public class TestWorkload extends BaseTestCase {
         for (int i = 0, cnt = stmt_objs.size(); i < cnt; i++) {
             Statement catalog_stmt = stmt_objs.get(i);
             Object args[] = stmt_args.get(i);
-            int batch_id = stmt_batchids.get(i);
+            batch_id = stmt_batchids.get(i);
             
             QueryTrace query = this.startQuery(xact, catalog_stmt, args, batch_id);
             assertNotNull(query);

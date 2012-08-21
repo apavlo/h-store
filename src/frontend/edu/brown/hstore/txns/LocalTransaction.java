@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Copyright (C) 2012 by H-Store Project                                 *
  *   Brown University                                                      *
  *   Massachusetts Institute of Technology                                 *
  *   Yale University                                                       *
@@ -39,6 +39,7 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -65,11 +66,11 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEstimate;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.Histogram;
@@ -173,9 +174,9 @@ public class LocalTransaction extends AbstractTransaction {
     private PartitionSet predict_touchedPartitions;
   
     /**
-     * TransctionEstimator State Handle
+     * EstimationState Handle
      */
-    private TransactionEstimator.State predict_tState;
+    private EstimatorState predict_tState;
     
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
@@ -367,7 +368,7 @@ public class LocalTransaction extends AbstractTransaction {
         }
         // Return our TransactionEstimator.State handle
         if (this.predict_tState != null) {
-            TransactionEstimator.POOL_STATES.returnObject(this.predict_tState);
+            this.predict_tState.finish();
             this.predict_tState = null;
         }
         
@@ -435,7 +436,16 @@ public class LocalTransaction extends AbstractTransaction {
     public void resetExecutionState() {
         if (d) LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
                                        this, (this.state == null)));
-        this.state = null;
+        if (this.state != null) {
+            ReentrantLock lock = state.lock;
+            lock.lock();
+            try {
+                this.state = null;
+            } finally {
+                lock.unlock();
+            }
+        }
+        
     }
     
     /**
@@ -455,8 +465,8 @@ public class LocalTransaction extends AbstractTransaction {
         // executing a prefetchable query, which may be queued up before the
         // transaction's control code starts executing
         // Of course if this is the base partition, then we *definitely* need
-        // to have the ExecuteionState.
-        if (this.prefetch == null || partition == this.base_partition) {
+        // to have the ExecutionState.
+        if (partition == this.base_partition) {
             assert(this.state != null) :
                 String.format("Trying to initalize new round for %s on partition %d but the ExecutionState is null",
                               this, partition);
@@ -480,6 +490,12 @@ public class LocalTransaction extends AbstractTransaction {
         }
     }
     
+    /**
+     * Fast-path round initialization. This should be called when the next
+     * batch contains only local, single-partition queries
+     * @param partition
+     * @param undoToken
+     */
     public void fastInitRound(int partition, long undoToken) {
         super.initRound(partition, undoToken);
     }
@@ -611,19 +627,24 @@ public class LocalTransaction extends AbstractTransaction {
      * the transaction will be released from its lock so that the transaction can be
      * aborted without needing to wait for all of the results to return. 
      * @param error
-     * @param wakeThread
+     * @param interruptThread
      */
-    public void setPendingError(SerializableException error, boolean wakeThread) {
-        boolean spin_latch = (this.pending_error == null);
+    public void setPendingError(SerializableException error, boolean interruptThread) {
+        interruptThread = (this.pending_error == null && interruptThread);
         super.setPendingError(error);
-        if (wakeThread == false) return;
+        if (interruptThread == false) return;
         
-        // Spin through this so that the waiting thread wakes up and sees that they got an error
-        if (spin_latch) {
+        try {
+            // And then shove an empty result at them
+            this.state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
+            
+            // Spin through this so that the waiting thread wakes up and sees that they got an error
             while (this.state.dependency_latch.getCount() > 0) {
                 this.state.dependency_latch.countDown();
             } // WHILE
-        }        
+        } catch (NullPointerException ex) {
+            // HACK!
+        }
     }
     
     @Override
@@ -719,11 +740,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public boolean isPredictAllLocal() {
         if (this.dtxnState != null) {
-            for (Integer p : this.predict_touchedPartitions) {
-                if (hstore_site.isLocalPartition(p.intValue()) == false) {
-                    return (false);
-                }
-            } // FOR
+            return (this.dtxnState.is_all_local);
         }
         return (true);
     }
@@ -862,10 +879,10 @@ public class LocalTransaction extends AbstractTransaction {
     }
 
     
-    public TransactionEstimator.State getEstimatorState() {
+    public EstimatorState getEstimatorState() {
         return (this.predict_tState);
     }
-    public void setEstimatorState(TransactionEstimator.State state) {
+    public void setEstimatorState(EstimatorState state) {
         this.predict_tState = state;
     }
     
@@ -883,7 +900,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     protected DependencyInfo getDependencyInfo(int d_id) {
         return (this.state.dependencies.get(d_id));
-        // return (this.state.dependencies[stmt_index].get(d_id));
     }
 
     @Override
@@ -900,7 +916,7 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.exec_touchedPartitions.getValueCount() <= 1);
     }
     /**
-     * Returns true if the given FragmentTaskMessage is currently set as blocked for this txn
+     * Returns true if the given WorkFragment is currently set as blocked for this txn
      * @param ftask
      * @return
      */
@@ -1071,8 +1087,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     /**
      * Queues up a WorkFragment for this txn
-     * If the return value is true, then the FragmentTaskMessage is blocked waiting for dependencies
-     * If the return value is false, then the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
+     * If the return value is true, then the WorkFragment is blocked waiting for dependencies
+     * If the return value is false, then the WorkFragment can be executed immediately (either locally or on at a remote partition)
      * @param fragment
      */
     public boolean addWorkFragment(WorkFragment fragment) {
@@ -1195,10 +1211,9 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public void addResult(int partition, int dependency_id, VoltTable result) {
         assert(result != null) :
-            "The result for DependencyId " + dependency_id + " is null in txn #" + this.txn_id;
-        if (this.state != null) {
-            this.addResult(Pair.of(partition, dependency_id), result, false);
-        }
+            String.format("%s - The result for DependencyId %d from partition %d is null",
+                          this, dependency_id, partition);
+        this.addResult(Pair.of(partition, dependency_id), result, false);
     }
 
     /**
@@ -1210,6 +1225,15 @@ public class LocalTransaction extends AbstractTransaction {
      * @param dependency_id The dependency id that this result corresponds to
      */
     private void addResult(final Pair<Integer, Integer> key, VoltTable result, final boolean force) {
+        // We have to do this because this method is allowed to be called by different threads
+        ReentrantLock stateLock = null;
+        try {
+            stateLock = this.state.lock;
+        } catch (NullPointerException ex) {
+            // HACK
+        }
+        if (stateLock == null) return;
+        
         final int base_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(result != null);
         assert(this.round_state[base_offset] == RoundState.INITIALIZED || this.round_state[base_offset] == RoundState.STARTED) :
@@ -1226,8 +1250,9 @@ public class LocalTransaction extends AbstractTransaction {
         // for now. They will get released when we switch to STARTED 
         // This is the only part that we need to synchonize on
         if (force == false) {
-            if (this.predict_singlePartition == false) this.state.lock.lock();
+            if (this.predict_singlePartition == false) stateLock.lock();
             try {
+                if (this.state == null) return;
                 if (this.round_state[base_offset] == RoundState.INITIALIZED) {
                     assert(this.state.queued_results.containsKey(key) == false) : 
                         String.format("%s - Duplicate result %s",
@@ -1238,36 +1263,48 @@ public class LocalTransaction extends AbstractTransaction {
                     return;
                 }
                 if (d) {
-                    LOG.debug(String.format("%s - Storing new result for key %d", this, key));
+                    LOG.debug(String.format("%s - Storing new result for key %s", this, key));
                     if (t) LOG.trace("Result stmt_ctr(key=" + key + "): " + this.state.results_dependency_stmt_ctr.get(key));
                 }
             } finally {
-                if (this.predict_singlePartition == false) this.state.lock.unlock();
+                if (this.predict_singlePartition == false) stateLock.unlock();
             } // SYNCH
         }
             
         // Each partition+dependency_id should be unique within the Statement batch.
         // So as the results come back to us, we have to figure out which Statement it belongs to
         DependencyInfo dinfo = null;
-        Queue<Integer> queue = this.state.results_dependency_stmt_ctr.get(key);
-        assert(queue != null) :
-            String.format("Unexpected %s in %s / %s\n%s",
-                          debugPartDep(partition, dependency_id), this,
-                          key, this.state.results_dependency_stmt_ctr);
-        assert(queue.isEmpty() == false) :
-            String.format("No more statements for %s in %s\nresults_dependency_stmt_ctr = %s",
-                          debugPartDep(partition, dependency_id), this,
-                          this.state.results_dependency_stmt_ctr);
+        Queue<Integer> queue = null;
+        int stmt_index;
+        try {
+            queue = this.state.results_dependency_stmt_ctr.get(key);
+            assert(queue != null) :
+                String.format("Unexpected %s in %s / %s\n%s",
+                              debugPartDep(partition, dependency_id), this,
+                              key, this.state.results_dependency_stmt_ctr);
+            assert(queue.isEmpty() == false) :
+                String.format("No more statements for %s in %s\nresults_dependency_stmt_ctr = %s",
+                              debugPartDep(partition, dependency_id), this,
+                              this.state.results_dependency_stmt_ctr);
 
-        int stmt_index = queue.remove().intValue();
-        dinfo = this.getDependencyInfo(dependency_id);
-        assert(dinfo != null) :
-            String.format("Unexpected %s for %s [stmt_index=%d]\n%s",
-                          debugPartDep(partition, dependency_id), this, stmt_index, result); 
+            stmt_index = queue.remove().intValue();
+            dinfo = this.getDependencyInfo(dependency_id);
+            assert(dinfo != null) :
+                String.format("Unexpected %s for %s [stmt_index=%d]\n%s",
+                              debugPartDep(partition, dependency_id), this, stmt_index, result);
+        } catch (NullPointerException ex) {
+            // HACK: IGNORE!
+        }
+        if (dinfo == null) {
+            // HACK: IGNORE!
+            return;
+        }
         dinfo.addResult(partition, result);
         
-        if (this.predict_singlePartition == false) this.state.lock.lock();
+        if (this.predict_singlePartition == false) stateLock.lock();
         try {
+            // If the state has disappeared, then we know that this txn is aborted
+            if (this.state == null) return;
             this.state.received_ctr++;
             
             // Check whether we need to start running stuff now
@@ -1306,7 +1343,7 @@ public class LocalTransaction extends AbstractTransaction {
             this.state.still_has_tasks = this.state.blocked_tasks.isEmpty() == false ||
                                          this.state.unblocked_tasks.isEmpty() == false;
         } finally {
-            if (this.predict_singlePartition == false) this.state.lock.unlock();
+            if (this.predict_singlePartition == false) stateLock.unlock();
         } // SYNCH
         
         if (d) {
@@ -1386,21 +1423,21 @@ public class LocalTransaction extends AbstractTransaction {
         final int ts_done_partitions_size = this.exec_donePartitions.size();
         PartitionSet new_done = null;
 
-        TransactionEstimator.State t_state = this.getEstimatorState();
+        EstimatorState t_state = this.getEstimatorState();
         if (t_state == null) {
             return (null);
         }
         
         if (d) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
-                                       this, this.getCurrentRound(this.base_partition)));
+                         this, this.getCurrentRound(this.base_partition)));
         
-        MarkovEstimate estimate = t_state.getLastEstimate();
+        TransactionEstimate estimate = t_state.getLastEstimate();
         assert(estimate != null) : "Got back null MarkovEstimate for " + this;
         if (estimate.isValid()) {
             return (null);
         }
         
-        new_done = estimate.getFinishedPartitions(thresholds);
+        new_done = estimate.getFinishPartitions(thresholds);
         
         if (new_done.isEmpty() == false) { 
             // Note that we can actually be done with ourself, if this txn is only going to execute queries
@@ -1430,16 +1467,10 @@ public class LocalTransaction extends AbstractTransaction {
 
     
     @Override
-    public String toString() {
-        String ret = null;
-        if (this.isInitialized()) {
-            ret = String.format("%s #%d/%d", this.catalog_proc.getName(), this.txn_id, this.base_partition);
-        } else {
-            ret = "<Uninitialized>";
-        }
-        // Include hashCode for debugging
-        ret += "/" + this.hashCode();
-        return (ret);
+    public String toStringImpl() {
+        return String.format("%s #%d/%d", this.catalog_proc.getName(),
+                                          this.txn_id,
+                                          this.base_partition);
     }
     
     @Override
@@ -1447,11 +1478,8 @@ public class LocalTransaction extends AbstractTransaction {
         List<Map<String, Object>> maps = new ArrayList<Map<String,Object>>();
         Map<String, Object> m;
         
-        // Basic Info
-        m = super.getDebugMap();
-        m.put("Procedure", (this.catalog_proc == null ? "???" : this.catalog_proc.getName()));
-        
-        maps.add(m);
+        // Base Class Info
+        maps.add(super.getDebugMap());
         
         // Predictions
         m = new LinkedHashMap<String, Object>();

@@ -33,6 +33,8 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce;
 
+import org.voltdb.VoltProcedure;
+
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.tpce.procedures.BrokerVolume;
@@ -60,9 +62,22 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
      */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = TPCELoader.class;
 
-    public static final Class<?> PROCEDURES[] = {TradeCleanup.class, DataMaintenance.class, TradeOrder.class, TradeResult.class,
-        TradeLookup.class, TradeUpdate.class, TradeStatus.class, CustomerPosition.class, BrokerVolume.class, SecurityDetail.class,
-        MarketFeed.class, MarketWatch.class, LoadTable.class};
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        TradeCleanup.class,
+        DataMaintenance.class,
+        TradeOrder.class,
+        TradeResult.class,
+        TradeLookup.class,
+        TradeUpdate.class,
+        TradeStatus.class,
+        CustomerPosition.class,
+        BrokerVolume.class,
+        SecurityDetail.class,
+        MarketFeed.class,
+        MarketWatch.class,
+        LoadTable.class
+    };
 
     // Transaction Frequencies
     {

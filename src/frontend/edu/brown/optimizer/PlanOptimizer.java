@@ -21,6 +21,7 @@ import edu.brown.optimizer.optimizations.RemoveDistributedReplicatedTableJoinOpt
 import edu.brown.optimizer.optimizations.RemoveRedundantProjectionsOptimizations;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -140,7 +141,7 @@ public class PlanOptimizer {
 
         AbstractPlanNode new_root = root;
         if (trace.get())
-            LOG.trace("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
+            LOG.trace("BEFORE: " + sql + "\n" + StringBoxUtil.box(PlanNodeUtil.debug(root)));
 //             LOG.debug("LET 'ER RIP!");
 //         }
 
@@ -199,7 +200,7 @@ public class PlanOptimizer {
         PlanOptimizerUtil.updateAllColumns(state, new_root, true);
 
         if (trace.get())
-            LOG.trace("AFTER: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(new_root)));
+            LOG.trace("AFTER: " + sql + "\n" + StringBoxUtil.box(PlanNodeUtil.debug(new_root)));
 
         return (new_root);
     }

@@ -47,7 +47,9 @@ if not os.path.exists(realpath):
     basename = os.path.basename(realpath)
     if os.path.exists(os.path.join(cwd, basename)):
         basedir = cwd
+sys.path.append(os.path.realpath(os.path.join(basedir, "../../tools")))
 sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
+import hstore
 import argparse
 
 logging.basicConfig(level = logging.INFO,
@@ -60,27 +62,16 @@ HSTORE_OPTS = {
     "client.duration":              180000,
     "client.warmup":                0,
     "client.count":                 1,
-    "client.threads_per_host":      200,
+    "client.threads_per_host":      100,
     "client.txnrate":               1000,
     "client.blocking":              True,
     "client.blocking_concurrent":   1,
     "client.scalefactor":           2.0,
     "killonzero":                   True,
+    
+    # "site.status_show_executor_info": True,
+    # "site.status_show_thread_info":   True,
 }
-
-## ==============================================
-## getBenchmarks
-## ==============================================
-def getBenchmarks():
-    """Return a list of the valid benchmark handles that can be used in the framework"""
-    global basedir
-    
-    benchmarksDir = os.path.join(basedir, "../properties/benchmarks")
-    print benchmarksDir
-    
-    benchmarks = [ os.path.basename(f).split(".")[0] for f in glob.glob(benchmarksDir + "/*.properties") ]
-    return (benchmarks)
-## DEF
 
 ## ==============================================
 ## txnCount
@@ -99,16 +90,16 @@ def txnCount(path):
 ## main
 ## ==============================================
 if __name__ == '__main__':
-    allBenchmarks = getBenchmarks()
+    allBenchmarks = hstore.getBenchmarks()
     
     aparser = argparse.ArgumentParser(description='Create H-Store transaction trace files')
     aparser.add_argument('benchmark', choices=allBenchmarks,
                          help='Target benchmark identifier')
-    aparser.add_argument('--config', type=file,
+    aparser.add_argument('--config', type=file, metavar='FILE',
                          help='Path to H-Store configuration file to use')
-    aparser.add_argument('--txn-count', type=int, default=100000,
+    aparser.add_argument('--txn-count', type=int, default=100000, metavar='T',
                          help='The minimum number of transaction records needed')
-    aparser.add_argument('--output-path', type=str, default="traces",
+    aparser.add_argument('--output-path', type=str, default="traces", metavar='DIR',
                          help='The output directory to store the traces')
     aparser.add_argument('--overwrite', action='store_true',
                          help='Overwrite existing trace files')
@@ -138,6 +129,7 @@ if __name__ == '__main__':
         ## Otherwise light 'em up!
         else:
             cmd = "ant hstore-benchmark -Dtrace=%s %s" % (trace, hstore_opts_cmd)
+            if args['debug']: logging.debug(cmd)
             subprocess.check_call(cmd, shell=True)
             cnt = txnCount(trace_base)
 
@@ -169,6 +161,7 @@ if __name__ == '__main__':
     }
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, HSTORE_OPTS[x]), HSTORE_OPTS.keys()))
     cmd = "ant workload-combine %s" % hstore_opts_cmd
+    if args['debug']: logging.debug(cmd)
     subprocess.check_call(cmd, shell=True)
 
     logging.info("OUTPUT FILE: " + HSTORE_OPTS["output"])

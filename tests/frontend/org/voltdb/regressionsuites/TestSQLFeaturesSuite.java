@@ -27,13 +27,16 @@ import java.io.IOException;
 
 import junit.framework.Test;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTableRow;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.VoltTable;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.sqlfeatureprocs.*;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ClassUtil;
 
 public class TestSQLFeaturesSuite extends RegressionSuite {
@@ -43,7 +46,8 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
      */
 
     // procedures used by these tests
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         FeaturesSelectAll.class, UpdateTests.class,
         SelfJoinTest.class, SelectOrderLineByDistInfo.class,
         BatchedMultiPartitionTest.class, WorkWithBigString.class, PassByteArrayArg.class,
@@ -173,17 +177,19 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         }
     }
 
-//    public void testBatchedMultipartitionTxns() throws IOException, ProcCallException {
-//        Client client = getClient();
-//
-//        VoltTable[] results = client.callProcedure("BatchedMultiPartitionTest").getResults();
-//        assertEquals(5, results.length);
-//        assertEquals(1, results[0].asScalarLong());
-//        assertEquals(1, results[1].asScalarLong());
-//        assertEquals(1, results[2].asScalarLong());
-//        assertEquals(2, results[3].getRowCount());
-//        assertEquals(1, results[4].getRowCount());
-//    }
+    public void testBatchedMultipartitionTxns() throws IOException, ProcCallException {
+        Client client = getClient();
+
+        ClientResponse cresponse = client.callProcedure("BatchedMultiPartitionTest");
+        System.err.println(cresponse);
+        VoltTable[] results = cresponse.getResults();
+        assertEquals(5, results.length);
+        assertEquals(1, results[0].asScalarLong());
+        assertEquals(1, results[1].asScalarLong());
+        assertEquals(CatalogUtil.getNumberOfPartitions(this.getCatalog()), results[2].asScalarLong());
+        assertEquals(2, results[3].getRowCount());
+        assertEquals(1, results[4].getRowCount());
+    }
 
     public void testLongStringUsage() throws IOException {
         System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());

@@ -428,10 +428,10 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     nextFreeTuple(&m_tmpTarget1);
     m_tupleCount++;
 
-#ifdef ANTICACHE
+    #ifdef ANTICACHE
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     eviction_manager->updateTuple(this, &m_tmpTarget1, true); 
-#endif
+    #endif
 
     //
     // Then copy the source into the target
@@ -468,6 +468,10 @@ bool PersistentTable::insertTuple(TableTuple &source) {
           appendToELBuffer(m_tmpTarget1, m_tsSeqNo++, TupleStreamWrapper::INSERT);
     }
 
+    if (m_schema->getUninlinedObjectColumnCount() != 0)
+    {
+        m_nonInlinedMemorySize += m_tmpTarget1.getNonInlinedMemorySize();
+    }
     /*
      * Create and register an undo action.
      */
@@ -479,6 +483,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
       new (pool->allocate(sizeof(voltdb::PersistentTableUndoInsertAction)))
       voltdb::PersistentTableUndoInsertAction(m_tmpTarget1, this, pool, elMark);
     undoQuantum->registerUndoAction(ptuia);
+    VOLT_DEBUG("Registered UndoAction for new tuple in table '%s'", name().c_str());
 
     // handle any materialized views
     for (int i = 0; i < m_views.size(); i++) {
@@ -573,6 +578,12 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
          m_COWContext->markTupleDirty(target, false);
      }
 
+    if (m_schema->getUninlinedObjectColumnCount() != 0)
+    {
+        m_nonInlinedMemorySize -= target.getNonInlinedMemorySize();
+        m_nonInlinedMemorySize += source.getNonInlinedMemorySize();
+    }
+
      source.setDeletedFalse();
      //Copy the dirty status that was set by markTupleDirty.
      if (target.isDirty()) {
@@ -648,6 +659,12 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
  */
 void PersistentTable::updateTupleForUndo(TableTuple &source, TableTuple &target,
                                          bool revertIndexes, size_t wrapperOffset) {
+    if (m_schema->getUninlinedObjectColumnCount() != 0)
+    {
+        m_nonInlinedMemorySize -= target.getNonInlinedMemorySize();
+        m_nonInlinedMemorySize += source.getNonInlinedMemorySize();
+    }
+
     //Need to back up the updated version of the tuple to provide to
     //the indexes when updating The indexes expect source's data Ptr
     //to point into the table so it is necessary to copy source to
@@ -763,6 +780,11 @@ void PersistentTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t w
         // Just like insert, we want to remove this tuple from all of our indexes
         deleteFromAllIndexes(&target);
 
+        if (m_schema->getUninlinedObjectColumnCount() != 0)
+        {
+            m_nonInlinedMemorySize -= tupleCopy.getNonInlinedMemorySize();
+        }
+
         // Delete the strings/objects
         target.freeObjectColumns();
         deleteTupleStorage(target);
@@ -843,9 +865,9 @@ void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple,
 bool PersistentTable::tryInsertOnAllIndexes(TableTuple *tuple) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
         FAIL_IF(!m_indexes[i]->addEntry(tuple)) {
-            VOLT_DEBUG("Failed to insert into index %s,%s",
-                       m_indexes[i]->getTypeName().c_str(),
-                       m_indexes[i]->getName().c_str());
+            VOLT_DEBUG("Failed to insert into index %s.%s [%s]",
+                       name().c_str(), m_indexes[i]->getName().c_str(),
+                       m_indexes[i]->getTypeName().c_str());
             for (int j = i + 1; j < m_indexCount; ++j) {
                 m_indexes[j]->deleteEntry(tuple);
             }
@@ -968,6 +990,12 @@ void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
     if (allowExport && m_exportEnabled) {
         appendToELBuffer(m_tmpTarget1, m_tsSeqNo++,
                          TupleStreamWrapper::INSERT);
+    }
+    
+    // Account for non-inlined memory allocated via bulk load or recovery
+    if (m_schema->getUninlinedObjectColumnCount() != 0)
+    {
+        m_nonInlinedMemorySize += tuple.getNonInlinedMemorySize();
     }
 }
 

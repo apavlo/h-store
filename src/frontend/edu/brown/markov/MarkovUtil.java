@@ -142,7 +142,7 @@ public abstract class MarkovUtil {
         }
         if (type != MarkovVertex.Type.START) {
             for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
-                v.setDoneProbability(i, 1.0f);
+                v.setFinishProbability(i, 1.0f);
             } // FOR
         }
         assert(v != null);

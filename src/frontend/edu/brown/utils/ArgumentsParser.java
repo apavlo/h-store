@@ -855,7 +855,8 @@ public class ArgumentsParser {
                 // Apply!
                 if (this.params.containsKey(PARAM_PARTITION_PLAN_APPLY) && this.getBooleanParam(PARAM_PARTITION_PLAN_APPLY)) {
                     boolean secondaryIndexes = this.getBooleanParam(PARAM_PARTITION_PLAN_NO_SECONDARY, false) == false;
-                    LOG.info(String.format("Applying PartitionPlan '%s' to catalog [enableSecondary=%s]", path.getName(), secondaryIndexes));
+                    LOG.info(String.format("Applying PartitionPlan '%s' to catalog [enableSecondaryIndexes=%s]",
+                             path.getName(), secondaryIndexes));
                     this.pplan.apply(this.catalog_db, secondaryIndexes);
                 }
             }

@@ -163,8 +163,7 @@ public abstract class StatementCompiler {
             
             QueryType stmt_type = QueryType.get(catalogStmt.getQuerytype());
             String msg = "Creating " + stmt_type.name() + " query plan for " + catalogStmt.fullName() + ": singleSited=" + _singleSited;
-            if (trace.get()) 
-                LOG.trace(msg);
+            if (trace.get()) LOG.trace(msg);
             compiler.addInfo(msg);
 
             catalogStmt.setSinglepartition(_singleSited);

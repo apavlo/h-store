@@ -26,6 +26,7 @@ package org.voltdb.benchmark.tpcc;
 import java.io.File;
 import java.io.IOException;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.*;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.utils.BuildDirectoryUtils;
@@ -54,7 +55,8 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
     /**
      * All procedures needed for TPC-C tests + benchmark
      */
-    public static Class<?> PROCEDURES[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         delivery.class,
         neworder.class,
         ostatByCustomerId.class,

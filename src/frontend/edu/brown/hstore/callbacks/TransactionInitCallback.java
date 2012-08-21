@@ -2,6 +2,7 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.TransactionQueueManager;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -9,10 +10,12 @@ import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.PartitionSet;
 
 /**
  * This callback is meant to block a transaction from executing until all of the
- * partitions that it needs come back and say they're ready to execute it
+ * partitions that it needs come back and say they're ready to execute it.
+ * This is created at the base partition's site.
  * @author pavlo
  */
 public class TransactionInitCallback extends AbstractTransactionCallback<TransactionInitResponse, TransactionInitResponse> {
@@ -23,7 +26,8 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private transient Integer reject_partition = null;
+    private final PartitionSet partitions = new PartitionSet();
+    private transient int reject_partition;
     private transient Long reject_txnId = null;
     
     // ----------------------------------------------------------------------------
@@ -40,8 +44,9 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
 
     public void init(LocalTransaction ts) {
         super.init(ts, ts.getPredictTouchedPartitions().size(), null);
-        this.reject_partition = null;
+        this.reject_partition = HStoreConstants.NULL_PARTITION_ID;
         this.reject_txnId = null;
+        this.partitions.clear();
     }
     
     @Override
@@ -90,25 +95,21 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
     
     @Override
     protected int runImpl(TransactionInitResponse response) {
-        if (debug.get())
-            LOG.debug(String.format("Got %s with status %s for %s [partitions=%s, rejectPartition=%s, rejectTxn=%s]",
-                                    response.getClass().getSimpleName(),
-                                    response.getStatus(),
-                                    this.ts, 
-                                    response.getPartitionsList(),
-                                    (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
-                                    (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
-        
-        // HACK: We can ignore requests from different txns
-//        if (this.sameTransaction(response, response.getTransactionId()) == false) {
-//            return (0);
-//        }
+        if (debug.get()) LOG.debug(String.format("Got %s with status %s for %s " +
+            		               "[partitions=%s, rejectPartition=%s, rejectTxn=%s]",
+            		               response.getClass().getSimpleName(),
+            		               response.getStatus(),
+            		               this.ts, 
+            		               response.getPartitionsList(),
+            		               (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
+            		               (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
         
         assert(this.ts != null) :
             String.format("Missing LocalTransaction handle for txn #%d [status=%s]",
                           response.getTransactionId(), response.getStatus());
         assert(response.getPartitionsCount() > 0) :
-            String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
+            String.format("No partitions returned in %s for %s",
+                          response.getClass().getSimpleName(), this.ts);
         // Otherwise, make sure it's legit
         assert(this.ts.getTransactionId() == response.getTransactionId()) :
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d, partitions=%s]",
@@ -116,6 +117,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                           this.ts, response.getTransactionId(),
                           this.getTransactionId(), response.getPartitionsList());
         
+        this.partitions.addAll(response.getPartitionsList());
         if (response.getStatus() != Status.OK || this.isAborted()) {
             // If we were told what the highest transaction id was at the remove partition, then 
             // we will store it so that we can update the TransactionQueueManager later on.
@@ -127,7 +129,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                 synchronized (this) {
                     if (this.reject_txnId == null || this.reject_txnId < response.getRejectTransactionId()) {
                         if (debug.get()) LOG.debug(String.format("%s was rejected at partition %d by txn #%d",
-                                                                 this.ts, response.getRejectPartition(), response.getRejectTransactionId()));
+                                                   this.ts, response.getRejectPartition(), response.getRejectTransactionId()));
                         this.reject_partition = response.getRejectPartition();
                         this.reject_txnId = response.getRejectTransactionId();
                     }
@@ -138,5 +140,10 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
             // return (0);
         }
         return (response.getPartitionsCount());
+    }
+    
+    @Override
+    public String toString() {
+        return super.toString() + " / Partitions="+ this.partitions;
     }
 }

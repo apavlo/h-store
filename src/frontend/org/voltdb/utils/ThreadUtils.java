@@ -19,6 +19,6 @@ package org.voltdb.utils;
 
 public class ThreadUtils {
     public static native boolean[] getThreadAffinity();
-    public static native void setThreadAffinity(boolean cores[]);
+    public static native boolean setThreadAffinity(boolean cores[]);
     public static native int getNumCores();
 }

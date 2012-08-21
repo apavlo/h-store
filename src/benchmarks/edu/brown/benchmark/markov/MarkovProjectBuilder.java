@@ -25,6 +25,8 @@
  ***************************************************************************/
 package edu.brown.benchmark.markov;
 
+import org.voltdb.VoltProcedure;
+
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.markov.procedures.DoneAtPartition;
@@ -42,8 +44,16 @@ public class MarkovProjectBuilder extends AbstractProjectBuilder {
     /** Retrieved via reflection by BenchmarkController */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = MarkovLoader.class;
 
-    public static final Class<?> PROCEDURES[] = new Class<?>[] { DoneAtPartition.class, ExecutionTime.class, MultiPartitionWrite.class, MultiPartitionRead.class, SinglePartitionWrite.class,
-            SinglePartitionRead.class, UserAbort.class, };
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        DoneAtPartition.class,
+        ExecutionTime.class,
+        MultiPartitionWrite.class,
+        MultiPartitionRead.class,
+        SinglePartitionWrite.class,
+        SinglePartitionRead.class,
+        UserAbort.class,
+    };
 
     public static final String PARTITIONING[][] = new String[][] { { MarkovConstants.TABLENAME_TABLEA, "A_ID" }, { MarkovConstants.TABLENAME_TABLEB, "B_A_ID" },
             { MarkovConstants.TABLENAME_TABLEC, "C_A_ID" }, { MarkovConstants.TABLENAME_TABLED, "D_B_A_ID" }, };

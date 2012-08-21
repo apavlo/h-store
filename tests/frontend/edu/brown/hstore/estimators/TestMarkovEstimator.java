@@ -1,4 +1,4 @@
-package edu.brown.markov;
+package edu.brown.hstore.estimators;
 
 import java.io.File;
 import java.util.*;
@@ -11,8 +11,13 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.estimators.MarkovEstimator;
+import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.mappings.ParameterMappingsSet;
-import edu.brown.markov.TransactionEstimator.State;
+import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovEstimate;
+import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.*;
@@ -32,7 +37,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
  * @author pavlo
  *
  */
-public class TestTransactionEstimator extends BaseTestCase {
+public class TestMarkovEstimator extends BaseTestCase {
 
     public static final Random rand = new Random();
     
@@ -41,7 +46,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     private static final int NUM_PARTITIONS = 10;
     private static Collection<Integer> ALL_PARTITIONS;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
-    private static int XACT_ID = 1000;
+    private static long XACT_ID = 1000;
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
@@ -51,7 +56,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     private static final Set<Integer> multip_partitions = new HashSet<Integer>();
     private static final List<MarkovVertex> multip_path = new ArrayList<MarkovVertex>();
     
-    private TransactionEstimator t_estimator;
+    private MarkovEstimator t_estimator;
     private EstimationThresholds thresholds;
     private Procedure catalog_proc;
     private final PartitionSet partitions = new PartitionSet();
@@ -113,7 +118,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 //        assertNotNull(singlep_trace);
         
         // Setup
-        this.t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
+        this.t_estimator = new MarkovEstimator(p_estimator, correlations, markovs);
         this.thresholds = new EstimationThresholds();
     }
 
@@ -122,10 +127,10 @@ public class TestTransactionEstimator extends BaseTestCase {
      */
     @Test
     public void testMultipleStartTransaction() throws Exception {
-        Set<State> all_states = new HashSet<State>();
+        Set<MarkovEstimatorState> all_states = new HashSet<MarkovEstimatorState>();
         
         for (int i = 0; i < 20; i++) {
-            State state = t_estimator.startTransaction(XACT_ID++, this.catalog_proc, multip_trace.getParams());
+            MarkovEstimatorState state = (MarkovEstimatorState)t_estimator.startTransaction(XACT_ID++, this.catalog_proc, multip_trace.getParams());
             assertNotNull(state);
             assertFalse(all_states.contains(state));
             all_states.add(state);
@@ -138,7 +143,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     @Test
     public void testStartTransaction() throws Exception {
         long txn_id = XACT_ID++;
-        State state = t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
+        MarkovEstimatorState state = (MarkovEstimatorState)t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
         assertNotNull(state);
         MarkovEstimate est = state.getInitialEstimate();
         assertNotNull(est);
@@ -151,7 +156,7 @@ public class TestTransactionEstimator extends BaseTestCase {
         
         System.err.println("# of Vertices: " + markov.getVertexCount());
         System.err.println("# of Edges:    " + markov.getEdgeCount());
-        System.err.println("Confidence:    " + String.format("%.4f", t_estimator.getConfidence(txn_id)));
+        System.err.println("Confidence:    " + String.format("%.4f", state.getInitialPathConfidence()));
         System.err.println("\nINITIAL PATH:\n" + StringUtil.join("\n", initial_path));
 //        System.err.println(multip_trace.debug(catalog_db));
 
@@ -171,16 +176,16 @@ public class TestTransactionEstimator extends BaseTestCase {
         assertEquals(partitions.size(), est_partitions.size());
         assertEquals(partitions, est_partitions);
         
-        assert(est.isSinglePartition(this.thresholds));
+        assert(est.isSinglePartitioned(this.thresholds));
         assertTrue(est.isAbortable(this.thresholds));
         
         for (Integer partition : ALL_PARTITIONS) {
             if (partitions.contains(partition)) { //  == BASE_PARTITION) {
-                assertFalse("isFinishedPartition(" + partition + ")", est.isFinishedPartition(thresholds, partition));
+                assertFalse("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
                 assertTrue("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition) == true);
                 assertTrue("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition) == true);
             } else {
-                assertTrue("isFinishedPartition(" + partition + ")", est.isFinishedPartition(thresholds, partition));
+                assertTrue("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
                 assertFalse("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition) == true);
                 assertFalse("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition) == true);
             }
@@ -194,7 +199,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     public void testProcessTransactionTrace() throws Exception {
         TransactionTrace txn_trace = CollectionUtil.first(workload.getTransactions());
         assertNotNull(txn_trace);
-        State s = this.t_estimator.processTransactionTrace(txn_trace);
+        MarkovEstimatorState s = this.t_estimator.processTransactionTrace(txn_trace);
         assertNotNull(s);
         
         // We should have an MarkovEstimate for each batch

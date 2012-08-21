@@ -28,6 +28,7 @@ import java.io.IOException;
 import org.voltdb.BackendTarget;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.ServerThread;
 import org.voltdb.client.ProcCallException;
@@ -49,7 +50,8 @@ public class TPCCDebugTest extends TestCase {
     static final long C_ID = 42L;
     static final long I_ID = 12345L;
 
-    public static final Class<?>[] ALL_PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> ALL_PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         /*debugTPCCostat.class, debugTPCCpayment.class,*/ debugUpdateProc.class
         /*debugTPCCdelivery.class, debugTPCCslev.class*/
     };
@@ -60,7 +62,6 @@ public class TPCCDebugTest extends TestCase {
 
     @Override
     public void setUp() throws IOException {
-        Class<?>[] procedures = ALL_PROCEDURES;
         int siteCount = 1;
         BackendTarget target = BackendTarget.NATIVE_EE_JNI;
         String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
@@ -69,7 +70,7 @@ public class TPCCDebugTest extends TestCase {
         TPCCProjectBuilder pb = new TPCCProjectBuilder();
         pb.addDefaultSchema();
         pb.addDefaultPartitioning();
-        pb.addProcedures(procedures);
+        pb.addProcedures(ALL_PROCEDURES);
         pb.addSupplementalClasses(SUPPLEMENTALS);
         pb.compile(catalogJar, siteCount, 0);
 

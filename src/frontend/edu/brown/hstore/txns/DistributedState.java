@@ -27,6 +27,12 @@ public class DistributedState implements Poolable {
      */
     protected final BitSet notified_prepare;
     
+    /**
+     * If true, then all of the partitions that this txn needs is on the same
+     * site as the base partition
+     */
+    protected boolean is_all_local = true;
+    
     // ----------------------------------------------------------------------------
     // CALLBACKS
     // ----------------------------------------------------------------------------
@@ -86,6 +92,14 @@ public class DistributedState implements Poolable {
     
     public DistributedState init(LocalTransaction ts) {
         this.ts = ts;
+        
+        for (Integer p : ts.getPredictTouchedPartitions()) {
+            if (ts.hstore_site.isLocalPartition(p.intValue()) == false) {
+                this.is_all_local = false;
+                break;
+            }
+        } // FOR
+        
         return (this);
     }
     
@@ -99,6 +113,7 @@ public class DistributedState implements Poolable {
         this.init_callback.finish();
         this.prepare_callback.finish();
         this.finish_callback.finish();
+        this.is_all_local = true;
         this.ts = null;
     }
     

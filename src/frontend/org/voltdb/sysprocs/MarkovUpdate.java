@@ -16,9 +16,9 @@ import org.voltdb.VoltType;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.FileUtil;
 
@@ -52,7 +52,13 @@ public class MarkovUpdate extends VoltSystemProcedure {
             // Check whether the MarkovsGraphsContainer is global or not.
             // If it is, then we only need to write out a single file
             
-            TransactionEstimator t_estimator = this.executor.getTransactionEstimator();
+            if ((this.executor.getTransactionEstimator() instanceof MarkovEstimator) == false) {
+                String msg = String.format("Cannot recompute markov graphs because the estimator " +
+                		                   "at partition %d is not a MarkovEstimator", partitionId);
+                throw new VoltAbortException(msg);
+            }
+                
+            MarkovEstimator t_estimator = (MarkovEstimator)this.executor.getTransactionEstimator();
             assert(t_estimator != null);
             MarkovGraphsContainer markovs = t_estimator.getMarkovs();
             

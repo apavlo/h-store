@@ -79,7 +79,7 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
             this.statement_column = PlanNodeUtil.getColumnForStmtParameter(this.statement_parameter);
         } catch (Exception ex) {
             ex.printStackTrace();
-            System.exit(1);
+            throw new RuntimeException(ex);
         }
     }
 
@@ -209,7 +209,7 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
                 this.statement_column = PlanNodeUtil.getColumnForStmtParameter(this.statement_parameter);
             } catch (Exception ex) {
                 ex.printStackTrace();
-                System.exit(1);
+                throw new RuntimeException(ex);
             }
         }
     }

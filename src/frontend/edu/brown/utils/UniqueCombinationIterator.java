@@ -213,6 +213,6 @@ public class UniqueCombinationIterator<E> implements Iterator<Set<E>> {
         m.put("LAST", this.last);
         m.put("NEXT", this.next);
 
-        return StringUtil.box(StringUtil.formatMaps("=", m));
+        return StringBoxUtil.box(StringUtil.formatMaps("=", m));
     }
 }

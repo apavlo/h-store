@@ -23,11 +23,13 @@
 
 package org.voltdb.sqlgenerator;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.compiler.VoltProjectBuilder;
 
 
 public class SimpleProjectBuilder extends VoltProjectBuilder {
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         StubProcedure.class
     };
 

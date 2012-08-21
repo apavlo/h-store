@@ -78,8 +78,7 @@ public class WikipediaLoader extends BenchmarkComponent {
      */
     public WikipediaLoader(String[] args) {
         super(args);
-        m_scalefactor = 1.0; // FIXME, scalefactor can be...
-        
+        m_scalefactor = getScaleFactor();
         this.num_users = (int) Math.round(WikipediaConstants.USERS * this.m_scalefactor);
         this.num_pages = (int) Math.round(WikipediaConstants.PAGES * this.m_scalefactor);
         
@@ -114,8 +113,6 @@ public class WikipediaLoader extends BenchmarkComponent {
             this.loadPages(catalog_db);
             this.loadWatchlist(catalog_db);
             this.loadRevision(catalog_db);
-            LOG.info("Finish loadRevision... ");
-            
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -124,16 +121,9 @@ public class WikipediaLoader extends BenchmarkComponent {
     /**
      * USERACCTS
      */
-    private void loadUsers( Database catalog_db ) {
+    private void loadUsers(Database catalog_db) {
         assert(catalog_db != null);
-        Table catalog_tbl = null;
-        try {
-            catalog_tbl = catalog_db.getTables().get(WikipediaConstants.TABLENAME_USER);
-        } catch (Exception e) {
-            
-            e.printStackTrace();
-        }
-        LOG.info("TABLES: " + CatalogUtil.debug(catalog_db.getTables()));
+        Table catalog_tbl = catalog_db.getTables().getIgnoreCase(WikipediaConstants.TABLENAME_USER);
         assert(catalog_tbl != null);
         
 //        String sql = SQLUtil.getInsertSQL(catalog_tbl);
@@ -421,9 +411,6 @@ public class WikipediaLoader extends BenchmarkComponent {
                 batchSize++;
             } // FOR (revision)
             if (batchSize >= WikipediaConstants.BATCH_SIZE) {
-                LOG.info("Text Table(batch):\n" + vtText);
-                LOG.info("Revision Table(batch):\n" + vtRev);
-                
                 this.loadVoltTable(textTable.getName(), vtText);
                 this.loadVoltTable(revTable.getName(), vtRev);
                 vtText.clearRowData();
@@ -439,9 +426,6 @@ public class WikipediaLoader extends BenchmarkComponent {
         } // FOR (page)
         
         if (batchSize > 0) {
-            //LOG.info("Text Table(<batch):\n" + vtText);
-            //LOG.info("Revision Table(<batch):\n" + vtRev);
-            
             this.loadVoltTable(textTable.getName(), vtText);
             this.loadVoltTable(revTable.getName(), vtRev);
             vtText.clearRowData();

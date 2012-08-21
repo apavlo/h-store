@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Copyright (C) 2012 by H-Store Project                                 *
  *   Brown University                                                      *
  *   Massachusetts Institute of Technology                                 *
  *   Yale University                                                       *
@@ -77,12 +77,12 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
@@ -139,13 +139,6 @@ public class BenchmarkController {
     // ============================================================================
     // STATIC CONFIGURATION
     // ============================================================================
-    
-    /**
-     * HStoreConf parameters to not forward to sites 
-     */
-    private static final String EXCLUDED_SITE_PARAMS[] = {
-        
-    };
     
     /**
      * HStoreConf parameters to not forward to clients 
@@ -207,7 +200,7 @@ public class BenchmarkController {
      */
     Map<Integer, Set<Pair<String, Integer>>> m_launchHosts;
     
-    private Catalog catalog;
+    private CatalogContext catalogContext;
     
     /**
      * Keeps track of any files to send to clients
@@ -239,11 +232,11 @@ public class BenchmarkController {
     };
     
     @SuppressWarnings("unchecked")
-    public BenchmarkController(BenchmarkConfig config, Catalog catalog) {
-        m_config = config;
-        self = Thread.currentThread();
-        hstore_conf = HStoreConf.singleton();
-        if (catalog != null) this.initializeCatalog(catalog);
+    public BenchmarkController(BenchmarkConfig config, CatalogContext catalogContext) {
+        this.m_config = config;
+        this.self = Thread.currentThread();
+        this.hstore_conf = HStoreConf.singleton();
+        if (catalogContext != null) this.initializeCatalog(catalogContext);
         
         // Setup ProcessSetManagers...
         m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir,
@@ -329,12 +322,24 @@ public class BenchmarkController {
                 2, 1024 * 128);
     }
     
+    private void initializeCatalog(CatalogContext catalogContext) {
+        assert(catalogContext != null);
+        this.catalogContext = catalogContext;
+        int total_num_clients = m_config.clients.length * hstore_conf.client.threads_per_host;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            total_num_clients *= catalogContext.numberOfPartitions;
+        }
+        this.totalNumClients = total_num_clients;
+        this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
+    }
+    
+    
     public String getProjectName() {
         return (m_projectBuilder.getProjectName().toUpperCase());
     }
     
     public Catalog getCatalog() {
-        return (this.catalog);
+        return (this.catalogContext.catalog);
     }
     
     protected BenchmarkResults getBenchmarkResults() {
@@ -362,72 +367,16 @@ public class BenchmarkController {
         }
     }
     
-    private void initializeCatalog(Catalog catalog) {
-        assert(catalog != null);
-        this.catalog = catalog;
-        int total_num_clients = m_config.clients.length * hstore_conf.client.threads_per_host;
-        if (hstore_conf.client.processesperclient_per_partition) {
-            total_num_clients *= CatalogUtil.getNumberOfPartitions(catalog);
-        }
-        this.totalNumClients = total_num_clients;
-        this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
-    }
-    
-
-    /**
-     * COMPILE BENCHMARK JAR
-     */
-    public boolean compileBenchmark() {
-        if (m_config.hosts.length == 0) {
-            m_config.hosts = new String[] { hstore_conf.global.defaulthost };
-        }
-        
-        if (m_config.deferrable != null) {
-            for (String entry : m_config.deferrable) {
-                String parts[] = entry.split("\\.");
-                assert(parts.length == 2) :
-                    "Invalid deferrable entry '" + entry + "'";
-                
-                String procName = parts[0];
-                String stmtName = parts[1];
-                assert(procName.isEmpty() == false) :
-                    "Invalid procedure name in deferrable entry '" + entry + "'";
-                assert(stmtName.isEmpty() == false) :
-                    "Invalid statement name in deferrable entry '" + entry + "'";
-                m_projectBuilder.markStatementDeferrable(procName, stmtName);
-                if (debug.get()) LOG.debug(String.format("Marking %s.%s as deferrable in %s",
-                                                         procName, stmtName, this.getProjectName())); 
-            } // FOR
-        }
-        if (m_config.evictable != null) {
-            for (String tableName : m_config.evictable) {
-                if (tableName.isEmpty()) continue;
-                m_projectBuilder.markTableEvictable(tableName);
-                if (debug.get()) LOG.debug(String.format("Marking table %s as evictable in %s",
-                                                         tableName, this.getProjectName())); 
-            } // FOR
-        }
-        
-        boolean success = m_projectBuilder.compile(m_jarFileName.getAbsolutePath(),
-                                                   m_config.sitesPerHost,
-                                                   m_config.hosts.length,
-                                                   m_config.k_factor,
-                                                   m_config.hosts[0]);
-        return (success);
-    }
-    
     /**
      * SETUP BENCHMARK 
      */
     public void setupBenchmark() {
         // Load the catalog that we just made
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
-        this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName.getAbsolutePath()));
+        this.initializeCatalog(CatalogUtil.loadCatalogContextFromJar(m_jarFileName));
         
         // Clear out any HStoreConf parameters that we're not suppose to
         // forward to the sites and clients
-        for (String key : EXCLUDED_SITE_PARAMS)
-            m_config.siteParameters.remove(key);
         for (String key : EXCLUDED_CLIENT_PARAMS)
             m_config.clientParameters.remove(key);
         
@@ -449,7 +398,7 @@ public class BenchmarkController {
             } // FOR
         } else {
             if (debug.get()) LOG.debug("Retrieving host information from catalog");
-            m_launchHosts = CatalogUtil.getExecutionSites(catalog);
+            m_launchHosts = CatalogUtil.getExecutionSites(this.catalogContext.catalog);
             for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
                 Pair<String, Integer> p = CollectionUtil.first(e.getValue());
                 assert(p != null);
@@ -502,7 +451,7 @@ public class BenchmarkController {
             
             // START THE SERVERS
             if (m_config.noSites == false) {
-                this.startSites(catalog);
+                this.startSites();
             }
             
         } else {
@@ -535,7 +484,7 @@ public class BenchmarkController {
     /**
      * Deploy the HStoreSites on the remote nodes
      */
-    public void startSites(final Catalog catalog) {
+    public void startSites() {
         LOG.info(StringUtil.header("BENCHMARK INITIALIZE :: " + this.getProjectName()));
         if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
@@ -544,6 +493,9 @@ public class BenchmarkController {
         // that these parameters are turned on 
         if (hstore_conf.client.output_exec_profiling != null) {
             m_config.siteParameters.put("site.exec_profiling", Boolean.TRUE.toString());
+        }
+        if (hstore_conf.client.output_queue_profiling != null) {
+            m_config.siteParameters.put("site.queue_profiling", Boolean.TRUE.toString());
         }
         if (hstore_conf.client.output_txn_profiling != null) {
             m_config.siteParameters.put("site.txn_profiling", Boolean.TRUE.toString());
@@ -612,8 +564,9 @@ public class BenchmarkController {
         // WAIT FOR SERVERS TO BE READY
         int waiting = hosts_started;
         if (waiting > 0) {
-            LOG.info(String.format("Waiting for %d HStoreSites with %d partitions to finish initialization",
-                                   waiting, CatalogUtil.getNumberOfPartitions(catalog)));
+            LOG.info(String.format("Waiting for %d HStoreSite%s with %d partition%s to finish initialization",
+                                   waiting, (waiting > 1 ? "s" : ""),
+                                   catalogContext.numberOfPartitions, (catalogContext.numberOfPartitions > 1 ? "s" : "")));
             do {
                 ProcessSetManager.OutputLine line = m_sitePSM.nextBlocking();
                 if (line == null) break;
@@ -810,7 +763,7 @@ public class BenchmarkController {
         
         int threads_per_client = hstore_conf.client.threads_per_host;
         if (hstore_conf.client.processesperclient_per_partition) {
-            threads_per_client *= CatalogUtil.getNumberOfPartitions(catalog);
+            threads_per_client *= catalogContext.numberOfPartitions;
         }
 
         final Map<String, Map<File, File>> sent_files = new ConcurrentHashMap<String, Map<File,File>>();
@@ -925,18 +878,15 @@ public class BenchmarkController {
         // RESULT PRINTING SETUP
         // ----------------------------------------------------------------------------
         
-        Database catalog_db = CatalogUtil.getDatabase(this.catalog); 
-        if (hstore_conf.client.anticache_enable &&
-            CatalogUtil.getEvictableTables(catalog_db).isEmpty() == false) {
-            this.evictorThread = new PeriodicEvictionThread(
-                                        catalog_db, getClientConnection(),
-                                        hstore_conf.client.anticache_evict_size, m_interested);
+        if (hstore_conf.client.anticache_enable &&  catalogContext.getEvictableTables().isEmpty() == false) {
+            this.evictorThread = new PeriodicEvictionThread(catalogContext, getClientConnection(),
+                                                            hstore_conf.client.anticache_evict_size, m_interested);
         }
         
     }
     
     private void addHostConnections(Collection<String> params) {
-        for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
+        for (Site catalog_site : catalogContext.sites) {
             for (Pair<String, Integer> p : m_launchHosts.get(catalog_site.getId())) {
                 String address = String.format("%s:%d:%d", p.getFirst(), p.getSecond(), catalog_site.getId());
                 params.add("HOST=" + address);
@@ -1018,19 +968,30 @@ public class BenchmarkController {
     public void runBenchmark() throws Exception {
         if (this.stop) return;
         LOG.info(StringUtil.header("BENCHMARK EXECUTE :: " + this.getProjectName()));
-        LOG.info(String.format("Starting %s execution with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s%s]",
-                                m_projectBuilder.getProjectName().toUpperCase(),
-                                m_clientThreads.size(),
-                                m_config.clients.length,
-                                hstore_conf.client.threads_per_host * (hstore_conf.client.processesperclient_per_partition ? CatalogUtil.getNumberOfPartitions(catalog) : 1),
-                                hstore_conf.client.txnrate,
-                                hstore_conf.client.blocking,
-                                (hstore_conf.client.blocking ? "/" + hstore_conf.client.blocking_concurrent : "")
-                                
-        ));
+        
+        int threadsPerHost = hstore_conf.client.threads_per_host;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            threadsPerHost *= catalogContext.numberOfPartitions; 
+        }
+                
+        String debugOpts = String.format("[hosts=%d, perhost=%d, txnrate=%s", m_config.clients.length,
+                                                                              threadsPerHost,
+                                                                              hstore_conf.client.txnrate);
+        if (hstore_conf.client.blocking) {
+            debugOpts += ", concurrent=" + hstore_conf.client.blocking_concurrent; 
+        }
+        debugOpts += "]";
+        LOG.info(String.format("Starting %s execution with %d %sclient%s %s",
+                 m_projectBuilder.getProjectName().toUpperCase(),
+                 m_clientThreads.size(), 
+                 (hstore_conf.client.blocking ? "blocking " : ""),
+                 (m_clientThreads.size() > 1 ? "s" : ""),
+                 debugOpts));
         if (m_config.statsDatabaseURL != null) {
             LOG.info("Client Stats Database: " + m_config.statsDatabaseURL);
         }
+        
+        // ---------------------------------------------------------------------------------
         
         // HACK
         int gdb_sleep = 0;
@@ -1236,7 +1197,7 @@ public class BenchmarkController {
         
         // Then tell the cluster to drain all txns
         ClientResponse cresponse = null;
-        String procName = VoltSystemProcedure.getProcCallName(Quiesce.class);
+        String procName = VoltSystemProcedure.procCallName(Quiesce.class);
         try {
             cresponse = client.callProcedure(procName);
         } catch (Exception ex) {
@@ -1249,7 +1210,7 @@ public class BenchmarkController {
         if (m_config.dumpDatabase && this.stop == false) {
             assert(m_config.dumpDatabaseDir != null);
             try {
-                client.callProcedure(VoltSystemProcedure.getProcCallName(DatabaseDump.class),
+                client.callProcedure(VoltSystemProcedure.procCallName(DatabaseDump.class),
                                      m_config.dumpDatabaseDir);
             } catch (Exception ex) {
                 throw new Exception("Failed to dump database contents", ex);
@@ -1261,6 +1222,13 @@ public class BenchmarkController {
             this.writeStats(client,
                             SysProcSelector.EXECPROFILER,
                             hstore_conf.client.output_exec_profiling);
+        }
+        
+        // Dump Queue Profiling Info
+        if (hstore_conf.client.output_queue_profiling != null) {
+            this.writeStats(client,
+                            SysProcSelector.QUEUEPROFILER,
+                            hstore_conf.client.output_queue_profiling);
         }
         
         // Dump Txn Profiling Info
@@ -1285,7 +1253,7 @@ public class BenchmarkController {
     private void writeStats(Client client, SysProcSelector sps, String outputPath) throws Exception {
         Object params[] = { sps.name(), 0 };
         ClientResponse cresponse = null;
-        String procName = VoltSystemProcedure.getProcCallName(Statistics.class);
+        String procName = VoltSystemProcedure.procCallName(Statistics.class);
         try {
             cresponse = client.callProcedure(procName, params);
         } catch (Exception ex) {
@@ -1345,7 +1313,7 @@ public class BenchmarkController {
         
         ClientResponse cr = null;
         for (Class<VoltSystemProcedure> sysproc : sysprocs) {
-            String procName = VoltSystemProcedure.getProcCallName(sysproc);
+            String procName = VoltSystemProcedure.procCallName(sysproc);
             try {
                 cr = client.callProcedure(procName);
             } catch (Exception ex) {
@@ -1359,8 +1327,6 @@ public class BenchmarkController {
     private void recomputeMarkovs(Client client) {
         String output_directory = hstore_conf.global.temp_dir + "/markovs/" + m_projectBuilder.getProjectName();
         FileUtil.makeDirIfNotExists(output_directory);
-        Database catalog_db = CatalogUtil.getDatabase(catalog);
-
         ThreadUtil.sleep(60000);
         LOG.info("Requesting HStoreSites to recalculate Markov models");
         ClientResponse cr = null;
@@ -1398,7 +1364,7 @@ public class BenchmarkController {
         
         String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
         if (debug.get()) LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
-        MarkovGraphContainersUtil.combine(markovs, new_output, catalog_db);
+        MarkovGraphContainersUtil.combine(markovs, new_output, catalogContext.database);
         
         // Clean up the remote files
         for (Pair<String, File> p : files_to_remove) {
@@ -1558,10 +1524,10 @@ public class BenchmarkController {
         
         boolean killOnZeroResults = false; 
         
-        Catalog catalog = null;
+        CatalogContext catalogContext = null;
         
         // HStoreConf Path
-        String hstore_conf_path = null;
+        File hstore_conf_path = null;
         
         // Benchmark Conf Path
         String benchmark_conf_path = null;
@@ -1585,19 +1551,6 @@ public class BenchmarkController {
         // List of SiteIds that we won't start because they'll be started by the profiler
         Set<Integer> profileSiteIds = new HashSet<Integer>();
 
-        // try to read connection string for reporting database
-        // from a "mysqlp" file
-        // set value to null on failure
-
-//        try {
-//            databaseURL = readConnectionStringFromFile(remotePath);
-//            assert(databaseURL.length == 2);
-//        }
-//        catch (RuntimeException e) {
-//            databaseURL = new String[2];
-//            System.out.println(e.getMessage());
-//        }
-
         Map<String, String> clientParams = new LinkedHashMap<String, String>();
         List<String> clientHosts = new ArrayList<String>();
         
@@ -1616,7 +1569,7 @@ public class BenchmarkController {
                 continue;
             /* HStoreConf File Path */
             } else if (parts[0].equalsIgnoreCase("CONF")) {
-                hstore_conf_path = parts[1];
+                hstore_conf_path = new File(parts[1]);
             /* Benchmark Configuration File Path */
             } else if (parts[0].equalsIgnoreCase(HStoreConstants.BENCHMARK_PARAM_PREFIX + "CONF")) {
                 benchmark_conf_path = parts[1];
@@ -1625,15 +1578,15 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("KILLONZERO")) {
                 killOnZeroResults = Boolean.parseBoolean(parts[1]);
                 
+            /*
+             * Whether or not to check the result of each transaction.
+             */
             } else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
-                /*
-                 * Whether or not to check the result of each transaction.
-                 */
                 checkTransaction = Float.parseFloat(parts[1]);
+            /*
+             * Whether or not to check all the tables at the end.
+             */
             } else if (parts[0].equalsIgnoreCase("CHECKTABLES")) {
-                /*
-                 * Whether or not to check all the tables at the end.
-                 */
                 checkTables = Boolean.parseBoolean(parts[1]);
             } else if (parts[0].equalsIgnoreCase("LOCAL")) {
                 /*
@@ -1721,58 +1674,64 @@ public class BenchmarkController {
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASETAG")) {
                 statsTag = parts[1];
-                
-            } else if (parts[0].equalsIgnoreCase("CATALOG")) {
+            }
+            else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
-                catalog = CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
-                assert(catalog != null);
-                num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
-                
-            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
+                catalogContext = CatalogUtil.loadCatalogContextFromJar(catalogPath);
+                assert(catalogContext != null);
+                num_partitions = catalogContext.numberOfPartitions;
+            }
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
                 partitionPlanPath = parts[1];
                 clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_APPLY, "true");
                 
-            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY)) {
+            }
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY)) {
                 clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY, parts[1]);
-            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING)) {
+            }
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING)) {
                 clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING, parts[1]);
                 
-            } else if (parts[0].equalsIgnoreCase("COMPILE")) {
-                /*
-                 * Whether to compile the benchmark jar
-                 */
+            }
+            /*
+             * Whether to compile the benchmark jar
+             */
+            else if (parts[0].equalsIgnoreCase("COMPILE")) {
                 compileBenchmark = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("COMPILEONLY")) {
-                /*
-                 * Whether to compile only the benchmark jar and then quit
-                 */
+            }
+            /*
+             * Whether to compile only the benchmark jar and then quit
+             */
+            else if (parts[0].equalsIgnoreCase("COMPILEONLY")) {
                 compileOnly = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("CATALOGHOSTS")) {
-                /*
-                 * Launch the ExecutionSites using the hosts that are in the catalog
-                 */
+            }
+            /*
+             * Launch the ExecutionSites using the hosts that are in the catalog
+             */
+            else if (parts[0].equalsIgnoreCase("CATALOGHOSTS")) {
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
-            
+            }
             /*
              * List of evictable tables
              */
-            } else if (parts[0].equalsIgnoreCase("EVICTABLE")) {
+            else if (parts[0].equalsIgnoreCase("EVICTABLE")) {
                 if (debug.get()) LOG.debug("EVICTABLE: " + parts[1]);
                 evictable = parts[1].split(",");
+            }
             /*
              * List of deferrable queries
              * Format: <ProcedureName>.<StatementName>
              */
-            } else if (parts[0].equalsIgnoreCase("DEFERRABLE")) {
+            else if (parts[0].equalsIgnoreCase("DEFERRABLE")) {
                 if (debug.get()) LOG.debug("DEFERRABLE: " + parts[1]);
                 deferrable = parts[1].split(",");
-            
+            }
             /* Disable starting the database cluster  */
-            } else if (parts[0].equalsIgnoreCase("NOSITES") || parts[0].equalsIgnoreCase("NOSTART")) {
+            else if (parts[0].equalsIgnoreCase("NOSITES") || parts[0].equalsIgnoreCase("NOSTART")) {
                 // HACK: If they stay "nostart=true", then we'll allow that
                 if (parts[1].equalsIgnoreCase("true")) {
                     noSites = true;
@@ -1837,10 +1796,9 @@ public class BenchmarkController {
 
         // Initialize HStoreConf
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
-        File f = new File(hstore_conf_path);
-        HStoreConf hstore_conf = HStoreConf.init(f, vargs);
+        HStoreConf hstore_conf = HStoreConf.init(hstore_conf_path, vargs);
         if (debug.get()) 
-            LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true));
+            LOG.debug("HStore Conf '" + hstore_conf_path.getName() + "'\n" + hstore_conf.toString(true));
         
         if (hstore_conf.client.duration < 1000) {
             LOG.error("Duration is specified in milliseconds");
@@ -1966,15 +1924,15 @@ public class BenchmarkController {
         clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
         
         // Make sure we put in the parameters passed from the command-line into both components
-        clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
-        siteParams.putAll(hstore_conf.getParametersLoadedFromArgs());
+        Map<String, String> loadedArgs = hstore_conf.getParametersLoadedFromArgs(); 
+        clientParams.putAll(loadedArgs);
+        siteParams.putAll(loadedArgs);
         config.clientParameters.putAll(clientParams);
         config.siteParameters.putAll(siteParams);
-        
         if (debug.get()) LOG.debug("Benchmark Configuration\n" + config.toString());
         
         // ACTUALLY RUN THE BENCHMARK
-        BenchmarkController controller = new BenchmarkController(config, catalog);
+        BenchmarkController controller = new BenchmarkController(config, catalogContext);
         boolean failed = false;
         
         // Check CodeSpeed Parameters
@@ -1989,9 +1947,12 @@ public class BenchmarkController {
         // COMPILE BENCHMARK
         if (config.compileBenchmark) {
             boolean success = false;
+            BenchmarkCompiler compiler = new BenchmarkCompiler(controller.m_config,
+                                                               controller.m_projectBuilder,
+                                                               hstore_conf);
             try {
                 // Actually compile and write the catalog to disk
-                success = controller.compileBenchmark();
+                success = compiler.compileBenchmark(controller.m_jarFileName);
                 assert(controller.m_jarFileName.exists()) : 
                     "Failed to create jar file '" + controller.m_jarFileName + "'";
             } catch (Throwable ex) {
@@ -2001,7 +1962,7 @@ public class BenchmarkController {
             }
             if (config.compileOnly) {
                 if (success) {
-                    LOG.info("Compilation Complete. Exiting [" + controller.m_jarFileName + "]");
+                    LOG.info("Compilation Complete. Exiting [" + controller.m_jarFileName.getAbsolutePath() + "]");
                 } else {
                     LOG.info("Compilation Failed");
                 }
@@ -2021,7 +1982,7 @@ public class BenchmarkController {
         } finally {
             controller.cleanUpBenchmark();
         }
-        if (failed || controller.failed) System.exit(1);
+        if (config.noShutdown == false && (failed || controller.failed)) System.exit(1);
         
         // Upload Results to CodeSpeed
         if (hstore_conf.client.codespeed_url != null) {

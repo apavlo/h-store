@@ -7,14 +7,12 @@ import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Database;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.sysprocs.EvictTuples;
-
-import edu.brown.catalog.CatalogUtil;
 
 /**
  * Special thread to execute the @EvictTuples sysproc and update
@@ -24,7 +22,7 @@ import edu.brown.catalog.CatalogUtil;
 public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
     private static final Logger LOG = Logger.getLogger(PeriodicEvictionThread.class);
     
-    private final Database database;
+    private final CatalogContext catalogContext;
     private final Client client;
     
     private final String procName = "@" + EvictTuples.class.getSimpleName();
@@ -33,12 +31,12 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
     private final Collection<BenchmarkInterest> printers;
     private final AtomicInteger callbacks = new AtomicInteger();
     
-    public PeriodicEvictionThread(Database database, Client client, long blockSize, Collection<BenchmarkInterest> printers) {
-        this.database = database;
+    public PeriodicEvictionThread(CatalogContext catalogContext, Client client, long blockSize, Collection<BenchmarkInterest> printers) {
+        this.catalogContext = catalogContext;
         this.client = client;
         this.printers = printers;
         
-        Collection<Table> evictables = CatalogUtil.getEvictableTables(this.database);
+        Collection<Table> evictables = this.catalogContext.getEvictableTables();
         this.tableNames = new String[evictables.size()];
         this.evictionSize = new long[this.tableNames.length];
         int i = 0;
@@ -51,17 +49,16 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
     
     @Override
     public void run() {
-        int num_partitions = CatalogUtil.getNumberOfPartitions(database);
         if (this.callbacks.get() != 0) return;
-        this.callbacks.set(num_partitions);
+        this.callbacks.set(catalogContext.numberOfPartitions);
         
-        LOG.info("Invoking " + this.procName + " on " + num_partitions + " partitions");
+        LOG.info("Invoking " + this.procName + " on " + catalogContext.numberOfPartitions + " partitions");
         
         // Let all our BenchmarkInterests know that we are doing an eviction now
         for (BenchmarkInterest b : this.printers) {
             b.markEvictionStart();
         } // FOR
-        for (int p = 0; p < num_partitions; p++) {
+        for (int p = 0; p < catalogContext.numberOfPartitions; p++) {
             try {
                 this.client.callProcedure(this,
                                           this.procName,

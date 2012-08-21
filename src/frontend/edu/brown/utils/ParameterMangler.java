@@ -86,6 +86,11 @@ public class ParameterMangler {
         return ParameterMangler.toString(mangled, this.param_isarray);
     }
 
+    /**
+     * Thread-safe
+     * @param orig
+     * @return
+     */
     public Object[] convert(Object orig[]) {
         // Nothing!
         if (this.has_arrays == false)
@@ -101,7 +106,7 @@ public class ParameterMangler {
                 try {
                     switch (this.param_types[i]) {
                         case TINYINT: {
-                            byte arr[] = (byte[]) orig[i];
+                            Byte arr[] = (Byte[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];
@@ -109,7 +114,7 @@ public class ParameterMangler {
                             break;
                         }
                         case SMALLINT: {
-                            short arr[] = (short[]) orig[i];
+                            Short arr[] = (Short[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];
@@ -117,7 +122,7 @@ public class ParameterMangler {
                             break;
                         }
                         case INTEGER: {
-                            int arr[] = (int[]) orig[i];
+                            Integer arr[] = (Integer[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];
@@ -125,7 +130,7 @@ public class ParameterMangler {
                             break;
                         }
                         case BIGINT: {
-                            long arr[] = (long[]) orig[i];
+                            Long arr[] = (Long[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];
@@ -133,7 +138,7 @@ public class ParameterMangler {
                             break;
                         }
                         case FLOAT: {
-                            float arr[] = (float[]) orig[i];
+                            Double arr[] = (Double[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];

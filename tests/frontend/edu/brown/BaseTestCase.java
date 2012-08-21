@@ -654,7 +654,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * @param catalog_stmt
      * @return
      */
-    protected Object[] makeRandomStatementParameters(Statement catalog_stmt) {
+    protected Object[] randomStatementParameters(Statement catalog_stmt) {
         Object params[] = new Object[catalog_stmt.getParameters().size()];
         for (StmtParameter catalog_param : catalog_stmt.getParameters()) {
             VoltType vtype = VoltType.get(catalog_param.getJavatype());

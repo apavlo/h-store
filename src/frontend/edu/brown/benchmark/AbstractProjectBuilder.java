@@ -36,7 +36,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     }
 
     protected final Class<? extends AbstractProjectBuilder> base_class;
-    protected final Class<?> procedures[];
+    protected final Class<? extends VoltProcedure> procedures[];
     protected final Class<?> supplementals[];
     protected final String partitioning[][];
     
@@ -65,7 +65,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      * @param procedures
      * @param partitioning
      */
-    public AbstractProjectBuilder(String project_name, Class<? extends AbstractProjectBuilder> base_class, Class<?> procedures[], String partitioning[][]) {
+    public AbstractProjectBuilder(String project_name, Class<? extends AbstractProjectBuilder> base_class, Class<? extends VoltProcedure> procedures[], String partitioning[][]) {
         this(project_name, base_class, procedures, partitioning, new Class<?>[0], true);
     }
     
@@ -78,7 +78,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      * @param supplementals
      * @param fkeys
      */
-    public AbstractProjectBuilder(String project_name, Class<? extends AbstractProjectBuilder> base_class, Class<?> procedures[], String partitioning[][], Class<?> supplementals[], boolean fkeys) {
+    public AbstractProjectBuilder(String project_name, Class<? extends AbstractProjectBuilder> base_class, Class<? extends VoltProcedure> procedures[], String partitioning[][], Class<?> supplementals[], boolean fkeys) {
         super(project_name);
         this.base_class = base_class;
         this.procedures = procedures;
@@ -208,6 +208,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      * @return
      * @throws IOException
      */
+    @SuppressWarnings("unchecked")
     public Catalog createCatalog(boolean fkeys, boolean full_catalog) throws IOException {
         // compile a catalog
         if (full_catalog) {

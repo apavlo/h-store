@@ -124,7 +124,7 @@ public final class HStoreConf {
             defaultBoolean=true,
             experimental=false
         )
-        public String jvm_asserts;
+        public boolean jvm_asserts;
         
         @ConfigProperty(
             description="The amount of memory to allocate for each site process (in MB)",
@@ -240,6 +240,14 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean exec_force_singlepartitioned;
+        
+        @ConfigProperty(
+            description="Always execute all requests as distributed transactions that lock all " +
+                        "partitions in the cluster.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_force_allpartitions;
         
         @ConfigProperty(
             description="Use the VoltDB @ProcInfo annotations for stored procedures to determine whether " +
@@ -411,7 +419,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=true
         )
         public boolean specexec_idle;
@@ -528,8 +536,9 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable transaction profiling. This will measure the amount of time a transaction spends" +
-                        "in different parts of the system (e.g., waiting in the work queue, planning, executing).",
+            description="Enable transaction profiling. This will measure the amount of time a " +
+            		    "transaction spends in different parts of the system (e.g., waiting in " +
+            		    "the work queue, planning, executing).",
             defaultBoolean=false,
             experimental=false
         )
@@ -545,9 +554,9 @@ public final class HStoreConf {
         public boolean txn_counters;
         
         @ConfigProperty(
-            description="The amount of time the TransactionQueueManager will wait before letting a " +
-                        "distributed transaction id from aquiring a lock on a partition.",
-            defaultInt=1,
+            description="The amount of time in milliseconds that the TransactionQueueManager will wait " +
+            		    "before letting a distributed transaction acquire a lock on a partition.",
+            defaultInt=5,
             experimental=true
         )
         public int txn_incoming_delay;
@@ -581,6 +590,13 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         // Distributed Transaction Queue Options
         // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="Enable profiling in the TransactionQueueManager.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean queue_profiling;
         
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
@@ -1061,7 +1077,7 @@ public final class HStoreConf {
             defaultBoolean=true,
             experimental=false
         )
-        public String jvm_asserts;
+        public boolean jvm_asserts;
         
         @ConfigProperty(
             description="Additional JVM arguments to include when launching each benchmark client process. " +
@@ -1437,6 +1453,15 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "TransactionQueueManager profiling stats. Note that this will automatically enable " +
+                        "${site.queue_profiling}, which will affect the runtime performance.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_queue_profiling;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
                     "transaction profiling stats. Note that this will automatically enable " +
                     "${site.txn_profiling}, which will affect the runtime performance.",
             defaultNull=true,
@@ -1537,7 +1562,7 @@ public final class HStoreConf {
                 } catch (Exception ex) {
                     throw new RuntimeException(String.format("Failed to set default value '%s' for field '%s'", value, f.getName()), ex);
                 }
-//                System.err.println(String.format("%-20s = %s", f.getName(), value));
+                if (trace.get()) LOG.trace(String.format("%-20s = %s", f.getName(), value));
             } // FOR   
         }
         
@@ -1871,7 +1896,7 @@ public final class HStoreConf {
             try {
                 f = confClass.getField(f_name);
             } catch (Exception ex) {
-                if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
+                LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
             }
             ConfigProperty cp = handle.getConfigProperties().get(f);
@@ -1962,22 +1987,29 @@ public final class HStoreConf {
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
-            if (debug.get()) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type", v, k));
-            
-            if (f_class.equals(int.class)) {
-                value = Integer.parseInt(v);
-            } else if (f_class.equals(long.class)) {
-                value = Long.parseLong(v);
-            } else if (f_class.equals(double.class)) {
-                value = Double.parseDouble(v);
-            } else if (f_class.equals(boolean.class)) {
-                value = Boolean.parseBoolean(v);
-            } else if (f_class.equals(String.class)) {
-                value = v;
-            } else {
-                LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
+            if (debug.get()) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type [class=%s]",
+                                       v, k, f_class));
+
+            try {
+                if (f_class.equals(int.class) || f_class.equals(Integer.class)) {
+                    value = Integer.parseInt(v);
+                } else if (f_class.equals(long.class) || f_class.equals(Long.class)) {
+                    value = Long.parseLong(v);
+                } else if (f_class.equals(double.class) || f_class.equals(Double.class)) {
+                    value = Double.parseDouble(v);
+                } else if (f_class.equals(boolean.class) || f_class.equals(Boolean.class)) {
+                    value = Boolean.parseBoolean(v.toLowerCase());
+                } else if (f_class.equals(String.class)) {
+                    value = v;
+                } else {
+                    LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
+                    continue;
+                }
+            } catch (Exception ex) {
+                LOG.error(String.format("Invalid value '%s' for configuration parameter '%s'", v, k), ex);
                 continue;
             }
+            if (debug.get()) LOG.debug(String.format("CAST %s => %s", k, value));
            
             this.set(handle, f, value);
             this.markAsExternal(handle, f_name);
@@ -1989,7 +2021,11 @@ public final class HStoreConf {
         for (Conf confHandle : this.externalParams.keySet()) {
             for (String f_name : this.externalParams.get(confHandle)) {
                 Object val = confHandle.getValue(f_name);
-                if (val != null) m.put(String.format("%s.%s", confHandle.prefix, f_name), val.toString());
+                if (val != null) {
+                    String key = String.format("%s.%s", confHandle.prefix, f_name);
+                    if (trace.get()) LOG.trace(String.format("LOADED %s => %s", key, val.toString()));
+                    m.put(key, val.toString());
+                }
             } // FOR
         } // FOR
         return (m);

@@ -25,6 +25,7 @@ package org.voltdb.benchmark.dedupe;
 
 import java.net.URL;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.dedupe.procedures.Insert;
 import org.voltdb.benchmark.dedupe.procedures.Archive;
 import org.voltdb.benchmark.dedupe.procedures.Delete;
@@ -33,11 +34,12 @@ import org.voltdb.compiler.VoltProjectBuilder;
 
 public class ProjectBuilderX extends VoltProjectBuilder {
 
-    public static final Class<?> m_procedures[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> m_procedures[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         Insert.class,
         Archive.class,
         Delete.class,
-        };
+    };
 
     public static final Class<?> m_supplementalClasses[] = new Class<?>[] {
         ClientBenchmark.class,

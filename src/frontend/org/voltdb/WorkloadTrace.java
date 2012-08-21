@@ -78,14 +78,6 @@ public interface WorkloadTrace {
     // ---------------------------------------------------------------------
 
     /**
-     * For the given transaction handle, get the next query batch id (starting at zero)
-     *
-     * @param xact_handle - the transaction handle created by startTransaction()
-     * @return the next query batch id for a transaction
-     */
-    public int getNextBatchId(Object xact_handle);
-
-    /**
      * Set the catalog for monitoring
      * This must be set before starting any trace operations
      *

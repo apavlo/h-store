@@ -148,20 +148,56 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     
     private final boolean prepared[];
     private final boolean finished[];
-    private final long last_undo_token[];
     protected final RoundState round_state[];
     protected final int round_ctr[];
-    
-    /** Whether this transaction has been read-only so far */
-    protected final boolean exec_readOnly[];
-    
-    /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
-    protected final boolean exec_eeWork[];
-    
-    /** This is set to true if the transaction did some work without an undo buffer **/
+
+    /**
+     * The first undo token used at each local partition
+     * When we abort a txn we will need to give the EE this value
+     */
+    private final long exec_firstUndoToken[];
+    /**
+     * The last undo token used at each local partition
+     * When we commit a txn we will need to give the EE this value 
+     */
+    private final long exec_lastUndoToken[];
+    /**
+     * This is set to true if the transaction did some work without an undo 
+     * buffer at a local partition. This is used to just check that we aren't 
+     * trying to rollback changes without having used the undo log.
+     */
     private final boolean exec_noUndoBuffer[];
     
+    /**
+     * Whether this transaction has been read-only so far on a local partition
+     */
+    protected final boolean exec_readOnly[];
+    
+    /**
+     * Whether this Transaction has queued work that may need to be removed
+     * from this partition
+     */
+    protected final boolean exec_queueWork[];
+    
+    /**
+     * Whether this Transaction has submitted work to the EE that may need to be 
+     * rolled back on a local partition
+     */
+    protected final boolean exec_eeWork[];
+    
+    /**
+     * BitSets for whether this txn has read from a particular table on each
+     * local partition.
+     * PartitionId -> TableId 
+     */
     protected final BitSet readTables[];
+    
+    /**
+     * BitSets for whether this txn has executed a modifying query against a particular table
+     * on each partition. Note that it does not actually record whether any rows were changed,
+     * but just we executed a query that targeted that table.
+     * PartitionId -> TableId
+     */
     protected final BitSet writeTables[];
     
     // ----------------------------------------------------------------------------
@@ -178,11 +214,14 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         int numLocalPartitions = hstore_site.getLocalPartitionIdArray().length;
         this.prepared = new boolean[numLocalPartitions];
         this.finished = new boolean[numLocalPartitions];
-        this.last_undo_token = new long[numLocalPartitions];
         this.round_state = new RoundState[numLocalPartitions];
         this.round_ctr = new int[numLocalPartitions];
         this.exec_readOnly = new boolean[numLocalPartitions];
+        this.exec_queueWork = new boolean[numLocalPartitions];
         this.exec_eeWork = new boolean[numLocalPartitions];
+        
+        this.exec_firstUndoToken = new long[numLocalPartitions];
+        this.exec_lastUndoToken = new long[numLocalPartitions];
         this.exec_noUndoBuffer = new boolean[numLocalPartitions];
         
         this.finish_task = new FinishTxnMessage(this, Status.OK);
@@ -190,14 +229,17 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         
         this.readTables = new BitSet[numLocalPartitions];
         this.writeTables = new BitSet[numLocalPartitions];
-        int num_tables = hstore_site.getDatabase().getTables().size();
+        int num_tables = hstore_site.getCatalogContext().database.getTables().size();
         for (int i = 0; i < numLocalPartitions; i++) {
             this.readTables[i] = new BitSet(num_tables);
             this.writeTables[i] = new BitSet(num_tables);
         } // FOR
         
-        Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+        Arrays.fill(this.exec_firstUndoToken, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+        Arrays.fill(this.exec_lastUndoToken, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_readOnly, true);
+        Arrays.fill(this.exec_queueWork, false);
+        Arrays.fill(this.exec_eeWork, false);
     }
 
     /**
@@ -256,7 +298,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         // If this transaction handle was keeping track of pre-fetched queries,
         // then go ahead and reset those state variables.
         if (this.prefetch != null) {
-            hstore_site.getObjectPools().getPrefetchStatePool(this.base_partition).returnObject(this.prefetch);
+            hstore_site.getObjectPools()
+                       .getPrefetchStatePool(this.base_partition)
+                       .returnObject(this.prefetch);
             this.prefetch = null;
         }
         
@@ -265,9 +309,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.finished[i] = false;
             this.round_state[i] = null;
             this.round_ctr[i] = 0;
-            this.last_undo_token[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
             this.exec_readOnly[i] = true;
+            this.exec_queueWork[i] = false;
             this.exec_eeWork[i] = false;
+            this.exec_firstUndoToken[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
+            this.exec_lastUndoToken[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
             this.exec_noUndoBuffer[i] = false;
             
             this.readTables[i].clear();
@@ -305,7 +351,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Must be called once before one can add new FragmentTaskMessages for this txn 
+     * Must be called once before one can add new WorkFragments for this txn
+     * This will always clear out any pending errors 
      * @param undoToken
      */
     public void initRound(int partition, long undoToken) {
@@ -314,32 +361,43 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
                           this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
-        if (this.last_undo_token[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || 
+        // If we get to this point, then we know that nobody cares about any 
+        // errors from the previous round, therefore we can just clear it out
+        this.pending_error = null;
+        
+        if (this.exec_lastUndoToken[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || 
             undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
-            this.last_undo_token[offset] = undoToken;
+            // LAST UNDO TOKEN
+            this.exec_lastUndoToken[offset] = undoToken;
+            
+            // FIRST UNDO TOKEN
+            if (this.exec_firstUndoToken[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN) { 
+                this.exec_firstUndoToken[offset] = undoToken;
+            }
         }
+        // NO UNDO LOGGING
         if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
             this.exec_noUndoBuffer[offset] = true;
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
         if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d]",
-                                       this, this.round_ctr[offset], partition, undoToken));
+                         this, this.round_ctr[offset], partition, undoToken));
     }
     
     /**
-     * Called once all of the FragmentTaskMessages have been submitted for this txn
+     * Called once all of the WorkFragments have been submitted for this txn
      * @return
      */
     public void startRound(int partition) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.round_state[offset] == RoundState.INITIALIZED) :
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
-                    this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
+                          this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
         this.round_state[offset] = RoundState.STARTED;
         if (d) LOG.debug(String.format("%s - Starting batch ROUND #%d on partition %d",
-                                       this, this.round_ctr[offset], partition));
+                         this, this.round_ctr[offset], partition));
     }
     
     /**
@@ -353,7 +411,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
                           this.round_state[offset], this, partition);
         
         if (d) LOG.debug(String.format("%s - Finishing batch ROUND #%d on partition %d",
-                                       this, this.round_ctr[offset], partition));
+                         this, this.round_ctr[offset], partition));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
     }
@@ -415,6 +473,26 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (this.base_partition == partition);
     }
     
+    /**
+     * Returns true if this transaction has done something at this partition and therefore
+     * the PartitionExecutor needs to be told that they are finished
+     * This could be either executing a query or executing the transaction's control code
+     */
+    public boolean needsFinish(int partition) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        return (this.round_state[offset] != null || this.exec_queueWork[offset]);
+        
+//        // If this is the base partition, check to see whether it has
+//        // even executed the procedure control code
+//        if (this.base_partition == partition) {
+//            return (this.round_state[offset] != null);
+//        }
+//        // Otherwise check whether they have executed a query that
+//        else {
+//            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+//        }
+    }
+    
     // ----------------------------------------------------------------------------
     // GENERAL METHODS
     // ----------------------------------------------------------------------------
@@ -461,27 +539,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     /**
-     * Returns true if this transaction has done something at this partition and therefore
-     * the PartitionExecutor needs to be told that they are finished
-     * This could be either executing a query or executing the transaction's control code
-     */
-    public boolean needsFinish(int partition) {
-        int offset = hstore_site.getLocalPartitionOffset(partition);
-        
-        return (this.round_state[offset] != null);
-        
-//        // If this is the base partition, check to see whether it has
-//        // even executed the procedure control code
-//        if (this.base_partition == partition) {
-//            return (this.round_state[offset] != null);
-//        }
-//        // Otherwise check whether they have executed a query that
-//        else {
-//            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
-//        }
-    }
-    
-    /**
      * Return a TransactionCleanupCallback
      * Note that this will be null for LocalTransactions
      */
@@ -489,12 +546,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (null);
     }
     
-    /**
-     * Get the current batch/round counter
-     */
-    public int getCurrentRound(int partition) {
-        return (this.round_ctr[hstore_site.getLocalPartitionOffset(partition)]);
-    }
+
     
     /**
      * Returns true if this transaction has a pending error
@@ -521,7 +573,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (d) LOG.debug("__FILE__:__LINE__ " +"Got error for txn #" + this.txn_id + " - " + error.getMessage());
+            if (d) LOG.warn(String.format("%s - Got %s error for txn: %s",
+                            this, error.getClass().getSimpleName(), error.getMessage()));
             this.pending_error = error;
         }
     }
@@ -571,20 +624,37 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     /**
      * Should be called whenever the txn submits work to the EE 
      */
-    public void setSubmittedEE(int partition) {
+    public void markQueuedWork(int partition) {
+        if (d) LOG.debug(String.format("%s - Marking as having queued work on partition %d [exec_queueWork=%s]",
+                         this, partition, Arrays.toString(this.exec_queueWork)));
+        this.exec_queueWork[hstore_site.getLocalPartitionOffset(partition)] = true;
+    }
+    
+    /**
+     * Returns true if this txn has queued work at the given partition
+     * @return
+     */
+    public boolean hasQueuedWork(int partition) {
+        return (this.exec_queueWork[hstore_site.getLocalPartitionOffset(partition)]);
+    }
+    
+    /**
+     * Should be called whenever the txn submits work to the EE 
+     */
+    public void markExecutedWork(int partition) {
         if (d) LOG.debug(String.format("%s - Marking as having submitted to the EE on partition %d [exec_eeWork=%s]",
-                                       this, partition, Arrays.toString(this.exec_eeWork)));
+                         this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
     
-    public void unsetSubmittedEE(int partition) {
+    public void unmarkExecutedWork(int partition) {
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = false;
     }
     /**
      * Returns true if this txn has submitted work to the EE that needs to be rolled back
      * @return
      */
-    public boolean hasSubmittedEE(int partition) {
+    public boolean hasExecutedWork(int partition) {
         return (this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)]);
     }
     
@@ -697,11 +767,20 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected RoundState getCurrentRoundState(int partition) {
         return (this.round_state[hstore_site.getLocalPartitionOffset(partition)]);
     }
+    
+    /**
+     * Get the first undo token used for this transaction
+     * When we ABORT a txn we will need to give the EE this value
+     */
+    public long getFirstUndoToken(int partition) {
+        return this.exec_firstUndoToken[hstore_site.getLocalPartitionOffset(partition)];
+    }
     /**
      * Get the last undo token used for this transaction
+     * When we COMMIT a txn we will need to give the EE this value
      */
     public long getLastUndoToken(int partition) {
-        return this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)];
+        return this.exec_lastUndoToken[hstore_site.getLocalPartitionOffset(partition)];
     }
     
     // ----------------------------------------------------------------------------
@@ -714,7 +793,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     public ParameterSet[] getAttachedParameterSets() {
-        assert(this.attached_parameterSets != null);
+        assert(this.attached_parameterSets != null) :
+            String.format("The attached ParameterSets for %s is null?", this);
         return (this.attached_parameterSets);
     }
     
@@ -742,7 +822,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public final void initializePrefetch() {
         if (this.prefetch == null) {
             try {
-                this.prefetch = hstore_site.getObjectPools().getPrefetchStatePool(base_partition).borrowObject();
+                this.prefetch = hstore_site.getObjectPools()
+                                           .getPrefetchStatePool(this.base_partition)
+                                           .borrowObject();
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize PrefetchState for " + this, ex);
             }
@@ -799,26 +881,45 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.prefetch.partitions.set(offset);
     }
     
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Get the current round counter at the given partition.
+     * Note that a round is different than a batch. A "batch" contains multiple queries
+     * that the txn wants to execute, of which their PlanFragments are broken
+     * up into separate execution "rounds" in the PartitionExecutor.
+     */
+    protected int getCurrentRound(int partition) {
+        return (this.round_ctr[hstore_site.getLocalPartitionOffset(partition)]);
+    }
 
     @Override
-    public String toString() {
+    public final String toString() {
+        String str = null;
         if (this.isInitialized()) {
-            return "Txn #" + this.txn_id;
+            str = this.toStringImpl();
         } else {
-            return ("<Uninitialized>");
+            str = String.format("<Uninitialized-%s>", this.getClass().getSimpleName());
         }
+        // Include hashCode for debugging
+        str += "/" + this.hashCode();
+        return (str);
     }
     
+    public abstract String toStringImpl();
     public abstract String debug();
     
     protected Map<String, Object> getDebugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
+        m.put("Procedure", hstore_site.getCatalogContext().getProcedureById(this.proc_id));
         m.put("Hash Code", this.hashCode());
         m.put("SysProc", this.sysproc);
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
-        m.put("Last UndoToken", Arrays.toString(this.last_undo_token));
+        m.put("Last UndoToken", Arrays.toString(this.exec_lastUndoToken));
         m.put("# of Rounds", Arrays.toString(this.round_ctr));
         m.put("Executed Work", Arrays.toString(this.exec_eeWork));
         if (this.pending_error != null)

@@ -113,7 +113,7 @@ public class TestHStoreSite extends BaseTestCase {
         
         // Now try invoking @Statistics to get back more information
         params = new Object[]{ SysProcSelector.TXNCOUNTER.name(), 0 };
-        cr = this.client.callProcedure(VoltSystemProcedure.getProcCallName(Statistics.class), params);
+        cr = this.client.callProcedure(VoltSystemProcedure.procCallName(Statistics.class), params);
 //        System.err.println(cr);
         assertNotNull(cr);
         assertEquals(Status.OK, cr.getStatus());
@@ -161,7 +161,7 @@ public class TestHStoreSite extends BaseTestCase {
         
         // Now try invoking @Statistics to get back more information
         params = new Object[]{ SysProcSelector.TXNPROFILER.name(), 0 };
-        cr = this.client.callProcedure(VoltSystemProcedure.getProcCallName(Statistics.class), params);
+        cr = this.client.callProcedure(VoltSystemProcedure.procCallName(Statistics.class), params);
         System.err.println(cr);
         assertNotNull(cr);
         assertEquals(Status.OK, cr.getStatus());

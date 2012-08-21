@@ -23,11 +23,11 @@
 
 package org.voltdb.regressionsuites;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.Test;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.Client;
 import org.voltdb.client.ProcedureCallback;
@@ -39,7 +39,8 @@ import edu.brown.hstore.Hstoreservice.Status;
 public class TestSneakyExecutionOrderSuite extends RegressionSuite {
 
     // procedures used by these tests
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         MultiPartition.class, SinglePartition.class
     };
 

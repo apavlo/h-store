@@ -24,6 +24,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.ThrottlingQueue;
@@ -32,7 +33,6 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.profilers.HStoreSiteProfiler;
@@ -44,6 +44,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ExceptionHandlingRunnable;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -66,9 +67,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
     
     
-//    private static final Pattern THREAD_REGEX = Pattern.compile("(edu\\.brown|edu\\.mit|org\\.voltdb)");
-    
-
     private static final Set<TransactionCounter> TXNINFO_COL_DELIMITERS = new HashSet<TransactionCounter>();
     private static final Set<TransactionCounter> TXNINFO_ALWAYS_SHOW = new HashSet<TransactionCounter>();
     private static final Set<TransactionCounter> TXNINFO_EXCLUDES = new HashSet<TransactionCounter>();
@@ -181,7 +179,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         this.header.put("Number of Partitions", this.executors.size());
         
         // Pre-Compute TransactionProfile Information
-        this.initTxnProfileInfo(hstore_site.getDatabase());
+        this.initTxnProfileInfo(hstore_site.getCatalogContext().database);
     }
     
     @Override
@@ -211,7 +209,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     
     private void printStatus() {
         LOG.info("STATUS #" + this.snapshot_ctr.incrementAndGet() + "\n" +
-                 StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
+                 StringBoxUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
                                               hstore_conf.site.status_show_executor_info,
                                               hstore_conf.site.status_show_thread_info,
                                               hstore_conf.site.pool_profiling)));
@@ -446,6 +444,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // EXECUTION ENGINES
         Map<Integer, String> partitionLabels = new HashMap<Integer, String>();
         Histogram<Integer> invokedTxns = new Histogram<Integer>();
+        String status = null;
+        Long txn_id = null;
+        ProfileMeasurement last = null;
         for (Entry<Integer, PartitionExecutor> e : this.executors.entrySet()) {
             int partition = e.getKey().intValue();
             String partitionLabel = String.format("%02d", partition);
@@ -455,29 +456,40 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             PartitionExecutor.Debug dbg = es.getDebugContext();
             ThrottlingQueue<?> es_queue = dbg.getWorkQueue();
             ThrottlingQueue<?> dtxn_queue = queueManagerDebug.getInitQueue(partition);
-            AbstractTransaction current_dtxn = es.getCurrentDtxn();
+            AbstractTransaction current_dtxn = dbg.getCurrentDtxn();
             
             // Queue Information
             Map<String, Object> m = new LinkedHashMap<String, Object>();
             
+            // Header
             m.put(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
                                     es_queue.size(),
-                                    es.getWorkQueueSize(),
-                                    es.getBlockedQueueSize(),
-                                    es.getWaitingQueueSize()), null);
+                                    dbg.getWorkQueueSize(),
+                                    dbg.getBlockedQueueSize(),
+                                    dbg.getWaitingQueueSize()), null);
             
             // Execution Info
-            String status = null;
-            status = String.format("%-5s [limit=%d, release=%d]%s / ",
+            status = String.format("%-5s [limit=%d, release=%d] %s",
                                    es_queue.size(), es_queue.getQueueMax(), es_queue.getQueueRelease(),
-                                   (es_queue.isThrottled() ? " *THROTTLED*" : ""));
+                                   (es_queue.isThrottled() ? "*THROTTLED* " : ""));
             m.put("Exec Queue", status);
             
+            txn_id = dbg.getCurrentTxnId();
+            m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), dbg.getExecutionMode()));
+            m.put("Current DTXN", (current_dtxn == null ? "-" : current_dtxn));
+            
+            txn_id = dbg.getLastExecutedTxnId();
+            m.put("Last Executed Txn", (txn_id != null ? "#"+txn_id : "-"));
+            
+            txn_id = dbg.getLastCommittedTxnId();
+            m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
+            
+            
             // TransactionQueueManager Info
-            status = String.format("%-5s [limit=%d, release=%d]%s / ",
+            status = String.format("%-5s [limit=%d, release=%d] %s",
                                    dtxn_queue.size(), dtxn_queue.getQueueMax(), dtxn_queue.getQueueRelease(),
-                                   (dtxn_queue.isThrottled() ? " *THROTTLED*" : ""));
-            Long txn_id = queueManager.getCurrentTransaction(partition);
+                                   (dtxn_queue.isThrottled() ? "*THROTTLED* " : ""));
+            txn_id = queueManagerDebug.getCurrentTransaction(partition);
             if (txn_id != null) {
                 TransactionInitQueueCallback callback = queueManagerDebug.getInitCallback(txn_id);
                 int len = status.length();
@@ -492,20 +504,20 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 
                 if (callback != null) {
                     status += "\n" + StringUtil.repeat(" ", len);
-                    status += String.format("Partitions=%s / Remaining=%d", callback.getPartitions(), callback.getCounter());
+                    status += String.format("Partitions=%s / Remaining=%d",
+                                            callback.getPartitions(), callback.getCounter());
                 }
+            }
+            // TransactionQueueManager - Blocked
+            if (queueManagerDebug.getBlockedQueueSize() > 0) {
+                status += "\nBlocked: " + queueManagerDebug.getBlockedQueueSize();
+            }
+            // TransactionQueueManager - Requeued Txns
+            if (queueManagerDebug.getRestartQueueSize() > 0) {
+                status += "\nRequeues: " + queueManagerDebug.getRestartQueueSize();
             }
             m.put("DTXN Queue", status);
             
-            // TransactionQueueManager - Blocked
-            if (queueManagerDebug.getBlockedQueueSize() > 0) {
-                m.put("Blocked Transactions", queueManagerDebug.getBlockedQueueSize());
-            }
-            
-            // TransactionQueueManager - Requeued Txns
-            if (queueManagerDebug.getRestartQueueSize() > 0) {
-                m.put("Waiting Requeues", queueManagerDebug.getRestartQueueSize());
-            }
             
 //            if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
 //                LOG.warn(String.format("Partition %d is throttled when it should not be! [inflight=%d, release=%d]",
@@ -514,18 +526,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
             
             if (hstore_conf.site.exec_profiling) {
-                ProfileMeasurement last = null;
-                txn_id = es.getCurrentTxnId();
-                m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), es.getExecutionMode()));
-                
-                m.put("Current DTXN", (current_dtxn == null ? "-" : current_dtxn));
-                
-                txn_id = es.getLastExecutedTxnId();
-                m.put("Last Executed Txn", (txn_id != null ? "#"+txn_id : "-"));
-                
-                txn_id = es.getLastCommittedTxnId();
-                m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
-                
                 PartitionExecutorProfiler profiler = dbg.getProfiler();
                 
                 // Execution Time
@@ -533,7 +533,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 last = lastExecTxnTimes.get(es);
                 m.put("Txn Execution", this.formatProfileMeasurements(pm, last, true, true)); 
                 this.lastExecTxnTimes.put(es, new ProfileMeasurement(pm));
-                invokedTxns.put(partition, (int)es.getTransactionCounter());
+                invokedTxns.put(partition, (int)profiler.exec_time.getInvocations());
                 totalExecTxnTime.appendTime(pm);
                 
                 // Idle Time
@@ -710,7 +710,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         ProfileMeasurement final_totals[] = null;
         int num_cols = 0;
         for (BatchPlanner bp : bps) {
-            ProfileMeasurement times[] = bp.getProfileTimes();
+            ProfileMeasurement times[] = bp.getProfiler().getProfileMeasurements();
             
             Procedure catalog_proc = bp.getProcedure();
             ProfileMeasurement totals[] = proc_totals.get(catalog_proc);
@@ -979,10 +979,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Map<String, TypedObjectPool<?>> pools = hstore_site.getObjectPools().getGlobalPools(); 
         
         // MarkovPathEstimators
-        pools.put("Estimators", (TypedObjectPool<?>)TransactionEstimator.POOL_ESTIMATORS); 
+        pools.put("Estimators", (TypedObjectPool<?>)MarkovEstimator.POOL_ESTIMATORS); 
 
         // TransactionEstimator.States
-        pools.put("EstimationStates", (TypedObjectPool<?>)TransactionEstimator.POOL_STATES);
+        pools.put("EstimationStates", (TypedObjectPool<?>)MarkovEstimator.POOL_STATES);
         
         final Map<String, Object> m_pool = new LinkedHashMap<String, Object>();
         for (String key : pools.keySet()) {

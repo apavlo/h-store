@@ -267,6 +267,7 @@ public abstract class WorkloadUtil {
         final Database catalog_db;
         final OutputStream output;
         final LinkedBlockingDeque<TransactionTrace> traces = new LinkedBlockingDeque<TransactionTrace>();
+        static final byte[] newline = "\n".getBytes();
         
         public WriteThread(Database catalog_db, OutputStream output) {
             this.catalog_db = catalog_db;
@@ -292,7 +293,7 @@ public abstract class WorkloadUtil {
         public static void write(Database catalog_db, TransactionTrace xact, OutputStream output) {
             try {
                 output.write(xact.toJSONString(catalog_db).getBytes());
-                output.write("\n".getBytes());
+                output.write(newline);
                 output.flush();
                 if (debug.get()) Workload.LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
             } catch (IOException ex) {

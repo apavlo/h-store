@@ -65,7 +65,7 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
         }
         
         // ARRAYLENGTH(S_W_IDS)
-        Object arr[] = (Object[])params[5];
+        short arr[] = (short[])params[5];
         int arr_len = arr.length;
         
         // SAMEVALUE(S_W_IDS)

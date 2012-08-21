@@ -19,6 +19,7 @@ package org.voltdb;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -194,6 +195,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                                                         .addFragmentId(pf.fragmentId)
                                                         .addStmtIndex(0)
                                                         .addParamIndex(i);
+                ts.getTouchedPartitions().put(destPartitionId);
                 
                 // Input Dependencies
                 boolean needs_input = false;
@@ -233,8 +235,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
      * is the first partition at this HStoreSite
      * @return
      */
-    protected final boolean isFirstLocalPartition() { 
-        return (CollectionUtil.first(hstore_site.getLocalPartitionIds()) == this.partitionId);
+    protected final boolean isFirstLocalPartition() {
+        return (Collections.min(hstore_site.getLocalPartitionIds()) == this.partitionId);
     }
     
     /**
@@ -280,7 +282,15 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         
         int i = 0;
         for (Site catalog_site : catalogContext.sites.values()) {
-            Partition catalog_part = CollectionUtil.first(catalog_site.getPartitions());
+            Partition catalog_part = null;
+            int first_id = Integer.MAX_VALUE;
+            for (Partition p : catalog_site.getPartitions().values()) {
+                if (catalog_part == null || p.getId() < first_id) {
+                    catalog_part = p;
+                    first_id = p.getId();
+                }
+            } // FOr
+            assert(catalog_part != null) : "No partitions for " + catalog_site;
             pfs[i] = new SynthesizedPlanFragment();
             pfs[i].fragmentId = distributeId;
             pfs[i].inputDependencyIds = new int[] { };
@@ -347,7 +357,13 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         return (this.executeSysProcPlanFragments(pfs, aggregateId));
     }
     
-    public static final String getProcCallName(Class<? extends VoltSystemProcedure> procClass) {
+    /**
+     * Returns the formatted procedure name to use to invoke the given sysproc class
+     * This is what is passed into the client
+     * @param procClass
+     * @return
+     */
+    public static final String procCallName(Class<? extends VoltSystemProcedure> procClass) {
         return "@" + procClass.getSimpleName();
     }
 }

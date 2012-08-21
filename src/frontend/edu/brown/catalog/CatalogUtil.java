@@ -19,6 +19,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
@@ -292,6 +293,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
     /**
      * Loads a serialized catalog specification from a jar file and creates a
+     * new CatalogContext object from it
+     * @param jar_path
+     */
+    public static CatalogContext loadCatalogContextFromJar(File jar_path) {
+        Catalog catalog = CatalogUtil.loadCatalogFromJar(jar_path.getAbsolutePath());
+        return new CatalogContext(catalog, jar_path);
+    }
+    
+    /**
+     * Loads a serialized catalog specification from a jar file and creates a
      * new Catalog object from it
      * 
      * @param jar_path
@@ -364,7 +375,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             FileUtil.writeStringToFile(file, catalog.serialize());
         } catch (Exception ex) {
             ex.printStackTrace();
-            System.exit(1);
+            throw new RuntimeException(ex);
         }
         LOG.info("Wrote catalog contents to '" + file.getAbsolutePath() + "'");
         return (file);
@@ -1600,7 +1611,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, node, columns, modified, readOnly);
                 } catch (Exception ex) {
                     LOG.fatal("Failed to extract columns from " + node, ex);
-                    System.exit(1);
+                    throw new RuntimeException(ex);
                 }
                 return;
             }
@@ -2102,7 +2113,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     this._callback(node);
                 } catch (Exception ex) {
                     ex.printStackTrace();
-                    System.exit(1);
+                    throw new RuntimeException(ex);
                 }
             }
 
@@ -2651,7 +2662,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 ret += "FRAGMENT " + catalog_frgmt.getName() + "\n" + jsonObject.toString(2) + line;
             } catch (Exception ex) {
                 ex.printStackTrace();
-                System.exit(1);
+                throw new RuntimeException(ex);
             }
         } // FOR
         return (ret);

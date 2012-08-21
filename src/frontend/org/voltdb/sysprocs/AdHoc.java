@@ -24,13 +24,11 @@ import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.dtxn.DtxnConstants;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 
 /**
@@ -68,7 +66,7 @@ public class AdHoc extends VoltSystemProcedure {
 
         VoltTable table = null;
 
-        if (VoltDB.getEEBackendType() == BackendTarget.HSQLDB_BACKEND) {
+        if (executor.getBackendTarget() == BackendTarget.HSQLDB_BACKEND) {
             // Call HSQLDB
             assert(sql != null);
             // table = m_hsql.runDML(sql);
@@ -76,11 +74,16 @@ public class AdHoc extends VoltSystemProcedure {
         else
         {
             assert(plan != null);
-            table =
-                context.getExecutionEngine().
+            
+            // Always mark this information for the txn so that we can
+            // rollback anything that it may do
+            m_currentTxnState.markExecNotReadOnly(this.partitionId);
+            m_currentTxnState.markExecutedWork(this.partitionId);
+            
+            table = context.getExecutionEngine().
                 executeCustomPlanFragment(plan, outputDepId, inputDepId, getTransactionId(),
                                           context.getLastCommittedTxnId(),
-                                          context.getNextUndo());
+                                          m_currentTxnState.getLastUndoToken(this.partitionId));
         }
 
         return new DependencySet(new int[]{ outputDepId }, new VoltTable[]{ table });
@@ -111,7 +114,7 @@ public class AdHoc extends VoltSystemProcedure {
         SynthesizedPlanFragment[] pfs = null;
         VoltTable[] results = null;
         ParameterSet params = null;
-        if (VoltDB.getEEBackendType() == BackendTarget.HSQLDB_BACKEND) {
+        if (executor.getBackendTarget() == BackendTarget.HSQLDB_BACKEND) {
             pfs = new SynthesizedPlanFragment[1];
 
             // JUST SEND ONE FRAGMENT TO HSQL, IT'LL IGNORE EVERYTHING BUT SQL AND DEPID
@@ -165,7 +168,7 @@ public class AdHoc extends VoltSystemProcedure {
         if (replicatedTableDML) {
             assert(results.length == 1);
             long changedTuples = results[0].asScalarLong();
-            int num_partitions = CatalogUtil.getNumberOfPartitions(database);
+            int num_partitions = catalogContext.numberOfPartitions;
             assert((changedTuples % num_partitions) == 0);
 
             VoltTable retval = new VoltTable(new VoltTable.ColumnInfo("", VoltType.BIGINT));

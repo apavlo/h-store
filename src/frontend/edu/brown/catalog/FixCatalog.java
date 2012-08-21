@@ -19,6 +19,7 @@ import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -82,7 +83,7 @@ public abstract class FixCatalog {
         catalog_clus.getSites().clear();
         for (String host : cc.getHosts()) {
             if (LOCALHOST_TYPOS.contains(host)) {
-                String msg = StringUtil.box(String.format("POSSIBLE TYPO IN HOSTNAME '%s'. " +
+                String msg = StringBoxUtil.box(String.format("POSSIBLE TYPO IN HOSTNAME '%s'. " +
                 		                                  "DID YOU MEAN 'localhost'?", host));
                 LOG.warn("");
                 for (String line : StringUtil.splitLines(msg)) {

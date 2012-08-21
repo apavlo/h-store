@@ -37,6 +37,8 @@ public class HStoreThreadManager {
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     
+    private boolean disable;
+    
     private final ScheduledThreadPoolExecutor m_periodicWorkThread;
     private final int num_partitions;
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
@@ -44,7 +46,6 @@ public class HStoreThreadManager {
     private final Set<Thread> all_threads = new HashSet<Thread>();
     private final Map<Integer, Set<Thread>> cpu_threads = new HashMap<Integer, Set<Thread>>();
     private final int ee_core_offset;
-    private boolean disable;
     
     private final Map<String, boolean[]> utilityAffinities = new HashMap<String, boolean[]>();
     private final String utility_suffixes[] = {
@@ -62,11 +63,11 @@ public class HStoreThreadManager {
         this.num_partitions = this.hstore_site.getLocalPartitionIds().size();
         
         // Periodic Work Thread
-        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor(HStoreConstants.THREAD_NAME_PERIODIC,
+        String threadName = getThreadName(hstore_site, HStoreConstants.THREAD_NAME_PERIODIC);
+        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor(threadName,
                                                                               hstore_site.getExceptionHandler(),
                                                                               1,
                                                                               1024 * 128);
-        
         
         this.defaultAffinity = new boolean[this.num_cores];
         Arrays.fill(this.defaultAffinity, true);
@@ -75,7 +76,6 @@ public class HStoreThreadManager {
         // is always used for internal system threads. So if we put anything
         // import on the first core, then it will always run slower.
         if (this.num_cores > 4 && this.num_partitions < this.num_cores) {
-            this.defaultAffinity[0] = false;
             this.ee_core_offset = 1;
         } else {
             this.ee_core_offset = 0;
@@ -163,20 +163,19 @@ public class HStoreThreadManager {
      * Set the CPU affinity for the EE thread executing for the given partition
      * @param partition
      */
-    public void registerEEThread(Partition partition) {
-        if (this.disable) return;
+    public boolean registerEEThread(Partition partition) {
+        if (this.disable) return (false);
         
         Thread t = Thread.currentThread();
         boolean affinity[] = null;
         try {
             affinity = org.voltdb.utils.ThreadUtils.getThreadAffinity();
-            
-        // This doesn't seem to work on newer versions of OSX, so we'll
-        // just disable it
+        // This doesn't seem to work on newer versions of OSX, so we'll just disable it
         } catch (UnsatisfiedLinkError ex) {
-            LOG.warn("Unable to set CPU affinity for " + partition + ". Disabling feature in ExecutionEngine", ex);
+            LOG.warn("Unable to set CPU affinity for the ExecutionEngine thread for partition" + partition + ". " +
+            		 "Disabling feature in ExecutionEngine", ex);
             this.disable = true;
-            return;
+            return (false);
         }
         assert(affinity != null);
         Arrays.fill(affinity, false);
@@ -197,7 +196,11 @@ public class HStoreThreadManager {
             LOG.debug(String.format("Registering EE Thread %s to execute on CPUs %s",
                                     t.getName(), this.getCPUIds(affinity)));
         
-        org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity);
+        this.disable = (org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity) == false);
+        if (this.disable) {
+            LOG.warn("Unable to set CPU affinity for thread '" + t.getName() + "'. Disabling feature");
+            return (false);
+        }
         this.registerThread(affinity);
         
         final boolean endingAffinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
@@ -205,6 +208,9 @@ public class HStoreThreadManager {
             if (trace.get() && endingAffinity[ii]) LOG.trace(String.format("NEW AFFINITY %s -> CPU[%d]", partition, ii));
             affinity[ii] = false;
         } // FOR
+        if (debug.get()) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
+                                   t.getName(), this.getCPUIds(affinity)));
+        return (true);
     }
     
     /**
@@ -228,14 +234,20 @@ public class HStoreThreadManager {
         // If this fails (such as on OS X for some weird reason), we'll
         // just print a warning rather than crash
         try {
-            org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity);
+            this.disable = (org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity) == false);
         } catch (UnsatisfiedLinkError ex) {
-//            LOG.warn("Unable to set thread affinity. Disabling feature", (debug.get() ? ex : null));
-            LOG.warn("Unable to set thread affinity. Disabling feature", ex);
+            LOG.warn("Unable to set CPU affinity for thread '" + t.getName() + "'. Disabling feature", ex);
             this.disable = true;
             return (false);
         }
+        if (this.disable) {
+            LOG.warn("Unable to set CPU affinity for thread '" + t.getName() + "'. Disabling feature");
+            return (false);
+        }
         this.registerThread(this.defaultAffinity);
+        
+        if (debug.get()) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
+                                   t.getName(), this.getCPUIds(affinity)));
         return (true);
     }
     

@@ -1,44 +1,46 @@
 package edu.brown.markov;
 
-public interface Estimation {
+import edu.brown.hstore.estimators.TransactionEstimate;
+
+/**
+ * Special estimation type that can be dynamically calculated as the
+ * transaction runs
+ * @author pavlo
+ */
+public interface DynamicTransactionEstimate extends TransactionEstimate {
 
     // ----------------------------------------------------------------------------
-    // SINGLE-SITED PROBABILITY
+    // SINGLE-PARTITION PROBABILITY
     // ----------------------------------------------------------------------------
-    public void addSingleSitedProbability(float probability);
-    public void setSingleSitedProbability(float probability);
-    public float getSingleSitedProbability();
-    public boolean isSingleSitedProbabilitySet();
+    public float getSinglePartitionProbability();
+    public void addSinglePartitionProbability(float probability);
+    public void setSinglePartitionProbability(float probability);
     
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
+    public float getReadOnlyProbability(int partition);
     public void addReadOnlyProbability(int partition, float probability);
     public void setReadOnlyProbability(int partition, float probability);
-    public float getReadOnlyProbability(int partition);
-    public boolean isReadOnlyProbabilitySet(int partition);
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY
     // ----------------------------------------------------------------------------
+    public float getWriteProbability(int partition);
     public void addWriteProbability(int partition, float probability);
     public void setWriteProbability(int partition, float probability);
-    public float getWriteProbability(int partition);
-    public boolean isWriteProbabilitySet(int partition);
     
     // ----------------------------------------------------------------------------
-    // DONE PROBABILITY
+    // FINISH PROBABILITY
     // ----------------------------------------------------------------------------
-    public void addDoneProbability(int partition, float probability);
-    public void setDoneProbability(int partition, float probability);
-    public float getDoneProbability(int partition);
-    public boolean isDoneProbabilitySet(int partition);
-
+    public float getFinishProbability(int partition);
+    public void addFinishProbability(int partition, float probability);
+    public void setFinishProbability(int partition, float probability);
+    
     // ----------------------------------------------------------------------------
     // ABORT PROBABILITY
     // ----------------------------------------------------------------------------
+    public float getAbortProbability();
     public void addAbortProbability(float probability);
     public void setAbortProbability(float probability);
-    public float getAbortProbability();
-    public boolean isAbortProbabilitySet();
 }

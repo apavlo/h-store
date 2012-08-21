@@ -214,12 +214,11 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
         if (debug.get()) 
             LOG.debug(String.format("Txn #%d - Finishing %s [hashCode=%d]",
                                    this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
-        
+        this.finishImpl();
         this.abortInvoked.set(false);
         this.unblockInvoked.set(false);
         this.orig_callback = null;
         this.txn_id = null;
-        this.finishImpl();
     }
     
     /**

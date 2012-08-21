@@ -135,7 +135,7 @@ public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTra
     protected void shuffle(final MapReduceTransaction ts) {
         // create a table for each partition
         Map<Integer, VoltTable> partitionedTables = new HashMap<Integer, VoltTable>();
-        for (int partition : hstore_site.getAllPartitionIds()) {
+        for (Integer partition : hstore_site.getCatalogContext().getAllPartitionIds()) {
             partitionedTables.put(partition, CatalogUtil.getVoltTable(ts.getMapEmit()));
         } // FOR
         if (debug.get())

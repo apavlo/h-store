@@ -88,5 +88,9 @@ public abstract class HStoreConstants {
      */
     public static final String ANON_STMT_NAME = "sql";
 
-
+    // ----------------------------------------------------------------------------
+    // MISCELLANEOUS STUFF
+    // ----------------------------------------------------------------------------
+    
+    public static final String HSTORE_WEBSITE = "http://hstore.cs.brown.edu"; 
 }

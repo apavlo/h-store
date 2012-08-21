@@ -11,6 +11,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.types.SortDirectionType;
 
 import au.com.bytecode.opencsv.CSVWriter;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -64,8 +65,7 @@ public abstract class VoltTableUtil {
         f.spacing_col = true;
         f.trim_all = true;
         f.delimiter_all = " | ";
-        String corners[] = {"┌", "┐", "└", "┘"};
-        
+
         // TABLE RESULTS
         for (int result_idx = 0; result_idx < num_results; result_idx++) {
             if (result_idx > 0) sb.append("\n\n");
@@ -87,6 +87,9 @@ public abstract class VoltTableUtil {
                 assert(adv);
                 for (int j = 0; j < header.length; j++) {
                     rows[i][j] = vt.get(j);
+                    if (vt.wasNull()) {
+                        rows[i][j] = null;    
+                    }
                 } // FOR (cols)
                 
             } // FOR (rows)
@@ -94,7 +97,11 @@ public abstract class VoltTableUtil {
             sb.append(String.format("Result #%d / %d\n", result_idx+1, num_results));
             
             String resultTable = TableUtil.table(f, header, rows);
-            resultTable = StringUtil.box(resultTable, "─", "│", null, corners);
+            resultTable = StringBoxUtil.box(resultTable,
+                                         StringBoxUtil.UNICODE_BOX_HORIZONTAL,
+                                         StringBoxUtil.UNICODE_BOX_VERTICAL,
+                                         null,
+                                         StringBoxUtil.UNICODE_BOX_CORNERS);
             sb.append(StringUtil.prefix(resultTable, "  "));
         } // FOR
         return (sb.toString());

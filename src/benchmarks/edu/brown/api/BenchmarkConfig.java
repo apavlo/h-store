@@ -44,7 +44,7 @@ public class BenchmarkConfig {
     private static final Logger LOG = Logger.getLogger(BenchmarkConfig.class);
     
     public HStoreConf hstore_conf;
-    public String hstore_conf_path;
+    public File hstore_conf_path;
     public String benchmark_conf_path;
     
     public String projectBuilderClass;
@@ -175,7 +175,7 @@ public class BenchmarkConfig {
     
     public BenchmarkConfig(
             HStoreConf hstore_conf,
-            String hstore_conf_path,
+            File hstore_conf_path,
             String benchmark_conf_path,
             String benchmarkClient,
             String backend,

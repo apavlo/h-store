@@ -19,7 +19,7 @@ import edu.brown.hstore.PartitionExecutor;
  * Get a status snapshot of the PartitionExecutors in the cluster
  * @author pavlo
  */
-@ProcInfo(singlePartition = true)
+@ProcInfo(partitionParam=0)
 public class ExecutorStatus extends VoltSystemProcedure {
 
     public static final ColumnInfo nodeResultsColumns[] = {
@@ -57,17 +57,17 @@ public class ExecutorStatus extends VoltSystemProcedure {
             PartitionExecutor.Debug dbg = es.getDebugContext();
             Queue<?> es_queue = dbg.getWorkQueue();
                 
-            Long currentTxnId = es.getCurrentTxnId();
-            Long currentDtxnId = es.getCurrentDtxnId();
-            Long lastCommitted = es.getLastCommittedTxnId();
-            Long lastExecuted = es.getLastExecutedTxnId(); 
+            Long currentTxnId = dbg.getCurrentTxnId();
+            Long currentDtxnId = dbg.getCurrentDtxnId();
+            Long lastCommitted = dbg.getLastCommittedTxnId();
+            Long lastExecuted = dbg.getLastExecutedTxnId(); 
             
             vt.addRow(es.getSiteId(),
                       es.getPartitionId(),
                       es_queue.size(),
-                      es.getWorkQueueSize(),
-                      es.getBlockedQueueSize(),
-                      es.getWaitingQueueSize(),
+                      dbg.getWorkQueueSize(),
+                      dbg.getBlockedQueueSize(),
+                      dbg.getWaitingQueueSize(),
                       (currentTxnId != null  ? currentTxnId.longValue()  : VoltType.NULL_BIGINT),
                       (currentDtxnId != null ? currentDtxnId.longValue() : VoltType.NULL_BIGINT),
                       (lastExecuted != null  ? lastExecuted.longValue()  : VoltType.NULL_BIGINT),
@@ -80,21 +80,6 @@ public class ExecutorStatus extends VoltSystemProcedure {
     }
 
     public VoltTable[] run(int partitionId) {
-        // Hopefully this put us on the right partition...
-        
-        // Send a gc request to the first partition at each HStoreSite
-        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[1];
-        final ParameterSet params = new ParameterSet();
-        pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].fragmentId = SysProcFragmentId.PF_execStatus;
-        pfs[0].inputDependencyIds = new int[] { };
-        pfs[0].outputDependencyIds = new int[] { SysProcFragmentId.PF_execStatus };
-        pfs[0].multipartition = false;
-        pfs[0].nonExecSites = false;
-        pfs[0].destPartitionId = hstore_site.getHasher().hash(partitionId);
-        pfs[0].parameters = params;
-        pfs[0].last_task = true;
-        
-        return executeSysProcPlanFragments(pfs, SysProcFragmentId.PF_execStatus);
+        return executeLocal(SysProcFragmentId.PF_execStatus, new ParameterSet());
     }
 }

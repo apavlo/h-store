@@ -971,6 +971,7 @@ TEST CASES
         unless="junit-getfiles.exists">
     <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--copy=${localcopy}" />
+        <arg line="--symlink=${symlink}" />
         <arg line="${files.dir}" />
     </exec>
 </target>
@@ -2416,7 +2417,8 @@ UTILITIES
         <!-- Use to identify what process this for killing -->
         <jvmarg value="-Dhstore.tag=site" />
         <!-- Initial Heap Size -->
-        <!-- jvmarg value="-Xms${site.memory}m" -->
+
+<!--         <jvmarg value="-Xms${site.memory}m" /> -->
         <!-- Maximum Heap Size -->
         <jvmarg value="-Xmx${site.memory}m" />
 

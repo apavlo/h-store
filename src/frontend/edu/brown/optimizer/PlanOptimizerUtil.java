@@ -703,7 +703,7 @@ public abstract class PlanOptimizerUtil {
                         clone_exp = (TupleValueExpression) orig_pc.getExpression().clone();
                     } catch (Exception ex) {
                         LOG.fatal("Unable to clone " + orig_pc, ex);
-                        System.exit(1);
+                        throw new RuntimeException(ex);
                     }
                     clone_exp.setColumnIndex(i);
                     PlanColumn new_col = state.plannerContext.getPlanColumn(clone_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
@@ -919,7 +919,7 @@ public abstract class PlanOptimizerUtil {
                 catalog_tbl = CollectionUtil.first(CatalogUtil.getReferencedTablesForPlanNode(state.catalog_db, idx_node));
             } catch (Exception ex) {
                 LOG.fatal(ex);
-                System.exit(1);
+                throw new RuntimeException(ex);
             }
             assert (catalog_tbl != null);
             if (debug.get())
@@ -1044,7 +1044,7 @@ public abstract class PlanOptimizerUtil {
                     clone_exp = (TupleValueExpression) tv_exp.clone();
                 } catch (Exception ex) {
                     LOG.fatal(ex);
-                    System.exit(1);
+                    throw new RuntimeException(ex);
                 }
                 assert (clone_exp != null);
 
@@ -1118,7 +1118,7 @@ public abstract class PlanOptimizerUtil {
                                 clone_exp = (TupleValueExpression) exp.clone();
                             } catch (CloneNotSupportedException ex) {
                                 LOG.fatal("Unexpected error", ex);
-                                System.exit(1);
+                                throw new RuntimeException(ex);
                             }
                             assert (clone_exp != null);
                             clone_exp.setColumnIndex(i);

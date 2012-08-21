@@ -39,12 +39,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections15.CollectionUtils;
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.lang.ClassUtils;
 import org.apache.log4j.Logger;
 
@@ -100,6 +100,7 @@ public abstract class ClassUtil {
     
     /**
      * Convenience method to get the name of the method that invoked this method
+     * This is slow and should not be used for anything other than debugging
      * @return
      */
     public static String getCurrentMethodName() {
@@ -148,14 +149,13 @@ public abstract class ClassUtil {
 
     /**
      * Create a mapping from Field handles to their corresponding Annotation
-     * 
      * @param <A>
      * @param fields
      * @param annotationClass
      * @return
      */
     public static <A extends Annotation> Map<Field, A> getFieldAnnotations(Field fields[], Class<A> annotationClass) {
-        Map<Field, A> ret = new ListOrderedMap<Field, A>();
+        Map<Field, A> ret = new LinkedHashMap<Field, A>();
         for (Field f : fields) {
             A a = f.getAnnotation(annotationClass);
             if (a != null)

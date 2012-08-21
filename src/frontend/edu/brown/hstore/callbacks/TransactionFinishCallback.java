@@ -18,6 +18,7 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Trans
     }
  
     private Status status;
+    private boolean needs_requeue = false;
     
     /**
      * Constructor
@@ -30,12 +31,25 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Trans
     public void init(LocalTransaction ts, Status status) {
         super.init(ts, ts.getPredictTouchedPartitions().size(), null);
         this.status = status;
+        this.needs_requeue = false;
+    }
+    
+    /**
+     * Mark that txn for this callback needs to be requeued before it gets 
+     * deleted once it gets responses from all of the partitions
+     * participating in it 
+     */
+    public void markForRequeue() {
+        assert(this.needs_requeue == false);
+        this.needs_requeue = true;
     }
     
     @Override
     protected boolean unblockTransactionCallback() {
-        // There is nothing that we need to do here.
-        this.setFinishStatus(status);
+        this.setFinishStatus(this.status);
+        if (this.needs_requeue) {
+            this.hstore_site.transactionRequeue(this.ts, this.status);
+        }
         return (true);
     }
     

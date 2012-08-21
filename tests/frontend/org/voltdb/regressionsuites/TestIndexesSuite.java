@@ -40,8 +40,11 @@ import org.voltdb.regressionsuites.indexes.Insert;
 public class TestIndexesSuite extends RegressionSuite {
 
     /** Procedures used by this suite */
-    static final Class<?>[] PROCEDURES = { Insert.class,
-        CheckMultiMultiIntGTEFailure.class};
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Insert.class,
+        CheckMultiMultiIntGTEFailure.class
+    };
 
     // Index stuff to test:
     // scans against tree

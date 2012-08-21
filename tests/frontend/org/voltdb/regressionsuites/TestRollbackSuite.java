@@ -29,6 +29,7 @@ import java.math.BigInteger;
 
 import junit.framework.Test;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.VoltTable;
@@ -41,7 +42,8 @@ import org.voltdb.types.TimestampType;
 public class TestRollbackSuite extends RegressionSuite {
 
     // procedures used by these tests
-    static final Class<?>[] PROCEDURES = {
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         SinglePartitionJavaError.class,
         SinglePartitionJavaAbort.class,
         SinglePartitionConstraintError.class,
@@ -68,168 +70,7 @@ public class TestRollbackSuite extends RegressionSuite {
     public TestRollbackSuite(String name) {
         super(name);
     }
-
-    public void testSinglePartitionJavaFailure() throws IOException {
-        Client client = getClient();
-
-        try {
-            client.callProcedure("SinglePartitionJavaError", 2);
-            fail();
-        }
-        catch (ProcCallException e) {}
-        catch (IOException e) {
-            e.printStackTrace();
-            fail();
-        }
-
-        try {
-            VoltTable[] results = client.callProcedure("SelectAll").getResults();
-
-            assertEquals(results.length, 9);
-
-            // get the new order table
-            VoltTable table = results[7];
-            assertTrue(table.getRowCount() == 0);
-
-            // check the mat view
-            results = client.callProcedure("ReadMatView", 2).getResults();
-            assertEquals(results.length, 1);
-            assertTrue(results[0].getRowCount() == 0);
-
-        }
-        catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-            fail();
-        }
-    }
-
-    public void testSinglePartitionJavaAbort() throws IOException {
-        Client client = getClient();
-
-        try {
-            client.callProcedure("SinglePartitionJavaAbort", 2);
-            fail();
-        }
-        catch (ProcCallException e) {}
-        catch (IOException e) {
-            e.printStackTrace();
-            fail();
-        }
-
-        try {
-            VoltTable[] results = client.callProcedure("SelectAll").getResults();
-
-            assertEquals(results.length, 9);
-
-            // get the new order table
-            VoltTable table = results[7];
-            assertTrue(table.getRowCount() == 0);
-
-            // check the mat view
-            results = client.callProcedure("ReadMatView", 2).getResults();
-            assertEquals(results.length, 1);
-            assertTrue(results[0].getRowCount() == 0);
-        }
-        catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-            fail();
-        }
-    }
-
-// FIXME
-//    public void testSinglePartitionConstraintFailure() throws IOException {
-//        Client client = getClient();
-//
-//        try {
-//            client.callProcedure("SinglePartitionConstraintError", 2);
-//            fail();
-//        }
-//        catch (ProcCallException e) {}
-//        catch (IOException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//
-//        try {
-//            ClientResponse cr = client.callProcedure("SelectAll");
-//            VoltTable[] results = cr.getResults();
-//
-//            assertEquals(results.length, 9);
-//
-//            // get the new order table
-//            VoltTable table = results[6];
-//            assertEquals(cr.toString(), 0, table.getRowCount());
-//
-//            // check the mat view
-//            results = client.callProcedure("ReadMatView", 2).getResults();
-//            assertEquals(results.length, 1);
-//            assertTrue(results[0].getRowCount() == 0);
-//        }
-//        catch (ProcCallException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//        catch (IOException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//
-//        try {
-//            client.callProcedure("InsertNewOrder", 2, 2, 2);
-//        } catch (ProcCallException e1) {
-//            e1.printStackTrace();
-//            fail();
-//        }
-//
-//        try {
-//
-//            client.callProcedure("SinglePartitionUpdateConstraintError", 2);
-//            fail();
-//        }
-//        catch (ProcCallException e) {}
-//        catch (IOException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//
-//        try {
-//            VoltTable[] results = client.callProcedure("SelectAll").getResults();
-//
-//            assertEquals(results.length, 9);
-//
-//            // get the new order table
-//            VoltTable table = results[7];
-//            assertTrue(table.getRowCount() == 1);
-//            table.advanceRow();
-//            assertEquals(2, table.getLong(0));
-//            assertEquals(2, table.getLong(1));
-//            assertEquals(2, table.getLong(2));
-//
-//            // check the mat view
-//            results = client.callProcedure("ReadMatView", 2).getResults();
-//            assertEquals(results.length, 1);
-//            assertTrue(results[0].getRowCount() == 1);
-//            results[0].advanceRow();
-//            assertEquals(2, results[0].getLong(0));
-//            assertEquals(1, results[0].getLong(1));
-//        }
-//        catch (ProcCallException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//        catch (IOException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//    }
+    
 
     // ENG-487
     public void allTypesTestHelper(String procName, int[] order, int id)
@@ -245,6 +86,7 @@ public class TestRollbackSuite extends RegressionSuite {
             client.callProcedure("InsertAllTypes", 7, 6, 5, 4, new TimestampType(3),
                                  0.2, moneyTwo, "INLINED", "UNINLINED");
         } catch (ProcCallException e1) {
+            System.err.printf(">>> %s UNEXPECTED[0] %s\n", procName, e1);
             e1.printStackTrace();
             fail();
         }
@@ -256,10 +98,12 @@ public class TestRollbackSuite extends RegressionSuite {
                 client.callProcedure(procName, 7);
             else
                 client.callProcedure(procName);
+            System.err.printf(">>> %s DID NOT FAIL!\n", procName);
             fail();
         }
         catch (ProcCallException e) {}
         catch (IOException e) {
+            System.err.printf(">>> %s UNEXPECTED[1] %s\n", procName, e);
             e.printStackTrace();
             fail();
         }
@@ -380,6 +224,170 @@ public class TestRollbackSuite extends RegressionSuite {
             client.callProcedure("@AdHoc", "DELETE FROM ALL_TYPES");
         }
         catch (ProcCallException e) {
+            System.err.printf(">>> %s UNEXPECTED[2] %s\n", procName, e);
+            e.printStackTrace();
+            fail();
+        }
+        catch (IOException e) {
+            System.err.printf(">>> %s UNEXPECTED[3] %s\n", procName, e);
+            e.printStackTrace();
+            fail();
+        }
+    }
+
+    public void testSinglePartitionJavaFailure() throws IOException {
+        Client client = getClient();
+
+        try {
+            client.callProcedure("SinglePartitionJavaError", 2);
+            fail();
+        }
+        catch (ProcCallException e) {}
+        catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        }
+
+        try {
+            VoltTable[] results = client.callProcedure("SelectAll").getResults();
+
+            assertEquals(results.length, 9);
+
+            // get the new order table
+            VoltTable table = results[7];
+            assertTrue(table.getRowCount() == 0);
+
+            // check the mat view
+            results = client.callProcedure("ReadMatView", 2).getResults();
+            assertEquals(results.length, 1);
+            assertTrue(results[0].getRowCount() == 0);
+
+        }
+        catch (ProcCallException e) {
+            e.printStackTrace();
+            fail();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        }
+    }
+
+    public void testSinglePartitionJavaAbort() throws IOException {
+        Client client = getClient();
+
+        try {
+            client.callProcedure("SinglePartitionJavaAbort", 2);
+            fail();
+        }
+        catch (ProcCallException e) {}
+        catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        }
+
+        try {
+            VoltTable[] results = client.callProcedure("SelectAll").getResults();
+
+            assertEquals(results.length, 9);
+
+            // get the new order table
+            VoltTable table = results[7];
+            assertTrue(table.getRowCount() == 0);
+
+            // check the mat view
+            results = client.callProcedure("ReadMatView", 2).getResults();
+            assertEquals(results.length, 1);
+            assertTrue(results[0].getRowCount() == 0);
+        }
+        catch (ProcCallException e) {
+            e.printStackTrace();
+            fail();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        }
+    }
+
+    public void testSinglePartitionConstraintFailure() throws IOException {
+        Client client = getClient();
+
+        try {
+            client.callProcedure("SinglePartitionConstraintError", 2);
+            fail();
+        }
+        catch (ProcCallException e) {}
+        catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        }
+
+        try {
+            ClientResponse cr = client.callProcedure("SelectAll");
+            VoltTable[] results = cr.getResults();
+
+            assertEquals(results.length, 9);
+
+            // get the new order table
+            VoltTable table = results[6];
+            assertEquals(cr.toString(), 0, table.getRowCount());
+
+            // check the mat view
+            cr = client.callProcedure("ReadMatView", 2);
+            results = cr.getResults();
+            assertEquals(cr.toString(), 1, results.length);
+            assertEquals(cr.toString(), 0, results[0].getRowCount());
+        }
+        catch (ProcCallException e) {
+            e.printStackTrace();
+            fail();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        }
+
+        try {
+            client.callProcedure("InsertNewOrder", 2, 2, 2);
+        } catch (ProcCallException e1) {
+            e1.printStackTrace();
+            fail();
+        }
+
+        try {
+
+            client.callProcedure("SinglePartitionUpdateConstraintError", 2);
+            fail();
+        }
+        catch (ProcCallException e) {}
+        catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        }
+
+        try {
+            VoltTable[] results = client.callProcedure("SelectAll").getResults();
+
+            assertEquals(results.length, 9);
+
+            // get the new order table
+            VoltTable table = results[7];
+            assertTrue(table.getRowCount() == 1);
+            table.advanceRow();
+            assertEquals(2, table.getLong(0));
+            assertEquals(2, table.getLong(1));
+            assertEquals(2, table.getLong(2));
+
+            // check the mat view
+            results = client.callProcedure("ReadMatView", 2).getResults();
+            assertEquals(results.length, 1);
+            assertTrue(results[0].getRowCount() == 1);
+            results[0].advanceRow();
+            assertEquals(2, results[0].getLong(0));
+            assertEquals(1, results[0].getLong(1));
+        }
+        catch (ProcCallException e) {
             e.printStackTrace();
             fail();
         }
@@ -406,55 +414,55 @@ public class TestRollbackSuite extends RegressionSuite {
     }
 
     // ENG-488
-    public void testAllTypesMultiOpsJavaError() throws IOException {
-        allTypesTestHelper("AllTypesMultiOpsJavaError",
-                           new int[] {AllTypesMultiOpsJavaError.INSERT,
-                                      AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.DELETE},
-                           3);
-        allTypesTestHelper("AllTypesMultiOpsJavaError",
-                           new int[] {AllTypesMultiOpsJavaError.INSERT,
-                                      AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.DELETE},
-                           3);
-        allTypesTestHelper("AllTypesMultiOpsJavaError",
-                           new int[] {AllTypesMultiOpsJavaError.INSERT,
-                                      AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.UPDATE},
-                           3);
-        allTypesTestHelper("AllTypesMultiOpsJavaError",
-                           new int[] {AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.UPDATE},
-                           7);
-        allTypesTestHelper("AllTypesMultiOpsJavaError",
-                           new int[] {AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.DELETE},
-                           7);
-        allTypesTestHelper("AllTypesMultiOpsJavaError",
-                           new int[] {AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.DELETE,
-                                      AllTypesMultiOpsJavaError.INSERT},
-                           7);
-        allTypesTestHelper("AllTypesMultiOpsJavaError",
-                           new int[] {AllTypesMultiOpsJavaError.DELETE,
-                                      AllTypesMultiOpsJavaError.INSERT,
-                                      AllTypesMultiOpsJavaError.UPDATE},
-                           7);
-        allTypesTestHelper("AllTypesMultiOpsJavaError",
-                           new int[] {AllTypesMultiOpsJavaError.DELETE,
-                                      AllTypesMultiOpsJavaError.INSERT,
-                                      AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.UPDATE},
-                           7);
-        allTypesTestHelper("AllTypesMultiOpsJavaError",
-                           new int[] {AllTypesMultiOpsJavaError.DELETE,
-                                      AllTypesMultiOpsJavaError.INSERT,
-                                      AllTypesMultiOpsJavaError.UPDATE,
-                                      AllTypesMultiOpsJavaError.DELETE},
-                           7);
-    }
+//    public void testAllTypesMultiOpsJavaError() throws IOException {
+//        allTypesTestHelper("AllTypesMultiOpsJavaError",
+//                           new int[] {AllTypesMultiOpsJavaError.INSERT,
+//                                      AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.DELETE},
+//                           3);
+//        allTypesTestHelper("AllTypesMultiOpsJavaError",
+//                           new int[] {AllTypesMultiOpsJavaError.INSERT,
+//                                      AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.DELETE},
+//                           3);
+//        allTypesTestHelper("AllTypesMultiOpsJavaError",
+//                           new int[] {AllTypesMultiOpsJavaError.INSERT,
+//                                      AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.UPDATE},
+//                           3);
+//        allTypesTestHelper("AllTypesMultiOpsJavaError",
+//                           new int[] {AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.UPDATE},
+//                           7);
+//        allTypesTestHelper("AllTypesMultiOpsJavaError",
+//                           new int[] {AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.DELETE},
+//                           7);
+//        allTypesTestHelper("AllTypesMultiOpsJavaError",
+//                           new int[] {AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.DELETE,
+//                                      AllTypesMultiOpsJavaError.INSERT},
+//                           7);
+//        allTypesTestHelper("AllTypesMultiOpsJavaError",
+//                           new int[] {AllTypesMultiOpsJavaError.DELETE,
+//                                      AllTypesMultiOpsJavaError.INSERT,
+//                                      AllTypesMultiOpsJavaError.UPDATE},
+//                           7);
+//        allTypesTestHelper("AllTypesMultiOpsJavaError",
+//                           new int[] {AllTypesMultiOpsJavaError.DELETE,
+//                                      AllTypesMultiOpsJavaError.INSERT,
+//                                      AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.UPDATE},
+//                           7);
+//        allTypesTestHelper("AllTypesMultiOpsJavaError",
+//                           new int[] {AllTypesMultiOpsJavaError.DELETE,
+//                                      AllTypesMultiOpsJavaError.INSERT,
+//                                      AllTypesMultiOpsJavaError.UPDATE,
+//                                      AllTypesMultiOpsJavaError.DELETE},
+//                           7);
+//    }
 
     public void testTooLargeStringInsertAndUpdate() throws IOException {
         final java.util.Random r = new java.util.Random();
@@ -519,11 +527,12 @@ public class TestRollbackSuite extends RegressionSuite {
         assertTrue( "bar".equals(result.getString(4)));
     }
 
+//FIXME
 //    public void testSinglePartitionConstraintFailureAndContinue() throws IOException {
 //        Client client = getClient();
 //        VoltTable results[] = null;
 //        try {
-//            results = client.callProcedure("SinglePartitionConstraintFailureAndContinue", 2);
+//            results = client.callProcedure("SinglePartitionConstraintFailureAndContinue", 2).getResults();
 //        }
 //        catch (ProcCallException e) {
 //            fail("Didn't expect a ProcCallException if the user caught the constraint failure");
@@ -537,9 +546,8 @@ public class TestRollbackSuite extends RegressionSuite {
 //        assertEquals( 0, results[0].getRowCount());
 //
 //        try {
-//            results = client.callProcedure("SelectAll");
-//
-//            assertEquals(results.length, 9);
+//            results = client.callProcedure("SelectAll").getResults();
+//            assertEquals(9, results.length);
 //
 //            // get the new order table
 //            VoltTable table = results[7];
@@ -622,48 +630,51 @@ public class TestRollbackSuite extends RegressionSuite {
         }
     }
 
-// FIXME
-//    public void testMultiPartitionConstraintFailure() throws IOException {
-//        Client client = getClient();
-//
-//        try {
-//            System.out.println("Calling MultiPartitionConstraintError");
-//            System.out.flush();
-//            client.callProcedure("MultiPartitionConstraintError", 2);
-//            System.out.println("Called MultiPartitionConstraintError");
-//            System.out.flush();
-//            fail();
-//        }
-//        catch (ProcCallException e) {}
-//        catch (IOException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//
-//        try {
-//            System.out.println("Calling SelectAll");
-//            System.out.flush();
-//            VoltTable[] results = client.callProcedure("SelectAll").getResults();
-//            System.out.println("Called SelectAll");
-//            System.out.flush();
-//
-//            assertEquals(results.length, 9);
-//
-//            // get the new order table
-//            VoltTable table = results[2];
-//            System.out.println(table.toString());
-//            assertTrue(table.getRowCount() == 0);
-//
-//        }
-//        catch (ProcCallException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//        catch (IOException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//    }
+    public void testMultiPartitionConstraintFailure() throws IOException {
+        Client client = getClient();
+
+        try {
+            System.out.println("Calling MultiPartitionConstraintError");
+            System.out.flush();
+            client.callProcedure("MultiPartitionConstraintError", 2);
+            System.out.println("Called MultiPartitionConstraintError");
+            System.out.flush();
+            fail();
+        }
+        catch (ProcCallException e) {
+            e.printStackTrace();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        }
+
+        try {
+            System.out.println("Calling SelectAll");
+            System.out.flush();
+            ClientResponse cr = client.callProcedure("SelectAll");
+            System.err.println(cr);
+            VoltTable[] results = cr.getResults();
+            System.out.println("Called SelectAll");
+            System.out.flush();
+
+            assertEquals(results.length, 9);
+
+            // get the new order table
+            VoltTable table = results[2];
+            System.out.println(table.toString());
+            assertEquals(cr.toString(), 0, table.getRowCount());
+
+        }
+        catch (ProcCallException e) {
+            e.printStackTrace();
+            fail();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            fail();
+        }
+    }
 //
 //    public void testOverflowMatView() throws IOException {
 //        Client client = getClient();
@@ -742,6 +753,7 @@ public class TestRollbackSuite extends RegressionSuite {
 //        }
 //    }
 //
+//FIXME
 //    public void testUpdateViolatesUniqueConstraint() throws IOException {
 //        Client client = getClient();
 //
@@ -750,6 +762,31 @@ public class TestRollbackSuite extends RegressionSuite {
 //            client.callProcedure("InsertNewOrder", 3, 4, 2);
 //        }
 //        catch (Exception e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//        
+//        try {
+//            ClientResponse cr = client.callProcedure("@AdHoc", "SELECT * FROM NEW_ORDER;");
+//            System.err.println(cr);
+//            assertEquals(1, cr.getResults().length);
+//            VoltTable table = cr.getResults()[0]; 
+//            assertTrue(table.getRowCount() == 2);
+//            table.advanceRow();
+//            assertEquals(2, table.getLong(0));
+//            assertEquals(2, table.getLong(1));
+//            assertEquals(2, table.getLong(2));
+//            table.advanceRow();
+//            assertEquals(3, table.getLong(0));
+//            assertEquals(4, table.getLong(1));
+//            assertEquals(2, table.getLong(2));
+//            
+//        }
+//        catch (ProcCallException e) {
+//           e.printStackTrace();
+//           fail();
+//        }
+//        catch (IOException e) {
 //            e.printStackTrace();
 //            fail();
 //        }
@@ -768,8 +805,9 @@ public class TestRollbackSuite extends RegressionSuite {
 //        }
 //
 //        try {
-//            VoltTable[] results = client.callProcedure("SelectAll").getResults();
-//
+//            ClientResponse cr = client.callProcedure("SelectAll");
+//            System.err.println(cr);
+//            VoltTable[] results = cr.getResults();
 //            assertEquals(results.length, 9);
 //
 //            // get the new order table
@@ -956,16 +994,7 @@ public class TestRollbackSuite extends RegressionSuite {
         builder.addServerConfig(config);
 
         /////////////////////////////////////////////////////////////
-        // CONFIG #3: 1 Local Site/Partition running on HSQL backend
-        /////////////////////////////////////////////////////////////
-
-        //config = new LocalSingleProcessServer("rollback-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-        //success = config.compile(project);
-        //assert(success);
-        //builder.addServerConfig(config);
-
-        /////////////////////////////////////////////////////////////
-        // CONFIG #4: Local Cluster (of processes)
+        // CONFIG #3: Local Cluster (of processes)
         /////////////////////////////////////////////////////////////
 
         config = new LocalCluster("rollback-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);

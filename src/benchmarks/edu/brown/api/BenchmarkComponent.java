@@ -121,40 +121,71 @@ public abstract class BenchmarkComponent {
     // ============================================================================
     
     private static Client globalClient;
+    private static final ReentrantLock globalClientLock = new ReentrantLock();
+    
     private static Catalog globalCatalog;
+    private static final ReentrantLock globalCatalogLock = new ReentrantLock();
+    
     private static PartitionPlan globalPartitionPlan;
+    private static final ReentrantLock globalPartitionPlanLock = new ReentrantLock();
+    
     private static final Set<Client> globalHasConnections = new HashSet<Client>(); 
     
-    public static synchronized Client getClient(Catalog catalog,
-                                                   int messageSize,
-                                                   boolean heavyWeight,
-                                                   StatsUploaderSettings statsSettings,
-                                                   boolean shareConnection) {
+    private static Client getClient(Catalog catalog,
+                                    int messageSize,
+                                    boolean heavyWeight,
+                                    StatsUploaderSettings statsSettings,
+                                    boolean shareConnection) {
         Client client = globalClient;
-        if (client == null || shareConnection == false) {
-            globalClient = ClientFactory.createClient(
+        if (shareConnection == false) {
+            client = ClientFactory.createClient(
                     messageSize,
                     null,
                     heavyWeight,
                     statsSettings,
                     catalog
             );
-            client = globalClient;
             if (debug.get()) LOG.debug("Created new Client handle");
+        } else if (client == null) {
+            globalClientLock.lock();
+            try {
+                if (globalClient == null) {
+                    client = ClientFactory.createClient(
+                            messageSize,
+                            null,
+                            heavyWeight,
+                            statsSettings,
+                            catalog
+                    );
+                    if (debug.get()) LOG.debug("Created new shared Client handle");
+                }
+            } finally {
+                globalClientLock.unlock();
+            } // SYNCH
         }
         return (client);
     }
     
-    public static synchronized Catalog getCatalog(File catalogPath) {
+    private static Catalog getCatalog(File catalogPath) {
         // Read back the catalog and populate catalog object
         if (globalCatalog == null) {
-            globalCatalog =  CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
+            globalCatalogLock.lock();
+            try {
+                if (globalCatalog == null) {
+                    globalCatalog = CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
+                }
+            } finally {
+                globalCatalogLock.unlock();
+            } // SYNCH
         }
         return (globalCatalog);
     }
     
-    public static synchronized void applyPartitionPlan(Database catalog_db, File partitionPlanPath) {
-        if (globalPartitionPlan == null) {
+    private static void applyPartitionPlan(Database catalog_db, File partitionPlanPath) {
+        if (globalPartitionPlan != null) return;
+        globalPartitionPlanLock.lock();
+        try {
+            if (globalPartitionPlan != null) return;
             if (debug.get()) LOG.debug("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
             globalPartitionPlan = new PartitionPlan();
             try {
@@ -163,7 +194,9 @@ public abstract class BenchmarkComponent {
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to load PartitionPlan '" + partitionPlanPath + "' and apply it to the catalog", ex);
             }
-        }
+        } finally {
+            globalPartitionPlanLock.unlock();
+        } // SYNCH
         return;
     }
     
@@ -842,6 +875,7 @@ public abstract class BenchmarkComponent {
      * after the client has received a ClientResponse from the DBMS cluster
      * The txn_index is the offset of the transaction that was executed. This offset
      * is the same order as the array returned by getTransactionDisplayNames
+     * @param cresponse - The ClientResponse returned from the server
      * @param txn_idx
      */
     protected final void incrementTransactionCounter(ClientResponse cresponse, int txn_idx) {
@@ -849,7 +883,9 @@ public abstract class BenchmarkComponent {
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
         Status status = cresponse.getStatus();
         if (status == Status.OK || status == Status.ABORT_USER) {
-            m_txnStats.transactions.fastPut(txn_idx);
+            synchronized (m_txnStats.transactions) {
+                m_txnStats.transactions.fastPut(txn_idx);
+            } // SYNCH
 
             if (m_txnStats.isLatenciesEnabled()) {
                 Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
@@ -867,11 +903,15 @@ public abstract class BenchmarkComponent {
                 } // SYNCH
             }
             if (m_txnStats.isBasePartitionsEnabled()) {
-                m_txnStats.basePartitions.put(cresponse.getBasePartition());
+                synchronized (m_txnStats.basePartitions) {
+                    m_txnStats.basePartitions.put(cresponse.getBasePartition());
+                } // SYNCH
             }
         }
         if (m_txnStats.isResponsesStatusesEnabled()) {
-            m_txnStats.responseStatuses.put(status.name());
+            synchronized (m_txnStats.responseStatuses) {
+                m_txnStats.responseStatuses.put(status.name());    
+            } // SYNCH
         }
     }
     

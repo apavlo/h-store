@@ -377,15 +377,23 @@ message InitializeResponse {
 // CLUSTER SHUTDOWN MESSAGE
 // -----------------------------------
 
-message ShutdownRequest {
+message ShutdownPrepareRequest {
     // The id of the HStoreSite that is wants us to shutdown
     required int32 sender_site = 1;
+    optional bytes error = 2;
+}
+
+message ShutdownPrepareResponse {
+    // The id of the HStoreSite is responding to this shutdown request
+    required int32 sender_site = 1;
+}
+
+message ShutdownRequest {
+    required int32 sender_site = 1;
     required int32 exit_status = 2;
-    optional bytes error = 3;
 }
 
 message ShutdownResponse {
-    // The id of the HStoreSite is responding to this shutdown request
     required int32 sender_site = 1;
 }
 
@@ -426,6 +434,7 @@ service HStoreService {
     rpc TransactionRedirect(TransactionRedirectRequest) returns (TransactionRedirectResponse);
     rpc SendData(SendDataRequest) returns (SendDataResponse);
     rpc Initialize(InitializeRequest) returns (InitializeResponse);
+    rpc ShutdownPrepare(ShutdownPrepareRequest) returns (ShutdownPrepareResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
 }

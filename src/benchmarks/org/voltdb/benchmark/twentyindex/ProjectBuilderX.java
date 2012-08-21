@@ -25,14 +25,16 @@ package org.voltdb.benchmark.twentyindex;
 
 import java.net.URL;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.twentyindex.procedures.Insert;
 import org.voltdb.compiler.VoltProjectBuilder;
 
 public class ProjectBuilderX extends VoltProjectBuilder {
 
-    public static final Class<?> m_procedures[] = new Class<?>[] {
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> m_procedures[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         Insert.class,
-        };
+    };
 
     public static final Class<?> m_supplementalClasses[] = new Class<?>[] {
         ClientBenchmark.class,

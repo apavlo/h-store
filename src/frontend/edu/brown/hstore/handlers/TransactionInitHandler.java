@@ -10,7 +10,6 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
-import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -65,18 +64,6 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             String.format("Got init request for remote txn #%d but we already have one [%s]",
                           txn_id, ts);
         
-        // Wrap the callback around a TransactionInitWrapperCallback that will wait until
-        // our HStoreSite gets an acknowledgment from all the ...
-        // Note: The TransactionQueueManager will put this back in the queue for us
-        //       We have to allocate this here because we need to have the original callback
-        TransactionInitQueueCallback wrapper = null;
-        try {
-            wrapper = hstore_site.getObjectPools().CALLBACKS_TXN_INITQUEUE.borrowObject();
-            wrapper.init(txn_id, request.getPartitionsList(), callback);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-        
         // If (request.getPrefetchFragmentsCount() > 0), then we need to
         // make a RemoteTransaction handle for ourselves so that we can keep track of 
         // our state when pre-fetching queries.
@@ -105,7 +92,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         } else {
             partitions = new PartitionSet(request.getPartitionsList());
         }
-        hstore_site.transactionInit(txn_id, request.getProcedureId(), partitions, wrapper);
+        hstore_site.transactionInit(txn_id, request.getProcedureId(), partitions, callback);
         
         // We don't need to send back a response right here.
         // TransactionInitWrapperCallback will wait until it has results from all of the partitions 

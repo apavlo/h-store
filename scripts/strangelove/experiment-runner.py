@@ -56,7 +56,6 @@ sys.path.append(os.path.realpath(os.path.join(basedir, "../../third_party/python
 
 import hstore
 import hstore.codespeed
-# This has all the functions we can use to invoke experiments on EC2
 import hstore.fabfile
 
 import argparse
@@ -88,20 +87,19 @@ OPT_BASE_CLIENT_THREADS_PER_HOST = 100
 OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 6
 OPT_PARTITION_PLAN_DIR = "files/designplans"
+OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
 
 DEFAULT_OPTIONS = {
     "hstore.git_branch": "strangelove"
 }
-
-DEBUG_OPTIONS = [
-    "site.exec_profiling",
-    #"site.txn_profiling",
-    "site.pool_profiling",
-    #"site.planner_profiling",
-    "site.status_show_txn_info",
-    "site.status_show_executor_info",
-    #"client.output_basepartitions",
-]
+DEBUG_OPTIONS = {
+    "site.status_enable":             True,
+    "site.status_interval":           20000,
+    #"site.status_show_txn_info":      True,
+    "site.status_show_executor_info": True,
+    "site.exec_profiling":            True,
+    #"site.txn_profiling":             True,    
+}
 DEBUG_LOGGING = [
     "edu.brown.hstore.HStoreSite",
     "edu.brown.hstore.PartitionExecutor",
@@ -131,65 +129,85 @@ BASE_SETTINGS = {
     "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
-    "client.throttle_backoff":          50,
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
     
-    "site.jvm_asserts":                                 False,
-    "site.log_backup":                                  False,
-    "site.status_enable":                               False,
-    "site.status_show_thread_info":                     False,
-    "site.status_show_executor_info":                   False,
-    "site.status_interval":                             20000,
-    "site.txn_incoming_delay":                          1,
-    "site.coordinator_init_thread":                     False,
-    "site.coordinator_finish_thread":                   False,
-    "site.txn_restart_limit":                           5,
-    "site.txn_restart_limit_sysproc":                   100,
-    "site.exec_force_singlepartitioned":                True,
-    "site.memory":                                      61440,
-    "site.queue_incoming_max_per_partition":            150,
-    "site.queue_incoming_release_factor":               0.90,
-    "site.queue_incoming_increase":                     10,
-    "site.queue_incoming_throttle":                     False,
-    "site.queue_dtxn_max_per_partition":                1000,
-    "site.queue_dtxn_release_factor":                   0.90,
-    "site.queue_dtxn_increase":                         0,
-    "site.queue_dtxn_throttle":                         False,
-    "site.exec_db2_redirects":                          False,
-    "site.cpu_affinity":                                True,
-    "site.cpu_affinity_one_partition_per_core":         True,
+    "site.jvm_asserts":                         False,
+    "site.log_backup":                          False,
+    "site.status_enable":                       False,
+    "site.status_show_thread_info":             False,
+    "site.status_show_executor_info":           False,
+    "site.txn_incoming_delay":                  10,
+    "site.coordinator_init_thread":             False,
+    "site.coordinator_finish_thread":           False,
+    "site.txn_restart_limit":                   5,
+    "site.txn_restart_limit_sysproc":           100,
+    "site.exec_force_singlepartitioned":        True,
+    "site.memory":                              61440,
+    "site.queue_incoming_max_per_partition":    150,
+    "site.queue_incoming_release_factor":       0.90,
+    "site.queue_incoming_increase":             10,
+    "site.queue_dtxn_max_per_partition":        1000,
+    "site.queue_dtxn_release_factor":           0.90,
+    "site.queue_dtxn_increase":                 0,
+    "site.exec_db2_redirects":                  False,
+    "site.cpu_affinity":                        True,
+    "site.cpu_affinity_one_partition_per_core": True,
 }
 
 EXPERIMENT_SETTINGS = {
     "motivation": {
+        # HVM Instances
+        # http://cloud-images.ubuntu.com/desktop/precise/current/
+        "ec2.site_ami":                         "ami-efa81d86",
+        "ec2.site_type":                        "cc1.4xlarge",
+        "ec2.client_type":                      "c1.xlarge",
+        "ec2.change_type":                      False,
+        "ec2.cluster_group":                    "hstore-hvm",
+        "hstore.partitions_per_site":           32,
+        
+        "site.txn_incoming_delay":              5,
         "site.specexec_enable":                 False,
-        "site.specexec_idle_enable":            False,
+        "site.specexec_idle":                   False,
+        "site.markov_enable":                   False,
+        "client.txnrate":                       100000,
+        "client.blocking":                      True,
         "client.output_response_status":        True,
-        "client.output_exec_profiling":         "execprofile.csv",
+        #"client.output_exec_profiling":         "execprofile.csv",
+        "client.output_queue_profiling":        "queueprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
         "client.output_txn_counters":           "txncounters.csv",
         "client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
         "benchmark.neworder_abort":             False,
+        "benchmark.neworder_multip_mix":        100,
+        "benchmark.loadthread_per_warehouse":   False,
     },
 }
 
 ## ==============================================
 ## updateEnv
 ## ==============================================
-def updateEnv(env, benchmark, exp_type):
+def updateEnv(env, benchmark, exp_type, partitions):
     global OPT_BASE_TXNRATE_PER_PARTITION
-  
-    for k,v in BASE_SETTINGS.iteritems():
-        env[k] = v
-    ## FOR
   
     ## ----------------------------------------------
     ## MOTIVATION
     ## ----------------------------------------------
     if exp_type == "motivation":
+        if env.get('site.markov_enable', False):
+            if benchmark == "tpcc":
+                markov = "%s-%dp.markov.gz" % (benchmark, partitions)
+            else:
+                markov = "%s.markov.gz" % (benchmark)
+            env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
+        else:
+            env['site.markov_fixed'] = True
+        ## IF
+        env["client.threads_per_host"] = partitions
+        env["benchmark.loadthreads"] = min(16, partitions)
+        
         pplan = "%s.lns.pplan" % benchmark
         env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
         env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"
@@ -227,7 +245,7 @@ def saveCSVResults(args, partitions, filename):
 ## ==============================================
 def processResults(args, partitions, output, workloads, results):
     data = hstore.parseJSONResults(output)
-    for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND', 'TXNTOTALCOUNT' ]:
+    for key in [ 'TXNTOTALPERSECOND' ]:
         if key in data:
             txnrate = float(data[key])
             break
@@ -259,8 +277,8 @@ def processResults(args, partitions, output, workloads, results):
             last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
         else:
             last_changed_rev, last_changed_date = hstore.fabfile.get_version()
-        print "last_changed_rev:", last_changed_rev
-        print "last_changed_date:", last_changed_date
+        LOG.info("last_changed_rev:", last_changed_rev)
+        LOG.info("last_changed_date:", last_changed_date)
             
         codespeedBenchmark = benchmark
         if not args["codespeed_benchmark"] is None:
@@ -308,7 +326,7 @@ if __name__ == '__main__':
     agroup.add_argument("--fast-start", action='store_true')
     agroup.add_argument("--force-reboot", action='store_true')
     agroup.add_argument("--single-client", action='store_true')
-    agroup.add_argument("--no-execute", action='store_true', help='Do no execute any experimetns after starting cluster')
+    agroup.add_argument("--no-execute", action='store_true', help='Do no execute any experiments after starting cluster')
     agroup.add_argument("--no-compile", action='store_true', help='Disable compiling before running benchmark')
     agroup.add_argument("--no-update", action='store_true', help='Disable synching git repository')
     agroup.add_argument("--no-jar", action='store_true', help='Disable constructing benchmark jar')
@@ -324,7 +342,7 @@ if __name__ == '__main__':
     
     ## Benchmark Parameters
     agroup = aparser.add_argument_group('Benchmark Configuration Parameters')
-    agroup.add_argument("--multiply-scalefactor", action='store_true', default=True)
+    agroup.add_argument("--multiply-scalefactor", action='store_true')
     agroup.add_argument("--stop-on-error", action='store_true')
     agroup.add_argument("--retry-on-zero", action='store_true')
     agroup.add_argument("--clear-logs", action='store_true')
@@ -401,8 +419,8 @@ if __name__ == '__main__':
         LOG.setLevel(logging.DEBUG)
         hstore.fabfile.LOG.setLevel(logging.DEBUG)
     if args['debug_hstore']:
-        for param in DEBUG_OPTIONS:
-            BASE_SETTINGS[param] = True
+        for k,v in DEBUG_OPTIONS.iteritems():
+            BASE_SETTINGS[k] = v
     if args['fast_start']:
         LOG.info("Enabling fast startup")
         for key in ['compile', 'update', 'conf', 'jar', 'sync']:
@@ -417,18 +435,22 @@ if __name__ == '__main__':
         env["hstore.exec_prefix"] += " -Dkillonzero=true"
     
     # Update Fabric env
-    exp_opts = dict(BASE_SETTINGS.items() + EXPERIMENT_SETTINGS[args['exp_type']].items())
-    assert exp_opts
     conf_remove = set()
-    for key,val in exp_opts.items():
-        if val == None: 
-            LOG.debug("Parameter to Remove: %s" % key)
-            conf_remove.add(key)
-            del exp_opts[key]
-            assert not key in exp_opts
-        elif type(val) != types.FunctionType:
-            env[key] = val
+    for exp_opts in [ BASE_SETTINGS, EXPERIMENT_SETTINGS[args['exp_type']] ]:
+        assert exp_opts
+        exp_conf_remove = [ ]
+        for key,val in exp_opts.iteritems():
+            if val == None: 
+                LOG.debug("Parameter to Remove: %s" % key)
+                exp_conf_remove.append(key)
+            elif type(val) != types.FunctionType:
+                env[key] = val
+                LOG.debug("env[\"%s\"] = %s", key, val)
+        ## FOR
+        map(exp_opts.pop, exp_conf_remove)
+        conf_remove.update(exp_conf_remove)
     ## FOR
+    
     # Figure out what keys we need to remove to ensure that one experiment
     # doesn't contaminate another
     for other_type in EXPERIMENT_SETTINGS.keys():
@@ -460,6 +482,7 @@ if __name__ == '__main__':
             LOG.info("%s - %s - %d Partitions" % (args['exp_type'].upper(), benchmark.upper(), partitions))
             env["hstore.partitions"] = partitions
             all_results = [ ]
+            updateEnv(env, benchmark, args['exp_type'], partitions)
                 
             # Increase the client.scalefactor based on the number of partitions
             if args['multiply_scalefactor']:
@@ -491,7 +514,6 @@ if __name__ == '__main__':
                 needUpdateLog4j = False
                 
             updateJar = (args['no_jar'] == False)
-            updateEnv(env, benchmark, args['exp_type'])
             LOG.debug("Parameters:\n%s" % pformat(env))
             conf_remove = conf_remove - set(env.keys())
             
@@ -534,9 +556,9 @@ if __name__ == '__main__':
                         ## IF
                         
                         # CSV RESULT FILES
-                        for key in ["output_txn_profiling", "output_exec_profiling", "output_txn_counters"]:
+                        for key in ["output_txn_profiling", "output_exec_profiling", "output_queue_profiling", "output_txn_counters"]:
                             key = "client.%s" % key
-                            LOG.info("Checking whether '%s' is enabled" % (key))
+                            LOG.debug("Checking whether '%s' is enabled" % (key))
                             if key in env and not env[key] is None:
                                 saveCSVResults(args, partitions, env[key])
                         ## FOR

@@ -5,6 +5,7 @@ import java.util.Random;
 
 import org.junit.Test;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -27,7 +28,10 @@ import edu.brown.hstore.Hstoreservice.Status;
 public class TestPrefetchableSuite extends RegressionSuite {
     
     /** Procedures used by this suite */
-    static final Class<?>[] PROCEDURES = { SquirrelsDistributed.class, SquirrelsSingle.class };
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        SquirrelsDistributed.class, SquirrelsSingle.class
+    };
     private static final String PREFIX = "prefetch";
     private static final Random rand = new Random(0);
 

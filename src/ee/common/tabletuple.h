@@ -68,7 +68,7 @@ namespace voltdb {
 #else
 
 #define TUPLE_HEADER_SIZE 1
-    
+
 #endif
     
 #define DELETED_MASK 1
@@ -187,6 +187,32 @@ public:
         return bytes;
     }
 
+    // Return the amount of memory allocated for non-inlined objects
+    size_t getNonInlinedMemorySize() const
+    {
+        size_t bytes = 0;
+        int cols = sizeInValues();
+        // fast-path for no inlined cols
+        if (m_schema->getUninlinedObjectColumnCount() != 0)
+        {
+            for (int i = 0; i < cols; ++i)
+            {
+                // peekObjectLength is unhappy with non-varchar
+                if (getType(i) == VALUE_TYPE_VARCHAR &&
+                    !m_schema->columnIsInlined(i))
+                {
+                    if (!getNValue(i).isNull())
+                    {
+                        bytes += (sizeof(int32_t) +
+                                  ValuePeeker::
+                                  peekObjectLength(getNValue(i)));
+                    }
+                }
+            }
+        }
+        return bytes;
+    }
+
     void setNValue(const int idx, voltdb::NValue value);
 
     /*
@@ -214,7 +240,7 @@ public:
     inline bool isDirty() const {
         return (*(reinterpret_cast<const char*> (m_data)) & DIRTY_MASK) == 0 ? false : true;
     }
-    
+
     inline bool isEvicted() const
     {
         return (*(reinterpret_cast<const char*> (m_data)) & EVICTED_MASK) == 0 ? false : true;
@@ -233,7 +259,7 @@ public:
     inline ValueType getType(int idx) const {
         return m_schema->columnType(idx);
     }
-    
+
     inline uint32_t getTupleID()
     {
         uint32_t tuple_id; 
@@ -311,13 +337,13 @@ protected:
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DIRTY_MASK);
     }
-    
+
     inline void setEvictedTrue() 
     {
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(EVICTED_MASK);
     }
-    
+
     inline void setEvictedFalse() 
     {
         // treat the first "value" as a boolean flag
@@ -332,7 +358,6 @@ protected:
      * representing whether the tuple is active or deleted
      */
     char *m_data;
-    
 private:
     inline char* getDataPtr(const int idx) {
         assert(m_schema);
