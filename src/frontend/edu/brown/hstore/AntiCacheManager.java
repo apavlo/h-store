@@ -249,6 +249,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         
         evicting = true; 
 
+	LOG.info("Evicting block."); 
+
         String tableNames[] = new String[this.evictableTables.size()];
         long evictBytes[] = new long[this.evictableTables.size()];
         int i = 0;
