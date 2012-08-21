@@ -419,7 +419,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=true
         )
         public boolean specexec_idle;

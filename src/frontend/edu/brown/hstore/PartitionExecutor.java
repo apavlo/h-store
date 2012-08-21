@@ -491,7 +491,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 assert(m_registeredSysProcPlanFragments.containsKey(pfId) == false) : "Trying to register the same sysproc more than once: " + pfId;
                 m_registeredSysProcPlanFragments.put(pfId, proc);
                 if (t) LOG.trace(String.format("Registered %s sysproc handle at partition %d for FragmentId #%d",
-                                 VoltSystemProcedure.getProcCallName(proc.getClass()), partitionId, pfId));
+                                 VoltSystemProcedure.procCallName(proc.getClass()), partitionId, pfId));
             }
         } // SYNCH
     }

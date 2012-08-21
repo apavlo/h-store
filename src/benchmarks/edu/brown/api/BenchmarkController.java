@@ -1197,7 +1197,7 @@ public class BenchmarkController {
         
         // Then tell the cluster to drain all txns
         ClientResponse cresponse = null;
-        String procName = VoltSystemProcedure.getProcCallName(Quiesce.class);
+        String procName = VoltSystemProcedure.procCallName(Quiesce.class);
         try {
             cresponse = client.callProcedure(procName);
         } catch (Exception ex) {
@@ -1210,7 +1210,7 @@ public class BenchmarkController {
         if (m_config.dumpDatabase && this.stop == false) {
             assert(m_config.dumpDatabaseDir != null);
             try {
-                client.callProcedure(VoltSystemProcedure.getProcCallName(DatabaseDump.class),
+                client.callProcedure(VoltSystemProcedure.procCallName(DatabaseDump.class),
                                      m_config.dumpDatabaseDir);
             } catch (Exception ex) {
                 throw new Exception("Failed to dump database contents", ex);
@@ -1253,7 +1253,7 @@ public class BenchmarkController {
     private void writeStats(Client client, SysProcSelector sps, String outputPath) throws Exception {
         Object params[] = { sps.name(), 0 };
         ClientResponse cresponse = null;
-        String procName = VoltSystemProcedure.getProcCallName(Statistics.class);
+        String procName = VoltSystemProcedure.procCallName(Statistics.class);
         try {
             cresponse = client.callProcedure(procName, params);
         } catch (Exception ex) {
@@ -1313,7 +1313,7 @@ public class BenchmarkController {
         
         ClientResponse cr = null;
         for (Class<VoltSystemProcedure> sysproc : sysprocs) {
-            String procName = VoltSystemProcedure.getProcCallName(sysproc);
+            String procName = VoltSystemProcedure.procCallName(sysproc);
             try {
                 cr = client.callProcedure(procName);
             } catch (Exception ex) {
