@@ -468,6 +468,10 @@ bool PersistentTable::insertTuple(TableTuple &source) {
           appendToELBuffer(m_tmpTarget1, m_tsSeqNo++, TupleStreamWrapper::INSERT);
     }
 
+    if (m_schema->getUninlinedObjectColumnCount() != 0)
+    {
+        m_nonInlinedMemorySize += m_tmpTarget1.getNonInlinedMemorySize();
+    }
     /*
      * Create and register an undo action.
      */
@@ -569,6 +573,12 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
          m_COWContext->markTupleDirty(target, false);
      }
 
+    if (m_schema->getUninlinedObjectColumnCount() != 0)
+    {
+        m_nonInlinedMemorySize -= target.getNonInlinedMemorySize();
+        m_nonInlinedMemorySize += source.getNonInlinedMemorySize();
+    }
+
      source.setDeletedFalse();
      //Copy the dirty status that was set by markTupleDirty.
      if (target.isDirty()) {
@@ -644,6 +654,12 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
  */
 void PersistentTable::updateTupleForUndo(TableTuple &source, TableTuple &target,
                                          bool revertIndexes, size_t wrapperOffset) {
+    if (m_schema->getUninlinedObjectColumnCount() != 0)
+    {
+        m_nonInlinedMemorySize -= target.getNonInlinedMemorySize();
+        m_nonInlinedMemorySize += source.getNonInlinedMemorySize();
+    }
+
     //Need to back up the updated version of the tuple to provide to
     //the indexes when updating The indexes expect source's data Ptr
     //to point into the table so it is necessary to copy source to
@@ -753,6 +769,11 @@ void PersistentTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t w
 
         // Just like insert, we want to remove this tuple from all of our indexes
         deleteFromAllIndexes(&target);
+
+        if (m_schema->getUninlinedObjectColumnCount() != 0)
+        {
+            m_nonInlinedMemorySize -= tupleCopy.getNonInlinedMemorySize();
+        }
 
         // Delete the strings/objects
         target.freeObjectColumns();
@@ -959,6 +980,12 @@ void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
     if (allowExport && m_exportEnabled) {
         appendToELBuffer(m_tmpTarget1, m_tsSeqNo++,
                          TupleStreamWrapper::INSERT);
+    }
+    
+    // Account for non-inlined memory allocated via bulk load or recovery
+    if (m_schema->getUninlinedObjectColumnCount() != 0)
+    {
+        m_nonInlinedMemorySize += tuple.getNonInlinedMemorySize();
     }
 }
 

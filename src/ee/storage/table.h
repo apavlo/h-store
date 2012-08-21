@@ -194,8 +194,7 @@ public:
     
     // Only counts persistent table usage, currently
     int64_t nonInlinedMemorySize() const {
-        // return m_nonInlinedMemorySize;
-        return 0l;
+        return m_nonInlinedMemorySize;
     }
     
     #ifdef ANTICACHE
@@ -355,6 +354,8 @@ protected:
     uint32_t m_columnCount;
     uint32_t m_tuplesPerBlock;
     uint32_t m_tupleLength;
+    int64_t m_nonInlinedMemorySize;
+    
     // pointers to chunks of data
     std::vector<char*> m_data;
 
