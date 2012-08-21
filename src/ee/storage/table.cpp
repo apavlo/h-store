@@ -69,6 +69,8 @@ Table::Table(int tableAllocationTargetSize) :
     m_allocatedTuples(0),
     m_columnCount(0),
     m_tuplesPerBlock(0),
+    m_tupleLength(0),
+    m_nonInlinedMemorySize(0),
     m_columnHeaderData(NULL),
     m_columnHeaderSize(-1),
     m_columnNames(NULL),
