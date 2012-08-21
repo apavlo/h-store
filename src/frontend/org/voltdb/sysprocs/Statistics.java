@@ -342,10 +342,10 @@ public class Statistics extends VoltSystemProcedure {
         if (dataFragmentId != null) {
             results = getData(dataFragmentId.intValue(), interval, now);
         }
-        else if (selector.toUpperCase().equals(SysProcSelector.TABLE.name())) {
+        else if (selector.toUpperCase().startsWith(SysProcSelector.TABLE.name())) {
             results = getTableData(interval, now);
         }
-        else if (selector.toUpperCase().equals(SysProcSelector.PROCEDURE.name())) {
+        else if (selector.toUpperCase().startsWith(SysProcSelector.PROCEDURE.name())) {
             results = getProcedureData(interval, now);
         }
         else if (selector.toUpperCase().equals(SysProcSelector.PARTITIONCOUNT.name())) {

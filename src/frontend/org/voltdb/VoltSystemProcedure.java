@@ -357,7 +357,13 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         return (this.executeSysProcPlanFragments(pfs, aggregateId));
     }
     
-    public static final String getProcCallName(Class<? extends VoltSystemProcedure> procClass) {
+    /**
+     * Returns the formatted procedure name to use to invoke the given sysproc class
+     * This is what is passed into the client
+     * @param procClass
+     * @return
+     */
+    public static final String procCallName(Class<? extends VoltSystemProcedure> procClass) {
         return "@" + procClass.getSimpleName();
     }
 }
