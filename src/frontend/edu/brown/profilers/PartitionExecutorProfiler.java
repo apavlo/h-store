@@ -14,7 +14,13 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
      * How much time the PartitionExecutor was idle waiting for
      * work to do in its queue
      */
-    public final ProfileMeasurement idle_time = new ProfileMeasurement("IDLE");
+    public final ProfileMeasurement idle_queue_time = new ProfileMeasurement("IDLE_QUEUE");
+    
+    /**
+     * How much time the PartitionExecutor was idle waiting for responses 
+     * from queries on remote partitions
+     */
+    public final ProfileMeasurement idle_dtxn_time = new ProfileMeasurement("IDLE_DTXN");
     
     /**
      * How much time it takes for this PartitionExecutor to 

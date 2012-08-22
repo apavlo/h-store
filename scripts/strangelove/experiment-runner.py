@@ -100,10 +100,14 @@ DEBUG_OPTIONS = {
     "site.exec_profiling":            True,
     #"site.txn_profiling":             True,    
 }
-DEBUG_LOGGING = [
+DEBUG_SITE_LOGGING = [
     "edu.brown.hstore.HStoreSite",
     "edu.brown.hstore.PartitionExecutor",
     "edu.brown.hstore.TransactionQueueManager"
+]
+DEBUG_CLIENT_LOGGING = [
+    "edu.brown.api.BenchmarkComponent",
+    "edu.brown.api.BenchmarkController",
 ]
 
 BASE_SETTINGS = {
@@ -173,11 +177,12 @@ EXPERIMENT_SETTINGS = {
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
         "site.markov_enable":                   False,
+        "client.count":                         1,
         "client.txnrate":                       100000,
         "client.blocking":                      True,
         "client.output_response_status":        True,
-        #"client.output_exec_profiling":         "execprofile.csv",
-        #"client.output_queue_profiling":        "queueprofile.csv",
+        "client.output_exec_profiling":         "execprofile.csv",
+        "client.output_queue_profiling":        "queueprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",
@@ -188,17 +193,19 @@ EXPERIMENT_SETTINGS = {
         "benchmark.loadthread_per_warehouse":   False,
     },
 }
+EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
+
 
 ## ==============================================
 ## updateEnv
 ## ==============================================
-def updateEnv(env, benchmark, exp_type, partitions):
+def updateEnv(args, env, benchmark, partitions):
     global OPT_BASE_TXNRATE_PER_PARTITION
   
     ## ----------------------------------------------
     ## MOTIVATION
     ## ----------------------------------------------
-    if exp_type == "motivation":
+    if args['exp_type'].startswith("motivation"):
         if env.get('site.markov_enable', False):
             if benchmark == "tpcc":
                 markov = "%s-%dp.markov.gz" % (benchmark, partitions)
@@ -208,7 +215,10 @@ def updateEnv(env, benchmark, exp_type, partitions):
         else:
             env['site.markov_fixed'] = True
         ## IF
-        env["client.threads_per_host"] = int(partitions/2)
+        if args['exp_type'] == 'motivation-oneclient':
+            env["client.threads_per_host"] = 1
+        else:
+            env["client.threads_per_host"] = int(partitions/2)
         env["benchmark.loadthreads"] = min(16, partitions)
         
         pplan = "%s.lns.pplan" % benchmark
@@ -398,6 +408,8 @@ if __name__ == '__main__':
     agroup.add_argument("--debug", action='store_true')
     agroup.add_argument("--debug-hstore", action='store_true')
     agroup.add_argument("--debug-log4j", action='store_true')
+    agroup.add_argument("--debug-log4j-site", action='store_true')
+    agroup.add_argument("--debug-log4j-client", action='store_true')
 
     args = vars(aparser.parse_args())
     
@@ -424,6 +436,9 @@ if __name__ == '__main__':
     if args['debug_hstore']:
         for k,v in DEBUG_OPTIONS.iteritems():
             BASE_SETTINGS[k] = v
+    if args['debug_log4j']:
+        args['debug_log4j_site'] = True
+        args['debug_log4j_client'] = True
     if args['fast_start']:
         LOG.info("Enabling fast startup")
         for key in ['compile', 'update', 'conf', 'jar', 'sync']:
@@ -468,9 +483,11 @@ if __name__ == '__main__':
     # BenchmarkController Parameters
     controllerParams = { }
     
+    
+    
     needUpdate = (args['no_update'] == False)
-    needUpdateLog4j = args['debug_log4j']
-    needResetLog4j = not (args['no_update'] or args['debug_log4j'])
+    needUpdateLog4j = args['debug_log4j_site'] or args['debug_log4j_client']
+    needResetLog4j = not (args['no_update'] or needUpdateLog4j)
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
     needClearLogs = (args['clear_logs'] == False)
@@ -484,7 +501,7 @@ if __name__ == '__main__':
             LOG.info("%s - %s - %d Partitions" % (args['exp_type'].upper(), benchmark.upper(), partitions))
             env["hstore.partitions"] = partitions
             all_results = [ ]
-            updateEnv(env, benchmark, args['exp_type'], partitions)
+            updateEnv(args, env, benchmark, partitions)
                 
             # Increase the client.scalefactor based on the number of partitions
             if args['multiply_scalefactor']:
@@ -510,8 +527,13 @@ if __name__ == '__main__':
             ## Update Log4j
             if needUpdateLog4j:
                 LOG.info("Updating log4j.properties")
+                enableDebug = [ ]
+                if args['debug_log4j_site']:
+                    enableDebug += DEBUG_SITE_LOGGING
+                if args['debug_log4j_client']:
+                    enableDebug += DEBUG_CLIENT_LOGGING
                 with settings(host_string=client_inst.public_dns_name):
-                    hstore.fabfile.enable_debugging(debug=DEBUG_LOGGING)
+                    hstore.fabfile.enable_debugging(debug=enableDebug)
                 ## WITH
                 needUpdateLog4j = False
                 

@@ -734,7 +734,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         if (hstore_conf.site.exec_profiling) {
             EventObservable<?> observable = this.hstore_site.getStartWorkloadObservable();
-            this.profiler.idle_time.resetOnEventObservable(observable);
+            this.profiler.idle_queue_time.resetOnEventObservable(observable);
             this.profiler.exec_time.resetOnEventObservable(observable);
         }
         
@@ -866,7 +866,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // until something shows up in our queue
         if (work == null) {
             if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
-            if (hstore_conf.site.exec_profiling) this.profiler.idle_time.start();
+            if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.start();
             try {
                 work = this.work_queue.poll(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
             } catch (InterruptedException ex) {
@@ -875,7 +875,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.stop = true;
                 return (null);
             } finally {
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_time.stop();                    
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.stop();                    
             }
         }
         return (work);
@@ -2872,6 +2872,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // If we didn't get back a list of fragments here, then we will spin through
                 // and invoke utilityWork() to try to do something useful until what we need shows up
                 if (needs_profiling) ts.profiler.startExecDtxnWork();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_time.start();
                 try {
                     while (fragments == null) {
                         // If there is more work that we could do, then we'll just poll the queue
@@ -2892,6 +2893,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     return (null);
                 } finally {
                     if (needs_profiling) ts.profiler.stopExecDtxnWork();
+                    if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_time.stop();
                 }
             }
             assert(fragments != null);
@@ -3090,7 +3092,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (latch.getCount() > 0) {
             if (d) {
                 LOG.debug(String.format("%s - All blocked messages dispatched. Waiting for %d dependencies",
-                                        ts, latch.getCount()));
+                          ts, latch.getCount()));
                 if (t) LOG.trace(ts.toString());
             }
             boolean timeout = false;
@@ -3098,6 +3100,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             long waitTime = hstore_conf.site.exec_response_timeout*1000000;
             
             if (needs_profiling) ts.profiler.startExecDtxnWork();
+            if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_time.start();
             try {
                 while (latch.getCount() > 0 && ts.hasPendingError() == false) {
                     if (this.utilityWork() == false) {
@@ -3118,6 +3121,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 throw new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
             } finally {
                 if (needs_profiling) ts.profiler.stopExecDtxnWork();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_time.stop();
             }
             
             if (timeout && this.isShuttingDown() == false) {
