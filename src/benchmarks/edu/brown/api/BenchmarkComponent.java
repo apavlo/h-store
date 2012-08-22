@@ -946,9 +946,8 @@ public abstract class BenchmarkComponent {
         int byteCount = vt.getUnderlyingBufferSize();
         long byteTotal = m_tableBytes.get(tableName, 0);
         
-        if (trace.get())
-            LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
-                                    tableName.toUpperCase(), rowCount, rowTotal, byteCount, byteTotal));
+        if (trace.get()) LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
+                                   tableName.toUpperCase(), rowCount, rowTotal, byteCount, byteTotal));
         
         // Load up this dirty mess...
         ClientResponse cr = null;
@@ -981,13 +980,14 @@ public abstract class BenchmarkComponent {
             } // SYNCH
             assert(cr != null);
             assert(cr.getStatus() == Status.OK);
-            if (debug.get()) LOG.debug(String.format("Load %s: txn #%d / %s / %d",
+            if (trace.get()) LOG.trace(String.format("Load %s: txn #%d / %s / %d",
                                        tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
         } else {
             cr = m_dummyResponse;
         }
         if (cr.getStatus() != Status.OK) {
-            LOG.warn(String.format("Failed to load %d rows for '%s': %s", rowCount, tableName, cr.getStatusString()), cr.getException()); 
+            LOG.warn(String.format("Failed to load %d rows for '%s': %s",
+                     rowCount, tableName, cr.getStatusString()), cr.getException()); 
             return (cr);
         }
         
