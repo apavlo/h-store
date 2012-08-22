@@ -721,6 +721,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Update all our other boys
         this.objectPools.updateConf(hstore_conf);
+        this.txnQueueManager.updateConf(hstore_conf);
     }
     
     // ----------------------------------------------------------------------------

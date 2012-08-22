@@ -27,6 +27,7 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
+import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
@@ -40,7 +41,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
-public class TransactionQueueManager implements Runnable, Loggable, Shutdownable {
+public class TransactionQueueManager implements Runnable, Loggable, Shutdownable, Configurable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -65,7 +66,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     /**
      * 
      */
-    private final long wait_time;
+    private long wait_time;
     
     private final TransactionQueueManagerProfiler profiler;
     
@@ -180,7 +181,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         this.lockQueuesBlocked = new boolean[this.lockQueues.length];
         this.lockQueuesLastTxn = new Long[this.lockQueues.length];
         this.localPartitionsArray = CollectionUtil.toIntArray(hstore_site.getLocalPartitionIds());
-        this.wait_time = hstore_conf.site.txn_incoming_delay;
+        this.updateConf(this.hstore_conf);
         
         // Allocate transaction queues
         for (int partition : allPartitions) {
@@ -893,6 +894,18 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
+    @Override
+    public void updateConf(HStoreConf hstore_conf) {
+        // HACK: If there is only one site in the cluster, then we can
+        // set the wait time to 1ms
+        if (hstore_site.getCatalogContext().numberOfSites == 1) {
+            this.wait_time = 1;
+        }
+        else {
+            this.wait_time = hstore_conf.site.txn_incoming_delay;            
+        }
+    }
+    
     public TransactionQueueManagerProfiler getProfiler() {
         return this.profiler;
     }
@@ -998,5 +1011,4 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
         return cachedDebugContext;
     }
-    
 }
