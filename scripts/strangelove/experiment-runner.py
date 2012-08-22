@@ -113,6 +113,7 @@ BASE_SETTINGS = {
     #"ec2.client_type":                  "m1.large",
     #"ec2.site_type":                    "m1.xlarge",
     "ec2.change_type":                  True,
+    "ec2.cluster_group":                "strangelove",
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
@@ -159,13 +160,15 @@ EXPERIMENT_SETTINGS = {
     "motivation": {
         # HVM Instances
         # http://cloud-images.ubuntu.com/desktop/precise/current/
-        "ec2.site_ami":                         "ami-efa81d86",
-        "ec2.site_type":                        "cc1.4xlarge",
-        "ec2.client_type":                      "c1.xlarge",
-        "ec2.change_type":                      False,
-        "ec2.cluster_group":                    "hstore-hvm",
-        "hstore.partitions_per_site":           32,
+        #"ec2.site_ami":                         "ami-efa81d86",
+        #"ec2.site_type":                        "cc1.4xlarge",
+        #"ec2.client_type":                      "c1.xlarge",
+        #"ec2.change_type":                      False,
+        #"ec2.cluster_group":                    "hstore-hvm",
+        #"hstore.partitions_per_site":           64,
         
+        "ec2.site_type":                       "c1.xlarge",
+        "site.memory":                          6144,
         "site.txn_incoming_delay":              5,
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
@@ -174,11 +177,11 @@ EXPERIMENT_SETTINGS = {
         "client.blocking":                      True,
         "client.output_response_status":        True,
         #"client.output_exec_profiling":         "execprofile.csv",
-        "client.output_queue_profiling":        "queueprofile.csv",
+        #"client.output_queue_profiling":        "queueprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
-        "client.output_txn_counters":           "txncounters.csv",
-        "client.output_txn_counters_combine":   True,
+        #"client.output_txn_counters":           "txncounters.csv",
+        #"client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
         "benchmark.neworder_abort":             False,
         "benchmark.neworder_multip_mix":        100,
@@ -205,7 +208,7 @@ def updateEnv(env, benchmark, exp_type, partitions):
         else:
             env['site.markov_fixed'] = True
         ## IF
-        env["client.threads_per_host"] = partitions
+        env["client.threads_per_host"] = int(partitions/2)
         env["benchmark.loadthreads"] = min(16, partitions)
         
         pplan = "%s.lns.pplan" % benchmark
@@ -471,7 +474,6 @@ if __name__ == '__main__':
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
     needClearLogs = (args['clear_logs'] == False)
-    forceStop = False
     origScaleFactor = BASE_SETTINGS['client.scalefactor']
     for benchmark in args['benchmark']:
         final_results = { }
@@ -566,13 +568,11 @@ if __name__ == '__main__':
                     ## WITH
                 except KeyboardInterrupt:
                     stop = True
-                    forceStop = True
                     break
                 except SystemExit:
                     LOG.warn("Failed to complete trial succesfully")
                     if args['stop_on_error']:
                         stop = True
-                        forceStop = True
                         break
                     pass
                 except:
@@ -585,13 +585,12 @@ if __name__ == '__main__':
                     updateJar = False
                     updateConf = False
                 ## TRY
-                
             ## FOR (TRIALS)
             if results: final_results[partitions] = (benchmark, results, attempts)
-            if stop or forceStop or (attempts == totalAttempts): break
+            if stop: break
             stop = False
         ## FOR (PARTITIONS)
-        if forceStop: break
+        if stop: break
         stop = False
     ## FOR (BENCHMARKS)
     

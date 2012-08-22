@@ -290,7 +290,10 @@ def start_cluster(updateSync=True):
             ## on an offset to determine whether they are a site or a client 
             if sites_needed > 0:
                 LOG.debug("SITE: %s - Current Type %s <=> %s" % (__getInstanceName__(inst), currentType, env["ec2.site_type"]))
-                if currentType != env["ec2.site_type"]:
+                if inst.image_id != env["ec2.site_ami"]:
+                    LOG.warn("SITE Skipping %s != %s" % (inst.image_id, env["ec2.site_ami"]))
+                    pass
+                elif currentType != env["ec2.site_type"]:
                     if env["ec2.change_type"]:
                         inst.modify_attribute("instanceType", env["ec2.site_type"])
                         siteInstances.append(inst)
@@ -301,7 +304,10 @@ def start_cluster(updateSync=True):
                     sites_needed -= 1
             else:
                 LOG.debug("CLIENT: %s - Current Type %s <=> %s" % (__getInstanceName__(inst), currentType, env["ec2.client_type"]))
-                if currentType != env["ec2.client_type"]:
+                if inst.image_id != env["ec2.client_ami"]:
+                    LOG.warn("CLIENT Skipping %s != %s" % (inst.image_id, env["ec2.site_ami"]))
+                    pass
+                elif currentType != env["ec2.client_type"]:
                     if env["ec2.change_type"]:
                         inst.modify_attribute("instanceType", env["ec2.client_type"])
                         clientInstances.append(inst)
@@ -540,8 +546,8 @@ def setup_nfshead(rebootInst=True):
     sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
     append("/etc/exports", "%s *(rw,async,no_subtree_check)" % os.path.dirname(HSTORE_DIR[:-1]), use_sudo=True)
     sudo("exportfs -a")
-    sudo("service portmap start")
-    sudo("service nfs-kernel-server start")
+    sudo("/etc/init.d/portmap start")
+    sudo("/etc/init.d/nfs-kernel-server start")
     
     inst = __getInstance__(env.host_string)
     assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
@@ -578,7 +584,7 @@ def setup_nfsclient(rebootInst=True):
         sudo("apt-get --yes install %s" % " ".join(NFSCLIENT_PACKAGES))
         append("/etc/auto.master", "%s /etc/auto.hstore" % nfs_dir, use_sudo=True)
         append("/etc/auto.hstore", "* hstore-nfs:%s/&" % nfs_dir, use_sudo=True)
-        sudo("service autofs start")
+        sudo("/etc/init.d/autofs start")
     ## IF
     
     inst = __getInstance__(env.host_string)
@@ -628,7 +634,7 @@ def deploy_hstore(build=True, update=True):
             ebsDir = "/mnt/h-store"
             with settings(warn_only=True):
                 if run("test -d %s" % ebsDir).failed:
-                    run("mkdir -p " + ebsDir)
+                    sudo("mkdir -p " + ebsDir)
                 sudo("chown --quiet -R %s %s" % (env.user, ebsDir))
             ## WITH
             run("ant junit-getfiles -Dsymlink=%s" % ebsDir)
