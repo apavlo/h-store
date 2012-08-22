@@ -288,9 +288,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         for (int partition : this.localPartitionsArray) {
             synchronized (this.lockQueues[partition]) {
                 while ((txn_id = this.lockQueues[partition].poll()) != null) {
-                    TransactionInitQueueCallback callback = this.lockQueuesCallbacks.get(txn_id);
                     this.rejectTransaction(txn_id,
-                                           callback,
+                                           this.lockQueuesCallbacks.get(txn_id),
                                            Status.ABORT_REJECT,
                                            partition,
                                            this.lockQueuesLastTxn[partition]);
@@ -514,6 +513,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
             // Our queue is overloaded. We have to reject the txnId!
             else if (queue.offer(txn_id, sysproc) == false) {
+                assert(sysproc == false) :
+                    String.format("Failed to add non-sysproc txn #%d to partition %d lock queue",
+                                  txn_id, partition);
                 if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. Throttling txn #%d",
                                  partition, next_safe, txn_id));
                 if (wrapper != null) {
