@@ -2418,7 +2418,7 @@ UTILITIES
         <jvmarg value="-Dhstore.tag=site" />
         <!-- Initial Heap Size -->
 
-<!--         <jvmarg value="-Xms${site.memory}m" /> -->
+        <jvmarg value="-Xms100m" />
         <!-- Maximum Heap Size -->
         <jvmarg value="-Xmx${site.memory}m" />
 

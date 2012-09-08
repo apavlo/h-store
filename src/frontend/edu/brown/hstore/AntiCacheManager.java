@@ -237,11 +237,14 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      */
     protected boolean checkEviction() {
         SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
-        LOG.info("Current Memory Status:\n" + stats);
+        //LOG.info("Current Memory Status:\n" + stats);
         
+        double usage = (stats.javausedheapmem / stats.javatotalheapmem) * 100; 
+
+        LOG.info("Current Memory Usage: " + usage); 
         
-        // return (usage >= this.memoryThreshold);
-        return (false);
+        return (usage >= this.memoryThreshold);
+        //return (false);
     }
     
     protected void executeEviction() {
