@@ -239,7 +239,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
         //LOG.info("Current Memory Status:\n" + stats);
         
-        double usage = (stats.javausedheapmem / stats.javatotalheapmem) * 100; 
+        double usage = (stats.javausedheapmem / (double)stats.javatotalheapmem) * 100; 
 
         LOG.info("Current Memory Usage: " + usage); 
         
