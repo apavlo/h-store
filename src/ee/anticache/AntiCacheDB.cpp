@@ -102,8 +102,6 @@ void AntiCacheDB::writeBlock(const std::string tableName,
     m_db->put(NULL, &key, &value, 0);
 
     m_db->sync(0); 
-    
-    // TODO(debrabant): Should we do an fsync here?
 }
 
 AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, uint16_t blockId) {

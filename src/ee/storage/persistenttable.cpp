@@ -287,7 +287,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
                 block_id, name().c_str(),
                 num_tuples_evicted, serialized_data_length, tuple_length);
         VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
-                name().c_str(), origEvictedTableSize, m_evictedTable->activeTupleCount());
+                name().c_str(), (long)origEvictedTableSize, (long)m_evictedTable->activeTupleCount());
         #endif
     } else {
         VOLT_WARN("No tuples were evicted from %s", name().c_str());

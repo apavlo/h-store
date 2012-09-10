@@ -239,11 +239,20 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
         //LOG.info("Current Memory Status:\n" + stats);
         
-        double usage = (stats.javausedheapmem / (double)stats.javatotalheapmem) * 100; 
+        //double usage = (stats.javausedheapmem / (double)stats.javatotalheapmem) * 100; 
 
-        LOG.info("Current Memory Usage: " + usage); 
+        //LOG.info("Current Memory Usage: " + usage); 
         
-        return (usage >= this.memoryThreshold);
+        long total_size_kb = 0; 
+        for(int i = 0; i < hstore_site.getLocalPartitionIds().size(); i++)
+        {
+            total_size_kb += partitionSizes[i];  
+        }
+
+        return(total_size_kb > (1024 * 128));
+        
+		//return(stats.javausedheapmem > (1024 * 1024 * 1024));
+        //return (usage >= this.memoryThreshold);
         //return (false);
     }
     
@@ -253,7 +262,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         
         evicting = true; 
 
-	LOG.info("Evicting block."); 
+        LOG.info("Evicting block."); 
 
         String tableNames[] = new String[this.evictableTables.size()];
         long evictBytes[] = new long[this.evictableTables.size()];
