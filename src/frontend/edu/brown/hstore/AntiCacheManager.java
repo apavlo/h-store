@@ -249,6 +249,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             total_size_kb += partitionSizes[i];  
         }
 
+		LOG.info("Current Memory Usage: " + total_size_kb); 
+
         return(total_size_kb > (1024 * 128));
         
 		//return(stats.javausedheapmem > (1024 * 1024 * 1024));
