@@ -104,6 +104,12 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         public void runImpl() {
             try {
                 if (hstore_conf.site.anticache_enable && checkEviction() && !evicting) {
+					
+					// update all the partition sizes 
+					for(Integer p: hstore_site.getLocalPartitionIds())
+					{
+						getPartitionSize(p.intValue()); 
+					}
                     executeEviction();
                 }
             } catch (Throwable ex) {
@@ -294,6 +300,14 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     // ----------------------------------------------------------------------------
     // MEMORY MANAGEMENT METHODS
     // ----------------------------------------------------------------------------
+
+	protected void getPartitionSize(int partition) {
+
+		// Queue up a utility work operation at the PartitionExecutor so
+		// that we can get the total size of the partition
+		hstore_site.getPartitionExecutor(partition).queueUtilityWork(this.statsMessage, true);
+
+	}
     
     protected void updatePartitionStats(VoltTable vt) {
         long totalSizeKb = 0;
