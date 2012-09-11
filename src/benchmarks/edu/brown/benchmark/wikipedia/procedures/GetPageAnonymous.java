@@ -25,6 +25,10 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
+import java.util.ArrayList; 
+import java.util.Random; 
+import edu.brown.rand.RandomDistribution.Zipf; 
+
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
 @ProcInfo(
@@ -45,6 +49,10 @@ public class GetPageAnonymous extends VoltProcedure {
         "SELECT * FROM " + WikipediaConstants.TABLENAME_IPBLOCKS + 
         " WHERE ipb_address = ?"
     ); 
+    
+    public SQLStmt selectRevisionsByPage = new SQLStmt(
+        "SELECT rev_id FROM " + WikipediaConstants.TABLENAME_REVISION + " WHERE page_id = ?");
+    
 	public SQLStmt selectPageRevision = new SQLStmt(
         "SELECT * " +
 	    "  FROM " + WikipediaConstants.TABLENAME_PAGE + ", " +
@@ -65,11 +73,29 @@ public class GetPageAnonymous extends VoltProcedure {
             " WHERE " +
 	        "rev_id = ? LIMIT 1"
     );
+    
+    public SQLStmt selectPageRevisionNotLatest = new SQLStmt(
+        "SELECT * " +
+        "  FROM " + WikipediaConstants.TABLENAME_PAGE + ", " +
+        WikipediaConstants.TABLENAME_REVISION +
+        " WHERE page_id = rev_page " +
+        "   AND rev_page = ? " +
+        "   AND page_id = ? " +
+        "   AND rev_id = ? LIMIT 1"
+    );
 	
 	public SQLStmt selectText = new SQLStmt(
         "SELECT old_text, old_flags FROM " + WikipediaConstants.TABLENAME_TEXT +
         " WHERE old_id = ? LIMIT 1"
     );
+    
+    private final Random rnd = new Random(); 
+    
+    private boolean flipCoin(double phead)
+    {
+        assert phead <= 1.0; 
+        return rnd.nextDouble() <= phead; 
+    }
 
 	// -----------------------------------------------------------------
     // RUN
@@ -79,9 +105,10 @@ public class GetPageAnonymous extends VoltProcedure {
 
         voltQueueSQL(selectPageRestriction, pageId);
         voltQueueSQL(selectIpBlocks, userIp);
-        voltQueueSQL(selectPageRevision, pageId, pageId);
+        //voltQueueSQL(selectPageRevision, pageId, pageId);
         VoltTable rs[] = voltExecuteSQL();
-        assert(rs.length == 3):"length expected is:3, but is:" + rs.length;
+        //assert(rs.length == 3):"length expected is:3, but is:" + rs.length;
+        assert(rs.length == 2):"length expected is:2, but is:" + rs.length;
         
         // Grab Page Restrictions
         while (rs[0].advanceRow()) {
@@ -96,29 +123,77 @@ public class GetPageAnonymous extends VoltProcedure {
             assert(ipb_expiry != null);
         } // WHILE
         
-        voltQueueSQL(selectPage, pageId);
-        rs = voltExecuteSQL();
-        if (!rs[0].advanceRow()) {
-            String msg = String.format("");
-            throw new VoltAbortException(msg);
+        int revisionId, textId;
+        if (flipCoin(WikipediaConstants.PAST_REV_CHECK_PROB)) {
+            
+            // get a list of all past revisions
+            voltQueueSQL(selectRevisionsByPage, pageId); 
+            rs = voltExecuteSQL(); 
+            
+            if (!rs[0].advanceRow()) {
+                String msg = String.format("Invalid Page: Missing revision Namespace:%d / Title:--%s-- / PageId:%d",
+                                           pageNamespace, pageTitle, pageId);
+                throw new VoltAbortException(msg);
+            }
+            
+            ArrayList<Integer> revIds = new ArrayList<Integer>();
+            while(rs[0].advanceRow())
+            {
+                revIds.add((int)rs[0].getLong(1));
+            }
+            
+            int revId;
+            if (revIds.size() == 1) {
+                // only one rev, so we must pick it
+                revId = revIds.get(0);
+            } else {
+                
+                // revIds.size() - 1 so we exclude the latest revision (we want to make
+                // this branch load *not* the latest page
+                Zipf zip = new Zipf(rnd, 0, revIds.size() - 1, WikipediaConstants.PAST_REV_ZIPF_SKEW); 
+                
+                // pick the index into revIds
+                int idx = (int)zip.nextLong();
+                assert idx >= 0 && idx < (revIds.size() - 1);
+                
+                // index from the end, since we want to favor latest revisions
+                revId = revIds.get( (revIds.size() - 2) - idx );
+            }
+            
+            voltQueueSQL(selectPageRevisionNotLatest, pageId, pageId, revId); 
+            rs = voltExecuteSQL(); 
+            
+            if (!rs[0].advanceRow()) {
+                String msg = String.format("Invalid Page: Missing revision Namespace:%d / Title:--%s-- / PageId:%d",
+                                           pageNamespace, pageTitle, pageId);
+                throw new VoltAbortException(msg);
+            }
+            
+            revisionId = (int)rs[0].getLong("rev_id");
+            textId = (int)rs[0].getLong("rev_text_id");
+            
+            assert !rs[0].advanceRow();
+        } 
+        else { // we are only interested in the latest page
+            
+            //        System.err.println("selectPage:\n" + rs[0]);
+            //        System.err.println("selectRevision:\n" + rs[1]);
+            //        System.err.println("selectPageRevision, PageId:" + pageId);
+            //        voltQueueSQL(selectPageRevision, pageId, pageId);
+            voltQueueSQL(selectPageRevision,pageId, pageId);
+            rs = voltExecuteSQL();
+            
+            if (!rs[0].advanceRow()) {
+                String msg = String.format("Invalid Page: Missing revision Namespace:%d / Title:--%s-- / PageId:%d",
+                                           pageNamespace, pageTitle, pageId);
+                throw new VoltAbortException(msg);
+            }
+            
+            revisionId = (int)rs[0].getLong("rev_id");
+            textId = (int)rs[0].getLong("rev_text_id");
+            
+            assert !rs[0].advanceRow();
         }
-        int pageLatest = (int)rs[0].getLong(0);
-        
-//        System.err.println("selectPage:\n" + rs[0]);
-//        System.err.println("selectRevision:\n" + rs[1]);
-//        System.err.println("selectPageRevision, PageId:" + pageId);
-//        voltQueueSQL(selectPageRevision, pageId, pageId);
-        voltQueueSQL(selectRevision,pageLatest);
-        rs = voltExecuteSQL();
-        
-        if (!rs[0].advanceRow()) {
-            String msg = String.format("Invalid Page: Missing revision Namespace:%d / Title:--%s-- / PageId:%d",
-                                       pageNamespace, pageTitle, pageId);
-            throw new VoltAbortException(msg);
-        }
-        int revisionId = (int)rs[0].getLong("rev_id");
-        int textId = (int)rs[0].getLong("rev_text_id");
-        assert !rs[0].advanceRow();
 
         // NOTE: the following is our variation of wikipedia... the original did
         // not contain old_page column!
