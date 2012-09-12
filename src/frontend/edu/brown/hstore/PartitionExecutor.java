@@ -3448,7 +3448,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             this.releaseBlockedTransactions(ts);
         } catch (Throwable ex) {
             String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
-            throw new ServerFaultException(msg, ex);
+            throw new ServerFaultException(msg, ex, ts.getTransactionId());
         } finally {
             exec_lock.unlock();
         } // SYNCH
