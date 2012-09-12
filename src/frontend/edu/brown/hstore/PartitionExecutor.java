@@ -2807,7 +2807,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             } // FOR
             if (has_remote == false) {
                 LOG.warn(ts.debug() + "\n" + fragments);
-                String msg = String.format("%s - Trying to execute all local single-partition queries using the slow-path!", ts);
+                String msg = ts + "Trying to execute all local single-partition queries using the slow-path!";
                 throw new ServerFaultException(msg, ts.getTransactionId());
             }
         }
