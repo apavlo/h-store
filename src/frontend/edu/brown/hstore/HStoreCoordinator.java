@@ -157,11 +157,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             Throwable error = null;
             try {
                 HStoreCoordinator.this.eventLoop.run();
-            } catch (RuntimeException ex) {
-                error = ex;
-            } catch (AssertionError ex) {
-                error = ex;
-            } catch (Exception ex) {
+            } catch (Throwable ex) {
                 error = ex;
             }
             
@@ -171,7 +167,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
                 }
                 
                 Throwable cause = null;
-                if (error instanceof RuntimeException && error.getCause() != null) {
+                if (error instanceof ServerFaultException && error.getCause() != null) {
                     if (error.getCause().getMessage() != null && error.getCause().getMessage().isEmpty() == false) {
                         cause = error.getCause();
                     }

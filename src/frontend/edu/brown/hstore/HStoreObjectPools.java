@@ -84,8 +84,9 @@ public final class HStoreObjectPools implements Configurable {
         this.hstore_site = hstore_site;
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
         
-        // CALLBACKS
-        
+        // -------------------------------
+        // GLOBAL CALLBACK POOLS
+        // -------------------------------
         this.CALLBACKS_TXN_INITQUEUE = TypedObjectPool.factory(TransactionInitQueueCallback.class,
                 (int)(hstore_conf.site.pool_txninitqueue_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
@@ -198,6 +199,9 @@ public final class HStoreObjectPools implements Configurable {
     
     public TypedObjectPool<LocalTransaction> getLocalTransactionPool(int partition) {
         int offset = this.hstore_site.getLocalPartitionOffset(partition);
+        assert(offset != HStoreConstants.NULL_PARTITION_ID && this.STATES_TXN_LOCAL[offset] != null) :
+            String.format("Trying to acquire %s object pool for non-local partition %d",
+                          LocalTransaction.class.getSimpleName(), partition);
         return this.STATES_TXN_LOCAL[offset];
     }
     
@@ -206,18 +210,32 @@ public final class HStoreObjectPools implements Configurable {
     }
     
     public TypedObjectPool<MapReduceTransaction> getMapReduceTransactionPool(int partition) {
-        if (this.STATES_TXN_MAPREDUCE == null) return (null);
+        if (this.STATES_TXN_MAPREDUCE == null) {
+            String msg = String.format("Trying to acquire %s object pool for partition %d but mapreduce feature is disabled",
+                                       MapReduceTransaction.class.getSimpleName(), partition);
+            throw new RuntimeException(msg);
+        }
         return this.STATES_TXN_MAPREDUCE[partition];
     }
     
     public TypedObjectPool<DistributedState> getDistributedStatePool(int partition) {
         int offset = this.hstore_site.getLocalPartitionOffset(partition);
+        assert(offset != HStoreConstants.NULL_PARTITION_ID && this.STATES_DISTRIBUTED[offset] != null) :
+            String.format("Trying to acquire %s object pool for non-local partition %d",
+                          DistributedState.class.getSimpleName(), partition);
         return this.STATES_DISTRIBUTED[offset];
     }
     
     public TypedObjectPool<PrefetchState> getPrefetchStatePool(int partition) {
-        if (this.STATES_PREFETCH == null) return (null);
+        if (this.STATES_PREFETCH == null) {
+            String msg = String.format("Trying to acquire %s object pool for partition %d but prefetching feature is disabled",
+                                       PrefetchState.class.getSimpleName(), partition);
+            throw new RuntimeException(msg);
+        }
         int offset = this.hstore_site.getLocalPartitionOffset(partition);
+        assert(offset != HStoreConstants.NULL_PARTITION_ID && this.STATES_PREFETCH[offset] != null) :
+            String.format("Trying to acquire %s object pool for non-local partition %d",
+                          PrefetchState.class.getSimpleName(), partition);
         return this.STATES_PREFETCH[offset];
     }
     

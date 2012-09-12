@@ -39,6 +39,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
@@ -109,7 +110,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     private ParameterSet attached_parameterSets[];
     
     /**
-     * 
+     * Internal state information for txns that request prefetch queries
+     * This is only needed for distributed transactions
      */
     protected PrefetchState prefetch;
     
@@ -825,8 +827,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
                 this.prefetch = hstore_site.getObjectPools()
                                            .getPrefetchStatePool(this.base_partition)
                                            .borrowObject();
-            } catch (Exception ex) {
-                throw new RuntimeException("Unexpected error when trying to initialize PrefetchState for " + this, ex);
+                this.prefetch.init(this);
+            } catch (Throwable ex) {
+                String message = String.format("Unexpected error when trying to initialize %s for %s",
+                                               PrefetchState.class.getSimpleName(), this);
+                throw new ServerFaultException(message, ex, this.txn_id);
             }
         }
     }

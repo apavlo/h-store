@@ -14,13 +14,13 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.pools.Poolable;
 
 /**
- * Special internal state information for when the txn prefetches queries
+ * Special internal state information for when the txn requests prefetch queries
  * @author pavlo
  */
 public class PrefetchState implements Poolable {
 
     /**
-     * Which partitions have recieved prefetch WorkFragments
+     * Which partitions have received prefetch WorkFragments
      */
     protected final BitSet partitions;
     
@@ -56,10 +56,13 @@ public class PrefetchState implements Poolable {
         this.partitions = new BitSet(num_partitions);
     }
     
+    public void init(AbstractTransaction ts) {
+        // Nothing to do for now...
+    }
+    
     @Override
     public boolean isInitialized() {
-        // TODO Auto-generated method stub
-        return false;
+        return (this.partitions.isEmpty() == false);
     }
 
     @Override
