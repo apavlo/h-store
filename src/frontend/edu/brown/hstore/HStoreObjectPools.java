@@ -117,10 +117,6 @@ public final class HStoreObjectPools implements Configurable {
         this.STATES_TXN_LOCAL = (TypedObjectPool<LocalTransaction>[])new TypedObjectPool<?>[num_local_partitions];
         this.STATES_DISTRIBUTED = (TypedObjectPool<DistributedState>[])new TypedObjectPool<?>[num_local_partitions];
         
-        if (needsPrefetch) {
-            this.STATES_PREFETCH = (TypedObjectPool<PrefetchState>[])new TypedObjectPool<?>[num_local_partitions];
-        } else this.STATES_PREFETCH = null;
-        
         for (int i = 0; i < num_local_partitions; i++) {
             
             // LocalTransaction
@@ -132,12 +128,6 @@ public final class HStoreObjectPools implements Configurable {
             this.STATES_DISTRIBUTED[i] = TypedObjectPool.factory(DistributedState.class,
                 (int)(hstore_conf.site.pool_dtxnstates_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-            
-            if (needsPrefetch) {
-                this.STATES_PREFETCH[i] = TypedObjectPool.factory(PrefetchState.class,
-                    (int)(hstore_conf.site.pool_prefetchstates_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling, hstore_site);
-            }
         } // FOR
         
         // -------------------------------
@@ -149,6 +139,9 @@ public final class HStoreObjectPools implements Configurable {
         
         this.STATES_TXN_REMOTE = (TypedObjectPool<RemoteTransaction>[])new TypedObjectPool<?>[catalogContext.numberOfPartitions];
         this.STATES_TXN_MAPREDUCE = (TypedObjectPool<MapReduceTransaction>[])new TypedObjectPool<?>[catalogContext.numberOfPartitions];
+        if (needsPrefetch) {
+            this.STATES_PREFETCH = (TypedObjectPool<PrefetchState>[])new TypedObjectPool<?>[catalogContext.numberOfPartitions];
+        } else this.STATES_PREFETCH = null;
         
         for (int i = 0; i < catalogContext.numberOfPartitions; i++) {
             
@@ -161,6 +154,12 @@ public final class HStoreObjectPools implements Configurable {
             if (has_mapreduce) {
                 this.STATES_TXN_MAPREDUCE[i] = TypedObjectPool.factory(MapReduceTransaction.class,
                     (int)(hstore_conf.site.pool_mapreducetxnstate_idle * hstore_conf.site.pool_scale_factor),
+                    hstore_conf.site.pool_profiling, hstore_site);
+            }
+            // PrefetchState
+            if (needsPrefetch) {
+                this.STATES_PREFETCH[i] = TypedObjectPool.factory(PrefetchState.class,
+                    (int)(hstore_conf.site.pool_prefetchstates_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling, hstore_site);
             }
         } // FOR
@@ -232,11 +231,7 @@ public final class HStoreObjectPools implements Configurable {
                                        PrefetchState.class.getSimpleName(), partition);
             throw new RuntimeException(msg);
         }
-        int offset = this.hstore_site.getLocalPartitionOffset(partition);
-        assert(offset != HStoreConstants.NULL_PARTITION_ID && this.STATES_PREFETCH[offset] != null) :
-            String.format("Trying to acquire %s object pool for non-local partition %d",
-                          PrefetchState.class.getSimpleName(), partition);
-        return this.STATES_PREFETCH[offset];
+        return this.STATES_PREFETCH[partition];
     }
     
     public Map<String, TypedObjectPool<?>> getGlobalPools() {
