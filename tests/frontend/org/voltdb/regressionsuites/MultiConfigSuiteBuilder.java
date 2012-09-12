@@ -97,6 +97,7 @@ public class MultiConfigSuiteBuilder extends TestSuite {
         // Add global config parameters
         for (Entry<String, Object> e : this.confParams.entrySet()) {
             if (config.confParams.containsKey(e.getKey()) == false) {
+                LOG.debug(String.format("SET CONF %s %s", config.getName(), e));
                 config.setConfParameter(e.getKey(), e.getValue());
             }
         } // FOR

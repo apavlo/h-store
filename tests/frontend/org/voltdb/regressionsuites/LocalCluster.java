@@ -45,6 +45,7 @@ import edu.brown.catalog.FixCatalog;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Implementation of a VoltServerConfig for a multi-process
@@ -233,6 +234,16 @@ public class LocalCluster extends VoltServerConfig {
         tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
         // System.err.println(CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
         
+        return m_compiled;
+    }
+
+    @Override
+    public void startUp() {
+        assert (!m_running);
+        if (m_running) {
+            return;
+        }
+        
         // Construct the base command that we will want to use to start
         // all of the "remote" HStoreSites 
         List<String> siteCommand = new ArrayList<String>();
@@ -248,22 +259,12 @@ public class LocalCluster extends VoltServerConfig {
         // Lastly, we will include the site.id as the last parameter
         // so that we can easily change it
         siteCommand.add("-Dsite.id=-1");
-        
+
+        LOG.debug("Base command to start remote sites:\n" + StringUtil.join("\n", siteCommand));
         m_procBuilder = new ProcessBuilder(siteCommand.toArray(new String[0]));
         m_procBuilder.redirectErrorStream(true);
         // set the working directory to obj/release/prod
         //m_procBuilder.directory(new File(m_buildDir + File.separator + "prod"));
-
-        
-        return m_compiled;
-    }
-
-    @Override
-    public void startUp() {
-        assert (!m_running);
-        if (m_running) {
-            return;
-        }
 
         // set to true to spew startup timing data
         boolean logtime = true;

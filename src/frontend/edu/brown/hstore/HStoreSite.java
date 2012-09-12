@@ -465,7 +465,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Offset Hack
         this.local_partition_offsets = new int[num_partitions];
-        Arrays.fill(this.local_partition_offsets, -1);
+        Arrays.fill(this.local_partition_offsets, HStoreConstants.NULL_PARTITION_ID);
         this.local_partition_reverse = new int[num_local_partitions];
         int offset = 0;
         for (int partition : this.local_partitions) {
