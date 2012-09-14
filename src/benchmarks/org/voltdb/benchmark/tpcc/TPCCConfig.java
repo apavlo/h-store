@@ -31,7 +31,8 @@ public final class TPCCConfig {
 
     /** Percentage of neworder txns that are forced to be multi-partitioned */
     public int neworder_multip_mix = 0;
-    
+    /** Whether neworder txns that are forced to be remote or not */
+    public boolean neworder_multip_remote = false;
     /** If set to true, then we will use temporal skew for generating warehouse ids */
     public boolean temporal_skew = false;
     /** Percentage of warehouse ids that will be temporally skewed during the benchmark run */
@@ -94,6 +95,10 @@ public final class TPCCConfig {
             // ALLOW NEWORDER DTXNS
             else if (key.equalsIgnoreCase("neworder_multip") && !val.isEmpty()) {
                 neworder_multip = Boolean.parseBoolean(val);
+            }
+            // ALLOW NEWORDER REMOTE DTXNS
+            else if (key.equalsIgnoreCase("neworder_multip_remote") && !val.isEmpty()) {
+                neworder_multip_remote = Boolean.parseBoolean(val);
             }
             // % OF MULTI-PARTITION NEWORDERS
             else if (key.equalsIgnoreCase("neworder_multip_mix") && !val.isEmpty()) {
