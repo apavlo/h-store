@@ -51,12 +51,19 @@
 package org.voltdb.benchmark.tpcc;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.benchmark.Clock;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Site;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.logging.LoggerUtil;
@@ -96,6 +103,8 @@ public class TPCCSimulation {
     private final long affineWarehouse;
     private final double skewFactor;
     private final TPCCConfig config;
+    private final Catalog catalog;
+    public static HashMap <Integer, List<Integer>> remotePartitions = null;
     
     private final int max_w_id;
     static long lastAssignedWarehouseId = 1;
@@ -108,7 +117,7 @@ public class TPCCSimulation {
     private final Histogram<Short> totalWarehouseHistory = new Histogram<Short>(true);
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
-                          Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor) {
+                          Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor, Catalog catalog) {
         assert parameters != null;
         this.client = client;
         this.generator = generator;
@@ -116,6 +125,7 @@ public class TPCCSimulation {
         this.parameters = parameters;
         this.affineWarehouse = lastAssignedWarehouseId;
         this.skewFactor = skewFactor;
+        this.catalog = catalog;
         this.config = config;
         this.max_w_id = (parameters.warehouses + parameters.starting_warehouse - 1);
 
@@ -136,6 +146,26 @@ public class TPCCSimulation {
         
         if (debug.get()) {
             LOG.debug(this.toString());
+        }
+        if (remotePartitions == null) {
+        	HashMap <Integer, Integer> partitionToSite = new HashMap<Integer, Integer>();
+        	for (Cluster c: catalog.getClusters()) {
+        		assert (catalog.getClusters().size() == 1);
+        		for (Site s: c.getSites()) {
+        			for (Partition p: s.getPartitions())
+        				partitionToSite.put(p.getId(), s.getId());
+        		}
+        		
+        		for (int i = 0; i< c.getNum_partitions(); i++) {
+        			int siteId = partitionToSite.get(i);
+        			List <Integer> rList = new ArrayList<Integer>();
+        			for (int j = 0; j< c.getNum_partitions(); j++) {
+        				if (siteId != partitionToSite.get(j))
+        					rList.add(j);
+        			}
+        			remotePartitions.put(i, rList);
+        		}
+        	}
         }
     }
     
@@ -302,7 +332,11 @@ public class TPCCSimulation {
         } else {
             // 15%: paying through another warehouse:
             // select in range [1, num_warehouses] excluding w_id
-            c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, max_w_id, w_id);
+        	if (config.neworder_multip_remote) {
+        		c_w_id = (short)generator.numberRemotePartition(w_id);
+        	} else {
+        		c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, max_w_id, w_id);
+        	}
             assert c_w_id != w_id;
             c_d_id = generateDistrict();
         }
