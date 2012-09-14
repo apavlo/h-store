@@ -47,7 +47,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * @param next
      * @param stopParent TODO
      */
-    private void startInner(ProfileMeasurement expected_parent, ProfileMeasurement next, boolean stopParent) {
+    private long startInner(ProfileMeasurement expected_parent, ProfileMeasurement next, boolean stopParent) {
         if (debug.get()) LOG.debug(String.format("Start PARENT[%s] -> NEXT[%s]", expected_parent, next));
         assert(this.stack.size() > 0);
         assert(this.stack.peek() == expected_parent) :
@@ -61,8 +61,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
             next.start(timestamp);
         }
         this.stack.push(next);
+        return (timestamp);
     }
-    private void stopInner(ProfileMeasurement expected_current, ProfileMeasurement next, boolean startNext) {
+    private long stopInner(ProfileMeasurement expected_current, ProfileMeasurement next, boolean startNext) {
         if (debug.get()) LOG.debug(String.format("Stop PARENT[%s] <- CURRENT[%s]", next, expected_current));
         assert(this.stack.size() > 0);
         ProfileMeasurement pm = this.stack.pop();
@@ -78,6 +79,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         } else {
             pm.stop(timestamp);
         }
+        return (timestamp);
     }
     
 //    private void startGlobal(ProfileMeasurement global_pm) {
@@ -107,6 +109,13 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     
     protected final ProfileMeasurement pm_serialize = new ProfileMeasurement("SERIALIZE");
     protected final ProfileMeasurement pm_deserialize = new ProfileMeasurement("DESERIALIZE");
+    
+    /**
+     * This is the amount time from when the txn acquires all of the locks from the 
+     * remote partitions to when invokes the first query that needs to get sent to
+     * a remote partition.
+     */
+    protected final ProfileMeasurement pm_first_remote_query = new ProfileMeasurement("FIRST_REMOTE_QUERY");
     
     protected boolean singlePartitioned;
     
@@ -199,7 +208,19 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     }
     public void stopInitDtxn() {
         if (this.disabled) return;
-        this.stopInner(this.pm_init_dtxn, this.pm_init_total, false);
+        long timestamp = this.stopInner(this.pm_init_dtxn, this.pm_init_total, false);
+        this.pm_first_remote_query.start(timestamp);
+    }
+
+    /**
+     * Mark that this txn is requesting a query to be executed on a remote partition
+     * This can be safely invoked multiple times but it will only stop recording
+     * on the first invocation. 
+     */
+    public void markRemoteQuery() {
+        if (this.pm_first_remote_query.isStarted()) {
+            this.pm_first_remote_query.stop();
+        }
     }
     
     // ---------------------------------------------------------------

@@ -55,8 +55,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopInitDtxn();
         if (debug.get())
             LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
-        
-        hstore_site.transactionStart(ts, ts.getBasePartition());
+        hstore_site.transactionStart(this.ts, this.ts.getBasePartition());
         return (false);
     }
     
