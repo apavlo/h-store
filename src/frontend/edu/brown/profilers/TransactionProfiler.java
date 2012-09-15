@@ -209,7 +209,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public void stopInitDtxn() {
         if (this.disabled) return;
         long timestamp = this.stopInner(this.pm_init_dtxn, this.pm_init_total, false);
-        this.pm_first_remote_query.start(timestamp);
+        if (this.singlePartitioned == false) {
+            this.pm_first_remote_query.start(timestamp);
+        }
     }
 
     /**
@@ -218,6 +220,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * on the first invocation. 
      */
     public void markRemoteQuery() {
+        assert(this.singlePartitioned == false);
         if (this.pm_first_remote_query.isStarted()) {
             this.pm_first_remote_query.stop();
         }
