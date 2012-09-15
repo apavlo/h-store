@@ -90,7 +90,7 @@ OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
 
 DEFAULT_OPTIONS = {
-    "hstore.git_branch": "strangelove"
+    "hstore.git_branch": "collection"
 }
 DEBUG_OPTIONS = {
     "site.status_enable":             True,
@@ -182,7 +182,7 @@ EXPERIMENT_SETTINGS = {
         "client.blocking":                      True,
         "client.output_response_status":        True,
         "client.output_exec_profiling":         "execprofile.csv",
-        "client.output_queue_profiling":        "queueprofile.csv",
+        #"client.output_queue_profiling":        "queueprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",

@@ -148,6 +148,7 @@ public class TPCCSimulation {
             LOG.debug(this.toString());
         }
         if (remotePartitions == null) {
+        	remotePartitions = new HashMap<Integer, List<Integer>>();
         	HashMap <Integer, Integer> partitionToSite = new HashMap<Integer, Integer>();
         	for (Cluster c: catalog.getClusters()) {
         		assert (catalog.getClusters().size() == 1);
