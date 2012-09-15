@@ -8,8 +8,11 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.sysprocs.AdHoc;
 
+import edu.brown.benchmark.tm1.TM1Client;
+import edu.brown.benchmark.tm1.TM1Client.Transaction;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.TM1Loader;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
@@ -22,6 +25,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 public class TestTM1Suite extends RegressionSuite {
     
     private static final double SCALEFACTOR = 0.0001;
+    private static final long NUM_SUBSCRIBERS = (long)(SCALEFACTOR * TM1Constants.SUBSCRIBER_SIZE);
     
     private static final String args[] = {
         "NOCONNECTIONS=true",
@@ -68,6 +72,108 @@ public class TestTM1Suite extends RegressionSuite {
             System.err.println(tableName + "\n" + results[0]);
         } // FOR
     }
+    
+    /**
+     * testDeleteCallForwarding
+     */
+//    public void testDeleteCallForwarding() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+//        assertNotNull(cresponse);
+//    }
+    
+    /**
+     * testGetAccessData
+     */
+    public void testGetAccessData() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        TM1Client.Transaction txn = Transaction.GET_ACCESS_DATA;
+        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+        assertNotNull(cresponse);
+        assertEquals(Status.OK, cresponse.getStatus());
+    }
+    
+    /**
+     * testGetNewDestination
+     */
+    public void testGetNewDestination() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
+        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+        ClientResponse cresponse = null;
+        try {
+            cresponse = client.callProcedure(txn.callName, params);
+            assertEquals(Status.OK, cresponse.getStatus());
+        } catch (ProcCallException ex) {
+            cresponse = ex.getClientResponse();
+            assertEquals(Status.ABORT_USER, cresponse.getStatus());
+        }
+        assertNotNull(cresponse);
+        
+    }
+    
+    /**
+     * testGetSubscriberData
+     */
+    public void testGetSubscriberData() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        TM1Client.Transaction txn = Transaction.GET_SUBSCRIBER_DATA;
+        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+        assertNotNull(cresponse);
+    }
+    
+    /**
+     * testInsertCallForwarding
+     */
+    public void testInsertCallForwarding() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        TM1Client.Transaction txn = Transaction.INSERT_CALL_FORWARDING;
+        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+        assertNotNull(cresponse);
+        assertEquals(Status.OK, cresponse.getStatus());
+    }
+    
+    /**
+     * testUpdateLocation
+     */
+    public void testUpdateLocation() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
+        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+        assertNotNull(cresponse);
+        assertEquals(Status.OK, cresponse.getStatus());
+    }
+    
+    /**
+     * testUpdateSubscriberData
+     */
+    public void testUpdateSubscriberData() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        TM1Client.Transaction txn = Transaction.UPDATE_SUBSCRIBER_DATA;
+        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+        ClientResponse cresponse = null;
+        try {
+            cresponse = client.callProcedure(txn.callName, params);
+            assertEquals(Status.OK, cresponse.getStatus());
+        } catch (ProcCallException ex) {
+            cresponse = ex.getClientResponse();
+            assertEquals(Status.ABORT_USER, cresponse.getStatus());
+        }
+        assertNotNull(cresponse);
+    }
 
     public static Test suite() {
         VoltServerConfig config = null;
@@ -92,18 +198,18 @@ public class TestTM1Suite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-//        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
-//
-//        ////////////////////////////////////////////////////////////
-//        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
-//        ////////////////////////////////////////////////////////////
-//        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+
+        ////////////////////////////////////////////////////////////
+        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }

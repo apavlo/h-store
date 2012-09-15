@@ -144,6 +144,10 @@ public class TM1Client extends BenchmarkComponent {
             this.weight = weight;
             this.ag = ag;
         }
+        
+        public Object[] generateParams(long subscriberSize) {
+            return (this.ag.genArgs(subscriberSize));
+        }
 
         public final String displayName;
         public final String callName;
