@@ -867,6 +867,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (work == null) {
             if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
             if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.start();
+            if (hstore_conf.site.exec_profiling && this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.start();
             try {
                 work = this.work_queue.poll(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
             } catch (InterruptedException ex) {
@@ -875,6 +876,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.stop = true;
                 return (null);
             } finally {
+            	if (hstore_conf.site.exec_profiling && this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.stop();
                 if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.stop();                    
             }
         }
