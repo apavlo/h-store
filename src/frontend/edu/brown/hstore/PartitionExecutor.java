@@ -3046,8 +3046,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     }
                     if (d) LOG.debug(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
                                      ts, num_remote));
-                    if (needs_profiling) ts.profiler.markRemoteQuery();
                     this.requestWork(ts, tmp_remoteFragmentList, tmp_serializedParams);
+                    if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
                 
                 // Then dispatch the task that are needed at the same HStoreSite but 
@@ -3055,10 +3055,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (num_localSite > 0) {
                     if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local site's partitions",
                                      ts, num_localSite));
-                    if (needs_profiling) ts.profiler.markRemoteQuery();
                     for (WorkFragment fragment : this.tmp_localSiteFragmentList) {
                         hstore_site.getPartitionExecutor(fragment.getPartitionId()).queueWork(ts, fragment);
                     } // FOR
+                    if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
         
                 // Then execute all of the tasks need to access the partitions at this HStoreSite
