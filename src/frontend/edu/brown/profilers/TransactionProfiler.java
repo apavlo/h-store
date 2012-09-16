@@ -445,14 +445,15 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     // UTILITY METHODS
     // ---------------------------------------------------------------
     
-//    @Override
-//    public long[] getTuple() {
-//        ProfileMeasurement pms[] = this.getProfileMeasurements();
-//        long tuple[] = new long[(pms.length*2) + 1];
-//        tuple[0] = (this.singlePartitioned ? 1 : 0);
-//        this.populateTuple(tuple, 1, this.getProfileMeasurements());
-//        return (tuple);
-//    }
+    @Override
+    public long[] getTuple() {
+        // If the txn never actually submitted a remote query, then
+        // we'll want to stop the timer now and clear it out.
+        if (this.pm_first_remote_query.isStarted()) {
+            this.pm_first_remote_query.clear();
+        }
+        return super.getTuple();
+    }
     
     @Override
     public void copy(AbstractProfiler other) {
