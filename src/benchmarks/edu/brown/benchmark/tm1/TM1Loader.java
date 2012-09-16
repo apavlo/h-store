@@ -116,7 +116,6 @@ public class TM1Loader extends Loader {
                 t.start();
                 if (this.blocking)
                     t.join();
-                break;
             } // FOR
             if (!this.blocking) {
                 for (Thread t : threads)
