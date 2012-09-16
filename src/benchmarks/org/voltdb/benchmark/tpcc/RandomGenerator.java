@@ -126,11 +126,16 @@ public abstract class RandomGenerator {
         return num;
     }
     
-    public int numberRemotePartition(int localPartition) {
+    public int numberRemotePartition(int minimum, int maximum, int localPartition) {
+    	assert(TPCCSimulation.remotePartitions != null);
     	List<Integer> remoteList = TPCCSimulation.remotePartitions.get(localPartition);
+    	assert(remoteList != null);
     	int max = remoteList.size();
     	// Generate 1 less number than the range
-        int ith = number(0, max-1);
+    	if (max < 1)
+    		return numberExcluding(minimum, maximum,localPartition);
+        
+    	int ith = number(0, max-1);
     	return remoteList.get(ith);
     }
 

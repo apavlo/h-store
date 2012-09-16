@@ -333,11 +333,7 @@ public class TPCCSimulation {
         } else {
             // 15%: paying through another warehouse:
             // select in range [1, num_warehouses] excluding w_id
-        	if (config.neworder_multip_remote) {
-        		c_w_id = (short)generator.numberRemotePartition(w_id);
-        	} else {
-        		c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, max_w_id, w_id);
-        	}
+        	c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, max_w_id, w_id);
             assert c_w_id != w_id;
             c_d_id = generateDistrict();
         }
@@ -403,7 +399,12 @@ public class TPCCSimulation {
                 if (trace.get()) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
                 // Flip a random one
                 int idx = generator.number(0, ol_cnt-1);
-                supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                if (config.neworder_multip_remote) {
+                	supply_w_id[idx] = (short)generator.numberRemotePartition(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                } else {
+                	supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                }
+                
             }
         }
 
