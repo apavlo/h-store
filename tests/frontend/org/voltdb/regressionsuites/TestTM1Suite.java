@@ -24,7 +24,7 @@ import edu.brown.hstore.Hstoreservice.Status;
  */
 public class TestTM1Suite extends RegressionSuite {
     
-    private static final double SCALEFACTOR = 0.0001;
+    private static final double SCALEFACTOR = 0.01;
     private static final long NUM_SUBSCRIBERS = (long)(SCALEFACTOR * TM1Constants.SUBSCRIBER_SIZE);
     
     private static final String args[] = {
@@ -68,7 +68,11 @@ public class TestTM1Suite extends RegressionSuite {
             VoltTable results[] = cresponse.getResults();
             assertEquals(1, results.length);
             long count = results[0].asScalarLong();
-            assertTrue(tableName + " -> " + count, count > 0);
+            if (tableName.equals(TM1Constants.TABLENAME_SUBSCRIBER)) {
+                assertEquals(tableName,  NUM_SUBSCRIBERS, count);
+            } else {
+                assertTrue(tableName + " -> " + count, count > 0);
+            }
             System.err.println(tableName + "\n" + results[0]);
         } // FOR
     }
@@ -76,14 +80,25 @@ public class TestTM1Suite extends RegressionSuite {
     /**
      * testDeleteCallForwarding
      */
-//    public void testDeleteCallForwarding() throws Exception {
-//        Client client = this.getClient();
-//        this.initializeDatabase(client);
-//        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
-//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
-//        assertNotNull(cresponse);
-//    }
+    public void testDeleteCallForwarding() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
+        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+        
+        for (int i = 0; i < 1000; i++) {
+            ClientResponse cresponse = null;
+            try {
+                cresponse = client.callProcedure(txn.callName, params);
+                assertEquals(Status.OK, cresponse.getStatus());
+            } catch (ProcCallException ex) {
+                cresponse = ex.getClientResponse();
+//                System.err.println(cresponse);
+                assertEquals(Status.ABORT_USER, cresponse.getStatus());
+            }
+            assertNotNull(cresponse);
+        } // FOR
+    }
     
     /**
      * testGetAccessData
@@ -198,18 +213,18 @@ public class TestTM1Suite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
-
-        ////////////////////////////////////////////////////////////
-        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
-        ////////////////////////////////////////////////////////////
-        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
+//
+//        ////////////////////////////////////////////////////////////
+//        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+//        ////////////////////////////////////////////////////////////
+//        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
 
         return builder;
     }

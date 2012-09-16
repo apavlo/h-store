@@ -606,6 +606,10 @@ public class VoltProjectBuilder {
         m_partitionInfos.put(tableName, partitionColumnName);
     }
     
+    // -------------------------------------------------------------------
+    // VERTICAL PARTITONS (AKA REPLICATED SECONDARY INDEXES)
+    // -------------------------------------------------------------------
+    
     public void addVerticalPartitionInfo(final String tableName, final String...partitionColumnNames) {
         this.addVerticalPartitionInfo(tableName, true, partitionColumnNames);
     }
