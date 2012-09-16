@@ -132,7 +132,7 @@ public class TM1Loader extends Loader {
             }
         }
 
-        System.err.println("\n" + this.dumpTableCounts());
+//        System.err.println("\n" + this.dumpTableCounts());
     }
 
     public String dumpTableCounts() {
