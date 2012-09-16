@@ -24,7 +24,7 @@ import edu.brown.hstore.Hstoreservice.Status;
  */
 public class TestTM1Suite extends RegressionSuite {
     
-    private static final double SCALEFACTOR = 0.01;
+    private static final double SCALEFACTOR = 0.0001;
     private static final long NUM_SUBSCRIBERS = (long)(SCALEFACTOR * TM1Constants.SUBSCRIBER_SIZE);
     
     private static final String args[] = {
@@ -153,9 +153,15 @@ public class TestTM1Suite extends RegressionSuite {
         this.initializeDatabase(client);
         TM1Client.Transaction txn = Transaction.INSERT_CALL_FORWARDING;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+        ClientResponse cresponse = null;
+        try {
+            cresponse = client.callProcedure(txn.callName, params);
+            assertEquals(Status.OK, cresponse.getStatus());
+        } catch (ProcCallException ex) {
+            cresponse = ex.getClientResponse();
+            assertEquals(Status.ABORT_USER, cresponse.getStatus());
+        }
         assertNotNull(cresponse);
-        assertEquals(Status.OK, cresponse.getStatus());
     }
     
     /**
@@ -213,18 +219,18 @@ public class TestTM1Suite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-//        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
-//
-//        ////////////////////////////////////////////////////////////
-//        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
-//        ////////////////////////////////////////////////////////////
-//        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+
+        ////////////////////////////////////////////////////////////
+        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }
