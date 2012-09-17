@@ -363,7 +363,8 @@ public class TransactionInitializer {
         try {
             new_ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
         } catch (Exception ex) {
-            LOG.fatal("Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
+            LOG.fatal(String.format("Failed to instantiate new %s for mispredicted %s",
+                      orig_ts.getClass().getSimpleName(), orig_ts));
             throw new RuntimeException(ex);
         }
         

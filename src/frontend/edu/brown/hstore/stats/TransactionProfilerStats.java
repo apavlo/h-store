@@ -1,9 +1,12 @@
 package edu.brown.hstore.stats;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.TreeMap;
@@ -22,6 +25,8 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionProfiler;
+import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 public class TransactionProfilerStats extends StatsSource {
     private static final Logger LOG = Logger.getLogger(TransactionProfilerStats.class);
@@ -31,14 +36,20 @@ public class TransactionProfilerStats extends StatsSource {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    private static File DUMP_DIR = null;
+    
+    private final CatalogContext catalogContext;
+    
     /**
      * Maintain a set of tuples for the transaction profile times
      */
-    private final Map<Procedure, Queue<long[]>> profileQueues = new TreeMap<Procedure, Queue<long[]>>();
-    private final Map<Procedure, long[]> profileTotals = Collections.synchronizedSortedMap(new TreeMap<Procedure, long[]>());
+    private final Map<Procedure, Queue<long[]>> profileQueues = Collections.synchronizedSortedMap(new TreeMap<Procedure, Queue<long[]>>());
+    // private final Map<Procedure, long[]> profileTotals = Collections.synchronizedSortedMap(new TreeMap<Procedure, long[]>());
+    private final Map<Procedure, List<Long>[]> profileValues = new HashMap<Procedure, List<Long>[]>();
 
     public TransactionProfilerStats(CatalogContext catalogContext) {
         super(SysProcSelector.TXNCOUNTER.name(), false);
+        this.catalogContext = catalogContext;
     }
     
     /**
@@ -68,22 +79,54 @@ public class TransactionProfilerStats extends StatsSource {
         queue.offer(tuple);
     }
     
+    @SuppressWarnings("unchecked")
     private long[] calculateTxnProfileTotals(Procedure catalog_proc) {
-        long totals[] = this.profileTotals.get(catalog_proc); 
+        if (debug.get()) LOG.debug("Calculating profiling totals for " + catalog_proc.getName());
+        long row[] = null; // this.profileTotals.get(catalog_proc); 
         long tuple[] = null;
-        Queue<long[]> queue = this.profileQueues.get(catalog_proc); 
+        
+        // Each offset in this array is one profile measurement type
+        Queue<long[]> queue = this.profileQueues.get(catalog_proc);
+        List<Long> stdevValues[] = this.profileValues.get(catalog_proc);
         while ((tuple = queue.poll()) != null) {
-            if (totals == null) {
-                totals = new long[tuple.length+1];
-                Arrays.fill(totals, 0l);
-                this.profileTotals.put(catalog_proc, totals);
+            if (row == null) {
+                row = new long[tuple.length + 1];
+                Arrays.fill(row, 0l);
+                
+                // row = new Object[tuple.length + (tuple.length/2) + 1];
+                // this.profileTotals.put(catalog_proc, totals);
+                
+                stdevValues = (List<Long>[])new List<?>[row.length];
+                this.profileValues.put(catalog_proc, stdevValues);
             }
-            totals[0]++;
-            for (int i = 0, cnt = tuple.length; i < cnt; i++) {
-                totals[i+1] += tuple[i];
+            
+            // Global total # of txns
+            row[0] += 1;
+            
+            // ProfileMeasurement totals
+            // There will be two numbers in each pair:
+            //  (1) Total Time
+            //  (2) Number of Invocations
+            // We will want to keep track of the number of invocations so that
+            // we can compute the standard deviation
+            int offset = 1;
+            for (int i = 0; i < tuple.length; i++) {
+                row[offset] += tuple[i];
+                
+                // HACK!
+                if (i % 2 == 0 && tuple[i] > 0 && tuple[i+1] > 0) {
+                    if (stdevValues[offset] == null) {
+                        stdevValues[offset] = new ArrayList<Long>();
+                        if (trace.get()) LOG.trace(String.format("%s - Created stdevValues at offset %d",
+                                                   catalog_proc.getName(), offset));
+                    }
+                    stdevValues[offset].add(tuple[i] / tuple[i+1]);
+                }
+                offset++;
             } // FOR
         } // FOR
-        return (totals);
+        
+        return (row);
     }
     
 
@@ -119,23 +162,48 @@ public class TransactionProfilerStats extends StatsSource {
             // We need two columns per ProfileMeasurement
             //  (1) The total think time in nanoseconds
             //  (2) The number of invocations
+            //  (3) Standard Deviation
             // See AbstractProfiler.getTuple()
             columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
             columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
+//            columns.add(new VoltTable.ColumnInfo(name+"_STDDEV", VoltType.FLOAT));
         } // FOR
     }
 
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
         Procedure proc = (Procedure)rowKey;
+        if (debug.get()) LOG.debug("Collecting txn profiling stats for " + proc.getName());
         
-        long totals[] = this.calculateTxnProfileTotals(proc);
-        int offset = columnNameToIndex.get("PROCEDURE");
+        final int offset = columnNameToIndex.get("PROCEDURE");
+        rowValues[offset] = proc.getName();
         
-        rowValues[offset++] = proc.getName();
-        for (int i = 0; i < totals.length; i++) {
-            rowValues[offset + i] = totals[i];
+        long row[] = this.calculateTxnProfileTotals(proc);
+        for (int i = 0; i < row.length; i++) {
+            rowValues[offset + i + 1] = row[i];    
         } // FOR
         super.updateStatsRow(rowKey, rowValues);
+        
+        // HACK: Dump values for stdev
+        int i = columnNameToIndex.get("FIRST_REMOTE_QUERY") - offset - 1;
+        List<Long> stdevValues[] = this.profileValues.get(proc);
+        if (stdevValues != null && stdevValues[i] != null) {
+            if (DUMP_DIR == null) {
+                DUMP_DIR = FileUtil.getTempDirectory(this.catalogContext.database.getProject());
+                LOG.info("Created " + this.getClass().getSimpleName() + " dump directory: " + DUMP_DIR);
+            }
+            File output = new File(String.format("%s/%s.csv", DUMP_DIR, proc.getName()));
+            try {
+                FileUtil.writeStringToFile(output, StringUtil.join("\n", stdevValues[i]) + "\n");
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            if (debug.get()) LOG.debug(String.format("Wrote %d %s FIRST_REMOTE_QUERY values to %s",
+                                       stdevValues[i].size(), proc.getName(), output));
+        } else if (trace.get()) {
+            LOG.trace(String.format("Failed to find FIRST_REMOTE_QUERY entries for %s " +
+                      "[orig=%d / offset=%d / i=%d] -> %s",
+                      proc.getName(), columnNameToIndex.get("FIRST_REMOTE_QUERY"), offset, i, stdevValues[i]));
+        }
     }
 }
