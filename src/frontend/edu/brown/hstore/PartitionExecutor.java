@@ -3303,7 +3303,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             if (hstore_conf.site.exec_profiling) {
             	this.profiler.network_time.start();
-            	//this.profiler.idle_2pc_local_time.start();
+            	this.profiler.idle_2pc_local_time.start();
             }
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
             if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) this.profiler.network_time.stop();
@@ -3400,8 +3400,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
                 if (needs_profiling) ((LocalTransaction)ts).profiler.stopPostEE();
             }
-//            if (hstore_conf.site.exec_profiling && this.profiler.idle_2pc_local_time.isStarted()) 
-//            	this.profiler.idle_2pc_local_time.stop();
+            if (hstore_conf.site.exec_profiling && this.profiler.idle_2pc_local_time.isStarted()) 
+            	this.profiler.idle_2pc_local_time.stop();
 //            if (hstore_conf.site.exec_profiling && this.profiler.idle_2pc_remote_time.isStarted())
 //            	this.profiler.idle_2pc_remote_time.stop();
         }
