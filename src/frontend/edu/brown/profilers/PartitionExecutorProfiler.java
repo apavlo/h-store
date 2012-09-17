@@ -29,6 +29,18 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     public final ProfileMeasurement idle_dtxn_time = new ProfileMeasurement("IDLE_DTXN");
     
     /**
+     * How much time the local PartitionExecutor was idle waiting for prepare 
+     * responses from remote partitions 
+     */
+    public final ProfileMeasurement idle_2pc_local_time = new ProfileMeasurement("IDLE_TWO_PHASE_LOCAL");
+    
+    /**
+     * How much time the remote PartitionExecutor was idle waiting for commit/abort
+     * messages from base partition
+     */
+    public final ProfileMeasurement idle_2pc_remote_time = new ProfileMeasurement("IDLE_TWO_PHASE_REMOTE");
+    
+    /**
      * How much time it takes for this PartitionExecutor to 
      * execute a transaction
      */

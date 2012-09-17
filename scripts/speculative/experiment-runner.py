@@ -117,7 +117,7 @@ BASE_SETTINGS = {
     #"ec2.client_type":                  "m1.large",
     #"ec2.site_type":                    "m1.xlarge",
     "ec2.change_type":                  True,
-    "ec2.cluster_group":                "strangelove",
+    "ec2.cluster_group":                "collection",
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
@@ -188,6 +188,7 @@ EXPERIMENT_SETTINGS = {
         #"client.output_txn_counters":           "txncounters.csv",
         #"client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
+        "benchmark.neworder_multi_remote":      True,
         "benchmark.neworder_abort":             False,
         "benchmark.neworder_multip_mix":        100,
         "benchmark.loadthread_per_warehouse":   False,
