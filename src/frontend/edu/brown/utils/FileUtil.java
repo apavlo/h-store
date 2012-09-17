@@ -41,6 +41,7 @@ import java.util.zip.GZIPInputStream;
 import org.apache.log4j.Logger;
 
 /**
+ * A bunch of random utility methods for reading/writing files
  * @author pavlo
  */
 public abstract class FileUtil {
@@ -155,11 +156,14 @@ public abstract class FileUtil {
     /**
      * Unsafely create a temporary directory Yes I said that this was unsafe. I
      * don't care...
-     * 
      * @return
      */
     public static File getTempDirectory() {
-        final File temp = FileUtil.getTempFile(null);
+        return getTempDirectory(null);
+    }
+    
+    public static File getTempDirectory(String suffix) {
+        final File temp = FileUtil.getTempFile(suffix);
         if (!(temp.delete())) {
             throw new RuntimeException("Could not delete temp file: " + temp.getAbsolutePath());
         } else if (!(temp.mkdir())) {

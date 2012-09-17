@@ -972,6 +972,7 @@ public abstract class BenchmarkComponent {
                         // Anything else needs to be thrown out of here
                         throw ex;
                     }
+                    break;
                 } // WHILE
             } catch (Throwable ex) {
                 throw new RuntimeException("Error when trying load data for '" + tableName + "'", ex);

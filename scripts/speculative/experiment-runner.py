@@ -183,8 +183,9 @@ EXPERIMENT_SETTINGS = {
         "client.output_response_status":        True,
         "client.output_exec_profiling":         "execprofile.csv",
         #"client.output_queue_profiling":        "queueprofile.csv",
-        "client.output_txn_profiling":          "txnprofile.csv",
-        "client.output_txn_profiling_combine":  True,
+
+        #"client.output_txn_profiling":          "txnprofile.csv",
+        #"client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",
         #"client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,

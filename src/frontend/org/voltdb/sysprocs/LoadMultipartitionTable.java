@@ -88,13 +88,15 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             assert params.toArray()[0] != null;
             assert params.toArray()[1] != null;
             String table_name = (String) (params.toArray()[0]);
+            VoltTable table = (VoltTable)(params.toArray()[1]);
             
-            if (debug.get()) LOG.debug("Executing voltLoadTable() sysproc fragment for table '" + table_name + "' in txn #" + txn_id);
+            if (debug.get()) LOG.debug(String.format("Loading %d tuples for table '%s' in txn #%d",
+                                       table.getRowCount(), table_name, txn_id));
             assert(this.isInitialized()) : " The sysproc " + this.getClass().getSimpleName() + " was not initialized properly";
             try {
                 // voltLoadTable is void. Assume success or exception.
                 super.voltLoadTable(context.getCluster().getName(), context.getDatabase().getName(),
-                                    table_name, (VoltTable)(params.toArray()[1]), 0);
+                                    table_name, table, 0);
             } catch (VoltAbortException e) {
                 // must continue and reply with dependency.
                 e.printStackTrace();
@@ -149,7 +151,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         VoltTable partitionedTables[] = new VoltTable[catalogContext.numberOfPartitions];
 
         // Split the input table into per-partition units
-        if (debug.get()) LOG.debug("Splitting original table of " + table.getRowCount() + " rows into partitioned tables");
+        if (debug.get()) LOG.debug(String.format("Splitting original %d %s rows into partitioned tables",
+                                   table.getRowCount(), catalog_tbl));
         boolean mispredict = false;
         table.resetRowPosition();
         while (table.advanceRow()) {
@@ -184,7 +187,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         // data on. This will help speed up concurrent bulk loading
         if (mispredict) {
             if (debug.get()) LOG.warn(String.format("%s - Restarting as a distributed transaction on partitions %s",
-                                                    this.m_localTxnState, this.m_localTxnState.getTouchedPartitions().values()));
+                                      this.m_localTxnState, this.m_localTxnState.getTouchedPartitions().values()));
             throw new MispredictionException(this.getTransactionId(), this.m_localTxnState.getTouchedPartitions());
         }
         StringBuilder sb = null;
@@ -212,7 +215,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pf.last_task = false;
             pfs.add(pf);
             if (trace.get()) sb.append("\n  Partition #").append(partition).append(": ")
-                         .append(partitionedTables[partition].getRowCount()).append(" tuples");
+                               .append(partitionedTables[partition].getRowCount()).append(" tuples");
         } // FOR
         if (trace.get()) LOG.trace(sb.toString());
 
@@ -258,8 +261,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         assert(table != null) : "VoltTable to be loaded into " + tableName + " is null in txn #" + this.getTransactionId();
         
         if (debug.get()) LOG.debug("Executing multi-partition loader for " + tableName + " with " + table.getRowCount() + 
-                             " tuples in txn #" + this.getTransactionId() +
-                             " [bytes="  + table.getUnderlyingBufferSize() + "]");
+                                   " tuples in txn #" + this.getTransactionId() +
+                                   " [bytes="  + table.getUnderlyingBufferSize() + "]");
         
         VoltTable[] results;
         SynthesizedPlanFragment pfs[];
