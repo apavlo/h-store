@@ -103,7 +103,6 @@ public class TPCCSimulation {
     private final long affineWarehouse;
     private final double skewFactor;
     private final TPCCConfig config;
-    private final Catalog catalog;
     public static HashMap <Integer, List<Integer>> remotePartitions = null;
     
     private final int max_w_id;
@@ -125,7 +124,6 @@ public class TPCCSimulation {
         this.parameters = parameters;
         this.affineWarehouse = lastAssignedWarehouseId;
         this.skewFactor = skewFactor;
-        this.catalog = catalog;
         this.config = config;
         this.max_w_id = (parameters.warehouses + parameters.starting_warehouse - 1);
 

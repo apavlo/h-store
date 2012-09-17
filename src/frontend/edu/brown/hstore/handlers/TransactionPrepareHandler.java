@@ -14,6 +14,7 @@ import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.utils.PartitionSet;
 
@@ -65,6 +66,14 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         this.targetPartitions.clear();
         this.targetPartitions.addAll(request.getPartitionsList());
         this.updatedPartitions.clear();
+        
+//        for (int p: request.getPartitionsList()) {
+//        	if (this.hstore_site.getHStoreConf().site.exec_profiling) {
+//        		PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
+//        		pep.idle_2pc_remote_time.start();
+//        	}
+//        }
+        
         hstore_site.transactionPrepare(txn_id, this.targetPartitions, this.updatedPartitions);
         assert(this.updatedPartitions.isEmpty() == false) :
             "Unexpected empty list of updated partitions for txn #" + txn_id;
