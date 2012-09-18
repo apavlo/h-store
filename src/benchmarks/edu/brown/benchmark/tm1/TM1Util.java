@@ -61,8 +61,8 @@ public abstract class TM1Util {
         return value;
     }
 
-    public static String padWithZero(Long n) {
-        String meat = n.toString();
+    public static String padWithZero(long n) {
+        String meat = Long.toString(n);
         char[] zeros = new char[15 - meat.length()];
         for (int i = 0; i < zeros.length; i++)
             zeros[i] = '0';

@@ -124,6 +124,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
@@ -1253,11 +1254,11 @@ public class BenchmarkController {
     private void writeStats(Client client, SysProcSelector sps, String outputPath) throws Exception {
         Object params[] = { sps.name(), 0 };
         ClientResponse cresponse = null;
-        String procName = VoltSystemProcedure.procCallName(Statistics.class);
+        String sysproc = VoltSystemProcedure.procCallName(Statistics.class);
         try {
-            cresponse = client.callProcedure(procName, params);
+            cresponse = client.callProcedure(sysproc, params);
         } catch (Exception ex) {
-            throw new Exception("Failed to execute " + procName, ex);
+            throw new Exception("Failed to execute " + sysproc, ex);
         }
         assert(cresponse.getStatus() == Status.OK) :
             String.format("Failed to get %s stats\n%s", sps, cresponse); 
@@ -1273,21 +1274,43 @@ public class BenchmarkController {
             int offset = vt.getColumnIndex("PROCEDURE");
             VoltTable.ColumnInfo cols[] = Arrays.copyOfRange(VoltTableUtil.extractColumnInfo(vt), offset, vt.getColumnCount());
             Map<String, Object[]> totalRows = new TreeMap<String, Object[]>();
+            Map<String, Histogram<Double>[]> stddevRows = new HashMap<String, Histogram<Double>[]>();
             while (vt.advanceRow()) {
-                String name = vt.getString(offset);
-                Object row[] = totalRows.get(name);
+                String procName = vt.getString(offset);
+                Object row[] = totalRows.get(procName);
+                Histogram<Double> stddevs[] = stddevRows.get(procName);
                 if (row == null) {
                     row = new Object[cols.length];
-                    row[0] = name;
+                    row[0] = procName;
                     for (int i = 1; i < row.length; i++) {
                         row[i] = new Long(0l);
                     } // FOR
-                    totalRows.put(name, row);
+                    totalRows.put(procName, row);
+                    
+                    stddevs = (Histogram<Double>[])new Histogram<?>[cols.length];
+                    stddevRows.put(procName, stddevs);
                 }
+                
                 for (int i = 1; i < row.length; i++) {
-                    row[i] = ((Long)row[i]) + vt.getLong(offset + i);
+                    if (vt.getColumnName(offset + i).endsWith("STDDEV")) {
+                        if (stddevs[i] == null) stddevs[i] = new Histogram<Double>();
+                        stddevs[i].put(vt.getDouble(offset + i), vt.getLong(offset + 1));
+                    } else {
+                        row[i] = ((Long)row[i]) + vt.getLong(offset + i);
+                    }
                 } // FOR
             } // WHILE
+            
+            // HACK: Take the weighted average stddev.
+            for (String procName : totalRows.keySet()) {
+                Histogram<Double> stddevs[] = stddevRows.get(procName);
+                Object row[] = totalRows.get(procName);
+                for (int i = 1; i < row.length; i++) {
+                    if (stddevs[i] != null) {
+                        row[i] = MathUtil.weightedMean(stddevs[i]);
+                    }
+                } // FOR
+            } // FOR
             
             vt = new VoltTable(cols);
             for (Object[] row : totalRows.values()) {
