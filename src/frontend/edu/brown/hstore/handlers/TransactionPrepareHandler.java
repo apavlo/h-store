@@ -67,17 +67,18 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         this.targetPartitions.addAll(request.getPartitionsList());
         this.updatedPartitions.clear();
         
-//        for (int p: request.getPartitionsList()) {
-//        	if (this.hstore_site.getHStoreConf().site.exec_profiling) {
-//        		PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
-//        		if (pep.idle_2pc_remote_time.isStarted()) pep.idle_2pc_remote_time.stop();
-//        		pep.idle_2pc_remote_time.start();
-//        	}
-//        }
-        
         hstore_site.transactionPrepare(txn_id, this.targetPartitions, this.updatedPartitions);
         assert(this.updatedPartitions.isEmpty() == false) :
             "Unexpected empty list of updated partitions for txn #" + txn_id;
+        
+        for (int p: updatedPartitions) {
+            if (this.hstore_site.getHStoreConf().site.exec_profiling) {
+                PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
+                assert (pep != null);
+                if (pep.idle_2pc_remote_time.isStarted()) pep.idle_2pc_remote_time.stop();
+                pep.idle_2pc_remote_time.start();
+            }
+        }
         
         if (debug.get()) LOG.debug(String.format("Finished PREPARE phase for txn #%d [updatedPartitions=%s]",
                                                  txn_id, this.updatedPartitions));

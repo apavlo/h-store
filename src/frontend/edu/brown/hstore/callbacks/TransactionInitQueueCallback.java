@@ -19,6 +19,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.PartitionExecutorProfiler;
 
 /**
  * This callback is used for when a transaction is waiting in the TransactionQueueManager at this site 
@@ -117,6 +118,17 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
                 String.format("The original callback for txn #%d is null!", this.getTransactionId());
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
+            // start profile idle_waiting_dtxn_time on remote paritions
+//            for (Integer p : this.hstore_site.getLocalPartitionIdArray()) {
+//                if (this.partitions.contains(p)) {
+//                    if (this.hstore_conf.site.exec_profiling) {
+//                        PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
+//                        assert (pep != null);
+//                        pep.idle_waiting_dtxn_time.start();
+//                    }
+//                }
+//            } // FOR
+            
             
             // Bundle the prefetch queries in the txn so we can queue them up
             // At this point all of the partitions at this HStoreSite are allocated
