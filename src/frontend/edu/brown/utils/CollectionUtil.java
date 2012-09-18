@@ -86,6 +86,12 @@ public abstract class CollectionUtil {
         return;
     }
 
+    /**
+     * Convert a Collection of Numbers to an array of primitive ints
+     * Null values will be skipped in the array 
+     * @param items
+     * @return
+     */
     public static int[] toIntArray(Collection<? extends Number> items) {
         int ret[] = new int[items.size()];
         int idx = 0;
@@ -96,6 +102,12 @@ public abstract class CollectionUtil {
         return (ret);
     }
     
+    /**
+     * Convert a Collection of Numbers to an array of primitive doubles
+     * Null values will be skipped in the array 
+     * @param items
+     * @return
+     */
     public static double[] toDoubleArray(Collection<? extends Number> items) {
         double ret[] = new double[items.size()];
         int idx = 0;

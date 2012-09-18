@@ -37,11 +37,15 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
+import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.api.Loader;
 import edu.brown.benchmark.tm1.procedures.GetTableCounts;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObservableExceptionHandler;
+import edu.brown.utils.EventObserver;
 
 /**
  * Magical TM1 Loader
@@ -53,8 +57,7 @@ public class TM1Loader extends Loader {
     private static final boolean d = LOG.isDebugEnabled();
 
     private final long subscriberSize;
-    public volatile boolean notDone = true;
-    protected final boolean blocking = false;
+    private final boolean blocking = false;
 
     public static void main(String[] args) {
         BenchmarkComponent.main(TM1Loader.class, args, true);
@@ -68,43 +71,48 @@ public class TM1Loader extends Loader {
     @Override
     public void load() {
         if (d) LOG.debug(String.format("Starting TM1Loader [subscriberSize=%d, scaleFactor=%.2f]",
-                                       this.subscriberSize, this.getScaleFactor()));
+                         this.subscriberSize, this.getScaleFactor()));
 
         final Catalog catalog = this.getCatalog();
         final Database catalog_db = CatalogUtil.getDatabase(catalog);
 
-        Thread threads[] = new Thread[] { new Thread() {
+        final Thread threads[] =
+        { new Thread() {
             public void run() {
-                if (d)
-                    LOG.debug("Start loading " + TM1Constants.TABLENAME_SUBSCRIBER);
+                if (d) LOG.debug("Start loading " + TM1Constants.TABLENAME_SUBSCRIBER);
                 Table catalog_tbl = catalog_db.getTables().get(TM1Constants.TABLENAME_SUBSCRIBER);
                 genSubscriber(catalog_tbl);
-                if (d)
-                    LOG.debug("Finished loading " + TM1Constants.TABLENAME_SUBSCRIBER);
+                if (d) LOG.debug("Finished loading " + TM1Constants.TABLENAME_SUBSCRIBER);
             }
         }, new Thread() {
             public void run() {
-                if (d)
-                    LOG.debug("Start loading " + TM1Constants.TABLENAME_ACCESS_INFO);
+                if (d) LOG.debug("Start loading " + TM1Constants.TABLENAME_ACCESS_INFO);
                 Table catalog_tbl = catalog_db.getTables().get(TM1Constants.TABLENAME_ACCESS_INFO);
                 genAccessInfo(catalog_tbl);
-                if (d)
-                    LOG.debug("Finished loading " + TM1Constants.TABLENAME_ACCESS_INFO);
+                if (d) LOG.debug("Finished loading " + TM1Constants.TABLENAME_ACCESS_INFO);
             }
         }, new Thread() {
             public void run() {
-                if (d)
-                    LOG.debug("Start loading " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " and " + TM1Constants.TABLENAME_CALL_FORWARDING);
+                if (d) LOG.debug("Start loading " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " and " + TM1Constants.TABLENAME_CALL_FORWARDING);
                 Table catalog_spe = catalog_db.getTables().get(TM1Constants.TABLENAME_SPECIAL_FACILITY);
                 Table catalog_cal = catalog_db.getTables().get(TM1Constants.TABLENAME_CALL_FORWARDING);
                 genSpeAndCal(catalog_spe, catalog_cal);
-                if (d)
-                    LOG.debug("Finished loading " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " and " + TM1Constants.TABLENAME_CALL_FORWARDING);
+                if (d) LOG.debug("Finished loading " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " and " + TM1Constants.TABLENAME_CALL_FORWARDING);
             }
         } };
 
+        final EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
+        handler.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
+            @Override
+            public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> t) {
+                for (Thread thread : threads)
+                    thread.interrupt();
+            }
+        });
+        
         try {
             for (Thread t : threads) {
+                t.setUncaughtExceptionHandler(handler);
                 t.start();
                 if (this.blocking)
                     t.join();
@@ -117,16 +125,17 @@ public class TM1Loader extends Loader {
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(-1);
+        } finally {
+            if (handler.hasError()) {
+                throw new RuntimeException("Error while generating table data.", handler.getError());
+            }
         }
 
-        // System.err.println("\n" + this.dumpTableCounts());
-
-        // if (d) LOG.debug("TM1 loader done. ");
+//        System.err.println("\n" + this.dumpTableCounts());
     }
 
     public String dumpTableCounts() {
-        if (d)
-            LOG.debug("Getting table counts");
+        if (d) LOG.debug("Getting table counts");
         VoltTable results[] = null;
         try {
             results = this.getClientHandle().callProcedure(GetTableCounts.class.getSimpleName()).getResults();
@@ -155,14 +164,12 @@ public class TM1Loader extends Loader {
      */
     void genSubscriber(Table catalog_tbl) {
         final VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);
-        long s_id = 0;
         Object row[] = new Object[table.getColumnCount()];
-
         long total = 0;
-        while (s_id++ < subscriberSize) {
+        for (long s_id = 0; s_id < this.subscriberSize; s_id++) {
             int col = 0;
-            row[col++] = new Long(s_id);
-            row[col++] = TM1Util.padWithZero((Long) row[0]);
+            row[col++] = s_id;
+            row[col++] = TM1Util.padWithZero(s_id);
 
             // BIT_##
             for (int j = 0; j < 10; j++) {
@@ -176,7 +183,7 @@ public class TM1Loader extends Loader {
             for (int j = 0; j < 10; j++) {
                 row[col++] = TM1Util.number(0, 255).intValue();
             }
-            // msc_location + vlr_location
+            // MSC_LOCATION + VLR_LOCATION
             for (int j = 0; j < 2; j++) {
                 row[col++] = TM1Util.number(0, Integer.MAX_VALUE).intValue();
             }
@@ -185,17 +192,19 @@ public class TM1Loader extends Loader {
             total++;
 
             if (table.getRowCount() >= TM1Constants.BATCH_SIZE) {
-                if (d)
-                    LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_SUBSCRIBER, total, subscriberSize));
+                if (d) LOG.debug(String.format("%s: %6d / %d",
+                                 TM1Constants.TABLENAME_SUBSCRIBER, total, this.subscriberSize));
                 loadVoltTable(TM1Constants.TABLENAME_SUBSCRIBER, table);
                 table.clearRowData();
+                assert(table.getRowCount() == 0);
             }
-        } // WHILE
+        } // FOR
         if (table.getRowCount() > 0) {
-            if (d)
-                LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_SUBSCRIBER, total, subscriberSize));
+            if (d) LOG.debug(String.format("%s: %6d / %d",
+                             TM1Constants.TABLENAME_SUBSCRIBER, total, this.subscriberSize));
             loadVoltTable(TM1Constants.TABLENAME_SUBSCRIBER, table);
             table.clearRowData();
+            assert(table.getRowCount() == 0);
         }
     }
 
@@ -204,15 +213,14 @@ public class TM1Loader extends Loader {
      */
     void genAccessInfo(Table catalog_tbl) {
         final VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);
-        int s_id = 0;
         int[] arr = { 1, 2, 3, 4 };
 
         int[] ai_types = TM1Util.subArr(arr, 1, 4);
         long total = 0;
-        while (s_id++ < subscriberSize) {
+        for (long s_id = 0; s_id < this.subscriberSize; s_id++) {
             for (int ai_type : ai_types) {
                 Object row[] = new Object[table.getColumnCount()];
-                row[0] = new Long(s_id);
+                row[0] = s_id;
                 row[1] = ai_type;
                 row[2] = TM1Util.number(0, 255).intValue();
                 row[3] = TM1Util.number(0, 255).intValue();
@@ -222,15 +230,15 @@ public class TM1Loader extends Loader {
                 total++;
             } // FOR
             if (table.getRowCount() >= TM1Constants.BATCH_SIZE) {
-                if (d)
-                    LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_ACCESS_INFO, total, ai_types.length * subscriberSize));
+                if (d) LOG.debug(String.format("%s: %6d / %d",
+                                 TM1Constants.TABLENAME_ACCESS_INFO, total, ai_types.length * subscriberSize));
                 loadVoltTable(TM1Constants.TABLENAME_ACCESS_INFO, table);
                 table.clearRowData();
             }
         } // WHILE
         if (table.getRowCount() > 0) {
-            if (d)
-                LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_ACCESS_INFO, total, ai_types.length * subscriberSize));
+            if (d) LOG.debug(String.format("%s: %6d / %d",
+                             TM1Constants.TABLENAME_ACCESS_INFO, total, ai_types.length * subscriberSize));
             loadVoltTable(TM1Constants.TABLENAME_ACCESS_INFO, table);
             table.clearRowData();
         }
@@ -244,31 +252,30 @@ public class TM1Loader extends Loader {
         VoltTable speTbl = CatalogUtil.getVoltTable(catalog_spe);
         VoltTable calTbl = CatalogUtil.getVoltTable(catalog_cal);
 
-        int s_id = 0;
         long speTotal = 0;
         long calTotal = 0;
         int[] arrSpe = { 1, 2, 3, 4 };
         int[] arrCal = { 0, 8, 6 };
 
-        while (s_id++ < subscriberSize) {
+        for (long s_id = 0; s_id < this.subscriberSize; s_id++) {
             int[] sf_types = TM1Util.subArr(arrSpe, 1, 4);
             for (int sf_type : sf_types) {
-                Object row[] = new Object[speTbl.getColumnCount()];
-                row[0] = new Long(s_id);
-                row[1] = sf_type;
-                row[2] = TM1Util.isActive();
-                row[3] = TM1Util.number(0, 255).intValue();
-                row[4] = TM1Util.number(0, 255).intValue();
-                row[5] = TM1Util.astring(5, 5);
-                speTbl.addRow(row);
+                Object row_spe[] = new Object[speTbl.getColumnCount()];
+                row_spe[0] = s_id;
+                row_spe[1] = sf_type;
+                row_spe[2] = TM1Util.isActive();
+                row_spe[3] = TM1Util.number(0, 255).intValue();
+                row_spe[4] = TM1Util.number(0, 255).intValue();
+                row_spe[5] = TM1Util.astring(5, 5);
+                speTbl.addRow(row_spe);
                 speTotal++;
 
                 // now call_forwarding
                 int[] start_times = TM1Util.subArr(arrCal, 0, 3);
                 for (int start_time : start_times) {
                     Object row_cal[] = new Object[calTbl.getColumnCount()];
-                    row_cal[0] = row[0];
-                    row_cal[1] = row[1];
+                    row_cal[0] = s_id;
+                    row_cal[1] = sf_type;
                     row_cal[2] = start_time;
                     row_cal[3] = start_time + TM1Util.number(1, 8);
                     row_cal[4] = TM1Util.nstring(15, 15);
@@ -278,29 +285,29 @@ public class TM1Loader extends Loader {
             } // FOR
 
             if (calTbl.getRowCount() >= TM1Constants.BATCH_SIZE) {
-                if (d)
-                    LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_CALL_FORWARDING, calTotal));
+                if (d) LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_CALL_FORWARDING, calTotal));
                 loadVoltTable(TM1Constants.TABLENAME_CALL_FORWARDING, calTbl);
                 calTbl.clearRowData();
+                assert(calTbl.getRowCount() == 0);
             }
             if (speTbl.getRowCount() >= TM1Constants.BATCH_SIZE) {
-                if (d)
-                    LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_SPECIAL_FACILITY, speTotal));
+                if (d) LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_SPECIAL_FACILITY, speTotal));
                 loadVoltTable(TM1Constants.TABLENAME_SPECIAL_FACILITY, speTbl);
                 speTbl.clearRowData();
+                assert(speTbl.getRowCount() == 0);
             }
         } // WHILE
         if (calTbl.getRowCount() > 0) {
-            if (d)
-                LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_CALL_FORWARDING, calTotal));
+            if (d) LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_CALL_FORWARDING, calTotal));
             loadVoltTable(TM1Constants.TABLENAME_CALL_FORWARDING, calTbl);
             calTbl.clearRowData();
+            assert(calTbl.getRowCount() == 0);
         }
         if (speTbl.getRowCount() > 0) {
-            if (d)
-                LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_SPECIAL_FACILITY, speTotal));
+            if (d) LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_SPECIAL_FACILITY, speTotal));
             loadVoltTable(TM1Constants.TABLENAME_SPECIAL_FACILITY, speTbl);
             speTbl.clearRowData();
+            assert(speTbl.getRowCount() == 0);
         }
     }
 }
