@@ -2876,7 +2876,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // If we didn't get back a list of fragments here, then we will spin through
                 // and invoke utilityWork() to try to do something useful until what we need shows up
                 if (needs_profiling) ts.profiler.startExecDtxnWork();
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_time.start();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.start();
                 try {
                     while (fragments == null) {
                         // If there is more work that we could do, then we'll just poll the queue
@@ -2897,7 +2897,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     return (null);
                 } finally {
                     if (needs_profiling) ts.profiler.stopExecDtxnWork();
-                    if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_time.stop();
+                    if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.stop();
                 }
             }
             assert(fragments != null);
@@ -3106,7 +3106,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             long waitTime = hstore_conf.site.exec_response_timeout*1000000;
             
             if (needs_profiling) ts.profiler.startExecDtxnWork();
-            if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_time.start();
+            if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.start();
             try {
                 while (latch.getCount() > 0 && ts.hasPendingError() == false) {
                     if (this.utilityWork() == false) {
@@ -3127,7 +3127,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 throw new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
             } finally {
                 if (needs_profiling) ts.profiler.stopExecDtxnWork();
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_time.stop();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.stop();
             }
             
             if (timeout && this.isShuttingDown() == false) {
