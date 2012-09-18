@@ -70,6 +70,7 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
 //        for (int p: request.getPartitionsList()) {
 //        	if (this.hstore_site.getHStoreConf().site.exec_profiling) {
 //        		PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
+//        		if (pep.idle_2pc_remote_time.isStarted()) pep.idle_2pc_remote_time.stop();
 //        		pep.idle_2pc_remote_time.start();
 //        	}
 //        }

@@ -3303,6 +3303,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             if (hstore_conf.site.exec_profiling) {
             	this.profiler.network_time.start();
+            	if (this.profiler.idle_2pc_local_time.isStarted()) this.profiler.idle_2pc_local_time.stop();
             	this.profiler.idle_2pc_local_time.start();
             }
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
