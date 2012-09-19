@@ -103,15 +103,17 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         @Override
         public void runImpl() {
             try {
-                if (hstore_conf.site.anticache_enable && checkEviction() && !evicting) {
-					
-					// update all the partition sizes 
-					for(Integer p: hstore_site.getLocalPartitionIds())
-					{
-						getPartitionSize(p.intValue()); 
-					}
-                    executeEviction();
-                }
+                    // update all the partition sizes 
+                    for(Integer p: hstore_site.getLocalPartitionIds())
+                    {
+                        getPartitionSize(p.intValue()); 
+                    }
+    
+                    // check to see if we should start eviction
+                    if (hstore_conf.site.anticache_enable && checkEviction() && !evicting) {
+                        executeEviction(); 
+                    }
+
             } catch (Throwable ex) {
                 ex.printStackTrace();
             }
