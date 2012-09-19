@@ -257,7 +257,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             total_size_kb += partitionSizes[i];  
         }
 
-		LOG.info("Current Memory Usage: " + total_size_kb); 
+		LOG.info("Current Memory Usage: " + (total_size_kb/1024) + " MB"); 
 
         return(total_size_kb > (1024 * 128));
         
