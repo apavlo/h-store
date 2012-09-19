@@ -155,10 +155,10 @@ public class TPCCSimulation {
         				partitionToSite.put(p.getId(), s.getId());
         		}
         		
-        		for (int i = 0; i< c.getNum_partitions(); i++) {
+        		for (int i : partitionToSite.keySet()) {
         			int siteId = partitionToSite.get(i);
         			List <Integer> rList = new ArrayList<Integer>();
-        			for (int j = 0; j< c.getNum_partitions(); j++) {
+        			for (int j : partitionToSite.keySet()) {
         				if (siteId != partitionToSite.get(j))
         					rList.add(j);
         			}
