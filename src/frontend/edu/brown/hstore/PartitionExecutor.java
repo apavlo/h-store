@@ -3407,8 +3407,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
             if (hstore_conf.site.exec_profiling && this.profiler.idle_2pc_local_time.isStarted()) 
             	this.profiler.idle_2pc_local_time.stop();
-//            if (hstore_conf.site.exec_profiling && this.profiler.idle_2pc_remote_time.isStarted())
-//            	this.profiler.idle_2pc_remote_time.stop();
+            if (hstore_conf.site.exec_profiling && this.profiler.idle_2pc_remote_time.isStarted())
+            	this.profiler.idle_2pc_remote_time.stop();
         }
         
         // We always need to do the following things regardless if we hit up the EE or not
