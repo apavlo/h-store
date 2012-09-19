@@ -1431,9 +1431,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     public void queueWork(AbstractTransaction ts, WorkFragment fragment) {
         assert(ts.isInitialized());
         
-//        if (hstore_conf.site.exec_profiling) {
-//            this.profiler.idle_waiting_dtxn_time.stop();
-//        }
+        if (hstore_conf.site.exec_profiling && this.profiler.idle_waiting_dtxn_time.isStarted()) {
+            this.profiler.idle_waiting_dtxn_time.stop();
+        }
         
         WorkFragmentMessage work = ts.getWorkFragmentMessage(fragment);
         boolean ret = this.work_queue.offer(work, true);
