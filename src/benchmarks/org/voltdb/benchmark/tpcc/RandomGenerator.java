@@ -129,13 +129,11 @@ public abstract class RandomGenerator {
     public int numberRemotePartition(int minimum, int maximum, int localPartition) {
     	assert(TPCCSimulation.remotePartitions != null);
     	List<Integer> remoteList = TPCCSimulation.remotePartitions.get(localPartition);
-    	assert(remoteList != null);
-    	int max = remoteList.size();
+    	if (remoteList == null || remoteList.size() < 1)
+    	    return numberExcluding(minimum, maximum,localPartition);
     	// Generate 1 less number than the range
-    	if (max < 1)
-    		return numberExcluding(minimum, maximum,localPartition);
         
-    	int ith = number(0, max-1);
+    	int ith = number(0, remoteList.size()-1);
     	return remoteList.get(ith);
     }
 
