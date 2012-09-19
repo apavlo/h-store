@@ -127,7 +127,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         @Override
         public void run(ClientResponseImpl parameter) {
             LOG.info("Eviction Response:\n" + VoltTableUtil.format(parameter.getResults()));
-            LOG.info(String.format("Execution Time: %.1f sec", parameter.getClusterRoundtrip() / 1000d));
+            LOG.info(String.format("Execution Time: %.1f sec\n", parameter.getClusterRoundtrip() / 1000d));
             
             evicting = false; 
         }
