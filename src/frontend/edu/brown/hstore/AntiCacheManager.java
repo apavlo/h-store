@@ -110,8 +110,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
                     }
     
                     // check to see if we should start eviction
-                    if (hstore_conf.site.anticache_enable && checkEviction() && !evicting) {
-                        executeEviction(); 
+                    if (hstore_conf.site.anticache_enable && checkEviction()) {
+                        //executeEviction(); 
                     }
 
             } catch (Throwable ex) {
@@ -244,7 +244,11 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      * the eviction threshold.
      */
     protected boolean checkEviction() {
-        SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
+
+        if(evicting)
+            return false; 
+
+        //SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
         //LOG.info("Current Memory Status:\n" + stats);
         
         //double usage = (stats.javausedheapmem / (double)stats.javatotalheapmem) * 100; 
