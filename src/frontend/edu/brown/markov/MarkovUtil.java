@@ -312,7 +312,7 @@ public abstract class MarkovUtil {
                         name = StringUtil.title(name.replace("_", " "), true).replace(" ", "");
                         
                         label = name + "\n";
-                        label += "Counter: " + v0.getQueryInstanceIndex() + "\n";
+                        label += "Counter: " + v0.getQueryCounter() + "\n";
                         
                         label += "Partitions: ";
                         if (v0.getPartitions().isEmpty()) {

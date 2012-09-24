@@ -316,7 +316,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         
         if (t) LOG.trace("Current Vertex: " + element);
         Statement cur_catalog_stmt = element.getCatalogItem();
-        int cur_catalog_stmt_index = element.getQueryInstanceIndex();
+        int cur_catalog_stmt_index = element.getQueryCounter();
         MarkovGraph markov = (MarkovGraph)this.getGraph();
         
         // At our current vertex we need to gather all of our neighbors
@@ -334,7 +334,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         // XXX: Why do we use the pairs rather than just look at the vertices?
         for (MarkovVertex next : next_vertices) {
             Statement next_catalog_stmt = next.getCatalogItem();
-            int next_catalog_stmt_index = next.getQueryInstanceIndex();
+            int next_catalog_stmt_index = next.getQueryCounter();
             
             // Sanity Check: If this vertex is the same Statement as the current vertex,
             // then its instance counter must be greater than the current vertex's counter
