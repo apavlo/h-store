@@ -1,6 +1,8 @@
 package edu.brown.hstore.estimators;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.voltdb.catalog.Statement;
@@ -19,6 +21,8 @@ public abstract class EstimatorState implements Poolable {
     
     protected final PartitionSet touched_partitions = new PartitionSet();
     protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
+    
+    protected final List<Statement> prefetch = new ArrayList<Statement>();
     
     /**
      * Constructor
@@ -45,7 +49,7 @@ public abstract class EstimatorState implements Poolable {
         this.touched_partitions.clear();
         this.query_instance_cnts.clear();
         this.txn_id = null;
-
+        this.prefetch.clear();
     }
     
     public Long getTransactionId() {
@@ -59,6 +63,9 @@ public abstract class EstimatorState implements Poolable {
     }
     public PartitionSet getTouchedPartitions() {
         return (this.touched_partitions);
+    }
+    public List<Statement> getPrefetch() {
+        return (this.prefetch);
     }
     
     /**
@@ -87,4 +94,7 @@ public abstract class EstimatorState implements Poolable {
         return (cnt.intValue());
     }
 
+    public void addPrefetchStatement(Statement statement) {
+        this.prefetch.add(statement);
+    }
 }

@@ -782,6 +782,9 @@ public class VoltProjectBuilder {
         // update the jar file with the new catalog
         if (m_paramMappingsFile != null || m_paramMappings.isEmpty() == false) {
             this.applyParameterMappings(jarPath);
+            
+            // Construct a List of prefetchable Statements
+            this.applyPrefetchableFlags(jarPath);
         }
         
         return success;
@@ -849,6 +852,38 @@ public class VoltProjectBuilder {
         }
     }
 
+    // Do we want to put this above to save doing the traversal all over again?
+    private void applyPrefetchableFlags(String jarPath) {
+        Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
+        assert(catalog != null);
+        Database catalog_db = CatalogUtil.getDatabase(catalog);
+        
+        for (String procName : m_paramMappings.keySet()) {
+            Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
+            assert(catalog_proc != null) :
+                "Invalid Procedure name for ParameterMappings '" + procName + "'";
+            for (Integer procParamIdx : m_paramMappings.get(procName).keySet()) {
+                ProcParameter catalog_procParam = catalog_proc.getParameters().get(procParamIdx.intValue());
+                assert(catalog_procParam != null) :
+                    "Invalid ProcParameter for '" + procName + "' at offset " + procParamIdx;
+                Pair<String, Integer> stmtPair = m_paramMappings.get(procName).get(procParamIdx);
+                assert(stmtPair != null);
+                
+                Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmtPair.getFirst());
+                assert(catalog_stmt != null) :
+                    "Invalid Statement name '" + stmtPair.getFirst() + "' for ParameterMappings " +
+                    "for Procedure '" + procName + "'";
+                StmtParameter catalog_stmtParam = catalog_stmt.getParameters().get(stmtPair.getSecond().intValue());
+                assert(catalog_stmtParam != null) :
+                    "Invalid StmtParameter for '" + catalog_stmt.fullName() + "' at offset " + stmtPair.getSecond();
+                
+                if (catalog_stmtParam.getProcparameter() != null) {
+                    catalog_stmt.setPrefetchable(true);
+                }
+            } // FOR (ProcParameter)
+        } // FOR (Procedure)
+    }
+    
     private void buildDatabaseElement(Document doc, final Element database) {
 
         // /project/database/users
