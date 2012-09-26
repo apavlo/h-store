@@ -363,7 +363,12 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return (this.type == Type.ABORT);
     }
     
-    public int getQueryInstanceIndex() {
+    /**
+     * The number of times that the txn has executed this query in the past.
+     * Offset starts at zero.
+     * @return
+     */
+    public int getQueryCounter() {
         return (int)this.counter;
     }
     
