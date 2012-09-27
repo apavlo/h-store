@@ -7,7 +7,7 @@ import org.voltdb.SQLStmt;
  * A class to hold information about deferred queries so they can be queued an dequed when needed.
  * @param txid The transaction ID of the transaction from which the deferred query came, to be re-used when it runs
  * @param stmt The SQLStmt
- * @param params The parameters the SQLStmt was called with
+ * @param paramMappings The parameters the SQLStmt was called with
  *
  */
 public class DeferredQueryMessage extends InternalMessage {

@@ -297,7 +297,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param jar_path
      */
     public static CatalogContext loadCatalogContextFromJar(File jar_path) {
-        Catalog catalog = CatalogUtil.loadCatalogFromJar(jar_path.getAbsolutePath());
+        Catalog catalog = CatalogUtil.loadCatalogFromJar(jar_path);
         return new CatalogContext(catalog, jar_path);
     }
     

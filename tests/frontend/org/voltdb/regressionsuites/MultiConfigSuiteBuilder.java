@@ -61,7 +61,7 @@ public class MultiConfigSuiteBuilder extends TestSuite {
      * @param testCls The class that contains the JUnit test methods to run.
      * @return A list of the names of each JUnit test method.
      */
-    static List<String> getTestMethodNames(Class<? extends TestCase> testCls) {
+    public static List<String> getTestMethodNames(Class<? extends TestCase> testCls) {
         ArrayList<String> retval = new ArrayList<String>();
 
         for (Method m : testCls.getMethods()) {

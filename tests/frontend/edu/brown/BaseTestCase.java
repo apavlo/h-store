@@ -127,7 +127,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * @throws Exception
      */
     protected void setUp(ProjectType type) throws Exception {
-        this.setUp(type, false);
+        this.setUp(type, false, true);
     }
     
     /**
@@ -200,13 +200,14 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                 File jar_path = projectBuilder.getJarPath(true);
                 if (jar_path.exists()) {
                     LOG.debug("LOAD CACHE JAR: " + jar_path.getAbsolutePath());
-                    Catalog c = CatalogUtil.loadCatalogFromJar(jar_path.getAbsolutePath());
-                    cc = new CatalogContext(c, jar_path.getAbsolutePath());
+                    cc = CatalogUtil.loadCatalogContextFromJar(jar_path);
                 } else {
                     LOG.debug("MISSING JAR: " + jar_path.getAbsolutePath());
                 }
             }
             if (cc == null) {
+                File jarPath = projectBuilder.getJarPath(true);
+                
                 Catalog c = null;
                 switch (type) {
                     case TPCE:
@@ -215,11 +216,11 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                     default:
                         c = projectBuilder.getFullCatalog(fkeys);
                         if (LOG.isDebugEnabled()) 
-                            LOG.debug(type + " Catalog JAR: " + projectBuilder.getJarPath(true).getAbsolutePath());
+                            LOG.debug(type + " Catalog JAR: " + jarPath.getAbsolutePath());
                         break;
                 } // SWITCH
                 assert(c != null);
-                cc = new CatalogContext(c, CatalogContext.NO_PATH);
+                cc = new CatalogContext(c, jarPath);
             }
             assert(cc != null) : "Unexpected null catalog for " + type;
             //if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
@@ -455,7 +456,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                 // System.err.println("[" + i + "] " + Arrays.toString(triplets.lastElement()));
             } // FOR
             Catalog c = FixCatalog.cloneCatalog(catalog, cc);
-            this.init(this.last_type, new CatalogContext(c, CatalogContext.NO_PATH));
+            this.init(this.last_type, new CatalogContext(c, catalogContext.jarPath));
             
         }
         Cluster cluster = CatalogUtil.getCluster(catalog_db);
@@ -480,7 +481,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             // HACK
             String hostFormat = (num_hosts == 1 ? "localhost" : "host%02d"); 
             Catalog c = FixCatalog.cloneCatalog(catalog, hostFormat, num_hosts, num_sites, num_partitions);
-            CatalogContext cc = new CatalogContext(c, CatalogContext.NO_PATH);
+            CatalogContext cc = new CatalogContext(c, catalogContext.jarPath);
             this.init(this.last_type, cc);
         }
         Cluster cluster = catalogContext.cluster;

@@ -40,12 +40,11 @@ import org.voltdb.dtxn.SiteTracker;
 import org.voltdb.utils.JarClassLoader;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.PartitionSet;
 
 public class CatalogContext {
-
-    /** Pass this to constructor for catalog path in tests */
-    public static final String NO_PATH = "EMPTY_PATH";
 
     // THE CATALOG!
     public final Catalog catalog;
@@ -55,6 +54,9 @@ public class CatalogContext {
     public final Database database;
     public final CatalogMap<Host> hosts;
     public final CatalogMap<Site> sites;
+    
+    // ParameterMappingsSet
+    public final ParameterMappingsSet paramMappings;
     
     /** The total number of unique Hosts in the cluster */
     public final int numberOfHosts;
@@ -70,8 +72,8 @@ public class CatalogContext {
     public final SiteTracker siteTracker;
 
     // PRIVATE
-    private final String m_path;
-    private final JarClassLoader m_catalogClassLoader;
+    public final File jarPath;
+    private final JarClassLoader catalogClassLoader;
 
     // ------------------------------------------------------------
     // PARTITIONS
@@ -120,32 +122,34 @@ public class CatalogContext {
     private final Map<Long, int[]> fragmentWriteTables = new HashMap<Long, int[]>();
     
     public CatalogContext(Catalog catalog) {
-        this(catalog, CatalogContext.NO_PATH);
+        this(catalog, (File)null);
     }
 
-    public CatalogContext(Catalog catalog, File pathToCatalogJar) {
-        this(catalog, pathToCatalogJar.getAbsolutePath());
+    public CatalogContext(Catalog catalog, String pathToCatalogJar) {
+        this(catalog, new File(pathToCatalogJar));
     }
     
-    public CatalogContext(Catalog catalog, String pathToCatalogJar) {
+    public CatalogContext(Catalog catalog, File pathToCatalogJar) {
         // check the heck out of the given params in this immutable class
         assert(catalog != null);
-//        assert(pathToCatalogJar != null);
-        if (catalog == null)
+        if (catalog == null) {
             throw new RuntimeException("Can't create CatalogContext with null catalog.");
-//        if (pathToCatalogJar == null)
-//            throw new RuntimeException("Can't create CatalogContext with null jar path.");
+        }
 
-        m_path = pathToCatalogJar;
-        if (pathToCatalogJar != null && pathToCatalogJar.startsWith(NO_PATH) == false)
-            m_catalogClassLoader = new JarClassLoader(pathToCatalogJar);
-        else
-            m_catalogClassLoader = null;
+        this.jarPath = pathToCatalogJar;
         this.catalog = catalog;
         this.cluster = CatalogUtil.getCluster(this.catalog);
         this.database = CatalogUtil.getDatabase(this.catalog);
         this.hosts = this.cluster.getHosts();
-        this.sites = cluster.getSites();
+        this.sites = this.cluster.getSites();
+        
+        if (this.jarPath != null) {
+            this.catalogClassLoader = new JarClassLoader(this.jarPath.getAbsolutePath());
+            this.paramMappings = ParametersUtil.getParameterMappingsSetFromJar(this.database, this.jarPath);
+        } else {
+            this.catalogClassLoader = null;
+            this.paramMappings = null;
+        }
         
         // ------------------------------------------------------------
         // PROCEDURES
@@ -246,7 +250,7 @@ public class CatalogContext {
     
 
     public CatalogContext deepCopy() {
-        return new CatalogContext(catalog.deepCopy(), m_path);
+        return new CatalogContext(catalog.deepCopy(), jarPath);
     }
 
     public CatalogContext update(String pathToNewJar, String diffCommands) {
@@ -272,7 +276,7 @@ public class CatalogContext {
             return Class.forName(procedureClassName);
 
         // look in the catalog for the file
-        return m_catalogClassLoader.loadClass(procedureClassName);
+        return catalogClassLoader.loadClass(procedureClassName);
     }
     
     
