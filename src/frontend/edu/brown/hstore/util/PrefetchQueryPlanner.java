@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -46,25 +46,24 @@ public class PrefetchQueryPlanner implements Loggable {
     // private final Database catalog_db;
     private final Map<Procedure, BatchPlanner> planners = new HashMap<Procedure, BatchPlanner>();
     private final int[] partitionSiteXref;
-    private final int num_sites;
+    private final CatalogContext catalogContext;
     private final BitSet touched_sites;
     private final FastSerializer fs = new FastSerializer(); // TODO: Use pooled memory
 
     /**
      * Constructor
-     * @param catalog_db
+     * @param catalogContext
      * @param p_estimator
      */
-    public PrefetchQueryPlanner(Database catalog_db, PartitionEstimator p_estimator) {
-        // this.catalog_db = catalog_db;
-        this.num_sites = CatalogUtil.getNumberOfSites(catalog_db);
-        this.touched_sites = new BitSet(this.num_sites);
+    public PrefetchQueryPlanner(CatalogContext catalogContext, PartitionEstimator p_estimator) {
+        this.catalogContext = catalogContext;
+        this.touched_sites = new BitSet(this.catalogContext.numberOfSites);
 
         // Initialize a BatchPlanner for each Procedure if it has the
         // prefetch flag set to true. We generate an array of the SQLStmt
         // handles that we will want to prefetch for each Procedure
         List<SQLStmt> prefetchStmts = new ArrayList<SQLStmt>();
-        for (Procedure catalog_proc : catalog_db.getProcedures().values()) {
+        for (Procedure catalog_proc : this.catalogContext.procedures.values()) {
             if (catalog_proc.getPrefetchable() == false) continue;
             
             prefetchStmts.clear();
@@ -97,10 +96,13 @@ public class PrefetchQueryPlanner implements Loggable {
             }
         } // FOR (procedure)
 
-        this.partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(catalog_db);
+        this.partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(catalogContext.database);
         if (debug.get()) LOG.debug(String.format("Initialized QueryPrefetchPlanner for %d " +
         		                                 "Procedures with prefetchable Statements",
         		                                 this.planners.size()));
+        if (this.catalogContext.paramMappings == null) {
+            LOG.warn("Unable to generate prefetachable query plans without a ParameterMappingSet");
+        }
     }
 
     /**
@@ -108,6 +110,11 @@ public class PrefetchQueryPlanner implements Loggable {
      * @return
      */
     public TransactionInitRequest[] generateWorkFragments(LocalTransaction ts) {
+        // We can't do this without a ParameterMappingSet
+        if (this.catalogContext.paramMappings == null) {
+            return (null);
+        }
+        
         if (debug.get()) LOG.debug(ts + " - Generating prefetch WorkFragments");
         
         Procedure catalog_proc = ts.getProcedure();
@@ -175,7 +182,7 @@ public class PrefetchQueryPlanner implements Loggable {
         // we will try to execute it before we actually need it whenever the
         // PartitionExecutor is idle That means, we don't want to serialize all this
         // if it's only going to the base partition.
-        TransactionInitRequest.Builder[] builders = new TransactionInitRequest.Builder[this.num_sites];
+        TransactionInitRequest.Builder[] builders = new TransactionInitRequest.Builder[this.catalogContext.numberOfSites];
         for (WorkFragment frag : fragments) {
             int site_id = this.partitionSiteXref[frag.getPartitionId()];
             if (builders[site_id] == null) {
@@ -196,9 +203,9 @@ public class PrefetchQueryPlanner implements Loggable {
         for (int partition : touched_partitions) {
             this.touched_sites.set(this.partitionSiteXref[partition]);
         } // FOR
-        TransactionInitRequest[] init_requests = new TransactionInitRequest[this.num_sites];
+        TransactionInitRequest[] init_requests = new TransactionInitRequest[this.catalogContext.numberOfSites];
         TransactionInitRequest default_request = null;
-        for (int site_id = 0; site_id < this.num_sites; ++site_id) {
+        for (int site_id = 0; site_id < this.catalogContext.numberOfSites; ++site_id) {
             // If this site has no prefetched fragments ...
             if (builders[site_id] == null) {
                 // but it has other non-prefetched WorkFragments, create a
