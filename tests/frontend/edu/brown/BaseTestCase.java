@@ -508,7 +508,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                 readyLock.countDown();
             }
         };
-        HStoreSite hstore_site = HStore.initialize(catalog_site, hstore_conf);
+        HStoreSite hstore_site = HStore.initialize(catalogContext, catalog_site.getId(), hstore_conf);
         hstore_site.getReadyObservable().addObserver(ready);
         Thread thread = new Thread(hstore_site);
         thread.start();

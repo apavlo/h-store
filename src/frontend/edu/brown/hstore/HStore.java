@@ -33,6 +33,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
@@ -118,7 +119,10 @@ public abstract class HStore {
     /**
      * Initialize the HStore server.
      */
-    public synchronized static final HStoreSite initialize(Site catalog_site, HStoreConf hstore_conf) {
+    public synchronized static final HStoreSite initialize(CatalogContext catalogContext, int site_id, HStoreConf hstore_conf) {
+        final Site catalog_site = catalogContext.getSiteById(site_id);
+        if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
+        
         singleton = new HStoreSite(catalog_site, hstore_conf);
         
         // For every partition in our local site, we want to setup a new ExecutionSite
@@ -134,11 +138,10 @@ public abstract class HStore {
             File path = new File(hstore_conf.site.markov_path);
             if (path.exists()) {
                 long start = System.currentTimeMillis();
-                Database catalog_db = CatalogUtil.getDatabase(catalog_site);
                 try {
-                    markovs = MarkovGraphContainersUtil.loadIds(catalog_db,
+                    markovs = MarkovGraphContainersUtil.loadIds(catalogContext.database,
                                                                 path.getAbsolutePath(), 
-                                                                CatalogUtil.getLocalPartitionIds(catalog_site));
+                                                                singleton.getLocalPartitionIds());
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
@@ -157,7 +160,7 @@ public abstract class HStore {
         if (hstore_conf.site.mappings_path != null) {
             File path = new File(hstore_conf.site.mappings_path);
             if (path.exists()) {
-                Database catalog_db = CatalogUtil.getDatabase(catalog_site);
+                Database catalog_db = catalogContext.database;
                 try {
                     mappings.load(path, catalog_db);
                 } catch (IOException ex) {
@@ -186,7 +189,7 @@ public abstract class HStore {
             // Load the Markov models if we were given an input path and pass them to t_estimator
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
-            if (debug.get()) LOG.debug("Creating Estimator for " + HStoreThreadManager.formatSiteName(catalog_site.getId()));
+            if (debug.get()) LOG.debug("Creating TransactionEstimator for " + singleton.getSiteName());
             TransactionEstimator t_estimator = null;
             if (hstore_conf.site.markov_fixed == false && markovs != null) {
                 t_estimator = new MarkovEstimator(p_estimator, mappings, local_markovs);
@@ -205,7 +208,7 @@ public abstract class HStore {
             singleton.addPartitionExecutor(local_partition, executor);
         } // FOR
         
-        TheHashinator.initialize(catalog_site.getCatalog());
+        TheHashinator.initialize(catalogContext.catalog);
         
         return (singleton);
     }
@@ -221,9 +224,9 @@ public abstract class HStore {
         }
         
         ArgumentsParser args = ArgumentsParser.load(vargs,
-                    ArgumentsParser.PARAM_CATALOG,
-                    ArgumentsParser.PARAM_SITE_ID,
-                    ArgumentsParser.PARAM_CONF
+            ArgumentsParser.PARAM_CATALOG,
+            ArgumentsParser.PARAM_SITE_ID,
+            ArgumentsParser.PARAM_CONF
         );
         
         // HStoreSite Stuff
@@ -231,14 +234,11 @@ public abstract class HStore {
         Thread t = Thread.currentThread();
         t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
         
-        final Site catalog_site = args.catalogContext.getSiteById(site_id);
-        if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
-        
-        HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
+        HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args);
         if (debug.get()) 
             LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
         
-        HStoreSite hstore_site = HStore.initialize(catalog_site, hstore_conf);
+        HStoreSite hstore_site = HStore.initialize(args.catalogContext, site_id, hstore_conf);
 
         // ----------------------------------------------------------------------------
         // Workload Trace Output

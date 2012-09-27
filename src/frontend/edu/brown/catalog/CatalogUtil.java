@@ -308,18 +308,29 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param jar_path
      * @return
      */
+    @Deprecated
     public static Catalog loadCatalogFromJar(String jar_path) {
+        return loadCatalogFromJar(new File(jar_path));
+    }
+    
+    /**
+     * Loads a serialized catalog specification from a jar file and creates a
+     * new Catalog object from it
+     * 
+     * @param jar_path
+     * @return
+     */
+    public static Catalog loadCatalogFromJar(File jar_path) {
         Catalog catalog = null;
         String serializedCatalog = null;
-        File file_path = new File(jar_path);
         if (debug.get())
-            LOG.debug("Loading catalog from jar file at '" + file_path.getAbsolutePath() + "'");
-        if (!file_path.exists()) {
+            LOG.debug("Loading catalog from jar file at '" + jar_path.getAbsolutePath() + "'");
+        if (!jar_path.exists()) {
             LOG.error("The catalog jar file '" + jar_path + "' does not exist");
             return (null);
         }
         try {
-            serializedCatalog = JarReader.readFileFromJarfile(jar_path, CatalogUtil.CATALOG_FILENAME);
+            serializedCatalog = JarReader.readFileFromJarfile(jar_path.getAbsolutePath(), CatalogUtil.CATALOG_FILENAME);
         } catch (Exception ex) {
             ex.printStackTrace();
             return (null);
@@ -388,14 +399,14 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog
      * @throws Exception (VoltCompilerException DNE?)
      */
-    public static void updateCatalogInJar(String jarFileName, Catalog catalog, File...additions) throws Exception {
+    public static void updateCatalogInJar(File jarFileName, Catalog catalog, File...additions) throws Exception {
         catalog.serialize();
         // Read the old jar file into memory with JarReader.
-        JarReader reader = new JarReader(jarFileName);
+        JarReader reader = new JarReader(jarFileName.getAbsolutePath());
         List<String> files = reader.getContentsFromJarfile();
         ArrayList<byte[]> bytes = new ArrayList<byte[]>();
         for (String file : files) {
-            bytes.add(JarReader.readFileFromJarAtURL(jarFileName, file));
+            bytes.add(JarReader.readFileFromJarAtURL(jarFileName.getAbsolutePath(), file));
         }
         
         // Write everything from the old jar except the catalog to the same 
@@ -419,7 +430,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             }
         } // FOR
         
-        builder.writeJarToDisk(jarFileName);
+        builder.writeJarToDisk(jarFileName.getAbsolutePath());
     }
     
     /**

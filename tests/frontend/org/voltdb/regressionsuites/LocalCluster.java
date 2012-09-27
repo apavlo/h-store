@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.catalog.Catalog;
@@ -56,14 +57,14 @@ public class LocalCluster extends VoltServerConfig {
     private static final Logger LOG = Logger.getLogger(LocalCluster.class);
 
     // configuration data
-    final String m_jarFileName;
+    final File m_jarFileName;
     final int m_partitionPerSite;
     final int m_siteCount;
     final int m_replication;
     final BackendTarget m_target;
     final String m_buildDir;
     int m_portOffset;
-    Catalog catalog;
+    CatalogContext catalogContext;
 
     // state
     boolean m_compiled = false;
@@ -185,7 +186,7 @@ public class LocalCluster extends VoltServerConfig {
         tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
         System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));*/
         
-        m_jarFileName = VoltDB.Configuration.getPathToCatalogForTest(jarFileName);
+        m_jarFileName = new File(VoltDB.Configuration.getPathToCatalogForTest(jarFileName));
         m_partitionPerSite = siteCount;
         m_target = target;
         m_siteCount = partitionsPerSite;
@@ -208,7 +209,7 @@ public class LocalCluster extends VoltServerConfig {
         if (m_compiled) {
             return true;
         }
-        m_compiled = builder.compile(m_jarFileName, m_partitionPerSite, m_siteCount,
+        m_compiled = builder.compile(m_jarFileName.getAbsolutePath(), m_partitionPerSite, m_siteCount,
                                      m_replication, "localhost");
         
         // (1) Load catalog from Jar
@@ -222,16 +223,20 @@ public class LocalCluster extends VoltServerConfig {
                 cc.addPartition("localhost", site, currentPartition);
             }
         }
-        this.catalog = FixCatalog.cloneCatalog(tmpCatalog, cc);
+        tmpCatalog = FixCatalog.cloneCatalog(tmpCatalog, cc);
         
         // (3) Write updated catalog back out to jar file
         try {
-            CatalogUtil.updateCatalogInJar(m_jarFileName, catalog);
+            CatalogUtil.updateCatalogInJar(m_jarFileName, tmpCatalog);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         
-        tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
+        // (4) Load it back in as a CatalogContext
+        this.catalogContext = CatalogUtil.loadCatalogContextFromJar(m_jarFileName);
+        assert(this.catalogContext != null);
+        
+        // tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
         // System.err.println(CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
         
         return m_compiled;
@@ -288,12 +293,12 @@ public class LocalCluster extends VoltServerConfig {
         // create all the out-of-process servers
         // Loop through all of the sites in the catalog and start them
         int offset = m_procBuilder.command().size() - 1;
-        for (Site catalog_site : CatalogUtil.getAllSites(this.catalog)) {
+        for (Site catalog_site : catalogContext.sites) {
             final int site_id = catalog_site.getId(); 
             
             // If this is the first site, then start the HStoreSite in this JVM
             if (site_id == 0) {
-                m_localServer = new ServerThread(hstore_conf, catalog_site);
+                m_localServer = new ServerThread(this.catalogContext, hstore_conf, site_id);
                 m_localServer.start();
             }
             // Otherwise, fork a new JVM that will run our other HStoreSites.
@@ -437,8 +442,13 @@ public class LocalCluster extends VoltServerConfig {
     }
 
     @Override
+    public CatalogContext getCatalogContext() {
+        return this.catalogContext;
+    }
+    
+    @Override
     public Catalog getCatalog() {
-        return this.catalog;
+        return this.catalogContext.catalog;
     }
     
     @Override

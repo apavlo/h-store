@@ -118,7 +118,7 @@ public class MockHStoreSite extends HStoreSite {
         Site catalog_site = args.catalogContext.getSiteById(site_id);
         assert(catalog_site != null) : "Invalid site id #" + site_id;
         
-        HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
+        HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args);
         hstore_conf.site.cpu_affinity = false;
         hstore_conf.site.status_enable = false;
         

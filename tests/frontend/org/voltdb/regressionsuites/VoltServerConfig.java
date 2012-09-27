@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.compiler.VoltProjectBuilder;
 
@@ -90,6 +91,11 @@ public abstract class VoltServerConfig {
      */
     public abstract int getPartitionCount();
 
+    /**
+     * Get the CatalogContext used to deploy the cluster in this test suite
+     */
+    public abstract CatalogContext getCatalogContext();
+    
     /**
      * Get the catalog used to deploy the cluster in this test suite
      */
