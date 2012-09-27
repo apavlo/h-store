@@ -206,7 +206,7 @@ public class WikipediaClient extends BenchmarkComponent {
             if (!WikipediaClient.m_titleMap.containsKey(page_id)) {
                 WikipediaClient.m_titleMap.put(page_id, data);
             } else {
-                assert(false):"There should not have duplicate page_ids";
+                //assert(false):"There should not have duplicate page_ids";
             }
         } // WHILE
         double m_scalefactor = 1.0;

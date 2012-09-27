@@ -331,9 +331,10 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         // TODO: If the total size is greater than some threshold, then
         //       we need to initiate the eviction process
         int offset = hstore_site.getLocalPartitionOffset(partition);
-        if (debug.get())
-            LOG.debug(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
-                                    partition, totalSizeKb, this.partitionSizes[offset])); 
+
+        LOG.info(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
+                                partition, totalSizeKb, this.partitionSizes[offset])); 
+
         this.partitionSizes[offset] = totalSizeKb;
     }
     

@@ -51,7 +51,7 @@ public class GetPageAnonymous extends VoltProcedure {
     ); 
     
     public SQLStmt selectRevisionsByPage = new SQLStmt(
-        "SELECT rev_id FROM " + WikipediaConstants.TABLENAME_REVISION + " WHERE page_id = ?");
+        "SELECT rev_id FROM " + WikipediaConstants.TABLENAME_REVISION + " WHERE rev_page = ?");
     
 	public SQLStmt selectPageRevision = new SQLStmt(
         "SELECT * " +
