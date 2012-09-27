@@ -9,7 +9,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 
@@ -89,8 +88,7 @@ public class TestLocalTransaction extends BaseTestCase {
             assertNotNull(this.batchParams[i]);
         } // FOR
         
-        Site catalog_site = this.getSite(0);
-        this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
+        this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
         this.executor = (MockPartitionExecutor)this.hstore_site.getPartitionExecutor(BASE_PARTITION);
         assertNotNull(this.executor);
         this.ts = new LocalTransaction(this.hstore_site);

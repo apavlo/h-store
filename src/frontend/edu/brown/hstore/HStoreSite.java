@@ -414,12 +414,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param coordinators
      * @param p_estimator
      */
-    protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
-        assert(catalog_site != null);
+    protected HStoreSite(int site_id, CatalogContext catalogContext, HStoreConf hstore_conf) {
+        this.catalog_site = catalogContext.getSiteById(site_id);
+        if (this.catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
         this.hstore_conf = hstore_conf;
         this.catalogContext = new CatalogContext(catalog_site.getCatalog(), CatalogContext.NO_PATH);
-        this.catalog_site = catalog_site;
         this.catalog_host = this.catalog_site.getHost(); 
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
