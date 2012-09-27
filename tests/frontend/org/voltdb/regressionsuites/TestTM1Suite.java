@@ -93,8 +93,8 @@ public class TestTM1Suite extends RegressionSuite {
                 assertEquals(Status.OK, cresponse.getStatus());
             } catch (ProcCallException ex) {
                 cresponse = ex.getClientResponse();
-//                System.err.println(cresponse);
-                assertEquals(Status.ABORT_USER, cresponse.getStatus());
+//                System.err.println();
+                assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
             }
             assertNotNull(cresponse);
         } // FOR
@@ -127,7 +127,7 @@ public class TestTM1Suite extends RegressionSuite {
             assertEquals(Status.OK, cresponse.getStatus());
         } catch (ProcCallException ex) {
             cresponse = ex.getClientResponse();
-            assertEquals(Status.ABORT_USER, cresponse.getStatus());
+            assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
         }
         assertNotNull(cresponse);
         

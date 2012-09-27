@@ -1,15 +1,19 @@
 package edu.brown.mappings;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.utils.JarReader;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.CollectionUtil;
@@ -121,6 +125,38 @@ public class ParametersUtil {
         return (ParametersUtil.cache);
     }
 
+    /**
+     * Load a ParameterMappingsSet from a project jar file.
+     * @param catalog_db
+     * @param jarPath
+     * @return
+     */
+    public static ParameterMappingsSet getParameterMappingsSetFromJar(Database catalog_db, File jarPath) {
+        LOG.debug("Loading ParameterMappingsSet from jar file at '" + jarPath.getAbsolutePath() + "'");
+        if (!jarPath.exists()) {
+            throw new RuntimeException("The catalog jar file '" + jarPath + "' does not exist");
+        }
+        
+        String paramFile = catalog_db.getProject() + ".mappings";
+        String serialized = null;
+        try {
+            serialized = JarReader.readFileFromJarfile(jarPath.getAbsolutePath(), paramFile);
+        } catch (Exception ex) {
+            return (null);
+        }
+        ParameterMappingsSet pms = null;
+        try {
+            pms = new ParameterMappingsSet();
+            JSONObject json = new JSONObject(serialized);
+            pms.fromJSON(json, catalog_db);
+        } catch (JSONException ex) {
+            String msg = String.format("Failed to load ParameterMappingSet '%s' from '%s'",
+                                       paramFile, jarPath);
+            throw new RuntimeException(msg, ex);
+        }
+        return (pms);
+    }
+    
     /**
      * Return a map from procedure names to ParameterMappings
      * 

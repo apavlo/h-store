@@ -23,8 +23,9 @@
 
 package org.voltdb;
 
-import org.voltdb.catalog.Site;
+import java.io.File;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
@@ -33,44 +34,30 @@ import edu.brown.hstore.conf.HStoreConf;
  * Wraps VoltDB in a Thread
  */
 public class ServerThread extends Thread {
+    
+    final CatalogContext catalogContext;
     final HStoreConf hstore_conf;
+    final int site_id;
     boolean initialized = false;
-
-    // TODO(mainak) Pass this in as an argument to the constructor
-    final Site catalog_site;
-
     HStoreSite hstore_site;
     
-    public ServerThread(HStoreConf hstore_conf, Site catalog_site) {
+    public ServerThread(CatalogContext catalogContext, HStoreConf hstore_conf, int site_id) {
         setName("ServerThread");
-        // Use the default HStoreConf
-        // TODO(mainak) Pass this as an argument to the constructor
+        this.catalogContext = catalogContext;
         this.hstore_conf = hstore_conf;
-        this.catalog_site = catalog_site;
-
-        // Load the catalog
-        // TODO(mainak) Move out of here
-        // this.catalog = CatalogUtil.loadCatalogFromJar(m_config.m_pathToCatalog);
+        this.site_id = site_id;
     }
 
+    @Deprecated
     public ServerThread(String jarfile, BackendTarget target) {
-//        m_config = new VoltDB.Configuration();
-//        m_config.m_pathToCatalog = jarfile;
-//        m_config.m_backend = target;
-        
-        // Use the default HStoreConf
-        // TODO(mainak) Pass this as an argument to the constructor
         this.hstore_conf = HStoreConf.singleton();
-        this.catalog_site = null;
-        
-        // Load the catalog
-        // TODO(mainak) Move out of here
-        // this.catalog = CatalogUtil.loadCatalogFromJar(m_config.m_pathToCatalog);
+        this.catalogContext = CatalogUtil.loadCatalogContextFromJar(new File(jarfile));
+        this.site_id = -1;
     }
 
     @Override
     public void run() {
-        this.hstore_site = HStore.initialize(catalog_site, hstore_conf);
+        this.hstore_site = HStore.initialize(this.catalogContext, this.site_id, this.hstore_conf);
         this.hstore_site.run();
     }
 

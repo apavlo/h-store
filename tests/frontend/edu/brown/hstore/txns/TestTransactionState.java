@@ -109,7 +109,7 @@ public class TestTransactionState extends BaseTestCase {
          
             Partition catalog_part = catalogContext.getPartitionById(LOCAL_PARTITION);
             assertNotNull(catalog_part);
-            hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
+            hstore_site = HStore.initialize(catalogContext, ((Site)catalog_part.getParent()).getId(), HStoreConf.singleton());
             hstore_site.addPartitionExecutor(LOCAL_PARTITION, executor);
             
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);

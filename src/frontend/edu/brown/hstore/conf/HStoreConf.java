@@ -14,7 +14,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Site;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -1657,7 +1656,7 @@ public final class HStoreConf {
     /**
      * Constructor
      */
-    private HStoreConf(ArgumentsParser args, Site catalog_site) {
+    private HStoreConf(ArgumentsParser args) {
         if (args != null) {
             
             // Configuration File
@@ -2122,13 +2121,9 @@ public final class HStoreConf {
         return HStoreConf.init(f, null);
     }
     
-    public static HStoreConf initArgumentsParser(ArgumentsParser args) {
-        return HStoreConf.initArgumentsParser(args, null);
-    }
-    
-    public synchronized static HStoreConf initArgumentsParser(ArgumentsParser args, Site catalog_site) {
+    public synchronized static HStoreConf initArgumentsParser(ArgumentsParser args) {
         if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
-        conf = new HStoreConf(args, catalog_site);
+        conf = new HStoreConf(args);
         return (conf);
     }
     
