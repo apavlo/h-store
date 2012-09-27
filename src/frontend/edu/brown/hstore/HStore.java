@@ -37,14 +37,11 @@ import org.voltdb.CatalogContext;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Partition;
-import org.voltdb.catalog.Site;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.FixedEstimator;
 import edu.brown.hstore.estimators.MarkovEstimator;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
@@ -120,10 +117,7 @@ public abstract class HStore {
      * Initialize the HStore server.
      */
     public synchronized static final HStoreSite initialize(CatalogContext catalogContext, int site_id, HStoreConf hstore_conf) {
-        final Site catalog_site = catalogContext.getSiteById(site_id);
-        if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
-        
-        singleton = new HStoreSite(catalog_site, hstore_conf);
+        singleton = new HStoreSite(site_id, catalogContext, hstore_conf);
         
         // For every partition in our local site, we want to setup a new ExecutionSite
         // Thankfully I had enough sense to have PartitionEstimator take in the local partition
@@ -172,8 +166,7 @@ public abstract class HStore {
         // ----------------------------------------------------------------------------
         // PartitionExecutor Initialization
         // ----------------------------------------------------------------------------
-        for (Partition catalog_part : catalog_site.getPartitions()) {
-            int local_partition = catalog_part.getId();
+        for (int local_partition : singleton.getLocalPartitionIdArray()) {
             MarkovGraphsContainer local_markovs = null;
             if (markovs != null) {
                 if (markovs.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) {

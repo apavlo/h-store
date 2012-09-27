@@ -5,7 +5,6 @@ import java.nio.ByteBuffer;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 
 import com.google.protobuf.RpcCallback;
 
@@ -51,9 +50,7 @@ public class TestPartitionMessageQueue extends BaseTestCase {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITIONS);
         
-        Site catalog_site = this.getSite(0);
-        this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
-        
+        this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
         this.catalog_proc = this.getProcedure(UpdateLocation.class);
         
         this.ts0 = new LocalTransaction(this.hstore_site);

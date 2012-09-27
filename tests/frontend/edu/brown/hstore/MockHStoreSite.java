@@ -7,13 +7,11 @@ import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.conf.HStoreConf;
@@ -66,16 +64,17 @@ public class MockHStoreSite extends HStoreSite {
      * Create an new MockHStoreSite for testing.
      * Note that this will not start any of the internal resources
      * Use MockHStoreSite.init() to do that!
-     * @param catalog_site
+     * @param site_id TODO
+     * @param catalogContext
      * @param hstore_conf
      */
-    public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf) {
-        super(catalog_site, hstore_conf);
+    public MockHStoreSite(int site_id, CatalogContext catalogContext, HStoreConf hstore_conf) {
+        super(site_id, catalogContext, hstore_conf);
         
         hstore_conf.site.status_enable = false;
         
-        for (Integer p : CatalogUtil.getLocalPartitionIds(catalog_site)) {
-            MockPartitionExecutor executor = new MockPartitionExecutor(p, catalog_site.getCatalog(),
+        for (Integer p : this.getLocalPartitionIdArray()) {
+            MockPartitionExecutor executor = new MockPartitionExecutor(p, catalogContext.catalog,
                                                                        this.getPartitionEstimator());
             this.addPartitionExecutor(p, executor);
         } // FOR
@@ -115,14 +114,11 @@ public class MockHStoreSite extends HStoreSite {
         );
         int site_id = args.getIntOptParam(0);
         
-        Site catalog_site = args.catalogContext.getSiteById(site_id);
-        assert(catalog_site != null) : "Invalid site id #" + site_id;
-        
         HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args);
         hstore_conf.site.cpu_affinity = false;
         hstore_conf.site.status_enable = false;
         
-        final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
+        final MockHStoreSite hstore_site = new MockHStoreSite(site_id, args.catalogContext, hstore_conf);
         hstore_site.init().run(); // Blocks until all connections are established
         final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getCoordinator();
         assert(hstore_coordinator.isStarted());

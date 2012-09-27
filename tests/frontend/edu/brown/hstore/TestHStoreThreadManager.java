@@ -4,7 +4,6 @@ import org.voltdb.EELibraryLoader;
 import org.voltdb.catalog.Site;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -19,8 +18,8 @@ public class TestHStoreThreadManager extends BaseTestCase {
         super.setUp(ProjectType.TM1);
         hstore_conf.site.cpu_affinity = true;
         
-        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
-        MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
+        Site catalog_site = CollectionUtil.first(catalogContext.sites);
+        MockHStoreSite hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, hstore_conf);
         this.manager = new HStoreThreadManager(hstore_site);
         EELibraryLoader.loadExecutionEngineLibrary(true);
     }
