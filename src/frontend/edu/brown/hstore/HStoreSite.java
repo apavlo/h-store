@@ -115,6 +115,7 @@ import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.HStoreSiteProfiler;
+import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
@@ -1917,6 +1918,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (updated != null) updated.add(p);
                 if (d) LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, p));
                 continue;
+            }
+            
+            if (hstore_conf.site.exec_profiling && ts != null && p != ts.getBasePartition()) {
+                PartitionExecutorProfiler pep = this.executors[p].getProfiler();
+                assert(pep != null);
+                pep.idle_2pc_remote_time.start();
             }
             
             // Always tell the queue stuff that the transaction is finished at this partition
