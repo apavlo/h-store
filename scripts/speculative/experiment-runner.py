@@ -188,6 +188,7 @@ EXPERIMENT_SETTINGS = {
         #"client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",
         #"client.output_txn_counters_combine":   True,
+        "client.output_basepartitions":         True,
         "benchmark.neworder_only":              True,
         "benchmark.neworder_multi_remote":      True,
         "benchmark.neworder_abort":             False,
