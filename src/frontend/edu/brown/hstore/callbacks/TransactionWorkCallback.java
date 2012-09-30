@@ -49,7 +49,7 @@ public class TransactionWorkCallback extends BlockingRpcCallback<TransactionWork
     public void unblockCallback() {
         if (debug.get()) {
             LOG.debug(String.format("Txn #%d - Sending back %d partition results",
-                                    this.getTransactionId(), this.builder.getResultsCount()));
+                      this.getTransactionId(), this.builder.getResultsCount()));
         }
         
         assert(this.getOrigCounter() == builder.getResultsCount()) :
@@ -67,10 +67,10 @@ public class TransactionWorkCallback extends BlockingRpcCallback<TransactionWork
     protected synchronized int runImpl(WorkResult parameter) {
         this.builder.addResults(parameter);
         if (debug.get()) LOG.debug(String.format("Added new %s from partition %d for txn #%d",
-                                                 parameter.getClass().getSimpleName(), parameter.getPartitionId(), this.getTransactionId()));
+                                   parameter.getClass().getSimpleName(), parameter.getPartitionId(), this.getTransactionId()));
         if (parameter.hasError()) {
             if (debug.get()) LOG.debug(String.format("Marking response for txn #%d with an error from partition %d",
-                                                     this.getTransactionId(), parameter.getPartitionId()));    
+                                       this.getTransactionId(), parameter.getPartitionId()));    
             this.builder.setStatus(Hstoreservice.Status.ABORT_UNEXPECTED);
         }
         return (1);
