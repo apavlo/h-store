@@ -1,8 +1,6 @@
 package edu.brown.hstore.estimators;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
@@ -25,7 +23,7 @@ public class TPCCEstimator extends FixedEstimator {
     /**
      * W_ID Short -> PartitionId
      */
-    private final Map<Short, Integer> neworder_hack_hashes = new HashMap<Short, Integer>();
+    private Integer[] neworder_hack_hashes;
     
     /**
      * Constructor
@@ -35,20 +33,24 @@ public class TPCCEstimator extends FixedEstimator {
         super(p_estimator);
     }
     
-    private Integer getPartition(Short w_id) {
-        Integer partition = this.neworder_hack_hashes.get(w_id);
-        if (partition == null) {
-            partition = this.hasher.hash(w_id);
-            this.neworder_hack_hashes.put(w_id, partition);
+    private Integer getPartition(short w_id) {
+        if (this.neworder_hack_hashes == null || this.neworder_hack_hashes.length <= w_id) {
+            synchronized (this) {
+                if (this.neworder_hack_hashes == null || this.neworder_hack_hashes.length <= w_id) {
+                    this.neworder_hack_hashes = new Integer[w_id+1];
+                    for (int i = 0; i < this.neworder_hack_hashes.length; i++) {
+                        this.neworder_hack_hashes[i] = this.hasher.hash(i);
+                    } // FOR
+                }
+            } // SYNCH
         }
-        assert(partition != null);
-        return (partition);
+        return (this.neworder_hack_hashes[w_id]);
     }
     
     @Override
     public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
-        FixedEstimatorState ret = new FixedEstimatorState(this.num_partitions);
+        FixedEstimatorState ret = new FixedEstimatorState(txn_id, this.num_partitions, base_partition);
         
         PartitionSet partitions = null;
         PartitionSet readonly = null;
@@ -98,19 +100,21 @@ public class TPCCEstimator extends FixedEstimator {
         assert(w_id != null);
         short s_w_ids[] = (short[])args[5];
         
-        Integer base_partition = this.getPartition(w_id);
+        Integer base_partition = this.getPartition(w_id.shortValue());
         PartitionSet touchedPartitions = this.singlePartitionSets.get(base_partition);
         assert(touchedPartitions != null) : "base_partition = " + base_partition;
         for (short s_w_id : s_w_ids) {
             if (s_w_id != w_id) {
                 if (touchedPartitions.size() == 1) {
-                    touchedPartitions = new PartitionSet(touchedPartitions);
+                    touchedPartitions = new PartitionSet(base_partition);
                 }
                 touchedPartitions.add(this.getPartition(s_w_id));
             }
         } // FOR
-        if (debug.get()) LOG.debug(String.format("NewOrder - Partitions=%s, W_ID=%d, S_W_IDS=%s",
-                                   touchedPartitions, w_id, Arrays.toString(s_w_ids)));
+        if (debug.get()) 
+            LOG.debug(String.format("NewOrder - [W_ID=%d / S_W_IDS=%s] => [BasePartition=%s / Partitions=%s]",
+                      w_id, Arrays.toString(s_w_ids), 
+                      base_partition, touchedPartitions));
         return (touchedPartitions);        
     }
 

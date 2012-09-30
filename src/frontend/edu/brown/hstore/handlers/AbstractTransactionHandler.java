@@ -10,6 +10,7 @@ import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -33,6 +34,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
     }
     
     protected final HStoreSite hstore_site;
+    protected final HStoreConf hstore_conf;
     protected final HStoreCoordinator coordinator;
     protected final HStoreService handler;
     
@@ -44,6 +46,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
     
     public AbstractTransactionHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
         this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
         this.coordinator = hstore_coord;
         this.handler = this.coordinator.getHandler();
         this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;
