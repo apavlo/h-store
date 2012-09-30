@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
@@ -22,6 +23,7 @@ import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
 
 public final class HStoreObjectPools implements Configurable {
+    private static final Logger LOG = Logger.getLogger(HStoreObjectPools.class);
 
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -212,7 +214,8 @@ public final class HStoreObjectPools implements Configurable {
         if (this.STATES_TXN_MAPREDUCE == null) {
             String msg = String.format("Trying to acquire %s object pool for partition %d but mapreduce feature is disabled",
                                        MapReduceTransaction.class.getSimpleName(), partition);
-            throw new RuntimeException(msg);
+            LOG.warn(msg);
+            return (null);
         }
         return this.STATES_TXN_MAPREDUCE[partition];
     }
@@ -229,7 +232,8 @@ public final class HStoreObjectPools implements Configurable {
         if (this.STATES_PREFETCH == null) {
             String msg = String.format("Trying to acquire %s object pool for partition %d but prefetching feature is disabled",
                                        PrefetchState.class.getSimpleName(), partition);
-            throw new RuntimeException(msg);
+            LOG.warn(msg);
+            return (null);
         }
         return this.STATES_PREFETCH[partition];
     }
