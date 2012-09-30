@@ -100,7 +100,7 @@ public class LocalCluster extends VoltServerConfig {
             m_filename = filename;
             m_input = stream;
             try {
-                m_writer = new FileWriter(filename);
+                m_writer = new FileWriter(filename, true);
             }
             catch (IOException ex) {
                 LOG.error(null, ex);
@@ -285,6 +285,11 @@ public class LocalCluster extends VoltServerConfig {
         HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
         hstore_conf.loadFromArgs(this.confParams);
         
+        String namePrefix = null;
+        if (m_jarFileName.contains("-")) {
+            namePrefix = m_jarFileName.split("-")[0].replace(".jar", "");
+        }
+        
         // create all the out-of-process servers
         // Loop through all of the sites in the catalog and start them
         int offset = m_procBuilder.command().size() - 1;
@@ -317,8 +322,10 @@ public class LocalCluster extends VoltServerConfig {
                         assert(status);
                     }
     
-                    PipeToFile ptf = new PipeToFile(testoutputdir + File.separator +
-                                                    getName() + "-" + site_id + ".txt", proc.getInputStream());
+                    String logFile = testoutputdir + File.separator +
+                                     (namePrefix != null ? namePrefix + "-" : "") + 
+                                     getName() + "-" + site_id + ".txt";
+                    PipeToFile ptf = new PipeToFile(logFile, proc.getInputStream());
                     ptf.m_writer.write(m_procBuilder.command().toString() + "\n");
                     m_pipes.add(ptf);
                     Thread t = new Thread(ptf);
