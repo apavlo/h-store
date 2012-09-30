@@ -139,7 +139,7 @@ BASE_SETTINGS = {
     
     "site.jvm_asserts":                         False,
     "site.log_backup":                          False,
-    "site.status_enable":                       False,
+    "site.status_enable":                       True,
     "site.status_show_thread_info":             False,
     "site.status_show_executor_info":           False,
     "site.txn_incoming_delay":                  10,

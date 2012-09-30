@@ -24,7 +24,7 @@ public enum TransactionCounter {
     REJECTED,
     /** Of the the received transactions, the number that we had to send somewhere else */
     REDIRECTED,
-    /** The number of txns that we executed locally */
+    /** The number of transactions that we executed locally */
     EXECUTED,
     /** Of the locally executed transactions, how many were single-partitioned */
     SINGLE_PARTITION,
@@ -32,7 +32,7 @@ public enum TransactionCounter {
     MULTI_PARTITION,
     /** The number of sysprocs that we executed */
     SYSPROCS,
-    /** The number of tranactions that were completed (committed or aborted) */
+    /** The number of transactions that were completed (committed or aborted) */
     COMPLETED,
     /** Of the locally executed transactions, how many were abort */
     ABORTED,
