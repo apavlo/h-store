@@ -174,10 +174,10 @@ public class CatalogContext {
         siteTracker = null; // new SiteTracker(cluster.getSites());
 
         // count nodes
-        numberOfHosts = cluster.getHosts().size();
+        this.numberOfHosts = cluster.getHosts().size();
 
         // count exec sites
-        numberOfSites = cluster.getSites().size();
+        this.numberOfSites = cluster.getSites().size();
 
         // ------------------------------------------------------------
         // PARTITIONS
