@@ -1498,6 +1498,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // TODO: This should be an error message back to the client, not an exception
             if (catalog_proc == null) {
                 String msg = "Unknown procedure '" + procName + "'";
+                LOG.error(msg);
                 this.responseError(client_handle,
                                    Status.ABORT_UNEXPECTED,
                                    msg,

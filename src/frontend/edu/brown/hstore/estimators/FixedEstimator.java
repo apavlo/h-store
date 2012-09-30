@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.CatalogContext;
+import org.voltdb.utils.EstTime;
 
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.CollectionUtil;
@@ -20,7 +21,8 @@ public abstract class FixedEstimator extends TransactionEstimator {
         super(p_estimator);
     }
 
-    public static FixedEstimator factory(PartitionEstimator p_estimator, CatalogContext catalogContext){
+    @SuppressWarnings("unchecked")
+    public static <T extends FixedEstimator> T factory(PartitionEstimator p_estimator, CatalogContext catalogContext){
         FixedEstimator estimator = null;
         ProjectType ptype = ProjectType.get(catalogContext.database.getProject());
         switch (ptype) {
@@ -36,7 +38,7 @@ public abstract class FixedEstimator extends TransactionEstimator {
             default:
                 estimator = null;
         } // SWITCH
-        return (estimator);
+        return ((T)estimator);
     }
     
     /**
@@ -45,8 +47,9 @@ public abstract class FixedEstimator extends TransactionEstimator {
     protected static class FixedEstimatorState extends EstimatorState {
         private final List<FixedEstimation> estimates = new ArrayList<FixedEstimation>();
         
-        protected FixedEstimatorState(int num_partitions) {
+        protected FixedEstimatorState(Long txn_id, int num_partitions, int base_partition) {
             super(num_partitions);
+            this.init(txn_id, base_partition, EstTime.currentTimeMillis());
         }
         
         protected FixedEstimation createNextEstimate(PartitionSet partitions,

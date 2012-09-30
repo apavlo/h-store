@@ -1,6 +1,7 @@
 package edu.brown.hstore.estimators;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.voltdb.catalog.Statement;
@@ -8,6 +9,7 @@ import org.voltdb.utils.EstTime;
 
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.StringUtil;
 
 public abstract class EstimatorState implements Poolable {
 
@@ -85,6 +87,16 @@ public abstract class EstimatorState implements Poolable {
         if (cnt == null) cnt = 0;
         this.query_instance_cnts.put(catalog_stmt, cnt.intValue() + 1);
         return (cnt.intValue());
+    }
+    
+    @Override
+    public String toString() {
+        Map<String, Object> m0 = new LinkedHashMap<String, Object>();
+        m0.put("TransactionId", this.txn_id);
+        m0.put("Base Partition", this.base_partition);
+        m0.put("Touched Partitions", this.touched_partitions);
+        m0.put("Start Time", this.start_time);
+        return StringUtil.formatMaps(m0);
     }
 
 }
