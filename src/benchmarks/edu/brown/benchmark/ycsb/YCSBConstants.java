@@ -31,7 +31,7 @@ package edu.brown.benchmark.ycsb;
 
 public abstract class YCSBConstants {
 
-	public static final int NUM_RECORDS = 20000; 
+	public static final int NUM_RECORDS = 10485760; 
 	
 	public static final String TABLE_NAME = "USERTABLE"; 
     public static final int NUM_COLUMNS = 11; 

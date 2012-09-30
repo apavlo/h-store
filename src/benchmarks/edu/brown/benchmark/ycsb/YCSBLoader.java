@@ -90,7 +90,7 @@ public class YCSBLoader extends BenchmarkComponent {
 				
 				// randomly generate strings for each column
 				for (int col = 2; col < YCSBConstants.NUM_COLUMNS; col++) {
-					row[col] = YCSBUtil.astring(1, 100); 
+					row[col] = YCSBUtil.astring(1, 50); 
 				}
 				
 				//assert col == table.getColumnCount();
@@ -119,7 +119,7 @@ public class YCSBLoader extends BenchmarkComponent {
 			}
 			
 			if (d) 
-				LOG.debug("Finished loading " + catalog_tbl.getName());
+				LOG.info("Finished loading " + catalog_tbl.getName());
 						
             try {
                 // Makes a blocking call to @LoadMultipartitionTable sysproc in

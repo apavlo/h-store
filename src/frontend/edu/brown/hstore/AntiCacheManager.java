@@ -53,7 +53,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     }
 
     //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152 * 256;  //512 MB 
+    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152 * 64;  //512 MB 
     
     private boolean evicting;  
 
@@ -83,6 +83,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     private final long availableMemory;
     private final double memoryThreshold;
     private final Collection<Table> evictableTables;
+	
+	private boolean evicted;
     
     /**
      * 
@@ -111,7 +113,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     
                     // check to see if we should start eviction
                     if (hstore_conf.site.anticache_enable && checkEviction()) {
-                        //executeEviction(); 
+						evicted = true; 
+                        executeEviction(); 
                     }
 
             } catch (Throwable ex) {
@@ -144,6 +147,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
               false);
               
               evicting = false; 
+			evicted = false; 
         
         // XXX: Do we want to use Runtime.getRuntime().maxMemory() instead?
         // XXX: We could also use Runtime.getRuntime().totalMemory() instead of getting table stats
@@ -263,7 +267,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
 
 		LOG.info("Current Memory Usage: " + (total_size_kb/1024) + " MB"); 
 
-        return(total_size_kb > (1024 * 128));
+        return((total_size_kb > (1024 * 512)) && !evicted);
         
 		//return(stats.javausedheapmem > (1024 * 1024 * 1024));
         //return (usage >= this.memoryThreshold);

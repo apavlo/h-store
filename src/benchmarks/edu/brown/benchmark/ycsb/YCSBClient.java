@@ -150,7 +150,7 @@ public class YCSBClient extends BenchmarkComponent {
 		boolean response = true; 
 		client = this.getClientHandle();
 		
-		Object procParams[] = new Object[1]; 
+		Object procParams[]; 
 		
 		// pick random transaction to call, weighted by txnWeights
 		final Transaction target = this.txnWeights.nextValue(); 
@@ -162,32 +162,53 @@ public class YCSBClient extends BenchmarkComponent {
 		
 		if (procName.equals("DeleteRecord")) {
 			
+			procParams = new Object[1]; 
+			
 			key = readRecord.nextInt(); 
 		} 
 		else if (procName.equals("InsertRecord")) {
 			
+			procParams = new Object[11]; 
+			
 			key = insertRecord.nextInt(); 
-			List<String> values = buildValues(10); 
+			List<String> values = buildValues(10);
+			
+			for(int i = 0; i < 10; i++)
+				procParams[i+1] = values.get(i); 			
 		} 
 		else if (procName.equals("ReadModifyWriteRecord")) {
+			
+			procParams = new Object[11]; 
 			
 			key = readRecord.nextInt(); 
 			List<String> values = buildValues(10); 
 		} 
 		else if (procName.equals("ReadRecord")) {
 			
+			procParams = new Object[1]; 
+			
 			key = readRecord.nextInt(); 
 		} 
 		else if (procName.equals("ScanRecord")) {
+			
+			procParams = new Object[1]; 
 			
 			key = readRecord.nextInt(); 
 			scan_count = randScan.nextInt(); 
 		} 
 		else if (procName.equals("UpdateRecord")) {
 			
+			procParams = new Object[11]; 
+			
 			key = readRecord.nextInt(); 
+			List<String> values = buildValues(10); 
+			
+			for(int i = 0; i < 10; i++)
+				procParams[i+1] = values.get(i);  
 		}
 		else {
+			
+			procParams = new Object[1]; 
 			key = readRecord.nextInt();
 		}
 		
@@ -195,7 +216,6 @@ public class YCSBClient extends BenchmarkComponent {
 		
 		try 
 		{
-
 			Callback callback = new Callback(procIdx);
 			
 			// invoke procedure asynchronously 
@@ -216,7 +236,7 @@ public class YCSBClient extends BenchmarkComponent {
 	private List<String> buildValues(int numVals) {
         this.value_list.clear();
         for (int i = 0; i < numVals; i++) {
-            this.value_list.add(YCSBUtil.astring(1,100));
+            this.value_list.add(YCSBUtil.astring(1,50));
         }
         return this.value_list;
     }
