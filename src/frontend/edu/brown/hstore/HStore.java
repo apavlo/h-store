@@ -169,6 +169,7 @@ public abstract class HStore {
         // ----------------------------------------------------------------------------
         // PartitionExecutor Initialization
         // ----------------------------------------------------------------------------
+        boolean first = true;
         for (Partition catalog_part : catalog_site.getPartitions()) {
             int local_partition = catalog_part.getId();
             MarkovGraphsContainer local_markovs = null;
@@ -193,6 +194,9 @@ public abstract class HStore {
             } else if (hstore_conf.site.markov_fixed) {
                 t_estimator = FixedEstimator.factory(p_estimator, singleton.getCatalogContext());
             }
+            if (first && t_estimator != null) {
+                LOG.info("All requests will be processed with " + t_estimator.getClass().getSimpleName());
+            }
 
             // setup the EE
             if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
@@ -203,6 +207,7 @@ public abstract class HStore {
                                                 p_estimator,
                                                 t_estimator);
             singleton.addPartitionExecutor(local_partition, executor);
+            first = false;
         } // FOR
         
         TheHashinator.initialize(catalog_site.getCatalog());

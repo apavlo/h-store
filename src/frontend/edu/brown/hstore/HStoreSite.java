@@ -1616,8 +1616,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
 
-        if (hstore_conf.site.txn_counters) {
-            (success ? TransactionCounter.EXECUTED : TransactionCounter.REJECTED).inc(catalog_proc);
+        if (hstore_conf.site.txn_counters && success == false) {
+            TransactionCounter.REJECTED.inc(catalog_proc);
         }
         
         if (t) LOG.trace(String.format("Finished initial processing of new txn. [success=%s]", success));
