@@ -291,8 +291,8 @@ public class LocalCluster extends VoltServerConfig {
         hstore_conf.loadFromArgs(this.confParams);
         
         String namePrefix = null;
-        if (m_jarFileName.contains("-")) {
-            namePrefix = m_jarFileName.split("-")[0].replace(".jar", "");
+        if (m_jarFileName.getName().contains("-")) {
+            namePrefix = m_jarFileName.getName().split("-")[0].replace(".jar", "");
         }
         
         // create all the out-of-process servers
