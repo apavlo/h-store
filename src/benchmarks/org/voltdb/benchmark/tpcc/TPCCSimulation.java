@@ -51,12 +51,19 @@
 package org.voltdb.benchmark.tpcc;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.benchmark.Clock;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Site;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.logging.LoggerUtil;
@@ -96,6 +103,7 @@ public class TPCCSimulation {
     private final long affineWarehouse;
     private final double skewFactor;
     private final TPCCConfig config;
+    public static HashMap <Integer, List<Integer>> remotePartitions = null;
     
     private final int max_w_id;
     static long lastAssignedWarehouseId = 1;
@@ -108,7 +116,7 @@ public class TPCCSimulation {
     private final Histogram<Short> totalWarehouseHistory = new Histogram<Short>(true);
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
-                          Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor) {
+                          Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor, Catalog catalog) {
         assert parameters != null;
         this.client = client;
         this.generator = generator;
@@ -136,6 +144,27 @@ public class TPCCSimulation {
         
         if (debug.get()) {
             LOG.debug(this.toString());
+        }
+        if (remotePartitions == null) {
+        	remotePartitions = new HashMap<Integer, List<Integer>>();
+        	HashMap <Integer, Integer> partitionToSite = new HashMap<Integer, Integer>();
+        	for (Cluster c: catalog.getClusters()) {
+        		assert (catalog.getClusters().size() == 1);
+        		for (Site s: c.getSites()) {
+        			for (Partition p: s.getPartitions())
+        				partitionToSite.put(p.getId(), s.getId());
+        		}
+        		
+        		for (int i : partitionToSite.keySet()) {
+        			int siteId = partitionToSite.get(i);
+        			List <Integer> rList = new ArrayList<Integer>();
+        			for (int j : partitionToSite.keySet()) {
+        				if (siteId != partitionToSite.get(j))
+        					rList.add(j);
+        			}
+        			remotePartitions.put(i, rList);
+        		}
+        	}
         }
     }
     
@@ -302,7 +331,7 @@ public class TPCCSimulation {
         } else {
             // 15%: paying through another warehouse:
             // select in range [1, num_warehouses] excluding w_id
-            c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, max_w_id, w_id);
+        	c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, max_w_id, w_id);
             assert c_w_id != w_id;
             c_d_id = generateDistrict();
         }
@@ -368,7 +397,12 @@ public class TPCCSimulation {
                 if (trace.get()) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
                 // Flip a random one
                 int idx = generator.number(0, ol_cnt-1);
-                supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                if (config.neworder_multip_remote) {
+                	supply_w_id[idx] = (short)generator.numberRemotePartition(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                } else {
+                	supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                }
+                
             }
         }
 
