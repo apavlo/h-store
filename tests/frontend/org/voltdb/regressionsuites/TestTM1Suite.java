@@ -53,97 +53,97 @@ public class TestTM1Suite extends RegressionSuite {
         loader.load();
     }
 
-    /**
-     * testInitialize
-     */
-    public void testInitialize() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        
-        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-        for (String tableName : TM1Constants.TABLENAMES) {
-            String query = "SELECT COUNT(*) FROM " + tableName;
-            ClientResponse cresponse = client.callProcedure(procName, query);
-            assertEquals(Status.OK, cresponse.getStatus());
-            VoltTable results[] = cresponse.getResults();
-            assertEquals(1, results.length);
-            long count = results[0].asScalarLong();
-            if (tableName.equals(TM1Constants.TABLENAME_SUBSCRIBER)) {
-                assertEquals(tableName,  NUM_SUBSCRIBERS, count);
-            } else {
-                assertTrue(tableName + " -> " + count, count > 0);
-            }
-            System.err.println(tableName + "\n" + results[0]);
-        } // FOR
-    }
-    
-    /**
-     * testDeleteCallForwarding
-     */
-    public void testDeleteCallForwarding() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
-        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        
-        for (int i = 0; i < 1000; i++) {
-            ClientResponse cresponse = null;
-            try {
-                cresponse = client.callProcedure(txn.callName, params);
-                assertEquals(Status.OK, cresponse.getStatus());
-            } catch (ProcCallException ex) {
-                cresponse = ex.getClientResponse();
-//                System.err.println();
-                assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
-            }
-            assertNotNull(cresponse);
-        } // FOR
-    }
-    
-    /**
-     * testGetAccessData
-     */
-    public void testGetAccessData() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        TM1Client.Transaction txn = Transaction.GET_ACCESS_DATA;
-        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        ClientResponse cresponse = client.callProcedure(txn.callName, params);
-        assertNotNull(cresponse);
-        assertEquals(Status.OK, cresponse.getStatus());
-    }
-    
-    /**
-     * testGetNewDestination
-     */
-    public void testGetNewDestination() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
-        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        ClientResponse cresponse = null;
-        try {
-            cresponse = client.callProcedure(txn.callName, params);
-            assertEquals(Status.OK, cresponse.getStatus());
-        } catch (ProcCallException ex) {
-            cresponse = ex.getClientResponse();
-            assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
-        }
-        assertNotNull(cresponse);
-        
-    }
-    
-    /**
-     * testGetSubscriberData
-     */
-    public void testGetSubscriberData() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        TM1Client.Transaction txn = Transaction.GET_SUBSCRIBER_DATA;
-        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        ClientResponse cresponse = client.callProcedure(txn.callName, params);
-        assertNotNull(cresponse);
-    }
+//    /**
+//     * testInitialize
+//     */
+//    public void testInitialize() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        
+//        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+//        for (String tableName : TM1Constants.TABLENAMES) {
+//            String query = "SELECT COUNT(*) FROM " + tableName;
+//            ClientResponse cresponse = client.callProcedure(procName, query);
+//            assertEquals(Status.OK, cresponse.getStatus());
+//            VoltTable results[] = cresponse.getResults();
+//            assertEquals(1, results.length);
+//            long count = results[0].asScalarLong();
+//            if (tableName.equals(TM1Constants.TABLENAME_SUBSCRIBER)) {
+//                assertEquals(tableName,  NUM_SUBSCRIBERS, count);
+//            } else {
+//                assertTrue(tableName + " -> " + count, count > 0);
+//            }
+//            System.err.println(tableName + "\n" + results[0]);
+//        } // FOR
+//    }
+//    
+//    /**
+//     * testDeleteCallForwarding
+//     */
+//    public void testDeleteCallForwarding() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        
+//        for (int i = 0; i < 1000; i++) {
+//            ClientResponse cresponse = null;
+//            try {
+//                cresponse = client.callProcedure(txn.callName, params);
+//                assertEquals(Status.OK, cresponse.getStatus());
+//            } catch (ProcCallException ex) {
+//                cresponse = ex.getClientResponse();
+////                System.err.println();
+//                assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
+//            }
+//            assertNotNull(cresponse);
+//        } // FOR
+//    }
+//    
+//    /**
+//     * testGetAccessData
+//     */
+//    public void testGetAccessData() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        TM1Client.Transaction txn = Transaction.GET_ACCESS_DATA;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+//        assertNotNull(cresponse);
+//        assertEquals(Status.OK, cresponse.getStatus());
+//    }
+//    
+//    /**
+//     * testGetNewDestination
+//     */
+//    public void testGetNewDestination() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = null;
+//        try {
+//            cresponse = client.callProcedure(txn.callName, params);
+//            assertEquals(Status.OK, cresponse.getStatus());
+//        } catch (ProcCallException ex) {
+//            cresponse = ex.getClientResponse();
+//            assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
+//        }
+//        assertNotNull(cresponse);
+//        
+//    }
+//    
+//    /**
+//     * testGetSubscriberData
+//     */
+//    public void testGetSubscriberData() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        TM1Client.Transaction txn = Transaction.GET_SUBSCRIBER_DATA;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+//        assertNotNull(cresponse);
+//    }
     
     /**
      * testInsertCallForwarding
@@ -163,38 +163,38 @@ public class TestTM1Suite extends RegressionSuite {
         }
         assertNotNull(cresponse);
     }
-    
-    /**
-     * testUpdateLocation
-     */
-    public void testUpdateLocation() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
-        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        ClientResponse cresponse = client.callProcedure(txn.callName, params);
-        assertNotNull(cresponse);
-        assertEquals(Status.OK, cresponse.getStatus());
-    }
-    
-    /**
-     * testUpdateSubscriberData
-     */
-    public void testUpdateSubscriberData() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        TM1Client.Transaction txn = Transaction.UPDATE_SUBSCRIBER_DATA;
-        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        ClientResponse cresponse = null;
-        try {
-            cresponse = client.callProcedure(txn.callName, params);
-            assertEquals(Status.OK, cresponse.getStatus());
-        } catch (ProcCallException ex) {
-            cresponse = ex.getClientResponse();
-            assertEquals(Status.ABORT_USER, cresponse.getStatus());
-        }
-        assertNotNull(cresponse);
-    }
+//    
+//    /**
+//     * testUpdateLocation
+//     */
+//    public void testUpdateLocation() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+//        assertNotNull(cresponse);
+//        assertEquals(Status.OK, cresponse.getStatus());
+//    }
+//    
+//    /**
+//     * testUpdateSubscriberData
+//     */
+//    public void testUpdateSubscriberData() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        TM1Client.Transaction txn = Transaction.UPDATE_SUBSCRIBER_DATA;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = null;
+//        try {
+//            cresponse = client.callProcedure(txn.callName, params);
+//            assertEquals(Status.OK, cresponse.getStatus());
+//        } catch (ProcCallException ex) {
+//            cresponse = ex.getClientResponse();
+//            assertEquals(Status.ABORT_USER, cresponse.getStatus());
+//        }
+//        assertNotNull(cresponse);
+//    }
 
     public static Test suite() {
         VoltServerConfig config = null;
