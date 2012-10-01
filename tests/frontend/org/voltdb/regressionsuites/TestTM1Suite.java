@@ -53,29 +53,29 @@ public class TestTM1Suite extends RegressionSuite {
         loader.load();
     }
 
-//    /**
-//     * testInitialize
-//     */
-//    public void testInitialize() throws Exception {
-//        Client client = this.getClient();
-//        this.initializeDatabase(client);
-//        
-//        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-//        for (String tableName : TM1Constants.TABLENAMES) {
-//            String query = "SELECT COUNT(*) FROM " + tableName;
-//            ClientResponse cresponse = client.callProcedure(procName, query);
-//            assertEquals(Status.OK, cresponse.getStatus());
-//            VoltTable results[] = cresponse.getResults();
-//            assertEquals(1, results.length);
-//            long count = results[0].asScalarLong();
-//            if (tableName.equals(TM1Constants.TABLENAME_SUBSCRIBER)) {
-//                assertEquals(tableName,  NUM_SUBSCRIBERS, count);
-//            } else {
-//                assertTrue(tableName + " -> " + count, count > 0);
-//            }
-//            System.err.println(tableName + "\n" + results[0]);
-//        } // FOR
-//    }
+    /**
+     * testInitialize
+     */
+    public void testInitialize() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        for (String tableName : TM1Constants.TABLENAMES) {
+            String query = "SELECT COUNT(*) FROM " + tableName;
+            ClientResponse cresponse = client.callProcedure(procName, query);
+            assertEquals(Status.OK, cresponse.getStatus());
+            VoltTable results[] = cresponse.getResults();
+            assertEquals(1, results.length);
+            long count = results[0].asScalarLong();
+            if (tableName.equals(TM1Constants.TABLENAME_SUBSCRIBER)) {
+                assertEquals(tableName,  NUM_SUBSCRIBERS, count);
+            } else {
+                assertTrue(tableName + " -> " + count, count > 0);
+            }
+            System.err.println(tableName + "\n" + results[0]);
+        } // FOR
+    }
     
     /**
      * testDeleteCallForwarding
