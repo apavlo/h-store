@@ -1918,19 +1918,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
         } catch (ConstraintFailureException ex) {
-            LOG.error(ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (SQLException ex) {
-            LOG.error(ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (EEException ex) {
-            this.crash(ex);
+            // this.crash(ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
-            LOG.error(ex);
             status = Status.ABORT_UNEXPECTED;
             if (ex instanceof SerializableException) {
                 error = (SerializableException)ex;
@@ -1938,7 +1935,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 error = new SerializableException(ex);
             }
         } finally {
-            if (d && error != null) {
+            if (error != null) {
                 LOG.error(String.format("%s - Unexpected %s on partition %d",
                           ts, error.getClass().getSimpleName(), this.partitionId), error);
             }

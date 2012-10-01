@@ -133,7 +133,7 @@ public class ParametersUtil {
      * @return
      */
     public static ParameterMappingsSet getParameterMappingsSetFromJar(Database catalog_db, File jarPath) {
-        LOG.info("Loading ParameterMappingsSet from jar file at '" + jarPath.getAbsolutePath() + "'");
+        LOG.debug("Loading ParameterMappingsSet from jar file at '" + jarPath.getAbsolutePath() + "'");
         if (!jarPath.exists()) {
             throw new RuntimeException("The catalog jar file '" + jarPath + "' does not exist");
         }
@@ -158,7 +158,7 @@ public class ParametersUtil {
                                        paramFile, jarPath);
             throw new RuntimeException(msg, ex);
         }
-        LOG.info(String.format("Loaded ParameterMappingSet '%s' from '%s'", paramFile, jarPath));
+        LOG.debug(String.format("Loaded ParameterMappingSet '%s' from '%s'", paramFile, jarPath));
         return (pms);
     }
     
