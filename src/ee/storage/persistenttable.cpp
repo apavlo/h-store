@@ -223,7 +223,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     while (evict_itr.hasNext()) {
         //table_itr.next(tuple);
         evict_itr.next(tuple); 
-        VOLT_DEBUG("Next Tuple: %s", tuple.debug(name()).c_str());
+        VOLT_INFO("Evicting Tuple: %s", tuple.debug(name()).c_str());
         
         // If this is the first tuple, then we need to allocate all of the memory and
         // what not that we're going to need
