@@ -785,7 +785,8 @@ public class VoltProjectBuilder {
         // to load the catalog into this JVM, apply the mappings, and then
         // update the jar file with the new catalog
         if (m_paramMappingsFile != null || m_paramMappings.isEmpty() == false) {
-            Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
+            File jarFile = new File(jarPath);
+            Catalog catalog = CatalogUtil.loadCatalogFromJar(jarFile);
             assert(catalog != null);
             Database catalog_db = CatalogUtil.getDatabase(catalog);
             
@@ -796,7 +797,7 @@ public class VoltProjectBuilder {
             
             // Write it out!
             try {
-                CatalogUtil.updateCatalogInJar(jarPath, catalog, m_paramMappingsFile);
+                CatalogUtil.updateCatalogInJar(jarFile, catalog, m_paramMappingsFile);
             } catch (Exception ex) {
                 String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
                 throw new RuntimeException(msg, ex);
@@ -855,14 +856,6 @@ public class VoltProjectBuilder {
         
         // Apply it!
         ParametersUtil.applyParameterMappings(catalog_db, mappings);
-        
-        // Write it out!
-        try {
-            CatalogUtil.updateCatalogInJar(new File(jarPath), catalog, m_paramMappingsFile);
-        } catch (Exception ex) {
-            String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
-            throw new RuntimeException(msg, ex);
-        }
     }
 
     // Do we want to put this above to save doing the traversal all over again?
