@@ -23,10 +23,12 @@
 
 package org.voltdb.regressionsuites;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB.Configuration;
 import org.voltdb.catalog.Catalog;
@@ -44,11 +46,11 @@ import edu.brown.hstore.conf.HStoreConf;
  */
 public class LocalSingleProcessServer extends VoltServerConfig {
 
-    public final String m_jarFileName;
+    public final File m_jarFileName;
     public final int m_partitionCount;
     public final BackendTarget m_target;
 
-    Catalog m_catalog = null;
+    CatalogContext catalogContext = null;
     ServerThread m_server = null;
     boolean m_compiled = false;
 
@@ -58,7 +60,7 @@ public class LocalSingleProcessServer extends VoltServerConfig {
         assert(jarFileName != null);
         assert(partitionCount > 0);
         final String buildType = System.getenv().get("BUILD");
-        m_jarFileName = Configuration.getPathToCatalogForTest(jarFileName);
+        m_jarFileName = new File(Configuration.getPathToCatalogForTest(jarFileName));
         m_partitionCount = partitionCount;
         if (buildType == null) {
             m_target = target;
@@ -83,7 +85,7 @@ public class LocalSingleProcessServer extends VoltServerConfig {
         for (int partition = 0; partition < m_partitionCount; ++partition) {
         	builder.addPartition("localhost", 0, partition);
         } // FOR
-        m_compiled = builder.compile(m_jarFileName, m_partitionCount, 0);
+        m_compiled = builder.compile(m_jarFileName.getAbsolutePath(), m_partitionCount, 0);
         return m_compiled;
     }
 
@@ -149,21 +151,22 @@ public class LocalSingleProcessServer extends VoltServerConfig {
 //        config.m_pathToCatalog = m_jarFileName;
 //        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
 
-        m_catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
-        Site catalog_site = CatalogUtil.getSiteFromId(m_catalog, 0);
-        assert(catalog_site != null);
-        
+        this.catalogContext = CatalogUtil.loadCatalogContextFromJar(m_jarFileName);
         HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
         hstore_conf.loadFromArgs(this.confParams);
-        
-        m_server = new ServerThread(hstore_conf, catalog_site);
+        m_server = new ServerThread(this.catalogContext, hstore_conf, 0);
         m_server.start();
         m_server.waitForInitialization();
     }
 
     @Override
+    public CatalogContext getCatalogContext() {
+        return this.catalogContext;
+    }
+    
+    @Override
     public Catalog getCatalog() {
-        return m_catalog;
+        return this.catalogContext.catalog;
     }
     
     @Override

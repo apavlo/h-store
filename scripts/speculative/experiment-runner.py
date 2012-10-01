@@ -90,7 +90,7 @@ OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
 
 DEFAULT_OPTIONS = {
-    "hstore.git_branch": "strangelove"
+    "hstore.git_branch": "collection"
 }
 DEBUG_OPTIONS = {
     "site.status_enable":             True,
@@ -117,7 +117,7 @@ BASE_SETTINGS = {
     #"ec2.client_type":                  "m1.large",
     #"ec2.site_type":                    "m1.xlarge",
     "ec2.change_type":                  True,
-    "ec2.cluster_group":                "strangelove",
+    "ec2.cluster_group":                "collection",
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
@@ -139,7 +139,7 @@ BASE_SETTINGS = {
     
     "site.jvm_asserts":                         False,
     "site.log_backup":                          False,
-    "site.status_enable":                       False,
+    "site.status_enable":                       True,
     "site.status_show_thread_info":             False,
     "site.status_show_executor_info":           False,
     "site.txn_incoming_delay":                  10,
@@ -177,17 +177,22 @@ EXPERIMENT_SETTINGS = {
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
         "site.markov_enable":                   False,
+        "site.markov_fixed":                    True,
+        "site.exec_force_singlepartitioned":    False,
         "client.count":                         1,
         "client.txnrate":                       100000,
         "client.blocking":                      True,
         "client.output_response_status":        True,
         "client.output_exec_profiling":         "execprofile.csv",
         #"client.output_queue_profiling":        "queueprofile.csv",
+
         #"client.output_txn_profiling":          "txnprofile.csv",
         #"client.output_txn_profiling_combine":  True,
-        #"client.output_txn_counters":           "txncounters.csv",
-        #"client.output_txn_counters_combine":   True,
+        "client.output_txn_counters":           "txncounters.csv",
+        "client.output_txn_counters_combine":   False,
+        "client.output_basepartitions":         True,
         "benchmark.neworder_only":              True,
+        "benchmark.neworder_multi_remote":      True,
         "benchmark.neworder_abort":             False,
         "benchmark.neworder_multip_mix":        100,
         "benchmark.loadthread_per_warehouse":   False,

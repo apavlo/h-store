@@ -37,7 +37,6 @@ import org.voltdb.catalog.Site;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -86,8 +85,8 @@ public class TestCommandLogger extends BaseTestCase {
         hstore_conf.site.commandlog_enable = false;
         hstore_conf.site.commandlog_timeout = 1000;
 
-        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
-        hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
+        Site catalog_site = CollectionUtil.first(catalogContext.sites);
+        hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, hstore_conf);
         assert(hstore_site.isLocalPartition(0));
         
         outputFile = FileUtil.getTempFile("log");

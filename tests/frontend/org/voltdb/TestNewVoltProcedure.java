@@ -11,7 +11,6 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
@@ -62,8 +61,8 @@ public class TestNewVoltProcedure extends BaseTestCase {
             p_estimator = new PartitionEstimator(catalogContext);
             site = new MockPartitionExecutor(LOCAL_PARTITION, catalog, p_estimator);
             
-            Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
-            hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
+            Partition catalog_part = catalogContext.getPartitionById(LOCAL_PARTITION);
+            hstore_site = HStore.initialize(catalogContext, ((Site)catalog_part.getParent()).getId(), HStoreConf.singleton());
             hstore_site.addPartitionExecutor(LOCAL_PARTITION, site);
         }
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);

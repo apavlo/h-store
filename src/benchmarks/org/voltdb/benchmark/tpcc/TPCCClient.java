@@ -252,7 +252,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         super(client);
         m_tpccConfig = TPCCConfig.defaultConfig();
         m_scaleParams = params;
-        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
+        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0, this.getCatalog());
 //        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
         this.initTransactionWeights();
     }
@@ -281,7 +281,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 
         HStoreConf hstore_conf = this.getHStoreConf();
         m_scaleParams = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, m_tpccConfig.first_warehouse, hstore_conf.client.scalefactor);
-        m_tpccSim = new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
+        m_tpccSim = new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor, this.getCatalog());
 //        m_tpccSim2 = new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
 
         // Set up checking

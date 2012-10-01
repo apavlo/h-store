@@ -1,17 +1,22 @@
 package edu.brown.mappings;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.utils.JarReader;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
@@ -19,8 +24,8 @@ import edu.brown.utils.ProjectType;
  * @author pavlo
  */
 public class ParametersUtil {
-    /** java.util.logging logger. */
-    private static final Logger LOG = Logger.getLogger(ParametersUtil.class.getName());
+    private static final Logger LOG = Logger.getLogger(ParametersUtil.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
     /**
      *
@@ -121,6 +126,42 @@ public class ParametersUtil {
         return (ParametersUtil.cache);
     }
 
+    /**
+     * Load a ParameterMappingsSet from a project jar file.
+     * @param catalog_db
+     * @param jarPath
+     * @return
+     */
+    public static ParameterMappingsSet getParameterMappingsSetFromJar(Database catalog_db, File jarPath) {
+        LOG.debug("Loading ParameterMappingsSet from jar file at '" + jarPath.getAbsolutePath() + "'");
+        if (!jarPath.exists()) {
+            throw new RuntimeException("The catalog jar file '" + jarPath + "' does not exist");
+        }
+        
+        String paramFile = catalog_db.getProject() + ".mappings";
+        String serialized = null;
+        try {
+            serialized = JarReader.readFileFromJarfile(jarPath.getAbsolutePath(), paramFile);
+        } catch (Exception ex) {
+            String msg = String.format("Failed to find ParameterMappingSet file '%s' in '%s'",
+                                       paramFile, jarPath);
+            LOG.warn(msg, ex);
+            return (null);
+        }
+        ParameterMappingsSet pms = null;
+        try {
+            pms = new ParameterMappingsSet();
+            JSONObject json = new JSONObject(serialized);
+            pms.fromJSON(json, catalog_db);
+        } catch (JSONException ex) {
+            String msg = String.format("Failed to load ParameterMappingSet '%s' from '%s'",
+                                       paramFile, jarPath);
+            throw new RuntimeException(msg, ex);
+        }
+        LOG.debug(String.format("Loaded ParameterMappingSet '%s' from '%s'", paramFile, jarPath));
+        return (pms);
+    }
+    
     /**
      * Return a map from procedure names to ParameterMappings
      * 
@@ -251,7 +292,7 @@ public class ParametersUtil {
                     Set<ParameterMapping> m = mappings.get(catalog_stmt, catalog_stmt_param);
 
                     if (m.isEmpty()) {
-                        LOG.debug("No ParameterMapping found for " + CatalogUtil.getDisplayName(catalog_stmt_param) + ". Skipping...");
+                        if (debug.get()) LOG.debug("No ParameterMapping found for " + CatalogUtil.getDisplayName(catalog_stmt_param) + ". Skipping...");
                         continue;
                     }
                     // HACK: I'm lazy, just take the first one for now
@@ -293,7 +334,7 @@ public class ParametersUtil {
                 // throw new RuntimeException("Unknown Procedure name '" + proc_name + "' in ParameterMapping");
                 continue;
             }
-            LOG.debug("Updating parameter mapping for Procedure '" + proc_name + "'");
+            if (debug.get()) LOG.debug("Updating parameter mapping for Procedure '" + proc_name + "'");
             
             DefaultParameterMapping map = proc_mapping.get(proc_name);
             for (String stmt_name : map.keySet()) {
@@ -310,10 +351,10 @@ public class ParametersUtil {
 
                     // Skip if it already has the proper ProcParameter set
                     if (!force && catalog_stmt_param.getProcparameter() != null && catalog_stmt_param.getProcparameter().equals(catalog_proc_param)) {
-                        LOG.debug("Skipping ProcParameter mapping in " + catalog_stmt + " because it is already set");
+                        if (debug.get()) LOG.debug("Skipping parameter mapping in " + catalog_stmt + " because it is already set");
                     } else {
                         catalog_stmt_param.setProcparameter(catalog_proc_param);
-                        LOG.debug("Added parameter mapping in Statement '" + stmt_name + "' from StmtParameter '" + catalog_stmt_param.getName() + "' to '" + catalog_proc_param.getName() + "'");
+                        if (debug.get()) LOG.debug("Added parameter mapping in Statement '" + stmt_name + "' from StmtParameter '" + catalog_stmt_param.getName() + "' to '" + catalog_proc_param.getName() + "'");
                     }
                 } // FOR
             } // FOR
