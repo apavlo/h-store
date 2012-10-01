@@ -684,6 +684,10 @@ public class VoltProjectBuilder {
         return compile(jarPath, 1, 1, 0, "localhost");
     }
 
+    public boolean compile(final File jarPath, final int sitesPerHost, final int replication) {
+        return compile(jarPath.getAbsolutePath(), sitesPerHost, 1, replication, "localhost");
+    }
+    
     public boolean compile(final String jarPath, final int sitesPerHost, final int replication) {
         return compile(jarPath, sitesPerHost, 1, replication, "localhost");
     }
@@ -851,6 +855,14 @@ public class VoltProjectBuilder {
         
         // Apply it!
         ParametersUtil.applyParameterMappings(catalog_db, mappings);
+        
+        // Write it out!
+        try {
+            CatalogUtil.updateCatalogInJar(new File(jarPath), catalog, m_paramMappingsFile);
+        } catch (Exception ex) {
+            String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
+            throw new RuntimeException(msg, ex);
+        }
     }
 
     // Do we want to put this above to save doing the traversal all over again?

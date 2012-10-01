@@ -987,6 +987,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         final Map<String, Object> m_pool = new LinkedHashMap<String, Object>();
         for (String key : pools.keySet()) {
             pool = pools.get(key);
+            if (pool == null) continue;
             factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
             if (factory.getCreatedCount() > 0) m_pool.put(key, this.formatPoolCounts(pool, factory));
         } // FOR

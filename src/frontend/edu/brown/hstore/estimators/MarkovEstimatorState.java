@@ -3,10 +3,10 @@ package edu.brown.hstore.estimators;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
 
@@ -77,13 +77,11 @@ public final class MarkovEstimatorState extends EstimatorState {
     }
     
     public void init(Long txn_id, int base_partition, MarkovGraph markov, MarkovPathEstimator initial_estimator, long start_time) {
-        this.txn_id = txn_id;
-        this.base_partition = base_partition;
         this.markov = markov;
-        this.start_time = start_time;
         this.initial_estimator = initial_estimator;
         this.initial_estimate = initial_estimator.getEstimate();
         this.setCurrent(markov.getStartVertex(), null);
+        super.init(txn_id, base_partition, start_time);
     }
     
     @Override
@@ -207,17 +205,17 @@ public final class MarkovEstimatorState extends EstimatorState {
     
     @Override
     public String toString() {
-        Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+        Map<String, Object> m0 = new LinkedHashMap<String, Object>();
         m0.put("TransactionId", this.txn_id);
         m0.put("Procedure", this.markov.getProcedure().getName());
         m0.put("MarkovGraph Id", this.markov.getGraphId());
         
-        Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+        Map<String, Object> m1 = new LinkedHashMap<String, Object>();
         m1.put("Initial Partitions", this.initial_estimator.getTouchedPartitions());
         m1.put("Initial Confidence", this.getInitialPathConfidence());
         m1.put("Initial Estimate", this.getInitialEstimate().toString());
         
-        Map<String, Object> m2 = new ListOrderedMap<String, Object>();
+        Map<String, Object> m2 = new LinkedHashMap<String, Object>();
         m2.put("Actual Partitions", this.getTouchedPartitions());
         m2.put("Current Estimate", this.current.debug());
         

@@ -1174,7 +1174,8 @@ TEST CASES
             </formatters>
             <tests>
                 <fileset dir='${build.test.dir}'>
-                    <include name='org/voltdb/regressionsuites/Test*.class'/>
+                    <include name='org/voltdb/regressionsuites/TestTM1Suite.class'/>
+<!--                     <include name='org/voltdb/regressionsuites/Test*.class'/> -->
                     <exclude name="**/*$*.class"/>
                     <exclude name="**/TestCatalogUpdateSuite.class" />
                     <exclude name="**/TestFailureDetectSuite.class" />

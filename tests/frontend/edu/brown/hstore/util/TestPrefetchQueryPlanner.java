@@ -78,10 +78,9 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
             stmtParams.get(m[0]).setProcparameter(procParams.get(m[1]));
         } // FOR
 
-        this.prefetcher = new PrefetchQueryPlanner(catalog_db, p_estimator);
+        this.prefetcher = new PrefetchQueryPlanner(catalogContext, p_estimator);
         for (int i = 0; i < NUM_SITES; i++) {
-            Site catalog_site = this.getSite(i);
-            this.hstore_sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());
+            this.hstore_sites[i] = new MockHStoreSite(i, catalogContext, HStoreConf.singleton());
             this.coordinators[i] = this.hstore_sites[i].initHStoreCoordinator();
 
             // We have to make our fake ExecutionSites for each Partition at
