@@ -216,21 +216,21 @@ public class TestTM1Suite extends RegressionSuite {
         assert(success);
         builder.addServerConfig(config);
         
-        /////////////////////////////////////////////////////////////
-        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
-        /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
-
-        ////////////////////////////////////////////////////////////
-        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
-        ////////////////////////////////////////////////////////////
-        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//        /////////////////////////////////////////////////////////////
+//        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+//        /////////////////////////////////////////////////////////////
+//        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
+//
+//        ////////////////////////////////////////////////////////////
+//        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+//        ////////////////////////////////////////////////////////////
+//        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
 
         return builder;
     }
