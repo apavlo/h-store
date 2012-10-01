@@ -781,19 +781,28 @@ public class VoltProjectBuilder {
         // to load the catalog into this JVM, apply the mappings, and then
         // update the jar file with the new catalog
         if (m_paramMappingsFile != null || m_paramMappings.isEmpty() == false) {
-            this.applyParameterMappings(jarPath);
+            Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
+            assert(catalog != null);
+            Database catalog_db = CatalogUtil.getDatabase(catalog);
+            
+            this.applyParameterMappings(catalog_db);
             
             // Construct a List of prefetchable Statements
-            this.applyPrefetchableFlags(jarPath);
+            this.applyPrefetchableFlags(catalog_db);
+            
+            // Write it out!
+            try {
+                CatalogUtil.updateCatalogInJar(jarPath, catalog, m_paramMappingsFile);
+            } catch (Exception ex) {
+                String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
+                throw new RuntimeException(msg, ex);
+            }
         }
         
         return success;
     }
     
-    private void applyParameterMappings(String jarPath) {
-        Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
-        assert(catalog != null);
-        Database catalog_db = CatalogUtil.getDatabase(catalog);
+    private void applyParameterMappings(Database catalog_db) {
         ParameterMappingsSet mappings = new ParameterMappingsSet();        
         
         // Load ParameterMappingSet from file
@@ -842,22 +851,10 @@ public class VoltProjectBuilder {
         
         // Apply it!
         ParametersUtil.applyParameterMappings(catalog_db, mappings);
-        
-        // Write it out!
-        try {
-            CatalogUtil.updateCatalogInJar(jarPath, catalog, m_paramMappingsFile);
-        } catch (Exception ex) {
-            String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
-            throw new RuntimeException(msg, ex);
-        }
     }
 
     // Do we want to put this above to save doing the traversal all over again?
-    private void applyPrefetchableFlags(String jarPath) {
-        Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
-        assert(catalog != null);
-        Database catalog_db = CatalogUtil.getDatabase(catalog);
-        
+    private void applyPrefetchableFlags(Database catalog_db) {
         for (String procName : m_paramMappings.keySet()) {
             Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
             assert(catalog_proc != null) :
