@@ -1212,6 +1212,8 @@ SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_utils_ThreadUtils_setThread
             CPU_SET(ii, &mask);
         }
     }
+	  
+	  int errno; 
 
     int result = sched_setaffinity(0, sizeof(mask), &mask);
     if (result == -1) {
