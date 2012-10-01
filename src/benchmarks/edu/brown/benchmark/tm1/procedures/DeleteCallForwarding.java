@@ -59,14 +59,17 @@ public class DeleteCallForwarding extends VoltProcedure {
         voltQueueSQL(query, sub_nbr);
         VoltTable results[] = voltExecuteSQL();
         assert (results.length == 1);
-        assert (results[0].getRowCount() == 1) : "Got back " + results[0].getRowCount() + " tuples returned for sub_nbr '" + sub_nbr + "'";
+        if (results[0].getRowCount() != 1) {
+            String msg = "Got back " + results[0].getRowCount() + " tuples returned for sub_nbr '" + sub_nbr + "'";
+            throw new VoltAbortException(msg);
+        }
         boolean adv = results[0].advanceRow();
         assert (adv);
         long s_id = results[0].getLong(0);
+        
         voltQueueSQL(update, s_id, sf_type, start_time);
         results = voltExecuteSQL();
         assert (results.length == 1) : "Failed to delete " + TM1Constants.TABLENAME_CALL_FORWARDING + " record " + "[sub_nbr=" + sub_nbr + ",s_id=" + s_id + "]\n" + Arrays.toString(results);
-
         adv = results[0].advanceRow();
         assert (adv);
         long rows_updated = results[0].getLong(0);
