@@ -140,6 +140,9 @@ public class BenchmarkController {
     // ============================================================================
     // STATIC CONFIGURATION
     // ============================================================================
+
+    private static final String setPlainText = "\033[0;0m";
+    private static final String setBoldText = "\033[0;1m";
     
     /**
      * HStoreConf parameters to not forward to clients 
@@ -334,6 +337,11 @@ public class BenchmarkController {
         this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
     }
     
+    private String makeHeader(String label) {
+        return (setBoldText +
+                StringUtil.header(label.toUpperCase() + " :: " + this.getProjectName()) +
+                setPlainText);
+    }
     
     public String getProjectName() {
         return (m_projectBuilder.getProjectName().toUpperCase());
@@ -486,7 +494,7 @@ public class BenchmarkController {
      * Deploy the HStoreSites on the remote nodes
      */
     public void startSites() {
-        LOG.info(StringUtil.header("BENCHMARK INITIALIZE :: " + this.getProjectName()));
+        LOG.info(makeHeader("BENCHMARK INITIALIZE"));
         if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
         
@@ -586,7 +594,7 @@ public class BenchmarkController {
      * Invoke the benchmark loader
      */
     public void startLoader() {
-        LOG.info(StringUtil.header("BENCHMARK LOAD :: " + this.getProjectName()));
+        LOG.info(makeHeader("BENCHMARK LOAD"));
         LOG.info(String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
                                m_projectBuilder.getProjectName().toUpperCase(),
                                m_loaderClass.getSimpleName(),
@@ -968,7 +976,7 @@ public class BenchmarkController {
      */
     public void runBenchmark() throws Exception {
         if (this.stop) return;
-        LOG.info(StringUtil.header("BENCHMARK EXECUTE :: " + this.getProjectName()));
+        LOG.info(makeHeader("BENCHMARK EXECUTE"));
         
         int threadsPerHost = hstore_conf.client.threads_per_host;
         if (hstore_conf.client.processesperclient_per_partition) {
