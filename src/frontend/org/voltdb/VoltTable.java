@@ -104,7 +104,7 @@ rely on the garbage collector.
  * t.addRow(-9, "moreData");
  * </code>
  */
-public final class VoltTable extends VoltTableRow implements FastSerializable {
+public class VoltTable extends VoltTableRow implements FastSerializable {
 
     /**
      * Size in bytes of the maximum length for a VoltDB tuple.
@@ -842,7 +842,7 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
      * method.
      * @return The integer row value.
      */
-    public final long asScalarLong() {
+    public long asScalarLong() {
         verifyTableInvariants();
 
         if (m_rowCount != 1) {
@@ -901,7 +901,7 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
      * Write this VoltTable to a {@link org.voltdb.messaging.FastSerializer}.
      */
     @Override
-    public final void writeExternal(FastSerializer out) throws IOException {
+    public void writeExternal(FastSerializer out) throws IOException {
         // Note: some of the snapshot and save/restore code makes assumptions
         // about the binary layout of tables.
 
