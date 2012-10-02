@@ -56,17 +56,20 @@ public class BenchmarkResults {
     }
 
     public static class Result {
-        public Result(long benchmarkTimeDelta, long transactionCount) {
+        public Result(long benchmarkTimeDelta, long transactionCount, long dtxnCount) {
             this.benchmarkTimeDelta = benchmarkTimeDelta;
             this.transactionCount = transactionCount;
+            this.dtxnCount = dtxnCount;
         }
         public final long benchmarkTimeDelta;
         public final long transactionCount;
+        public final long dtxnCount;
         public final Histogram<Integer> latencies = new Histogram<Integer>();
         
         @Override
         public String toString() {
-            return String.format("<TxnCount:%d, Delta:%d>", this.transactionCount, this.benchmarkTimeDelta);
+            return String.format("<TxnCount:%d / DtxnCount:%d / Delta:%d>",
+                                 this.transactionCount, this.dtxnCount, this.benchmarkTimeDelta);
         }
     }
 
@@ -229,11 +232,15 @@ public class BenchmarkResults {
                           txnName, clientName, StringUtil.formatMaps(txnResults));
         
         long txnsTillNow = 0;
+        long dtxnsTillNow = 0;
         Result[] retval = new Result[intervals];
         for (int i = 0; i < intervals; i++) {
             Result r = results.get(i);
-            retval[i] = new Result(r.benchmarkTimeDelta, r.transactionCount - txnsTillNow);
+            retval[i] = new Result(r.benchmarkTimeDelta,
+                                   r.transactionCount - txnsTillNow,
+                                   r.dtxnCount - dtxnsTillNow);
             txnsTillNow = r.transactionCount;
+            dtxnsTillNow = r.dtxnCount;
         }
 //        assert(intervals == results.size());
         return retval;
@@ -352,7 +359,9 @@ public class BenchmarkResults {
                 assert(results != null);
                 
                 Integer offset = m_transactionNames.get(txnName);
-                Result r = new Result(offsetTime, cmpResults.transactions.fastGet(offset.intValue()));
+                Result r = new Result(offsetTime,
+                                      cmpResults.transactions.fastGet(offset.intValue()),
+                                      cmpResults.dtxns.fastGet(offset.intValue()));
                 if (this.enableLatencies && cmpResults.latencies != null) {
                     Histogram<Integer> latencies = cmpResults.latencies.get(offset);
                     if (latencies != null) {

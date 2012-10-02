@@ -50,7 +50,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     // PAVLO
     private long txn_id;
-    private boolean singlepartition = false;
+    private boolean singlepartition = true;
     private int basePartition = -1;
     private int restartCounter = 0;
 
