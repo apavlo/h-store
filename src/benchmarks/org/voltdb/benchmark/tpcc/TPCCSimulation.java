@@ -61,11 +61,13 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.benchmark.Clock;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.hashing.DefaultHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
@@ -103,7 +105,11 @@ public class TPCCSimulation {
     private final long affineWarehouse;
     private final double skewFactor;
     private final TPCCConfig config;
-    public static HashMap <Integer, List<Integer>> remotePartitions = null;
+    
+    /**
+     * W_ID -> List of W_IDs on Remote Sites
+     */
+    public static HashMap <Integer, List<Integer>> remoteWarehouseIds = null;
     
     private final int max_w_id;
     static long lastAssignedWarehouseId = 1;
@@ -145,26 +151,33 @@ public class TPCCSimulation {
         if (debug.get()) {
             LOG.debug(this.toString());
         }
-        if (remotePartitions == null) {
-        	remotePartitions = new HashMap<Integer, List<Integer>>();
+        if (remoteWarehouseIds == null) {
+        	remoteWarehouseIds = new HashMap<Integer, List<Integer>>();
         	HashMap <Integer, Integer> partitionToSite = new HashMap<Integer, Integer>();
-        	for (Cluster c: catalog.getClusters()) {
-        		assert (catalog.getClusters().size() == 1);
-        		for (Site s: c.getSites()) {
-        			for (Partition p: s.getPartitions())
-        				partitionToSite.put(p.getId(), s.getId());
-        		}
+        	
+        	Database catalog_db = CatalogUtil.getDatabase(catalog);
+        	DefaultHasher hasher = new DefaultHasher(catalog_db);
+    		for (Site s: CatalogUtil.getCluster(catalog_db).getSites()) {
+    			for (Partition p: s.getPartitions())
+    				partitionToSite.put(p.getId(), s.getId());
+    		} // FOR
         		
-        		for (int i : partitionToSite.keySet()) {
-        			int siteId = partitionToSite.get(i);
-        			List <Integer> rList = new ArrayList<Integer>();
-        			for (int j : partitionToSite.keySet()) {
-        				if (siteId != partitionToSite.get(j))
-        					rList.add(j);
-        			}
-        			remotePartitions.put(i, rList);
-        		}
-        	}
+    		for (Integer partition : partitionToSite.keySet()) {
+    			final int localSiteId = partitionToSite.get(partition);
+    			final List<Integer> rList = new ArrayList<Integer>();	
+    			
+    			for (int w_id = parameters.starting_warehouse; w_id <= this.max_w_id; w_id++) {
+    			    // Figure out what partition this W_ID maps to
+    			    int wPartition = hasher.hash(w_id);
+    			    
+    			    // Check whether this partition is on our same local site
+    			    int wSiteId = partitionToSite.get(wPartition);
+    			    if (localSiteId != wSiteId) {
+    			        rList.add(w_id);
+    			    }
+    			} // FOR
+    			remoteWarehouseIds.put(partition, rList);
+        	} // FOR
         }
     }
     
@@ -398,7 +411,7 @@ public class TPCCSimulation {
                 // Flip a random one
                 int idx = generator.number(0, ol_cnt-1);
                 if (config.neworder_multip_remote) {
-                	supply_w_id[idx] = (short)generator.numberRemotePartition(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                	supply_w_id[idx] = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 } else {
                 	supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 }

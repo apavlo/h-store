@@ -126,9 +126,9 @@ public abstract class RandomGenerator {
         return num;
     }
     
-    public int numberRemotePartition(int minimum, int maximum, int localPartition) {
-    	assert(TPCCSimulation.remotePartitions != null);
-    	List<Integer> remoteList = TPCCSimulation.remotePartitions.get(localPartition);
+    public int numberRemoteWarehouseId(int minimum, int maximum, int localPartition) {
+    	assert(TPCCSimulation.remoteWarehouseIds != null);
+    	List<Integer> remoteList = TPCCSimulation.remoteWarehouseIds.get(localPartition);
     	if (remoteList == null || remoteList.size() < 1)
     	    return numberExcluding(minimum, maximum,localPartition);
     	// Generate 1 less number than the range
