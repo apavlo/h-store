@@ -47,6 +47,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTableNonBlocking;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
@@ -66,6 +67,7 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.logging.LoggerUtil;
@@ -1068,7 +1070,10 @@ public class LocalTransaction extends AbstractTransaction {
     public VoltTable[] getResults() {
         final VoltTable results[] = new VoltTable[this.state.output_order.size()];
         if (d) LOG.debug(String.format("%s - Generating output results with %d tables",
-                                       this, results.length));
+                         this, results.length));
+        
+        HStoreConf hstore_conf = hstore_site.getHStoreConf();
+        boolean nonblocking = (hstore_conf.site.specexec_nonblocking && this.profiler != null);
         for (int stmt_index = 0; stmt_index < results.length; stmt_index++) {
             Integer dependency_id = this.state.output_order.get(stmt_index);
             assert(dependency_id != null) :
@@ -1078,9 +1083,18 @@ public class LocalTransaction extends AbstractTransaction {
             assert(this.state.dependencies.containsKey(dependency_id)) :
                 String.format("Missing info for %s in %s", debugStmtDep(stmt_index, dependency_id), this); 
             
-            results[stmt_index] = this.state.dependencies.get(dependency_id).getResult();
-            assert(results[stmt_index] != null) :
-                "Null output result for Statement index " + stmt_index + " in txn #" + this.txn_id;
+            VoltTable vt = this.state.dependencies.get(dependency_id).getResult();
+
+            // Special Non-Blocking Wrapper
+            if (nonblocking) {
+                VoltTableNonBlocking vtnb = new VoltTableNonBlocking(hstore_conf.site.txn_profiling ? this.profiler : null);
+                if (vt != null) vtnb.setRealTable(vt);
+                results[stmt_index] = vtnb;
+            } else {
+                assert(vt != null) : 
+                    String.format("Null output result for Statement index %d in %s", stmt_index, this); 
+                results[stmt_index] = vt;
+            }
         } // FOR
         return (results);
     }
