@@ -466,11 +466,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
             
             if (d) LOG.debug(String.format("Processing TransactionWorkResponse for %s with %d results",
-                                        ts, msg.getResultsCount()));
+                             ts, msg.getResultsCount()));
             for (int i = 0, cnt = msg.getResultsCount(); i < cnt; i++) {
                 WorkResult result = msg.getResults(i); 
                 if (t) LOG.trace(String.format("Got %s from partition %d for %s",
-                                               result.getClass().getSimpleName(), result.getPartitionId(), ts));
+                                 result.getClass().getSimpleName(), result.getPartitionId(), ts));
                 PartitionExecutor.this.processWorkResult(ts, result);
             } // FOR
         }
