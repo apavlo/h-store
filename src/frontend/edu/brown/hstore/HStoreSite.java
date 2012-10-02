@@ -1924,7 +1924,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 continue;
             }
             
-            if (hstore_conf.site.exec_profiling && ts != null && p != ts.getBasePartition()) {
+            if (hstore_conf.site.exec_profiling && ts != null && p != ts.getBasePartition() && ts.needsFinish(p)) {
                 PartitionExecutorProfiler pep = this.executors[p].getProfiler();
                 assert(pep != null);
                 pep.idle_2pc_remote_time.start();
@@ -2613,8 +2613,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         TransactionCounter.REJECTED.inc(catalog_proc);
                     break;
                 case ABORT_UNEXPECTED:
+                    if (hstore_conf.site.txn_counters)
+                        TransactionCounter.ABORT_UNEXPECTED.inc(catalog_proc);
+                    break;
                 case ABORT_GRACEFUL:
-                    // TODO: Make new counter?
+                    if (hstore_conf.site.txn_counters)
+                        TransactionCounter.ABORT_GRACEFUL.inc(catalog_proc);
                     break;
                 default:
                     LOG.warn(String.format("Unexpected status %s for %s", status, ts));
