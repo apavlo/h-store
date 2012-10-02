@@ -36,6 +36,10 @@ public enum TransactionCounter {
     COMPLETED,
     /** Of the locally executed transactions, how many were abort */
     ABORTED,
+    /** The number of transactions that were unexpectedly aborted (e.g., because of an assert) */
+    ABORT_UNEXPECTED,
+    /** The number of transactions that were gracefully aborted  */
+    ABORT_GRACEFUL,
     /** The number of transactions that were speculative and had to be restarted */
     RESTARTED,
     /** The number of transactions that were mispredicted (and thus re-executed) */
@@ -109,6 +113,8 @@ public enum TransactionCounter {
                 break;
             case SYSPROCS:
             case ABORTED:
+            case ABORT_UNEXPECTED:
+            case ABORT_GRACEFUL:
             case RESTARTED:
             case MISPREDICTED:
                 total = EXECUTED.get() - SYSPROCS.get();

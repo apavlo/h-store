@@ -139,7 +139,7 @@ BASE_SETTINGS = {
     
     "site.jvm_asserts":                         False,
     "site.log_backup":                          False,
-    "site.status_enable":                       True,
+    "site.status_enable":                       False,
     "site.status_show_thread_info":             False,
     "site.status_show_executor_info":           False,
     "site.txn_incoming_delay":                  10,
@@ -173,7 +173,7 @@ EXPERIMENT_SETTINGS = {
         
         "ec2.site_type":                       "c1.xlarge",
         "site.memory":                          6144,
-        "site.txn_incoming_delay":              5,
+        "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
         "site.markov_enable":                   False,
@@ -188,11 +188,11 @@ EXPERIMENT_SETTINGS = {
 
         #"client.output_txn_profiling":          "txnprofile.csv",
         #"client.output_txn_profiling_combine":  True,
-        "client.output_txn_counters":           "txncounters.csv",
-        "client.output_txn_counters_combine":   False,
+        #"client.output_txn_counters":           "txncounters.csv",
+        #"client.output_txn_counters_combine":   False,
         "client.output_basepartitions":         True,
         "benchmark.neworder_only":              True,
-        "benchmark.neworder_multi_remote":      True,
+        "benchmark.neworder_multip_remote":     True,
         "benchmark.neworder_abort":             False,
         "benchmark.neworder_multip_mix":        100,
         "benchmark.loadthread_per_warehouse":   False,
@@ -486,9 +486,7 @@ if __name__ == '__main__':
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
     
     # BenchmarkController Parameters
-    controllerParams = { }
-    
-    
+    controllerParams = { } # { "noshutdown": True }
     
     needUpdate = (args['no_update'] == False)
     needUpdateLog4j = args['debug_log4j_site'] or args['debug_log4j_client']

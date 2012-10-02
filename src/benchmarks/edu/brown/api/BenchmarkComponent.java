@@ -1456,6 +1456,7 @@ public abstract class BenchmarkComponent {
                 return false;
             }
 
+            LOG.warn("Invalid " + procName + " response!\n" + clientResponse);
             if (clientResponse.getException() != null) {
                 clientResponse.getException().printStackTrace();
             }
