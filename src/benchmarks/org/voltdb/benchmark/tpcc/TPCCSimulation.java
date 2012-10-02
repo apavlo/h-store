@@ -341,7 +341,7 @@ public class TPCCSimulation {
 
         short c_w_id;
         byte c_d_id;
-        if (allow_remote == false || generator.number(1, 100) <= 85) {
+        if (allow_remote == false || (config.payment_multip_mix >= 0 && generator.number(1, 100) <= (100-config.payment_multip_mix))) {
             // 85%: paying through own warehouse (or there is only 1 warehouse)
             c_w_id = w_id;
             c_d_id = d_id;
