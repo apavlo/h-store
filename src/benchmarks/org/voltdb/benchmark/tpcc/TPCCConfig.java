@@ -128,7 +128,7 @@ public final class TPCCConfig {
                 payment_multip_remote = Boolean.parseBoolean(val);
             }
             // PAYMENT DTXN PERCENTAGE
-            else if (key.equalsIgnoreCase("payment_multip") && !val.isEmpty()) {
+            else if (key.equalsIgnoreCase("payment_multip_mix") && !val.isEmpty()) {
                 payment_multip_mix = Integer.parseInt(val);
             }
             

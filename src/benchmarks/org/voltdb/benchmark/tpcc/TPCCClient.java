@@ -298,7 +298,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
      * Initialize the sampling table
      */
     private void initTransactionWeights() {
-        Histogram<Transaction> txns = new Histogram<Transaction>(); 
+        Histogram<Transaction> txns = new Histogram<Transaction>(true);
         for (Transaction t : Transaction.values()) {
             Integer weight = null;
             
@@ -310,10 +310,11 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             } // FOR
             if (weight == null) weight = this.getTransactionWeight(t.name());
             if (weight == null) weight = t.weight;
-            txns.put(t, weight);
+            if (weight > 0) txns.put(t, weight);
         } // FOR
         assert(txns.getSampleCount() == 100) : txns;
         this.txnWeights = new FlatHistogram<Transaction>(m_tpccSim.rng(), txns);
+        if (LOG.isDebugEnabled()) LOG.debug("Transaction Weights:\n" + txns);
     }
 
     @Override
