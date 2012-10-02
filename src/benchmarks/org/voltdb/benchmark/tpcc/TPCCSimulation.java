@@ -151,33 +151,38 @@ public class TPCCSimulation {
         if (debug.get()) {
             LOG.debug(this.toString());
         }
-        if (remoteWarehouseIds == null) {
-        	remoteWarehouseIds = new HashMap<Integer, List<Integer>>();
-        	HashMap <Integer, Integer> partitionToSite = new HashMap<Integer, Integer>();
-        	
-        	Database catalog_db = CatalogUtil.getDatabase(catalog);
-        	DefaultHasher hasher = new DefaultHasher(catalog_db);
-    		for (Site s: CatalogUtil.getCluster(catalog_db).getSites()) {
-    			for (Partition p: s.getPartitions())
-    				partitionToSite.put(p.getId(), s.getId());
-    		} // FOR
-        		
-    		for (Integer partition : partitionToSite.keySet()) {
-    			final int localSiteId = partitionToSite.get(partition);
-    			final List<Integer> rList = new ArrayList<Integer>();	
-    			
-    			for (int w_id = parameters.starting_warehouse; w_id <= this.max_w_id; w_id++) {
-    			    // Figure out what partition this W_ID maps to
-    			    int wPartition = hasher.hash(w_id);
-    			    
-    			    // Check whether this partition is on our same local site
-    			    int wSiteId = partitionToSite.get(wPartition);
-    			    if (localSiteId != wSiteId) {
-    			        rList.add(w_id);
-    			    }
-    			} // FOR
-    			remoteWarehouseIds.put(partition, rList);
-        	} // FOR
+        if (config.neworder_multip_remote) {
+            synchronized (TPCCSimulation.class) {
+                if (remoteWarehouseIds == null) {
+                	remoteWarehouseIds = new HashMap<Integer, List<Integer>>();
+                	HashMap <Integer, Integer> partitionToSite = new HashMap<Integer, Integer>();
+                	
+                	Database catalog_db = CatalogUtil.getDatabase(catalog);
+                	DefaultHasher hasher = new DefaultHasher(catalog_db);
+            		for (Site s: CatalogUtil.getCluster(catalog_db).getSites()) {
+            			for (Partition p: s.getPartitions())
+            				partitionToSite.put(p.getId(), s.getId());
+            		} // FOR
+                		
+            		for (int w_id0 = parameters.starting_warehouse; w_id0 <= this.max_w_id; w_id0++) {
+            		    final int partition0 = hasher.hash(w_id0);
+            			final int site0 = partitionToSite.get(partition0);
+            			final List<Integer> rList = new ArrayList<Integer>();	
+            			
+            			for (int w_id1 = parameters.starting_warehouse; w_id1 <= this.max_w_id; w_id1++) {
+            			    // Figure out what partition this W_ID maps to
+            			    int partition1 = hasher.hash(w_id1);
+            			    
+            			    // Check whether this partition is on our same local site
+            			    int site1 = partitionToSite.get(partition1);
+            			    if (site0 != site1) rList.add(w_id1);
+            			} // FOR
+            			remoteWarehouseIds.put(w_id0, rList);
+                	} // FOR
+            		
+            		LOG.info("NewOrder Remote W_ID Mapping\n" + StringUtil.formatMaps(remoteWarehouseIds));
+                }
+            } // SYNCH
         }
     }
     
