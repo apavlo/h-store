@@ -327,45 +327,45 @@ public class TPCCSimulation {
     /** Executes a delivery transaction. */
     public void doDelivery()  throws IOException {
         int carrier = generator.number(TPCCConstants.MIN_CARRIER_ID,
-                                        TPCCConstants.MAX_CARRIER_ID);
+                                       TPCCConstants.MAX_CARRIER_ID);
 
         client.callDelivery(generateWarehouseId(), carrier, clock.getDateTime());
     }
 
     /** Executes a payment transaction. */
     public void doPayment()  throws IOException {
-        int x = generator.number(1, 100);
-        int y = generator.number(1, 100);
+        boolean allow_remote = (parameters.warehouses > 1 && config.payment_multip != false);
 
         short w_id = generateWarehouseId();
         byte d_id = generateDistrict();
 
         short c_w_id;
         byte c_d_id;
-        if (parameters.warehouses == 1 || x <= 85) {
+        if (allow_remote == false || generator.number(1, 100) <= 85) {
             // 85%: paying through own warehouse (or there is only 1 warehouse)
             c_w_id = w_id;
             c_d_id = d_id;
         } else {
             // 15%: paying through another warehouse:
-            // select in range [1, num_warehouses] excluding w_id
-        	c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, max_w_id, w_id);
+            if (config.payment_multip_remote) {
+                c_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, this.max_w_id, (int)w_id);
+            } else {
+                // select in range [1, num_warehouses] excluding w_id
+                c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, w_id);
+            }
             assert c_w_id != w_id;
             c_d_id = generateDistrict();
         }
         double h_amount = generator.fixedPoint(2, TPCCConstants.MIN_PAYMENT,
-                TPCCConstants.MAX_PAYMENT);
-
+                                                  TPCCConstants.MAX_PAYMENT);
         TimestampType now = clock.getDateTime();
 
-        if (y <= 60) {
+        if (generator.number(1, 100) <= 60) {
             // 60%: payment by last name
-            String c_last = generator
-                    .makeRandomLastName(parameters.customersPerDistrict);
+            String c_last = generator.makeRandomLastName(parameters.customersPerDistrict);
             client.callPaymentByName(w_id, d_id, h_amount, c_w_id, c_d_id, c_last, now);
         } else {
             // 40%: payment by id
-            assert y > 60;
             client.callPaymentById(w_id, d_id, h_amount, c_w_id, c_d_id,
                                    generateCID(), now);
         }
