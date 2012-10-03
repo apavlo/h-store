@@ -1282,11 +1282,12 @@ public class BenchmarkController {
             int offset = vt.getColumnIndex("PROCEDURE");
             VoltTable.ColumnInfo cols[] = Arrays.copyOfRange(VoltTableUtil.extractColumnInfo(vt), offset, vt.getColumnCount());
             Map<String, Object[]> totalRows = new TreeMap<String, Object[]>();
-            Map<String, Histogram<Double>[]> stddevRows = new HashMap<String, Histogram<Double>[]>();
+            Map<String, List<Double>[]> stdevRows = new HashMap<String, List<Double>[]>();
+            
             while (vt.advanceRow()) {
                 String procName = vt.getString(offset);
                 Object row[] = totalRows.get(procName);
-                Histogram<Double> stddevs[] = stddevRows.get(procName);
+                List<Double> stdevs[] = stdevRows.get(procName);
                 if (row == null) {
                     row = new Object[cols.length];
                     row[0] = procName;
@@ -1295,14 +1296,15 @@ public class BenchmarkController {
                     } // FOR
                     totalRows.put(procName, row);
                     
-                    stddevs = (Histogram<Double>[])new Histogram<?>[cols.length];
-                    stddevRows.put(procName, stddevs);
+                    stdevs = (List<Double>[])new ArrayList<?>[cols.length];
+                    stdevRows.put(procName, stdevs);
                 }
                 
                 for (int i = 1; i < row.length; i++) {
-                    if (vt.getColumnName(offset + i).endsWith("STDDEV")) {
-                        if (stddevs[i] == null) stddevs[i] = new Histogram<Double>();
-                        stddevs[i].put(vt.getDouble(offset + i), vt.getLong(offset + 1));
+                    if (vt.getColumnName(offset + i).endsWith("STDEV")) {
+                        if (stdevs[i] == null) stdevs[i] = new ArrayList<Double>();
+                        stdevs[i].add(vt.getDouble(offset + i));
+                        // stdevs[i].put(vt.getDouble(offset + i), vt.getLong(offset + 1));
                     } else {
                         row[i] = ((Long)row[i]) + vt.getLong(offset + i);
                     }
@@ -1311,11 +1313,14 @@ public class BenchmarkController {
             
             // HACK: Take the weighted average stddev.
             for (String procName : totalRows.keySet()) {
-                Histogram<Double> stddevs[] = stddevRows.get(procName);
+                // Histogram<Double> stdevs[] = stdevRows.get(procName);
+                List<Double> stdevs[] = stdevRows.get(procName);
                 Object row[] = totalRows.get(procName);
                 for (int i = 1; i < row.length; i++) {
-                    if (stddevs[i] != null) {
-                        row[i] = MathUtil.weightedMean(stddevs[i]);
+                    if (stdevs[i] != null) {
+                        row[i] = MathUtil.geometricMean(CollectionUtil.toDoubleArray(stdevs[i]));
+                        if (debug.get()) LOG.debug(String.format("%s -> %s -> %s", procName, stdevs[i], row[i]));
+//                        row[i] = MathUtil.weightedMean(stdevs[i]);
                     }
                 } // FOR
             } // FOR
