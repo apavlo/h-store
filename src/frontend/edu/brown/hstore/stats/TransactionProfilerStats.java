@@ -34,6 +34,7 @@ public class TransactionProfilerStats extends StatsSource {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    @SuppressWarnings("unused")
     private final CatalogContext catalogContext;
     private int proc_offset;
     private int stdev_offset;
@@ -81,6 +82,7 @@ public class TransactionProfilerStats extends StatsSource {
         if (debug.get()) LOG.debug("Calculating profiling totals for " + catalog_proc.getName());
         Object row[] = null; // this.profileTotals.get(catalog_proc); 
         long tuple[] = null;
+        int stdev_offset = this.stdev_offset - this.proc_offset - 1;
         
         // Each offset in this array is one profile measurement type
         Queue<long[]> queue = this.profileQueues.get(catalog_proc);
@@ -117,6 +119,7 @@ public class TransactionProfilerStats extends StatsSource {
                     stdevValues[offset].add(tuple[i] / tuple[i+1]);
                 }
                 offset++;
+                if (offset == stdev_offset) offset++;
             } // FOR
         } // FOR
         
@@ -124,10 +127,9 @@ public class TransactionProfilerStats extends StatsSource {
         int i = columnNameToIndex.get("FIRST_REMOTE_QUERY") - this.proc_offset - 1;
         if (stdevValues != null && stdevValues[i] != null) {
             double values[] = CollectionUtil.toDoubleArray(stdevValues[i]);
-            int offset = this.stdev_offset - this.proc_offset - 1; 
-            row[offset] = MathUtil.stdev(values);
+            row[stdev_offset] = MathUtil.stdev(values);
             if (trace.get()) 
-                LOG.trace(catalog_proc.getName() + " => " + row[offset]);
+                LOG.trace(String.format("[%02d] %s => %f", stdev_offset, catalog_proc.getName(), row[stdev_offset]));
         }
         
         return (row);
@@ -190,7 +192,7 @@ public class TransactionProfilerStats extends StatsSource {
         rowValues[this.proc_offset] = proc.getName();
         Object row[] = this.calculateTxnProfileTotals(proc);
         for (int i = 0; i < row.length; i++) {
-            rowValues[proc_offset + i + 1] = row[i];    
+            rowValues[this.proc_offset + i + 1] = row[i];    
         } // FOR
         super.updateStatsRow(rowKey, rowValues);
     }

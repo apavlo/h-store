@@ -1155,12 +1155,12 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
     }
 
     @Override
-    public final int getRowCount() {
+    public int getRowCount() {
         return m_rowCount;
     }
 
     @Override
-    protected final int getRowStart() {
+    protected int getRowStart() {
         return m_rowStart;
     }
     
@@ -1172,7 +1172,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
     }
 
     @Override
-    public final int getColumnCount() {
+    public int getColumnCount() {
         return m_colCount;
     }
 

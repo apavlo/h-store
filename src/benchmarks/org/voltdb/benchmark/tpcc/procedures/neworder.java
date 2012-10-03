@@ -193,9 +193,9 @@ public class neworder extends VoltProcedure {
             final long ol_quantity = quantity[i];
 
             assert stockresults[i].getRowCount() == 1 : 
-                String.format("Cannot find stock info for item ; " +
+                String.format("%d rows were returned from STOCK for ITEM ; " +
                               "This should not happen with valid database (S_I_ID=%d / S_W_ID=%d)",
-                              item_id[i], supware[i]);
+                              stockresults[i].getRowCount(), item_id[i], supware[i]);
             final VoltTableRow itemInfo = items[i];
             final VoltTableRow stockInfo = stockresults[i].fetchRow(0);
 
