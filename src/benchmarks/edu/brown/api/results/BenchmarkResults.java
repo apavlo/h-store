@@ -88,7 +88,6 @@ public class BenchmarkResults {
     private boolean enableBasePartitions = false;
     private final Histogram<Integer> basePartitions = new Histogram<Integer>();
     
-    private boolean enableResponseStatuses = false;
     private final Histogram<String> responseStatuses = new Histogram<String>();
     
     private int completedIntervals = 0;
@@ -113,9 +112,6 @@ public class BenchmarkResults {
     }
     public void setEnableBasePartitions(boolean val) {
         this.enableBasePartitions = val;
-    }
-    public void setEnableResponsesStatuses(boolean val) {
-        this.enableResponseStatuses = val;
     }
 
     public Set<Error> getAnyErrors() {
@@ -328,9 +324,7 @@ public class BenchmarkResults {
         if (this.enableBasePartitions) {
             this.basePartitions.put(cmpResults.basePartitions);
         }
-        if (this.enableResponseStatuses) {
-            this.responseStatuses.put(cmpResults.responseStatuses);
-        }
+        this.responseStatuses.put(cmpResults.responseStatuses);
         
         BenchmarkResults finishedIntervalClone = null;
         synchronized (this) {
@@ -392,9 +386,7 @@ public class BenchmarkResults {
         if (this.enableBasePartitions) {
             clone.basePartitions.put(basePartitions);
         }
-        if (this.enableResponseStatuses) {
-            clone.responseStatuses.put(responseStatuses);
-        }
+        clone.responseStatuses.put(responseStatuses);
         clone.m_errors.addAll(m_errors);
         clone.m_transactionNames.putAll(m_transactionNames);
         clone.completedIntervals = this.completedIntervals;
@@ -420,14 +412,11 @@ public class BenchmarkResults {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction Names", StringUtil.join("\n", m_transactionNames.keySet()));
         m.put("Transaction Data", m_data);
+        m.put("Responses Statuses", basePartitions);
         
         if (this.enableBasePartitions) {
             m.put("Base Partitions", basePartitions);
         }
-        if (this.enableResponseStatuses) {
-            m.put("Responses Statuses", basePartitions);
-        }
-        
         return "BenchmarkResults\n" + StringUtil.formatMaps(m);
     }
 }
