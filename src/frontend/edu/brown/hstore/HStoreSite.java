@@ -1707,19 +1707,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             int idx = (int)(Math.abs(client_handle) % this.local_partitions_arr.length);
             int base_partition = this.local_partitions_arr[idx].intValue();
             
-            LocalTransaction ts = null;
-            try {
-                ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
-                assert (ts.isInitialized() == false);
-            } catch (Throwable ex) {
-                String errorMsg = String.format("Failed to instantiate new LocalTransactionState for %s txn", catalog_proc.getName()); 
-                LOG.fatal(errorMsg, ex);
-                throw new RuntimeException(errorMsg, ex);
-            }
-            ts.init(-1l, EstTime.currentTimeMillis(), client_handle, base_partition,
-                    catalogContext.getAllPartitionIds(), false, true,
-                    catalog_proc, params, clientCallback);
-            
+            LocalTransaction ts = this.txnInitializer.createLocalTransaction(null,
+                                                                             EstTime.currentTimeMillis(),
+                                                                             client_handle,
+                                                                             base_partition,
+                                                                             catalog_proc,
+                                                                             params,
+                                                                             clientCallback);
             String sql = (String)params.toArray()[0];
             this.asyncCompilerWork_thread.planSQL(ts, sql);
             return (true);
