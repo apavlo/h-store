@@ -212,9 +212,6 @@ EXPERIMENT_SETTINGS = {
         "client.blocking":                      True,
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
-        
-        "benchmark.neworder_multip_mix":        100,
-        "benchmark.payment_multip_mix":         100,
     },
 }
 EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
@@ -253,6 +250,15 @@ def updateEnv(args, env, benchmark, partitions):
         
         if benchmark == "tpcc":
             env["client.weights"] = "neworder:50,paymentByCustomerId:50,*:0"
+            env["benchmark.neworder_multip_mix"] = 100
+            env["benchmark.payment_multip_mix"] = 100
+            
+        elif benchmark == "tm1":
+            env["client.weights"] = "DeleteCallForwarding:33,InsertCallForwarding:33,UpdateLocation:34,*:0"
+        elif benchmark == "seats":
+            env["client.weights"] = ""
+        else:
+            env["client.weights"] = ""
         
     pplan = "%s.lns.pplan" % benchmark
     env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)

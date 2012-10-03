@@ -141,9 +141,6 @@ public class BenchmarkController {
     // STATIC CONFIGURATION
     // ============================================================================
 
-    private static final String setPlainText = "\033[0;0m";
-    private static final String setBoldText = "\033[0;1m";
-    
     /**
      * HStoreConf parameters to not forward to clients 
      */
@@ -338,9 +335,9 @@ public class BenchmarkController {
     }
     
     private String makeHeader(String label) {
-        return (setBoldText +
+        return (StringUtil.SET_BOLD_TEXT +
                 StringUtil.header(label.toUpperCase() + " :: " + this.getProjectName()) +
-                setPlainText);
+                StringUtil.SET_PLAIN_TEXT);
     }
     
     public String getProjectName() {
