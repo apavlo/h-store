@@ -601,7 +601,7 @@ public abstract class BenchmarkComponent {
         }
         
         // Parse workload transaction weights
-        if (m_hstoreConf.client.weights != null) {
+        if (m_hstoreConf.client.weights != null && m_hstoreConf.client.weights.trim().isEmpty() == false) {
             for (String entry : m_hstoreConf.client.weights.split("(,|;)")) {
                 String data[] = entry.split(":");
                 if (data.length != 2) {
