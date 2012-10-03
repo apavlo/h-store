@@ -263,7 +263,7 @@ def updateEnv(args, env, benchmark, partitions):
 ## ==============================================
 ## saveCSVResults
 ## ==============================================
-def saveCSVResults(args, partitions, filename):
+def saveCSVResults(args, benchmark, partitions, filename):
     # Create local results directory
     resultsDir = os.path.join(args['results_dir'], args['exp_type'])
     if not os.path.exists(resultsDir):
@@ -276,7 +276,7 @@ def saveCSVResults(args, partitions, filename):
     contents = hstore.fabfile.get_file(filename)
     if len(contents) > 0:
         # We'll prefix the name with the number of partitions
-        localName = "%02dp-%s" % (partitions, os.path.basename(filename))
+        localName = "%s-%02dp-%s" % (benchmark, partitions, os.path.basename(filename))
         localFile = os.path.join(resultsDir, localName)
         with open(localFile, "w") as f:
             f.write(contents)
@@ -616,7 +616,7 @@ if __name__ == '__main__':
                             key = "client.%s" % key
                             LOG.debug("Checking whether '%s' is enabled" % (key))
                             if key in env and not env[key] is None:
-                                saveCSVResults(args, partitions, env[key])
+                                saveCSVResults(args, benchmark, partitions, env[key])
                         ## FOR
                         
                     ## WITH
