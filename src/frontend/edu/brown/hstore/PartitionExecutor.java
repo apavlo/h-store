@@ -817,8 +817,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (t) LOG.trace("Next Work: " + work);
                 
                 if (hstore_conf.site.exec_profiling) this.profiler.exec_time.start();
-                this.processInternalMessage(work);
-                if (hstore_conf.site.exec_profiling && this.profiler.exec_time.isStarted()) this.profiler.exec_time.stop();
+                try {
+                	this.processInternalMessage(work);
+                } finally {
+                	if (hstore_conf.site.exec_profiling && this.profiler.exec_time.isStarted()) {
+                		this.profiler.exec_time.stop();
+                	}
+                }
+                
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                 this.tick();
             } // WHILE
