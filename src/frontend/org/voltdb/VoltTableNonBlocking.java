@@ -26,6 +26,10 @@ public class VoltTableNonBlocking extends VoltTable {
         this.profiler = profiler;
     }
     
+    /**
+     * Block the current thread until the real VoltTable
+     * has been added into this wrapper.
+     */
     private void block() {
         if (this.profiler != null) this.profiler.markRemoteQueryAccess();
         if (this.realTable == null) {

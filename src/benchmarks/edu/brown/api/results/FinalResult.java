@@ -119,10 +119,12 @@ public class FinalResult implements JSONSerializable {
             latencies.put(l);
         } // FOR
         Collection<Integer> allLatencies = latencies.weightedValues();
-        this.totalMinLatency = latencies.getMinValue().doubleValue();
-        this.totalMaxLatency = latencies.getMaxValue().doubleValue();
-        this.totalAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
-        this.totalStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));
+        if (allLatencies.isEmpty() == false) {
+            this.totalMinLatency = latencies.getMinValue().doubleValue();
+            this.totalMaxLatency = latencies.getMaxValue().doubleValue();
+            this.totalAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
+            this.totalStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));
+        }
         
         // CLIENTS RESULTS
         for (String clientName : results.getClientNames()) {
