@@ -44,6 +44,24 @@ public class VoltTableNonBlocking extends VoltTable {
     }
 
     @Override
+    public int getRowCount() {
+        this.block();
+        return this.realTable.getRowCount();
+    }
+
+    @Override
+    protected int getRowStart() {
+        this.block();
+        return this.realTable.getRowStart();
+    }
+
+    @Override
+    public int getColumnCount() {
+        this.block();
+        return this.realTable.getColumnCount();
+    }
+
+    @Override
     public String getColumnName(int index) {
         this.block();
         return this.realTable.getColumnName(index);

@@ -1319,8 +1319,8 @@ public class BenchmarkController {
                 for (int i = 1; i < row.length; i++) {
                     if (stdevs[i] != null) {
                         row[i] = MathUtil.geometricMean(CollectionUtil.toDoubleArray(stdevs[i]));
-                        if (debug.get()) LOG.debug(String.format("%s -> %s -> %s", procName, stdevs[i], row[i]));
-//                        row[i] = MathUtil.weightedMean(stdevs[i]);
+                        if (trace.get()) 
+                            LOG.trace(String.format("%s STDEV -> %s -> %s", procName, stdevs[i], row[i]));
                     }
                 } // FOR
             } // FOR
@@ -1335,7 +1335,7 @@ public class BenchmarkController {
         FileWriter out = new FileWriter(outputPath);
         VoltTableUtil.csv(out, vt, true);
         out.close();
-        LOG.info(String.format("Write %s information to '%s'",
+        LOG.info(String.format("Wrote %s information to '%s'",
                                sps, FileUtil.realpath(outputPath)));
         return;
     }
