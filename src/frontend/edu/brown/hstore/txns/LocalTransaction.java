@@ -1073,7 +1073,7 @@ public class LocalTransaction extends AbstractTransaction {
                          this, results.length));
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        boolean nonblocking = (hstore_conf.site.specexec_nonblocking && this.profiler != null);
+        boolean nonblocking = (hstore_conf.site.specexec_nonblocking && this.sysproc == false && this.profiler != null);
         for (int stmt_index = 0; stmt_index < results.length; stmt_index++) {
             Integer dependency_id = this.state.output_order.get(stmt_index);
             assert(dependency_id != null) :
@@ -1258,7 +1258,7 @@ public class LocalTransaction extends AbstractTransaction {
         final int dependency_id = key.getSecond().intValue();
         
         if (d) LOG.debug(String.format("%s - Attemping to add new result for %s [numRows=%d]",
-                                       this, debugPartDep(partition, dependency_id), result.getRowCount()));
+                         this, debugPartDep(partition, dependency_id), result.getRowCount()));
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
@@ -1330,14 +1330,14 @@ public class LocalTransaction extends AbstractTransaction {
                 assert(to_unblock != null);
                 assert(to_unblock.isEmpty() == false);
                 if (d) LOG.debug(String.format("%s - Got %d WorkFragments to unblock that were waiting for DependencyId %d",
-                                               this, to_unblock.size(), dinfo.getDependencyId()));
+                                 this, to_unblock.size(), dinfo.getDependencyId()));
                 this.state.blocked_tasks.removeAll(to_unblock);
                 this.state.unblocked_tasks.addLast(to_unblock);
             }
             else if (d) {
                 LOG.debug(String.format("%s - No WorkFragments to unblock after storing %s [blockedTasks=%d, hasTasksReady=%s]",
-                                        this, debugPartDep(partition, dependency_id),
-                                        this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
+                          this, debugPartDep(partition, dependency_id),
+                          this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
             }
         
             if (this.state.dependency_latch != null) {    
@@ -1347,7 +1347,7 @@ public class LocalTransaction extends AbstractTransaction {
                 // This will cause the blocked PartitionExecutor thread to wake up and realize that he's done
                 if (this.state.dependency_latch.getCount() == 0) {
                     if (d) LOG.debug(String.format("%s - Pushing EMPTY_SET to PartitionExecutor because all the dependencies have arrived!",
-                                                   this));
+                                     this));
                     this.state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
                 }
                 if (d) LOG.debug(String.format("%s - Setting CountDownLatch to %d",
@@ -1380,14 +1380,14 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public Map<Integer, List<VoltTable>> removeInternalDependencies(WorkFragment fragment, Map<Integer, List<VoltTable>> results) {
         if (d) LOG.debug(String.format("%s - Retrieving %d internal dependencies for %s WorkFragment:\n%s",
-                                       this, fragment.getInputDepIdCount(), fragment));
+                         this, fragment.getInputDepIdCount(), fragment));
         
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             int stmt_index = fragment.getStmtIndex(i);
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
             
             if (t) LOG.trace(String.format("%s - Examining %d input dependencies for PlanFragment %d in %s\n%s",
-                                           this, fragment.getInputDepId(i).getIdsCount(), fragment.getFragmentId(i), fragment));
+                             this, fragment.getInputDepId(i).getIdsCount(), fragment.getFragmentId(i), fragment));
             for (int input_d_id : input_dep_ids.getIdsList()) {
                 if (input_d_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
                 
@@ -1402,7 +1402,7 @@ public class LocalTransaction extends AbstractTransaction {
                                   StringUtil.SINGLE_LINE, this.debug()); 
                 results.put(input_d_id, dinfo.getResults());
                 if (d) LOG.debug(String.format("%s - %s -> %d VoltTables",
-                                               this, debugStmtDep(stmt_index, input_d_id), results.get(input_d_id).size()));
+                                 this, debugStmtDep(stmt_index, input_d_id), results.get(input_d_id).size()));
             } // FOR
         } // FOR
         return (results);

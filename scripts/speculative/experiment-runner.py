@@ -203,6 +203,7 @@ EXPERIMENT_SETTINGS = {
         "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
+        "site.specexec_nonblocking":            True,
         "site.markov_enable":                   False,
         "site.markov_fixed":                    True,
         "site.exec_force_singlepartitioned":    False,
@@ -212,8 +213,8 @@ EXPERIMENT_SETTINGS = {
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
         
-        #"benchmark.neworder_multip_mix":        100,
-        #"benchmark.payment_multip_mix":         100,
+        "benchmark.neworder_multip_mix":        100,
+        "benchmark.payment_multip_mix":         100,
     },
 }
 EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
@@ -249,6 +250,7 @@ def updateEnv(args, env, benchmark, partitions):
     ## ----------------------------------------------
     elif args['exp_type'].startswith("remotequery"):
         env["client.threads_per_host"] = int(partitions/2)
+        env["client.threads_per_host"] = 1
         
         if benchmark == "tpcc":
             env["client.weights"] = "neworder:50,paymentByCustomerId:50,*:0"
@@ -392,7 +394,7 @@ if __name__ == '__main__':
     agroup.add_argument("--retry-on-zero", action='store_true')
     agroup.add_argument("--clear-logs", action='store_true')
     agroup.add_argument("--workload-trace", action='store_true')
-    agroup.add_argument("--results-dir", type=str, default='results', help='Directory where CSV results are stored')
+    agroup.add_argument("--results-dir", type=str, default='results', metavar='D', help='Directory where CSV results are stored')
     
     ## Codespeed Parameters
     agroup = aparser.add_argument_group('Codespeed Parameters')
@@ -607,7 +609,8 @@ if __name__ == '__main__':
                         # Process JSON Output
                         if args['no_json'] == False:
                             processResults(args, partitions, output, workloads, results)
-                        ## IF
+                        else:
+                            results.append(None)
                         
                         # CSV RESULT FILES
                         for key in ["output_txn_profiling", "output_exec_profiling", "output_queue_profiling", "output_txn_counters"]:
@@ -650,6 +653,8 @@ if __name__ == '__main__':
     try:
         disconnect_all()
     finally:
+        if args['no_json']:
+            pass
         for partitions in sorted(final_results.keys()):
             print "%s - Partitions %d" % (args['exp_type'].upper(), partitions)
             pprint(final_results[partitions])

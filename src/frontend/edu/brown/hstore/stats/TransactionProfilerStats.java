@@ -192,6 +192,7 @@ public class TransactionProfilerStats extends StatsSource {
                 DUMP_DIR = FileUtil.getTempDirectory(this.catalogContext.database.getProject());
                 LOG.info("Created " + this.getClass().getSimpleName() + " dump directory: " + DUMP_DIR);
             }
+            
             File output = new File(String.format("%s/%s.csv", DUMP_DIR, proc.getName()));
             try {
                 FileUtil.writeStringToFile(output, StringUtil.join("\n", stdevValues[i]) + "\n");
