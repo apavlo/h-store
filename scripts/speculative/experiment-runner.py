@@ -250,7 +250,6 @@ def updateEnv(args, env, benchmark, partitions):
     ## ----------------------------------------------
     elif args['exp_type'].startswith("remotequery"):
         env["client.threads_per_host"] = int(partitions/2)
-        env["client.threads_per_host"] = 1
         
         if benchmark == "tpcc":
             env["client.weights"] = "neworder:50,paymentByCustomerId:50,*:0"
