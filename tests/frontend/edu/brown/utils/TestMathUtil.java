@@ -1,5 +1,8 @@
 package edu.brown.utils;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.Test;
 
 import junit.framework.TestCase;
@@ -23,8 +26,6 @@ public class TestMathUtil extends TestCase {
         0.00688530755354444,
         0.011432267059707457
     };
-    private static final double TEST_VALUES_GEOMETRIC_MEAN = 0.015d;
-    private static final double TEST_VALUES_STDDEV = 0.29686d;
 
     /**
      * testFudgeyEquals
@@ -43,10 +44,11 @@ public class TestMathUtil extends TestCase {
      */
     @Test
     public void testGeometricMean() {
+        double expected = 0.015d;
         double mean = MathUtil.geometricMean(TEST_VALUES);
-        assertEquals(TEST_VALUES_GEOMETRIC_MEAN, MathUtil.roundToDecimals(mean, 3));
+        assertEquals(expected, MathUtil.roundToDecimals(mean, 3));
         mean = MathUtil.geometricMean(TEST_VALUES, MathUtil.GEOMETRIC_MEAN_ZERO);
-        assertEquals(TEST_VALUES_GEOMETRIC_MEAN, MathUtil.roundToDecimals(mean, 3));
+        assertEquals(expected, MathUtil.roundToDecimals(mean, 3));
     }
     
     /**
@@ -76,11 +78,28 @@ public class TestMathUtil extends TestCase {
     }
     
     /**
-     * testStandardDeviation
+     * testStandardDeviation1
      */
     @Test
-    public void testStandardDeviation() {
+    public void testStandardDeviation1() {
+        double expected = 0.3129164048d;
         double stddev = MathUtil.stdev(TEST_VALUES);
-        assertEquals(TEST_VALUES_STDDEV, stddev, 0.001);
+        assertEquals(expected, stddev, 0.001);
+    }
+    
+    /**
+     * testStandardDeviation2
+     */
+    @Test
+    public void testStandardDeviation2() {
+        List<Double> values = new ArrayList<Double>();
+        for (int i = 0; i < 100; i++) {
+            double v = Double.parseDouble(String.format("%d.%d", i, i));
+            values.add(v);
+        } // FOR
+        
+        double expected = 29.2410446405d;
+        double stddev = MathUtil.stdev(CollectionUtil.toDoubleArray(values));
+        assertEquals(expected, stddev, 0.001);
     }
 }

@@ -56,17 +56,20 @@ public class BenchmarkResults {
     }
 
     public static class Result {
-        public Result(long benchmarkTimeDelta, long transactionCount) {
+        public Result(long benchmarkTimeDelta, long transactionCount, long dtxnCount) {
             this.benchmarkTimeDelta = benchmarkTimeDelta;
             this.transactionCount = transactionCount;
+            this.dtxnCount = dtxnCount;
         }
         public final long benchmarkTimeDelta;
         public final long transactionCount;
+        public final long dtxnCount;
         public final Histogram<Integer> latencies = new Histogram<Integer>();
         
         @Override
         public String toString() {
-            return String.format("<TxnCount:%d, Delta:%d>", this.transactionCount, this.benchmarkTimeDelta);
+            return String.format("<TxnCount:%d / DtxnCount:%d / Delta:%d>",
+                                 this.transactionCount, this.dtxnCount, this.benchmarkTimeDelta);
         }
     }
 
@@ -85,7 +88,6 @@ public class BenchmarkResults {
     private boolean enableBasePartitions = false;
     private final Histogram<Integer> basePartitions = new Histogram<Integer>();
     
-    private boolean enableResponseStatuses = false;
     private final Histogram<String> responseStatuses = new Histogram<String>();
     
     private int completedIntervals = 0;
@@ -110,9 +112,6 @@ public class BenchmarkResults {
     }
     public void setEnableBasePartitions(boolean val) {
         this.enableBasePartitions = val;
-    }
-    public void setEnableResponsesStatuses(boolean val) {
-        this.enableResponseStatuses = val;
     }
 
     public Set<Error> getAnyErrors() {
@@ -229,11 +228,15 @@ public class BenchmarkResults {
                           txnName, clientName, StringUtil.formatMaps(txnResults));
         
         long txnsTillNow = 0;
+        long dtxnsTillNow = 0;
         Result[] retval = new Result[intervals];
         for (int i = 0; i < intervals; i++) {
             Result r = results.get(i);
-            retval[i] = new Result(r.benchmarkTimeDelta, r.transactionCount - txnsTillNow);
+            retval[i] = new Result(r.benchmarkTimeDelta,
+                                   r.transactionCount - txnsTillNow,
+                                   r.dtxnCount - dtxnsTillNow);
             txnsTillNow = r.transactionCount;
+            dtxnsTillNow = r.dtxnCount;
         }
 //        assert(intervals == results.size());
         return retval;
@@ -321,9 +324,7 @@ public class BenchmarkResults {
         if (this.enableBasePartitions) {
             this.basePartitions.put(cmpResults.basePartitions);
         }
-        if (this.enableResponseStatuses) {
-            this.responseStatuses.put(cmpResults.responseStatuses);
-        }
+        this.responseStatuses.put(cmpResults.responseStatuses);
         
         BenchmarkResults finishedIntervalClone = null;
         synchronized (this) {
@@ -352,7 +353,9 @@ public class BenchmarkResults {
                 assert(results != null);
                 
                 Integer offset = m_transactionNames.get(txnName);
-                Result r = new Result(offsetTime, cmpResults.transactions.fastGet(offset.intValue()));
+                Result r = new Result(offsetTime,
+                                      cmpResults.transactions.fastGet(offset.intValue()),
+                                      cmpResults.dtxns.fastGet(offset.intValue()));
                 if (this.enableLatencies && cmpResults.latencies != null) {
                     Histogram<Integer> latencies = cmpResults.latencies.get(offset);
                     if (latencies != null) {
@@ -383,9 +386,7 @@ public class BenchmarkResults {
         if (this.enableBasePartitions) {
             clone.basePartitions.put(basePartitions);
         }
-        if (this.enableResponseStatuses) {
-            clone.responseStatuses.put(responseStatuses);
-        }
+        clone.responseStatuses.put(responseStatuses);
         clone.m_errors.addAll(m_errors);
         clone.m_transactionNames.putAll(m_transactionNames);
         clone.completedIntervals = this.completedIntervals;
@@ -411,14 +412,11 @@ public class BenchmarkResults {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction Names", StringUtil.join("\n", m_transactionNames.keySet()));
         m.put("Transaction Data", m_data);
+        m.put("Responses Statuses", basePartitions);
         
         if (this.enableBasePartitions) {
             m.put("Base Partitions", basePartitions);
         }
-        if (this.enableResponseStatuses) {
-            m.put("Responses Statuses", basePartitions);
-        }
-        
         return "BenchmarkResults\n" + StringUtil.formatMaps(m);
     }
 }

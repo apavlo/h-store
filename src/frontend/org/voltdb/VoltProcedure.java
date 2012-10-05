@@ -752,6 +752,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                       this.status_msg,
                       this.error
         );
+        if (this.m_localTxnState.isPredictSinglePartition() == false) {
+            response.setSinglePartition(false);
+        }
                       
         if (this.observable != null) this.observable.notifyObservers(response);
         if (t) LOG.trace(response);

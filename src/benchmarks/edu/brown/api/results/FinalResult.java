@@ -32,6 +32,7 @@ public class FinalResult implements JSONSerializable {
     
     public long duration;
     public long txnTotalCount;
+    public long dtxnTotalCount;
     public double txnTotalPerSecond;
     public long txnMinCount;
     public double txnMinPerSecond;
@@ -58,9 +59,12 @@ public class FinalResult implements JSONSerializable {
         this.txnTotalCount = 0;
         this.txnMinCount = Long.MAX_VALUE;
         this.txnMaxCount = 0;
+        this.dtxnTotalCount = 0;
         
-        Histogram<String> clientCounts = new Histogram<String>(true);
+        Histogram<String> clientTxnCounts = new Histogram<String>(true);
+        Histogram<String> clientDtxnCounts = new Histogram<String>(true);
         Histogram<String> txnCounts = new Histogram<String>(true);
+        Histogram<String> dtxnCounts = new Histogram<String>(true);
         
         double intervalTotals[] = results.computeIntervalTotals();
         if (debug.get()) LOG.debug("INTERVAL TOTALS: " + Arrays.toString(intervalTotals));
@@ -71,14 +75,18 @@ public class FinalResult implements JSONSerializable {
         this.stddevTxnPerSecond = MathUtil.stdev(intervalTotals);
         
         for (String clientName : results.getClientNames()) {
-            clientCounts.set(clientName, 0);
+            clientTxnCounts.set(clientName, 0);
             for (String txnName : results.getTransactionNames()) {
                 if (txnCounts.contains(txnName) == false) txnCounts.set(txnName, 0);
                 Result[] rs = results.getResultsForClientAndTransaction(clientName, txnName);
                 for (Result r : rs) {
                     this.txnTotalCount += r.transactionCount;
-                    clientCounts.put(clientName, r.transactionCount);
+                    clientTxnCounts.put(clientName, r.transactionCount);
                     txnCounts.put(txnName, r.transactionCount);
+                    
+                    this.dtxnTotalCount += r.dtxnCount;
+                    clientDtxnCounts.put(clientName, r.dtxnCount);
+                    dtxnCounts.put(txnName, r.dtxnCount);
                 } // FOR
             } // FOR
         } // FOR
@@ -111,15 +119,17 @@ public class FinalResult implements JSONSerializable {
             latencies.put(l);
         } // FOR
         Collection<Integer> allLatencies = latencies.weightedValues();
-        this.totalMinLatency = latencies.getMinValue().doubleValue();
-        this.totalMaxLatency = latencies.getMaxValue().doubleValue();
-        this.totalAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
-        this.totalStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));
+        if (allLatencies.isEmpty() == false) {
+            this.totalMinLatency = latencies.getMinValue().doubleValue();
+            this.totalMaxLatency = latencies.getMaxValue().doubleValue();
+            this.totalAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
+            this.totalStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));
+        }
         
         // CLIENTS RESULTS
         for (String clientName : results.getClientNames()) {
             Histogram<Integer> l = results.getLatenciesForClient(clientName);
-            EntityResult er = new EntityResult(this.txnTotalCount, this.duration, clientCounts.get(clientName), l);
+            EntityResult er = new EntityResult(this.txnTotalCount, this.duration, clientTxnCounts.get(clientName), l);
             this.clientResults.put(clientName.replace("client-", ""), er);
         } // FOR
     }
@@ -129,6 +139,9 @@ public class FinalResult implements JSONSerializable {
     }
     public long getTotalTxnCount() {
         return this.txnTotalCount;
+    }
+    public long getTotalDtxnCount() {
+        return this.dtxnTotalCount;
     }
     public double getTotalTxnPerSecond() {
         return this.txnTotalPerSecond;

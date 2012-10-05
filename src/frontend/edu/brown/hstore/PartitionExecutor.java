@@ -466,11 +466,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
             
             if (d) LOG.debug(String.format("Processing TransactionWorkResponse for %s with %d results",
-                                        ts, msg.getResultsCount()));
+                             ts, msg.getResultsCount()));
             for (int i = 0, cnt = msg.getResultsCount(); i < cnt; i++) {
                 WorkResult result = msg.getResults(i); 
                 if (t) LOG.trace(String.format("Got %s from partition %d for %s",
-                                               result.getClass().getSimpleName(), result.getPartitionId(), ts));
+                                 result.getClass().getSimpleName(), result.getPartitionId(), ts));
                 PartitionExecutor.this.processWorkResult(ts, result);
             } // FOR
         }
@@ -817,8 +817,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (t) LOG.trace("Next Work: " + work);
                 
                 if (hstore_conf.site.exec_profiling) this.profiler.exec_time.start();
-                this.processInternalMessage(work);
-                if (hstore_conf.site.exec_profiling && this.profiler.exec_time.isStarted()) this.profiler.exec_time.stop();
+                try {
+                	this.processInternalMessage(work);
+                } finally {
+                	if (hstore_conf.site.exec_profiling && this.profiler.exec_time.isStarted()) {
+                		this.profiler.exec_time.stop();
+                	}
+                }
+                
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                 this.tick();
             } // WHILE

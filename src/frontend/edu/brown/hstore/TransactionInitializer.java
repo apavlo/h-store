@@ -271,7 +271,6 @@ public class TransactionInitializer {
         return (ts);
     }
     
-    
     /**
      * Create and initialize a LocalTransaction from a serialized StoredProcedureInvocation
      * request sent in from the client.  
@@ -324,9 +323,11 @@ public class TransactionInitializer {
                                 procParams,
                                 clientCallback);
         // Check whether this guy has already been restarted before
-        int restartCounter = StoredProcedureInvocation.getRestartCounter(serializedRequest);
-        if (restartCounter > 0) {
-            ts.setRestartCounter(restartCounter);
+        if (serializedRequest != null) {
+            int restartCounter = StoredProcedureInvocation.getRestartCounter(serializedRequest);
+            if (restartCounter > 0) {
+                ts.setRestartCounter(restartCounter);
+            }
         }
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) {

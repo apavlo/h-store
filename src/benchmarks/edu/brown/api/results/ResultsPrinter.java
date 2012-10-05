@@ -111,7 +111,10 @@ public class ResultsPrinter implements BenchmarkInterest {
         
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Execution Time", String.format("%d ms", fr.getDuration()));
-        m.put("Total Transactions", fr.getTotalTxnCount());
+        m.put("Transactions", String.format("Total:%d / Distributed:%d (%.1f%%)",
+                                            fr.getTotalTxnCount(),
+                                            fr.getTotalDtxnCount(),
+                                            (fr.getTotalDtxnCount() / (double)fr.getTotalTxnCount())*100));
         m.put("Throughput", throughput.toString()); 
         m.put("Latency", latencies.toString());
         sb.append(StringUtil.formatMaps(m));
