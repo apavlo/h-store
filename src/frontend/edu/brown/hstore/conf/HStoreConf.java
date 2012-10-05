@@ -112,7 +112,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Whether to back-up log files before the benchmark is exceuted",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean log_backup;
@@ -422,6 +422,13 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean specexec_idle;
+        
+        @ConfigProperty(
+            description="Special non-blocking remote query execution.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean specexec_nonblocking;
         
         // ----------------------------------------------------------------------------
         // Command Logging Options
@@ -871,7 +878,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Enable HStoreSite's Status thread.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean status_enable;

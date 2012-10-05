@@ -62,6 +62,9 @@ public abstract class StringUtil {
     private static Integer CACHE_REPEAT_SIZE = null;
     private static String CACHE_REPEAT_RESULT = null;
 
+    public static final String SET_PLAIN_TEXT = "\033[0;0m";
+    public static final String SET_BOLD_TEXT = "\033[0;1m";
+    
     private static final double BASE = 1024, KB = BASE, MB = KB * BASE, GB = MB * BASE;
     private static final DecimalFormat df = new DecimalFormat("#.##");
 

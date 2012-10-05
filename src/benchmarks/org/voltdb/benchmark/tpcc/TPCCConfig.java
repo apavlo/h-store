@@ -26,13 +26,19 @@ public final class TPCCConfig {
     public boolean noop = false;
     public boolean neworder_only = false;
     public boolean neworder_abort = false;
-    public boolean neworder_multip = false;
+    public boolean neworder_multip = true;
     public boolean neworder_skew_warehouse = false;
-
     /** Percentage of neworder txns that are forced to be multi-partitioned */
-    public int neworder_multip_mix = 0;
+    public int neworder_multip_mix = -1;
     /** Whether neworder txns that are forced to be remote or not */
     public boolean neworder_multip_remote = false;
+    
+    public boolean payment_only = false;
+    public boolean payment_multip = true;
+    public boolean payment_multip_remote = false;
+    /** Percentage of neworder txns that are forced to be multi-partitioned */
+    public int payment_multip_mix = 15;
+
     /** If set to true, then we will use temporal skew for generating warehouse ids */
     public boolean temporal_skew = false;
     /** Percentage of warehouse ids that will be temporally skewed during the benchmark run */
@@ -92,11 +98,11 @@ public final class TPCCConfig {
             else if (key.equalsIgnoreCase("neworder_abort") && !val.isEmpty()) {
                 neworder_abort = Boolean.parseBoolean(val);
             }
-            // ALLOW NEWORDER DTXNS
+            // NEWORDER DTXN PERCENTAGE
             else if (key.equalsIgnoreCase("neworder_multip") && !val.isEmpty()) {
                 neworder_multip = Boolean.parseBoolean(val);
             }
-            // ALLOW NEWORDER REMOTE DTXNS
+            // FORCE NEWORDER REMOTE W_ID DTXNS
             else if (key.equalsIgnoreCase("neworder_multip_remote") && !val.isEmpty()) {
                 neworder_multip_remote = Boolean.parseBoolean(val);
             }
@@ -108,6 +114,24 @@ public final class TPCCConfig {
             else if (key.equalsIgnoreCase("neworder_skew_warehouse") && !val.isEmpty()) {
                 neworder_skew_warehouse = Boolean.parseBoolean(val);
             }
+            
+            // ONLY PAYMENT
+            else if (key.equalsIgnoreCase("payment_only") && !val.isEmpty()) {
+                payment_only = Boolean.parseBoolean(val);
+            }
+            // ALLOW PAYMENT DTXNS
+            else if (key.equalsIgnoreCase("payment_multip") && !val.isEmpty()) {
+                payment_multip = Boolean.parseBoolean(val);
+            }
+            // FORCE PAYMENT REMOTE W_ID DTXNS
+            else if (key.equalsIgnoreCase("payment_multip_remote") && !val.isEmpty()) {
+                payment_multip_remote = Boolean.parseBoolean(val);
+            }
+            // PAYMENT DTXN PERCENTAGE
+            else if (key.equalsIgnoreCase("payment_multip_mix") && !val.isEmpty()) {
+                payment_multip_mix = Integer.parseInt(val);
+            }
+            
             // TEMPORAL SKEW
             else if (key.equalsIgnoreCase("temporal_skew") && !val.isEmpty()) {
                 temporal_skew = Boolean.parseBoolean(val);

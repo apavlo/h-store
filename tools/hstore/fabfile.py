@@ -992,7 +992,6 @@ def sync_time():
 ## ----------------------------------------------
 def __syncTime__():
     with settings(warn_only=True):
-        sudo("echo 1 > /proc/sys/xen/independent_wallclock")
         sudo("ntpdate-debian -b")
     ## WITH
 ## DEF
@@ -1003,20 +1002,20 @@ def __syncTime__():
 def __startInstances__(instances_count, ec2_ami, ec2_type, instance_tags):
     LOG.info("Attemping to start %d instances." % (instances_count))
     try:
-        reservation = ec2_conn.run_instances(ec2_ami,
-                                            instance_type=ec2_type,
-                                            key_name=env["ec2.keypair"],
-                                            min_count=instances_count,
-                                            max_count=instances_count,
-                                            security_groups=[ env["ec2.security_group"] ],
-                                            placement=env["ec2.region"],
-                                            placement_group=env["ec2.placement_group"])
+        resv = ec2_conn.run_instances(ec2_ami,
+                                      instance_type=ec2_type,
+                                      key_name=env["ec2.keypair"],
+                                      min_count=instances_count,
+                                      max_count=instances_count,
+                                      security_groups=[ env["ec2.security_group"] ],
+                                      placement=env["ec2.region"],
+                                      placement_group=env["ec2.placement_group"])
     except:
         LOG.error("Failed to start %s instances [%s]" % (ec2_type, ec2_ami))
         raise
-    LOG.info("Started %d execution nodes. Waiting for them to come online" % len(reservation.instances))
+    LOG.info("Started %d execution nodes. Waiting for them to come online" % len(resv.instances))
     i = 0
-    for inst in reservation.instances:
+    for inst in resv.instances:
         env["ec2.running_instances"].append(inst)
         env["ec2.all_instances"].append(inst)
         time.sleep(env["ec2.reboot_wait_time"])
@@ -1031,7 +1030,7 @@ def __startInstances__(instances_count, ec2_ami, ec2_type, instance_tags):
         i += 1
     ## FOR
     time.sleep(env["ec2.reboot_wait_time"])
-    LOG.info("Started %d instances." % len(reservation.instances))
+    LOG.info("Started %d instances." % len(resv.instances))
 ## DEF
 
 ## ----------------------------------------------

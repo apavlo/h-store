@@ -601,7 +601,7 @@ public abstract class BenchmarkComponent {
         }
         
         // Parse workload transaction weights
-        if (m_hstoreConf.client.weights != null) {
+        if (m_hstoreConf.client.weights != null && m_hstoreConf.client.weights.trim().isEmpty() == false) {
             for (String entry : m_hstoreConf.client.weights.split("(,|;)")) {
                 String data[] = entry.split(":");
                 if (data.length != 2) {
@@ -652,9 +652,11 @@ public abstract class BenchmarkComponent {
             Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
             for (int i = 0; i < m_countDisplayNames.length; i++) {
                 m_txnStats.transactions.put(i, 0);
+                m_txnStats.dtxns.put(i, 0);
                 debugLabels.put(i, m_countDisplayNames[i]);
             } // FOR
             m_txnStats.transactions.setDebugLabels(debugLabels);
+            m_txnStats.dtxns.setDebugLabels(debugLabels);
             
             m_txnStats.setEnableLatencies(m_hstoreConf.client.output_latencies);
             m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
@@ -888,6 +890,9 @@ public abstract class BenchmarkComponent {
         if (status == Status.OK || status == Status.ABORT_USER) {
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.fastPut(txn_idx);
+                if (cresponse.isSinglePartition() == false) {
+                    m_txnStats.dtxns.fastPut(txn_idx);
+                }
             } // SYNCH
 
             if (m_txnStats.isLatenciesEnabled()) {
@@ -1456,6 +1461,7 @@ public abstract class BenchmarkComponent {
                 return false;
             }
 
+            LOG.warn("Invalid " + procName + " response!\n" + clientResponse);
             if (clientResponse.getException() != null) {
                 clientResponse.getException().printStackTrace();
             }

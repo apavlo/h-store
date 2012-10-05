@@ -140,7 +140,7 @@ public class BenchmarkController {
     // ============================================================================
     // STATIC CONFIGURATION
     // ============================================================================
-    
+
     /**
      * HStoreConf parameters to not forward to clients 
      */
@@ -334,6 +334,11 @@ public class BenchmarkController {
         this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
     }
     
+    private String makeHeader(String label) {
+        return (StringUtil.SET_BOLD_TEXT +
+                StringUtil.header(label.toUpperCase() + " :: " + this.getProjectName()) +
+                StringUtil.SET_PLAIN_TEXT);
+    }
     
     public String getProjectName() {
         return (m_projectBuilder.getProjectName().toUpperCase());
@@ -486,7 +491,7 @@ public class BenchmarkController {
      * Deploy the HStoreSites on the remote nodes
      */
     public void startSites() {
-        LOG.info(StringUtil.header("BENCHMARK INITIALIZE :: " + this.getProjectName()));
+        LOG.info(makeHeader("BENCHMARK INITIALIZE"));
         if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
         
@@ -586,7 +591,7 @@ public class BenchmarkController {
      * Invoke the benchmark loader
      */
     public void startLoader() {
-        LOG.info(StringUtil.header("BENCHMARK LOAD :: " + this.getProjectName()));
+        LOG.info(makeHeader("BENCHMARK LOAD"));
         LOG.info(String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
                                m_projectBuilder.getProjectName().toUpperCase(),
                                m_loaderClass.getSimpleName(),
@@ -968,7 +973,7 @@ public class BenchmarkController {
      */
     public void runBenchmark() throws Exception {
         if (this.stop) return;
-        LOG.info(StringUtil.header("BENCHMARK EXECUTE :: " + this.getProjectName()));
+        LOG.info(makeHeader("BENCHMARK EXECUTE"));
         
         int threadsPerHost = hstore_conf.client.threads_per_host;
         if (hstore_conf.client.processesperclient_per_partition) {
@@ -1006,7 +1011,6 @@ public class BenchmarkController {
                                                 m_clientThreads.size());
         m_currentResults.setEnableLatencies(hstore_conf.client.output_latencies);
         m_currentResults.setEnableBasePartitions(hstore_conf.client.output_basepartitions);
-        m_currentResults.setEnableResponsesStatuses(hstore_conf.client.output_response_status);
         
         EventObservableExceptionHandler eh = new EventObservableExceptionHandler();
         eh.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
@@ -1274,11 +1278,12 @@ public class BenchmarkController {
             int offset = vt.getColumnIndex("PROCEDURE");
             VoltTable.ColumnInfo cols[] = Arrays.copyOfRange(VoltTableUtil.extractColumnInfo(vt), offset, vt.getColumnCount());
             Map<String, Object[]> totalRows = new TreeMap<String, Object[]>();
-            Map<String, Histogram<Double>[]> stddevRows = new HashMap<String, Histogram<Double>[]>();
+            Map<String, List<Double>[]> stdevRows = new HashMap<String, List<Double>[]>();
+            
             while (vt.advanceRow()) {
                 String procName = vt.getString(offset);
                 Object row[] = totalRows.get(procName);
-                Histogram<Double> stddevs[] = stddevRows.get(procName);
+                List<Double> stdevs[] = stdevRows.get(procName);
                 if (row == null) {
                     row = new Object[cols.length];
                     row[0] = procName;
@@ -1287,14 +1292,15 @@ public class BenchmarkController {
                     } // FOR
                     totalRows.put(procName, row);
                     
-                    stddevs = (Histogram<Double>[])new Histogram<?>[cols.length];
-                    stddevRows.put(procName, stddevs);
+                    stdevs = (List<Double>[])new ArrayList<?>[cols.length];
+                    stdevRows.put(procName, stdevs);
                 }
                 
                 for (int i = 1; i < row.length; i++) {
-                    if (vt.getColumnName(offset + i).endsWith("STDDEV")) {
-                        if (stddevs[i] == null) stddevs[i] = new Histogram<Double>();
-                        stddevs[i].put(vt.getDouble(offset + i), vt.getLong(offset + 1));
+                    if (vt.getColumnName(offset + i).endsWith("STDEV")) {
+                        if (stdevs[i] == null) stdevs[i] = new ArrayList<Double>();
+                        stdevs[i].add(vt.getDouble(offset + i));
+                        // stdevs[i].put(vt.getDouble(offset + i), vt.getLong(offset + 1));
                     } else {
                         row[i] = ((Long)row[i]) + vt.getLong(offset + i);
                     }
@@ -1303,11 +1309,14 @@ public class BenchmarkController {
             
             // HACK: Take the weighted average stddev.
             for (String procName : totalRows.keySet()) {
-                Histogram<Double> stddevs[] = stddevRows.get(procName);
+                // Histogram<Double> stdevs[] = stdevRows.get(procName);
+                List<Double> stdevs[] = stdevRows.get(procName);
                 Object row[] = totalRows.get(procName);
                 for (int i = 1; i < row.length; i++) {
-                    if (stddevs[i] != null) {
-                        row[i] = MathUtil.weightedMean(stddevs[i]);
+                    if (stdevs[i] != null) {
+                        row[i] = MathUtil.geometricMean(CollectionUtil.toDoubleArray(stdevs[i]));
+                        if (trace.get()) 
+                            LOG.trace(String.format("%s STDEV -> %s -> %s", procName, stdevs[i], row[i]));
                     }
                 } // FOR
             } // FOR
@@ -1322,7 +1331,7 @@ public class BenchmarkController {
         FileWriter out = new FileWriter(outputPath);
         VoltTableUtil.csv(out, vt, true);
         out.close();
-        LOG.info(String.format("Write %s information to '%s'",
+        LOG.info(String.format("Wrote %s information to '%s'",
                                sps, FileUtil.realpath(outputPath)));
         return;
     }
