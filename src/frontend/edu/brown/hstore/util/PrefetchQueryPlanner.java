@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -44,7 +45,7 @@ public class PrefetchQueryPlanner implements Loggable {
     }
 
     // private final Database catalog_db;
-    private final Map<Procedure, BatchPlanner> planners = new HashMap<Procedure, BatchPlanner>();
+    private final Map<Integer, BatchPlanner> planners = new HashMap<Integer, BatchPlanner>();
     private final int[] partitionSiteXref;
     private final CatalogContext catalogContext;
     private final BitSet touched_sites;
@@ -82,12 +83,14 @@ public class PrefetchQueryPlanner implements Loggable {
                 if (valid) prefetchStmts.add(new SQLStmt(catalog_stmt));
             } // FOR
             if (prefetchStmts.isEmpty() == false) {
-                BatchPlanner planner = new BatchPlanner(prefetchStmts.toArray(new SQLStmt[0]),
+                // Are the prefetchStmts always going to be sorted the same way? (Does it matter for the hash code?)
+                SQLStmt[] batchStmts = prefetchStmts.toArray(new SQLStmt[0]);
+                BatchPlanner planner = new BatchPlanner(batchStmts,
                                                         prefetchStmts.size(),
                                                         catalog_proc,
                                                         p_estimator);
                 planner.setPrefetchFlag(true);
-                this.planners.put(catalog_proc, planner);
+                this.planners.put(VoltProcedure.getBatchHashCode(batchStmts, batchStmts.length), planner);
                 if (debug.get()) LOG.debug(String.format("%s Prefetch Statements: %s",
                                                          catalog_proc.getName(), prefetchStmts));
             } else {
@@ -122,10 +125,28 @@ public class PrefetchQueryPlanner implements Loggable {
             "Unexpected null ParameterSet for " + ts;
         Object proc_params[] = ts.getProcedureParameters().toArray();
 
+        // Can we cache this?
+        List<SQLStmt> prefetchStmts = new ArrayList<SQLStmt>();
+        for (Statement catalog_stmt : catalog_proc.getStatements().values()) {
+            if (catalog_stmt.getPrefetchable() == false) continue;
+            // Make sure that all of this Statement's input parameters
+            // are mapped to one of the Procedure's ProcParameter
+            boolean valid = true;
+            for (StmtParameter catalog_param : catalog_stmt.getParameters().values()) {
+                if (catalog_param.getProcparameter() == null) {
+                    LOG.warn(String.format("Unable to mark %s as prefetchable because %s is not mapped to a ProcParameter",
+                                           catalog_stmt.fullName(), catalog_param.fullName()));
+                    valid = false;
+                }
+            } // FOR
+            if (valid) prefetchStmts.add(new SQLStmt(catalog_stmt));
+        } // FOR
+        SQLStmt[] batchStmts = prefetchStmts.toArray(new SQLStmt[0]);
+        
         // Use the StmtParameter mappings for the queries we
         // want to prefetch and extract the ProcParameters
         // to populate an array of ParameterSets to use as the batchArgs
-        BatchPlanner planner = this.planners.get(catalog_proc);
+        BatchPlanner planner = this.planners.get(VoltProcedure.getBatchHashCode(batchStmts, batchStmts.length));
         assert (planner != null) : "Missing BatchPlanner for " + catalog_proc;
         ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
         ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
