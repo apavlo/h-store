@@ -51,7 +51,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
         this.initializeCatalog(NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
         for (int i = 0; i < NUM_SITES; i++) {
             Site catalog_site = this.getSite(i);
-            this.hstore_sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());
+            this.hstore_sites[i] = new MockHStoreSite(i, catalogContext, HStoreConf.singleton());
             this.coordinators[i] = this.hstore_sites[i].initHStoreCoordinator();
             
             // We have to make our fake ExecutionSites for each Partition at this site

@@ -29,7 +29,7 @@ public class MockPartitionExecutor extends PartitionExecutor {
     private final Map<Long, CountDownLatch> latches = new HashMap<Long, CountDownLatch>();
     
     public MockPartitionExecutor(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
-        super(partition_id, new CatalogContext(catalog, CatalogContext.NO_PATH), BACKEND_TARGET, p_estimator, null);
+        super(partition_id, new CatalogContext(catalog), BACKEND_TARGET, p_estimator, null);
         this.initializeVoltProcedures();
     }
 

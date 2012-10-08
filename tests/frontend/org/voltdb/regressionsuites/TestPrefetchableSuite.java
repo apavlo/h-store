@@ -6,6 +6,7 @@ import java.util.Random;
 import org.junit.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltProcedure;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -17,6 +18,8 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.prefetchprocs.SquirrelsDistributed;
 import org.voltdb.regressionsuites.prefetchprocs.SquirrelsSingle;
+import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.LoadMultipartitionTable;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -35,6 +38,9 @@ public class TestPrefetchableSuite extends RegressionSuite {
     private static final String PREFIX = "prefetch";
     private static final Random rand = new Random(0);
 
+    /**
+     * testPrefetch
+     */
     @Test
     public void testPrefetch() throws IOException, ProcCallException {
         int num_tuples = 2;
@@ -80,7 +86,8 @@ public class TestPrefetchableSuite extends RegressionSuite {
         boolean adv;
         
         // TABLEA
-        cr = client.callProcedure("GetACount");
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        cr = client.callProcedure(procName, "SELECT COUNT(*), SUM(A_NUM_B) FROM TABLEA");
 //        System.err.println(cr.toString());
         assertEquals(cr.toString(), Status.OK, cr.getStatus());
         assertEquals(cr.toString(), 1, cr.getResults().length);
@@ -92,7 +99,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         assertEquals(a_expected, a_count);
         
         // TABLEB
-        cr = client.callProcedure("GetBCount");
+        cr = client.callProcedure(procName, "SELECT COUNT(*) FROM TABLEB");
 //        System.err.println(cr.toString());
         assertEquals(cr.toString(), Status.OK, cr.getStatus());
         assertEquals(cr.toString(), 1, cr.getResults().length);
@@ -136,10 +143,11 @@ public class TestPrefetchableSuite extends RegressionSuite {
         } // FOR (TABLEA)
         
         ClientResponse cr = null;
-        cr = client.callProcedure("@LoadMultipartitionTable", a_table.getName(), a_vt);
+        String procName = VoltSystemProcedure.procCallName(LoadMultipartitionTable.class);
+        cr = client.callProcedure(procName, a_table.getName(), a_vt);
         assertEquals(cr.toString(), Status.OK, cr.getStatus());
         
-        cr = client.callProcedure("@LoadMultipartitionTable", b_table.getName(), b_vt);
+        cr = client.callProcedure(procName, b_table.getName(), b_vt);
         assertEquals(cr.toString(), Status.OK, cr.getStatus());
     }
     
@@ -152,37 +160,30 @@ public class TestPrefetchableSuite extends RegressionSuite {
     }
  
     static public junit.framework.Test suite() {
-        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPrefetchableSuite.class);
         VoltServerConfig config = null;
+        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPrefetchableSuite.class);
+        builder.setGlobalConfParameter("site.exec_prefetch_queries", true);
+        builder.setGlobalConfParameter("site.exec_force_singlepartitioned", false);
+        builder.setGlobalConfParameter("site.exec_voltdb_procinfo", true);
+        builder.setGlobalConfParameter("client.txn_hints", false);        
         
         VoltProjectBuilder project = new VoltProjectBuilder(PREFIX);
         project.addSchema(SquirrelsDistributed.class.getResource(PREFIX + "-ddl.sql"));
         project.addTablePartitionInfo("TABLEA", "A_ID");
         project.addTablePartitionInfo("TABLEB", "B_ID");
         project.addProcedures(PROCEDURES);
-        project.addStmtProcedure("GetA", "SELECT * FROM TABLEA WHERE A_ID = ?");
-        project.addStmtProcedure("GetACount", "SELECT COUNT(*), SUM(A_NUM_B) FROM TABLEA");
-        project.addStmtProcedure("GetBCount", "SELECT COUNT(*) FROM TABLEB");
         project.markStatementPrefetchable(SquirrelsDistributed.class, "getRemote");
         project.mapParameters(SquirrelsDistributed.class, 0, "getRemote", 0);
         
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
-//        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 2, BackendTarget.NATIVE_EE_JNI);
-//        config.setConfParameter("site.exec_prefetch_queries", true);
-//        config.setConfParameter("site.exec_force_singlepartitioned", false);
-//        config.setConfParameter("site.exec_voltdb_procinfo", true);
-//        config.setConfParameter("client.txn_hints", false);
-//        config.compile(project);
-//        builder.addServerConfig(config);
+        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        config.compile(project);
+        builder.addServerConfig(config);
  
         // CLUSTER CONFIG #2
         // Two sites, each with two partitions running in separate JVMs
         config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.exec_prefetch_queries", true);
-        config.setConfParameter("site.exec_force_singlepartitioned", false);
-        config.setConfParameter("site.exec_voltdb_procinfo", true);
-        config.setConfParameter("client.txn_hints", false);
         config.compile(project);
         builder.addServerConfig(config);
  

@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.catalog.Catalog;
@@ -45,6 +46,7 @@ import edu.brown.catalog.FixCatalog;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Implementation of a VoltServerConfig for a multi-process
@@ -55,14 +57,14 @@ public class LocalCluster extends VoltServerConfig {
     private static final Logger LOG = Logger.getLogger(LocalCluster.class);
 
     // configuration data
-    final String m_jarFileName;
+    final File m_jarFileName;
     final int m_partitionPerSite;
     final int m_siteCount;
     final int m_replication;
     final BackendTarget m_target;
     final String m_buildDir;
     int m_portOffset;
-    Catalog catalog;
+    CatalogContext catalogContext;
 
     // state
     boolean m_compiled = false;
@@ -99,7 +101,7 @@ public class LocalCluster extends VoltServerConfig {
             m_filename = filename;
             m_input = stream;
             try {
-                m_writer = new FileWriter(filename);
+                m_writer = new FileWriter(filename, true);
             }
             catch (IOException ex) {
                 LOG.error(null, ex);
@@ -184,7 +186,7 @@ public class LocalCluster extends VoltServerConfig {
         tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
         System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));*/
         
-        m_jarFileName = VoltDB.Configuration.getPathToCatalogForTest(jarFileName);
+        m_jarFileName = new File(VoltDB.Configuration.getPathToCatalogForTest(jarFileName));
         m_partitionPerSite = siteCount;
         m_target = target;
         m_siteCount = partitionsPerSite;
@@ -207,7 +209,7 @@ public class LocalCluster extends VoltServerConfig {
         if (m_compiled) {
             return true;
         }
-        m_compiled = builder.compile(m_jarFileName, m_partitionPerSite, m_siteCount,
+        m_compiled = builder.compile(m_jarFileName.getAbsolutePath(), m_partitionPerSite, m_siteCount,
                                      m_replication, "localhost");
         
         // (1) Load catalog from Jar
@@ -221,17 +223,31 @@ public class LocalCluster extends VoltServerConfig {
                 cc.addPartition("localhost", site, currentPartition);
             }
         }
-        this.catalog = FixCatalog.cloneCatalog(tmpCatalog, cc);
+        tmpCatalog = FixCatalog.cloneCatalog(tmpCatalog, cc);
         
         // (3) Write updated catalog back out to jar file
         try {
-            CatalogUtil.updateCatalogInJar(m_jarFileName, catalog);
+            CatalogUtil.updateCatalogInJar(m_jarFileName, tmpCatalog);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         
-        tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
+        // (4) Load it back in as a CatalogContext
+        this.catalogContext = CatalogUtil.loadCatalogContextFromJar(m_jarFileName);
+        assert(this.catalogContext != null);
+        
+        // tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
         // System.err.println(CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
+        
+        return m_compiled;
+    }
+
+    @Override
+    public void startUp() {
+        assert (!m_running);
+        if (m_running) {
+            return;
+        }
         
         // Construct the base command that we will want to use to start
         // all of the "remote" HStoreSites 
@@ -248,22 +264,12 @@ public class LocalCluster extends VoltServerConfig {
         // Lastly, we will include the site.id as the last parameter
         // so that we can easily change it
         siteCommand.add("-Dsite.id=-1");
-        
+
+        LOG.debug("Base command to start remote sites:\n" + StringUtil.join("\n", siteCommand));
         m_procBuilder = new ProcessBuilder(siteCommand.toArray(new String[0]));
         m_procBuilder.redirectErrorStream(true);
         // set the working directory to obj/release/prod
         //m_procBuilder.directory(new File(m_buildDir + File.separator + "prod"));
-
-        
-        return m_compiled;
-    }
-
-    @Override
-    public void startUp() {
-        assert (!m_running);
-        if (m_running) {
-            return;
-        }
 
         // set to true to spew startup timing data
         boolean logtime = true;
@@ -284,15 +290,20 @@ public class LocalCluster extends VoltServerConfig {
         HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
         hstore_conf.loadFromArgs(this.confParams);
         
+        String namePrefix = null;
+        if (m_jarFileName.getName().contains("-")) {
+            namePrefix = m_jarFileName.getName().split("-")[0].replace(".jar", "");
+        }
+        
         // create all the out-of-process servers
         // Loop through all of the sites in the catalog and start them
         int offset = m_procBuilder.command().size() - 1;
-        for (Site catalog_site : CatalogUtil.getAllSites(this.catalog)) {
+        for (Site catalog_site : catalogContext.sites) {
             final int site_id = catalog_site.getId(); 
             
             // If this is the first site, then start the HStoreSite in this JVM
             if (site_id == 0) {
-                m_localServer = new ServerThread(hstore_conf, catalog_site);
+                m_localServer = new ServerThread(this.catalogContext, hstore_conf, site_id);
                 m_localServer.start();
             }
             // Otherwise, fork a new JVM that will run our other HStoreSites.
@@ -316,8 +327,10 @@ public class LocalCluster extends VoltServerConfig {
                         assert(status);
                     }
     
-                    PipeToFile ptf = new PipeToFile(testoutputdir + File.separator +
-                                                    getName() + "-" + site_id + ".txt", proc.getInputStream());
+                    String logFile = testoutputdir + File.separator +
+                                     (namePrefix != null ? namePrefix + "-" : "") + 
+                                     getName() + "-" + site_id + ".txt";
+                    PipeToFile ptf = new PipeToFile(logFile, proc.getInputStream());
                     ptf.m_writer.write(m_procBuilder.command().toString() + "\n");
                     m_pipes.add(ptf);
                     Thread t = new Thread(ptf);
@@ -436,8 +449,13 @@ public class LocalCluster extends VoltServerConfig {
     }
 
     @Override
+    public CatalogContext getCatalogContext() {
+        return this.catalogContext;
+    }
+    
+    @Override
     public Catalog getCatalog() {
-        return this.catalog;
+        return this.catalogContext.catalog;
     }
     
     @Override

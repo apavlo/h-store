@@ -157,11 +157,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             Throwable error = null;
             try {
                 HStoreCoordinator.this.eventLoop.run();
-            } catch (RuntimeException ex) {
-                error = ex;
-            } catch (AssertionError ex) {
-                error = ex;
-            } catch (Exception ex) {
+            } catch (Throwable ex) {
                 error = ex;
             }
             
@@ -171,7 +167,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
                 }
                 
                 Throwable cause = null;
-                if (error instanceof RuntimeException && error.getCause() != null) {
+                if (error instanceof ServerFaultException && error.getCause() != null) {
                     if (error.getCause().getMessage() != null && error.getCause().getMessage().isEmpty() == false) {
                         cause = error.getCause();
                     }
@@ -265,14 +261,16 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         PrefetchQueryPlanner tmpPlanner = null;
         if (hstore_conf.site.exec_prefetch_queries) {
             boolean has_prefetch = false;
-            for (Procedure catalog_proc : catalogContext.procedures) {
+            for (Procedure catalog_proc : this.catalogContext.procedures.values()) {
                 if (catalog_proc.getPrefetchable()) {
                     has_prefetch = true;
                     break;
                 }
             }
-            if (has_prefetch) tmpPlanner = new PrefetchQueryPlanner(catalogContext.database,
-                                                                    hstore_site.getPartitionEstimator());
+            if (has_prefetch) {
+                tmpPlanner = new PrefetchQueryPlanner(this.catalogContext,
+                                                      hstore_site.getPartitionEstimator());
+            }
         }
         this.queryPrefetchPlanner = tmpPlanner;
         this.transactionPrefetch_callback = (this.queryPrefetchPlanner != null ? new TransactionPrefetchCallback() : null);
@@ -722,7 +720,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         // request for each site that we want to execute different queries on.
         // TODO: We probably don't want to bother prefetching for txns that only touch
         //       partitions that are in its same local HStoreSite
-        if (ts.getProcedure().getPrefetchable()) {
+        if (ts.getProcedure().getPrefetchable() && ts.getEstimatorState() != null) {
             if (d) LOG.debug(String.format("%s - Generating TransactionInitRequests with prefetchable queries", ts));
             
             // Make sure that we initialize our internal PrefetchState for this txn

@@ -46,7 +46,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
     private int[] partition_site_xref;
     private Random rand = new Random(0);
 
-    Object proc_params[] = {
+    private Object proc_params[] = {
         100l, // r_id
         LOCAL_PARTITION + 1l, // c_id
         LOCAL_PARTITION, // f_id
@@ -78,10 +78,9 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
             stmtParams.get(m[0]).setProcparameter(procParams.get(m[1]));
         } // FOR
 
-        this.prefetcher = new PrefetchQueryPlanner(catalog_db, p_estimator);
+        this.prefetcher = new PrefetchQueryPlanner(catalogContext, p_estimator);
         for (int i = 0; i < NUM_SITES; i++) {
-            Site catalog_site = this.getSite(i);
-            this.hstore_sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());
+            this.hstore_sites[i] = new MockHStoreSite(i, catalogContext, HStoreConf.singleton());
             this.coordinators[i] = this.hstore_sites[i].initHStoreCoordinator();
 
             // We have to make our fake ExecutionSites for each Partition at
@@ -115,8 +114,8 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
 
         this.ts.testInit(TXN_ID, LOCAL_PARTITION, partitions, this.getProcedure(TARGET_PREFETCH_PROCEDURE));
 
-        this.partition_site_xref = new int[CatalogUtil.getNumberOfPartitions(catalog_db)];
-        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_db)) {
+        this.partition_site_xref = new int[catalogContext.numberOfPartitions];
+        for (Partition catalog_part : catalogContext.getAllPartitions()) {
             this.partition_site_xref[catalog_part.getId()] = ((Site) catalog_part.getParent()).getId();
         } // FOR
     }
@@ -125,7 +124,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
      * testGenerateWorkFragments
      */
     public void testGenerateWorkFragments() throws Exception {
-        int num_sites = CatalogUtil.getNumberOfSites(catalog_db);
+        int num_sites = catalogContext.numberOfSites;
 
         this.ts.setTransactionId(TXN_ID);
         TransactionInitRequest[] requests = this.prefetcher.generateWorkFragments(this.ts);

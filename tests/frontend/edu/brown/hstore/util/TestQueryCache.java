@@ -18,7 +18,7 @@ import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.utils.ProjectType;
 
 /**
- * 
+ * TestQueryCache
  * @author pavlo
  */
 public class TestQueryCache extends BaseTestCase {
@@ -34,7 +34,6 @@ public class TestQueryCache extends BaseTestCase {
     QueryCache cache;
     Procedure catalog_proc;
     Statement catalog_stmt;
-    
     
     @Override
     protected void setUp() throws Exception {
@@ -98,11 +97,5 @@ public class TestQueryCache extends BaseTestCase {
             assertEquals(1, cacheResult.getRowCount());
             assertEquals(expected, cacheResult.asScalarLong());
         } // FOR
-        
-        
-        
     }
-    
-    
-    
 }

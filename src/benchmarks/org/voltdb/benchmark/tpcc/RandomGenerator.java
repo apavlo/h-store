@@ -50,6 +50,7 @@
 
 package org.voltdb.benchmark.tpcc;
 
+import java.util.List;
 import java.util.Random;
 
 /** A TPC-C random generator. */
@@ -123,6 +124,17 @@ public abstract class RandomGenerator {
         }
         assert minimum <= num && num <= maximum && num != excluding;
         return num;
+    }
+    
+    public int numberRemoteWarehouseId(int minimum, int maximum, int localPartition) {
+    	assert(TPCCSimulation.remoteWarehouseIds != null);
+    	List<Integer> remoteList = TPCCSimulation.remoteWarehouseIds.get(localPartition);
+    	if (remoteList == null || remoteList.size() < 1)
+    	    return numberExcluding(minimum, maximum,localPartition);
+    	// Generate 1 less number than the range
+        
+    	int ith = number(0, remoteList.size()-1);
+    	return remoteList.get(ith);
     }
 
     public double fixedPoint(int decimal_places, double minimum, double maximum) {

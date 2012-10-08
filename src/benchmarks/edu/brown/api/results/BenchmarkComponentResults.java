@@ -23,7 +23,15 @@ import edu.brown.utils.JSONUtil;
  */
 public class BenchmarkComponentResults implements JSONSerializable {
 
+    /**
+     * The number of txns executed base on ProcedureID
+     */
     public FastIntHistogram transactions;
+    
+    /**
+     * The number of distributed txns executed based on ProcedureId
+     */
+    public FastIntHistogram dtxns;
     
     private boolean enableLatencies = false;
     public final Map<Integer, Histogram<Integer>> latencies = new HashMap<Integer, Histogram<Integer>>();
@@ -38,15 +46,20 @@ public class BenchmarkComponentResults implements JSONSerializable {
         // Needed for deserialization
     }
     
-    public BenchmarkComponentResults(int numTxns) {
-        this.transactions = new FastIntHistogram(numTxns);
+    public BenchmarkComponentResults(int numProcedures) {
+        this.transactions = new FastIntHistogram(numProcedures);
         this.transactions.setKeepZeroEntries(true);
+        this.dtxns = new FastIntHistogram(numProcedures);
+        this.dtxns.setKeepZeroEntries(true);
     }
     
     public BenchmarkComponentResults copy() {
         final BenchmarkComponentResults copy = new BenchmarkComponentResults(this.transactions.fastSize());
         copy.transactions.setDebugLabels(this.transactions.getDebugLabels());
         copy.transactions.put(this.transactions);
+        copy.dtxns.setDebugLabels(this.transactions.getDebugLabels());
+        copy.dtxns.put(this.dtxns);
+        
         copy.enableLatencies = this.enableLatencies;
         copy.latencies.clear();
         for (Entry<Integer, Histogram<Integer>> e : this.latencies.entrySet()) {
@@ -90,6 +103,7 @@ public class BenchmarkComponentResults implements JSONSerializable {
     public void clear(boolean includeTxns) {
         if (includeTxns && this.transactions != null) {
             this.transactions.clearValues();
+            this.dtxns.clearValues();
         }
         this.latencies.clear();
         this.basePartitions.clearValues();
@@ -127,5 +141,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
         JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true,
                 JSONUtil.getSerializableFields(this.getClass()));
         assert(this.transactions != null);
+        assert(this.dtxns != null);
     }
 } // END CLASS

@@ -68,6 +68,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.benchmark.BlockingClient;
@@ -80,7 +81,9 @@ import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.StatsUploaderSettings;
+import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
@@ -649,9 +652,11 @@ public abstract class BenchmarkComponent {
             Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
             for (int i = 0; i < m_countDisplayNames.length; i++) {
                 m_txnStats.transactions.put(i, 0);
+                m_txnStats.dtxns.put(i, 0);
                 debugLabels.put(i, m_countDisplayNames[i]);
             } // FOR
             m_txnStats.transactions.setDebugLabels(debugLabels);
+            m_txnStats.dtxns.setDebugLabels(debugLabels);
             
             m_txnStats.setEnableLatencies(m_hstoreConf.client.output_latencies);
             m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
@@ -885,6 +890,9 @@ public abstract class BenchmarkComponent {
         if (status == Status.OK || status == Status.ABORT_USER) {
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.fastPut(txn_idx);
+                if (cresponse.isSinglePartition() == false) {
+                    m_txnStats.dtxns.fastPut(txn_idx);
+                }
             } // SYNCH
 
             if (m_txnStats.isLatenciesEnabled()) {
@@ -943,9 +951,8 @@ public abstract class BenchmarkComponent {
         int byteCount = vt.getUnderlyingBufferSize();
         long byteTotal = m_tableBytes.get(tableName, 0);
         
-        if (trace.get())
-            LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
-                                    tableName.toUpperCase(), rowCount, rowTotal, byteCount, byteTotal));
+        if (trace.get()) LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
+                                   tableName.toUpperCase(), rowCount, rowTotal, byteCount, byteTotal));
         
         // Load up this dirty mess...
         ClientResponse cr = null;
@@ -953,19 +960,40 @@ public abstract class BenchmarkComponent {
             boolean locked = m_hstoreConf.client.blocking_loader;
             if (locked) m_loaderBlock.lock();
             try {
-                cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
-            } catch (Exception e) {
-                throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
+                int tries = 3;
+                String procName = VoltSystemProcedure.procCallName(LoadMultipartitionTable.class);
+                while (tries-- > 0) {
+                    try {
+                        cr = m_voltClient.callProcedure(procName, tableName, vt);
+                    } catch (ProcCallException ex) {
+                        // If this thing was rejected, then we'll allow us to try again. 
+                        cr = ex.getClientResponse();
+                        if (cr.getStatus() == Status.ABORT_REJECT && tries > 0) {
+                            if (debug.get()) 
+                                LOG.warn(String.format("Loading data for %s was rejected. Going to try again\n%s",
+                                         tableName, cr.toString()));
+                            continue;
+                        }
+                        // Anything else needs to be thrown out of here
+                        throw ex;
+                    }
+                    break;
+                } // WHILE
+            } catch (Throwable ex) {
+                throw new RuntimeException("Error when trying load data for '" + tableName + "'", ex);
             } finally {
                 if (locked) m_loaderBlock.unlock();
             } // SYNCH
-            if (debug.get()) LOG.debug(String.format("Load %s: txn #%d / %s / %d",
-                                                     tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
+            assert(cr != null);
+            assert(cr.getStatus() == Status.OK);
+            if (trace.get()) LOG.trace(String.format("Load %s: txn #%d / %s / %d",
+                                       tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
         } else {
             cr = m_dummyResponse;
         }
         if (cr.getStatus() != Status.OK) {
-            LOG.warn(String.format("Failed to load %d rows for '%s': %s", rowCount, tableName, cr.getStatusString()), cr.getException()); 
+            LOG.warn(String.format("Failed to load %d rows for '%s': %s",
+                     rowCount, tableName, cr.getStatusString()), cr.getException()); 
             return (cr);
         }
         
@@ -1433,6 +1461,7 @@ public abstract class BenchmarkComponent {
                 return false;
             }
 
+            LOG.warn("Invalid " + procName + " response!\n" + clientResponse);
             if (clientResponse.getException() != null) {
                 clientResponse.getException().printStackTrace();
             }

@@ -147,7 +147,7 @@ public class TestVertex extends BaseTestCase {
             Statement catalog_stmt = this.vertices[i].getCatalogItem();
             PartitionSet partitions = this.vertices[i].getPartitions();
             PartitionSet past_partitions = this.vertices[i].getPastPartitions();
-            int query_index = this.vertices[i].getQueryInstanceIndex();
+            int query_index = this.vertices[i].getQueryCounter();
             
             assertNotNull(catalog_stmt);
             assertNotNull(partitions);
@@ -158,7 +158,7 @@ public class TestVertex extends BaseTestCase {
 
             MarkovVertex new_v = new MarkovVertex((Statement)this.vertices[i].getCatalogItem(),
                     this.vertices[i].getType(),
-                    this.vertices[i].getQueryInstanceIndex(),
+                    this.vertices[i].getQueryCounter(),
                     new HashSet<Integer>(this.vertices[i].getPartitions()),
                     CollectionUtil.addAll(new HashSet<Integer>(), 1));
             for (boolean past_partitions_flag : new boolean[]{false, true}) {

@@ -121,9 +121,9 @@ env.port = 22
 ENV_DEFAULT = {
     ## EC2 Options
     "ec2.site_type":               "m2.4xlarge",
-    "ec2.site_ami":                "ami-7dae1b14",
+    "ec2.site_ami":                "ami-39a81d50",
     "ec2.client_type":             "m1.xlarge",
-    "ec2.client_ami":              "ami-7dae1b14",
+    "ec2.client_ami":              "ami-39a81d50",
     "ec2.placement_group":         None,
     "ec2.security_group":          "hstore",
     "ec2.keypair":                 "hstore",
@@ -152,6 +152,7 @@ ENV_DEFAULT = {
     "hstore.partitions":            6,
     "hstore.sites_per_host":        1,
     "hstore.partitions_per_site":   7,
+    "hstore.num_hosts_round_robin": 2,
 }
 
 has_rcfile = os.path.exists(env.rcfile)
@@ -289,24 +290,37 @@ def start_cluster(updateSync=True):
             ## HACK: We should really be tagging the instances rather relying 
             ## on an offset to determine whether they are a site or a client 
             if sites_needed > 0:
-                if currentType != env["ec2.site_type"]:
+                LOG.debug("SITE: %s - Current Type %s <=> %s" % (__getInstanceName__(inst), currentType, env["ec2.site_type"]))
+                if inst.image_id != env["ec2.site_ami"]:
+                    LOG.warn("SITE Skipping %s != %s" % (inst.image_id, env["ec2.site_ami"]))
+                    pass
+                elif currentType != env["ec2.site_type"]:
                     if env["ec2.change_type"]:
                         inst.modify_attribute("instanceType", env["ec2.site_type"])
                         siteInstances.append(inst)
-                        sites_needed -= 1
                         restart = True
                 else:
                     restart = True
+                if restart:
+                    sites_needed -= 1
             else:
-                if currentType != env["ec2.client_type"]:
+                LOG.debug("CLIENT: %s - Current Type %s <=> %s" % (__getInstanceName__(inst), currentType, env["ec2.client_type"]))
+                if inst.image_id != env["ec2.client_ami"]:
+                    LOG.warn("CLIENT Skipping %s != %s" % (inst.image_id, env["ec2.site_ami"]))
+                    pass
+                elif currentType != env["ec2.client_type"]:
                     if env["ec2.change_type"]:
                         inst.modify_attribute("instanceType", env["ec2.client_type"])
                         clientInstances.append(inst)
-                        clients_needed -= 1
                         restart = True
                 else:
                     restart = True
+                if restart:
+                    clients_needed -= 1
             ## IF
+            if not restart:
+                LOG.debug("SKIP %s" % __getInstanceName__(inst))
+                continue
                 
             LOG.info("Restarting stopped instance '%s' / %s" % (__getInstanceName__(inst), currentType))
             inst.start()
@@ -316,6 +330,7 @@ def start_cluster(updateSync=True):
             if sites_needed == 0 and clients_needed == 0:
                 break
         ## FOR
+        
         if waiting:
             for inst in waiting:
                 __waitUntilStatus__(inst, 'running')
@@ -370,7 +385,7 @@ def start_cluster(updateSync=True):
         if len(clientInstance_tags) > 0:
             __startInstances__(len(clientInstance_tags),
                                env["ec2.client_ami"],
-                               env["ec2.client_ami"],
+                               env["ec2.client_type"],
                                clientInstance_tags)
             instances_needed -= len(clientInstance_tags)
     ## IF
@@ -620,7 +635,7 @@ def deploy_hstore(build=True, update=True):
             ebsDir = "/mnt/h-store"
             with settings(warn_only=True):
                 if run("test -d %s" % ebsDir).failed:
-                    run("mkdir -p " + ebsDir)
+                    sudo("mkdir -p " + ebsDir)
                 sudo("chown --quiet -R %s %s" % (env.user, ebsDir))
             ## WITH
             run("ant junit-getfiles -Dsymlink=%s" % ebsDir)
@@ -851,8 +866,8 @@ def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
     for key in sorted(updates.keys()):
         val = updates[key]
         hstore_line = "%s%s=%s%s" % (key, space, space, val)
-        regex = "%s[ ]*=[ ]*.*" % re.escape(key)
-        m = re.search(regex, contents)
+        regex = "^(?:#)*[\s]*%s[ ]*=[ ]*.*" % re.escape(key)
+        m = re.search(regex, contents, re.MULTILINE)
         if not m:
             if first: contents += "\n"
             contents += hstore_line + "\n"
@@ -987,14 +1002,18 @@ def __syncTime__():
 ## ----------------------------------------------        
 def __startInstances__(instances_count, ec2_ami, ec2_type, instance_tags):
     LOG.info("Attemping to start %d instances." % (instances_count))
-    reservation = ec2_conn.run_instances(ec2_ami,
-                                         instance_type=ec2_type,
-                                         key_name=env["ec2.keypair"],
-                                         min_count=instances_count,
-                                         max_count=instances_count,
-                                         security_groups=[ env["ec2.security_group"] ],
-                                         placement=env["ec2.region"],
-                                         placement_group=env["ec2.placement_group"])
+    try:
+        reservation = ec2_conn.run_instances(ec2_ami,
+                                            instance_type=ec2_type,
+                                            key_name=env["ec2.keypair"],
+                                            min_count=instances_count,
+                                            max_count=instances_count,
+                                            security_groups=[ env["ec2.security_group"] ],
+                                            placement=env["ec2.region"],
+                                            placement_group=env["ec2.placement_group"])
+    except:
+        LOG.error("Failed to start %s instances [%s]" % (ec2_type, ec2_ami))
+        raise
     LOG.info("Started %d execution nodes. Waiting for them to come online" % len(reservation.instances))
     i = 0
     for inst in reservation.instances:

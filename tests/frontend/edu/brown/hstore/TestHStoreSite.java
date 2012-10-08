@@ -24,6 +24,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
@@ -162,7 +163,8 @@ public class TestHStoreSite extends BaseTestCase {
         // Now try invoking @Statistics to get back more information
         params = new Object[]{ SysProcSelector.TXNPROFILER.name(), 0 };
         cr = this.client.callProcedure(VoltSystemProcedure.procCallName(Statistics.class), params);
-        System.err.println(cr);
+//        System.err.println(cr);
+        System.err.println(VoltTableUtil.format(cr.getResults()[0]));
         assertNotNull(cr);
         assertEquals(Status.OK, cr.getStatus());
         
@@ -171,6 +173,7 @@ public class TestHStoreSite extends BaseTestCase {
         VoltTable results[] = cr.getResults();
         assertEquals(1, results.length);
         boolean found = false;
+        results[0].resetRowPosition();
         while (results[0].advanceRow()) {
             if (results[0].getString(3).equalsIgnoreCase(catalog_proc.getName())) {
                 for (String f : fields) {

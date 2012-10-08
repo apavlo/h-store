@@ -606,6 +606,10 @@ public class VoltProjectBuilder {
         m_partitionInfos.put(tableName, partitionColumnName);
     }
     
+    // -------------------------------------------------------------------
+    // VERTICAL PARTITONS (AKA REPLICATED SECONDARY INDEXES)
+    // -------------------------------------------------------------------
+    
     public void addVerticalPartitionInfo(final String tableName, final String...partitionColumnNames) {
         this.addVerticalPartitionInfo(tableName, true, partitionColumnNames);
     }
@@ -680,6 +684,10 @@ public class VoltProjectBuilder {
         return compile(jarPath, 1, 1, 0, "localhost");
     }
 
+    public boolean compile(final File jarPath, final int sitesPerHost, final int replication) {
+        return compile(jarPath.getAbsolutePath(), sitesPerHost, 1, replication, "localhost");
+    }
+    
     public boolean compile(final String jarPath, final int sitesPerHost, final int replication) {
         return compile(jarPath, sitesPerHost, 1, replication, "localhost");
     }
@@ -777,16 +785,29 @@ public class VoltProjectBuilder {
         // to load the catalog into this JVM, apply the mappings, and then
         // update the jar file with the new catalog
         if (m_paramMappingsFile != null || m_paramMappings.isEmpty() == false) {
-            this.applyParameterMappings(jarPath);
+            File jarFile = new File(jarPath);
+            Catalog catalog = CatalogUtil.loadCatalogFromJar(jarFile);
+            assert(catalog != null);
+            Database catalog_db = CatalogUtil.getDatabase(catalog);
+            
+            this.applyParameterMappings(catalog_db);
+            
+            // Construct a List of prefetchable Statements
+            this.applyPrefetchableFlags(catalog_db);
+            
+            // Write it out!
+            try {
+                CatalogUtil.updateCatalogInJar(jarFile, catalog, m_paramMappingsFile);
+            } catch (Exception ex) {
+                String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
+                throw new RuntimeException(msg, ex);
+            }
         }
         
         return success;
     }
     
-    private void applyParameterMappings(String jarPath) {
-        Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
-        assert(catalog != null);
-        Database catalog_db = CatalogUtil.getDatabase(catalog);
+    private void applyParameterMappings(Database catalog_db) {
         ParameterMappingsSet mappings = new ParameterMappingsSet();        
         
         // Load ParameterMappingSet from file
@@ -835,16 +856,36 @@ public class VoltProjectBuilder {
         
         // Apply it!
         ParametersUtil.applyParameterMappings(catalog_db, mappings);
-        
-        // Write it out!
-        try {
-            CatalogUtil.updateCatalogInJar(jarPath, catalog, m_paramMappingsFile);
-        } catch (Exception ex) {
-            String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
-            throw new RuntimeException(msg, ex);
-        }
     }
 
+    // Do we want to put this above to save doing the traversal all over again?
+    private void applyPrefetchableFlags(Database catalog_db) {
+        for (String procName : m_paramMappings.keySet()) {
+            Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
+            assert(catalog_proc != null) :
+                "Invalid Procedure name for ParameterMappings '" + procName + "'";
+            for (Integer procParamIdx : m_paramMappings.get(procName).keySet()) {
+                ProcParameter catalog_procParam = catalog_proc.getParameters().get(procParamIdx.intValue());
+                assert(catalog_procParam != null) :
+                    "Invalid ProcParameter for '" + procName + "' at offset " + procParamIdx;
+                Pair<String, Integer> stmtPair = m_paramMappings.get(procName).get(procParamIdx);
+                assert(stmtPair != null);
+                
+                Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmtPair.getFirst());
+                assert(catalog_stmt != null) :
+                    "Invalid Statement name '" + stmtPair.getFirst() + "' for ParameterMappings " +
+                    "for Procedure '" + procName + "'";
+                StmtParameter catalog_stmtParam = catalog_stmt.getParameters().get(stmtPair.getSecond().intValue());
+                assert(catalog_stmtParam != null) :
+                    "Invalid StmtParameter for '" + catalog_stmt.fullName() + "' at offset " + stmtPair.getSecond();
+                
+                if (catalog_stmtParam.getProcparameter() != null) {
+                    catalog_stmt.setPrefetchable(true);
+                }
+            } // FOR (ProcParameter)
+        } // FOR (Procedure)
+    }
+    
     private void buildDatabaseElement(Document doc, final Element database) {
 
         // /project/database/users

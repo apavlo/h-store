@@ -28,10 +28,8 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.RemoteTransaction;
@@ -67,9 +65,9 @@ public class TestPartitionExecutor extends BaseTestCase {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITONS);
         
-        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
+        Site catalog_site = CollectionUtil.first(catalogContext.sites);
         HStoreConf hstore_conf = HStoreConf.singleton();
-        hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
+        hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, hstore_conf);
         executor = hstore_site.getPartitionExecutor(PARTITION_ID);
         assertNotNull(executor);
     }

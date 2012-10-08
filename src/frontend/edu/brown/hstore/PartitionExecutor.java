@@ -442,13 +442,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     private final PartitionExecutorProfiler profiler = new PartitionExecutorProfiler();
-
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
     // ----------------------------------------------------------------------------
-
-    /**
+    
+	/**
      * This will be invoked for each TransactionWorkResponse that comes back from
      * the remote HStoreSites. Note that we don't need to do any counting as to whether
      * a transaction has gotten back all of the responses that it expected. That logic is down
@@ -467,11 +466,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
             
             if (d) LOG.debug(String.format("Processing TransactionWorkResponse for %s with %d results",
-                                        ts, msg.getResultsCount()));
+                             ts, msg.getResultsCount()));
             for (int i = 0, cnt = msg.getResultsCount(); i < cnt; i++) {
                 WorkResult result = msg.getResults(i); 
                 if (t) LOG.trace(String.format("Got %s from partition %d for %s",
-                                               result.getClass().getSimpleName(), result.getPartitionId(), ts));
+                                 result.getClass().getSimpleName(), result.getPartitionId(), ts));
                 PartitionExecutor.this.processWorkResult(ts, result);
             } // FOR
         }
@@ -734,7 +733,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         if (hstore_conf.site.exec_profiling) {
             EventObservable<?> observable = this.hstore_site.getStartWorkloadObservable();
-            this.profiler.idle_time.resetOnEventObservable(observable);
+            this.profiler.idle_queue_time.resetOnEventObservable(observable);
             this.profiler.exec_time.resetOnEventObservable(observable);
         }
         
@@ -866,7 +865,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // until something shows up in our queue
         if (work == null) {
             if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
-            if (hstore_conf.site.exec_profiling) this.profiler.idle_time.start();
+            if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.start();
+            if (hstore_conf.site.exec_profiling && this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.start();
             try {
                 work = this.work_queue.poll(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
             } catch (InterruptedException ex) {
@@ -875,7 +875,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.stop = true;
                 return (null);
             } finally {
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_time.stop();                    
+            	if (hstore_conf.site.exec_profiling && this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.stop();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.stop();                    
             }
         }
         return (work);
@@ -1269,6 +1270,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     public int getPartitionId() {
         return (this.partitionId);
     }
+    public PartitionExecutorProfiler getProfiler() {
+		return profiler;
+	}
     
     /**
      * Returns the next undo token to use when hitting up the EE with work
@@ -1426,6 +1430,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     public void queueWork(AbstractTransaction ts, WorkFragment fragment) {
         assert(ts.isInitialized());
+        
+        if (hstore_conf.site.exec_profiling && this.profiler.idle_waiting_dtxn_time.isStarted()) {
+            this.profiler.idle_waiting_dtxn_time.stop();
+        }
         
         WorkFragmentMessage work = ts.getWorkFragmentMessage(fragment);
         boolean ret = this.work_queue.offer(work, true);
@@ -1921,11 +1929,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         } catch (ConstraintFailureException ex) {
             status = Status.ABORT_UNEXPECTED;
             error = ex;
-        } catch (EEException ex) {
-            this.crash(ex);
+        } catch (SQLException ex) {
             status = Status.ABORT_UNEXPECTED;
             error = ex;
-        } catch (SQLException ex) {
+        } catch (EEException ex) {
+            // this.crash(ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
@@ -1936,7 +1944,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 error = new SerializableException(ex);
             }
         } finally {
-            if (d && error != null) {
+            if (error != null) {
                 LOG.error(String.format("%s - Unexpected %s on partition %d",
                           ts, error.getClass().getSimpleName(), this.partitionId), error);
             }
@@ -2816,7 +2824,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             } // FOR
             if (has_remote == false) {
                 LOG.warn(ts.debug() + "\n" + fragments);
-                String msg = String.format("%s - Trying to execute all local single-partition queries using the slow-path!", ts);
+                String msg = ts + "Trying to execute all local single-partition queries using the slow-path!";
                 throw new ServerFaultException(msg, ts.getTransactionId());
             }
         }
@@ -2881,6 +2889,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // If we didn't get back a list of fragments here, then we will spin through
                 // and invoke utilityWork() to try to do something useful until what we need shows up
                 if (needs_profiling) ts.profiler.startExecDtxnWork();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.start();
                 try {
                     while (fragments == null) {
                         // If there is more work that we could do, then we'll just poll the queue
@@ -2901,6 +2910,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     return (null);
                 } finally {
                     if (needs_profiling) ts.profiler.stopExecDtxnWork();
+                    if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.stop();
                 }
             }
             assert(fragments != null);
@@ -3054,6 +3064,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (d) LOG.debug(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
                                      ts, num_remote));
                     this.requestWork(ts, tmp_remoteFragmentList, tmp_serializedParams);
+                    if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
                 
                 // Then dispatch the task that are needed at the same HStoreSite but 
@@ -3064,6 +3075,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     for (WorkFragment fragment : this.tmp_localSiteFragmentList) {
                         hstore_site.getPartitionExecutor(fragment.getPartitionId()).queueWork(ts, fragment);
                     } // FOR
+                    if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
         
                 // Then execute all of the tasks need to access the partitions at this HStoreSite
@@ -3099,7 +3111,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (latch.getCount() > 0) {
             if (d) {
                 LOG.debug(String.format("%s - All blocked messages dispatched. Waiting for %d dependencies",
-                                        ts, latch.getCount()));
+                          ts, latch.getCount()));
                 if (t) LOG.trace(ts.toString());
             }
             boolean timeout = false;
@@ -3107,6 +3119,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             long waitTime = hstore_conf.site.exec_response_timeout*1000000;
             
             if (needs_profiling) ts.profiler.startExecDtxnWork();
+            if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.start();
             try {
                 while (latch.getCount() > 0 && ts.hasPendingError() == false) {
                     if (this.utilityWork() == false) {
@@ -3127,6 +3140,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 throw new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
             } finally {
                 if (needs_profiling) ts.profiler.stopExecDtxnWork();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.stop();
             }
             
             if (timeout && this.isShuttingDown() == false) {
@@ -3300,7 +3314,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             TransactionPrepareCallback callback = ts.getOrInitTransactionPrepareCallback();
             assert(callback != null) : 
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
-            if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
+            
+            if (hstore_conf.site.exec_profiling) {
+            	this.profiler.network_time.start();
+            	// if (this.profiler.idle_2pc_local_time.isStarted()) this.profiler.idle_2pc_local_time.stop();
+            	this.profiler.idle_2pc_local_time.start();
+            }
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
             if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) this.profiler.network_time.stop();
         }
@@ -3398,6 +3417,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
         }
         
+        if (hstore_conf.site.exec_profiling) {
+            if (this.profiler.idle_2pc_local_time.isStarted()) 
+                this.profiler.idle_2pc_local_time.stop();
+            if (this.profiler.idle_2pc_remote_time.isStarted())
+                this.profiler.idle_2pc_remote_time.stop();
+        }
+        
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
         ts.markFinished(this.partitionId);
@@ -3453,7 +3479,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             this.releaseBlockedTransactions(ts);
         } catch (Throwable ex) {
             String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
-            throw new ServerFaultException(msg, ex);
+            throw new ServerFaultException(msg, ex, ts.getTransactionId());
         } finally {
             exec_lock.unlock();
         } // SYNCH

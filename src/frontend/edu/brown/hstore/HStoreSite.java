@@ -115,6 +115,7 @@ import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.HStoreSiteProfiler;
+import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
@@ -414,12 +415,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param coordinators
      * @param p_estimator
      */
-    protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
-        assert(catalog_site != null);
-        
+    protected HStoreSite(int site_id, CatalogContext catalogContext, HStoreConf hstore_conf) {
+        assert(hstore_conf != null);
+        assert(catalogContext != null);
         this.hstore_conf = hstore_conf;
-        this.catalogContext = new CatalogContext(catalog_site.getCatalog(), CatalogContext.NO_PATH);
-        this.catalog_site = catalog_site;
+        this.catalogContext = catalogContext;
+        
+        this.catalog_site = this.catalogContext.getSiteById(site_id);
+        if (this.catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
+        
         this.catalog_host = this.catalog_site.getHost(); 
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
@@ -465,7 +469,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Offset Hack
         this.local_partition_offsets = new int[num_partitions];
-        Arrays.fill(this.local_partition_offsets, -1);
+        Arrays.fill(this.local_partition_offsets, HStoreConstants.NULL_PARTITION_ID);
         this.local_partition_reverse = new int[num_local_partitions];
         int offset = 0;
         for (int partition : this.local_partitions) {
@@ -721,6 +725,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Update all our other boys
         this.objectPools.updateConf(hstore_conf);
+        this.txnQueueManager.updateConf(hstore_conf);
     }
     
     // ----------------------------------------------------------------------------
@@ -1496,6 +1501,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // TODO: This should be an error message back to the client, not an exception
             if (catalog_proc == null) {
                 String msg = "Unknown procedure '" + procName + "'";
+                LOG.error(msg);
                 this.responseError(client_handle,
                                    Status.ABORT_UNEXPECTED,
                                    msg,
@@ -1613,8 +1619,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
 
-        if (hstore_conf.site.txn_counters) {
-            (success ? TransactionCounter.EXECUTED : TransactionCounter.REJECTED).inc(catalog_proc);
+        if (hstore_conf.site.txn_counters && success == false) {
+            TransactionCounter.REJECTED.inc(catalog_proc);
         }
         
         if (t) LOG.trace(String.format("Finished initial processing of new txn. [success=%s]", success));
@@ -1916,6 +1922,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (updated != null) updated.add(p);
                 if (d) LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, p));
                 continue;
+            }
+            
+            if (hstore_conf.site.exec_profiling && ts != null && p != ts.getBasePartition() && ts.needsFinish(p)) {
+                PartitionExecutorProfiler pep = this.executors[p].getProfiler();
+                assert(pep != null);
+                pep.idle_2pc_remote_time.start();
             }
             
             // Always tell the queue stuff that the transaction is finished at this partition
@@ -2601,8 +2613,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         TransactionCounter.REJECTED.inc(catalog_proc);
                     break;
                 case ABORT_UNEXPECTED:
+                    if (hstore_conf.site.txn_counters)
+                        TransactionCounter.ABORT_UNEXPECTED.inc(catalog_proc);
+                    break;
                 case ABORT_GRACEFUL:
-                    // TODO: Make new counter?
+                    if (hstore_conf.site.txn_counters)
+                        TransactionCounter.ABORT_GRACEFUL.inc(catalog_proc);
                     break;
                 default:
                     LOG.warn(String.format("Unexpected status %s for %s", status, ts));

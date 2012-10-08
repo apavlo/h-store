@@ -1,6 +1,9 @@
 package edu.brown.hstore.estimators;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.voltdb.catalog.Statement;
@@ -8,6 +11,7 @@ import org.voltdb.utils.EstTime;
 
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.StringUtil;
 
 public abstract class EstimatorState implements Poolable {
 
@@ -19,6 +23,8 @@ public abstract class EstimatorState implements Poolable {
     
     protected final PartitionSet touched_partitions = new PartitionSet();
     protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
+    
+    protected final List<Statement> prefetch = new ArrayList<Statement>();
     
     /**
      * Constructor
@@ -45,7 +51,7 @@ public abstract class EstimatorState implements Poolable {
         this.touched_partitions.clear();
         this.query_instance_cnts.clear();
         this.txn_id = null;
-
+        this.prefetch.clear();
     }
     
     public Long getTransactionId() {
@@ -59,6 +65,9 @@ public abstract class EstimatorState implements Poolable {
     }
     public PartitionSet getTouchedPartitions() {
         return (this.touched_partitions);
+    }
+    public List<Statement> getPrefetch() {
+        return (this.prefetch);
     }
     
     /**
@@ -86,5 +95,18 @@ public abstract class EstimatorState implements Poolable {
         this.query_instance_cnts.put(catalog_stmt, cnt.intValue() + 1);
         return (cnt.intValue());
     }
+    
+    @Override
+    public String toString() {
+        Map<String, Object> m0 = new LinkedHashMap<String, Object>();
+        m0.put("TransactionId", this.txn_id);
+        m0.put("Base Partition", this.base_partition);
+        m0.put("Touched Partitions", this.touched_partitions);
+        m0.put("Start Time", this.start_time);
+        return StringUtil.formatMaps(m0);
+    }
 
+    public void addPrefetchStatement(Statement statement) {
+        this.prefetch.add(statement);
+    }
 }

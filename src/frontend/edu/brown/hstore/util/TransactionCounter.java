@@ -24,7 +24,7 @@ public enum TransactionCounter {
     REJECTED,
     /** Of the the received transactions, the number that we had to send somewhere else */
     REDIRECTED,
-    /** The number of txns that we executed locally */
+    /** The number of transactions that we executed locally */
     EXECUTED,
     /** Of the locally executed transactions, how many were single-partitioned */
     SINGLE_PARTITION,
@@ -32,10 +32,14 @@ public enum TransactionCounter {
     MULTI_PARTITION,
     /** The number of sysprocs that we executed */
     SYSPROCS,
-    /** The number of tranactions that were completed (committed or aborted) */
+    /** The number of transactions that were completed (committed or aborted) */
     COMPLETED,
     /** Of the locally executed transactions, how many were abort */
     ABORTED,
+    /** The number of transactions that were unexpectedly aborted (e.g., because of an assert) */
+    ABORT_UNEXPECTED,
+    /** The number of transactions that were gracefully aborted  */
+    ABORT_GRACEFUL,
     /** The number of transactions that were speculative and had to be restarted */
     RESTARTED,
     /** The number of transactions that were mispredicted (and thus re-executed) */
@@ -109,6 +113,8 @@ public enum TransactionCounter {
                 break;
             case SYSPROCS:
             case ABORTED:
+            case ABORT_UNEXPECTED:
+            case ABORT_GRACEFUL:
             case RESTARTED:
             case MISPREDICTED:
                 total = EXECUTED.get() - SYSPROCS.get();

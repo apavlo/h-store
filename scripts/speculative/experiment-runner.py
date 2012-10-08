@@ -173,24 +173,47 @@ EXPERIMENT_SETTINGS = {
         
         "ec2.site_type":                       "c1.xlarge",
         "site.memory":                          6144,
-        "site.txn_incoming_delay":              5,
+        "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 False,
         "site.specexec_idle":                   False,
         "site.markov_enable":                   False,
+        "site.markov_fixed":                    True,
+        "site.exec_force_singlepartitioned":    False,
         "client.count":                         1,
         "client.txnrate":                       100000,
         "client.blocking":                      True,
         "client.output_response_status":        True,
         "client.output_exec_profiling":         "execprofile.csv",
-        "client.output_queue_profiling":        "queueprofile.csv",
-        "client.output_txn_profiling":          "txnprofile.csv",
-        "client.output_txn_profiling_combine":  True,
+        #"client.output_queue_profiling":        "queueprofile.csv",
+
+        #"client.output_txn_profiling":          "txnprofile.csv",
+        #"client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",
-        #"client.output_txn_counters_combine":   True,
+        #"client.output_txn_counters_combine":   False,
+        "client.output_basepartitions":         True,
         "benchmark.neworder_only":              True,
+        "benchmark.neworder_multip_remote":     True,
         "benchmark.neworder_abort":             False,
         "benchmark.neworder_multip_mix":        100,
         "benchmark.loadthread_per_warehouse":   False,
+    },
+    "remotequery": {
+        "ec2.site_type":                       "c1.xlarge",
+        "site.memory":                          6144,
+        "site.txn_incoming_delay":              2,
+        "site.specexec_enable":                 False,
+        "site.specexec_idle":                   False,
+        "site.markov_enable":                   False,
+        "site.markov_fixed":                    True,
+        "site.exec_force_singlepartitioned":    False,
+        "client.count":                         1,
+        "client.txnrate":                       100000,
+        "client.blocking":                      True,
+        "client.output_txn_profiling":          "txnprofile.csv",
+        "client.output_txn_profiling_combine":  True,
+        
+        #"benchmark.neworder_multip_mix":        100,
+        #"benchmark.payment_multip_mix":         100,
     },
 }
 EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
@@ -220,11 +243,20 @@ def updateEnv(args, env, benchmark, partitions):
         else:
             env["client.threads_per_host"] = int(partitions/2)
         env["benchmark.loadthreads"] = min(16, partitions)
-        
-        pplan = "%s.lns.pplan" % benchmark
-        env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
-        env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"
 
+    ## ----------------------------------------------
+    ## REMOTE QUERY
+    ## ----------------------------------------------
+    elif args['exp_type'].startswith("remotequery"):
+        env["client.threads_per_host"] = int(partitions/2)
+        
+        if benchmark == "tpcc":
+            env["client.weights"] = "neworder:50,paymentByCustomerId:50,*:0"
+        
+    pplan = "%s.lns.pplan" % benchmark
+    env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+    env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"
+        
 ## DEF
 
 ## ==============================================
@@ -349,7 +381,7 @@ if __name__ == '__main__':
     
     ## Experiment Parameters
     agroup = aparser.add_argument_group('Experiment Parameters')
-    agroup.add_argument("--exp-type", type=str, choices=EXPERIMENT_SETTINGS.keys(), default=EXPERIMENT_SETTINGS.keys()[0])
+    agroup.add_argument("--exp-type", type=str, choices=sorted(EXPERIMENT_SETTINGS.keys()), default=EXPERIMENT_SETTINGS.keys()[0])
     agroup.add_argument("--exp-trials", type=int, default=3, metavar='N')
     agroup.add_argument("--exp-attempts", type=int, default=3, metavar='N')
     
@@ -481,9 +513,7 @@ if __name__ == '__main__':
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
     
     # BenchmarkController Parameters
-    controllerParams = { }
-    
-    
+    controllerParams = { } # { "noshutdown": True }
     
     needUpdate = (args['no_update'] == False)
     needUpdateLog4j = args['debug_log4j_site'] or args['debug_log4j_client']

@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
@@ -255,8 +256,8 @@ public class MarkovEstimator extends TransactionEstimator {
             } // SYNCH
         } else {
             if (d) LOG.info(String.format("Using cached MarkovPathEstimator for %s [hashCode=%d, ratio=%.02f]",
-                                          AbstractTransaction.formatTxnName(catalog_proc, txn_id),
-                                          estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
+                            AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                            estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
             assert(estimator.isCached()) :
                 String.format("The cached MarkovPathEstimator used by %s does not have its cached flag set [hashCode=%d]",
                               AbstractTransaction.formatTxnName(catalog_proc, txn_id), estimator.hashCode());
@@ -281,6 +282,20 @@ public class MarkovEstimator extends TransactionEstimator {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+        
+        // Update EstimatorState.prefetch any time we transition to a MarkovVertex where the
+        // underlying Statement catalog object was marked as prefetchable
+        // Do we want to put this traversal above?
+        for (MarkovVertex vertex : estimator.getVisitPath()) {
+            CatalogType type = vertex.getCatalogItem();
+            if (type instanceof Statement) {
+                Statement statement = (Statement) type;
+                if (statement.getPrefetchable()) {
+                    state.addPrefetchStatement(statement);
+                }
+            }
+        }
+        
         // Calling init() will set the initial MarkovEstimate for the State
         state.init(txn_id, base_partition, markov, estimator, start_time);
         return (state);

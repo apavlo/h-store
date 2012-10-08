@@ -127,6 +127,7 @@ public abstract class CatalogUtil {
      * @return An empty table with the same schema as a given catalog table.
      */
     public static VoltTable getVoltTable(Table catalogTable) {
+        assert(catalogTable != null) : "Unexpected null catalog table";
         List<Column> catalogColumns = CatalogUtil.getSortedCatalogItems(catalogTable.getColumns(), "index");
 
         VoltTable.ColumnInfo[] columns = new VoltTable.ColumnInfo[catalogColumns.size()];

@@ -51,14 +51,23 @@
 package org.voltdb.benchmark.tpcc;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.benchmark.Clock;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Site;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.hashing.DefaultHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
@@ -97,6 +106,11 @@ public class TPCCSimulation {
     private final double skewFactor;
     private final TPCCConfig config;
     
+    /**
+     * W_ID -> List of W_IDs on Remote Sites
+     */
+    public static HashMap <Integer, List<Integer>> remoteWarehouseIds = null;
+    
     private final int max_w_id;
     static long lastAssignedWarehouseId = 1;
     
@@ -108,7 +122,7 @@ public class TPCCSimulation {
     private final Histogram<Short> totalWarehouseHistory = new Histogram<Short>(true);
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
-                          Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor) {
+                          Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor, Catalog catalog) {
         assert parameters != null;
         this.client = client;
         this.generator = generator;
@@ -136,6 +150,39 @@ public class TPCCSimulation {
         
         if (debug.get()) {
             LOG.debug(this.toString());
+        }
+        if (config.neworder_multip_remote) {
+            synchronized (TPCCSimulation.class) {
+                if (remoteWarehouseIds == null) {
+                	remoteWarehouseIds = new HashMap<Integer, List<Integer>>();
+                	HashMap <Integer, Integer> partitionToSite = new HashMap<Integer, Integer>();
+                	
+                	Database catalog_db = CatalogUtil.getDatabase(catalog);
+                	DefaultHasher hasher = new DefaultHasher(catalog_db);
+            		for (Site s: CatalogUtil.getCluster(catalog_db).getSites()) {
+            			for (Partition p: s.getPartitions())
+            				partitionToSite.put(p.getId(), s.getId());
+            		} // FOR
+                		
+            		for (int w_id0 = parameters.starting_warehouse; w_id0 <= this.max_w_id; w_id0++) {
+            		    final int partition0 = hasher.hash(w_id0);
+            			final int site0 = partitionToSite.get(partition0);
+            			final List<Integer> rList = new ArrayList<Integer>();	
+            			
+            			for (int w_id1 = parameters.starting_warehouse; w_id1 <= this.max_w_id; w_id1++) {
+            			    // Figure out what partition this W_ID maps to
+            			    int partition1 = hasher.hash(w_id1);
+            			    
+            			    // Check whether this partition is on our same local site
+            			    int site1 = partitionToSite.get(partition1);
+            			    if (site0 != site1) rList.add(w_id1);
+            			} // FOR
+            			remoteWarehouseIds.put(w_id0, rList);
+                	} // FOR
+            		
+            		LOG.info("NewOrder Remote W_ID Mapping\n" + StringUtil.formatMaps(remoteWarehouseIds));
+                }
+            } // SYNCH
         }
     }
     
@@ -280,45 +327,45 @@ public class TPCCSimulation {
     /** Executes a delivery transaction. */
     public void doDelivery()  throws IOException {
         int carrier = generator.number(TPCCConstants.MIN_CARRIER_ID,
-                                        TPCCConstants.MAX_CARRIER_ID);
+                                       TPCCConstants.MAX_CARRIER_ID);
 
         client.callDelivery(generateWarehouseId(), carrier, clock.getDateTime());
     }
 
     /** Executes a payment transaction. */
     public void doPayment()  throws IOException {
-        int x = generator.number(1, 100);
-        int y = generator.number(1, 100);
+        boolean allow_remote = (parameters.warehouses > 1 && config.payment_multip != false);
 
         short w_id = generateWarehouseId();
         byte d_id = generateDistrict();
 
         short c_w_id;
         byte c_d_id;
-        if (parameters.warehouses == 1 || x <= 85) {
+        if (allow_remote == false || (config.payment_multip_mix >= 0 && generator.number(1, 100) <= (100-config.payment_multip_mix))) {
             // 85%: paying through own warehouse (or there is only 1 warehouse)
             c_w_id = w_id;
             c_d_id = d_id;
         } else {
             // 15%: paying through another warehouse:
-            // select in range [1, num_warehouses] excluding w_id
-            c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, max_w_id, w_id);
+            if (config.payment_multip_remote) {
+                c_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, this.max_w_id, (int)w_id);
+            } else {
+                // select in range [1, num_warehouses] excluding w_id
+                c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, w_id);
+            }
             assert c_w_id != w_id;
             c_d_id = generateDistrict();
         }
         double h_amount = generator.fixedPoint(2, TPCCConstants.MIN_PAYMENT,
-                TPCCConstants.MAX_PAYMENT);
-
+                                                  TPCCConstants.MAX_PAYMENT);
         TimestampType now = clock.getDateTime();
 
-        if (y <= 60) {
+        if (generator.number(1, 100) <= 60) {
             // 60%: payment by last name
-            String c_last = generator
-                    .makeRandomLastName(parameters.customersPerDistrict);
+            String c_last = generator.makeRandomLastName(parameters.customersPerDistrict);
             client.callPaymentByName(w_id, d_id, h_amount, c_w_id, c_d_id, c_last, now);
         } else {
             // 40%: payment by id
-            assert y > 60;
             client.callPaymentById(w_id, d_id, h_amount, c_w_id, c_d_id,
                                    generateCID(), now);
         }
@@ -368,7 +415,12 @@ public class TPCCSimulation {
                 if (trace.get()) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
                 // Flip a random one
                 int idx = generator.number(0, ol_cnt-1);
-                supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                if (config.neworder_multip_remote) {
+                	supply_w_id[idx] = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                } else {
+                	supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                }
+                
             }
         }
 

@@ -606,11 +606,11 @@ public class RealVoltDB implements VoltDBInterface
     @Override
     public void clusterUpdate(String diffCommands)
     {
-        synchronized(m_catalogUpdateLock)
-        {
-            m_catalogContext = m_catalogContext.update(CatalogContext.NO_PATH,
-                                                       diffCommands);
-        }
+//        synchronized(m_catalogUpdateLock)
+//        {
+//            m_catalogContext = m_catalogContext.update(CatalogContext.NO_PATH,
+//                                                       diffCommands);
+//        }
 
         for (ClientInterface ci : m_clientInterfaces)
         {

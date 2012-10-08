@@ -61,7 +61,7 @@ public class MultiConfigSuiteBuilder extends TestSuite {
      * @param testCls The class that contains the JUnit test methods to run.
      * @return A list of the names of each JUnit test method.
      */
-    static List<String> getTestMethodNames(Class<? extends TestCase> testCls) {
+    public static List<String> getTestMethodNames(Class<? extends TestCase> testCls) {
         ArrayList<String> retval = new ArrayList<String>();
 
         for (Method m : testCls.getMethods()) {
@@ -97,6 +97,7 @@ public class MultiConfigSuiteBuilder extends TestSuite {
         // Add global config parameters
         for (Entry<String, Object> e : this.confParams.entrySet()) {
             if (config.confParams.containsKey(e.getKey()) == false) {
+                LOG.debug(String.format("SET CONF %s %s", config.getName(), e));
                 config.setConfParameter(e.getKey(), e.getValue());
             }
         } // FOR

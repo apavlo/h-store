@@ -1,6 +1,5 @@
 package edu.brown.hstore.txns;
 
-import java.util.Collection;
 import java.util.Random;
 
 import org.voltdb.StoredProcedureInvocation;
@@ -8,30 +7,21 @@ import org.voltdb.VoltMapReduceProcedure;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
-import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.mapreduce.procedures.MockMapReduce;
-import edu.brown.catalog.CatalogUtil;
-import edu.brown.utils.ClassUtil;
-import edu.brown.utils.ProjectType;
-import edu.brown.hstore.HStore;
-import edu.brown.hstore.HStoreCoordinator;
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.MockPartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.MapReduceTransaction;
+import edu.brown.utils.ClassUtil;
+import edu.brown.utils.ProjectType;
 
 public class TestMapReduceTransaction extends BaseTestCase{
     static final int NUM_ROWS = 10;
     static final Random rand = new Random();
-    Collection<Integer> all_partitions;
     static Class<? extends VoltProcedure> TARGET_PROCEDURE = MockMapReduce.class;
-    
     
     private VoltTable table;
     private VoltMapReduceProcedure<?> voltProc;
@@ -54,18 +44,16 @@ public class TestMapReduceTransaction extends BaseTestCase{
         // This will allow us to test same site communication as well as cross-site communication
         this.initializeCatalog(NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
         for (int i = 0; i < NUM_SITES; i++) {
-            Site catalog_site = this.getSite(i);
-            this.sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());
+            this.sites[i] = new MockHStoreSite(i, catalogContext, HStoreConf.singleton());
             
             // We have to make our fake ExecutionSites for each Partition at this site
-            for (Partition catalog_part : catalog_site.getPartitions()) {
-                MockPartitionExecutor executor = new MockPartitionExecutor(catalog_part.getId(), catalog, p_estimator);
-                this.sites[i].addPartitionExecutor(catalog_part.getId(), executor);
+            for (Integer p : this.sites[i].getLocalPartitionIdArray()) {
+                MockPartitionExecutor executor = new MockPartitionExecutor(p, catalog, p_estimator);
+                this.sites[i].addPartitionExecutor(p, executor);
             } // FOR
         } // FOR
 
         
-        this.all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         this.voltProc = (VoltMapReduceProcedure<?>)ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
         assertNotNull(this.voltProc);
         this.schema = this.voltProc.getMapOutputSchema();

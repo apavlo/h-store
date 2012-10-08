@@ -252,7 +252,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         super(client);
         m_tpccConfig = TPCCConfig.defaultConfig();
         m_scaleParams = params;
-        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
+        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0, this.getCatalog());
 //        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
         this.initTransactionWeights();
     }
@@ -281,7 +281,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 
         HStoreConf hstore_conf = this.getHStoreConf();
         m_scaleParams = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, m_tpccConfig.first_warehouse, hstore_conf.client.scalefactor);
-        m_tpccSim = new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
+        m_tpccSim = new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor, this.getCatalog());
 //        m_tpccSim2 = new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
 
         // Set up checking
@@ -298,7 +298,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
      * Initialize the sampling table
      */
     private void initTransactionWeights() {
-        Histogram<Transaction> txns = new Histogram<Transaction>(); 
+        Histogram<Transaction> txns = new Histogram<Transaction>(true);
         for (Transaction t : Transaction.values()) {
             Integer weight = null;
             
@@ -310,10 +310,11 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             } // FOR
             if (weight == null) weight = this.getTransactionWeight(t.name());
             if (weight == null) weight = t.weight;
-            txns.put(t, weight);
+            if (weight > 0) txns.put(t, weight);
         } // FOR
         assert(txns.getSampleCount() == 100) : txns;
         this.txnWeights = new FlatHistogram<Transaction>(m_tpccSim.rng(), txns);
+        if (LOG.isDebugEnabled()) LOG.debug("Transaction Weights:\n" + txns);
     }
 
     @Override
