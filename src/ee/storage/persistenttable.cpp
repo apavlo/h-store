@@ -219,11 +219,11 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
     #endif
     
-    //while (table_itr.hasNext()) {
-    while (evict_itr.hasNext()) {
-        //table_itr.next(tuple);
-        evict_itr.next(tuple); 
-        VOLT_INFO("Evicting Tuple: %s", tuple.debug(name()).c_str());
+    while (table_itr.hasNext()) {
+    //while (evict_itr.hasNext()) {
+        table_itr.next(tuple);
+        //evict_itr.next(tuple); 
+        VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
         
         // If this is the first tuple, then we need to allocate all of the memory and
         // what not that we're going to need
@@ -231,7 +231,9 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
             tuple_length = tuple.tupleLength();
         }
         assert(tuple_length > 0);
-        assert(tuple.isEvicted() == false);
+        //assert(tuple.isEvicted() == false);
+		if(tuple.isEvicted())
+			continue; 
         tuple.setEvictedTrue(); 
         
         // Check whether we have more space for one more tuple

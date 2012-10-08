@@ -31,11 +31,13 @@ package edu.brown.benchmark.ycsb;
 
 public abstract class YCSBConstants {
 
-	public static final int NUM_RECORDS = 10485760; 
+	//public static final int NUM_RECORDS = 42949672;
+	public static final int NUM_RECORDS = 100000; 
+
 	
 	public static final String TABLE_NAME = "USERTABLE"; 
     public static final int NUM_COLUMNS = 11; 
-	public static final int COLUMN_LENGTH = 100; 
+	public static final int COLUMN_LENGTH = 50; 
 	
 	public static final int BATCH_SIZE = 5000; 
 	public static final int MAX_SCAN = 1000; 
@@ -44,7 +46,7 @@ public abstract class YCSBConstants {
 	public static final int FREQUENCY_INSERT_RECORD = 0; 
 	public static final int FREQUENCY_DELETE_RECORD = 0;
 	//public static final int FREQUENCY_READ_MODIFY_WRITE_RECORD = 0;
-	public static final int FREQUENCY_READ_RECORD = 100;
+	public static final int FREQUENCY_READ_RECORD = 80;
 	public static final int FREQUENCY_SCAN_RECORD = 0;
-	public static final int FREQUENCY_UPDATE_RECORD = 0;
+	public static final int FREQUENCY_UPDATE_RECORD = 20;
 }

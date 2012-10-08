@@ -90,7 +90,7 @@ public class YCSBLoader extends BenchmarkComponent {
 				
 				// randomly generate strings for each column
 				for (int col = 2; col < YCSBConstants.NUM_COLUMNS; col++) {
-					row[col] = YCSBUtil.astring(1, 50); 
+					row[col] = YCSBUtil.astring(50, 50); 
 				}
 				
 				//assert col == table.getColumnCount();

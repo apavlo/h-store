@@ -70,7 +70,7 @@ public class YCSBClient extends BenchmarkComponent {
     public YCSBClient(String args[]) {
         super(args);
 		
-		int init_record_count = 0;  // XXX: fix this 
+		int init_record_count = YCSBConstants.NUM_RECORDS;  
 		
 		// initialize distribution generators 
 		readRecord = new ZipfianGenerator(init_record_count);// pool for read keys
@@ -236,7 +236,7 @@ public class YCSBClient extends BenchmarkComponent {
 	private List<String> buildValues(int numVals) {
         this.value_list.clear();
         for (int i = 0; i < numVals; i++) {
-            this.value_list.add(YCSBUtil.astring(1,50));
+            this.value_list.add(YCSBUtil.astring(50,50));
         }
         return this.value_list;
     }

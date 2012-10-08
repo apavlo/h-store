@@ -114,7 +114,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
                     // check to see if we should start eviction
                     if (hstore_conf.site.anticache_enable && checkEviction()) {
 						evicted = true; 
-                        executeEviction(); 
+                        //executeEviction(); 
                     }
 
             } catch (Throwable ex) {
