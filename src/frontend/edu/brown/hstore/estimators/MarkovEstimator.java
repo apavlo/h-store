@@ -288,6 +288,8 @@ public class MarkovEstimator extends TransactionEstimator {
         for (MarkovVertex vertex : estimator.getVisitPath()) {
             Statement statement = (Statement) vertex.getCatalogItem();
             if (statement.getPrefetchable()) {
+                // FIXME(cjl6)
+                int counter = vertex.getQueryCounter();
                 state.addPrefetchStatement(statement);
             }
         }

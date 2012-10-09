@@ -78,6 +78,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
             stmtParams.get(m[0]).setProcparameter(procParams.get(m[1]));
         } // FOR
 
+        assertNotNull(catalogContext.paramMappings);
         this.prefetcher = new PrefetchQueryPlanner(catalogContext, p_estimator);
         for (int i = 0; i < NUM_SITES; i++) {
             this.hstore_sites[i] = new MockHStoreSite(i, catalogContext, HStoreConf.singleton());
