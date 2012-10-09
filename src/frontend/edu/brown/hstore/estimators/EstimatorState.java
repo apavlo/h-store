@@ -66,7 +66,7 @@ public abstract class EstimatorState implements Poolable {
     public PartitionSet getTouchedPartitions() {
         return (this.touched_partitions);
     }
-    public List<Statement> getPrefetch() {
+    public List<Statement> getPrefetchableStatements() {
         return (this.prefetch);
     }
     
