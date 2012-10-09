@@ -13,6 +13,8 @@ import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.ByteBuilder;
+import org.voltdb.benchmark.tpcc.procedures.MRquery1;
+import org.voltdb.benchmark.tpcc.procedures.MRquery6;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
@@ -30,7 +32,8 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
      * Supplemental classes needed by TPC-C procs.
      */
     public static final Class<?>[] SUPPLEMENTALS = {
-        ByteBuilder.class, TPCCConstants.class };
+        ByteBuilder.class, TPCCConstants.class
+    };
     
     
     public TestMapReduceTransactionSuite(String name) {
@@ -176,6 +179,8 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         project.addDefaultProcedures();
         project.addDefaultPartitioning();
         project.addSupplementalClasses(SUPPLEMENTALS);
+        project.addProcedure(MRquery1.class);
+        project.addProcedure(MRquery6.class);
         
         boolean success = false;
         
