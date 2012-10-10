@@ -170,7 +170,7 @@ public class PrefetchQueryPlanner implements Loggable {
                     stmt_params[catalog_param.getIndex()] = proc_params[pm.procedure_parameter_index];
                 }
                 else {
-                    ProcParameter catalog_proc_param = catalog_param.getProcparameter();
+                    ProcParameter catalog_proc_param = pm.procedure_parameter;
                     assert(catalog_proc_param != null) : "Missing mapping from " + catalog_param.fullName() + " to ProcParameter";
                     stmt_params[catalog_param.getIndex()] = proc_params[catalog_proc_param.getIndex()];
                 }
