@@ -61,14 +61,14 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
             } // FOR
             
             // Add Vertical Partition
-            this.addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, vp_cols);
+            this.addReplicatedSecondaryIndex(TM1Constants.TABLENAME_SUBSCRIBER, vp_cols);
             
             // Single Query Procedures
             for (Entry<String, String> e : SQLS.entrySet()) {
                 this.addStmtProcedure(e.getKey(), e.getValue());
             } // FOR
             
-            this.setEnableVerticalPartitionOptimizations(false);
+            this.setEnableReplicatedSecondaryIndexes(false);
         }
     }
     
