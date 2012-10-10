@@ -25,10 +25,13 @@ import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.estimators.EstimatorState.CountedStatement;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 
@@ -122,42 +125,36 @@ public class PrefetchQueryPlanner implements Loggable {
         
         if (debug.get()) LOG.debug(ts + " - Generating prefetch WorkFragments");
         
+//        ParameterMapping pm = CollectionUtil.first(this.catalogContext.paramMappings.get(
+//                Statement catalog_stmt, int catalog_stmt_index, StmtParameter catalog_stmt_param));
+//        pm.procedure_parameter.getIsarray();
+//        pm.procedure_parameter_index;
+        
         Procedure catalog_proc = ts.getProcedure();
         assert (ts.getProcedureParameters() != null) : 
             "Unexpected null ParameterSet for " + ts;
         Object proc_params[] = ts.getProcedureParameters().toArray();
-
-        // Can we cache this?
-        List<SQLStmt> prefetchStmts = new ArrayList<SQLStmt>();
-        for (Statement catalog_stmt : catalog_proc.getStatements().values()) {
-            if (catalog_stmt.getPrefetchable() == false) continue;
-            // Make sure that all of this Statement's input parameters
-            // are mapped to one of the Procedure's ProcParameter
-            boolean valid = true;
-            for (StmtParameter catalog_param : catalog_stmt.getParameters().values()) {
-                if (catalog_param.getProcparameter() == null) {
-                    LOG.warn(String.format("Unable to mark %s as prefetchable because %s is not mapped to a ProcParameter",
-                                           catalog_stmt.fullName(), catalog_param.fullName()));
-                    valid = false;
-                }
-            } // FOR
-            if (valid) prefetchStmts.add(new SQLStmt(catalog_stmt));
-        } // FOR
-        SQLStmt[] batchStmts = prefetchStmts.toArray(new SQLStmt[0]);
+        
+        CountedStatement[] countedStmts = ts.getEstimatorState().getPrefetchableStatements().toArray(new CountedStatement[0]);
+        SQLStmt[] prefetchStmts = new SQLStmt[countedStmts.length];
+        for (int i = 0; i < prefetchStmts.length; ++i) {
+            prefetchStmts[i] = new SQLStmt(countedStmts[i].statement);
+        }
         
         // Use the StmtParameter mappings for the queries we
         // want to prefetch and extract the ProcParameters
         // to populate an array of ParameterSets to use as the batchArgs
-        BatchPlanner planner = this.planners.get(VoltProcedure.getBatchHashCode(batchStmts, batchStmts.length));
+        BatchPlanner planner = this.planners.get(VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length));
         assert (planner != null) : "Missing BatchPlanner for " + catalog_proc;
         ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
         ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
-
+        
         // Makes a list of ByteStrings containing the ParameterSets that we need
         // to send over to the remote sites so that they can execute our
         // prefetchable queries
         for (int i = 0; i < prefetchParams.length; i++) {
             Statement catalog_stmt = planner.getStatement(i);
+            CountedStatement counted_stmt = countedStmts[i];
             if (debug.get()) LOG.debug(String.format("%s - Building ParameterSet for prefetchable query %s",
                                                      ts, catalog_stmt.fullName()));
             Object stmt_params[] = new Object[catalog_stmt.getParameters().size()];
@@ -167,9 +164,16 @@ public class PrefetchQueryPlanner implements Loggable {
             // ParameterMapping already being installed in the catalog
             // TODO: Precompute this as arrays (it will be much faster)
             for (StmtParameter catalog_param : catalog_stmt.getParameters().values()) {
-                ProcParameter catalog_proc_param = catalog_param.getProcparameter();
-                assert(catalog_proc_param != null) : "Missing mapping from " + catalog_param.fullName() + " to ProcParameter";
-                stmt_params[catalog_param.getIndex()] = proc_params[catalog_proc_param.getIndex()];
+                ParameterMapping pm = CollectionUtil.first(this.catalogContext.paramMappings.get(
+                        counted_stmt.statement, counted_stmt.counter, catalog_param));
+                if (pm.procedure_parameter.getIsarray()) {
+                    stmt_params[catalog_param.getIndex()] = proc_params[pm.procedure_parameter_index];
+                }
+                else {
+                    ProcParameter catalog_proc_param = catalog_param.getProcparameter();
+                    assert(catalog_proc_param != null) : "Missing mapping from " + catalog_param.fullName() + " to ProcParameter";
+                    stmt_params[catalog_param.getIndex()] = proc_params[catalog_proc_param.getIndex()];
+                }
             } // FOR (StmtParameter)
             prefetchParams[i] = new ParameterSet(stmt_params);
 
