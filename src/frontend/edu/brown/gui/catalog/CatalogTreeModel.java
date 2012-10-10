@@ -35,6 +35,7 @@ import org.voltdb.plannodes.AbstractPlanNode;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 
 /**
@@ -43,13 +44,15 @@ import edu.brown.utils.CollectionUtil;
  *
  */
 public class CatalogTreeModel extends DefaultTreeModel {
-    private static final Logger LOG = Logger.getLogger(CatalogTreeModel.class.getName());
+    private static final Logger LOG = Logger.getLogger(CatalogTreeModel.class);
     
     private static final long serialVersionUID = 1L;
     private final Catalog catalog;
 
     protected DefaultMutableTreeNode procedures_node;
     protected DefaultMutableTreeNode tables_node;
+    
+    protected final Set<Procedure> conflictGraphExcludes = new HashSet<Procedure>(); 
     
     // ----------------------------------------------
     // SEARCH INDEXES
@@ -58,9 +61,25 @@ public class CatalogTreeModel extends DefaultTreeModel {
     protected final Map<String, Set<DefaultMutableTreeNode>> name_node_xref = new HashMap<String, Set<DefaultMutableTreeNode>>();
     protected final Map<Integer, Set<DefaultMutableTreeNode>> plannode_node_xref = new HashMap<Integer, Set<DefaultMutableTreeNode>>();
     
-    public CatalogTreeModel(Catalog catalog, String catalog_path) {
+    public CatalogTreeModel(ArgumentsParser args, Catalog catalog, String catalog_path) {
         super(new DefaultMutableTreeNode(catalog.getName() + " [" + catalog_path + "]"));
         this.catalog = catalog;
+        
+        // Procedures to exclude in Conflict Graph
+        if (args.hasParam(ArgumentsParser.PARAM_CATALOG_EXCLUDE_PROCEDURES)) {
+            String param = args.getParam(ArgumentsParser.PARAM_CATALOG_EXCLUDE_PROCEDURES);
+            Database catalog_db = CatalogUtil.getDatabase(this.catalog);
+            for (String procName : param.split(",")) {
+                Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
+                if (catalog_proc != null) {
+                    this.conflictGraphExcludes.add(catalog_proc);
+                } else {
+                    LOG.warn("Invalid procedure name to exclude '" + procName + "'");
+                }
+            } // FOR
+            LOG.debug("Excluded ConflictGraph Procedures: " + this.conflictGraphExcludes);
+        }
+        
         this.buildModel();
     }
     
@@ -251,7 +270,10 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 database_node.add(procedures_node);
                 
                 // Conflicts Graph
-                DefaultMutableTreeNode conflictNode = new DefaultMutableTreeNode(new ProcedureConflictGraphNode(procs));
+                // Remove anything that should be excluded
+                List<Procedure> conflictProcs = new ArrayList<Procedure>(procs);
+                conflictProcs.removeAll(this.conflictGraphExcludes);
+                DefaultMutableTreeNode conflictNode = new DefaultMutableTreeNode(new ProcedureConflictGraphNode(conflictProcs));
                 procedures_node.add(conflictNode);
                 
                 this.buildProceduresTree(procedures_node, procs);

@@ -64,8 +64,10 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.gui.catalog.AttributesNode;
 import edu.brown.gui.catalog.CatalogAttributeText;
 import edu.brown.gui.catalog.CatalogSummaryText;
@@ -179,7 +181,7 @@ public class CatalogViewer extends AbstractViewer {
     }
     
     private void generateCatalogTree(Catalog catalog, String catalog_path) {
-        this.catalogTreeModel = new CatalogTreeModel(catalog, catalog_path);
+        this.catalogTreeModel = new CatalogTreeModel(this.args, catalog, catalog_path);
         this.catalogTree.setModel(this.catalogTreeModel);
         this.catalog = catalog;
         this.catalog_path = catalog_path;

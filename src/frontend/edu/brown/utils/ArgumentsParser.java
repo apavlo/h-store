@@ -94,6 +94,7 @@ public class ArgumentsParser {
     public static final String PARAM_CATALOG_PARTITION = PARAM_CATALOG + ".partition";
     public static final String PARAM_CATALOG_SITES_PER_HOST = PARAM_CATALOG + ".hosts.numsites";
     public static final String PARAM_CATALOG_PARTITIONS_PER_SITE = PARAM_CATALOG + ".site.numpartitions";
+    public static final String PARAM_CATALOG_EXCLUDE_PROCEDURES = PARAM_CATALOG + ".exclude_procedures";
 
     public static final String PARAM_CONF = "conf";
     public static final String PARAM_CONF_OUTPUT = PARAM_CONF + ".output";
