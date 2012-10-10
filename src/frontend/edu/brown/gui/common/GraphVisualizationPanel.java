@@ -16,6 +16,7 @@ import javax.swing.JFrame;
 
 import org.apache.commons.collections15.Transformer;
 
+import edu.brown.catalog.ConflictGraph;
 import edu.brown.designer.PartitionTree;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.markov.MarkovGraph;
@@ -158,7 +159,9 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         if (graph instanceof DelegateForest) { 
             layout = new TreeLayout<V, E>((Forest<V, E>) graph);
         } else if (graph instanceof MarkovGraph){
-            layout = new FRLayout<V,E>( graph);
+            layout = new FRLayout<V,E>(graph);
+        } else if (graph instanceof ConflictGraph){
+            layout = new FRLayout<V,E>(graph);
         } else if (graph instanceof AbstractDirectedGraph) {
             layout = new DAGLayout<V, E>(graph);
         } else {
