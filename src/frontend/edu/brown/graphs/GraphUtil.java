@@ -22,6 +22,7 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
+import edu.uci.ics.jung.graph.util.Pair;
 
 public abstract class GraphUtil {
     private static final Logger LOG = Logger.getLogger(GraphUtil.class);
@@ -205,8 +206,16 @@ public abstract class GraphUtil {
                 // Thread synchronization issue
                 // This is an attempt to prevent us from writing out edges that have vertices
                 // that were added in between the time that we originally wrote out the list of vertices
-                final V v0 = graph.getSource(e);
-                final V v1 = graph.getDest(e);
+                V v0 = graph.getSource(e);
+                V v1 = graph.getDest(e);
+                if (v0 == null) {
+                    Pair<V> pair = graph.getEndpoints(e);
+                    v0 = pair.getFirst();
+                    v1 = pair.getSecond();
+                }
+                assert(v0 != null) : e; 
+                assert(v1 != null) : e; 
+                
                 if (ignore_v != null && (ignore_v.contains(v0) || ignore_v.contains(v1))) continue;
                 if (all_vertices.contains(v0.getElementId()) && all_vertices.contains(v1.getElementId())) {
                     if (trace.get()) LOG.trace(String.format("E [%d] %d => %d", e.getElementId(), v0.getElementId(), v1.getElementId()));
