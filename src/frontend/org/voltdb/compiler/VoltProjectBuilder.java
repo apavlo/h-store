@@ -860,29 +860,19 @@ public class VoltProjectBuilder {
 
     // Do we want to put this above to save doing the traversal all over again?
     private void applyPrefetchableFlags(Database catalog_db) {
-        for (String procName : m_paramMappings.keySet()) {
-            Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
-            assert(catalog_proc != null) :
-                "Invalid Procedure name for ParameterMappings '" + procName + "'";
-            for (Integer procParamIdx : m_paramMappings.get(procName).keySet()) {
-                ProcParameter catalog_procParam = catalog_proc.getParameters().get(procParamIdx.intValue());
-                assert(catalog_procParam != null) :
-                    "Invalid ProcParameter for '" + procName + "' at offset " + procParamIdx;
-                Pair<String, Integer> stmtPair = m_paramMappings.get(procName).get(procParamIdx);
-                assert(stmtPair != null);
-                
-                Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmtPair.getFirst());
-                assert(catalog_stmt != null) :
-                    "Invalid Statement name '" + stmtPair.getFirst() + "' for ParameterMappings " +
-                    "for Procedure '" + procName + "'";
-                StmtParameter catalog_stmtParam = catalog_stmt.getParameters().get(stmtPair.getSecond().intValue());
-                assert(catalog_stmtParam != null) :
-                    "Invalid StmtParameter for '" + catalog_stmt.fullName() + "' at offset " + stmtPair.getSecond();
-                
-                if (catalog_stmtParam.getProcparameter() != null) {
-                    catalog_stmt.setPrefetchable(true);
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            for (Statement statement : catalog_proc.getStatements()) {
+                boolean prefetchable = true;
+                for (StmtParameter stmtParam : statement.getParameters()) {
+                    if (stmtParam.getProcparameter() == null) {
+                        prefetchable = false;
+                        break;
+                    }
+                } // FOR (StmtParameter)
+                if (prefetchable) {
+                    statement.setPrefetchable(true);
                 }
-            } // FOR (ProcParameter)
+            } // FOR (Statement)
         } // FOR (Procedure)
     }
     

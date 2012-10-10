@@ -2,8 +2,8 @@ package edu.brown.hstore.estimators;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.voltdb.catalog.Statement;
@@ -15,6 +15,16 @@ import edu.brown.utils.StringUtil;
 
 public abstract class EstimatorState implements Poolable {
 
+    public class CountedStatement {
+        public Statement statement;
+        public int counter;
+        
+        public CountedStatement(Statement statement, int counter) {
+            this.statement = statement;
+            this.counter = counter;
+        }
+    }
+    
     protected final int num_partitions;
     
     protected Long txn_id = null;
@@ -24,7 +34,7 @@ public abstract class EstimatorState implements Poolable {
     protected final PartitionSet touched_partitions = new PartitionSet();
     protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
     
-    protected final List<Statement> prefetch = new ArrayList<Statement>();
+    protected final List<CountedStatement> prefetch = new ArrayList<CountedStatement>();
     
     /**
      * Constructor
@@ -66,7 +76,7 @@ public abstract class EstimatorState implements Poolable {
     public PartitionSet getTouchedPartitions() {
         return (this.touched_partitions);
     }
-    public List<Statement> getPrefetchableStatements() {
+    public List<CountedStatement> getPrefetchableStatements() {
         return (this.prefetch);
     }
     
@@ -106,7 +116,7 @@ public abstract class EstimatorState implements Poolable {
         return StringUtil.formatMaps(m0);
     }
 
-    public void addPrefetchStatement(Statement statement) {
-        this.prefetch.add(statement);
+    public void addPrefetchStatement(Statement statement, int counter) {
+        this.prefetch.add(new CountedStatement(statement, counter));
     }
 }
