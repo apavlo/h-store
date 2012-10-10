@@ -47,10 +47,14 @@ public class ConflictGraph extends AbstractUndirectedGraph<ConflictGraph.Conflic
         }
     }
     
+    public ConflictGraph(Database catalog_db) {
+        this(catalog_db, catalog_db.getProcedures());
+    }
+    
     public ConflictGraph(Database catalog_db, Collection<Procedure> procs) {
         super(catalog_db);
         
-     // First we need to construct the graph
+        // First we need to construct the graph
         for (Procedure proc0 : procs) {
             ConflictVertex v0 = this.getVertex(proc0);
             if (v0 == null) v0 = new ConflictVertex(proc0);
