@@ -1941,6 +1941,7 @@ UTILITIES
         <arg value="catalog=${catalog}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
+        <arg value="catalog.exclude_procedures=${exclude}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
