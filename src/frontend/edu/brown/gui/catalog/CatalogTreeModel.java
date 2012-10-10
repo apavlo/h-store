@@ -271,7 +271,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 
                 // Conflicts Graph
                 // Remove anything that should be excluded
-                List<Procedure> conflictProcs = new ArrayList<Procedure>(procs);
+                Set<Procedure> conflictProcs = new HashSet<Procedure>(procs);
                 conflictProcs.removeAll(this.conflictGraphExcludes);
                 DefaultMutableTreeNode conflictNode = new DefaultMutableTreeNode(new ProcedureConflictGraphNode(conflictProcs));
                 procedures_node.add(conflictNode);

@@ -13,25 +13,22 @@ import java.util.Map;
 import javax.swing.JPanel;
 
 import org.apache.commons.collections15.Transformer;
-import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.ConflictType;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.graphs.AbstractEdge;
-import edu.brown.graphs.AbstractUndirectedGraph;
-import edu.brown.graphs.AbstractVertex;
+import edu.brown.catalog.ConflictGraph;
+import edu.brown.catalog.ConflictGraph.ConflictEdge;
+import edu.brown.catalog.ConflictGraph.ConflictVertex;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.CollectionUtil;
-import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.graph.util.Pair;
 import edu.uci.ics.jung.visualization.RenderContext;
 import edu.uci.ics.jung.visualization.picking.PickedState;
 import edu.uci.ics.jung.visualization.renderers.Renderer.VertexLabel.Position;
 
 public class ProcedureConflictGraphNode {
-    private static final Logger LOG = Logger.getLogger(ProcedureConflictGraphNode.class);
     
     static final Map<ConflictType, Color> CONFLICT_COLORS = new HashMap<ConflictType, Color>();
     static {
@@ -52,7 +49,7 @@ public class ProcedureConflictGraphNode {
     final Transformer<ConflictEdge, Paint> edgeColor = new Transformer<ConflictEdge, Paint>() {
         @Override
         public Paint transform(ConflictEdge e) {
-            Color c = CONFLICT_COLORS.get(e.type);
+            Color c = CONFLICT_COLORS.get(e.getConflictType());
             PickedState<ConflictVertex> pickedState = vizPanel.getPickedVertexState();
             Pair<ConflictVertex> p = graph.getEndpoints(e);
             if (pickedState.isPicked(p.getFirst())) {
@@ -113,37 +110,11 @@ public class ProcedureConflictGraphNode {
     public ProcedureConflictGraphNode(Collection<Procedure> procs) {
         this.catalog_db = CatalogUtil.getDatabase(CollectionUtil.first(procs));
         this.procs = procs;
-        
-        this.graph = new ConflictGraph(this.catalog_db);
+        this.graph = new ConflictGraph(this.catalog_db, procs);
         this.init();
     }
     
     private void init() {
-        // First we need to construct the graph
-        for (Procedure proc0 : this.procs) {
-            ConflictVertex v0 = this.graph.getVertex(proc0);
-            if (v0 == null) v0 = new ConflictVertex(proc0);
-            assert(v0 != null);
-            
-            // READ-WRITE
-            for (Procedure proc1 : CatalogUtil.getReadWriteConflicts(proc0)) {
-                ConflictVertex v1 = this.graph.getVertex(proc1);
-                if (v1 == null) v1 = new ConflictVertex(proc1);
-                ConflictEdge e = new ConflictEdge(this.graph, ConflictType.READ_WRITE);
-                this.graph.addEdge(e, v0, v1);
-                LOG.debug(String.format("%s %s [%s/%s]", e.type, e.toStringPath(graph), proc0.getName(), proc1.getName()));
-            } // FOR
-            
-            // WRITE-WRITE
-            for (Procedure proc1 : CatalogUtil.getWriteWriteConflicts(proc0)) {
-                ConflictVertex v1 = this.graph.getVertex(proc1);
-                if (v1 == null) v1 = new ConflictVertex(proc1);
-                ConflictEdge e = new ConflictEdge(this.graph, ConflictType.WRITE_WRITE);
-                this.graph.addEdge(e, v0, v1);
-                LOG.debug(String.format("%s %s [%s/%s]", e.type, e.toStringPath(graph), proc0.getName(), proc1.getName()));
-            } // FOR
-        }
-        
         this.vizPanel = GraphVisualizationPanel.factory(this.graph);
         RenderContext<ConflictVertex, ConflictEdge> rc = this.vizPanel.getRenderContext(); 
         rc.setEdgeDrawPaintTransformer(this.edgeColor);
@@ -166,48 +137,4 @@ public class ProcedureConflictGraphNode {
     public String toString() {
         return ("Conflict Graph");
     }
-    
-    // ----------------------------------------------------------------------------
-    // CONFLICT GRAPH
-    // ----------------------------------------------------------------------------
-    
-    protected class ConflictVertex extends AbstractVertex {
-        public ConflictVertex(Procedure catalog_proc) {
-            super(catalog_proc);
-        }
-    }
-    
-    protected class ConflictEdge extends AbstractEdge {
-        final ConflictType type;
-        public ConflictEdge(ConflictGraph graph, ConflictType type) {
-            super(graph);
-            this.type = type;
-            this.setVerbose(false);
-        }
-        @Override
-        public String toString() {
-            switch (this.type) {
-                case READ_WRITE:
-                    return ("RW");
-                case WRITE_READ:
-                    return ("WR");
-                case WRITE_WRITE:
-                    return ("WW");
-                default:
-                    return ("??");
-            }
-        }
-    }
-    
-    protected class ConflictGraph extends AbstractUndirectedGraph<ConflictVertex, ConflictEdge> {
-        private static final long serialVersionUID = 1L;
-        public ConflictGraph(Database catalog_db) {
-            super(catalog_db);
-        }
-        @Override
-        public EdgeType getEdgeType(ConflictEdge e) {
-            return EdgeType.DIRECTED;
-        }
-    }
-    
 }
