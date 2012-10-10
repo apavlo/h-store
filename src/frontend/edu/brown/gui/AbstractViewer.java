@@ -44,6 +44,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.graphs.GraphUtil;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.IOFileFilter;
@@ -261,6 +262,10 @@ public abstract class AbstractViewer extends JFrame {
      * @throws Exception
      */
     protected String showSaveDialog(String title, String dir, IOFileFilter filter) throws Exception {
+        return this.showSaveDialog(title, dir, filter, null);
+    }
+    
+    protected String showSaveDialog(String title, String dir, IOFileFilter filter, File defaultFile) throws Exception {
         JFileChooser chooser = new JFileChooser(dir);
         chooser.setFileFilter(filter);
         chooser.setDialogTitle(title);

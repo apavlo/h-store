@@ -51,6 +51,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
 
     protected DefaultMutableTreeNode procedures_node;
     protected DefaultMutableTreeNode tables_node;
+    protected ProcedureConflictGraphNode conflictgraph_node;
     
     protected final Set<Procedure> conflictGraphExcludes = new HashSet<Procedure>(); 
     
@@ -93,6 +94,10 @@ public class CatalogTreeModel extends DefaultTreeModel {
         return this.name_node_xref;
     }
     
+    
+    public ProcedureConflictGraphNode getProcedureConflictGraphNode() {
+        return (this.conflictgraph_node);
+    }
     
     /**
      * @return the procedures_node
@@ -273,10 +278,11 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 // Remove anything that should be excluded
                 Set<Procedure> conflictProcs = new HashSet<Procedure>(procs);
                 conflictProcs.removeAll(this.conflictGraphExcludes);
-                DefaultMutableTreeNode conflictNode = new DefaultMutableTreeNode(new ProcedureConflictGraphNode(conflictProcs));
-                procedures_node.add(conflictNode);
+                this.conflictgraph_node = new ProcedureConflictGraphNode(conflictProcs);
+                DefaultMutableTreeNode conflictNode = new DefaultMutableTreeNode(this.conflictgraph_node);
+                this.procedures_node.add(conflictNode);
                 
-                this.buildProceduresTree(procedures_node, procs);
+                this.buildProceduresTree(this.procedures_node, procs);
                 
             } // FOR (databases)
             

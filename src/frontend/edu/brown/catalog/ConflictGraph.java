@@ -7,12 +7,12 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.ConflictType;
 
+import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractEdge;
-import edu.brown.graphs.AbstractUndirectedGraph;
 import edu.brown.graphs.AbstractVertex;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
-public class ConflictGraph extends AbstractUndirectedGraph<ConflictGraph.ConflictVertex, ConflictGraph.ConflictEdge> {
+public class ConflictGraph extends AbstractDirectedGraph<ConflictGraph.ConflictVertex, ConflictGraph.ConflictEdge> {
     private static final Logger LOG = Logger.getLogger(ConflictGraph.class);
     private static final long serialVersionUID = 1L;
     

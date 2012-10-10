@@ -204,11 +204,11 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      * @param <V>
      * @param <E>
      * @param graph
-     * @param name
+     * @param graphName
      * @return
      * @throws Exception
      */
-    public String export(String name) throws Exception {
+    public String export(String graphName) throws Exception {
         LOG.debug("Exporting " + this.graph.getClass().getSimpleName() + " to Graphviz " +
                   "[vertices=" + this.graph.getVertexCount() + ",edges=" + this.graph.getEdgeCount() + "]");
         StringBuilder b = new StringBuilder();
@@ -217,7 +217,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         // Start Graph
         String graph_type = (digraph ? "digraph" : "graph");
         String edge_type = " " + (digraph ? "->" : "--") + " ";
-        b.append(graph_type + " " + name + " {\n");
+        b.append(graph_type + " " + graphName + " {\n");
 
         // Global Graph Attributes
         b.append(StringUtil.SPACER).append("graph [\n");
@@ -395,14 +395,14 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      * @param <V>
      * @param <E>
      * @param graph
-     * @param name
+     * @param graphName
      * @return
      * @throws Exception
      */
-    public static <V extends AbstractVertex, E extends AbstractEdge> String export(IGraph<V, E> graph, String name) {
+    public static <V extends AbstractVertex, E extends AbstractEdge> String export(IGraph<V, E> graph, String graphName) {
         GraphvizExport<V, E> gv = new GraphvizExport<V, E>(graph);
         try {
-            return gv.export(name);
+            return gv.export(graphName);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }

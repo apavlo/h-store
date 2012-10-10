@@ -129,6 +129,10 @@ public class ProcedureConflictGraphNode {
         this.vizPanel.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR);
     }
     
+    public ConflictGraph getConflictGraph() {
+        return (this.graph);
+    }
+    
     public JPanel getVisualization() {
         return (this.vizPanel);
     }
