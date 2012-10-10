@@ -40,11 +40,11 @@ import javax.swing.JPanel;
 import javax.swing.JSeparator;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.graphs.GraphUtil;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.IOFileFilter;
@@ -143,8 +143,8 @@ public abstract class AbstractViewer extends JFrame {
         try {
             String path = showLoadDialog("Open Catalog File from Project Jar", ".", filter);
             if (path != null) {
-                Catalog new_catalog = CatalogUtil.loadCatalogFromJar(path);
-                ret = new Pair<Catalog, String>(new_catalog, path);
+                CatalogContext new_catalog = CatalogUtil.loadCatalogContextFromJar(new File(path));
+                ret = new Pair<Catalog, String>(new_catalog.catalog, path);
             }
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -269,6 +269,7 @@ public abstract class AbstractViewer extends JFrame {
         JFileChooser chooser = new JFileChooser(dir);
         chooser.setFileFilter(filter);
         chooser.setDialogTitle(title);
+        if (defaultFile != null) chooser.setSelectedFile(defaultFile);
         int returnVal = chooser.showSaveDialog(this);
         if (returnVal == JFileChooser.APPROVE_OPTION) {
             return (chooser.getSelectedFile().toString());

@@ -67,7 +67,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.ConflictGraph;
-import edu.brown.graphs.GraphUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.gui.catalog.AttributesNode;
 import edu.brown.gui.catalog.CatalogAttributeText;
@@ -235,9 +234,9 @@ public class CatalogViewer extends AbstractViewer {
          
         menu.addSeparator();
         
-        menuItem = new JMenuItem("Save Conflict Graph to File"); 
+        menuItem = new JMenuItem("Export ConflictGraph"); 
         // menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, ActionEvent.CTRL_MASK | ActionEvent.SHIFT_MASK));
-        menuItem.getAccessibleContext().setAccessibleDescription("Save Conflict Graph to a Graphviz Dot File");
+        menuItem.getAccessibleContext().setAccessibleDescription("Export ConflictGraph to a Graphviz Dot File");
         menuItem.addActionListener(this.menuHandler);
         menuItem.putClientProperty(MenuHandler.MENU_ID, MenuOptions.CONFLICTGRAPH_EXPORT);
         menu.add(menuItem);
@@ -531,9 +530,10 @@ public class CatalogViewer extends AbstractViewer {
     
     protected String exportConflictGraph() {
         IOFileFilter filter = new IOFileFilter("Graphviz Dot File", "dot");
+        File defaultFile = new File(String.format("%s-conflict.dot", args.catalogContext.database.getProject()));
         String path = null;
         try {
-            path = showSaveDialog("Export ConflictGraph", ".", filter);
+            path = showSaveDialog("Export ConflictGraph", ".", filter, defaultFile);
             if (path != null) {
                 ConflictGraph graph = this.catalogTreeModel.getProcedureConflictGraphNode().getConflictGraph();
                 assert(graph != null) : "Unexpected null ConflictGraph";

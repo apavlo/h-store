@@ -26,6 +26,7 @@ import edu.brown.utils.EventObserver;
 import edu.uci.ics.jung.algorithms.layout.CircleLayout;
 import edu.uci.ics.jung.algorithms.layout.DAGLayout;
 import edu.uci.ics.jung.algorithms.layout.FRLayout;
+import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.algorithms.layout.Layout;
 import edu.uci.ics.jung.algorithms.layout.TreeLayout;
 import edu.uci.ics.jung.graph.DelegateForest;
@@ -161,7 +162,7 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         } else if (graph instanceof MarkovGraph){
             layout = new FRLayout<V,E>(graph);
         } else if (graph instanceof ConflictGraph){
-            layout = new FRLayout<V,E>(graph);
+            layout = new KKLayout<V, E>(graph);
         } else if (graph instanceof AbstractDirectedGraph) {
             layout = new DAGLayout<V, E>(graph);
         } else {
