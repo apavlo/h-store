@@ -59,19 +59,17 @@ public class SEATSProjectBuilder extends AbstractProjectBuilder {
         GetTableCounts.class
     };
     
-    // Transaction Frequencies
     {
+        // Transaction Frequencies
         addTransactionFrequency(DeleteReservation.class, SEATSConstants.FREQUENCY_DELETE_RESERVATION);
         addTransactionFrequency(FindFlights.class, SEATSConstants.FREQUENCY_FIND_FLIGHTS);
         addTransactionFrequency(FindOpenSeats.class, SEATSConstants.FREQUENCY_FIND_OPEN_SEATS);
         addTransactionFrequency(NewReservation.class, SEATSConstants.FREQUENCY_NEW_RESERVATION);
         addTransactionFrequency(UpdateCustomer.class, SEATSConstants.FREQUENCY_UPDATE_CUSTOMER);
         addTransactionFrequency(UpdateReservation.class, SEATSConstants.FREQUENCY_UPDATE_RESERVATION);
-    }
     
-    // Vertical Partitions
-    {
-//        addVerticalPartitionInfo(SEATSConstants.TABLENAME_CUSTOMER, "C_ID", "C_ID_STR");
+        // Replicated Secondary Index
+        addReplicatedSecondaryIndex(SEATSConstants.TABLENAME_CUSTOMER, "C_ID", "C_ID_STR");
     }
     
     public static final String PARTITIONING[][] = 
