@@ -1055,7 +1055,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the internal system tables for the database
      */
-    @Deprecated
     public static Collection<Table> getSysTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1068,7 +1067,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the user-defined data tables for the database
      */
-    @Deprecated
     public static Collection<Table> getDataTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1083,7 +1081,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the materialized view tables for the database
      */
-    @Deprecated
     public static Collection<Table> getViewTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1096,7 +1093,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the MapReduce input data tables for the database
      */
-    @Deprecated
     public static Collection<Table> getMapReduceTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1109,7 +1105,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the replicated tables for the database
      */
-    @Deprecated
     public static Collection<Table> getReplicatedTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1121,7 +1116,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the evictable tables for the database
      */
-    @Deprecated
     public static Collection<Table> getEvictableTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
