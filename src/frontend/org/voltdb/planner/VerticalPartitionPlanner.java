@@ -300,7 +300,14 @@ public class VerticalPartitionPlanner {
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": Query does not have any valid vertical partitioning references.");
             return (false);
         }
-        rewrite.sql = this.rewriteSQL(catalog_stmt, rewrite);
+        try {
+            rewrite.sql = this.rewriteSQL(catalog_stmt, rewrite);
+        } catch (Throwable ex) {
+            String msg = String.format("Failed to rewrite SQL for %s to use replicated secondary index on %s",
+                                       catalog_stmt.fullName(), CatalogUtil.debug(rewrite.keySet()));
+            LOG.warn(msg, (debug.get() ? ex : null));
+            return (false);
+        }
 
         return (true);
     }
@@ -381,7 +388,7 @@ public class VerticalPartitionPlanner {
             
             // Make sure that we disable VP optimizations otherwise we will get stuck
             // in an infinite loop
-            this.setEnableVerticalPartitionOptimizations(false);
+            this.setEnableReplicatedSecondaryIndexes(false);
             
             // Make sure we initialize the StatementCompiler's PlanFragment counter
             // so that we don't get overlapping PlanFragment ids

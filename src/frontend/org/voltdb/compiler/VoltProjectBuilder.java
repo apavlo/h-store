@@ -211,8 +211,9 @@ public class VoltProjectBuilder {
      * Replicated SecondaryIndex Info
      * TableName -> Pair<CreateIndex, ColumnNames>
      */
-    final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_verticalpartitionInfos = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
-
+    private final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_replicatedSecondaryIndexes = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
+    private boolean m_replicatedSecondaryIndexesEnabled = true;
+    
     /**
      * Evictable Tables
      */
@@ -247,7 +248,6 @@ public class VoltProjectBuilder {
     private boolean m_elenabled;      // true if enabled; false if disabled
     List<String> m_elAuthUsers;       // authorized users
     List<String> m_elAuthGroups;      // authorized groups
-    private boolean m_verticalPartitionOptimizations = true;
 
     BackendTarget m_target = BackendTarget.NATIVE_EE_JNI;
     PrintStream m_compilerDebugPrintStream = null;
@@ -607,28 +607,28 @@ public class VoltProjectBuilder {
     }
     
     // -------------------------------------------------------------------
-    // VERTICAL PARTITONS (AKA REPLICATED SECONDARY INDEXES)
+    // REPLICATED SECONDARY INDEXES
     // -------------------------------------------------------------------
     
-    public void addVerticalPartitionInfo(final String tableName, final String...partitionColumnNames) {
-        this.addVerticalPartitionInfo(tableName, true, partitionColumnNames);
+    public void addReplicatedSecondaryIndex(final String tableName, final String...partitionColumnNames) {
+        this.addReplicatedSecondaryIndexInfo(tableName, true, partitionColumnNames);
     }
     
-    public void addVerticalPartitionInfo(final String tableName, final boolean createIndex, final String...partitionColumnNames) {
+    public void addReplicatedSecondaryIndexInfo(final String tableName, final boolean createIndex, final String...partitionColumnNames) {
         ArrayList<String> columns = new ArrayList<String>();
         for (String col : partitionColumnNames) {
             columns.add(col);
         }
-        this.addVerticalPartitionInfo(tableName, createIndex, columns);
+        this.addReplicatedSecondaryIndexInfo(tableName, createIndex, columns);
     }
     
-    public void addVerticalPartitionInfo(final String tableName, final boolean createIndex, final Collection<String> partitionColumnNames) {
-        assert(m_verticalpartitionInfos.containsKey(tableName) == false);
-        m_verticalpartitionInfos.put(tableName, Pair.of(createIndex, partitionColumnNames));
+    public void addReplicatedSecondaryIndexInfo(final String tableName, final boolean createIndex, final Collection<String> partitionColumnNames) {
+        assert(m_replicatedSecondaryIndexes.containsKey(tableName) == false);
+        m_replicatedSecondaryIndexes.put(tableName, Pair.of(createIndex, partitionColumnNames));
     }
     
-    public void setEnableVerticalPartitionOptimizations(boolean val) { 
-        m_verticalPartitionOptimizations = val;
+    public void setEnableReplicatedSecondaryIndexes(boolean val) { 
+        m_replicatedSecondaryIndexesEnabled = val;
     }
 
     public void setSecurityEnabled(final boolean enabled) {
@@ -696,7 +696,7 @@ public class VoltProjectBuilder {
                            final int replication, final String leaderAddress)
     {
         VoltCompiler compiler = new VoltCompiler();
-        if (m_verticalPartitionOptimizations) compiler.enableVerticalPartitionOptimizations();
+        if (m_replicatedSecondaryIndexesEnabled) compiler.enableVerticalPartitionOptimizations();
         return compile(compiler, jarPath, sitesPerHost, hostCount, replication,
                        leaderAddress);
     }
@@ -1061,14 +1061,14 @@ public class VoltProjectBuilder {
         }
         
         // Vertical Partitions
-        if (m_verticalpartitionInfos.size() > 0) {
+        if (m_replicatedSecondaryIndexes.size() > 0) {
             // /project/database/partitions
             final Element verticalpartitions = doc.createElement("verticalpartitions");
             database.appendChild(verticalpartitions);
 
             // partitions/table
-            for (String tableName : m_verticalpartitionInfos.keySet()) {
-                Pair<Boolean, Collection<String>> p = m_verticalpartitionInfos.get(tableName);
+            for (String tableName : m_replicatedSecondaryIndexes.keySet()) {
+                Pair<Boolean, Collection<String>> p = m_replicatedSecondaryIndexes.get(tableName);
                 Boolean createIndex = p.getFirst();
                 Collection<String> columnNames = p.getSecond(); 
                 
