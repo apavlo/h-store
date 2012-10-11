@@ -91,7 +91,7 @@ public class slev extends VoltProcedure {
         // voltQueueSQL(GetStockCount, w_id, d_id, o_id, o_id - 20, w_id, threshold);
         // Return assumes that o_id is a temporary variable, 
         // and that stock_count is a necessarily returned variable.
-        // return voltExecuteSQL();
+        // return voltExecuteSQL(true);
         
         results[0].resetRowPosition();
         return (results);

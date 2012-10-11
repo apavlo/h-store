@@ -123,7 +123,7 @@ public class UpdateCustomer extends VoltProcedure {
         }
         
         voltQueueSQL(UpdateCustomer, attr0, attr1, c_id);
-        results = voltExecuteSQL();
+        results = voltExecuteSQL(true);
         long updated = results[results.length - 1].asScalarLong();
         if (updated != 1) {
             String msg = String.format("Failed to update customer #%d - Updated %d records", c_id, updated);

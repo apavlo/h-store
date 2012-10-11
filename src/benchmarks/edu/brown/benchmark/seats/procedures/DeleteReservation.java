@@ -137,7 +137,7 @@ public class DeleteReservation extends VoltProcedure {
             voltQueueSQL(UpdateFrequentFlyer, c_id, ff_al_id);
         }
         
-        final VoltTable[] results = voltExecuteSQL(false);
+        final VoltTable[] results = voltExecuteSQL(true);
         for (int i = 0; i < results.length - 1; i++) {
             if (results[i].getRowCount() != 1) {
                 String msg = String.format("Failed to delete reservation for flight %d - No rows returned for %s", f_id, voltLastQueriesExecuted()[i]);

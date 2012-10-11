@@ -63,7 +63,7 @@ public class UpdateLocation extends VoltProcedure {
         if (results[0].getRowCount() > 0) {
             long s_id = results[0].asScalarLong();
             voltQueueSQL(updateSubscriber, location, s_id);
-            results = voltExecuteSQL();
+            results = voltExecuteSQL(true);
             assert results.length == 1;
             return results[0].asScalarLong();
         }

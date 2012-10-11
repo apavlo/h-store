@@ -39,13 +39,19 @@ import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 
-@ProcInfo(partitionInfo = "SUBSCRIBER.S_ID: 0", singlePartition = true)
+@ProcInfo(
+    partitionInfo = "SUBSCRIBER.S_ID: 0",
+    singlePartition = true
+)
 public class GetSubscriberData extends VoltProcedure {
 
-    public final SQLStmt GetData = new SQLStmt("SELECT * FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE s_id = ?");
+    public final SQLStmt GetData = new SQLStmt(
+        "SELECT * FROM " + TM1Constants.TABLENAME_SUBSCRIBER +
+        " WHERE s_id = ?"
+    );
 
     public VoltTable[] run(long s_id) throws VoltAbortException {
         voltQueueSQL(GetData, s_id);
-        return voltExecuteSQL();
+        return voltExecuteSQL(true);
     }
 }

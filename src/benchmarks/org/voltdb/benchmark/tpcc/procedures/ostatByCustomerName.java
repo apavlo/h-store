@@ -88,7 +88,7 @@ public class ostatByCustomerName extends VoltProcedure {
 
         final long o_id = order.fetchRow(0).getLong(O_ID_IDX);
         voltQueueSQL(getOrderLines, w_id, o_id, d_id);
-        final VoltTable orderLines = voltExecuteSQL()[0];
+        final VoltTable orderLines = voltExecuteSQL(true)[0];
 
         return new VoltTable[]{customer, order, orderLines};
     }
