@@ -41,17 +41,26 @@ import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 
-@ProcInfo(partitionInfo = "SUBSCRIBER.S_ID: 0", singlePartition = true)
+@ProcInfo(
+    partitionInfo = "SUBSCRIBER.S_ID: 0",
+    singlePartition = true
+)
 public class UpdateSubscriberData extends VoltProcedure {
 
-    public final SQLStmt update1 = new SQLStmt("UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER + " SET bit_1 = ? WHERE s_id = ?");
+    public final SQLStmt update1 = new SQLStmt(
+        "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER +
+        "   SET bit_1 = ? WHERE s_id = ?"
+    );
 
-    public final SQLStmt update2 = new SQLStmt("UPDATE " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " SET data_a = ? WHERE s_id = ? AND sf_type = ?");
+    public final SQLStmt update2 = new SQLStmt(
+        "UPDATE " + TM1Constants.TABLENAME_SPECIAL_FACILITY + 
+        "   SET data_a = ? WHERE s_id = ? AND sf_type = ?"
+    );
 
     public long run(long s_id, long bit_1, long data_a, long sf_type) {
         voltQueueSQL(update1, bit_1, s_id);
         voltQueueSQL(update2, data_a, s_id, sf_type);
-        VoltTable results[] = voltExecuteSQL();
+        VoltTable results[] = voltExecuteSQL(true);
         assert (results.length == 2) : "Expected 2 results but got " + results.length + "\n" + Arrays.toString(results);
 
         boolean adv = results[1].advanceRow();

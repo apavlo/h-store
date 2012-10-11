@@ -52,6 +52,6 @@ public class GetAccessData extends VoltProcedure {
 
     public VoltTable[] run(long s_id, long ai_type) throws VoltAbortException {
         voltQueueSQL(GetData, s_id, ai_type);
-        return voltExecuteSQL();
+        return voltExecuteSQL(true);
     }
 }

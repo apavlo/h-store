@@ -170,7 +170,7 @@ public class NewReservation extends VoltProcedure {
         voltQueueSQL(UpdateFrequentFlyer, attrs[4], attrs[5], attrs[6], attrs[7], c_id, airline_id);
         
         // We don't care if we updated FrequentFlyer 
-        final VoltTable[] results = voltExecuteSQL();
+        final VoltTable[] results = voltExecuteSQL(true);
         for (int i = 0; i < results.length - 1; i++) {
             if (results[i].getRowCount() != 1) {
                 String msg = String.format("Failed to add reservation for flight #%d - No rows returned for %s", f_id, voltLastQueriesExecuted()[i]);

@@ -172,7 +172,7 @@ public class delivery extends VoltProcedure {
             final Long no_o_id = no_o_ids[(int) d_id - 1];
             result.addRow(d_id, no_o_id);
         }
-        voltExecuteSQL();
+        voltExecuteSQL(true);
 
         return result;
     }

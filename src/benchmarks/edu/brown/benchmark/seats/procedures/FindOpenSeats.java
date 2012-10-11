@@ -99,7 +99,7 @@ public class FindOpenSeats extends VoltProcedure {
         
         voltQueueSQL(GetFlight, f_id);
         voltQueueSQL(GetSeats, f_id);
-        final VoltTable[] results = voltExecuteSQL();
+        final VoltTable[] results = voltExecuteSQL(true);
         assert (results.length == 2);
         
         // First calculate the seat price using the flight's base price

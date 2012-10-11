@@ -243,7 +243,7 @@ public class neworder extends VoltProcedure {
             // Add the info to be returned
             item_data.addRow(i_name, s_quantity, brand_generic, i_price, ol_amount);
         }
-        voltExecuteSQL();
+        voltExecuteSQL(true);
 
         // Adjust the total for the discount
         total *= (1 - c_discount) * (1 + w_tax + d_tax);
