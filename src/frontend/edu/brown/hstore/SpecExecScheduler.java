@@ -6,6 +6,7 @@ import java.util.Queue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
+import org.voltdb.catalog.ConflictPair;
 import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.TableRef;
@@ -205,16 +206,20 @@ public class SpecExecScheduler {
             assert(dtxn_conflicts != null) :
                 String.format("Unexpected null ConflictSet for %s -> %s",
                               dtxn_proc.getName(), ts_proc.getName());
-            for (TableRef ref : dtxn_conflicts.getReadwriteconflicts().values()) {
-                if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
-                    return (true);
-                }
+            for (ConflictPair conflict : dtxn_conflicts.getReadwriteconflicts().values()) {
+                for (TableRef ref : conflict.getTables().values()) {
+                    if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
+                        return (true);
+                    }
+                } // FOR
             } // FOR (R-W)
-            for (TableRef ref : dtxn_conflicts.getWritewriteconflicts().values()) {
-                if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
-                    return (true);
+            for (ConflictPair conflict : dtxn_conflicts.getWritewriteconflicts().values()) {
+                for (TableRef ref : conflict.getTables().values()) {
+                    if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
+                        return (true);
+                    }
                 }
-            } // FOR (R-W)
+            } // FOR (W-W)
         }
         
         // Similarly, if the TS needs to read from (but not write to) a table that DTXN 
@@ -226,10 +231,12 @@ public class SpecExecScheduler {
                               ts_proc.getName(), dtxn_proc.getName());
             if (debug.get())
                 LOG.debug(String.format("%s has R-W conflict with %s. Checking read/write sets", ts, dtxn));
-            for (TableRef ref : ts_conflicts.getReadwriteconflicts().values()) {
-                if (dtxn.isTableWritten(this.partitionId, ref.getTable())) {
-                    return (true);
-                }
+            for (ConflictPair conflict : ts_conflicts.getReadwriteconflicts().values()) {
+                for (TableRef ref : conflict.getTables().values()) {
+                    if (dtxn.isTableWritten(this.partitionId, ref.getTable())) {
+                        return (true);
+                    }
+                } // FOR
             } // FOR (R-W)
         }
         

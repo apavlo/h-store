@@ -26,15 +26,15 @@ package org.voltdb.catalog;
  */
 public class ConflictSet extends CatalogType {
 
-    CatalogMap<TableRef> m_readWriteConflicts;
-    CatalogMap<TableRef> m_writeWriteConflicts;
+    CatalogMap<ConflictPair> m_readWriteConflicts;
+    CatalogMap<ConflictPair> m_writeWriteConflicts;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
         m_fields.put("procedure", null);
-        m_readWriteConflicts = new CatalogMap<TableRef>(catalog, this, path + "/" + "readWriteConflicts", TableRef.class);
+        m_readWriteConflicts = new CatalogMap<ConflictPair>(catalog, this, path + "/" + "readWriteConflicts", ConflictPair.class);
         m_childCollections.put("readWriteConflicts", m_readWriteConflicts);
-        m_writeWriteConflicts = new CatalogMap<TableRef>(catalog, this, path + "/" + "writeWriteConflicts", TableRef.class);
+        m_writeWriteConflicts = new CatalogMap<ConflictPair>(catalog, this, path + "/" + "writeWriteConflicts", ConflictPair.class);
         m_childCollections.put("writeWriteConflicts", m_writeWriteConflicts);
     }
 
@@ -54,13 +54,13 @@ public class ConflictSet extends CatalogType {
         return (Procedure) o;
     }
 
-    /** GETTER: Tables that the parent Procedure has a read-write conflict with the target procedure */
-    public CatalogMap<TableRef> getReadwriteconflicts() {
+    /** GETTER: ConflictPairs that the parent Procedure has a read-write conflict with the target procedure */
+    public CatalogMap<ConflictPair> getReadwriteconflicts() {
         return m_readWriteConflicts;
     }
 
-    /** GETTER: Tables that the parent Procedure has a write-write conflict with the target procedure */
-    public CatalogMap<TableRef> getWritewriteconflicts() {
+    /** GETTER: ConflictPairs that the parent Procedure has a write-write conflict with the target procedure */
+    public CatalogMap<ConflictPair> getWritewriteconflicts() {
         return m_writeWriteConflicts;
     }
 

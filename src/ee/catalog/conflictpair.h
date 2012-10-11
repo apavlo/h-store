@@ -19,8 +19,8 @@
             DO NOT MODIFY THIS SOURCE
             ALL CHANGES MUST BE MADE IN THE CATALOG GENERATOR */
 
-#ifndef CATALOG_CONFLICTSET_H_
-#define CATALOG_CONFLICTSET_H_
+#ifndef CATALOG_CONFLICTPAIR_H_
+#define CATALOG_CONFLICTPAIR_H_
 
 #include <string>
 #include "catalogtype.h"
@@ -28,20 +28,20 @@
 
 namespace catalog {
 
-class Procedure;
-class ConflictPair;
+class Statement;
+class TableRef;
 /**
- * A set of conflicts with another procedures
+ * A pair of Statements that have a conflict
  */
-class ConflictSet : public CatalogType {
+class ConflictPair : public CatalogType {
     friend class Catalog;
-    friend class CatalogMap<ConflictSet>;
+    friend class CatalogMap<ConflictPair>;
 
 protected:
-    ConflictSet(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-    CatalogType* m_procedure;
-    CatalogMap<ConflictPair> m_readWriteConflicts;
-    CatalogMap<ConflictPair> m_writeWriteConflicts;
+    ConflictPair(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
+    CatalogType* m_statement0;
+    CatalogType* m_statement1;
+    CatalogMap<TableRef> m_tables;
 
     virtual void update();
 
@@ -50,16 +50,16 @@ protected:
     virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
-    ~ConflictSet();
+    ~ConflictPair();
 
-    /** GETTER: The other procedure that this conflict set is for */
-    const Procedure * procedure() const;
-    /** GETTER: ConflictPairs that the parent Procedure has a read-write conflict with the target procedure */
-    const CatalogMap<ConflictPair> & readWriteConflicts() const;
-    /** GETTER: ConflictPairs that the parent Procedure has a write-write conflict with the target procedure */
-    const CatalogMap<ConflictPair> & writeWriteConflicts() const;
+    /** GETTER: The source Statement */
+    const Statement * statement0() const;
+    /** GETTER: The destination Statement */
+    const Statement * statement1() const;
+    /** GETTER: The list of tables that caused this conflict */
+    const CatalogMap<TableRef> & tables() const;
 };
 
 } // namespace catalog
 
-#endif //  CATALOG_CONFLICTSET_H_
+#endif //  CATALOG_CONFLICTPAIR_H_

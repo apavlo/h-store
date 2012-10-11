@@ -12,6 +12,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogInfo;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
@@ -100,7 +101,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         ConflictSet cs = proc.getConflicts().get(dtxnProc.getName());
         assertNotNull(cs);
-        Collection<Table> conflictTables = CatalogUtil.getTablesFromRefs(cs.getWritewriteconflicts());
+        Collection<Table> conflictTables = ConflictSetUtil.getAllTables(cs.getWritewriteconflicts());
         assertFalse(conflictTables.isEmpty());
         
         // First time we should be able to get through
@@ -160,7 +161,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         ConflictSet cs = proc.getConflicts().get(dtxnProc.getName());
         assertNotNull(cs);
-        Collection<Table> conflictTables = CatalogUtil.getTablesFromRefs(cs.getReadwriteconflicts());
+        Collection<Table> conflictTables = ConflictSetUtil.getAllTables(cs.getReadwriteconflicts());
         assertFalse(conflictTables.isEmpty());
         
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
