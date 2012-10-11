@@ -7,7 +7,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.ConflictType;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
@@ -67,7 +66,7 @@ public class ConflictGraph extends AbstractDirectedGraph<ConflictGraph.ConflictV
             assert(v0 != null);
             
             // READ-WRITE
-            for (Procedure proc1 : CatalogUtil.getReadWriteConflicts(proc0)) {
+            for (Procedure proc1 : ConflictSetUtil.getReadWriteConflicts(proc0)) {
                 if (procs.contains(proc1) == false) continue;
                 ConflictVertex v1 = this.getVertex(proc1);
                 if (v1 == null) v1 = new ConflictVertex(proc1);
@@ -77,7 +76,7 @@ public class ConflictGraph extends AbstractDirectedGraph<ConflictGraph.ConflictV
             } // FOR
             
             // WRITE-WRITE
-            for (Procedure proc1 : CatalogUtil.getWriteWriteConflicts(proc0)) {
+            for (Procedure proc1 : ConflictSetUtil.getWriteWriteConflicts(proc0)) {
                 if (procs.contains(proc1) == false) continue;
                 ConflictVertex v1 = this.getVertex(proc1);
                 if (v1 == null) v1 = new ConflictVertex(proc1);

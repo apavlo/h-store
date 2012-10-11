@@ -36,6 +36,7 @@ import org.voltdb.types.IndexType;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -193,8 +194,8 @@ public class CatalogAttributeText {
         // PROCEDURE
         else if (catalog_obj instanceof Procedure) {
             Procedure catalog_proc = (Procedure)catalog_obj;
-            Collection<Procedure> rwConflicts = CatalogUtil.getReadWriteConflicts(catalog_proc);
-            Collection<Procedure> wwConflicts = CatalogUtil.getWriteWriteConflicts(catalog_proc);
+            Collection<Procedure> rwConflicts = ConflictSetUtil.getReadWriteConflicts(catalog_proc);
+            Collection<Procedure> wwConflicts = ConflictSetUtil.getWriteWriteConflicts(catalog_proc);
             
             if (rwConflicts.size() > 0 || wwConflicts.size() > 0) {
                 Map<String, Object> orig_m = m[0];

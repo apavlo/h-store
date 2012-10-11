@@ -11,7 +11,7 @@ import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.TableRef;
 
-import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
@@ -63,13 +63,13 @@ public class SpecExecScheduler {
             int idx = catalog_proc.getId();
             
             this.rwConflicts[idx] = new BitSet(size);
-            for (Procedure conflict : CatalogUtil.getReadWriteConflicts(catalog_proc)) {
+            for (Procedure conflict : ConflictSetUtil.getReadWriteConflicts(catalog_proc)) {
                 this.rwConflicts[idx].set(conflict.getId());
                 this.hasConflicts.set(idx);
             } // FOR
             
             this.wwConflicts[idx] = new BitSet(size);
-            for (Procedure conflict : CatalogUtil.getWriteWriteConflicts(catalog_proc)) {
+            for (Procedure conflict : ConflictSetUtil.getWriteWriteConflicts(catalog_proc)) {
                 this.wwConflicts[idx].set(conflict.getId());
                 this.hasConflicts.set(idx);
             } // FOR

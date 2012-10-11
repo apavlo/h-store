@@ -28,7 +28,6 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
-import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.ConstantValue;
 import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.Database;
@@ -480,60 +479,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // PROCEDURES + STATEMENTS + PARAMETERS
     // ------------------------------------------------------------
 
-    /**
-     * Get the Procedure handles that are marked as Read-Write conflicting for the
-     * given Procedure
-     * @param catalog_proc
-     * @return
-     */
-    public static Collection<Procedure> getReadWriteConflicts(Procedure catalog_proc) {
-        List<Procedure> conflicts = new ArrayList<Procedure>();
-        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
-        for (ConflictSet cs : catalog_proc.getConflicts().values()) {
-            if (cs.getReadwriteconflicts().isEmpty() == false) {
-                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
-            }
-        } // FOR
-        return (conflicts);
-    }
-    
-    /**
-     * Get the Procedure handles that are marked as Write-Write conflicting for the
-     * given Procedure
-     * @param catalog_proc
-     * @return
-     */
-    public static Collection<Procedure> getWriteWriteConflicts(Procedure catalog_proc) {
-        List<Procedure> conflicts = new ArrayList<Procedure>();
-        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
-        for (String procName : catalog_proc.getConflicts().keySet()) {
-            ConflictSet cs = catalog_proc.getConflicts().get(procName);
-            if (cs.getWritewriteconflicts().isEmpty() == false) {
-                conflicts.add(catalog_db.getProcedures().get(procName));
-            }
-        } // FOR
-        return (conflicts);
-    }
-    
-    /**
-     * Get the Procedure handles that have any conflict with the given Procedure
-     * @param catalog_proc
-     * @return
-     */
-    public static Collection<Procedure> getAllConflicts(Procedure catalog_proc) {
-        List<Procedure> conflicts = new ArrayList<Procedure>();
-        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
-        for (ConflictSet cs : catalog_proc.getConflicts().values()) {
-            if (cs.getReadwriteconflicts().isEmpty() == false) {
-                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
-            }
-            if (cs.getWritewriteconflicts().isEmpty() == false) {
-                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
-            }
-        } // FOR
-        return (conflicts);
-    }
-    
     /**
      * Return all of the internal system Procedures for the database
      */

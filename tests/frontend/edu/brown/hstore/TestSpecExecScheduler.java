@@ -11,7 +11,6 @@ import org.voltdb.catalog.Table;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogInfo;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.InternalMessage;
@@ -58,7 +57,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         // Make a single-partition txn for a procedure that has no conflicts with
         // our dtxn and add it to our queue. It should always be returned 
         // and marked as speculative by the scheduler
-        Collection<Procedure> conflicts = CatalogUtil.getAllConflicts(dtxn.getProcedure());
+        Collection<Procedure> conflicts = ConflictSetUtil.getAllConflicts(dtxn.getProcedure());
         Procedure proc = null;
         for (Procedure p : catalogContext.getRegularProcedures()) {
             if (conflicts.contains(p) == false) {
@@ -91,7 +90,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         Procedure dtxnProc = dtxn.getProcedure();
         Procedure proc = null;
         for (Procedure p : catalogContext.getRegularProcedures()) {
-            Collection<Procedure> c = CatalogUtil.getWriteWriteConflicts(p);
+            Collection<Procedure> c = ConflictSetUtil.getWriteWriteConflicts(p);
             if (c.contains(dtxnProc)) {
                 proc = p;
                 break;
@@ -151,7 +150,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         Procedure dtxnProc = dtxn.getProcedure();
         Procedure proc = null;
         for (Procedure p : catalogContext.getRegularProcedures()) {
-            Collection<Procedure> c = CatalogUtil.getReadWriteConflicts(p);
+            Collection<Procedure> c = ConflictSetUtil.getReadWriteConflicts(p);
             if (c.contains(dtxnProc)) {
                 proc = p;
                 break;
