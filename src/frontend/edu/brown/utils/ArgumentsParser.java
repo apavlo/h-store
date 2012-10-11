@@ -94,7 +94,6 @@ public class ArgumentsParser {
     public static final String PARAM_CATALOG_PARTITION = PARAM_CATALOG + ".partition";
     public static final String PARAM_CATALOG_SITES_PER_HOST = PARAM_CATALOG + ".hosts.numsites";
     public static final String PARAM_CATALOG_PARTITIONS_PER_SITE = PARAM_CATALOG + ".site.numpartitions";
-    public static final String PARAM_CATALOG_EXCLUDE_PROCEDURES = PARAM_CATALOG + ".exclude_procedures";
 
     public static final String PARAM_CONF = "conf";
     public static final String PARAM_CONF_OUTPUT = PARAM_CONF + ".output";
@@ -137,6 +136,11 @@ public class ArgumentsParser {
     public static final String PARAM_MARKOV_SPLIT_TRAINING = PARAM_MARKOV_SPLIT + ".training";
     public static final String PARAM_MARKOV_SPLIT_VALIDATION = PARAM_MARKOV_SPLIT + ".validation";
     public static final String PARAM_MARKOV_SPLIT_TESTING = PARAM_MARKOV_SPLIT + ".testing";
+    
+    private static final String PARAM_CONFLICTS = "conflicts";
+    public static final String PARAM_CONFLICTS_EXCLUDE_PROCEDURES = PARAM_CONFLICTS + ".exclude_procedures";
+    public static final String PARAM_CONFLICTS_EXCLUDE_STATEMENTS = PARAM_CONFLICTS + ".exclude_statements";
+    public static final String PARAM_CONFLICTS_FOCUS_PROCEDURE = PARAM_CONFLICTS + ".focus";
 
     public static final String PARAM_DESIGNER = "designer";
     public static final String PARAM_DESIGNER_PARTITIONER = PARAM_DESIGNER + ".partitioner";

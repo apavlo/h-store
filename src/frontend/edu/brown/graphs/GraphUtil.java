@@ -39,7 +39,38 @@ public abstract class GraphUtil {
         EDGE_CLASS,
         EDGES,
     }
+
+    /**
+     * Remove all of the edges that are not incident to the given vertex
+     * Returns the set of edges that were removed
+     * @param graph
+     * @param v
+     */
+    public static <V extends AbstractVertex, E extends AbstractEdge> Collection<E> removeEdgesWithoutVertex(IGraph<V, E> graph, V v) {
+        Set<E> toRemove = new HashSet<E>();
+        for (E e : graph.getEdges()) {
+            if (graph.isIncident(v, e) == false) {
+                toRemove.add(e);
+            }
+        } // FOR
+        for (E e : toRemove) {
+            graph.removeEdge(e);
+        } // FOR
+        return (toRemove);
+    }
     
+    public static <V extends AbstractVertex, E extends AbstractEdge> Collection<V> removeDisconnectedVertices(IGraph<V, E> graph) {
+        Set<V> toRemove = new HashSet<V>();
+        for (V v : graph.getVertices()) {
+            if (graph.getIncidentEdges(v).isEmpty()) {
+                toRemove.add(v);
+            }
+        } // FOR
+        for (V v : toRemove) {
+            graph.removeVertex(v);
+        }
+        return (toRemove);
+    }
     
     /**
      * Remove duplicate edges between every unique pair of vertices

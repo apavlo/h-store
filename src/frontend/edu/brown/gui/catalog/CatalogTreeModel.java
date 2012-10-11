@@ -67,8 +67,8 @@ public class CatalogTreeModel extends DefaultTreeModel {
         this.catalog = catalog;
         
         // Procedures to exclude in Conflict Graph
-        if (args.hasParam(ArgumentsParser.PARAM_CATALOG_EXCLUDE_PROCEDURES)) {
-            String param = args.getParam(ArgumentsParser.PARAM_CATALOG_EXCLUDE_PROCEDURES);
+        if (args.hasParam(ArgumentsParser.PARAM_CONFLICTS_EXCLUDE_PROCEDURES)) {
+            String param = args.getParam(ArgumentsParser.PARAM_CONFLICTS_EXCLUDE_PROCEDURES);
             Database catalog_db = CatalogUtil.getDatabase(this.catalog);
             for (String procName : param.split(",")) {
                 Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);

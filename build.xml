@@ -1941,7 +1941,7 @@ UTILITIES
         <arg value="catalog=${catalog}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
-        <arg value="catalog.exclude_procedures=${exclude}" />
+        <arg value="conflicts.exclude_procedures=${exclude}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -1960,6 +1960,23 @@ UTILITIES
     <!--    <exec dir="${basedir}" executable="dot">
        <arg line="-Tpng ${project}.dot > ${project}.png"/>
     </exec>-->
+</target>
+
+<target name='conflicts-export' description="Export ConflictGraphs as GraphViz File">
+    <java fork="yes" classname="edu.brown.catalog.conflicts.ConflictGraphExport">
+        <jvmarg value="-Xmx512m" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="conflicts.exclude_procedures=${excludeProcedures}" />
+        <arg value="conflicts.exclude_statements=${excludeStatements}" />
+        <arg value="conflicts.focus=${focus}" />
+        <classpath refid='project.classpath' />
+        <assertions>
+            <enable />
+        </assertions>
+    </java>
+    <!--    <exec dir="${basedir}" executable="dot">
+    <arg line="-Tpng ${project}.dot > ${project}.png"/>
+</exec>-->
 </target>
 
 <!--
