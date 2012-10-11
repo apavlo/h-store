@@ -388,7 +388,7 @@ public class VerticalPartitionPlanner {
             
             // Make sure that we disable VP optimizations otherwise we will get stuck
             // in an infinite loop
-            this.setEnableReplicatedSecondaryIndexes(false);
+            this.enableReplicatedSecondaryIndexes(false);
             
             // Make sure we initialize the StatementCompiler's PlanFragment counter
             // so that we don't get overlapping PlanFragment ids

@@ -39,25 +39,30 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltType;
-import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.utils.JarReader;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.benchmark.auctionmark.AuctionMarkProjectBuilder;
-import edu.brown.benchmark.markov.MarkovProjectBuilder;
-import edu.brown.benchmark.seats.SEATSProjectBuilder;
-import edu.brown.benchmark.tm1.TM1ProjectBuilder;
-import edu.brown.benchmark.tpce.TPCEProjectBuilder;
-import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
-import edu.brown.benchmark.voter.VoterProjectBuilder; 
-import edu.brown.benchmark.wikipedia.WikipediaProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
+import edu.brown.hstore.HStore;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.mappings.ParametersUtil;
@@ -68,10 +73,6 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.hstore.HStore;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.HStoreThreadManager;
-import edu.brown.hstore.conf.HStoreConf;
 
 /**
  * Base class that provides a lot of the common functionality that our HStore test cases need
@@ -116,8 +117,6 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected static PartitionEstimator p_estimator;
     private static final Map<ProjectType, PartitionEstimator> project_p_estimators = new HashMap<ProjectType, PartitionEstimator>();
 
-    private static final Map<ProjectType, AbstractProjectBuilder> project_builders = new HashMap<ProjectType, AbstractProjectBuilder>();
-    
     private static Boolean is_first = null;
     
     /**
@@ -195,7 +194,8 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         
         if (catalogContext == null) {
             CatalogContext cc = null;
-            AbstractProjectBuilder projectBuilder = AbstractProjectBuilder.getProjectBuilder(type);
+            AbstractProjectBuilder projectBuilder = getProjectBuilder(type);
+            
             if (ENABLE_JAR_REUSE) {
                 File jar_path = projectBuilder.getJarPath(true);
                 if (jar_path.exists()) {
@@ -207,7 +207,6 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             }
             if (cc == null) {
                 File jarPath = projectBuilder.getJarPath(true);
-                
                 Catalog c = null;
                 switch (type) {
                     case TPCE:
@@ -249,41 +248,11 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     }
 
     public static AbstractProjectBuilder getProjectBuilder(ProjectType type) {
-        AbstractProjectBuilder projectBuilder = project_builders.get(type);
-        if (projectBuilder == null) {
-            switch (type) {
-                case TPCC:
-                    projectBuilder = new TPCCProjectBuilder();
-                    break;
-                case TPCE:
-                    projectBuilder = new TPCEProjectBuilder();
-                    break;
-                case TM1:
-                    projectBuilder = new TM1ProjectBuilder();
-                    break;
-                case SEATS:
-                    projectBuilder = new SEATSProjectBuilder();
-                    break;
-                case AUCTIONMARK:
-                    projectBuilder = new AuctionMarkProjectBuilder();
-                    break;
-                case MARKOV:
-                    projectBuilder = new MarkovProjectBuilder();
-                    break;
-				case YCSB: 
-					projectBuilder = new YCSBProjectBuilder(); 
-					break; 
-				case VOTER: 
-					projectBuilder = new VoterProjectBuilder(); 
-					break; 
-                case WIKIPEDIA:
-                    projectBuilder = new WikipediaProjectBuilder();
-                    break;
-                default:
-                    assert(false) : "Invalid project type - " + type;
-            } // SWITCH
-            project_builders.put(type, projectBuilder);
-        }
+        AbstractProjectBuilder projectBuilder = AbstractProjectBuilder.getProjectBuilder(type);
+        // 2012-10-11: We have to disable any replicated secondary indexes
+        // because it will screw up a bunch of tests that we already have setup
+        projectBuilder.enableReplicatedSecondaryIndexes(false);
+        projectBuilder.removeReplicatedSecondaryIndexes();
         assert(projectBuilder != null);
         return (projectBuilder);
     }

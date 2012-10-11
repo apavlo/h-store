@@ -54,6 +54,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
             File schema = getDDLPath(ProjectType.TM1);
             assert (schema.exists()) : "Schema: " + schema;
             this.addSchema(schema.getAbsolutePath());
+            this.enableReplicatedSecondaryIndexes(false);
 
             // Partition everything on S_ID
             for (String tableName : TM1Constants.TABLENAMES) {
@@ -67,8 +68,6 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
             for (Entry<String, String> e : SQLS.entrySet()) {
                 this.addStmtProcedure(e.getKey(), e.getValue());
             } // FOR
-            
-            this.setEnableReplicatedSecondaryIndexes(false);
         }
     }
     
