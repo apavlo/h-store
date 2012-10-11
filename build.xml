@@ -1969,6 +1969,7 @@ UTILITIES
         <arg value="conflicts.exclude_procedures=${excludeProcedures}" />
         <arg value="conflicts.exclude_statements=${excludeStatements}" />
         <arg value="conflicts.focus=${focus}" />
+        <arg line="${output}" />
         <classpath refid='project.classpath' />
         <assertions>
             <enable />

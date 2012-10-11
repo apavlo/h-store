@@ -1,6 +1,7 @@
 package edu.brown.catalog.conflicts;
 
 import java.io.File;
+import java.util.Arrays;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
@@ -43,17 +44,22 @@ public abstract class ConflictGraphExport {
         if (args.hasParam(ArgumentsParser.PARAM_CONFLICTS_EXCLUDE_STATEMENTS)) {
             String param = args.getParam(ArgumentsParser.PARAM_CONFLICTS_EXCLUDE_STATEMENTS);
             for (String name : param.split(",")) {
-                String split[] = name.split(".");
-                Procedure catalog_proc = args.catalogContext.procedures.getIgnoreCase(split[0]);
-                if (catalog_proc != null) {
-                    Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(split[1]);
-                    if (catalog_stmt != null) {
-                        calculator.ignoreStatement(catalog_stmt);
-                    } else {
-                        LOG.warn("Invalid statement name to exclude '" + name + "'");
-                    }
-                } else {
+                String splits[] = name.split("\\.");
+                if (splits.length != 2) {
+                    LOG.warn("Invalid procedure name to exclude '" + name + "': " + Arrays.toString(splits));
+                    continue;
+                }
+                Procedure catalog_proc = args.catalogContext.procedures.getIgnoreCase(splits[0]);
+                if (catalog_proc == null) {
                     LOG.warn("Invalid procedure name to exclude '" + name + "'");
+                    continue;
+                }
+                    
+                Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(splits[1]);
+                if (catalog_stmt != null) {
+                    calculator.ignoreStatement(catalog_stmt);
+                } else {
+                    LOG.warn("Invalid statement name to exclude '" + name + "'");
                 }
             } // FOR
         }
@@ -81,7 +87,11 @@ public abstract class ConflictGraphExport {
         gvx.setEdgeLabels(true);
         String graphviz = gvx.export(args.catalog_type.name());
         if (!graphviz.isEmpty()) {
-            File path = new File(args.catalog_type.name().toLowerCase() + "-conflicts.dot");
+            String output = args.getOptParam(0);
+            if (output == null) {
+                output = args.catalog_type.name().toLowerCase() + "-conflicts.dot";
+            }
+            File path = new File(output);
             FileUtil.writeStringToFile(path, graphviz);
             System.out.println("Wrote contents to '" + path.getAbsolutePath() + "'");
         } else {
