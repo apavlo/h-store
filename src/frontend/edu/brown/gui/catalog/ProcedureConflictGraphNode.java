@@ -18,9 +18,9 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.types.ConflictType;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.ConflictGraph;
-import edu.brown.catalog.ConflictGraph.ConflictEdge;
-import edu.brown.catalog.ConflictGraph.ConflictVertex;
+import edu.brown.catalog.conflicts.ConflictGraph;
+import edu.brown.catalog.conflicts.ConflictGraph.ConflictEdge;
+import edu.brown.catalog.conflicts.ConflictGraph.ConflictVertex;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.CollectionUtil;
 import edu.uci.ics.jung.graph.util.Pair;

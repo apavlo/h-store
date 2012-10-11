@@ -112,7 +112,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.ConflictSetCalculator;
+import edu.brown.catalog.conflicts.ConflictSetCalculator;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;

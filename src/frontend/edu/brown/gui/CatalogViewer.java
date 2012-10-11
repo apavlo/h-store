@@ -66,7 +66,7 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.ConflictGraph;
+import edu.brown.catalog.conflicts.ConflictGraph;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.gui.catalog.AttributesNode;
 import edu.brown.gui.catalog.CatalogAttributeText;

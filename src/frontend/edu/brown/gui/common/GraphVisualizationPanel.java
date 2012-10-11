@@ -16,7 +16,7 @@ import javax.swing.JFrame;
 
 import org.apache.commons.collections15.Transformer;
 
-import edu.brown.catalog.ConflictGraph;
+import edu.brown.catalog.conflicts.ConflictGraph;
 import edu.brown.designer.PartitionTree;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.markov.MarkovGraph;

@@ -1,4 +1,4 @@
-package edu.brown.catalog;
+package edu.brown.catalog.conflicts;
 
 import org.junit.Test;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -11,6 +11,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.catalog.conflicts.ConflictSetCalculator;
 
 public class TestConflictSetCalculator extends BaseTestCase {
     

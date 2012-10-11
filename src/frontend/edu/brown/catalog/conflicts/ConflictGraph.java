@@ -1,4 +1,4 @@
-package edu.brown.catalog;
+package edu.brown.catalog.conflicts;
 
 import java.util.Collection;
 
@@ -7,6 +7,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.ConflictType;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
