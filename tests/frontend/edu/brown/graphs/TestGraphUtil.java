@@ -8,7 +8,7 @@ import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.catalog.ConflictGraph;
+import edu.brown.catalog.conflicts.ConflictGraph;
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;

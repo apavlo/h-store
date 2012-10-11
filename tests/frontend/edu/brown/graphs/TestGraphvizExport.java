@@ -4,9 +4,9 @@ import java.io.File;
 
 import org.voltdb.catalog.Table;
 
-import edu.brown.catalog.ConflictGraph;
-import edu.brown.catalog.ConflictGraph.ConflictEdge;
-import edu.brown.catalog.ConflictGraph.ConflictVertex;
+import edu.brown.catalog.conflicts.ConflictGraph;
+import edu.brown.catalog.conflicts.ConflictGraph.ConflictEdge;
+import edu.brown.catalog.conflicts.ConflictGraph.ConflictVertex;
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;

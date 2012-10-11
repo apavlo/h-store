@@ -1,4 +1,4 @@
-package edu.brown.catalog;
+package edu.brown.catalog.conflicts;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -19,6 +19,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.catalog.TableRef;
 import org.voltdb.types.QueryType;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
