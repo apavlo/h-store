@@ -52,15 +52,20 @@ public class ConflictSetCalculator {
     
     private final Database catalog_db;
     private final LinkedHashMap<Procedure, ProcedureInfo> procedures = new LinkedHashMap<Procedure, ConflictSetCalculator.ProcedureInfo>(); 
+    private final Set<Procedure> ignoredProcedures = new HashSet<Procedure>();
+    private final Set<Statement> ignoredStatements = new HashSet<Statement>();
     
     public ConflictSetCalculator(Catalog catalog) {
         this.catalog_db = CatalogUtil.getDatabase(catalog);
 
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getMapreduce() || catalog_proc.getSystemproc()) continue;
+            if (this.ignoredProcedures.contains(catalog_proc)) continue;
             
             ProcedureInfo pInfo = new ProcedureInfo(catalog_proc);
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                if (this.ignoredStatements.contains(catalog_stmt)) continue;
+                
                 if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
                     pInfo.readQueries.add(catalog_stmt);
                 } else {
@@ -71,13 +76,32 @@ public class ConflictSetCalculator {
         } // FOR (procedure)
     }
     
+    /**
+     * Add a Procedure to be completely ignored when processing conflicts
+     * @param proc
+     */
+    public void ignoreProcedure(Procedure proc) {
+        this.ignoredProcedures.add(proc);
+    }
+    
+    /**
+     * Add a Statement to be completely ignored when processing conflicts
+     * @param stmt
+     */
+    public void ignoreStatement(Statement stmt) {
+        this.ignoredStatements.add(stmt);
+    }
+    
     public void process() throws Exception {
         Collection<Table> conflicts = null;
         
         // For each Procedure, get the list of read and write queries
         // Then check whether there is a R-W or W-R conflict with other procedures
         for (Procedure proc0 : this.procedures.keySet()) {
+            if (this.ignoredProcedures.contains(proc0)) continue;
+            
             for (Procedure proc1 : this.procedures.keySet()) {
+                if (this.ignoredProcedures.contains(proc1)) continue;
                 // if (proc0.equals(proc1)) continue;
                 
                 conflicts = this.checkReadWriteConflict(proc0, proc1);
@@ -96,6 +120,9 @@ public class ConflictSetCalculator {
             } // FOR
         } // FOR
         
+        for (Procedure proc : this.procedures.keySet()) {
+            proc.getConflicts().clear();
+        } // FOR
         for (Procedure proc : this.procedures.keySet()) {
             ProcedureInfo pInfo = this.procedures.get(proc);
             if (pInfo.rwConflicts.isEmpty() && pInfo.wwConflicts.isEmpty()) {
@@ -152,6 +179,8 @@ public class ConflictSetCalculator {
         
         // Read-Write Conflicts
         for (Statement stmt0 : pInfo0.readQueries) {
+            if (this.ignoredStatements.contains(stmt0)) continue;
+            
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(stmt0);
             cols0.clear();
             cols0.addAll(CatalogUtil.getReferencedColumns(stmt0));
@@ -159,6 +188,8 @@ public class ConflictSetCalculator {
             assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
             
             for (Statement stmt1 : pInfo1.writeQueries) {
+                if (this.ignoredStatements.contains(stmt1)) continue;
+                
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(stmt1);
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
                 if (debug.get()) LOG.debug(String.format("RW %s <-> %s - Intersection Tables %s",
@@ -206,6 +237,7 @@ public class ConflictSetCalculator {
         // Any INSERT or DELETE is always a conflict
         // For UPDATE, we will check whether their columns intersect
         for (Statement stmt0 : pInfo0.writeQueries) {
+            if (this.ignoredStatements.contains(stmt0)) continue;
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(stmt0);
             QueryType type0 = QueryType.get(stmt0.getQuerytype());
             Collection<Column> cols0 = CatalogUtil.getReferencedColumns(stmt0);
@@ -214,6 +246,7 @@ public class ConflictSetCalculator {
 //            assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
             
             for (Statement stmt1 : pInfo1.writeQueries) {
+                if (this.ignoredStatements.contains(stmt1)) continue;
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(stmt1);
                 QueryType type1 = QueryType.get(stmt1.getQuerytype());
                 

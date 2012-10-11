@@ -13,6 +13,11 @@ import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
+/**
+ * A ConflictGraph is a representation of the different type of
+ * consistency conflicts between stored procedures
+ * @author pavlo
+ */
 public class ConflictGraph extends AbstractDirectedGraph<ConflictGraph.ConflictVertex, ConflictGraph.ConflictEdge> {
     private static final Logger LOG = Logger.getLogger(ConflictGraph.class);
     private static final long serialVersionUID = 1L;
