@@ -610,6 +610,10 @@ public class VoltProjectBuilder {
     // REPLICATED SECONDARY INDEXES
     // -------------------------------------------------------------------
     
+    public void removeReplicatedSecondaryIndexes() {
+        m_replicatedSecondaryIndexes.clear();
+    }
+    
     public void addReplicatedSecondaryIndex(final String tableName, final String...partitionColumnNames) {
         this.addReplicatedSecondaryIndexInfo(tableName, true, partitionColumnNames);
     }
@@ -627,7 +631,7 @@ public class VoltProjectBuilder {
         m_replicatedSecondaryIndexes.put(tableName, Pair.of(createIndex, partitionColumnNames));
     }
     
-    public void setEnableReplicatedSecondaryIndexes(boolean val) { 
+    public void enableReplicatedSecondaryIndexes(boolean val) { 
         m_replicatedSecondaryIndexesEnabled = val;
     }
 
@@ -696,7 +700,9 @@ public class VoltProjectBuilder {
                            final int replication, final String leaderAddress)
     {
         VoltCompiler compiler = new VoltCompiler();
-        if (m_replicatedSecondaryIndexesEnabled) compiler.enableVerticalPartitionOptimizations();
+        if (m_replicatedSecondaryIndexesEnabled) {
+            compiler.enableVerticalPartitionOptimizations();
+        }
         return compile(compiler, jarPath, sitesPerHost, hostCount, replication,
                        leaderAddress);
     }
