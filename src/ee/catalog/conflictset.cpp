@@ -23,7 +23,7 @@
 #include "conflictset.h"
 #include "catalog.h"
 #include "procedure.h"
-#include "tableref.h"
+#include "conflictpair.h"
 
 using namespace catalog;
 using namespace std;
@@ -39,17 +39,17 @@ ConflictSet::ConflictSet(Catalog *catalog, CatalogType *parent, const string &pa
 }
 
 ConflictSet::~ConflictSet() {
-    std::map<std::string, TableRef*>::const_iterator tableref_iter = m_readWriteConflicts.begin();
-    while (tableref_iter != m_readWriteConflicts.end()) {
-        delete tableref_iter->second;
-        tableref_iter++;
+    std::map<std::string, ConflictPair*>::const_iterator conflictpair_iter = m_readWriteConflicts.begin();
+    while (conflictpair_iter != m_readWriteConflicts.end()) {
+        delete conflictpair_iter->second;
+        conflictpair_iter++;
     }
     m_readWriteConflicts.clear();
 
-    tableref_iter = m_writeWriteConflicts.begin();
-    while (tableref_iter != m_writeWriteConflicts.end()) {
-        delete tableref_iter->second;
-        tableref_iter++;
+    conflictpair_iter = m_writeWriteConflicts.begin();
+    while (conflictpair_iter != m_writeWriteConflicts.end()) {
+        delete conflictpair_iter->second;
+        conflictpair_iter++;
     }
     m_writeWriteConflicts.clear();
 
@@ -98,11 +98,11 @@ const Procedure * ConflictSet::procedure() const {
     return dynamic_cast<Procedure*>(m_procedure);
 }
 
-const CatalogMap<TableRef> & ConflictSet::readWriteConflicts() const {
+const CatalogMap<ConflictPair> & ConflictSet::readWriteConflicts() const {
     return m_readWriteConflicts;
 }
 
-const CatalogMap<TableRef> & ConflictSet::writeWriteConflicts() const {
+const CatalogMap<ConflictPair> & ConflictSet::writeWriteConflicts() const {
     return m_writeWriteConflicts;
 }
 

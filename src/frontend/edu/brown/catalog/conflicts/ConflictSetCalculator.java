@@ -10,7 +10,9 @@ import java.util.Set;
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ConflictPair;
 import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -38,20 +40,35 @@ public class ConflictSetCalculator {
     
     private static class ProcedureInfo {
         final Procedure proc;
-        
         final Set<Statement> readQueries = new HashSet<Statement>();
         final Set<Statement> writeQueries = new HashSet<Statement>();
-        
-        final Map<Procedure, Collection<Table>> rwConflicts = new HashMap<Procedure, Collection<Table>>();
-        final Map<Procedure, Collection<Table>> wwConflicts = new HashMap<Procedure, Collection<Table>>();
+        final Map<Procedure, Collection<Conflict>> rwConflicts = new HashMap<Procedure, Collection<Conflict>>();
+        final Map<Procedure, Collection<Conflict>> wwConflicts = new HashMap<Procedure, Collection<Conflict>>();
         
         ProcedureInfo(Procedure proc) {
             this.proc = proc;
         }
     }
     
+    private static class Conflict {
+        final Statement stmt0;
+        final Statement stmt1;
+        final Collection<Table> tables;
+        
+        public Conflict(Statement stmt0, Statement stmt1, Collection<Table> tables) {
+            assert(tables.isEmpty() == false);
+            this.stmt0 = stmt0;
+            this.stmt1 = stmt1;
+            this.tables = tables;
+        }
+        @Override
+        public String toString() {
+            return String.format("%s--%s", this.stmt0.getName(), this.stmt1.getName()); 
+        }
+    }
+    
     private final Database catalog_db;
-    private final LinkedHashMap<Procedure, ProcedureInfo> procedures = new LinkedHashMap<Procedure, ConflictSetCalculator.ProcedureInfo>(); 
+    private final LinkedHashMap<Procedure, ProcedureInfo> procedures = new LinkedHashMap<Procedure, ProcedureInfo>(); 
     private final Set<Procedure> ignoredProcedures = new HashSet<Procedure>();
     private final Set<Statement> ignoredStatements = new HashSet<Statement>();
     
@@ -93,7 +110,7 @@ public class ConflictSetCalculator {
     }
     
     public void process() throws Exception {
-        Collection<Table> conflicts = null;
+        Collection<Conflict> conflicts = null;
         
         // For each Procedure, get the list of read and write queries
         // Then check whether there is a R-W or W-R conflict with other procedures
@@ -128,7 +145,6 @@ public class ConflictSetCalculator {
             if (pInfo.rwConflicts.isEmpty() && pInfo.wwConflicts.isEmpty()) {
                 continue;
             }
-            
             this.updateCatalog(pInfo, pInfo.rwConflicts, true);
             this.updateCatalog(pInfo, pInfo.wwConflicts, false);
             
@@ -141,20 +157,24 @@ public class ConflictSetCalculator {
         } // FOR
     }
     
-    private void updateCatalog(ProcedureInfo pInfo, Map<Procedure, Collection<Table>> conflicts, final boolean readWrite) {
+    private void updateCatalog(ProcedureInfo pInfo,
+                               Map<Procedure, Collection<Conflict>> conflicts,
+                               boolean readWrite) {
         for (Procedure conflict_proc : conflicts.keySet()) {
             ConflictSet cSet = pInfo.proc.getConflicts().get(conflict_proc.getName());
             if (cSet == null) {
                 cSet = pInfo.proc.getConflicts().add(conflict_proc.getName());
+                cSet.setProcedure(conflict_proc);
             }
-            for (Table catalog_tbl : conflicts.get(conflict_proc)) {
-                TableRef ref = null;
-                if (readWrite) {
-                    ref = cSet.getReadwriteconflicts().add(catalog_tbl.getName());
-                } else {
-                    ref = cSet.getWritewriteconflicts().add(catalog_tbl.getName());
+            CatalogMap<ConflictPair> procConflicts = (readWrite ? cSet.getReadwriteconflicts() : cSet.getWritewriteconflicts());
+            for (Conflict c : conflicts.get(conflict_proc)) {
+                ConflictPair cp = procConflicts.add(c.toString());
+                cp.setStatement0(c.stmt0);
+                cp.setStatement1(c.stmt1);
+                for (Table table : c.tables) {
+                    TableRef ref = cp.getTables().add(table.getName());
+                    ref.setTable(table);
                 }
-                ref.setTable(catalog_tbl);
             } // FOR
         } // FOR
     }
@@ -167,17 +187,15 @@ public class ConflictSetCalculator {
      * @return
      * @throws Exception
      */
-    protected Collection<Table> checkReadWriteConflict(Procedure proc0, Procedure proc1) throws Exception {
+    protected Collection<Conflict> checkReadWriteConflict(Procedure proc0, Procedure proc1) throws Exception {
         ProcedureInfo pInfo0 = this.procedures.get(proc0);
         assert(pInfo0 != null);
         ProcedureInfo pInfo1 = this.procedures.get(proc1);
         assert(pInfo1 != null);
-        
-        Set<Table> conflicts = new HashSet<Table>();
-        
-        Collection<Column> cols0 = new HashSet<Column>();
+        Set<Conflict> conflicts = new HashSet<Conflict>();
         
         // Read-Write Conflicts
+        Collection<Column> cols0 = new HashSet<Column>();
         for (Statement stmt0 : pInfo0.readQueries) {
             if (this.ignoredStatements.contains(stmt0)) continue;
             
@@ -209,7 +227,7 @@ public class ConflictSetCalculator {
                     if (intersectColumns.isEmpty()) continue;
                 }
                 
-                conflicts.addAll(intersectTables);
+                conflicts.add(new Conflict(stmt0, stmt1, intersectTables));
                 if (debug.get()) LOG.debug(String.format("RW %s <-> %s CONFLICTS",
                                            stmt0.fullName(), stmt1.fullName()));
             } // FOR (proc1)
@@ -225,13 +243,12 @@ public class ConflictSetCalculator {
      * @return
      * @throws Exception
      */
-    protected Collection<Table> checkWriteWriteConflict(Procedure proc0, Procedure proc1) throws Exception {
+    protected Collection<Conflict> checkWriteWriteConflict(Procedure proc0, Procedure proc1) throws Exception {
         ProcedureInfo pInfo0 = this.procedures.get(proc0);
         assert(pInfo0 != null);
         ProcedureInfo pInfo1 = this.procedures.get(proc1);
         assert(pInfo1 != null);
-        
-        Set<Table> conflicts = new HashSet<Table>();
+        Set<Conflict> conflicts = new HashSet<Conflict>();
         
         // Write-Write Conflicts
         // Any INSERT or DELETE is always a conflict
@@ -257,7 +274,7 @@ public class ConflictSetCalculator {
                 
                 if (type0 == QueryType.INSERT || type1 == QueryType.INSERT ||
                     type0 == QueryType.DELETE || type1 == QueryType.DELETE) {
-                    conflicts.addAll(intersectTables);
+                    conflicts.add(new Conflict(stmt0, stmt1, intersectTables));
                     break;
                 }
                 
@@ -267,8 +284,7 @@ public class ConflictSetCalculator {
                 if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Columns %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectColumns));
                 if (intersectColumns.isEmpty()) continue;
-                
-                conflicts.addAll(intersectTables);
+                conflicts.add(new Conflict(stmt0, stmt1, intersectTables));
             } // FOR (proc1)
         } // FOR (proc0)
         return (conflicts);

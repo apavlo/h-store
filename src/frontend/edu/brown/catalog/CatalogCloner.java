@@ -13,6 +13,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.ConflictPair;
 import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.ConstraintRef;
@@ -373,15 +374,27 @@ public abstract class CatalogCloner {
             assert(dest_proc != null) : src_proc;
             
             for (ConflictSet src_conflicts : src_proc.getConflicts()) {
+                Procedure dest_otherProc = dest_db.getProcedures().get(src_conflicts.getProcedure().getName());
                 ConflictSet dest_conflicts = dest_proc.getConflicts().add(src_conflicts.getName());
+                dest_conflicts.setProcedure(dest_otherProc);
                 
-                for (TableRef src_ref : src_conflicts.getReadwriteconflicts()) {
-                    TableRef dest_ref = dest_conflicts.getReadwriteconflicts().add(src_ref.getName());
-                    dest_ref.setTable(dest_db.getTables().get(src_ref.getTable().getName()));
+                for (ConflictPair src_pair : src_conflicts.getReadwriteconflicts()) {
+                    ConflictPair dest_pair = dest_conflicts.getReadwriteconflicts().add(src_pair.getName());
+                    dest_pair.setStatement0(dest_proc.getStatements().get(src_pair.getStatement0().getName()));
+                    dest_pair.setStatement1(dest_otherProc.getStatements().get(src_pair.getStatement1().getName()));
+                    for (TableRef src_ref : src_pair.getTables()) {
+                        TableRef dest_ref = dest_pair.getTables().add(src_ref.getName());
+                        dest_ref.setTable(dest_db.getTables().get(src_ref.getTable().getName()));
+                    } // FOR
                 } // FOR
-                for (TableRef src_ref : src_conflicts.getWritewriteconflicts()) {
-                    TableRef dest_ref = dest_conflicts.getWritewriteconflicts().add(src_ref.getName());
-                    dest_ref.setTable(dest_db.getTables().get(src_ref.getTable().getName()));
+                for (ConflictPair src_pair : src_conflicts.getWritewriteconflicts()) {
+                    ConflictPair dest_pair = dest_conflicts.getWritewriteconflicts().add(src_pair.getName());
+                    dest_pair.setStatement0(dest_proc.getStatements().get(src_pair.getStatement0().getName()));
+                    dest_pair.setStatement1(dest_otherProc.getStatements().get(src_pair.getStatement1().getName()));
+                    for (TableRef src_ref : src_pair.getTables()) {
+                        TableRef dest_ref = dest_pair.getTables().add(src_ref.getName());
+                        dest_ref.setTable(dest_db.getTables().get(src_ref.getTable().getName()));
+                    } // FOR
                 } // FOR
             }
         } // FOR
