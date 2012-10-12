@@ -140,43 +140,6 @@ public abstract class FixCatalog {
         return (FixCatalog.updateCatalog(orig_catalog, cc));
     }
 
-
-    /**
-     * @param catalog_db
-     * @throws Exception
-     */
-    public static void populateCatalog(Database catalog_db, ProjectType type) throws Exception {
-        //
-        // Foreign Keys
-        //
-        Map<String, ForeignKeysUtil.ForeignKeyMapping> foreign_keys = ForeignKeysUtil.FOREIGN_KEYS.get(type);
-        if (foreign_keys != null) {
-            try {
-                ForeignKeysUtil.populateCatalog(catalog_db, foreign_keys);
-                LOG.info("Updated foreign key dependencies in catalog for schema type '" + type + "'");
-            } catch (RuntimeException ex) {
-                // Ignore these...
-                LOG.warn(ex.getLocalizedMessage());
-            }
-        }
-
-        //
-        // StmtParameter->ProcParameter Mapping
-        //
-        Map<String, ParametersUtil.DefaultParameterMapping> param_map = ParametersUtil.getParameterMapping(type);
-        if (param_map != null) {
-            try {
-                ParametersUtil.populateCatalog(catalog_db, param_map);
-                LOG.info("Updated parameter mapping information in catalog for schema type '" + type + "'");
-            } catch (RuntimeException ex) {
-                // Ignore these...
-                LOG.warn(ex.getLocalizedMessage());
-            }
-        }
-
-        return;
-    }
-
     /**
      * @param args
      */
