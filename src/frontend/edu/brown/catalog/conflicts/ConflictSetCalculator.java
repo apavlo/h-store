@@ -21,6 +21,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.catalog.TableRef;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AggregatePlanNode;
+import org.voltdb.types.ConflictType;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogUtil;
@@ -177,12 +178,21 @@ public class ConflictSetCalculator {
                 cSet = pInfo.proc.getConflicts().add(conflict_proc.getName());
                 cSet.setProcedure(conflict_proc);
             }
-            CatalogMap<ConflictPair> procConflicts = (readWrite ? cSet.getReadwriteconflicts() : cSet.getWritewriteconflicts());
+            CatalogMap<ConflictPair> procConflicts = null;
+            ConflictType cType = null;
+            if (readWrite) {
+                procConflicts = cSet.getReadwriteconflicts();
+                cType = ConflictType.READ_WRITE;
+            } else {
+                procConflicts = cSet.getWritewriteconflicts();
+                cType = ConflictType.WRITE_WRITE;
+            }
             for (Conflict c : conflicts.get(conflict_proc)) {
                 ConflictPair cp = procConflicts.add(c.toString());
                 cp.setAlwaysconflicting(c.alwaysConflicting);
                 cp.setStatement0(c.stmt0);
                 cp.setStatement1(c.stmt1);
+                cp.setConflicttype(cType.getValue());
                 for (Table table : c.tables) {
                     TableRef ref = cp.getTables().add(table.getName());
                     ref.setTable(table);

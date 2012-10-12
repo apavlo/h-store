@@ -15,101 +15,18 @@ import org.voltdb.types.ExpressionType;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
-import edu.brown.expressions.ExpressionUtil;
+import edu.brown.catalog.CatalogPair;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.StringUtil;
 
-public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
+public class ColumnSet extends ListOrderedSet<CatalogPair> {
     private static final long serialVersionUID = -7735075759916955292L;
     private static final Logger LOG = Logger.getLogger(ColumnSet.class);
     private static final boolean d = LOG.isDebugEnabled();
     private static final boolean t = LOG.isTraceEnabled();
 
     private final Set<Statement> catalog_stmts = new HashSet<Statement>();
-
-    public static class Entry extends Pair<CatalogType, CatalogType> {
-        protected final ExpressionType comparison_exp;
-        protected final QueryType query_types[];
-
-        public static Entry factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, Collection<QueryType> query_types) {
-            return (Entry.factory(element0, element1, comparison_exp, query_types.toArray(new QueryType[query_types.size()])));
-        }
-
-        public static Entry factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, QueryType... query_types) {
-            // Sort them!
-            if (element0.compareTo(element1) > 0) {
-                CatalogType temp = element0;
-                element0 = element1;
-                element1 = temp;
-            }
-            return (new Entry(element0, element1, comparison_exp, query_types));
-        }
-
-        private Entry(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, QueryType query_types[]) {
-            super(element0, element1);
-            this.comparison_exp = comparison_exp;
-            this.query_types = query_types;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o instanceof Entry) {
-                Entry other = (Entry) o;
-                return (this.comparison_exp == other.comparison_exp && super.equals(other));
-            }
-            return (false);
-        }
-
-        /**
-         * @return the comparison_exp
-         */
-        public ExpressionType getComparisonExp() {
-            return this.comparison_exp;
-        }
-
-        /**
-         * @return
-         */
-        public QueryType[] getQueryTypes() {
-            return this.query_types;
-        }
-        
-        public int getQueryTypeCount() {
-            return (this.query_types.length);
-        }
-        
-        public boolean containsQueryType(QueryType search) {
-            for (QueryType qtype : this.query_types) {
-                if (qtype == search) return (true);
-            }
-            return (false);
-        }
-        
-
-        /**
-         * Given one of the items of this entry, return the other entry
-         * 
-         * @param item
-         * @return
-         */
-        public CatalogType getOther(CatalogType item) {
-            if (this.get(0).equals(item)) {
-                return ((CatalogType) this.get(1));
-            } else if (this.get(1).equals(item)) {
-                return ((CatalogType) this.get(0));
-            }
-            return (null);
-        }
-
-        @Override
-        public String toString() {
-            return (String.format("(%s %s %s)",
-                    this.getFirst().fullName(),
-                    ExpressionUtil.EXPRESSION_STRING.get(this.getComparisonExp()),
-                    this.getSecond().fullName()));
-        }
-    } // END CLASS
 
     /**
      * 
@@ -131,10 +48,6 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
 
     public Collection<Statement> getStatements() {
         return this.catalog_stmts;
-    }
-
-    public ColumnSet.Entry get(int idx) {
-        return (super.get(idx));
     }
 
     /**
@@ -183,7 +96,7 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         for (Statement catalog_stmt : catalog_stmts) {
             query_types.add(QueryType.get(catalog_stmt.getQuerytype()));
         } // FOR
-        boolean ret = this.add(Entry.factory(element0, element1, comparison_exp, query_types));
+        boolean ret = this.add(CatalogPair.factory(element0, element1, comparison_exp, query_types));
         if (ret)
             this.catalog_stmts.addAll(catalog_stmts);
         return (ret);
@@ -196,12 +109,11 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
      */
     public ColumnSet createColumnSetForParent(Class<? extends CatalogType> match_class, CatalogType parent_search_key) {
         ColumnSet ret = new ColumnSet(this.catalog_stmts);
-        // We're looking for Pairs where one of the elements matches the
-        // search_key, and
-        // the other element is of the same type of match_class
-        for (Entry e : this) {
+        // We're looking for Pairs where one of the elements matches the search_key,
+        // and the other element is of the same type of match_class
+        for (CatalogPair e : this) {
             if (e.getFirst().getClass().equals(match_class) && e.getSecond().getParent().equals(parent_search_key)) {
-                ret.add(Entry.factory(e.getSecond(), e.getFirst(), e.getComparisonExp(), e.getQueryTypes()));
+                ret.add(CatalogPair.factory(e.getSecond(), e.getFirst(), e.getComparisonExp(), e.getQueryTypes()));
             } else if (e.getSecond().getClass().equals(match_class) && e.getFirst().getParent().equals(parent_search_key)) {
                 ret.add(e);
             }
@@ -317,9 +229,9 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
      * @param search_key
      * @return
      */
-    public Set<Entry> findAll(CatalogType search_key) {
-        Set<Entry> found = new HashSet<Entry>();
-        for (Entry entry : this) {
+    public Set<CatalogPair> findAll(CatalogType search_key) {
+        Set<CatalogPair> found = new HashSet<CatalogPair>();
+        for (CatalogPair entry : this) {
             if (entry.contains(search_key)) {
                 found.add(entry);
             }
@@ -331,9 +243,9 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
      * @param search_key
      * @return
      */
-    public Set<Entry> findAllForParent(CatalogType search_key) {
-        Set<Entry> found = new HashSet<Entry>();
-        for (Entry entry : this) {
+    public Set<CatalogPair> findAllForParent(CatalogType search_key) {
+        Set<CatalogPair> found = new HashSet<CatalogPair>();
+        for (CatalogPair entry : this) {
             if (entry.getFirst().getParent().equals(search_key) || entry.getSecond().getParent().equals(search_key)) {
                 found.add(entry);
             }
@@ -344,7 +256,7 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     @SuppressWarnings("unchecked")
     public <T extends CatalogType> Set<T> findAllForType(Class<T> search_key) {
         Set<T> found = new HashSet<T>();
-        for (Entry e : this) {
+        for (CatalogPair e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
                 found.add((T) e.getFirst());
             }
@@ -358,7 +270,7 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     @SuppressWarnings("unchecked")
     public <T extends CatalogType> Histogram<T> buildHistogramForType(Class<T> search_key) {
         Histogram<T> h = new Histogram<T>();
-        for (Entry e : this) {
+        for (CatalogPair e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
                 h.put((T) e.getFirst());
             }
@@ -386,7 +298,7 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
 
     public String debug() {
         String ret = "ColumnSet: {\n";
-        for (Entry pair : this) {
+        for (CatalogPair pair : this) {
             ret += StringUtil.SPACER + pair.toString() + "\n";
         } // FOR
         ret += "}";

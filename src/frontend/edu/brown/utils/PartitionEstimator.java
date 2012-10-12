@@ -60,6 +60,7 @@ import org.voltdb.types.ExpressionType;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
@@ -537,7 +538,7 @@ public class PartitionEstimator {
                 } else {
                     // First go through all the entries and add any mappings from
                     // Columns to StmtParameters to our stmt_cache
-                    for (ColumnSet.Entry entry : cset) {
+                    for (CatalogPair entry : cset) {
                         if (trace.get())
                             LOG.trace("Examining extracted ColumnSetEntry: " + entry);
 
@@ -692,7 +693,7 @@ public class PartitionEstimator {
                     CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalogContext.database, update_cset, root_node, true, tables);
 
                     boolean found = false;
-                    for (ColumnSet.Entry entry : update_cset) {
+                    for (CatalogPair entry : update_cset) {
                         Column catalog_col = null;
                         StmtParameter catalog_param = null;
 

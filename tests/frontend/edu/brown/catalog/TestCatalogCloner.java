@@ -185,6 +185,8 @@ public class TestCatalogCloner extends BaseTestCase {
                 assertNotNull(conflict0.fullName(), conflict1);
                 assertEquals(conflict0.fullName(), conflict0.getStatement0().getName(), conflict1.getStatement0().getName());
                 assertEquals(conflict0.fullName(), conflict0.getStatement1().getName(), conflict1.getStatement1().getName());
+                assertEquals(conflict0.fullName(), conflict0.getAlwaysconflicting(), conflict1.getAlwaysconflicting());
+                assertEquals(conflict0.fullName(), conflict0.getConflicttype(), conflict1.getConflicttype());
                 for (TableRef ref0 : conflict0.getTables()) {
                     TableRef ref1 = conflict1.getTables().get(ref0.getName());
                     assertNotNull(ref0.fullName(), ref1);
@@ -198,6 +200,8 @@ public class TestCatalogCloner extends BaseTestCase {
                 assertNotNull(conflict0.fullName(), conflict1);
                 assertEquals(conflict0.fullName(), conflict0.getStatement0().getName(), conflict1.getStatement0().getName());
                 assertEquals(conflict0.fullName(), conflict0.getStatement1().getName(), conflict1.getStatement1().getName());
+                assertEquals(conflict0.fullName(), conflict0.getAlwaysconflicting(), conflict1.getAlwaysconflicting());
+                assertEquals(conflict0.fullName(), conflict0.getConflicttype(), conflict1.getConflicttype());
                 for (TableRef ref0 : conflict0.getTables()) {
                     TableRef ref1 = conflict1.getTables().get(ref0.getName());
                     assertNotNull(ref0.fullName(), ref1);

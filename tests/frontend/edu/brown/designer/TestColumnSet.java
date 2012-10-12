@@ -11,7 +11,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
-import edu.brown.designer.ColumnSet.Entry;
+import edu.brown.catalog.CatalogPair;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
@@ -47,7 +47,7 @@ public class TestColumnSet extends BaseTestCase {
         cset.add(this.getColumn(catalog_tbl, "NO_O_ID"), this.getColumn(this.catalog_tbl1, "O_ID"));
         // And that two columns from the same table are sorted
         cset.add(this.getColumn(catalog_tbl1, "O_ID"), this.getColumn(this.catalog_tbl1, "O_D_ID"));
-        for (Entry e : cset) {
+        for (CatalogPair e : cset) {
             assertNotNull(e);
             CatalogType first = e.getFirst();
             assertNotNull(first);

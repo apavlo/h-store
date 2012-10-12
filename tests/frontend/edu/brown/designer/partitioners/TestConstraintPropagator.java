@@ -9,6 +9,7 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
@@ -190,7 +191,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
                     ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                     assertNotNull(cset);
                     assertEquals(cset.toString(), 1, cset.size());
-                    ColumnSet.Entry entry = cset.get(0);
+                    CatalogPair entry = cset.get(0);
                     assertNotNull(entry);
                     
                     // Get the element from the entry that is not our column

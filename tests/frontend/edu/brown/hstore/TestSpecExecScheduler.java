@@ -38,7 +38,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         if (isFirstSetup()) System.err.println(CatalogInfo.getInfo(catalog, null));
         
         this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
-        this.scheduler = new SpecExecScheduler(BASE_PARTITION, this.work_queue, catalogContext);
+        this.scheduler = new SpecExecScheduler(catalogContext, BASE_PARTITION, this.work_queue);
         
         // Create our current distributed transaction
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);

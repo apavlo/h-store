@@ -26,6 +26,7 @@ import org.voltdb.types.ExpressionType;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
+import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.AccessGraph.AccessType;
@@ -104,7 +105,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
 
     public static AccessGraph convertToSingleColumnEdges(Database catalog_db, AccessGraph orig_agraph) {
         AccessGraph agraph = new AccessGraph(catalog_db);
-        Map<ColumnSet.Entry, DesignerEdge> entry_edges = new HashMap<ColumnSet.Entry, DesignerEdge>();
+        Map<CatalogPair, DesignerEdge> entry_edges = new HashMap<CatalogPair, DesignerEdge>();
 
         for (DesignerVertex v : orig_agraph.getVertices()) {
             agraph.addVertex(v);
@@ -129,7 +130,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             if (d)
                 LOG.debug(String.format("%s <-> %s\n%s", v0, v1, cset));
 
-            for (ColumnSet.Entry entry : cset) {
+            for (CatalogPair entry : cset) {
                 DesignerEdge new_e = entry_edges.get(entry);
                 if (new_e == null) {
                     ColumnSet new_cset = new ColumnSet(cset.getStatements());
