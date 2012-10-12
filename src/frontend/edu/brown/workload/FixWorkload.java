@@ -29,86 +29,6 @@ public abstract class FixWorkload {
     private static final int OL_SUPPLY_REMOTE = 50; // %
     private static final int OL_SUPPLY_REMOTE_ITEM = 50; // % 
 
-    /**
-     * 
-     * @param args
-     * @param id_suffix
-     * @param min_id
-     * @param max_id
-     * @throws Exception
-     */
-    public static void expandPartitionParameters(ArgumentsParser args, String id_suffix, int min_id, int max_id) throws Exception {
-        assert(min_id < max_id);
-        id_suffix = id_suffix.toLowerCase();
-        
-        //
-        // Construct a mapping from Procedures whose partitioning ProcParameter's names that match
-        // our id_suffix to all of their StmtParameters that we'll want to modify
-        //
-        Map<Procedure, Map<Statement, Set<StmtParameter>>> proc_stmt_params = new HashMap<Procedure, Map<Statement, Set<StmtParameter>>>();
-        for (Procedure catalog_proc : args.catalog_db.getProcedures()) {
-            if (catalog_proc.getSystemproc()) continue;
-            int proc_param_idx = catalog_proc.getPartitionparameter();
-//            System.out.println(catalog_proc + " [" + proc_param_idx + "]"); System.out.flush();
-            ProcParameter catalog_procparam = catalog_proc.getParameters().get(proc_param_idx);
-            if (catalog_procparam != null) {
-                // Check whether the name of procedure's partitioning parameter for the xact matches our suffix
-                String name = ParametersUtil.getProcParameterName(args.catalog_type, catalog_proc.getName(), catalog_procparam.getIndex());
-                if (name != null && name.toLowerCase().endsWith(id_suffix)) {
-                    proc_stmt_params.put(catalog_proc, new HashMap<Statement, Set<StmtParameter>>());
-                    for (Statement catalog_stmt : catalog_proc.getStatements()) {
-                        proc_stmt_params.get(catalog_proc).put(catalog_stmt, new HashSet<StmtParameter>());
-                        for (StmtParameter catalog_stmtparam : catalog_stmt.getParameters()) {
-                            if (catalog_stmtparam.getProcparameter() != null && catalog_stmtparam.getProcparameter().equals(catalog_procparam)) {
-                                proc_stmt_params.get(catalog_proc).get(catalog_stmt).add(catalog_stmtparam);
-                            }
-                        } // FOR
-                    } // FOR
-                }
-            }
-        } // FOR
-        
-        AbstractRandomGenerator rand = new DefaultRandomGenerator(0);
-        Histogram histogram = new Histogram();
-        long updated = 0;
-        for (AbstractTraceElement<?> element : args.workload) {
-            if (element instanceof TransactionTrace) {
-                TransactionTrace xact = (TransactionTrace)element;
-                
-                //
-                // Grab the catalog objects for this xact and see if we even want to bother with this guy
-                //
-                Procedure catalog_proc = xact.getCatalogItem(args.catalog_db);
-                Map<Statement, Set<StmtParameter>> stmt_param_map = proc_stmt_params.get(catalog_proc); 
-                if (stmt_param_map != null) {
-                    // FIXME: Assuming all parameters are ints
-                    Integer new_id = rand.number(min_id, max_id);
-                    xact.setParam(catalog_proc.getPartitionparameter(), new_id);
-                    
-//                    if (catalog_proc.getName().equals("neworder")) {
-//                        System.out.println(xact);
-//                        System.out.println("Partition Param[" + catalog_proc.getPartitionparameter() + "]: " + xact.getParam(catalog_proc.getPartitionparameter()));
-//                        System.exit(1);
-//                    }
-                    histogram.put(new_id);
-                    
-                    //
-                    // Now for each query update the parameters that map to our ProcParameter
-                    //
-                    for (QueryTrace query_trace : xact.getQueries()) {
-                        Statement catalog_stmt = query_trace.getCatalogItem(args.catalog_db);
-                        for (StmtParameter catalog_stmtparam : stmt_param_map.get(catalog_stmt)) {
-                            query_trace.setParam(catalog_stmtparam.getIndex(), new_id);
-                        } // FOR
-                    } // FOR
-                    updated++;
-                }
-            }
-        } // FOR
-        LOG.info("Updated " + updated + " transactions in the workload");
-        LOG.info("Histogram:\n" + histogram);
-        return;
-    }
     
     /**
      * 
@@ -395,22 +315,22 @@ public abstract class FixWorkload {
         
         return;
     }
-    
-    private static final void fixTM1(Workload workload) throws Exception {
-        // Fix UpdateSubscriberData
-        long fix_ctr = 0;
-        for (TransactionTrace txn_trace : workload.getTransactions()) {
-            if (!txn_trace.getCatalogItemName().equals("UpdateSubscriberData")) continue;
-            
-            Object params[] = txn_trace.getParams();
-            Object temp = params[0];
-            txn_trace.setParam(0, params[1]);
-            txn_trace.setParam(1, temp);
-            fix_ctr++;
-        }
-        LOG.info("Fixed " + fix_ctr + " UpdateSubscriberData txns!");
-        return;
-    }
+//    
+//    private static final void fixTM1(Workload workload) throws Exception {
+//        // Fix UpdateSubscriberData
+//        long fix_ctr = 0;
+//        for (TransactionTrace txn_trace : workload.getTransactions()) {
+//            if (!txn_trace.getCatalogItemName().equals("UpdateSubscriberData")) continue;
+//            
+//            Object params[] = txn_trace.getParams();
+//            Object temp = params[0];
+//            txn_trace.setParam(0, params[1]);
+//            txn_trace.setParam(1, temp);
+//            fix_ctr++;
+//        }
+//        LOG.info("Fixed " + fix_ctr + " UpdateSubscriberData txns!");
+//        return;
+//    }
     
     private static final void updateTraceIds(Database catalog_db, Workload workload, String output_path) throws Exception {
         FileOutputStream output = new FileOutputStream(output_path);
