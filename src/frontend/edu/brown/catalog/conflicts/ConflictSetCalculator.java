@@ -67,9 +67,6 @@ public class ConflictSetCalculator {
             this.alwaysConflicting = alwaysConflicting;
         }
         
-        public Conflict(Statement stmt0, Statement stmt1, Collection<Table> tables) {
-            this(stmt0, stmt1, tables, false);
-        }
         @Override
         public String toString() {
             return String.format("%s--%s", this.stmt0.getName(), this.stmt1.getName()); 
@@ -196,7 +193,7 @@ public class ConflictSetCalculator {
     
     
     /**
-     * Calculate whether two Procedures conflict
+     * Calculate whether two Procedures have READ-WRITE conflicts
      * @param proc0
      * @param proc1
      * @return
@@ -214,18 +211,20 @@ public class ConflictSetCalculator {
         Collection<Column> cols0 = new HashSet<Column>();
         for (Statement stmt0 : pInfo0.readQueries) {
             if (this.ignoredStatements.contains(stmt0)) continue;
-            
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(stmt0);
             cols0.clear();
             cols0.addAll(CatalogUtil.getReferencedColumns(stmt0));
             cols0.addAll(PlanNodeUtil.getOutputColumnsForStatement(stmt0));
+            boolean alwaysConflicting0 = this.alwaysReadWriteConflicting(stmt0, tables0);
             // assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
             
             for (Statement stmt1 : pInfo1.writeQueries) {
                 if (this.ignoredStatements.contains(stmt1)) continue;
-                
+                QueryType type1 = QueryType.get(stmt1.getQuerytype());
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(stmt1);
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
+                Collection<Column> cols1 = CatalogUtil.getReferencedColumns(stmt1);
+                boolean alwaysConflicting1 = this.alwaysWriteConflicting(stmt1, type1, tables1, cols1);
                 if (debug.get()) LOG.debug(String.format("RW %s <-> %s - Intersection Tables %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectTables));
                 if (intersectTables.isEmpty()) continue;
@@ -234,8 +233,8 @@ public class ConflictSetCalculator {
                 // The two queries won't conflict if the write query is an UPDATE
                 // and it changes a column that is not referenced in either 
                 // the output or the where clause for the SELECT query
-                if (stmt1.getQuerytype() == QueryType.UPDATE.getValue()) {
-                    Collection<Column> cols1 = CatalogUtil.getModifiedColumns(stmt1);
+                if (type1 == QueryType.UPDATE) {
+                    cols1 = CatalogUtil.getModifiedColumns(stmt1);
                     assert(cols1.isEmpty() == false) : "No columns for " + stmt1.fullName();
                     Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
                     if (debug.get()) LOG.debug(String.format("RW %s <-> %s - Intersection Columns %s",
@@ -243,9 +242,10 @@ public class ConflictSetCalculator {
                     if (intersectColumns.isEmpty()) continue;
                 }
                 
-                conflicts.add(new Conflict(stmt0, stmt1, intersectTables));
                 if (debug.get()) LOG.debug(String.format("RW %s <-> %s CONFLICTS",
                                            stmt0.fullName(), stmt1.fullName()));
+                Conflict c = new Conflict(stmt0, stmt1, intersectTables, (alwaysConflicting0 || alwaysConflicting1));
+                conflicts.add(c);
             } // FOR (proc1)
         } // FOR (proc0)
         
@@ -253,7 +253,7 @@ public class ConflictSetCalculator {
     }
     
     /**
-     * Calculate whether two Procedures conflict
+     * Calculate whether two Procedures have WRITE-WRITE conflicts
      * @param proc0
      * @param proc1
      * @return
@@ -275,16 +275,14 @@ public class ConflictSetCalculator {
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(stmt0);
             QueryType type0 = QueryType.get(stmt0.getQuerytype());
             Collection<Column> cols0 = CatalogUtil.getReferencedColumns(stmt0);
-            
-            // If there are no columns, then this must be a delete
-//            assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
+            boolean alwaysConflicting0 = this.alwaysWriteConflicting(stmt0, type0, tables0, cols0);
             
             for (Statement stmt1 : pInfo1.writeQueries) {
                 if (this.ignoredStatements.contains(stmt1)) continue;
-                boolean alwaysConflicting = false;
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(stmt1);
                 QueryType type1 = QueryType.get(stmt1.getQuerytype());
                 Collection<Column> cols1 = CatalogUtil.getReferencedColumns(stmt1);
+                boolean alwaysConflicting1 = this.alwaysWriteConflicting(stmt1, type1, tables1, cols1);
                 
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
                 if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Tables %s",
@@ -293,52 +291,68 @@ public class ConflictSetCalculator {
                 
                 // If both queries are INSERTs, then this is always conflicting
                 if (type0 == QueryType.INSERT && type1 == QueryType.INSERT) {
-                    alwaysConflicting = true;
+                    alwaysConflicting1 = true;
                 }
-                
-                for (int i = 0; i < 2; i++) {
-                    Statement stmt = (i == 0 ? stmt0 : stmt1);
-                    QueryType type = (i == 0 ? type0 : type1);
-                    Collection<Table> tables = (i == 0 ? tables0 : tables1);
-                    Collection<Column> cols = (i == 0 ? cols0 : cols1);
-                    AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(stmt, true);
                     
-                    // Any DELETE statement that does not use a primary key in its WHERE 
-                    // clause should be marked as always conflicting.
-                    if (type == QueryType.DELETE) {
-                        Collection<Column> pkeys = this.pkeysCache.get(CollectionUtil.first(tables));
-                        if (cols.containsAll(pkeys) == false) {
-                            alwaysConflicting = true;
-                        }
-                    }
-                    else if (type == QueryType.SELECT) {
-                        // Any join is always conflicting... it's just easier
-                        if (tables.size() > 1) {
-                            alwaysConflicting = true;
-                        }
-                        // Any aggregate query is always conflicting
-                        // Again, not always true but it's just easier...
-                        else if (PlanNodeUtil.getPlanNodes(root, AggregatePlanNode.class).isEmpty() == false) {
-                            alwaysConflicting = true;
-                        }
-                        // Any range query must always be conflicting
-                        else if (PlanNodeUtil.isRangeQuery(this.catalog_db, root)) {
-                            alwaysConflicting = true;
-                        }
-                    }
-                } // FOR
-                    
-                
-                // type0 == QueryType.INSERT || type1 == QueryType.INSERT ||
-                
-                
                 Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
                 if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Columns %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectColumns));
-                if (alwaysConflicting == false && intersectColumns.isEmpty()) continue;
-                conflicts.add(new Conflict(stmt0, stmt1, intersectTables, alwaysConflicting));
+                if (alwaysConflicting0 == false && alwaysConflicting1 == false && intersectColumns.isEmpty()) continue;
+                Conflict c = new Conflict(stmt0, stmt1, intersectTables, (alwaysConflicting0 || alwaysConflicting1));
+                conflicts.add(c);
             } // FOR (proc1)
         } // FOR (proc0)
         return (conflicts);
+    }
+    
+    /**
+     * Returns true if this Statement will always conflict with other WRITE queries
+     * @param stmt
+     * @param type
+     * @param tables
+     * @param cols
+     * @return
+     */
+    private boolean alwaysReadWriteConflicting(Statement stmt, Collection<Table> tables) {
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(stmt, true);
+        
+        // Any join is always conflicting... it's just easier
+        if (tables.size() > 1) {
+            return (true);
+        }
+        // Any aggregate query is always conflicting
+        // Again, not always true but it's just easier...
+        else if (PlanNodeUtil.getPlanNodes(root, AggregatePlanNode.class).isEmpty() == false) {
+            return (true);
+        }
+        // Any range query must always be conflicting
+        else if (PlanNodeUtil.isRangeQuery(this.catalog_db, root)) {
+            return (true);
+        }
+        return (false);
+    }
+    
+    
+    /**
+     * Returns true if this Statement will always conflict with other WRITE queries
+     * @param stmt
+     * @param type
+     * @param tables
+     * @param cols
+     * @return
+     */
+    private boolean alwaysWriteConflicting(Statement stmt,
+                                           QueryType type,
+                                           Collection<Table> tables,
+                                           Collection<Column> cols) {
+        // Any DELETE statement that does not use a primary key in its WHERE 
+        // clause should be marked as always conflicting.
+        if (type == QueryType.DELETE) {
+            Collection<Column> pkeys = this.pkeysCache.get(CollectionUtil.first(tables));
+            if (cols.containsAll(pkeys) == false) {
+                return (true);
+            }
+        }
+        return (false);
     }
 }
