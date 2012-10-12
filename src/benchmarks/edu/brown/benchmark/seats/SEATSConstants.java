@@ -226,6 +226,7 @@ public abstract class SEATSConstants {
     public static final String TABLENAME_AIRPORT = "AIRPORT";
     public static final String TABLENAME_AIRPORT_DISTANCE = "AIRPORT_DISTANCE";
     public static final String TABLENAME_FLIGHT = "FLIGHT";
+    public static final String TABLENAME_FLIGHT_INFO = "FLIGHT_INFO";
     public static final String TABLENAME_RESERVATION = "RESERVATION";
     
     public static final String TABLENAME_CONFIG_PROFILE = "CONFIG_PROFILE";

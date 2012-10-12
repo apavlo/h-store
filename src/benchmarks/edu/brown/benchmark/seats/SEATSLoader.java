@@ -323,12 +323,14 @@ public class SEATSLoader extends Loader {
     public void loadTable(Table catalog_tbl, Iterable<Object[]> iterable, int batch_size) {
         // Special Case: Airport Locations
         final boolean is_airport = catalog_tbl.getName().equals(SEATSConstants.TABLENAME_AIRPORT);
+        final boolean is_flight = catalog_tbl.getName().equals(SEATSConstants.TABLENAME_FLIGHT);
         final Database catalog_db = CatalogUtil.getDatabase(catalog_tbl.getCatalog()); 
         
         if (debug.get()) LOG.debug(String.format("Generating new records for table %s [batchSize=%d]", catalog_tbl.getName(), batch_size));
         final VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        final VoltTable vtFilghtInfo = CatalogUtil.getVoltTable(catalog_db.getTables().get(SEATSConstants.TABLENAME_FLIGHT_INFO));
         final CatalogMap<Column> columns = catalog_tbl.getColumns();
-
+        
         // Check whether we have any special mappings that we need to maintain
         Map<Integer, Integer> code_2_id = new HashMap<Integer, Integer>();
         Map<Integer, Map<String, Long>> mapping_columns = new HashMap<Integer, Map<String, Long>>();
@@ -427,11 +429,18 @@ public class SEATSLoader extends Loader {
                 } // FOR
                 
                 vt.addRow(tuple);
+                if (is_flight) {
+                	vtFilghtInfo.addRow(tuple);
+                }
                 if (row_idx > 0 && (row_idx+1) % batch_size == 0) {
                     // if (trace.get()) LOG.trace("Storing batch of " + batch_size + " tuples for " + catalog_tbl.getName() + " [total=" + row_idx + "]");
                     // if (debug) System.out.println(vt.toString());
                     this.loadVoltTable(catalog_tbl.getName(), vt);
                     vt.clearRowData();
+                    if (is_flight) {
+                    	this.loadVoltTable(SEATSConstants.TABLENAME_FLIGHT_INFO, vtFilghtInfo);
+                    	vtFilghtInfo.clearRowData();
+                    }
                 }
                 row_idx++;
             } // FOR
@@ -440,6 +449,8 @@ public class SEATSLoader extends Loader {
         }
         if (vt.getRowCount() > 0) {
             this.loadVoltTable(catalog_tbl.getName(), vt);
+            if (is_flight) 
+            	this.loadVoltTable(SEATSConstants.TABLENAME_FLIGHT_INFO, vtFilghtInfo);
         }
         if (is_airport) assert(profile.getAirportCount() == row_idx) :
             String.format("%d != %d", profile.getAirportCount(), row_idx);
@@ -532,32 +543,32 @@ public class SEATSLoader extends Loader {
      * @param catalog_tbl the target table that we need an iterable for
      */
     protected Iterable<Object[]> getScalingIterable(Table catalog_tbl) {
-        String name = catalog_tbl.getName().toUpperCase();
+        String name = catalog_tbl.getName();
         ScalingDataIterable it = null;
         double scaleFactor = this.getScaleFactor(); 
         long num_customers = Math.round(SEATSConstants.CUSTOMERS_COUNT * scaleFactor); 
         
         // Customers
-        if (name.equals(SEATSConstants.TABLENAME_CUSTOMER)) {
+        if (name.equalsIgnoreCase(SEATSConstants.TABLENAME_CUSTOMER)) {
             it = new CustomerIterable(catalog_tbl, num_customers);
         }
         // FrequentFlyer
-        else if (name.equals(SEATSConstants.TABLENAME_FREQUENT_FLYER)) {
+        else if (name.equalsIgnoreCase(SEATSConstants.TABLENAME_FREQUENT_FLYER)) {
             it = new FrequentFlyerIterable(catalog_tbl, num_customers);
         }   
         // Airport Distance
-        else if (name.equals(SEATSConstants.TABLENAME_AIRPORT_DISTANCE)) {
+        else if (name.equalsIgnoreCase(SEATSConstants.TABLENAME_AIRPORT_DISTANCE)) {
             int max_distance = Integer.MAX_VALUE; // SEATSConstants.DISTANCES[SEATSConstants.DISTANCES.length - 1];
             it = new AirportDistanceIterable(catalog_tbl, max_distance);
         }
         // Flights
-        else if (name.equals(SEATSConstants.TABLENAME_FLIGHT)) {
+        else if (name.equalsIgnoreCase(SEATSConstants.TABLENAME_FLIGHT)) {
             it = new FlightIterable(catalog_tbl,
                     (int)Math.round(SEATSConstants.FLIGHTS_DAYS_PAST * scaleFactor),
                     (int)Math.round(SEATSConstants.FLIGHTS_DAYS_FUTURE * scaleFactor));
         }
         // Reservations
-        else if (name.equals(SEATSConstants.TABLENAME_RESERVATION)) {
+        else if (name.equalsIgnoreCase(SEATSConstants.TABLENAME_RESERVATION)) {
             long total = Math.round((SEATSConstants.FLIGHTS_PER_DAY_MIN + SEATSConstants.FLIGHTS_PER_DAY_MAX) / 2d * scaleFactor);
             it = new ReservationIterable(catalog_tbl, total);
         }
@@ -974,10 +985,9 @@ public class SEATSLoader extends Loader {
         private Long airline_id;
         private TimestampType depart_time;
         private TimestampType arrive_time;
-        private int status;
         
         public FlightIterable(Table catalog_tbl, int days_past, int days_future) {
-            super(catalog_tbl, Long.MAX_VALUE, new int[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+            super(catalog_tbl, Long.MAX_VALUE, new int[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8 });
             assert(days_past >= 0);
             assert(days_future >= 0);
             
@@ -1093,9 +1103,6 @@ public class SEATSLoader extends Loader {
             this.airline_code = this.airlines.nextValue();
             this.airline_id = profile.getAirlineId(this.airline_code);
             
-            // Status
-            this.status = 0; // TODO
-            
             this.flights_per_day.put(date, this.flights_per_day.get(date) - 1);
             return;
         }
@@ -1174,23 +1181,18 @@ public class SEATSLoader extends Loader {
                     value = this.arrive_time;
                     break;
                 }
-                // FLIGHT STATUS
-                case (6): {
-                    value = this.status;
-                    break;
-                }
                 // BASE PRICE
-                case (7): {
+                case (6): {
                     value = (double)this.prices.nextInt();
                     break;
                 }
                 // SEATS TOTAL
-                case (8): {
+                case (7): {
                     value = SEATSConstants.FLIGHTS_NUM_SEATS;
                     break;
                 }
                 // SEATS REMAINING
-                case (9): {
+                case (8): {
                     // We have to figure this out ahead of time since we need to populate the tuple now
                     for (int seatnum = 0; seatnum < SEATSConstants.FLIGHTS_NUM_SEATS; seatnum++) {
                         if (!this.seatIsOccupied()) continue;
