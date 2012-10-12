@@ -864,7 +864,6 @@ public class VoltProjectBuilder {
         ParametersUtil.applyParameterMappings(catalog_db, mappings);
     }
 
-    // Do we want to put this above to save doing the traversal all over again?
     private void applyPrefetchableFlags(Database catalog_db) {
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             for (Statement statement : catalog_proc.getStatements()) {
