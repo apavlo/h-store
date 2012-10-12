@@ -6,6 +6,11 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 
+/**
+ * A ConflictChecker is used to determine whether a local single-partition
+ * txn can be speculatively executed while we are waiting for a dtxn to finish
+ * @author pavlo
+ */
 public abstract class AbstractConflictChecker {
 
     protected final CatalogContext catalogContext;
