@@ -219,7 +219,7 @@ public class ConflictSetCalculator {
             cols0.clear();
             cols0.addAll(CatalogUtil.getReferencedColumns(stmt0));
             cols0.addAll(PlanNodeUtil.getOutputColumnsForStatement(stmt0));
-            assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
+            // assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
             
             for (Statement stmt1 : pInfo1.writeQueries) {
                 if (this.ignoredStatements.contains(stmt1)) continue;
@@ -285,7 +285,6 @@ public class ConflictSetCalculator {
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(stmt1);
                 QueryType type1 = QueryType.get(stmt1.getQuerytype());
                 Collection<Column> cols1 = CatalogUtil.getReferencedColumns(stmt1);
-                assert(cols1.isEmpty() == false) : "No columns for " + stmt0.fullName();
                 
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
                 if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Tables %s",
