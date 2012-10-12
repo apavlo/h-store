@@ -213,6 +213,31 @@ EXPERIMENT_SETTINGS = {
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
     },
+    "prefetchquery": {
+        "ec2.site_type":                       "c1.xlarge",
+        "site.memory":                          6144,
+        "site.txn_incoming_delay":              2,
+        "site.specexec_enable":                 False,
+        "site.specexec_idle":                   False,
+        "site.specexec_nonblocking":            False,
+        "site.markov_enable":                   False,
+        "site.markov_fixed":                    True,
+        "site.exec_force_singlepartitioned":    False,
+        "client.count":                         1,
+        "client.txnrate":                       100000,
+        "client.blocking":                      True,
+        "client.output_txn_counters":          "txncounters.csv",
+        "client.output_txn_counters_combine":  True,
+    },
+    "onepartition": {
+        "ec2.site_type":                       "c1.xlarge",
+        "site.memory":                          6144,
+        "site.exec_force_singlepartitioned":    True,
+        "client.count":                         1,
+        "client.txnrate":                       100000,
+        "client.blocking":                      True,
+        "client.output_txn_profiling":          "txnprofile.csv",
+    },
 }
 EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
 
@@ -259,6 +284,11 @@ def updateEnv(args, env, benchmark, partitions):
             env["client.weights"] = ""
         else:
             env["client.weights"] = ""
+    ## ----------------------------------------------
+    ## ONE PARTITION EXPERIMENTS
+    ## ----------------------------------------------
+    elif args['exp_type'].startswith("onepartition"):
+        pass
         
     pplan = "%s.lns.pplan" % benchmark
     env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
@@ -375,6 +405,7 @@ if __name__ == '__main__':
     agroup = aparser.add_argument_group('EC2 Cluster Control Parameters')
     agroup.add_argument("--partitions", type=int, default=4, metavar='P', nargs='+',)
     agroup.add_argument("--start-cluster", action='store_true')
+    agroup.add_argument("--stop-cluster", action='store_true')
     agroup.add_argument("--fast-start", action='store_true')
     agroup.add_argument("--force-reboot", action='store_true')
     agroup.add_argument("--single-client", action='store_true')
@@ -521,6 +552,12 @@ if __name__ == '__main__':
     
     # BenchmarkController Parameters
     controllerParams = { } # { "noshutdown": True }
+    
+    # Shut 'er down!
+    if args['stop_cluster']:
+        LOG.info("Stopping cluster now!")
+        hstore.fabfile.stop_cluster()
+        sys.exit(0)
     
     needUpdate = (args['no_update'] == False)
     needUpdateLog4j = args['debug_log4j_site'] or args['debug_log4j_client']
