@@ -289,7 +289,8 @@ public class ConflictSetCalculator {
                                            stmt0.fullName(), stmt1.fullName(), intersectTables));
                 if (intersectTables.isEmpty()) continue;
                 
-                // If both queries are INSERTs, then this is always conflicting
+                // If both queries are INSERTs, then this is always a conflict since
+                // there might be a global constraint... 
                 if (type0 == QueryType.INSERT && type1 == QueryType.INSERT) {
                     alwaysConflicting1 = true;
                 }
@@ -317,6 +318,8 @@ public class ConflictSetCalculator {
         AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(stmt, true);
         
         // Any join is always conflicting... it's just easier
+        // XXX: If target table referenced in the WRITE query is referenced using
+        //      only equality predicates on the primary key, then there won't be a conflict
         if (tables.size() > 1) {
             return (true);
         }
@@ -345,11 +348,16 @@ public class ConflictSetCalculator {
                                            QueryType type,
                                            Collection<Table> tables,
                                            Collection<Column> cols) {
-        // Any DELETE statement that does not use a primary key in its WHERE 
-        // clause should be marked as always conflicting.
-        if (type == QueryType.DELETE) {
+        if (type == QueryType.UPDATE || type == QueryType.DELETE) {
+            
+            // Any UPDATE or DELETE statement that does not use a primary key in its WHERE 
+            // clause should be marked as always conflicting.
             Collection<Column> pkeys = this.pkeysCache.get(CollectionUtil.first(tables));
             if (cols.containsAll(pkeys) == false) {
+                return (true);
+            }
+            // Or any UPDATE or DELETE with a range predicate in its WHERE clause always conflicts
+            else if (PlanNodeUtil.isRangeQuery(this.catalog_db, PlanNodeUtil.getRootPlanNodeForStatement(stmt, true))) {
                 return (true);
             }
         }
