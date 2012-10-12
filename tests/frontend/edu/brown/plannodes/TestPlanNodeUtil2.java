@@ -2,7 +2,9 @@ package edu.brown.plannodes;
 
 import java.util.*;
 
+import org.voltdb.benchmark.tpcc.procedures.delivery;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.*;
 import org.voltdb.plannodes.*;
 
@@ -22,6 +24,35 @@ public class TestPlanNodeUtil2 extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
+    }
+    
+    /**
+     * testIsRangeQuery
+     */
+    public void testIsRangeQuery() throws Exception {
+        Statement stmts[] = null;
+        
+        // Ranges
+        stmts = new Statement[] {
+            this.getStatement(slev.class, "GetStockCount"),
+            this.getStatement(delivery.class, "getNewOrder"),
+        };
+        for (Statement stmt : stmts) {
+            AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(stmt, true);
+            assertNotNull(stmt.fullName(), root);
+            assertTrue(stmt.fullName(), PlanNodeUtil.isRangeQuery(catalog_db, root));
+        } // FOR
+        
+        // Not ranges
+        stmts = new Statement[] {
+            this.getStatement(slev.class, "GetOId"),
+            this.getStatement(delivery.class, "getCId"),
+        };
+        for (Statement stmt : stmts) {
+            AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(stmt, true);
+            assertNotNull(stmt.fullName(), root);
+            assertFalse(stmt.fullName(), PlanNodeUtil.isRangeQuery(catalog_db, root));
+        } // FOR
     }
     
     /**
@@ -45,7 +76,7 @@ public class TestPlanNodeUtil2 extends BaseTestCase {
      * testGetSortedPlanFragments
      */
     public void testGetSortedPlanFragments() throws Exception {
-        Procedure catalog_proc = this.getProcedure("slev");
+        Procedure catalog_proc = this.getProcedure(slev.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "GetStockCount");
         
         List<PlanFragment> unsorted = Arrays.asList(catalog_stmt.getMs_fragments().values());

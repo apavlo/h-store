@@ -409,6 +409,10 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected final Statement getStatement(Procedure catalog_proc, String stmt_name) {
         return getStatement(catalog_db, catalog_proc, stmt_name);
     }
+    protected final Statement getStatement(Class<? extends VoltProcedure> proc_class, String stmt_name) {
+        Procedure catalog_proc = getProcedure(proc_class);
+        return getStatement(catalog_db, catalog_proc, stmt_name);
+    }
     
     /**
      * Add fake partitions to the loaded catalog
