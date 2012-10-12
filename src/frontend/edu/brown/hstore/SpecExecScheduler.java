@@ -1,20 +1,17 @@
 package edu.brown.hstore;
 
-import java.util.BitSet;
 import java.util.Iterator;
 import java.util.Queue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.ConflictPair;
-import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.TableRef;
 
-import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
+import edu.brown.hstore.specexec.AbstractConflictChecker;
+import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -36,9 +33,8 @@ public class SpecExecScheduler {
     private final CatalogContext catalogContext;
     private final int partitionId;
     private final Queue<InternalMessage> work_queue;
-    private final BitSet hasConflicts;
-    private final BitSet rwConflicts[];
-    private final BitSet wwConflicts[];
+    private final AbstractConflictChecker checker;
+
     
     /**
      * Constructor
@@ -50,37 +46,7 @@ public class SpecExecScheduler {
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;
-        
-        int size = this.catalogContext.procedures.size()+1;
-        this.hasConflicts = new BitSet(size);
-        this.rwConflicts = new BitSet[size];
-        this.wwConflicts = new BitSet[size];
-        
-        for (Procedure catalog_proc : this.catalogContext.procedures) {
-            if (catalog_proc.getSystemproc() || catalog_proc.getMapreduce()) continue;
-           
-            // Precompute bitmaps for the conflicts
-            int idx = catalog_proc.getId();
-            
-            this.rwConflicts[idx] = new BitSet(size);
-            for (Procedure conflict : ConflictSetUtil.getReadWriteConflicts(catalog_proc)) {
-                this.rwConflicts[idx].set(conflict.getId());
-                this.hasConflicts.set(idx);
-            } // FOR
-            
-            this.wwConflicts[idx] = new BitSet(size);
-            for (Procedure conflict : ConflictSetUtil.getWriteWriteConflicts(catalog_proc)) {
-                this.wwConflicts[idx].set(conflict.getId());
-                this.hasConflicts.set(idx);
-            } // FOR
-            
-            // XXX: Each procedure will conflict with itself if it's not read-only
-            if (catalog_proc.getReadonly() == false) {
-                this.rwConflicts[idx].set(idx);
-                this.wwConflicts[idx].set(idx);
-                this.hasConflicts.set(idx);
-            }
-        } // FOR
+        this.checker = new TableConflictChecker(this.catalogContext);
     }
 
     /**
@@ -94,7 +60,7 @@ public class SpecExecScheduler {
      */
     public StartTxnMessage next(AbstractTransaction dtxn) {
         Procedure dtxnProc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
-        if (dtxnProc == null || this.hasConflicts.get(dtxn.getProcedureId()) == false) {
+        if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
             if (debug.get())
                 LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists [%s]",
                           dtxn, dtxnProc));
@@ -139,8 +105,7 @@ public class SpecExecScheduler {
                         LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, ts));
                     continue;
                 }
-
-                if (this.isConflicting(dtxn, ts) == false) {
+                if (this.checker.isConflicting(dtxn, ts, this.partitionId) == false) {
                     next = txn_msg;
                     break;
                 }
@@ -159,89 +124,4 @@ public class SpecExecScheduler {
         
         return (next);
     }
-    
-    /**
-     * Calculate whether to two transaction handles are conflicting. 
-     * The dtxn is the current distributed transaction at our partition, while ts
-     * is a single-partition transaction from the work queue that we want to try to
-     * speculatively execute right now. 
-     * @param dtxn
-     * @param ts
-     * @return
-     */
-    protected boolean isConflicting(AbstractTransaction dtxn, LocalTransaction ts) {
-        final int dtxn_procId = dtxn.getProcedureId();
-        final int ts_procId = ts.getProcedureId();
-        
-        // DTXN->TS
-        boolean dtxn_hasRWConflict = this.rwConflicts[dtxn_procId].get(ts_procId);
-        boolean dtxn_hasWWConflict = this.wwConflicts[dtxn_procId].get(ts_procId);
-        if (debug.get())
-            LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", dtxn, ts, dtxn_hasRWConflict, dtxn_hasWWConflict));
-        
-        // TS->DTXN
-        boolean ts_hasRWConflict = this.rwConflicts[ts_procId].get(dtxn_procId);
-        boolean ts_hasWWConflict = this.wwConflicts[ts_procId].get(dtxn_procId);
-        if (debug.get())
-            LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", ts, dtxn, ts_hasRWConflict, ts_hasWWConflict));
-        
-        // Sanity Check
-        assert(dtxn_hasWWConflict == ts_hasWWConflict);
-        
-        // If there is no conflict whatsoever, then we want to let this mofo out of the bag right away
-        if ((dtxn_hasWWConflict || dtxn_hasRWConflict || ts_hasRWConflict || ts_hasWWConflict) == false) {
-            if (debug.get())
-                LOG.debug(String.format("No conflicts between %s<->%s", dtxn, ts));
-            return (false);
-        }
-
-        final Procedure dtxn_proc = this.catalogContext.getProcedureById(dtxn_procId);
-        final Procedure ts_proc = ts.getProcedure();
-        final ConflictSet dtxn_conflicts = dtxn_proc.getConflicts().get(ts_proc.getName());
-        final ConflictSet ts_conflicts = ts_proc.getConflicts().get(dtxn_proc.getName());
-        
-        // If TS is going to write to something that DTXN will read or write, then 
-        // we can let that slide as long as DTXN hasn't read from or written to those tables yet
-        if (dtxn_hasRWConflict || dtxn_hasWWConflict) {
-            assert(dtxn_conflicts != null) :
-                String.format("Unexpected null ConflictSet for %s -> %s",
-                              dtxn_proc.getName(), ts_proc.getName());
-            for (ConflictPair conflict : dtxn_conflicts.getReadwriteconflicts().values()) {
-                for (TableRef ref : conflict.getTables().values()) {
-                    if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
-                        return (true);
-                    }
-                } // FOR
-            } // FOR (R-W)
-            for (ConflictPair conflict : dtxn_conflicts.getWritewriteconflicts().values()) {
-                for (TableRef ref : conflict.getTables().values()) {
-                    if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
-                        return (true);
-                    }
-                }
-            } // FOR (W-W)
-        }
-        
-        // Similarly, if the TS needs to read from (but not write to) a table that DTXN 
-        // writes to, then we can allow TS to execute if DTXN hasn't written anything to 
-        // those tables yet
-        if (ts_hasRWConflict && ts_hasWWConflict == false) {
-            assert(ts_conflicts != null) :
-                String.format("Unexpected null ConflictSet for %s -> %s",
-                              ts_proc.getName(), dtxn_proc.getName());
-            if (debug.get())
-                LOG.debug(String.format("%s has R-W conflict with %s. Checking read/write sets", ts, dtxn));
-            for (ConflictPair conflict : ts_conflicts.getReadwriteconflicts().values()) {
-                for (TableRef ref : conflict.getTables().values()) {
-                    if (dtxn.isTableWritten(this.partitionId, ref.getTable())) {
-                        return (true);
-                    }
-                } // FOR
-            } // FOR (R-W)
-        }
-        
-        // If we get to this point, then we know that these two txns do not conflict
-        return (false);
-    }
-    
 }
