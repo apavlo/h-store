@@ -111,6 +111,12 @@ public class PrefetchQueryPlanner implements Loggable {
         }
     }
 
+    public void addPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, boolean prefetch) {
+        BatchPlanner planner = new BatchPlanner(batchStmts, batchStmts.length, catalog_proc, p_estimator);
+        planner.setPrefetchFlag(prefetch);
+        this.planners.put(VoltProcedure.getBatchHashCode(batchStmts, batchStmts.length), planner);
+    }
+    
     /**
      * @param ts
      * @return
@@ -144,7 +150,8 @@ public class PrefetchQueryPlanner implements Loggable {
         // Use the StmtParameter mappings for the queries we
         // want to prefetch and extract the ProcParameters
         // to populate an array of ParameterSets to use as the batchArgs
-        BatchPlanner planner = this.planners.get(VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length));
+        int hashcode = VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length);
+        BatchPlanner planner = this.planners.get(hashcode);
         assert (planner != null) : "Missing BatchPlanner for " + catalog_proc;
         ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
         ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
@@ -207,7 +214,7 @@ public class PrefetchQueryPlanner implements Loggable {
         // separate TransactionInitRequest per site. Group the WorkFragments by siteID.
         // If we have a prefetchable query for the base partition, it means that
         // we will try to execute it before we actually need it whenever the
-        // PartitionExecutor is idle That means, we don't want to serialize all this
+        // PartitionExecutor is idle. That means, we don't want to serialize all this
         // if it's only going to the base partition.
         TransactionInitRequest.Builder[] builders = new TransactionInitRequest.Builder[this.catalogContext.numberOfSites];
         for (WorkFragment frag : fragments) {

@@ -34,7 +34,7 @@ public abstract class EstimatorState implements Poolable {
     protected final PartitionSet touched_partitions = new PartitionSet();
     protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
     
-    protected final List<CountedStatement> prefetch = new ArrayList<CountedStatement>();
+    protected final List<CountedStatement> prefetchable_stmts = new ArrayList<CountedStatement>();
     
     /**
      * Constructor
@@ -61,7 +61,7 @@ public abstract class EstimatorState implements Poolable {
         this.touched_partitions.clear();
         this.query_instance_cnts.clear();
         this.txn_id = null;
-        this.prefetch.clear();
+        this.prefetchable_stmts.clear();
     }
     
     public Long getTransactionId() {
@@ -77,7 +77,7 @@ public abstract class EstimatorState implements Poolable {
         return (this.touched_partitions);
     }
     public List<CountedStatement> getPrefetchableStatements() {
-        return (this.prefetch);
+        return (this.prefetchable_stmts);
     }
     
     /**
@@ -113,10 +113,11 @@ public abstract class EstimatorState implements Poolable {
         m0.put("Base Partition", this.base_partition);
         m0.put("Touched Partitions", this.touched_partitions);
         m0.put("Start Time", this.start_time);
+        m0.put("Prefetchable Statements", this.prefetchable_stmts);
         return StringUtil.formatMaps(m0);
     }
 
-    public void addPrefetchStatement(Statement statement, int counter) {
-        this.prefetch.add(new CountedStatement(statement, counter));
+    public void addPrefetchableStatement(Statement statement, int counter) {
+        this.prefetchable_stmts.add(new CountedStatement(statement, counter));
     }
 }

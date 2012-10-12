@@ -288,7 +288,7 @@ public class MarkovEstimator extends TransactionEstimator {
         for (MarkovVertex vertex : estimator.getVisitPath()) {
             Statement statement = (Statement) vertex.getCatalogItem();
             if (statement.getPrefetchable()) {
-                state.addPrefetchStatement(statement, vertex.getQueryCounter());
+                state.addPrefetchableStatement(statement, vertex.getQueryCounter());
             }
         }
         
