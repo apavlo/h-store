@@ -18,7 +18,6 @@ import org.voltdb.utils.Pair;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
 public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
@@ -31,9 +30,13 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
 
     public static class Entry extends Pair<CatalogType, CatalogType> {
         protected final ExpressionType comparison_exp;
-        protected final Set<QueryType> query_types = new HashSet<QueryType>();
+        protected final QueryType query_types[];
 
         public static Entry factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, Collection<QueryType> query_types) {
+            return (Entry.factory(element0, element1, comparison_exp, query_types.toArray(new QueryType[query_types.size()])));
+        }
+
+        public static Entry factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, QueryType... query_types) {
             // Sort them!
             if (element0.compareTo(element1) > 0) {
                 CatalogType temp = element0;
@@ -43,22 +46,17 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
             return (new Entry(element0, element1, comparison_exp, query_types));
         }
 
-        public static Entry factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, QueryType... query_types) {
-            Set<QueryType> qt_set = (Set<QueryType>) CollectionUtil.addAll(new HashSet<QueryType>(), query_types);
-            return (Entry.factory(element0, element1, comparison_exp, qt_set));
-        }
-
-        private Entry(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, Collection<QueryType> query_types) {
+        private Entry(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, QueryType query_types[]) {
             super(element0, element1);
             this.comparison_exp = comparison_exp;
-            CollectionUtil.addAll(this.query_types, query_types);
+            this.query_types = query_types;
         }
 
         @Override
         public boolean equals(Object o) {
             if (o instanceof Entry) {
                 Entry other = (Entry) o;
-                return (this.comparison_exp == other.comparison_exp && this.getFirst().equals(other.getFirst()) && this.getSecond().equals(other.getSecond()));
+                return (this.comparison_exp == other.comparison_exp && super.equals(other));
             }
             return (false);
         }
@@ -73,9 +71,21 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         /**
          * @return
          */
-        public Set<QueryType> getQueryTypes() {
-            return query_types;
+        public QueryType[] getQueryTypes() {
+            return this.query_types;
         }
+        
+        public int getQueryTypeCount() {
+            return (this.query_types.length);
+        }
+        
+        public boolean containsQueryType(QueryType search) {
+            for (QueryType qtype : this.query_types) {
+                if (qtype == search) return (true);
+            }
+            return (false);
+        }
+        
 
         /**
          * Given one of the items of this entry, return the other entry
@@ -94,7 +104,10 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
 
         @Override
         public String toString() {
-            return (String.format("(%s %s %s)", this.getFirst().fullName(), ExpressionUtil.EXPRESSION_STRING.get(this.getComparisonExp()), this.getSecond().fullName()));
+            return (String.format("(%s %s %s)",
+                    this.getFirst().fullName(),
+                    ExpressionUtil.EXPRESSION_STRING.get(this.getComparisonExp()),
+                    this.getSecond().fullName()));
         }
     } // END CLASS
 
