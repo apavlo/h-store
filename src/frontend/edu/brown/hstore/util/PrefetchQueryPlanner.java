@@ -86,16 +86,7 @@ public class PrefetchQueryPlanner implements Loggable {
                 if (valid) prefetchStmts.add(new SQLStmt(catalog_stmt));
             } // FOR
             if (prefetchStmts.isEmpty() == false) {
-                // Are the prefetchStmts always going to be sorted the same way? (Does it matter for the hash code?)
-                SQLStmt[] batchStmts = prefetchStmts.toArray(new SQLStmt[0]);
-                BatchPlanner planner = new BatchPlanner(batchStmts,
-                                                        prefetchStmts.size(),
-                                                        catalog_proc,
-                                                        p_estimator);
-                planner.setPrefetchFlag(true);
-                this.planners.put(VoltProcedure.getBatchHashCode(batchStmts, batchStmts.length), planner);
-                if (debug.get()) LOG.debug(String.format("%s Prefetch Statements: %s",
-                                                         catalog_proc.getName(), prefetchStmts));
+                addPlanner(prefetchStmts.toArray(new SQLStmt[0]), catalog_proc, p_estimator, true);
             } else {
                 LOG.warn("There are no prefetchable Statements available for " + catalog_proc);
                 catalog_proc.setPrefetchable(false);
@@ -111,10 +102,12 @@ public class PrefetchQueryPlanner implements Loggable {
         }
     }
 
-    public void addPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, boolean prefetch) {
-        BatchPlanner planner = new BatchPlanner(batchStmts, batchStmts.length, catalog_proc, p_estimator);
+    public void addPlanner(SQLStmt[] prefetchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, boolean prefetch) {
+        BatchPlanner planner = new BatchPlanner(prefetchStmts, prefetchStmts.length, catalog_proc, p_estimator);
         planner.setPrefetchFlag(prefetch);
-        this.planners.put(VoltProcedure.getBatchHashCode(batchStmts, batchStmts.length), planner);
+        // Are the prefetchStmts always going to be sorted the same way? (Does it matter for the hash code?)
+        this.planners.put(VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length), planner);
+        if (debug.get()) LOG.debug(String.format("%s Prefetch Statements: %s", catalog_proc.getName(), prefetchStmts));
     }
     
     /**
