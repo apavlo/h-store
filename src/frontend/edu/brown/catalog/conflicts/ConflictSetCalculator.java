@@ -19,12 +19,15 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.catalog.TableRef;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.AggregatePlanNode;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * Procedure ConflictSet Calculator
@@ -54,12 +57,18 @@ public class ConflictSetCalculator {
         final Statement stmt0;
         final Statement stmt1;
         final Collection<Table> tables;
+        final boolean alwaysConflicting;
         
-        public Conflict(Statement stmt0, Statement stmt1, Collection<Table> tables) {
+        public Conflict(Statement stmt0, Statement stmt1, Collection<Table> tables, boolean alwaysConflicting) {
             assert(tables.isEmpty() == false);
             this.stmt0 = stmt0;
             this.stmt1 = stmt1;
             this.tables = tables;
+            this.alwaysConflicting = alwaysConflicting;
+        }
+        
+        public Conflict(Statement stmt0, Statement stmt1, Collection<Table> tables) {
+            this(stmt0, stmt1, tables, false);
         }
         @Override
         public String toString() {
@@ -71,6 +80,7 @@ public class ConflictSetCalculator {
     private final LinkedHashMap<Procedure, ProcedureInfo> procedures = new LinkedHashMap<Procedure, ProcedureInfo>(); 
     private final Set<Procedure> ignoredProcedures = new HashSet<Procedure>();
     private final Set<Statement> ignoredStatements = new HashSet<Statement>();
+    private final Map<Table, Collection<Column>> pkeysCache = new HashMap<Table, Collection<Column>>();
     
     public ConflictSetCalculator(Catalog catalog) {
         this.catalog_db = CatalogUtil.getDatabase(catalog);
@@ -91,6 +101,10 @@ public class ConflictSetCalculator {
             } // FOR (statement)
             this.procedures.put(catalog_proc, pInfo);
         } // FOR (procedure)
+        
+        for (Table catalog_tbl : CatalogUtil.getDataTables(catalog_db)) {
+            this.pkeysCache.put(catalog_tbl, CatalogUtil.getPrimaryKeyColumns(catalog_tbl));
+        } // FOR (table)
     }
     
     /**
@@ -169,6 +183,7 @@ public class ConflictSetCalculator {
             CatalogMap<ConflictPair> procConflicts = (readWrite ? cSet.getReadwriteconflicts() : cSet.getWritewriteconflicts());
             for (Conflict c : conflicts.get(conflict_proc)) {
                 ConflictPair cp = procConflicts.add(c.toString());
+                cp.setAlwaysconflicting(c.alwaysConflicting);
                 cp.setStatement0(c.stmt0);
                 cp.setStatement1(c.stmt1);
                 for (Table table : c.tables) {
@@ -193,6 +208,7 @@ public class ConflictSetCalculator {
         ProcedureInfo pInfo1 = this.procedures.get(proc1);
         assert(pInfo1 != null);
         Set<Conflict> conflicts = new HashSet<Conflict>();
+//        if (proc0 != null) return conflicts;
         
         // Read-Write Conflicts
         Collection<Column> cols0 = new HashSet<Column>();
@@ -249,6 +265,7 @@ public class ConflictSetCalculator {
         ProcedureInfo pInfo1 = this.procedures.get(proc1);
         assert(pInfo1 != null);
         Set<Conflict> conflicts = new HashSet<Conflict>();
+//        if (proc0 != null) return conflicts;
         
         // Write-Write Conflicts
         // Any INSERT or DELETE is always a conflict
@@ -264,27 +281,63 @@ public class ConflictSetCalculator {
             
             for (Statement stmt1 : pInfo1.writeQueries) {
                 if (this.ignoredStatements.contains(stmt1)) continue;
+                boolean alwaysConflicting = false;
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(stmt1);
                 QueryType type1 = QueryType.get(stmt1.getQuerytype());
+                Collection<Column> cols1 = CatalogUtil.getReferencedColumns(stmt1);
+                assert(cols1.isEmpty() == false) : "No columns for " + stmt0.fullName();
                 
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
                 if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Tables %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectTables));
                 if (intersectTables.isEmpty()) continue;
                 
-                if (type0 == QueryType.INSERT || type1 == QueryType.INSERT ||
-                    type0 == QueryType.DELETE || type1 == QueryType.DELETE) {
-                    conflicts.add(new Conflict(stmt0, stmt1, intersectTables));
-                    break;
+                // If both queries are INSERTs, then this is always conflicting
+                if (type0 == QueryType.INSERT && type1 == QueryType.INSERT) {
+                    alwaysConflicting = true;
                 }
                 
-                Collection<Column> cols1 = CatalogUtil.getReferencedColumns(stmt1);
-                assert(cols1.isEmpty() == false) : "No columns for " + stmt0.fullName();
+                for (int i = 0; i < 2; i++) {
+                    Statement stmt = (i == 0 ? stmt0 : stmt1);
+                    QueryType type = (i == 0 ? type0 : type1);
+                    Collection<Table> tables = (i == 0 ? tables0 : tables1);
+                    Collection<Column> cols = (i == 0 ? cols0 : cols1);
+                    AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(stmt, true);
+                    
+                    // Any DELETE statement that does not use a primary key in its WHERE 
+                    // clause should be marked as always conflicting.
+                    if (type == QueryType.DELETE) {
+                        Collection<Column> pkeys = this.pkeysCache.get(CollectionUtil.first(tables));
+                        if (cols.containsAll(pkeys) == false) {
+                            alwaysConflicting = true;
+                        }
+                    }
+                    else if (type == QueryType.SELECT) {
+                        // Any join is always conflicting... it's just easier
+                        if (tables.size() > 1) {
+                            alwaysConflicting = true;
+                        }
+                        // Any aggregate query is always conflicting
+                        // Again, not always true but it's just easier...
+                        else if (PlanNodeUtil.getPlanNodes(root, AggregatePlanNode.class).isEmpty() == false) {
+                            alwaysConflicting = true;
+                        }
+                        // Any range query must always be conflicting
+                        else if (PlanNodeUtil.isRangeQuery(this.catalog_db, root)) {
+                            alwaysConflicting = true;
+                        }
+                    }
+                } // FOR
+                    
+                
+                // type0 == QueryType.INSERT || type1 == QueryType.INSERT ||
+                
+                
                 Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
                 if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Columns %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectColumns));
-                if (intersectColumns.isEmpty()) continue;
-                conflicts.add(new Conflict(stmt0, stmt1, intersectTables));
+                if (alwaysConflicting == false && intersectColumns.isEmpty()) continue;
+                conflicts.add(new Conflict(stmt0, stmt1, intersectTables, alwaysConflicting));
             } // FOR (proc1)
         } // FOR (proc0)
         return (conflicts);

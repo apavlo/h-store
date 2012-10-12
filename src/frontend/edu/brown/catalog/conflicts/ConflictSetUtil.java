@@ -16,6 +16,7 @@ import edu.brown.catalog.CatalogUtil;
 
 public abstract class ConflictSetUtil {
 
+    
     /**
      * Return the set of all Tables referenced in the collection of ConflictPairs
      * @param conflicts

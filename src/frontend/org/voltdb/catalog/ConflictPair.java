@@ -27,6 +27,7 @@ package org.voltdb.catalog;
 public class ConflictPair extends CatalogType {
 
     CatalogMap<TableRef> m_tables;
+    boolean m_alwaysConflicting;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -34,9 +35,11 @@ public class ConflictPair extends CatalogType {
         m_fields.put("statement1", null);
         m_tables = new CatalogMap<TableRef>(catalog, this, path + "/" + "tables", TableRef.class);
         m_childCollections.put("tables", m_tables);
+        m_fields.put("alwaysConflicting", m_alwaysConflicting);
     }
 
     public void update() {
+        m_alwaysConflicting = (Boolean) m_fields.get("alwaysConflicting");
     }
 
     /** GETTER: The source Statement */
@@ -70,6 +73,11 @@ public class ConflictPair extends CatalogType {
         return m_tables;
     }
 
+    /** GETTER: If true, then this ConflictPair will always cause a conflict */
+    public boolean getAlwaysconflicting() {
+        return m_alwaysConflicting;
+    }
+
     /** SETTER: The source Statement */
     public void setStatement0(Statement value) {
         m_fields.put("statement0", value);
@@ -78,6 +86,11 @@ public class ConflictPair extends CatalogType {
     /** SETTER: The destination Statement */
     public void setStatement1(Statement value) {
         m_fields.put("statement1", value);
+    }
+
+    /** SETTER: If true, then this ConflictPair will always cause a conflict */
+    public void setAlwaysconflicting(boolean value) {
+        m_alwaysConflicting = value; m_fields.put("alwaysConflicting", value);
     }
 
 }

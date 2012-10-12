@@ -42,6 +42,7 @@ protected:
     CatalogType* m_statement0;
     CatalogType* m_statement1;
     CatalogMap<TableRef> m_tables;
+    bool m_alwaysConflicting;
 
     virtual void update();
 
@@ -58,6 +59,8 @@ public:
     const Statement * statement1() const;
     /** GETTER: The list of tables that caused this conflict */
     const CatalogMap<TableRef> & tables() const;
+    /** GETTER: If true, then this ConflictPair will always cause a conflict */
+    bool alwaysConflicting() const;
 };
 
 } // namespace catalog

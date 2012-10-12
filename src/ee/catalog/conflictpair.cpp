@@ -36,6 +36,7 @@ ConflictPair::ConflictPair(Catalog *catalog, CatalogType *parent, const string &
     m_fields["statement0"] = value;
     m_fields["statement1"] = value;
     m_childCollections["tables"] = &m_tables;
+    m_fields["alwaysConflicting"] = value;
 }
 
 ConflictPair::~ConflictPair() {
@@ -51,6 +52,7 @@ ConflictPair::~ConflictPair() {
 void ConflictPair::update() {
     m_statement0 = m_fields["statement0"].typeValue;
     m_statement1 = m_fields["statement1"].typeValue;
+    m_alwaysConflicting = m_fields["alwaysConflicting"].intValue;
 }
 
 CatalogType * ConflictPair::addChild(const std::string &collectionName, const std::string &childName) {
@@ -87,5 +89,9 @@ const Statement * ConflictPair::statement1() const {
 
 const CatalogMap<TableRef> & ConflictPair::tables() const {
     return m_tables;
+}
+
+bool ConflictPair::alwaysConflicting() const {
+    return m_alwaysConflicting;
 }
 
