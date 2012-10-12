@@ -15,6 +15,7 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 
 import edu.brown.designer.AccessGraph;
@@ -146,6 +147,18 @@ public class CatalogInfo {
 //        }
         
         System.out.println(getInfo(args.catalog, args.catalog_path));
+        
+        // DUMP PREFETCHABLE QUERIES
+//        for (Procedure proc : args.catalogContext.database.getProcedures()) {
+//            boolean hasPrefetchable = false;
+//            for (Statement stmt : proc.getStatements()) {
+//                if (stmt.getPrefetchable()) {
+//                    System.out.println(stmt.fullName());
+//                    hasPrefetchable = true;
+//                }
+//            }
+//            if (hasPrefetchable) System.out.println();
+//        }
     }
 
 }
