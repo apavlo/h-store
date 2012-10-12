@@ -18,7 +18,6 @@ import org.voltdb.utils.JarReader;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.ProjectType;
 
 /**
  * @author pavlo
@@ -114,19 +113,6 @@ public class ParametersUtil {
     } // END CLASS
 
     /**
-     * Instead of doing all this work every time the class is loaded into the
-     * namespace, we'll construct a static object that is initialized only when
-     * the static methods are called. There you go old boy, I'm so clever!
-     */
-    private static ParametersUtil cache;
-
-    private static ParametersUtil getCachedObject() {
-        if (ParametersUtil.cache == null)
-            ParametersUtil.cache = new ParametersUtil();
-        return (ParametersUtil.cache);
-    }
-
-    /**
      * Load a ParameterMappingsSet from a project jar file.
      * @param catalog_db
      * @param jarPath
@@ -160,25 +146,6 @@ public class ParametersUtil {
         }
         LOG.debug(String.format("Loaded ParameterMappingSet '%s' from '%s'", paramFile, jarPath));
         return (pms);
-    }
-
-    /**
-     * Return the estimated Procedure parameter name
-     * 
-     * @param catalog_type
-     * @param proc_name
-     * @param idx
-     * @return
-     */
-    public static String getProcParameterName(ProjectType project_type, String proc_name, int idx) {
-        ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
-        assert (map != null) : "Invalid catalog type '" + project_type + "'";
-        if (map.containsKey(proc_name)) {
-            DefaultParameterMapping param_map = map.get(proc_name);
-            return (param_map.getProcParamName(idx));
-        }
-        return (null);
     }
 
     /**
@@ -276,11 +243,4 @@ public class ParametersUtil {
         } // FOR
         return;
     }
-
-
-    //
-    // Mappings between param names and procparam->stmtparam
-    // Nasty I know, but what else can I do?
-    //
-    public final Map<ProjectType, Map<String, DefaultParameterMapping>> PARAMETER_MAPS = new HashMap<ProjectType, Map<String, DefaultParameterMapping>>();
 }
