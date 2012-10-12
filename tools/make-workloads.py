@@ -62,7 +62,7 @@ HSTORE_OPTS = {
     "client.duration":              180000,
     "client.warmup":                0,
     "client.count":                 1,
-    "client.threads_per_host":      100,
+    "client.threads_per_host":      10,
     "client.txnrate":               1000,
     "client.blocking":              True,
     "client.blocking_concurrent":   1,

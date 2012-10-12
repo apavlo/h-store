@@ -430,7 +430,11 @@ public class SEATSLoader extends Loader {
                 
                 vt.addRow(tuple);
                 if (is_flight) {
-                	vtFilghtInfo.addRow(tuple);
+                	if (debug.get()) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
+                	Object[] partTuple = new Object[vtFilghtInfo.getColumnCount()];
+                	for (int i =0 ;i < partTuple.length; i++)
+                		partTuple[i] = tuple[i];
+                	vtFilghtInfo.addRow(partTuple);
                 }
                 if (row_idx > 0 && (row_idx+1) % batch_size == 0) {
                     // if (trace.get()) LOG.trace("Storing batch of " + batch_size + " tuples for " + catalog_tbl.getName() + " [total=" + row_idx + "]");
@@ -438,6 +442,7 @@ public class SEATSLoader extends Loader {
                     this.loadVoltTable(catalog_tbl.getName(), vt);
                     vt.clearRowData();
                     if (is_flight) {
+                    	if (debug.get()) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
                     	this.loadVoltTable(SEATSConstants.TABLENAME_FLIGHT_INFO, vtFilghtInfo);
                     	vtFilghtInfo.clearRowData();
                     }
