@@ -42,11 +42,11 @@ public class SpecExecScheduler {
     
     /**
      * Constructor
+     * @param catalogContext
      * @param partitionId
      * @param work_queue
-     * @param catalogContext
      */
-    public SpecExecScheduler(int partitionId, Queue<InternalMessage> work_queue, CatalogContext catalogContext) {
+    public SpecExecScheduler(CatalogContext catalogContext, int partitionId, Queue<InternalMessage> work_queue) {
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;

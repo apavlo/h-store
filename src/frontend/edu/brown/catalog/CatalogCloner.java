@@ -379,7 +379,7 @@ public abstract class CatalogCloner {
                 dest_conflicts.setProcedure(dest_otherProc);
                 
                 for (ConflictPair src_pair : src_conflicts.getReadwriteconflicts()) {
-                    ConflictPair dest_pair = dest_conflicts.getReadwriteconflicts().add(src_pair.getName());
+                    ConflictPair dest_pair = clone(src_pair, dest_db.getCatalog());
                     dest_pair.setStatement0(dest_proc.getStatements().get(src_pair.getStatement0().getName()));
                     dest_pair.setStatement1(dest_otherProc.getStatements().get(src_pair.getStatement1().getName()));
                     for (TableRef src_ref : src_pair.getTables()) {
@@ -388,7 +388,7 @@ public abstract class CatalogCloner {
                     } // FOR
                 } // FOR
                 for (ConflictPair src_pair : src_conflicts.getWritewriteconflicts()) {
-                    ConflictPair dest_pair = dest_conflicts.getWritewriteconflicts().add(src_pair.getName());
+                    ConflictPair dest_pair = clone(src_pair, dest_db.getCatalog());
                     dest_pair.setStatement0(dest_proc.getStatements().get(src_pair.getStatement0().getName()));
                     dest_pair.setStatement1(dest_otherProc.getStatements().get(src_pair.getStatement1().getName()));
                     for (TableRef src_ref : src_pair.getTables()) {

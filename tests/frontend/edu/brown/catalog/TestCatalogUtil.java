@@ -494,7 +494,7 @@ public class TestCatalogUtil extends BaseTestCase {
      * @param expected
      */
     private void checkColumnSet(ColumnSet cset, Collection<Pair<Column, Integer>> expected) {
-        for (ColumnSet.Entry entry : cset) {
+        for (CatalogPair entry : cset) {
             int column_idx = (entry.getFirst() instanceof StmtParameter ? 1 : 0);
             int param_idx = (column_idx == 0 ? 1 : 0);
 

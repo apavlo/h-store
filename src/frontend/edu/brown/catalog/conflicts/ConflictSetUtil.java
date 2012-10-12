@@ -16,6 +16,22 @@ import edu.brown.catalog.CatalogUtil;
 
 public abstract class ConflictSetUtil {
 
+    /**
+     * Return a set of all the ConflictPairs from Proc0->Proc1
+     * @param proc0
+     * @param proc1
+     * @return
+     */
+    public static Collection<ConflictPair> getAllConflictPairs(Procedure proc0, Procedure proc1) {
+        Set<ConflictPair> conflicts = new HashSet<ConflictPair>();
+        ConflictSet cset = proc0.getConflicts().get(proc1.getName());
+        if (cset != null) {
+            conflicts.addAll(cset.getReadwriteconflicts());
+            conflicts.addAll(cset.getWritewriteconflicts());
+        }
+        return (conflicts);
+    }
+    
     
     /**
      * Return the set of all Tables referenced in the collection of ConflictPairs

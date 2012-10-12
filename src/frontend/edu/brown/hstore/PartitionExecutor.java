@@ -585,7 +585,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;
         this.siteId = this.site.getId();
         
-        this.specExecScheduler = new SpecExecScheduler(this.partitionId, this.work_queue, this.catalogContext);
+        this.specExecScheduler = new SpecExecScheduler(this.catalogContext, this.partitionId, this.work_queue);
         
         this.backend_target = target;
 

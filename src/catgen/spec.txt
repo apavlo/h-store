@@ -243,6 +243,7 @@ begin ConflictPair              "A pair of Statements that have a conflict"
     Statement? statement1       "The destination Statement"
     TableRef* tables            "The list of tables that caused this conflict"
     bool alwaysConflicting      "If true, then this ConflictPair will always cause a conflict"
+    int conflictType           "Type of conflict (ConflictType)"
 end
 
 begin ConflictSet               "A set of conflicts with another procedures"

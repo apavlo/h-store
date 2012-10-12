@@ -14,6 +14,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
@@ -172,7 +173,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                     ColumnSet e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                     assertNotNull(e_cset);
                     assertEquals(e_cset.toString(), 1, e_cset.size());
-                    ColumnSet.Entry entry = CollectionUtil.first(e_cset);
+                    CatalogPair entry = CollectionUtil.first(e_cset);
                     assertNotNull(entry);
                     assert(global_cset.contains(entry)) : "Missing " + entry;
                 } // FOR

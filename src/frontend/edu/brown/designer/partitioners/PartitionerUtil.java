@@ -28,6 +28,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.DependencyUtil;
 import edu.brown.catalog.special.MultiColumn;
@@ -430,7 +431,7 @@ public abstract class PartitionerUtil {
 
                 // Skip any ColumnSets that were used only for INSERTs
                 ColumnSet cset = new ColumnSet();
-                for (ColumnSet.Entry entry : orig_cset) {
+                for (CatalogPair entry : orig_cset) {
                     if (!(entry.containsQueryType(QueryType.INSERT) && entry.getQueryTypeCount() == 1)) {
                         cset.add(entry);
                     }
