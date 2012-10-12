@@ -264,7 +264,7 @@ public abstract class PartitionerUtil {
         if (hints.force_replication_size_limit != null) {
             final Map<Table, Double> replication_weights = new HashMap<Table, Double>();
             final TreeSet<Table> temp_list = new TreeSet<Table>(new PartitionerUtil.CatalogWeightComparator<Table>(replication_weights));
-            for (Table catalog_tbl : info.catalog_db.getTables()) {
+            for (Table catalog_tbl : info.catalogContext.database.getTables()) {
                 TableStatistics ts = info.stats.getTableStatistics(catalog_tbl);
                 assert (ts != null);
                 double size_ratio = ts.tuple_size_total / (double) hints.max_memory_per_partition;
@@ -431,7 +431,7 @@ public abstract class PartitionerUtil {
                 // Skip any ColumnSets that were used only for INSERTs
                 ColumnSet cset = new ColumnSet();
                 for (ColumnSet.Entry entry : orig_cset) {
-                    if (!(entry.getQueryTypes().contains(QueryType.INSERT) && entry.getQueryTypes().size() == 1)) {
+                    if (!(entry.containsQueryType(QueryType.INSERT) && entry.getQueryTypeCount() == 1)) {
                         cset.add(entry);
                     }
                 } // FOR
