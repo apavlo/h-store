@@ -1,11 +1,16 @@
 package edu.brown.hstore.specexec;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.ConflictPair;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -15,14 +20,15 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.markov.EstimationThresholds;
 
 /**
  * A more fine-grained ConflictChecker based on estimations of what 
  * rows the txns will read/write.
  * @author pavlo
  */
-public class RowConflictChecker extends AbstractConflictChecker {
-    private static final Logger LOG = Logger.getLogger(RowConflictChecker.class);
+public class MarkovConflictChecker extends AbstractConflictChecker {
+    private static final Logger LOG = Logger.getLogger(MarkovConflictChecker.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -30,11 +36,14 @@ public class RowConflictChecker extends AbstractConflictChecker {
     }
     
     private final ParameterMappingsSet paramMappings;
+    private final EstimationThresholds thresholds;
     private final boolean disabled;
+    private final Map<Statement, Map<Statement, ConflictPair>> stmtConflicts = new HashMap<Statement, Map<Statement,ConflictPair>>();
     
-    public RowConflictChecker(CatalogContext catalogContext) {
+    public MarkovConflictChecker(CatalogContext catalogContext, EstimationThresholds thresholds) {
         super(catalogContext);
         this.paramMappings = catalogContext.paramMappings;
+        this.thresholds = thresholds;
         this.disabled = (this.paramMappings == null);
     }
     
@@ -83,9 +92,39 @@ public class RowConflictChecker extends AbstractConflictChecker {
             return (true);
         }
         
+        // If both txns are read-only, then we can let our homeboy go
+        boolean readonly0 = dtxnEst.isReadOnlyPartition(this.thresholds, partitionId);
+        boolean readonly1 = tsEst.isReadOnlyPartition(this.thresholds, partitionId);
+        if (readonly0 && readonly1) {
+            if (debug.get())
+                LOG.debug(String.format("%s<->%s are both are read-only. No conflict!", dtxn, ts));
+            return (true);
+        }
         
-        // TODO Auto-generated method stub
+        Collection<ConflictPair> allConflicts = this.getConflicts(dtxnEst.getEstimatedQueries(partitionId),
+                                                                  tsEst.getEstimatedQueries(partitionId));
+        assert(allConflicts != null);
+        
+        
+        
+        
         return false;
+    }
+    
+    private Collection<ConflictPair> getConflicts(Statement dtxnQueries[], Statement tsQueries[]) {
+        Set<ConflictPair> allConflicts = new HashSet<ConflictPair>();
+        for (int i = 0; i < dtxnQueries.length; i++) {
+            Statement stmt0 = dtxnQueries[i];
+            Map<Statement, ConflictPair> conflicts = this.stmtConflicts.get(stmt0);
+            for (int ii = 0; ii < tsQueries.length; ii++) {
+                Statement stmt1 = tsQueries[i];
+                ConflictPair cp = conflicts.get(stmt1);
+                // If there isn't a ConflictPair, then there isn't a conflict
+                if (cp == null) continue;
+                allConflicts.add(cp);
+            } // FOR
+        } // FOR
+        return (allConflicts);
     }
 
 }

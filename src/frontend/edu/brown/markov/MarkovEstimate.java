@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -149,6 +150,16 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     @Override
     public boolean hasQueryList() {
         return (this.path != null);
+    }
+    
+    @Override
+    public Statement[] getEstimatedQueries(int partition) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    
+    protected void setMarkovPath(List<MarkovVertex> path) {
+        this.path = path;
     }
     
     public List<MarkovVertex> getMarkovPath() {

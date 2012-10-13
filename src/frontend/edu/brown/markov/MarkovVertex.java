@@ -269,6 +269,11 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return false;
     }
     
+    @Override
+    public Statement[] getEstimatedQueries(int partition) {
+        // TODO Auto-generated method stub
+        return null;
+    }
 
     @Override
     public boolean isValid() {

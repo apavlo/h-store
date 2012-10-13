@@ -2,6 +2,7 @@ package edu.brown.hstore.estimators;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.CatalogContext;
+import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.markov.EstimationThresholds;
@@ -91,6 +92,12 @@ public abstract class FixedEstimator extends TransactionEstimator {
             return false;
         }
         
+        @Override
+        public Statement[] getEstimatedQueries(int partition) {
+            // TODO Auto-generated method stub
+            return null;
+        }
+        
         // ----------------------------------------------------------------------------
         // SINGLE-PARTITION PROBABILITY
         // ----------------------------------------------------------------------------
@@ -168,5 +175,6 @@ public abstract class FixedEstimator extends TransactionEstimator {
         public boolean isAbortable(EstimationThresholds t) {
             return (true);
         }
+
     } // CLASS
 }

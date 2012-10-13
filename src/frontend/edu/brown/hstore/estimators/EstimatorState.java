@@ -27,7 +27,6 @@ public abstract class EstimatorState implements Poolable {
         }
     }
     
-    
     protected final CatalogContext catalogContext;
     protected final PartitionSet touched_partitions = new PartitionSet();
     protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
@@ -38,7 +37,7 @@ public abstract class EstimatorState implements Poolable {
     protected long start_time;
     
     protected final List<TransactionEstimate> estimates = new ArrayList<TransactionEstimate>();
-    protected int num_estimates;
+    protected int num_estimates = 0;
     
     /**
      * Constructor
@@ -62,6 +61,7 @@ public abstract class EstimatorState implements Poolable {
     
     @Override
     public void finish() {
+        this.num_estimates = 0;
         this.touched_partitions.clear();
         this.query_instance_cnts.clear();
         this.prefetchable_stmts.clear();

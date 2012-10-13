@@ -2,24 +2,20 @@ package edu.brown.hstore.estimators;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Procedure;
 
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovPathEstimator;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.pools.TypedPoolableObjectFactory;
@@ -93,8 +89,8 @@ public final class MarkovEstimatorState extends EstimatorState {
 //        }
      
         // We maintain a local cache of Estimates, so there is no pool to return them to
-        // The MarkovPathEstimator is responsible for its own MarkovEstimate object, so we don't
-        // want to return that here.
+        // The MarkovPathEstimator is responsible for its own MarkovEstimate object, so we
+        // don't want to return that here.
         for (int i = 0; i < this.num_estimates; i++) {
             MarkovEstimate est = (MarkovEstimate)this.estimates.get(i);
             if (est != null) est.finish();
@@ -114,12 +110,13 @@ public final class MarkovEstimatorState extends EstimatorState {
      */
     protected MarkovEstimate createNextEstimate(MarkovVertex v) {
         MarkovEstimate next = null;
-        if (this.num_estimates < this.estimates.size()) {
-            next = (MarkovEstimate)this.estimates.get(this.num_estimates);
-        } else {
+        // FIXME
+//        if (this.num_estimates < this.estimates.size()) {
+//            next = (MarkovEstimate)this.estimates.get(this.num_estimates);
+//        } else {
             next = new MarkovEstimate(this.catalogContext);
             this.estimates.add(next);
-        }
+//        }
         next.init(v, this.num_estimates++);
         return (next);
     }

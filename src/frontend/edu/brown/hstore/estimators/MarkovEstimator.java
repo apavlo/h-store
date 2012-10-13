@@ -57,7 +57,8 @@ public class MarkovEstimator extends TransactionEstimator {
     // ----------------------------------------------------------------------------
     
     /**
-     * The amount of change in visitation of vertices we would tolerate before we need to recompute the graph.
+     * The amount of change in visitation of vertices we would tolerate before we need
+     * to recompute the graph.
      * TODO (pavlo): Saurya says: Should this be in MarkovGraph?
      */
     private static final double RECOMPUTE_TOLERANCE = (double) 0.5;
@@ -178,7 +179,8 @@ public class MarkovEstimator extends TransactionEstimator {
         if (this.markovs == null) return (null);
         MarkovGraph markov = this.markovs.getFromParams(txn_id, base_partition, args, catalog_proc);
         if (markov == null) {
-            if (d) LOG.debug("No MarkovGraph is available for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id));
+            if (d) LOG.debug(String.format("%s - No MarkovGraph is available for transaction",
+                             AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
             return (null);
         }
         
@@ -477,10 +479,10 @@ public class MarkovEstimator extends TransactionEstimator {
             // we need to recompute probabilities.
             if (next_v == null) {
                 next_v = new MarkovVertex(catalog_stmt,
-                                    MarkovVertex.Type.QUERY,
-                                    queryInstanceIndex,
-                                    partitions,
-                                    state.touched_partitions);
+                                          MarkovVertex.Type.QUERY,
+                                          queryInstanceIndex,
+                                          partitions,
+                                          state.touched_partitions);
                 markov.addVertex(next_v);
                 next_e = markov.addToEdge(current, next_v);
                 if (t) LOG.trace(String.format("Created new edge from %s to new %s for txn #%d", 
@@ -526,10 +528,15 @@ public class MarkovEstimator extends TransactionEstimator {
                 this.executeQueries(s, catalog_stmts, partitions, false);
             } // SYNCH
         } // FOR (batches)
-        if (txn_trace.isAborted()) this.abort(s, Status.ABORT_USER);
-        else this.commit(s);
+        if (txn_trace.isAborted()) {
+            this.abort(s, Status.ABORT_USER);
+        } else {
+            this.commit(s);
+        }
         
-        assert(s.getEstimateCount() == txn_trace.getBatchCount());
+        assert(s.getEstimateCount()-1 == txn_trace.getBatchCount()) :
+            String.format("EstimateCount[%d] != BatchCount[%d]",
+                          s.getEstimateCount(), txn_trace.getBatchCount());
         assert(s.actual_path.size() == (txn_trace.getQueryCount() + 2)) :
             String.format("Path[%d] != QueryCount[%d]",
                           s.actual_path.size(), txn_trace.getQueryCount());
