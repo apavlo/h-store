@@ -198,7 +198,7 @@ public class TestMarkovEstimator extends BaseTestCase {
         assertNotNull(s);
         
         // We should have an MarkovEstimate for each batch
-        assertEquals(txn_trace.getBatchCount(), s.getEstimateCount());
+        assertEquals(txn_trace.getBatchCount(), s.getEstimateCount()-1);
         List<TransactionEstimate> estimates = s.getEstimates();
         for (int i = 0, cnt = txn_trace.getBatchCount(); i < cnt; i++) {
             List<QueryTrace> queries = txn_trace.getBatchQueries(i);
@@ -210,6 +210,7 @@ public class TestMarkovEstimator extends BaseTestCase {
             // The last vertex in each MarkovEstimate should correspond to the last query in each batch
             MarkovVertex last_v = est.getVertex();
             assertNotNull(last_v);
+            System.err.println("LAST VERTEX: " + last_v);
             assertEquals(CollectionUtil.last(queries).getCatalogItem(catalog_db), last_v.getCatalogItem());
         } // FOR
     }

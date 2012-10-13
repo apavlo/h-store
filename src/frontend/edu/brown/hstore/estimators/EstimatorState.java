@@ -86,6 +86,7 @@ public abstract class EstimatorState implements Poolable {
     
     /**
      * Get the number of TransactionEstimates generated for this transaction
+     * This count includes the initial estimate
      * @return
      */
     public int getEstimateCount() {
@@ -97,7 +98,7 @@ public abstract class EstimatorState implements Poolable {
      * @return
      */
     public List<TransactionEstimate> getEstimates() {
-        return (Collections.unmodifiableList(this.estimates.subList(0, this.num_estimates)));
+        return (Collections.unmodifiableList(this.estimates.subList(1, this.num_estimates)));
     }
     
     // ----------------------------------------------------------------------------
