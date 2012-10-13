@@ -27,6 +27,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
+import edu.brown.hstore.estimators.QueryEstimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -270,7 +271,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     
     @Override
-    public Statement[] getEstimatedQueries(int partition) {
+    public QueryEstimate getEstimatedQueries(int partition) {
         // TODO Auto-generated method stub
         return null;
     }

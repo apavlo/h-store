@@ -2,7 +2,6 @@ package edu.brown.hstore.estimators;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.markov.EstimationThresholds;
@@ -93,7 +92,7 @@ public abstract class FixedEstimator extends TransactionEstimator {
         }
         
         @Override
-        public Statement[] getEstimatedQueries(int partition) {
+        public QueryEstimate getEstimatedQueries(int partition) {
             // TODO Auto-generated method stub
             return null;
         }

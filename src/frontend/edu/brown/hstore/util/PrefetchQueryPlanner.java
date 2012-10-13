@@ -21,11 +21,11 @@ import org.voltdb.messaging.FastSerializer;
 import com.google.protobuf.ByteString;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.estimators.EstimatorState.CountedStatement;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;

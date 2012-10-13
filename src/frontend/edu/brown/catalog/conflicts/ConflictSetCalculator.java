@@ -17,7 +17,6 @@ import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 import org.voltdb.catalog.TableRef;
 import org.voltdb.plannodes.AbstractPlanNode;
@@ -26,7 +25,6 @@ import org.voltdb.types.ConflictType;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.designer.ColumnSet;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -97,17 +95,6 @@ public class ConflictSetCalculator {
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 if (this.ignoredStatements.contains(catalog_stmt)) continue;
                 QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
-                ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false);
-                
-                for (Table tbl : CatalogUtil.getReferencedTables(catalog_stmt)) {
-                    for (Column col : this.pkeysCache.get(tbl)) {
-                        Collection<StmtParameter> params = cset.findAllForOther(StmtParameter.class, col);
-                        
-                    } // FOR
-                } // FOR
-                
-                
-                
                 if (qtype == QueryType.SELECT) {
                     pInfo.readQueries.add(catalog_stmt);
                 } else {

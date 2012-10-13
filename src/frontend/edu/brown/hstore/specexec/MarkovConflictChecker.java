@@ -26,6 +26,7 @@ import edu.brown.catalog.conflicts.ConflictParameterPair;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.designer.ColumnSet;
 import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.QueryEstimate;
 import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -99,15 +100,13 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                     for (Column col : this.pkeysCache.get(tbl)) {
                         Collection<StmtParameter> params = cset.findAllForOther(StmtParameter.class, col);
                         
-                        // We don't have a reference to this primary key
-                        if (params.size() == 0) {
-                            
-                        }
                         // If there are more than one, then it should always conflict
-                        else if (params.size() > 1) {
-                            
+                        if (params.size() > 1) {
+                            // TODO
                         }
                         else {
+                            // If there are no references, then there is nothing else that we 
+                            // we need to do here. The StmtParameter that we get back will be null
                             StmtParameter stmtParam = CollectionUtil.first(params);
                             assert(stmtParam != null);
                             stmtParamOffsets.add(stmtParam);
@@ -115,6 +114,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                     } // FOR
                     tableParams.put(tbl, stmtParamOffsets.toArray(new StmtParameter[0]));
                 } // FOR
+                this.stmtParameterCache.put(stmt, tableParams);
             } // FOR (stmt)
         } // FOR (proc)
     }
@@ -177,8 +177,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
             return (false);
         }
         
-        Collection<ConflictPair> allConflicts = this.getConflicts(dtxnEst.getEstimatedQueries(partitionId),
-                                                                  tsEst.getEstimatedQueries(partitionId));
+        QueryEstimate queries0 = dtxnEst.getEstimatedQueries(partitionId);
+        QueryEstimate queries1 = tsEst.getEstimatedQueries(partitionId);
+        
+        
+        Collection<ConflictPair> allConflicts = this.getConflicts(queries0, queries1);
         assert(allConflicts != null);
         if (allConflicts.isEmpty()) {
             if (debug.get())
@@ -210,20 +213,27 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         ParameterSet params1 = ts1.getProcedureParameters();
         assert(params1 != null);
         
+        Set<ConflictParameterPair> paramPairs = new HashSet<ConflictParameterPair>();
         for (ConflictPair cp : allConflicts) {
+            Statement stmt0 = cp.getStatement0();
+            Statement stmt1 = cp.getStatement1();
+            
             ConflictParameterPair pair = this.conflictParams.get(cp);
         }
         
         return (true);
     }
     
-    private Collection<ConflictPair> getConflicts(Statement dtxnQueries[], Statement tsQueries[]) {
+    private Collection<ConflictPair> getConflicts(QueryEstimate dtxnQueries, QueryEstimate tsQueries) {
         Set<ConflictPair> allConflicts = new HashSet<ConflictPair>();
-        for (int i = 0; i < dtxnQueries.length; i++) {
-            Statement stmt0 = dtxnQueries[i];
+        for (int i0 = 0, cnt0 = dtxnQueries.size(); i0 < cnt0; i0++) {
+            Statement stmt0 = dtxnQueries.getStatement(i0);
+            int counter0 = dtxnQueries.getStatementCounter(i0);
             Map<Statement, ConflictPair> conflicts = this.stmtConflicts.get(stmt0);
-            for (int ii = 0; ii < tsQueries.length; ii++) {
-                Statement stmt1 = tsQueries[i];
+            
+            for (int i1 = 0, cnt1 = tsQueries.size(); i1 < cnt1; i1++) {
+                Statement stmt1 = tsQueries.getStatement(i1);
+                int counter1 = tsQueries.getStatementCounter(i0);
                 ConflictPair cp = conflicts.get(stmt1);
                 // If there isn't a ConflictPair, then there isn't a conflict
                 if (cp == null) continue;

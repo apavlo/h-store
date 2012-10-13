@@ -11,22 +11,13 @@ import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 public abstract class EstimatorState implements Poolable {
 
-    public class CountedStatement {
-        public Statement statement;
-        public int counter;
-        
-        public CountedStatement(Statement statement, int counter) {
-            this.statement = statement;
-            this.counter = counter;
-        }
-    }
-    
     protected final CatalogContext catalogContext;
     protected final PartitionSet touched_partitions = new PartitionSet();
     protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();

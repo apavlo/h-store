@@ -7,7 +7,9 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Statement;
+import org.voltdb.utils.Pair;
 
+import edu.brown.hstore.estimators.QueryEstimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -153,7 +155,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     @Override
-    public Statement[] getEstimatedQueries(int partition) {
+    public QueryEstimate getEstimatedQueries(int partition) {
         // TODO Auto-generated method stub
         return null;
     }

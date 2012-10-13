@@ -35,4 +35,16 @@ public class ConflictParameterPair {
         return this.procParamOffset1 != NULL_OFFSET;
     }
     
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ConflictParameterPair) {
+            ConflictParameterPair other = (ConflictParameterPair)obj;
+            return (this.procParam0 == other.procParam0 &&
+                    this.procParamOffset0 == other.procParamOffset0 &&
+                    this.procParam1 == other.procParam1 &&
+                    this.procParamOffset0 == other.procParamOffset0);
+        }
+        return (false);
+    }
+    
 }
