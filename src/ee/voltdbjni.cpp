@@ -330,7 +330,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeLoadC
         e.serialize(engine->getExceptionOutputSerializer());
     }
 
-    VOLT_ERROR("loadCatalog failed");
+    VOLT_DEBUG("loadCatalog failed");
     return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
 }
 
