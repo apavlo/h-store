@@ -17,6 +17,7 @@ import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 import org.voltdb.catalog.TableRef;
 import org.voltdb.plannodes.AbstractPlanNode;
@@ -25,6 +26,7 @@ import org.voltdb.types.ConflictType;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.designer.ColumnSet;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -83,6 +85,10 @@ public class ConflictSetCalculator {
     public ConflictSetCalculator(Catalog catalog) {
         this.catalog_db = CatalogUtil.getDatabase(catalog);
 
+        for (Table catalog_tbl : CatalogUtil.getDataTables(catalog_db)) {
+            this.pkeysCache.put(catalog_tbl, CatalogUtil.getPrimaryKeyColumns(catalog_tbl));
+        } // FOR (table)
+        
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getMapreduce() || catalog_proc.getSystemproc()) continue;
             if (this.ignoredProcedures.contains(catalog_proc)) continue;
@@ -90,8 +96,19 @@ public class ConflictSetCalculator {
             ProcedureInfo pInfo = new ProcedureInfo(catalog_proc);
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 if (this.ignoredStatements.contains(catalog_stmt)) continue;
+                QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
+                ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false);
                 
-                if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
+                for (Table tbl : CatalogUtil.getReferencedTables(catalog_stmt)) {
+                    for (Column col : this.pkeysCache.get(tbl)) {
+                        Collection<StmtParameter> params = cset.findAllForOther(StmtParameter.class, col);
+                        
+                    } // FOR
+                } // FOR
+                
+                
+                
+                if (qtype == QueryType.SELECT) {
                     pInfo.readQueries.add(catalog_stmt);
                 } else {
                     pInfo.writeQueries.add(catalog_stmt);
@@ -100,9 +117,7 @@ public class ConflictSetCalculator {
             this.procedures.put(catalog_proc, pInfo);
         } // FOR (procedure)
         
-        for (Table catalog_tbl : CatalogUtil.getDataTables(catalog_db)) {
-            this.pkeysCache.put(catalog_tbl, CatalogUtil.getPrimaryKeyColumns(catalog_tbl));
-        } // FOR (table)
+
     }
     
     /**
@@ -215,7 +230,6 @@ public class ConflictSetCalculator {
         ProcedureInfo pInfo1 = this.procedures.get(proc1);
         assert(pInfo1 != null);
         Set<Conflict> conflicts = new HashSet<Conflict>();
-//        if (proc0 != null) return conflicts;
         
         // Read-Write Conflicts
         Collection<Column> cols0 = new HashSet<Column>();
@@ -275,7 +289,6 @@ public class ConflictSetCalculator {
         ProcedureInfo pInfo1 = this.procedures.get(proc1);
         assert(pInfo1 != null);
         Set<Conflict> conflicts = new HashSet<Conflict>();
-//        if (proc0 != null) return conflicts;
         
         // Write-Write Conflicts
         // Any INSERT or DELETE is always a conflict

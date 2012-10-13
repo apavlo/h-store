@@ -1,5 +1,6 @@
 package edu.brown.designer;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -226,15 +227,17 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
     }
 
     /**
-     * @param search_key
+     * @param search_keys
      * @return
      */
-    public Set<CatalogPair> findAll(CatalogType search_key) {
-        Set<CatalogPair> found = new HashSet<CatalogPair>();
+    public Collection<CatalogPair> findAll(CatalogType...search_keys) {
+        List<CatalogPair> found = new ArrayList<CatalogPair>();
         for (CatalogPair entry : this) {
-            if (entry.contains(search_key)) {
-                found.add(entry);
-            }
+            for (CatalogType key : search_keys) {
+                if (entry.contains(key)) {
+                    found.add(entry);
+                }
+            } // FOR
         } // FOR
         return (found);
     }
@@ -243,10 +246,11 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
      * @param search_key
      * @return
      */
-    public Set<CatalogPair> findAllForParent(CatalogType search_key) {
-        Set<CatalogPair> found = new HashSet<CatalogPair>();
+    public Collection<CatalogPair> findAllForParent(CatalogType search_key) {
+        List<CatalogPair> found = new ArrayList<CatalogPair>();
         for (CatalogPair entry : this) {
-            if (entry.getFirst().getParent().equals(search_key) || entry.getSecond().getParent().equals(search_key)) {
+            if (entry.getFirst().getParent().equals(search_key) ||
+                entry.getSecond().getParent().equals(search_key)) {
                 found.add(entry);
             }
         } // FOR
@@ -254,8 +258,8 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends CatalogType> Set<T> findAllForType(Class<T> search_key) {
-        Set<T> found = new HashSet<T>();
+    public <T extends CatalogType> Collection<T> findAllForType(Class<T> search_key) {
+        List<T> found = new ArrayList<T>();
         for (CatalogPair e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
                 found.add((T) e.getFirst());
@@ -288,10 +292,8 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
         if (!(o instanceof ColumnSet))
             return (false);
 
-        //
         // Otherwise, we need to loop through each of our Pairs and see if there
         // is a matching Pair of items on the other side
-        //
         ColumnSet cset = (ColumnSet) o;
         return (this.containsAll(cset) && cset.containsAll(this));
     }

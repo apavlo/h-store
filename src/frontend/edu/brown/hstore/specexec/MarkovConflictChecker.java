@@ -1,9 +1,11 @@
 package edu.brown.hstore.specexec;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
@@ -18,6 +20,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 
+import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.conflicts.ConflictParameterPair;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
@@ -31,6 +34,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * A more fine-grained ConflictChecker based on estimations of what 
@@ -48,8 +52,10 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     private final ParameterMappingsSet paramMappings;
     private final EstimationThresholds thresholds;
     private final boolean disabled;
-    private final Map<Statement, Map<Statement, ConflictPair>> stmtConflicts = new HashMap<Statement, Map<Statement,ConflictPair>>();
-    private final IdentityHashMap<ConflictPair, ConflictParameterPair> conflictParams = new IdentityHashMap<ConflictPair, ConflictParameterPair>();
+    private final Map<Statement, Map<Statement, ConflictPair>> stmtConflicts =
+                        new HashMap<Statement, Map<Statement,ConflictPair>>();
+    private final IdentityHashMap<ConflictPair, ConflictParameterPair> conflictParams = 
+                        new IdentityHashMap<ConflictPair, ConflictParameterPair>();
 
     // ------------------------------------------------------------
     // PRECOMPUTED CACHE
@@ -59,7 +65,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
      * For each Statement, we have maintain a list of the StmtParameters
      * that are used in predicates with the target table's primary key
      */
-    private final Map<Statement, Map<Table, StmtParameter[]>> stmtParameterCache = new HashMap<Statement, Map<Table, StmtParameter[]>>();
+    private final Map<Statement, Map<Table, StmtParameter[]>> stmtParameterCache = 
+                        new HashMap<Statement, Map<Table, StmtParameter[]>>();
     
     /**
      * Table -> Primary Keys
@@ -82,21 +89,32 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         for (Table catalog_tbl : CatalogUtil.getDataTables(this.catalogContext.database)) {
             this.pkeysCache.put(catalog_tbl, CatalogUtil.getPrimaryKeyColumns(catalog_tbl).toArray(new Column[0]));
         } // FOR (table)
+        
         for (Procedure proc : this.catalogContext.getRegularProcedures()) {
             for (Statement stmt : proc.getStatements()) {
-//                ColumnSet cset = CatalogUtil.extractStatementColumnSet(stmt, false);
-//                Map<Table, StmtParameter[]> tableParams = new HashMap<Table, StmtParameter[]>();
-//                for (Table tbl : CatalogUtil.getReferencedTables(stmt)) {
-//                    for (Column col : this.pkeysCache.get(tbl)) {
-//                        Collection<StmtParameter> params = cset.findAllForOther(StmtParameter.class, col);
-//                        this.stmtParameterCache.put(stmt)
-//                        int offsets[] = new int[params.size()];
-//                        int i = 0;
-//                        for (StmtParameter )
-//                    }
-//                }
-                
-                // this.stmtTablesCache.put(stmt, .toArray(new Table[0]));
+                ColumnSet cset = CatalogUtil.extractStatementColumnSet(stmt, false);
+                Map<Table, StmtParameter[]> tableParams = new HashMap<Table, StmtParameter[]>();
+                List<StmtParameter> stmtParamOffsets = new ArrayList<StmtParameter>();
+                for (Table tbl : CatalogUtil.getReferencedTables(stmt)) {
+                    for (Column col : this.pkeysCache.get(tbl)) {
+                        Collection<StmtParameter> params = cset.findAllForOther(StmtParameter.class, col);
+                        
+                        // We don't have a reference to this primary key
+                        if (params.size() == 0) {
+                            
+                        }
+                        // If there are more than one, then it should always conflict
+                        else if (params.size() > 1) {
+                            
+                        }
+                        else {
+                            StmtParameter stmtParam = CollectionUtil.first(params);
+                            assert(stmtParam != null);
+                            stmtParamOffsets.add(stmtParam);
+                        }
+                    } // FOR
+                    tableParams.put(tbl, stmtParamOffsets.toArray(new StmtParameter[0]));
+                } // FOR
             } // FOR (stmt)
         } // FOR (proc)
     }
