@@ -118,15 +118,19 @@ message TransactionInitRequest {
     // with this transaction.
     repeated int32 partitions = 5 [packed=true];
 
+    // Serialized Stored Procedure ParameterSet
+    // This is optional if we are doing speculative execution
+    optional bytes proc_params = 6;
+
     // PRE-FETCH QUERIES
     
     // The work that the HStoreSite needs to execute for this transaction
     // The work for a partition can appear only once in this list.
-    repeated WorkFragment prefetch_fragments = 6;
+    repeated WorkFragment prefetch_fragments = 7;
     
     // Serialized ParameterSets (one per Statment).
     // The order of these elements must match WorkFragment.paramIndex
-    repeated bytes prefetch_params = 7;
+    repeated bytes prefetch_params = 8;
 }
 
 message TransactionInitResponse {
@@ -172,6 +176,10 @@ message TransactionWorkRequest {
     // List of partitions that this transaction is done with
     // This allows us to piggyback on this message additional information
     repeated int32 done_partition = 9 [packed=true];
+
+    // Serialized Stored Procedure ParameterSet
+    // This is optional if we are doing speculative execution
+    optional bytes proc_params = 10;
 }
 
 message TransactionWorkResponse {

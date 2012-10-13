@@ -42,6 +42,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
@@ -98,12 +99,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // TRANSACTION INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * StoredProcedureInvocation Input Parameters
-     * These are the parameters that are sent from the client
-     */
-    private ParameterSet parameters;
     
     /**
      * Catalog object of the Procedure that this transaction is currently executing
@@ -222,8 +217,8 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public LocalTransaction(HStoreSite hstore_site) {
         super(hstore_site);
-        int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
-        this.exec_donePartitions = new BitSet(num_partitions);
+        CatalogContext catalogContext = hstore_site.getCatalogContext(); 
+        this.exec_donePartitions = new BitSet(catalogContext.numberOfPartitions);
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
     }
 
@@ -711,15 +706,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public Procedure getProcedure() {
         return (this.catalog_proc);
-    }
-    
-    /**
-     * Return the ParameterSet that contains the procedure input
-     * parameters for this transaction. These are the original parameters
-     * that were sent from the client for this txn.
-     */
-    public ParameterSet getProcedureParameters() {
-        return (this.parameters);
     }
     
     public void removeProcedureParameters() {

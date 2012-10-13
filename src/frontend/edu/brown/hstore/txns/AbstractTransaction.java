@@ -93,6 +93,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected boolean sysproc;
     protected SerializableException pending_error;
 
+    /**
+     * StoredProcedureInvocation Input Parameters
+     * These are the parameters that are sent from the client
+     */
+    protected ParameterSet parameters;
+    
     // ----------------------------------------------------------------------------
     // Attached Data Structures
     // ----------------------------------------------------------------------------
@@ -553,6 +559,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return this.proc_id;
     }
     /**
+     * Return the ParameterSet that contains the procedure input
+     * parameters for this transaction. These are the original parameters
+     * that were sent from the client for this txn.
+     * This can be null for distributed transactions on remote partitions
+     */
+    public ParameterSet getProcedureParameters() {
+        return (this.parameters);
+    }
+    /**
      * Returns true if this transaction is for a system procedure
      */
     public final boolean isSysProc() {
@@ -567,7 +582,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (null);
     }
     
-
+    // ----------------------------------------------------------------------------
+    // ERROR METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Returns true if this transaction has a pending error

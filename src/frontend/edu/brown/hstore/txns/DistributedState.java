@@ -33,6 +33,14 @@ public class DistributedState implements Poolable {
      */
     protected boolean is_all_local = true;
     
+    
+    /**
+     * If this is a distributed transaction and we are doing aggressive spec exec,
+     * then this bit map is used to keep track whether we have sent the Procedure
+     * ParameterSet to a remote site.
+     */
+    protected final BitSet sent_parameters; 
+    
     // ----------------------------------------------------------------------------
     // CALLBACKS
     // ----------------------------------------------------------------------------
@@ -78,6 +86,7 @@ public class DistributedState implements Poolable {
     public DistributedState(HStoreSite hstore_site) {
         CatalogContext catalogContext = hstore_site.getCatalogContext();
         this.notified_prepare = new BitSet(catalogContext.numberOfPartitions);
+        this.sent_parameters = new BitSet(catalogContext.numberOfSites);
         
         this.init_callback = new TransactionInitCallback(hstore_site);
         this.prepare_callback = new TransactionPrepareCallback(hstore_site);
@@ -87,7 +96,6 @@ public class DistributedState implements Poolable {
         this.rpc_transactionWork = new ProtoRpcController[catalogContext.numberOfSites];
         this.rpc_transactionPrepare = new ProtoRpcController[catalogContext.numberOfSites];
         this.rpc_transactionFinish = new ProtoRpcController[catalogContext.numberOfSites];
-        
     }
     
     public DistributedState init(LocalTransaction ts) {
@@ -114,6 +122,8 @@ public class DistributedState implements Poolable {
         this.prepare_callback.finish();
         this.finish_callback.finish();
         this.is_all_local = true;
+        this.notified_prepare.clear();
+        this.sent_parameters.clear();
         this.ts = null;
     }
     
