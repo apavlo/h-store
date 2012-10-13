@@ -27,6 +27,7 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.estimators.MarkovEstimatorState;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -271,6 +272,7 @@ public class MarkovCostModel extends AbstractCostModel {
         // internal Markov models.
         MarkovEstimatorState s = this.t_estimator.processTransactionTrace(txn_trace);
         assert (s != null);
+        Procedure catalog_proc = txn_trace.getCatalogItem(catalogContext.database);
 
         if (debug.get()) {
             LOG.debug("Measuring MarkovEstimate Accuracy: " + txn_trace);
@@ -310,9 +312,9 @@ public class MarkovCostModel extends AbstractCostModel {
                 // Otherwise we have to do the full path comparison to figure
                 // out just how wrong we are
                 cost = this.comparePathsFull(s);
-                this.full_path_counter.put(s.getProcedure());
+                this.full_path_counter.put(catalog_proc);
             } else {
-                this.fast_path_counter.put(s.getProcedure());
+                this.fast_path_counter.put(catalog_proc);
             }
         } catch (Throwable ex) {
             System.err.println(txn_trace.debug(catalogContext.database));
@@ -321,7 +323,7 @@ public class MarkovCostModel extends AbstractCostModel {
             System.err.println("PENALTIES = " + this.penalties);
             System.err.println("ESTIMATED PARTITIONS: " + this.e_all_partitions);
             System.err.println("ACTUAL PARTITIONS: " + this.a_all_partitions);
-            System.err.println("MARKOV GRAPH: " + MarkovUtil.exportGraphviz(s.getMarkovGraph(), true, null).writeToTempFile(s.getProcedure()));
+            System.err.println("MARKOV GRAPH: " + MarkovUtil.exportGraphviz(s.getMarkovGraph(), true, null).writeToTempFile(catalog_proc));
             System.err.println();
 
             String e_path = "ESTIMATED PATH:\n" + StringUtil.join("\n", s.getInitialPath());
@@ -440,8 +442,10 @@ public class MarkovCostModel extends AbstractCostModel {
         // This is strictly for the paper so that we can show how slow it would
         // be to have calculate probabilities through a traversal for each batch
         if (this.force_regenerate_markovestimates) {
-            if (debug.get())
-                LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + s.getFormattedName());
+            if (debug.get()) {
+                String name = AbstractTransaction.formatTxnName(markov.getProcedure(), s.getTransactionId());
+                LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + name);
+            }
             estimates = new ArrayList<MarkovEstimate>();
             for (MarkovEstimate est : s.getEstimates()) {
                 MarkovVertex v = est.getVertex();

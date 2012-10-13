@@ -81,10 +81,18 @@ public abstract class EstimatorState implements Poolable {
     }
     
     /**
-     * Return the initial Estimate made for this transaction before it began execution
+     * Return the initial TransactionEstimate made for this transaction 
+     * before it began execution
      * @return
      */
     public abstract TransactionEstimate getInitialEstimate();
+    
+    /**
+     * Return the last TransactionEstimate made for this transaction
+     * If no new estimate has been made, then it should return the
+     * initial estimate
+     * @return
+     */
     public abstract TransactionEstimate getLastEstimate();
     
     /**

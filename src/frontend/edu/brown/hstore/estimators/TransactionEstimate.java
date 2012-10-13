@@ -1,5 +1,7 @@
 package edu.brown.hstore.estimators;
 
+import org.voltdb.catalog.Statement;
+
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.PartitionSet;
 
@@ -12,6 +14,19 @@ public interface TransactionEstimate {
      * @param t
      */
     public PartitionSet getTouchedPartitions(EstimationThresholds t);
+    
+    // ----------------------------------------------------------------------------
+    // QUERIES
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Returns true if this estimate contains a list of queries
+     * that the transaction will execute
+     * @return
+     */
+    public boolean hasQueryList();
+    
+//    public Statement getEstimatedQueries();
     
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY

@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -24,7 +25,6 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     // HACK
     private static Integer PARTITIONS_ARRAY[]; 
-    
 
     // Global
     private float confidence;
@@ -45,6 +45,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     private PartitionSet read_partitions;
     private PartitionSet write_partitions;
 
+    private transient MarkovEstimatorState state;
     private transient MarkovVertex vertex;
     private transient int batch;
     private transient Long time;
@@ -79,10 +80,11 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
      * @param estimate the Estimate object which will be filled in
      * @param v the Vertex we are currently at in the MarkovGraph
      */
-    public MarkovEstimate init(MarkovVertex v, int batch) {
+    public MarkovEstimate init(MarkovEstimatorState state, MarkovVertex v, int batch) {
         assert(v != null);
         assert(this.initializing == false);
         assert(this.vertex == null) : "Trying to initialize the same object twice!";
+        this.state = state;
         this.batch = batch;
         this.vertex = v;
         
@@ -109,6 +111,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         if (this.initializing == false) {
             if (debug.get()) LOG.debug(String.format("Cleaning up MarkovEstimate [hashCode=%d]", this.hashCode()));
             this.vertex = null;
+            this.state = null;
         }
         for (int i = 0; i < this.touched.length; i++) {
             this.touched[i] = 0;
@@ -154,6 +157,11 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
 //        if (this.singlepartition == MarkovUtil.NULL_MARKER) return (false);
 //        if (this.userabort == MarkovUtil.NULL_MARKER) return (false);
 //        return (true);
+    }
+    
+    @Override
+    public boolean hasQueryList() {
+        return (this.state.getLastPath().isEmpty() == false);
     }
     
     /**

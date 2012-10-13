@@ -96,6 +96,19 @@ public abstract class FixedEstimator extends TransactionEstimator {
             return (this.partitions);
         }
 
+        // ----------------------------------------------------------------------------
+        // QUERIES
+        // ----------------------------------------------------------------------------
+        
+        @Override
+        public boolean hasQueryList() {
+            return false;
+        }
+        
+        // ----------------------------------------------------------------------------
+        // SINGLE-PARTITION PROBABILITY
+        // ----------------------------------------------------------------------------
+        
         @Override
         public boolean isSinglePartitionProbabilitySet() {
             return (this.isValid());

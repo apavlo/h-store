@@ -15,6 +15,7 @@ import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -60,15 +61,17 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * @author pavlo
      */
     public static class Factory extends TypedPoolableObjectFactory<MarkovPathEstimator> {
-        private final int num_partitions;
+        private final CatalogContext catalogContext;
+        private final PartitionEstimator p_estimator;
         
-        public Factory(int num_partitions) {
+        public Factory(CatalogContext catalogContext, PartitionEstimator p_estimator) {
             super(HStoreConf.singleton().site.pool_profiling);
-            this.num_partitions = num_partitions;
+            this.catalogContext = catalogContext;
+            this.p_estimator = p_estimator;
         }
         @Override
         public MarkovPathEstimator makeObjectImpl() throws Exception {
-            return (new MarkovPathEstimator(this.num_partitions));
+            return (new MarkovPathEstimator(this.catalogContext, this.p_estimator));
         }
     };
 
@@ -76,14 +79,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     // INVOCATION MEMBERS
     // ----------------------------------------------------------------------------
     
-    private final int num_partitions;
-    private MarkovEstimator t_estimator;
-    private ParameterMappingsSet allMappings;
-    private PartitionEstimator p_estimator;
     private int base_partition;
     private Object args[];
     private float greatest_abort = MarkovUtil.NULL_MARKER;
 
+    private final int num_partitions;
+    private final ParameterMappingsSet allMappings;
+    private final PartitionEstimator p_estimator;
     private final PartitionSet all_partitions;
     private final PartitionSet touched_partitions = new PartitionSet();
     private final PartitionSet read_partitions = new PartitionSet();
@@ -111,7 +113,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     /**
      * 
      */
-    private final MarkovEstimate estimate;
+    private MarkovEstimate estimate;
     
     /**
      * If this flag is true, then this MarkovPathEstimator is being cached by the TransactionEstimator and should not be returned to
@@ -142,33 +144,23 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     // ----------------------------------------------------------------------------
     
     /**
-     * Base Constructor
-     */
-    public MarkovPathEstimator(int num_partitions) {
-        super();
-        this.num_partitions = num_partitions;
-        this.estimate = new MarkovEstimate(this.num_partitions);
-        
-        this.all_partitions = new PartitionSet();
-        for (int p = 0; p < this.num_partitions; p++) {
-            this.all_partitions.add(p);
-        } // FOR
-    }
-    
-    /**
      * 
      * @param markov
      * @param t_estimator
      * @param base_partition
      * @param args
      */
-    public MarkovPathEstimator(MarkovGraph markov, MarkovEstimator t_estimator, int base_partition, Object args[]) {
-        super(markov);
-        this.num_partitions = t_estimator.getCatalogContext().numberOfPartitions;
-        this.estimate = new MarkovEstimate(this.num_partitions);
-        this.all_partitions = t_estimator.getCatalogContext().getAllPartitionIds();
+    public MarkovPathEstimator(CatalogContext catalogContext, PartitionEstimator p_estimator) {
+        super();
+        this.num_partitions = catalogContext.numberOfPartitions;
+        this.all_partitions = catalogContext.getAllPartitionIds();
+        this.p_estimator = p_estimator;
+        this.allMappings = catalogContext.paramMappings;
+        
+        assert(this.allMappings != null);
 
-        this.init(markov, t_estimator, base_partition, args);
+        // Why do we have to do this?
+        // this.init(markov, t_estimator, base_partition, args);
     }
     
     /**
@@ -179,23 +171,18 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * @param args
      * @return
      */
-    public MarkovPathEstimator init(MarkovGraph markov, MarkovEstimator t_estimator, int base_partition, Object args[]) {
+    public MarkovPathEstimator init(MarkovGraph markov, MarkovEstimate estimate, int base_partition, Object args[]) {
         this.init(markov, TraverseOrder.DEPTH, Direction.FORWARD);
-        this.estimate.init(markov.getStartVertex(), MarkovEstimate.INITIAL_ESTIMATE_BATCH);
+        this.estimate = estimate;
         this.confidence = 1.0f;
-        this.t_estimator = t_estimator;
-        this.p_estimator = this.t_estimator.getPartitionEstimator();
-        this.allMappings = this.t_estimator.getParameterMappings();
         this.base_partition = base_partition;
         this.args = args;
-        
-        assert(this.t_estimator.getParameterMappings() != null);
         assert(this.base_partition >= 0);
 
         if (LOG.isTraceEnabled()) {
             LOG.trace("Procedure:       " + markov.getProcedure().getName());
             LOG.trace("Base Partition:  " + this.base_partition);
-            LOG.trace("# of Partitions: " + t_estimator.getCatalogContext().numberOfPartitions);
+            LOG.trace("# of Partitions: " + this.num_partitions);
 //            LOG.trace("Arguments:       " + Arrays.toString(args));
         }
         return (this);
@@ -213,11 +200,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.confidence = MarkovUtil.NULL_MARKER;
         this.greatest_abort = MarkovUtil.NULL_MARKER;
         this.cached = false;
-        
-        this.t_estimator = null;
-        this.p_estimator = null;
-        this.allMappings = null;
-        
+        this.estimate = null;
         this.estimate.finish();
         this.touched_partitions.clear();
         this.read_partitions.clear();

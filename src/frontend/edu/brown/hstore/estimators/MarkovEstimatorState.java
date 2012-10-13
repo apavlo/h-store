@@ -125,7 +125,7 @@ public final class MarkovEstimatorState extends EstimatorState {
      * Get the next Estimate object for this State
      * @return
      */
-    protected synchronized MarkovEstimate createNextEstimate(MarkovVertex v) {
+    protected MarkovEstimate createNextEstimate(MarkovVertex v) {
         MarkovEstimate next = null;
         if (this.num_estimates < this.estimates.size()) {
             next = this.estimates.get(this.num_estimates);
@@ -133,19 +133,12 @@ public final class MarkovEstimatorState extends EstimatorState {
             next = new MarkovEstimate(this.num_partitions);
             this.estimates.add(next);
         }
-        next.init(v, this.num_estimates++);
+        next.init(this, v, this.num_estimates++);
         return (next);
     }
 
     public MarkovGraph getMarkovGraph() {
         return (this.markov);
-    }
-    
-    public Procedure getProcedure() {
-        return (this.markov.getProcedure());
-    }
-    public String getFormattedName() {
-        return (AbstractTransaction.formatTxnName(this.markov.getProcedure(), this.txn_id));
     }
     
     /**
@@ -187,6 +180,11 @@ public final class MarkovEstimatorState extends EstimatorState {
         return (this.initial_estimate);
     }
 
+    public List<MarkovVertex> getLastPath() {
+        // HACK: Always return the initial path for now
+        return (this.initial_estimator.getVisitPath());
+    }
+    
     @Override
     public MarkovEstimate getLastEstimate() {
         return (this.num_estimates > 0 ? this.estimates.get(this.num_estimates-1) : this.initial_estimate);

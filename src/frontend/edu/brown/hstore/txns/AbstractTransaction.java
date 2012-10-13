@@ -49,6 +49,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
+import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.interfaces.Loggable;
@@ -141,6 +142,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Whether we predict that this txn will be read-only
      */
     protected boolean predict_readOnly = false;
+    
+    /**
+     * EstimationState Handle
+     */
+    protected EstimatorState predict_tState;
     
     // ----------------------------------------------------------------------------
     // PER PARTITION EXECUTION FLAGS
@@ -306,6 +312,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.prefetch = null;
         }
         
+        // Return our TransactionEstimator.State handle
+        if (this.predict_tState != null) {
+            this.predict_tState.finish();
+            this.predict_tState = null;
+        }
+        
         for (int i = 0; i < this.exec_readOnly.length; i++) {
             this.prepared[i] = false;
             this.finished[i] = false;
@@ -439,6 +451,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      */
     public boolean isPredictSinglePartition() {
         return (this.predict_singlePartition);
+    }
+    
+    public EstimatorState getEstimatorState() {
+        return (this.predict_tState);
+    }
+    public void setEstimatorState(EstimatorState state) {
+        this.predict_tState = state;
     }
     
     // ----------------------------------------------------------------------------

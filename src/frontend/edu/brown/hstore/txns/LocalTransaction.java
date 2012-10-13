@@ -175,11 +175,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private PartitionSet predict_touchedPartitions;
   
-    /**
-     * EstimationState Handle
-     */
-    private EstimatorState predict_tState;
-    
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -367,11 +362,6 @@ public class LocalTransaction extends AbstractTransaction {
                        .getDistributedStatePool(this.base_partition)
                        .returnObject(this.dtxnState);
             this.dtxnState = null;
-        }
-        // Return our TransactionEstimator.State handle
-        if (this.predict_tState != null) {
-            this.predict_tState.finish();
-            this.predict_tState = null;
         }
         
         this.resetExecutionState();
@@ -880,13 +870,6 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.exec_touchedPartitions);
     }
 
-    
-    public EstimatorState getEstimatorState() {
-        return (this.predict_tState);
-    }
-    public void setEstimatorState(EstimatorState state) {
-        this.predict_tState = state;
-    }
     
     public TransactionProfiler getProfiler() {
         return (this.profiler);
