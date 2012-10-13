@@ -1,11 +1,12 @@
 package edu.brown.markov;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 
-import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -21,11 +22,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final int INITIAL_ESTIMATE_BATCH = -1;
+    private final CatalogContext catalogContext;
     
-    // HACK
-    private static Integer PARTITIONS_ARRAY[]; 
-
     // Global
     private float confidence;
     private float singlepartition;
@@ -45,8 +43,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     private PartitionSet read_partitions;
     private PartitionSet write_partitions;
 
-    private transient MarkovEstimatorState state;
     private transient MarkovVertex vertex;
+    private transient List<MarkovVertex> path;
     private transient int batch;
     private transient Long time;
     private transient boolean initializing = true;
@@ -54,22 +52,13 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
 
     private int reused = 0;
     
-    public MarkovEstimate(int num_partitions) {
-        if (PARTITIONS_ARRAY == null) {
-            synchronized (MarkovEstimate.class) {
-                if (PARTITIONS_ARRAY == null) {
-                    PARTITIONS_ARRAY = new Integer[num_partitions];
-                    for (int i = 0; i < num_partitions; i++) {
-                        PARTITIONS_ARRAY[i] = Integer.valueOf(i);
-                    } // FOR
-                }
-            } // SYNCH
-        }
+    public MarkovEstimate(CatalogContext catalogContext) {
+        this.catalogContext = catalogContext;
         
-        this.touched = new int[num_partitions];
-        this.finished = new float[num_partitions];
-        this.read = new float[num_partitions];
-        this.write = new float[num_partitions];
+        this.touched = new int[this.catalogContext.numberOfPartitions];
+        this.finished = new float[this.catalogContext.numberOfPartitions];
+        this.read = new float[this.catalogContext.numberOfPartitions];
+        this.write = new float[this.catalogContext.numberOfPartitions];
         this.finish(); // initialize!
         this.initializing = false;
     }
@@ -80,11 +69,10 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
      * @param estimate the Estimate object which will be filled in
      * @param v the Vertex we are currently at in the MarkovGraph
      */
-    public MarkovEstimate init(MarkovEstimatorState state, MarkovVertex v, int batch) {
+    public MarkovEstimate init(MarkovVertex v, int batch) {
         assert(v != null);
         assert(this.initializing == false);
         assert(this.vertex == null) : "Trying to initialize the same object twice!";
-        this.state = state;
         this.batch = batch;
         this.vertex = v;
         
@@ -111,7 +99,6 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         if (this.initializing == false) {
             if (debug.get()) LOG.debug(String.format("Cleaning up MarkovEstimate [hashCode=%d]", this.hashCode()));
             this.vertex = null;
-            this.state = null;
         }
         for (int i = 0; i < this.touched.length; i++) {
             this.touched[i] = 0;
@@ -161,7 +148,11 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public boolean hasQueryList() {
-        return (this.state.getLastPath().isEmpty() == false);
+        return (this.path != null);
+    }
+    
+    public List<MarkovVertex> getMarkovPath() {
+        return (this.path);
     }
     
     /**
@@ -169,7 +160,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
      * @return
      */
     public MarkovVertex getVertex() {
-        return vertex;
+        return (this.vertex);
     }
     
     /**
@@ -192,13 +183,14 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         return (++this.reused);
     }
     
-    protected int getNumPartitions() {
-        return (this.finished.length);
+    // ----------------------------------------------------------------------------
+    // PROBABILITIES
+    // ----------------------------------------------------------------------------
+    
+    public float getConfidenceCoefficient() {
+        return (this.confidence);
     }
     
-    // ----------------------------------------------------------------------------
-    // Probabilities
-    // ----------------------------------------------------------------------------
     protected void setConfidenceProbability(float prob) {
         this.confidence = prob;
         if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
@@ -405,13 +397,17 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     private void getPartitions(PartitionSet partitions, float values[], float limit, boolean inverse) {
         partitions.clear();
-        for (int i = 0; i < values.length; i++) {
-            if (inverse) {
-                if ((1 - values[i]) >= limit) partitions.add(PARTITIONS_ARRAY[i]);
-            } else {
-                if (values[i] >= limit) partitions.add(PARTITIONS_ARRAY[i]);
-            }
-        } // FOR
+        if (inverse) {
+            for (int i = 0; i < values.length; i++) {
+                if ((1 - values[i]) >= limit)
+                    partitions.add(this.catalogContext.getAllPartitionIdArray()[i]);
+            } // FOR
+        } else {
+            for (int i = 0; i < values.length; i++) {
+                if (values[i] >= limit)
+                    partitions.add(this.catalogContext.getAllPartitionIdArray()[i]);
+            } // FOR
+        }
     }
 
     @Override
@@ -468,7 +464,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         final String f = "%-6.02f"; 
         
         Map<String, Object> m0 = new LinkedHashMap<String, Object>();
-        m0.put("BatchEstimate", (this.batch == MarkovEstimate.INITIAL_ESTIMATE_BATCH ? "<INITIAL>" : "#" + this.batch));
+        m0.put("BatchEstimate", (this.batch == MarkovUtil.INITIAL_ESTIMATE_BATCH ? "<INITIAL>" : "#" + this.batch));
         m0.put("HashCode", this.hashCode());
         m0.put("Valid", this.valid);
         m0.put("Reused Ctr", this.reused);

@@ -1,14 +1,10 @@
 package edu.brown.hstore.estimators;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.CatalogContext;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -45,10 +41,9 @@ public abstract class FixedEstimator extends TransactionEstimator {
      * Fixed Estimator State 
      */
     protected static class FixedEstimatorState extends EstimatorState {
-        private final List<FixedEstimation> estimates = new ArrayList<FixedEstimation>();
-        
-        protected FixedEstimatorState(Long txn_id, int num_partitions, int base_partition) {
-            super(num_partitions);
+
+        protected FixedEstimatorState(CatalogContext catalogContext, Long txn_id, int base_partition) {
+            super(catalogContext);
             this.init(txn_id, base_partition, EstTime.currentTimeMillis());
         }
         
@@ -56,19 +51,10 @@ public abstract class FixedEstimator extends TransactionEstimator {
                                                      PartitionSet readonly,
                                                      PartitionSet finished) {
             FixedEstimation next = new FixedEstimation(partitions, readonly, finished);
-            this.estimates.add(next);
+            this.addEstimate(next);
             return (next);
         }
 
-        @Override
-        public TransactionEstimate getInitialEstimate() {
-            return CollectionUtil.first(this.estimates);
-        }
-
-        @Override
-        public TransactionEstimate getLastEstimate() {
-            return CollectionUtil.last(this.estimates);
-        }
     } // CLASS
 
     /**

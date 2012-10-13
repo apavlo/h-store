@@ -389,7 +389,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      * Return an immutable list of all the partition ids in our catalog
      * @return
      */
-    protected Collection<Integer> getAllPartitions() {
+    protected PartitionSet getAllPartitions() {
         return (CatalogUtil.getAllPartitionIds(this.getDatabase()));
     }
     

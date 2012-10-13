@@ -1,11 +1,13 @@
 package edu.brown.hstore.estimators;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 
@@ -25,24 +27,26 @@ public abstract class EstimatorState implements Poolable {
         }
     }
     
-    protected final int num_partitions;
     
+    protected final CatalogContext catalogContext;
+    protected final PartitionSet touched_partitions = new PartitionSet();
+    protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
+    protected final List<CountedStatement> prefetchable_stmts = new ArrayList<CountedStatement>();
+
     protected Long txn_id = null;
     protected int base_partition;
     protected long start_time;
     
-    protected final PartitionSet touched_partitions = new PartitionSet();
-    protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
-    
-    protected final List<CountedStatement> prefetchable_stmts = new ArrayList<CountedStatement>();
+    protected final List<TransactionEstimate> estimates = new ArrayList<TransactionEstimate>();
+    protected int num_estimates;
     
     /**
      * Constructor
      * @param markov - the graph that this txn is using
      * @param estimated_path - the initial path estimation from MarkovPathEstimator
      */
-    protected EstimatorState(int num_partitions) {
-        this.num_partitions = num_partitions;
+    protected EstimatorState(CatalogContext catalogContext) {
+        this.catalogContext = catalogContext;
     }
     
     public void init(Long txn_id, int base_partition, long start_time) {
@@ -60,8 +64,8 @@ public abstract class EstimatorState implements Poolable {
     public void finish() {
         this.touched_partitions.clear();
         this.query_instance_cnts.clear();
-        this.txn_id = null;
         this.prefetchable_stmts.clear();
+        this.txn_id = null;
     }
     
     public Long getTransactionId() {
@@ -81,19 +85,55 @@ public abstract class EstimatorState implements Poolable {
     }
     
     /**
+     * Get the number of TransactionEstimates generated for this transaction
+     * @return
+     */
+    public int getEstimateCount() {
+        return (this.num_estimates);
+    }
+    /**
+     * Return the full list of estimates generated for this transaction
+     * <B>NOTE:</B> This should only be used for testing 
+     * @return
+     */
+    @Deprecated
+    public List<TransactionEstimate> getEstimates() {
+        return (Collections.unmodifiableList(this.estimates.subList(0, this.num_estimates)));
+    }
+    
+    // ----------------------------------------------------------------------------
+    // API METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
      * Return the initial TransactionEstimate made for this transaction 
      * before it began execution
      * @return
      */
-    public abstract TransactionEstimate getInitialEstimate();
-    
+    @SuppressWarnings("unchecked")
+    public final <T extends TransactionEstimate> T getInitialEstimate() {
+        return ((T)this.estimates.get(0));
+    }
+
     /**
      * Return the last TransactionEstimate made for this transaction
      * If no new estimate has been made, then it should return the
      * initial estimate
      * @return
      */
-    public abstract TransactionEstimate getLastEstimate();
+    @SuppressWarnings("unchecked")
+    public final <T extends TransactionEstimate> T getLastEstimate() {
+        return (T)this.estimates.get(this.num_estimates-1);
+    }
+
+    protected void addEstimate(TransactionEstimate est) {
+        this.num_estimates++;
+        this.estimates.add(est);
+    }
+    
+    public int getNumEstimates() {
+        return (this.num_estimates);
+    }
     
     /**
      * Get the number of milli-seconds that have passed since the txn started

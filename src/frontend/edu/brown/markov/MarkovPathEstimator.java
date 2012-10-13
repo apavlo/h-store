@@ -91,7 +91,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     private final PartitionSet read_partitions = new PartitionSet();
     private final PartitionSet write_partitions = new PartitionSet();
     
-    
     /**
      * If this flag is set to true, then we will always try to go to the end
      * This means that if we don't have an edge to the vertex that we're pretty sure we want to take, we'll 
@@ -201,7 +200,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.greatest_abort = MarkovUtil.NULL_MARKER;
         this.cached = false;
         this.estimate = null;
-        this.estimate.finish();
         this.touched_partitions.clear();
         this.read_partitions.clear();
         this.write_partitions.clear();
@@ -217,17 +215,15 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         return this.cached;
     }
     
-    public MarkovEstimate getEstimate() {
-        return estimate;
-    }
-    
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
     }
     
     /**
-     * 
+     * Forcing traversal means that we will keep estimating the
+     * path even if the next MarkovVertex that the txn needs to transition
+     * to is not in the MarkovGraph.
      * @param flag
      */
     public void enableForceTraversal(boolean flag) {
@@ -643,10 +639,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * @param args
      * @return
      */
-    public static MarkovPathEstimator predictPath(MarkovGraph markov, MarkovEstimator t_estimator, Object args[]) {
+    public static MarkovEstimate predictPath(MarkovGraph markov, MarkovEstimator t_estimator, Object args[]) {
+        CatalogContext catalogContext = t_estimator.getCatalogContext();
+        PartitionEstimator p_estimator = t_estimator.getPartitionEstimator();
+        
         int base_partition = HStoreConstants.NULL_PARTITION_ID;
         try {
-            base_partition = t_estimator.getPartitionEstimator().getBasePartition(markov.getProcedure(), args);
+            base_partition = p_estimator.getBasePartition(markov.getProcedure(), args);
         } catch (Exception ex) {
             String msg = String.format("Failed to calculate base partition for <%s, %s>",
                                        markov.getProcedure().getName(), Arrays.toString(args)); 
@@ -655,10 +654,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         }
         assert(base_partition != HStoreConstants.NULL_PARTITION_ID);
         
-        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, t_estimator, base_partition, args);
+        
+        MarkovEstimate est = new MarkovEstimate(t_estimator.getCatalogContext());
+        MarkovPathEstimator estimator = new MarkovPathEstimator(catalogContext, p_estimator);
+        estimator.init(markov, est, base_partition, args);
         estimator.updateLogging();
         estimator.traverse(markov.getStartVertex());
-        return (estimator);
+        return (est);
     }
     
     public static void main(String[] vargs) throws Exception {
@@ -680,7 +682,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         // Blah blah blah...
         Map<Integer, MarkovEstimator> t_estimators = new HashMap<Integer, MarkovEstimator>();
         for (Integer id : m.keySet()) {
-            t_estimators.put(id, new MarkovEstimator(p_estimator, args.param_mappings, m.get(id)));
+            t_estimators.put(id, new MarkovEstimator(args.catalogContext, p_estimator, m.get(id)));
         } // FOR
         
         final Set<String> skip = new HashSet<String>();
@@ -723,12 +725,12 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             
             // Check whether we predict the same path
             List<MarkovVertex> actual_path = markov.processTransaction(xact, p_estimator);
-            MarkovPathEstimator m_estimator = MarkovPathEstimator.predictPath(markov, t_estimators.get(partition), xact.getParams());
-            assert(m_estimator != null);
-            List<MarkovVertex> predicted_path = m_estimator.getVisitPath();
+            MarkovEstimate est = MarkovPathEstimator.predictPath(markov, t_estimators.get(partition), xact.getParams());
+            assert(est != null);
+            List<MarkovVertex> predicted_path = est.getMarkovPath();
             if (actual_path.equals(predicted_path)) correct_path_txns.get(catalog_proc).incrementAndGet();
             
-            LOG.info("MarkovEstimate:\n" + m_estimator.getEstimate());
+            LOG.info("MarkovEstimate:\n" + est);
             
             // Check whether we predict the same partitions
             PartitionSet actual_partitions = MarkovUtil.getTouchedPartitions(actual_path); 

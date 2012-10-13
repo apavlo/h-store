@@ -12,6 +12,7 @@ import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovVertex.Type;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, MarkovEdge> {
@@ -23,7 +24,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
     }
     
     private final Set<MarkovEdge> visited_edges = new HashSet<MarkovEdge>();
-    private final Collection<Integer> all_partitions;
+    private final PartitionSet all_partitions;
     private MarkovEstimate markov_est;
     
     public MarkovProbabilityCalculator(MarkovGraph markov) {
@@ -165,7 +166,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
         MarkovProbabilityCalculator calc = new MarkovProbabilityCalculator(markov);
         calc.stopAtElement(v);
         MarkovEstimate est = new MarkovEstimate(calc.all_partitions.size());
-        est.init(v, MarkovEstimate.INITIAL_ESTIMATE_BATCH);
+        est.init(v, MarkovUtil.INITIAL_ESTIMATE_BATCH);
         calc.calculate(est);
 //        LOG.info("MarkovEstimate:\n" + est);
 //        System.exit(1);

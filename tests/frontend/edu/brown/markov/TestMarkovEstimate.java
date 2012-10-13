@@ -36,7 +36,7 @@ public class TestMarkovEstimate extends BaseTestCase {
      * testProbabilities
      */
     public void testProbabilities() throws Exception {
-        est.init(markov.getStartVertex(), MarkovEstimate.INITIAL_ESTIMATE_BATCH);
+        est.init(markov.getStartVertex(), MarkovUtil.INITIAL_ESTIMATE_BATCH);
         
         // Initialize
         // This is based on an actual estimate generated from a benchmark run

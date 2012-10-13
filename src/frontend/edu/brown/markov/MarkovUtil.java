@@ -59,6 +59,11 @@ public abstract class MarkovUtil {
     
     
     /**
+     * 
+     */
+    public static final int INITIAL_ESTIMATE_BATCH = -1;
+    
+    /**
      * Wrapper class for our special "marker" vertices
      */
     public static class StatementWrapper extends Statement {
