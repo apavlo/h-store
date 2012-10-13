@@ -97,9 +97,7 @@ public class MarkovEstimator extends TransactionEstimator {
      * @param mappings
      * @param markovs
      */
-    public MarkovEstimator(CatalogContext catalogContext,
-                           PartitionEstimator p_estimator,
-                           MarkovGraphsContainer markovs) {
+    public MarkovEstimator(CatalogContext catalogContext, PartitionEstimator p_estimator, MarkovGraphsContainer markovs) {
         super(p_estimator);
         this.catalogContext = catalogContext;
         this.markovs = markovs;

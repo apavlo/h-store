@@ -5,7 +5,6 @@ import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestMarkovEstimate extends BaseTestCase {
@@ -28,7 +27,7 @@ public class TestMarkovEstimate extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         this.markov = new MarkovGraph(this.catalog_proc).initialize();
         
-        this.est = new MarkovEstimate(CatalogUtil.getNumberOfPartitions(catalog_db));
+        this.est = new MarkovEstimate(catalogContext);
         assertFalse(this.est.isValid());
     }
     
@@ -40,7 +39,7 @@ public class TestMarkovEstimate extends BaseTestCase {
         
         // Initialize
         // This is based on an actual estimate generated from a benchmark run
-        for (int p = 0, cnt = est.getNumPartitions(); p < cnt; p++) {
+        for (int p = 0; p < NUM_PARTITIONS; p++) {
             est.setReadOnlyProbability(p, 1.0f);
             if (p == BASE_PARTITION) {
                 est.setWriteProbability(p, 0.08f);

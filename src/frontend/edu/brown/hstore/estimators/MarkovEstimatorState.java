@@ -132,6 +132,10 @@ public final class MarkovEstimatorState extends EstimatorState {
         return (this.markov);
     }
 
+    public List<MarkovVertex> getActualPath() {
+        return (this.actual_path);
+    }
+    
     public MarkovVertex getCurrent() {
         return (this.current);
     }

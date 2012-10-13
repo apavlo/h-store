@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 
@@ -162,10 +163,10 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
         this.markov_est = null;
     }
     
-    public static MarkovEstimate generate(MarkovGraph markov, MarkovVertex v) {
+    public static MarkovEstimate generate(CatalogContext catalogContext, MarkovGraph markov, MarkovVertex v) {
         MarkovProbabilityCalculator calc = new MarkovProbabilityCalculator(markov);
         calc.stopAtElement(v);
-        MarkovEstimate est = new MarkovEstimate(calc.all_partitions.size());
+        MarkovEstimate est = new MarkovEstimate(catalogContext);
         est.init(v, MarkovUtil.INITIAL_ESTIMATE_BATCH);
         calc.calculate(est);
 //        LOG.info("MarkovEstimate:\n" + est);

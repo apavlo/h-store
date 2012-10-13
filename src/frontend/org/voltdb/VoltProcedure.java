@@ -65,6 +65,7 @@ import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
+import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
@@ -1579,10 +1580,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         sb.append("\nTRANSACTION STATE\n").append(this.m_localTxnState.debug());
         
         sb.append("\nESTIMATOR STATE:\n");
-        if (s != null) {
+        if (s instanceof MarkovEstimatorState) {
             sb.append(s.toString());
             try {
-                GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getInitialPath()));
+                MarkovEstimate initialEst = s.getInitialEstimate();
+                List<MarkovEdge> initialPath = markov.getPath(initialEst.getMarkovPath());
+                GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, initialPath);
                 gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
                 
                 LOG.info("PARTITION: " + this.executor.getPartitionId());

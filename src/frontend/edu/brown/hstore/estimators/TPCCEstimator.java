@@ -50,7 +50,7 @@ public class TPCCEstimator extends FixedEstimator {
     @Override
     public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
-        FixedEstimatorState ret = new FixedEstimatorState(txn_id, this.num_partitions, base_partition);
+        FixedEstimatorState ret = new FixedEstimatorState(this.catalogContext, txn_id, base_partition);
         
         PartitionSet partitions = null;
         PartitionSet readonly = null;

@@ -1,7 +1,6 @@
 package edu.brown.markov;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,7 +21,6 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import weka.classifiers.Classifier;
@@ -41,7 +39,6 @@ import edu.brown.costmodel.MarkovCostModel;
 import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.features.BasePartitionFeature;
@@ -219,7 +216,7 @@ public class FeatureClusterer {
             for (int p : FeatureClusterer.this.all_partitions) {
                 this.clusters_per_partition[p] = new Histogram<Integer>();
                 this.markovs_per_partition[p] = new TxnToClusterMarkovGraphsContainer();
-                this.t_estimators_per_partition[p] = new MarkovEstimator(FeatureClusterer.this.p_estimator, FeatureClusterer.this.correlations, this.markovs_per_partition[p]);
+                this.t_estimators_per_partition[p] = new MarkovEstimator(catalogContext, p_estimator, this.markovs_per_partition[p]);
                 this.costmodels_per_partition[p] = new MarkovCostModel(catalogContext, p_estimator, this.t_estimators_per_partition[p], thresholds);
             } // FOR
         }
@@ -296,10 +293,9 @@ public class FeatureClusterer {
     private final Procedure catalog_proc;
     private final Workload workload;
     private final EstimationThresholds thresholds;
-    private final ParameterMappingsSet correlations;
     private final PartitionEstimator p_estimator;
     private final Random rand = new Random(); // FIXME
-    private final Collection<Integer> all_partitions;
+    private final PartitionSet all_partitions;
     private final int total_num_partitions;
     private final FastObjectPool<ExecutionState> state_pool = new FastObjectPool<ExecutionState>(new ExecutionStateFactory(this));
 
@@ -312,19 +308,20 @@ public class FeatureClusterer {
     private final Map<Long, PartitionSet> cache_all_partitions = new HashMap<Long, PartitionSet>();
     private final Map<Long, Integer> cache_base_partition = new HashMap<Long, Integer>();
 
+
     /**
-     * 
+     * Constructor
+     * @param catalogContext
      * @param catalog_proc
      * @param workload
      * @param correlations
      * @param all_partitions
      * @param num_threads
      */
-    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterMappingsSet correlations, Collection<Integer> all_partitions, int num_threads) {
+    public FeatureClusterer(CatalogContext catalogContext, Procedure catalog_proc, Workload workload, PartitionSet all_partitions, int num_threads) {
+        this.catalogContext = catalogContext;
         this.catalog_proc = catalog_proc;
-        this.catalogContext = new CatalogContext(catalog_proc.getCatalog());
         this.workload = workload;
-        this.correlations = correlations;
         this.thresholds = new EstimationThresholds(); // FIXME
         this.p_estimator = new PartitionEstimator(catalogContext);
         this.all_partitions = all_partitions;
@@ -335,7 +332,7 @@ public class FeatureClusterer {
             this.split_percentages[type.ordinal()] = type.percentage;
         } // FOR
         
-        this.global_t_estimator = new MarkovEstimator(this.p_estimator, this.correlations, this.global_markov);
+        this.global_t_estimator = new MarkovEstimator(this.catalogContext, this.p_estimator, this.global_markov);
         this.global_costmodel = new MarkovCostModel(catalogContext, this.p_estimator, this.global_t_estimator, this.thresholds);
         for (Integer p : FeatureClusterer.this.all_partitions) {
             this.global_markov.getOrCreate(p, FeatureClusterer.this.catalog_proc).initialize();
@@ -345,24 +342,8 @@ public class FeatureClusterer {
     /**
      * Constructor
      */
-    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterMappingsSet correlations, Collection<Integer> all_partitions) {
-        this(catalog_proc, workload, correlations, all_partitions, DEFAULT_NUM_THREADS);
-    }
-
-    /**
-     * Constructor
-     * @param catalog_db
-     */
-    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterMappingsSet correlations, int num_threads) {
-        this(catalog_proc, workload, correlations, CatalogUtil.getAllPartitionIds(catalog_proc), num_threads);
-    }
-    
-    /**
-     * Constructor
-     * @param catalog_db
-     */
-    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterMappingsSet correlations) {
-        this(catalog_proc, workload, correlations, DEFAULT_NUM_THREADS);
+    public FeatureClusterer(CatalogContext catalogContext, Procedure catalog_proc, Workload workload, PartitionSet all_partitions) {
+        this(catalogContext, catalog_proc, workload, all_partitions, DEFAULT_NUM_THREADS);
     }
     
     protected final void cleanup() {
@@ -1122,7 +1103,7 @@ public class FeatureClusterer {
         assert(data != null);
         assert(args.workload.getTransactionCount() == data.numInstances());
         
-        FeatureClusterer fclusterer = null;
+        PartitionSet partitions = null;
         if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_RANDOM_PARTITIONS)) {
             PartitionEstimator p_estimator = new PartitionEstimator(args.catalogContext);
             final Histogram<Integer> h = new Histogram<Integer>();
@@ -1138,12 +1119,15 @@ public class FeatureClusterer {
 //            System.err.println(h);
 //            System.exit(1);
 //            
-            Collection<Integer> partitions = h.values();
-            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_mappings, partitions, num_threads);
+            partitions = new PartitionSet(h.values());
         } else {
-            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_mappings, num_threads);    
+            partitions = args.catalogContext.getAllPartitionIds();    
         }
-        
+        FeatureClusterer fclusterer = new FeatureClusterer(args.catalogContext,
+                                                           catalog_proc,
+                                                           args.workload,
+                                                           partitions,
+                                                           num_threads);
         // Update split configuration variables
         for (SplitType type : SplitType.values()) {
             String param_name = String.format("%s.%s", ArgumentsParser.PARAM_MARKOV_SPLIT, type.name());

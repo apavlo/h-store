@@ -186,7 +186,7 @@ public abstract class HStore {
             if (debug.get()) LOG.debug("Creating TransactionEstimator for " + singleton.getSiteName());
             TransactionEstimator t_estimator = null;
             if (hstore_conf.site.markov_fixed == false && markovs != null) {
-                t_estimator = new MarkovEstimator(p_estimator, mappings, local_markovs);
+                t_estimator = new MarkovEstimator(catalogContext, p_estimator, local_markovs);
             } else if (hstore_conf.site.markov_fixed) {
                 t_estimator = FixedEstimator.factory(p_estimator, singleton.getCatalogContext());
             }

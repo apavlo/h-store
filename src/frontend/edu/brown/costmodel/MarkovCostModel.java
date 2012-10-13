@@ -27,6 +27,7 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.estimators.MarkovEstimatorState;
+import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -172,9 +173,9 @@ public class MarkovCostModel extends AbstractCostModel {
     // DATA MEMBERS
     // ----------------------------------------------------------------------------
 
+    private final CatalogContext catalogContext;
     private final EstimationThresholds thresholds;
     private final MarkovEstimator t_estimator;
-    private final Collection<Integer> all_partitions;
     private boolean force_full_comparison = false;
     private boolean force_regenerate_markovestimates = false;
 
@@ -209,9 +210,9 @@ public class MarkovCostModel extends AbstractCostModel {
      */
     public MarkovCostModel(CatalogContext catalogContext, PartitionEstimator p_estimator, MarkovEstimator t_estimator, EstimationThresholds thresholds) {
         super(MarkovCostModel.class, catalogContext, p_estimator);
+        this.catalogContext = catalogContext;
         this.thresholds = thresholds;
         this.t_estimator = t_estimator;
-        this.all_partitions = catalogContext.getAllPartitionIds();
 
         assert (this.t_estimator != null) : "Missing TransactionEstimator";
     }
@@ -277,7 +278,7 @@ public class MarkovCostModel extends AbstractCostModel {
         if (debug.get()) {
             LOG.debug("Measuring MarkovEstimate Accuracy: " + txn_trace);
             if (trace.get()) {
-                LOG.trace("Estimated: " + s.getInitialPath());
+                LOG.trace("Estimated: " + ((MarkovEstimate)s.getInitialEstimate()).getMarkovPath());
                 LOG.trace("Actual:    " + s.getActualPath());
             }
         }
@@ -286,10 +287,10 @@ public class MarkovCostModel extends AbstractCostModel {
 
         this.e_read_partitions.clear();
         this.e_write_partitions.clear();
-        MarkovEstimate est = s.getInitialEstimate();
-        for (Integer partition : est.getTouchedPartitions(this.thresholds)) {
-            if (est.isFinishPartition(this.thresholds, partition.intValue()) == false) {
-                for (MarkovVertex v : s.getInitialPath()) {
+        MarkovEstimate initialEst = s.getInitialEstimate();
+        for (Integer partition : initialEst.getTouchedPartitions(this.thresholds)) {
+            if (initialEst.isFinishPartition(this.thresholds, partition.intValue()) == false) {
+                for (MarkovVertex v : initialEst.getMarkovPath()) {
                     if (v.getPartitions().contains(partition) == false)
                         continue;
                     if (((Statement) v.getCatalogItem()).getReadonly()) {
@@ -308,7 +309,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
         // Try fast version
         try {
-            if (this.force_full_comparison || !this.comparePathsFast(CollectionUtil.last(s.getInitialPath()), actual)) {
+            if (this.force_full_comparison || !this.comparePathsFast(CollectionUtil.last(initialEst.getMarkovPath()), actual)) {
                 // Otherwise we have to do the full path comparison to figure
                 // out just how wrong we are
                 cost = this.comparePathsFull(s);
@@ -326,7 +327,7 @@ public class MarkovCostModel extends AbstractCostModel {
             System.err.println("MARKOV GRAPH: " + MarkovUtil.exportGraphviz(s.getMarkovGraph(), true, null).writeToTempFile(catalog_proc));
             System.err.println();
 
-            String e_path = "ESTIMATED PATH:\n" + StringUtil.join("\n", s.getInitialPath());
+            String e_path = "ESTIMATED PATH:\n" + StringUtil.join("\n", initialEst.getMarkovPath());
             String a_path = "ACTUAL PATH:\n" + StringUtil.join("\n", s.getActualPath());
             System.err.println(StringUtil.columns(e_path, a_path));
             System.err.println("MARKOV ESTIMATE:\n" + s.getInitialEstimate());
@@ -413,7 +414,8 @@ public class MarkovCostModel extends AbstractCostModel {
 
         this.penalties.clear();
 
-        List<MarkovVertex> estimated = s.getInitialPath();
+        MarkovEstimate initialEst = s.getInitialEstimate();
+        List<MarkovVertex> estimated = initialEst.getMarkovPath();
         this.e_all_partitions.clear();
         this.e_all_partitions.addAll(this.e_read_partitions);
         this.e_all_partitions.addAll(this.e_write_partitions);
@@ -437,7 +439,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
         final int base_partition = s.getBasePartition();
         final int num_estimates = s.getEstimateCount();
-        List<MarkovEstimate> estimates = null;
+        List<TransactionEstimate> estimates = null;
 
         // This is strictly for the paper so that we can show how slow it would
         // be to have calculate probabilities through a traversal for each batch
@@ -446,10 +448,11 @@ public class MarkovCostModel extends AbstractCostModel {
                 String name = AbstractTransaction.formatTxnName(markov.getProcedure(), s.getTransactionId());
                 LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + name);
             }
-            estimates = new ArrayList<MarkovEstimate>();
-            for (MarkovEstimate est : s.getEstimates()) {
+            estimates = new ArrayList<TransactionEstimate>();
+            for (TransactionEstimate e : s.getEstimates()) {
+                MarkovEstimate est = (MarkovEstimate)e; 
                 MarkovVertex v = est.getVertex();
-                MarkovEstimate new_est = MarkovProbabilityCalculator.generate(markov, v);
+                MarkovEstimate new_est = MarkovProbabilityCalculator.generate(this.catalogContext, markov, v);
                 assert (new_est != null);
                 estimates.add(est);
             } // FOR
@@ -513,7 +516,8 @@ public class MarkovCostModel extends AbstractCostModel {
         MarkovVertex abort_v = markov.getAbortVertex();
         boolean last_hadAbortPath = true;
         first_penalty = true;
-        for (MarkovEstimate est : estimates) {
+        for (TransactionEstimate e : estimates) {
+            MarkovEstimate est = (MarkovEstimate)e;
             MarkovVertex v = est.getVertex();
             assert (v != null) : "No vertex?\n" + est;
             boolean isAbortable = est.isAbortable(this.thresholds);
@@ -622,7 +626,7 @@ public class MarkovCostModel extends AbstractCostModel {
         this.idle_partition_ctrs.clear();
 
         for (int i = 0; i < num_estimates; i++) {
-            MarkovEstimate est = estimates.get(i);
+            MarkovEstimate est = (MarkovEstimate)estimates.get(i);
             MarkovVertex est_v = est.getVertex();
 
             // Get the path of vertices
@@ -663,7 +667,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
                 // For each partition that we don't touch here, we want to
                 // increase their idle counter
-                this.idle_partition_ctrs.put(this.all_partitions);
+                this.idle_partition_ctrs.put(this.catalogContext.getAllPartitionIds());
             } // FOR
             last_est_idx = stop;
             touched_partitions.addAll(new_touched_partitions);
@@ -911,7 +915,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     MarkovCostModel costmodels[] = thread_costmodels[thread_id];
                     for (int p = 0; p < num_partitions; p++) {
                         MarkovGraphsContainer markovs = (global ? thread_markovs[thread_id].get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) : thread_markovs[thread_id].get(p));
-                        MarkovEstimator t_estimator = new MarkovEstimator(p_estimator, args.param_mappings, markovs);
+                        MarkovEstimator t_estimator = new MarkovEstimator(args.catalogContext, p_estimator, markovs);
                         costmodels[p] = new MarkovCostModel(args.catalogContext, p_estimator, t_estimator, args.thresholds);
                         if (force_fullpath)
                             thread_costmodels[thread_id][p].forceFullPathComparison();

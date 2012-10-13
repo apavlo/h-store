@@ -96,7 +96,6 @@ public abstract class EstimatorState implements Poolable {
      * <B>NOTE:</B> This should only be used for testing 
      * @return
      */
-    @Deprecated
     public List<TransactionEstimate> getEstimates() {
         return (Collections.unmodifiableList(this.estimates.subList(0, this.num_estimates)));
     }

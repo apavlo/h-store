@@ -18,8 +18,8 @@ import edu.brown.BaseTestCase;
 import edu.brown.costmodel.MarkovCostModel.Penalty;
 import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.estimators.MarkovEstimatorState;
-import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.MarkovVertex.Type;
@@ -48,7 +48,6 @@ public class TestMarkovCostModel extends BaseTestCase {
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
-    private static ParameterMappingsSet correlations;
     private static Procedure catalog_proc;
     private static MarkovEstimator t_estimator;
 
@@ -56,6 +55,7 @@ public class TestMarkovCostModel extends BaseTestCase {
     private MarkovGraph markov;
     private TransactionTrace txn_trace;
     private MarkovEstimatorState txn_state;
+    private MarkovEstimate initialEst; 
     private List<MarkovVertex> estimated_path;
     private List<MarkovVertex> actual_path;
     
@@ -67,13 +67,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         if (markovs == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
-            File file = this.getParameterMappingsFile(ProjectType.TPCC);
-            assertNotNull(file);
-            assert(file.exists()) : "Missing ParameterMappings file '" + file.getAbsolutePath() + "'";
-            correlations = new ParameterMappingsSet();
-            correlations.load(file, catalog_db);
-
-            file = this.getWorkloadFile(ProjectType.TPCC);
+            File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
 
             // Check out this beauty:
@@ -89,7 +83,7 @@ public class TestMarkovCostModel extends BaseTestCase {
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator, false))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file, catalog_db, filter);
+            workload.load(file, catalogContext.database, filter);
             
             // Make a copy that doesn't have the first TransactionTrace
             Workload clone = new Workload(workload, new Filter() {
@@ -121,12 +115,12 @@ public class TestMarkovCostModel extends BaseTestCase {
 
             // Generate MarkovGraphs per base partition
 //            file = this.getMarkovFile(ProjectType.TPCC);
-//            markovs = MarkovUtil.load(catalog_db, file.getAbsolutePath());
-            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, clone, p_estimator);
+//            markovs = MarkovUtil.load(catalogContext.database, file.getAbsolutePath());
+            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database, clone, p_estimator);
             assertNotNull(markovs);
             
             // And then populate the MarkovCostModel
-            t_estimator = new MarkovEstimator(p_estimator, correlations, markovs);
+            t_estimator = new MarkovEstimator(catalogContext, p_estimator, markovs);
         }
         
         this.costmodel = new MarkovCostModel(catalogContext, p_estimator, t_estimator, thresholds);
@@ -140,7 +134,9 @@ public class TestMarkovCostModel extends BaseTestCase {
         this.markov = markovs.get(BASE_PARTITION, catalog_proc);
         assertNotNull(this.markov);
         
-        this.estimated_path = this.txn_state.getInitialPath();
+        this.initialEst = this.txn_state.getInitialEstimate();
+        assertNotNull(this.initialEst);
+        this.estimated_path = this.initialEst.getMarkovPath();
         assertNotNull(this.estimated_path);
         assert(this.estimated_path.isEmpty() == false);
         this.actual_path = this.txn_state.getActualPath();
@@ -198,7 +194,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         
         // We have to call comparePathsFast first to setup some sets
         // We don't care what the outcome is here...
-        costmodel.comparePathsFast(this.txn_state.getInitialPath(), actual);
+        this.costmodel.comparePathsFast(this.estimated_path, actual);
         
         // System.err.println(StringUtil.join("\n", actual));
         double cost = costmodel.comparePathsFull(this.txn_state);
@@ -217,21 +213,21 @@ public class TestMarkovCostModel extends BaseTestCase {
     public void testComparePathsFull_Penalty2() throws Exception {
         // We have to call comparePathsFast first to setup some sets
         // We don't care what the outcome is here...
-        costmodel.comparePathsFast(this.txn_state.getInitialPath(), this.txn_state.getActualPath());
+        this.costmodel.comparePathsFast(this.estimated_path, this.txn_state.getActualPath());
         
         // Remove all of the estimated read partitions except for one
-        PartitionSet e_read_partitions = costmodel.getLastEstimatedReadPartitions();
+        PartitionSet e_read_partitions = this.costmodel.getLastEstimatedReadPartitions();
         assertNotNull(e_read_partitions);
         Set<Integer> retain = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), CollectionUtil.first(e_read_partitions)); 
         e_read_partitions.retainAll(retain);
         
         // Then add all of our partitions to the actual read partitions
-        PartitionSet a_read_partitions = costmodel.getLastActualReadPartitions();
+        PartitionSet a_read_partitions = this.costmodel.getLastActualReadPartitions();
         a_read_partitions.addAll(catalogContext.getAllPartitionIds());
         
-        double cost = costmodel.comparePathsFull(this.txn_state);
+        double cost = this.costmodel.comparePathsFull(this.txn_state);
         
-        List<Penalty> penalties = costmodel.getLastPenalties();
+        List<Penalty> penalties = this.costmodel.getLastPenalties();
         assertNotNull(penalties);
         System.err.println(String.format("COST=%.03f PENALTIES=%s", cost, penalties));
         assert(penalties.contains(Penalty.MISSED_READ_PARTITION)); 

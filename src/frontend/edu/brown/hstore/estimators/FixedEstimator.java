@@ -18,7 +18,7 @@ public abstract class FixedEstimator extends TransactionEstimator {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends FixedEstimator> T factory(PartitionEstimator p_estimator, CatalogContext catalogContext){
+    public static <T extends FixedEstimator> T factory(PartitionEstimator p_estimator, CatalogContext catalogContext) {
         FixedEstimator estimator = null;
         ProjectType ptype = ProjectType.get(catalogContext.database.getProject());
         switch (ptype) {

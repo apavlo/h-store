@@ -104,7 +104,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
         } // FOR
 
         final ParameterSet params = new ParameterSet(this.proc_params);
-        final EstimatorState estimator = new MarkovEstimatorState.Factory(NUM_PARTITIONS).makeObject();
+        final EstimatorState estimator = new MarkovEstimatorState.Factory(catalogContext).makeObject();
         estimator.addPrefetchableStatement(catalog_stmt, 0);
         
         this.ts = new LocalTransaction(this.hstore_sites[LOCAL_SITE]) {
