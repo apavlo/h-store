@@ -155,11 +155,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.all_partitions = catalogContext.getAllPartitionIds();
         this.p_estimator = p_estimator;
         this.allMappings = catalogContext.paramMappings;
-        
         assert(this.allMappings != null);
-
-        // Why do we have to do this?
-        // this.init(markov, t_estimator, base_partition, args);
     }
     
     /**

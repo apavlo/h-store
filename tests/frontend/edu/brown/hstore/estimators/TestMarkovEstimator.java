@@ -13,7 +13,6 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.estimators.MarkovEstimatorState;
-import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
@@ -50,7 +49,6 @@ public class TestMarkovEstimator extends BaseTestCase {
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
-    private static ParameterMappingsSet correlations;
     private static TransactionTrace singlep_trace;
     private static TransactionTrace multip_trace;
     private static final Set<Integer> multip_partitions = new HashSet<Integer>();
@@ -70,10 +68,6 @@ public class TestMarkovEstimator extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
         if (markovs == null) {
-            File file = this.getParameterMappingsFile(ProjectType.TPCC);
-            correlations = new ParameterMappingsSet();
-            correlations.load(file, catalog_db);
-            
             Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new NoAbortFilter())
@@ -82,7 +76,7 @@ public class TestMarkovEstimator extends BaseTestCase {
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
 
-            file = this.getWorkloadFile(ProjectType.TPCC);
+            File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
             ((Workload) workload).load(file, catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
@@ -118,7 +112,7 @@ public class TestMarkovEstimator extends BaseTestCase {
 //        assertNotNull(singlep_trace);
         
         // Setup
-        this.t_estimator = new MarkovEstimator(p_estimator, correlations, markovs);
+        this.t_estimator = new MarkovEstimator(catalogContext, p_estimator, markovs);
         this.thresholds = new EstimationThresholds();
     }
 
@@ -150,13 +144,14 @@ public class TestMarkovEstimator extends BaseTestCase {
         assertNotNull(state.getLastEstimate());
 //        System.err.println(est.toString());
         
+        MarkovEstimate initialEst = state.getInitialEstimate();
         MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
-        List<MarkovVertex> initial_path = state.getInitialPath();
+        List<MarkovVertex> initial_path = initialEst.getMarkovPath();
         assertFalse(initial_path.isEmpty());
         
         System.err.println("# of Vertices: " + markov.getVertexCount());
         System.err.println("# of Edges:    " + markov.getEdgeCount());
-        System.err.println("Confidence:    " + String.format("%.4f", state.getInitialPathConfidence()));
+        System.err.println("Confidence:    " + String.format("%.4f", initialEst.getConfidenceCoefficient()));
         System.err.println("\nINITIAL PATH:\n" + StringUtil.join("\n", initial_path));
 //        System.err.println(multip_trace.debug(catalog_db));
 
@@ -204,12 +199,12 @@ public class TestMarkovEstimator extends BaseTestCase {
         
         // We should have an MarkovEstimate for each batch
         assertEquals(txn_trace.getBatchCount(), s.getEstimateCount());
-        List<MarkovEstimate> estimates = s.getEstimates();
+        List<TransactionEstimate> estimates = s.getEstimates();
         for (int i = 0, cnt = txn_trace.getBatchCount(); i < cnt; i++) {
             List<QueryTrace> queries = txn_trace.getBatchQueries(i);
             assertFalse(queries.isEmpty());
             
-            MarkovEstimate est = estimates.get(i);
+            MarkovEstimate est = (MarkovEstimate)estimates.get(i);
             assertNotNull(est);
             
             // The last vertex in each MarkovEstimate should correspond to the last query in each batch
