@@ -15,7 +15,6 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
-import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 
 import edu.brown.designer.AccessGraph;
@@ -59,7 +58,7 @@ public class CatalogInfo {
             for (DesignerEdge e : edges) {
                 ColumnSet cset = e.getAttribute(agraph, AccessGraph.EdgeAttributes.COLUMNSET);
                 assert (cset != null) : e.debug();
-                Set<Column> cols = cset.findAllForParent(Column.class, catalog_tbl);
+                Collection<Column> cols = cset.findAllForParent(Column.class, catalog_tbl);
                 assert (cols != null) : catalog_tbl + "\n" + cset.debug();
                 used_cols.addAll(cols);
             }

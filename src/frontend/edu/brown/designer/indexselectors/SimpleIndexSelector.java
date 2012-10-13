@@ -62,7 +62,7 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
                     ColumnSet cset = (ColumnSet) (edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name()));
                     for (DesignerVertex vertex : vertices) {
                         Table catalog_tbl = vertex.getCatalogItem();
-                        Set<Column> edge_columns = cset.findAllForParent(Column.class, catalog_tbl);
+                        Collection<Column> edge_columns = cset.findAllForParent(Column.class, catalog_tbl);
 
                         //
                         // Exclusion: Check whether this table is already

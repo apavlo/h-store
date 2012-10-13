@@ -1,6 +1,6 @@
 package edu.brown.designer;
 
-import java.util.Set;
+import java.util.Collection;
 
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.CatalogType;
@@ -77,7 +77,7 @@ public class TestColumnSet extends BaseTestCase {
     public void testFindAll() throws Exception {
         // Just search for C_W_ID
         Column expected = this.getColumn(catalog_tbl0, "C_W_ID");
-        Set<Column> match = cset.findAll(Column.class, expected);
+        Collection<Column> match = cset.findAll(Column.class, expected);
         assertNotNull(match);
         assertFalse(match.isEmpty());
         Column catalog_col = CollectionUtil.first(match);
@@ -91,7 +91,7 @@ public class TestColumnSet extends BaseTestCase {
     public void testFindAllForOther() throws Exception {
         // Search for C_W_ID and we should get back two elements (one Column and one ProcParameter)
         Column catalog_col = this.getColumn(catalog_tbl0, "C_W_ID");
-        Set<CatalogType> match0 = cset.findAllForOther(CatalogType.class, catalog_col);
+        Collection<CatalogType> match0 = cset.findAllForOther(CatalogType.class, catalog_col);
         assertNotNull(match0);
         assertFalse(match0.isEmpty());
         assertEquals(2, match0.size());
@@ -103,7 +103,7 @@ public class TestColumnSet extends BaseTestCase {
         
         // Search again, but this type specify that we only want ProcParameters
         // Now we should only get back one result
-        Set<ProcParameter> match1 = cset.findAllForOther(ProcParameter.class, catalog_col);
+        Collection<ProcParameter> match1 = cset.findAllForOther(ProcParameter.class, catalog_col);
         assertNotNull(match1);
         assertFalse(match1.isEmpty());
         assertEquals(1, match1.size());
@@ -116,7 +116,7 @@ public class TestColumnSet extends BaseTestCase {
     public void testFindAllForParent() throws Exception {
         // Search for CUSTOMER and make sure we get back our three columns
         String expected[] = { "C_W_ID", "C_D_ID", "C_ID" };
-        Set<Column> match = cset.findAllForParent(Column.class, catalog_tbl0);
+        Collection<Column> match = cset.findAllForParent(Column.class, catalog_tbl0);
         assertNotNull(match);
         assertFalse(match.isEmpty());
         assertEquals(expected.length, match.size());
@@ -132,7 +132,7 @@ public class TestColumnSet extends BaseTestCase {
      */
     public void testFindAllForOtherParent() throws Exception {
         // Search against the neworder Procedure and check that we get back C_W_ID
-        Set<Column> match = cset.findAllForOtherParent(Column.class, catalog_proc);
+        Collection<Column> match = cset.findAllForOtherParent(Column.class, catalog_proc);
         assertNotNull(match);
         assertFalse(match.isEmpty());
         

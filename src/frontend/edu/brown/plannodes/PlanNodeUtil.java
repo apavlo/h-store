@@ -834,7 +834,7 @@ public abstract class PlanNodeUtil {
             }
             assert (cset != null);
             // System.err.println(cset.debug());
-            Set<Column> matches = cset.findAllForOther(Column.class, catalog_stmt_param);
+            Collection<Column> matches = cset.findAllForOther(Column.class, catalog_stmt_param);
             // System.err.println("MATCHES: " + matches);
             if (matches.isEmpty()) {
                 LOG.warn("Unable to find any column with param #" + catalog_stmt_param.getIndex() + " in " + catalog_stmt);

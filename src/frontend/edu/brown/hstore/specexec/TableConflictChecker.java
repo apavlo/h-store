@@ -68,7 +68,7 @@ public class TableConflictChecker extends AbstractConflictChecker {
     }
 
     @Override
-    public boolean isConflicting(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
+    public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
         final int dtxn_procId = dtxn.getProcedureId();
         final int ts_procId = ts.getProcedureId();
         
@@ -91,7 +91,7 @@ public class TableConflictChecker extends AbstractConflictChecker {
         if ((dtxn_hasWWConflict || dtxn_hasRWConflict || ts_hasRWConflict || ts_hasWWConflict) == false) {
             if (debug.get())
                 LOG.debug(String.format("No conflicts between %s<->%s", dtxn, ts));
-            return (false);
+            return (true);
         }
 
         final Procedure dtxn_proc = this.catalogContext.getProcedureById(dtxn_procId);
@@ -108,14 +108,14 @@ public class TableConflictChecker extends AbstractConflictChecker {
             for (ConflictPair conflict : dtxn_conflicts.getReadwriteconflicts().values()) {
                 for (TableRef ref : conflict.getTables().values()) {
                     if (dtxn.isTableReadOrWritten(partitionId, ref.getTable())) {
-                        return (true);
+                        return (false);
                     }
                 } // FOR
             } // FOR (R-W)
             for (ConflictPair conflict : dtxn_conflicts.getWritewriteconflicts().values()) {
                 for (TableRef ref : conflict.getTables().values()) {
                     if (dtxn.isTableReadOrWritten(partitionId, ref.getTable())) {
-                        return (true);
+                        return (false);
                     }
                 }
             } // FOR (W-W)
@@ -133,14 +133,14 @@ public class TableConflictChecker extends AbstractConflictChecker {
             for (ConflictPair conflict : ts_conflicts.getReadwriteconflicts().values()) {
                 for (TableRef ref : conflict.getTables().values()) {
                     if (dtxn.isTableWritten(partitionId, ref.getTable())) {
-                        return (true);
+                        return (false);
                     }
                 } // FOR
             } // FOR (R-W)
         }
         
         // If we get to this point, then we know that these two txns do not conflict
-        return (false);
+        return (true);
     }
 
 }

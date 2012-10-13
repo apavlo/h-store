@@ -15,7 +15,7 @@ import org.voltdb.catalog.Table;
 import edu.brown.catalog.CatalogUtil;
 
 public abstract class ConflictSetUtil {
-
+    
     /**
      * Return a set of all the ConflictPairs from Proc0->Proc1
      * @param proc0

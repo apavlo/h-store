@@ -27,7 +27,8 @@ public abstract class AbstractConflictChecker {
     public abstract boolean ignoreProcedure(Procedure proc);
     
     /**
-     * Calculate whether to two transaction handles are conflicting. 
+     * Calculate whether to two transaction handles are conflicting.
+     * Returns true if the LocalTransaction can be speculatively executed now.
      * The dtxn is the current distributed transaction at our partition, while ts
      * is a single-partition transaction from the work queue that we want to try to
      * speculatively execute right now. 
@@ -36,5 +37,5 @@ public abstract class AbstractConflictChecker {
      * @param partitionId TODO
      * @return
      */
-    public abstract boolean isConflicting(AbstractTransaction dtxn, LocalTransaction ts, int partitionId);
+    public abstract boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId);
 }

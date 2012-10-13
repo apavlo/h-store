@@ -130,20 +130,20 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
      * @param search_key
      * @return
      */
-    public <T extends CatalogType> Set<T> findAll(Class<T> match_class, CatalogType search_key) {
+    public <T extends CatalogType> Collection<T> findAll(Class<T> match_class, CatalogType search_key) {
         return (this.find(match_class, search_key, false, false));
     }
 
     /**
      * Find all elements of the given match class in the ColumnSet where the
-     * other element in the Entry matches the search_key
+     * other element in the CatalogPair matches the search_key
      * 
      * @param <T>
      * @param match_class
      * @param search_key
      * @return
      */
-    public <T extends CatalogType> Set<T> findAllForOther(Class<T> match_class, CatalogType search_key) {
+    public <T extends CatalogType> Collection<T> findAllForOther(Class<T> match_class, CatalogType search_key) {
         return (this.find(match_class, search_key, false, true));
     }
 
@@ -156,20 +156,20 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
      * @param parent_search_key
      * @return
      */
-    public <T extends CatalogType> Set<T> findAllForParent(Class<T> match_class, CatalogType parent_search_key) {
+    public <T extends CatalogType> Collection<T> findAllForParent(Class<T> match_class, CatalogType parent_search_key) {
         return (this.find(match_class, parent_search_key, true, false));
     }
 
     /**
      * Find all elements of the given match class in the ColumnSet where the
-     * other element in the Entry has a parent that matches the search key
+     * other element in the CatalogPair has a parent that matches the search key
      * 
      * @param <T>
      * @param match_class
      * @param parent_search_key
      * @return
      */
-    public <T extends CatalogType> Set<T> findAllForOtherParent(Class<T> match_class, CatalogType parent_search_key) {
+    public <T extends CatalogType> Collection<T> findAllForOtherParent(Class<T> match_class, CatalogType parent_search_key) {
         return (this.find(match_class, parent_search_key, true, true));
     }
 
@@ -186,7 +186,7 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
      * @return
      */
     @SuppressWarnings("unchecked")
-    private <T extends CatalogType> Set<T> find(Class<T> match_class, CatalogType search_key, boolean use_parent, boolean use_other) {
+    private <T extends CatalogType> Collection<T> find(Class<T> match_class, CatalogType search_key, boolean use_parent, boolean use_other) {
         if (d)
             LOG.debug(String.format("find(match_class=%s, search_key=%s, use_parent=%s, use_other=%s)", match_class.getSimpleName(), search_key.fullName(), use_parent, use_other));
         assert (search_key != null) : "Invalid search key";

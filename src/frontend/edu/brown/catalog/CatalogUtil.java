@@ -142,10 +142,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          */
         private final Map<Statement, Set<Column>> STATEMENT_ORDERBY_COLUMNS = new HashMap<Statement, Set<Column>>();
         /**
-         * Statement -> Set
-         * <Table>
+         * Statement -> Set<Table>
          */
-        private final Map<Statement, Set<Table>> STATEMENT_TABLES = new HashMap<Statement, Set<Table>>();
+        private final Map<Statement, Collection<Table>> STATEMENT_TABLES = new HashMap<Statement, Collection<Table>>();
         /**
          * Procedure -> Set<Column>
          */
@@ -484,14 +483,14 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     @Deprecated
     public static Collection<Procedure> getSysProcedures(Database catalog_db) {
-        List<Procedure> sysprocs = new ArrayList<Procedure>();
+        Collection<Procedure> procs = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc()) {
-                assert(sysprocs.contains(catalog_proc) == false);
-                sysprocs.add(catalog_proc);
+                assert(procs.contains(catalog_proc) == false);
+                procs.add(catalog_proc);
             }
         }
-        return (sysprocs);
+        return (procs);
     }
 
     /**
@@ -499,12 +498,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     @Deprecated
     public static Collection<Procedure> getMapReduceProcedures(Database catalog_db) {
-        Set<Procedure> mrprocs = new ListOrderedSet<Procedure>();
+        Collection<Procedure> procs = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getMapreduce())
-                mrprocs.add(catalog_proc);
+                procs.add(catalog_proc);
         }
-        return (mrprocs);
+        return (procs);
     }
 
     /**
@@ -515,7 +514,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Collection<Statement> getAllStatements(CatalogType catalog_obj) {
         Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
-        Set<Statement> ret = new HashSet<Statement>();
+        Collection<Statement> ret = new ArrayList<Statement>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             ret.addAll(catalog_proc.getStatements());
         } // FOR
@@ -1380,16 +1379,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Collection<Table> getReferencedTables(Statement catalog_stmt) throws Exception {
+    public static Collection<Table> getReferencedTables(Statement catalog_stmt) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
-        Set<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
+        Collection<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
         if (ret == null) {
-            Set<Table> tables = new ListOrderedSet<Table>();
+            Collection<Table> tables = new ArrayList<Table>();
             tables.addAll(getAllTables(catalog_stmt));
 //            for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
 //                tables.add((Table) catalog_col.getParent());
 //            } // FOR
-            ret = Collections.unmodifiableSet(tables);
+            ret = Collections.unmodifiableCollection(tables);
             cache.STATEMENT_TABLES.put(catalog_stmt, ret);
         }
         return (ret);
@@ -1780,7 +1779,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static ColumnSet extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params) throws Exception {
+    public static ColumnSet extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params) {
         Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
         Table tables[] = catalog_db.getTables().values();
         return (CatalogUtil.extractStatementColumnSet(catalog_stmt, convert_params, tables));
@@ -1798,7 +1797,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static ColumnSet extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params, final Table... catalog_tables) throws Exception {
+    public static ColumnSet extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params, final Table... catalog_tables) {
         final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
         final Set<Table> tables = new HashSet<Table>();
         final Collection<String> table_keys = new HashSet<String>();
@@ -1819,18 +1818,22 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             cset = new ColumnSet();
             AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
 
-            // WHERE Clause
-            if (catalog_stmt.getExptree() != null && !catalog_stmt.getExptree().isEmpty()) {
-                AbstractExpression root_exp = ExpressionUtil.deserializeExpression(catalog_db, catalog_stmt.getExptree());
-                CatalogUtil.extractExpressionColumnSet(catalog_stmt, catalog_db, cset, root_exp, convert_params, tables);
-            }
-            // INSERT
-            if (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) {
-                CatalogUtil.extractInsertColumnSet(catalog_stmt, cset, root_node, convert_params, catalog_tables);
-                // UPDATE
-                // XXX: Should we be doing this?
-            } else if (catalog_stmt.getQuerytype() == QueryType.UPDATE.getValue()) {
-                CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
+            try {
+                // WHERE Clause
+                if (catalog_stmt.getExptree() != null && !catalog_stmt.getExptree().isEmpty()) {
+                    AbstractExpression root_exp = ExpressionUtil.deserializeExpression(catalog_db, catalog_stmt.getExptree());
+                    CatalogUtil.extractExpressionColumnSet(catalog_stmt, catalog_db, cset, root_exp, convert_params, tables);
+                }
+                // INSERT
+                if (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) {
+                    CatalogUtil.extractInsertColumnSet(catalog_stmt, cset, root_node, convert_params, catalog_tables);
+                    // UPDATE
+                    // XXX: Should we be doing this?
+                } else if (catalog_stmt.getQuerytype() == QueryType.UPDATE.getValue()) {
+                    CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
+                }
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to extract ColumnSet for " + catalog_stmt, ex);
             }
 
             cache.EXTRACTED_COLUMNSETS.put(key, cset);
@@ -1949,10 +1952,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                                             LOG.warn("ERROR: Unable to find Parameter object in catalog [" + ((ParameterValueExpression) exp).getParameterId() + "]");
                                             this.stop();
                                         }
-                                        // We want to use the ProcParameter
-                                        // instead of the StmtParameter
-                                        // It's not an error if the
-                                        // StmtParameter is not mapped to a
+                                        // We want to use the ProcParameter instead of the StmtParameter
+                                        // It's not an error if the StmtParameter is not mapped to a
                                         // ProcParameter
                                         if (convert_params && ((StmtParameter) element).getProcparameter() != null) {
                                             LOG.debug(element + "(" + element + ") --> ProcParameter[" + element.getField("procparameter") + "]");
