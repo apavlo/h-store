@@ -1,7 +1,6 @@
 package edu.brown.costmodel;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -809,11 +808,11 @@ public class MarkovCostModel extends AbstractCostModel {
         assert (num_transactions > 0) : "No TransactionTraces";
         final int marker = Math.max(1, (int) (num_transactions * 0.10));
         final Set<Procedure> procedures = args.workload.getProcedures(args.catalog_db);
-        Collection<Integer> partitions = null;
+        PartitionSet partitions = null;
         if (base_partition != HStoreConstants.NULL_PARTITION_ID) {
             partitions = new PartitionSet(base_partition);
         } else {
-            partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);
+            partitions = args.catalogContext.getAllPartitionIds();
         }
 
         final String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);

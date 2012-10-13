@@ -343,7 +343,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             
             // Get the mapping objects (if any) for next
             // This is the only way we can predict what partitions we will touch
-            SortedMap<StmtParameter, SortedSet<ParameterMapping>> stmtMappings = this.allMappings.get(catalog_stmt, catalog_stmt_index);
+            Map<StmtParameter, SortedSet<ParameterMapping>> stmtMappings = this.allMappings.get(catalog_stmt, catalog_stmt_index);
             if (stmtMappings == null) {
                 if (d) {
                     LOG.warn("No parameter mappings for " + pair);

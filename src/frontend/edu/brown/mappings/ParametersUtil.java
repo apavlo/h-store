@@ -1,6 +1,7 @@
 package edu.brown.mappings;
 
 import java.io.File;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -171,7 +172,7 @@ public class ParametersUtil {
 
                 for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
                     String stmt_param_name = catalog_stmt_param.getName();
-                    Set<ParameterMapping> m = mappings.get(catalog_stmt, catalog_stmt_param);
+                    Collection<ParameterMapping> m = mappings.get(catalog_stmt, catalog_stmt_param);
 
                     if (m.isEmpty()) {
                         if (debug.get()) LOG.debug("No ParameterMapping found for " + CatalogUtil.getDisplayName(catalog_stmt_param) + ". Skipping...");
