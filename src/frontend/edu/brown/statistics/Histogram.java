@@ -180,10 +180,13 @@ public class Histogram<X> implements JSONSerializable {
      * This method is not synchronized on purpose for performance
      * @param value
      * @param count
+     * @return Return the new count for the given key
      */
-    private void _put(X value, long count) {
-        if (value == null)
-            return;
+    private long _put(X value, long count) {
+        // If we're giving a null value, then the count will always be zero
+        if (value == null) return (0);
+        
+        // HACK: Try to infer the internal type if we don't have it already
         if (this.value_type == VoltType.INVALID) {
             try {
                 this.value_type = VoltType.typeFromClass(value.getClass());
@@ -195,20 +198,30 @@ public class Histogram<X> implements JSONSerializable {
         this.num_samples += count;
         
         // If we already have this value in our histogram, then add the new
-        // count
-        // to its existing total
-        if (this.histogram.containsKey(value)) {
-            count += this.histogram.get(value);
+        // count to its existing total
+        Long existing = this.histogram.get(value);
+        if (existing != null) {
+            count += existing.longValue();
         }
-        assert(count >= 0) : "Invalid negative count for key '" + value + "' [count=" + count + "]";
+        
+        // We can't have a negative value
+        if (count < 0) {
+            String msg = String.format("Invalid negative count for key '%s' [count=%d]", value, count);
+            throw new IllegalArgumentException(msg);
+        }
         // If the new count is zero, then completely remove it if we're not
         // allowed to have zero entries
-        if (count == 0 && !this.keep_zero_entries) {
+        else if (count == 0 && this.keep_zero_entries == false) {
             this.histogram.remove(value);
-        } else {
-            this.histogram.put(value, count);
         }
+        // Otherwise throw it into our map
+        else {
+            this.histogram.put(value, Long.valueOf(count));
+        }
+        // Mark ourselves as dirty so that we will always recompute
+        // internal values (min/max) when they ask for them
         this.dirty = true;
+        return (count);
     }
 
     /**
@@ -466,7 +479,7 @@ public class Histogram<X> implements JSONSerializable {
     }
     
     /**
-     * 
+     * Returns true if there are no entries in this histogram
      * @return
      */
     public boolean isEmpty() {
@@ -482,21 +495,22 @@ public class Histogram<X> implements JSONSerializable {
     // ----------------------------------------------------------------------------
 
     /**
-     * Increments the number of occurrences of this particular value i
+     * Increments the number of occurrences of this particular value by delta
      * @param value the value to be added to the histogram
-     * 
+     * @param delta
+     * @return the new count for value
      */
-    public synchronized void put(X value, long i) {
-        this._put(value, i);
+    public synchronized long put(X value, long delta) {
+        return this._put(value, delta);
     }
     
     /**
      * Increments the number of occurrences of this particular value i
      * @param value the value to be added to the histogram
-     * 
+     * @return the new count for value
      */
-    public synchronized void put(X value) {
-        this._put(value, 1);
+    public synchronized long put(X value) {
+        return this._put(value, 1);
     }
     
     /**
@@ -542,21 +556,23 @@ public class Histogram<X> implements JSONSerializable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Remove the given count from the total of the value
+     * Remove the given count from the total of the value by delta
      * @param value
-     * @param count
+     * @param delta
+     * @return the new count for value
      */
-    public synchronized void dec(X value, long count) {
+    public synchronized long dec(X value, long delta) {
         assert(this.histogram.containsKey(value));
-        this._put(value, count * -1);
+        return this._put(value, delta * -1);
     }
     
     /**
      * Decrement the count for the given value by one in the histogram
      * @param value
+     * @return the new count for value
      */
-    public synchronized void dec(X value) {
-        this._put(value, -1);
+    public synchronized long dec(X value) {
+        return this._put(value, -1);
     }
     
     /**
@@ -599,24 +615,27 @@ public class Histogram<X> implements JSONSerializable {
     /**
      * Set the number of occurrences of this particular value i
      * @param value the value to be added to the histogram
+     * @return the new count for value
      */
-    public synchronized void set(X value, long i) {
+    public synchronized long set(X value, long i) {
         Long orig = this.get(value);
         if (orig != null && orig != i) {
             i = (orig > i ? -1*(orig - i) : i - orig);
         }
-        this._put(value, i);
+        return this._put(value, i);
     }
     
     /**
      * Remove the entire count for the given value
      * @param value
+     * @return the new count for value
      */
-    public synchronized void remove(X value) {
+    public synchronized long remove(X value) {
         Long cnt = this.histogram.get(value);
         if (cnt != null && cnt.longValue() > 0) {
-            this._put(value, cnt * -1);
+            return this._put(value, cnt * -1);
         }
+        return 0l;
     }
     
     // ----------------------------------------------------------------------------
