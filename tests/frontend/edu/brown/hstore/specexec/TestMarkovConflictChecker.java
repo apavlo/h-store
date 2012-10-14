@@ -11,9 +11,12 @@ import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
 
 import edu.brown.BaseTestCase;
 import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParametersUtil;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
@@ -74,14 +77,26 @@ public class TestMarkovConflictChecker extends BaseTestCase {
      */
     public void testEqualParameters() throws Exception {
         Procedure catalog_proc = this.getProcedure(neworder.class);
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
+        assertNotNull(catalog_stmt);
+        StmtParameter catalog_stmt_param = CollectionUtil.first(catalog_stmt.getParameters());
+        assertNotNull(catalog_stmt_param);
+        
         TransactionTrace txn_trace = CollectionUtil.first(workload.getTraces(catalog_proc));
         assertNotNull(txn_trace);
         
         ParameterSet params = new ParameterSet(txn_trace.getParams());
         for (ProcParameter catalog_param : catalog_proc.getParameters()) {
-            ParameterMapping pm = CollectionUtil.first(catalogContext.paramMappings.get(catalog_param));
-            assertNotNull(catalog_param.fullName(), pm);
-            assertTrue(this.checker.equalParameters(params, pm, params, pm));
+            if (catalog_param.getIsarray()) {
+                Object inner[] = (Object[])params.toArray()[catalog_param.getIndex()];
+                for (int i = 0; i < inner.length; i++) {
+                    ParameterMapping pm = new ParameterMapping(catalog_stmt, 0, catalog_stmt_param, catalog_param, i, 1.0d); 
+                    assertTrue(this.checker.equalParameters(params, pm, params, pm));
+                } // FOR
+            } else {
+                ParameterMapping pm = new ParameterMapping(catalog_stmt, 0, catalog_stmt_param, catalog_param, ParametersUtil.NULL_PROC_PARAMETER_OFFSET, 1.0d); 
+                assertTrue(this.checker.equalParameters(params, pm, params, pm));
+            }
         } // FOR
         
         

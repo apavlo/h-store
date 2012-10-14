@@ -119,7 +119,6 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                             // If there are no references, then there is nothing else that we 
                             // we need to do here. The StmtParameter that we get back will be null
                             StmtParameter stmtParam = CollectionUtil.first(params);
-                            assert(stmtParam != null);
                             cache.colParams.put(col, stmtParam);
                         }
                     } // FOR
@@ -226,9 +225,12 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 mappings1 = this.catalogContext.paramMappings.get(stmt1, stmtCtr1);
                 
                 for (Column col : cache0.colParams.keySet()) {
+                    // If either StmtParameters are null, then that's a conflict!
                     StmtParameter param0 = cache0.colParams.get(col);
                     StmtParameter param1 = cache1.colParams.get(col);
-                    assert(param1 != null);
+                    if (param0 == null || param1 == null) {
+                        return (true);
+                    }
                     
                     ParameterMapping pm0 = CollectionUtil.first(mappings0.get(param0));
                     assert(pm0 != null);
