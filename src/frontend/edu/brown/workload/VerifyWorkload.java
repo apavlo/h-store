@@ -30,10 +30,10 @@ public abstract class VerifyWorkload {
             if (ctr > 1 && ctr % 1000 == 0) LOG.debug("Examined " + ctr + " trace elements...");  
         } // WHILE
         if (txn_ids.isEmpty()) {
-            LOG.fatal("No txns were found in workload?");
+            LOG.warn("No txns were found in workload?");
             return (false);
         } else if (txn_ids.size() != workload.getTransactionCount()) {
-            LOG.fatal("Expected to get " + workload.getTransactionCount() + " txns, but we saw " + txn_ids.size());
+            LOG.warn("Expected to get " + workload.getTransactionCount() + " txns, but we saw " + txn_ids.size());
             return (false);
         }
         

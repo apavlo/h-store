@@ -62,6 +62,11 @@ public abstract class Filter {
         return (found);
     }
     
+    /**
+     * Chain a Filter to be executed after this Filter 
+     * @param next
+     * @return This Filter
+     */
     public final Filter attach(Filter next) {
         if (this.next != null) this.next.attach(next);
         else this.next = next;

@@ -1,11 +1,10 @@
 package edu.brown.workload.filters;
 
+import java.util.BitSet;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.CatalogType;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreConstants;
@@ -16,21 +15,24 @@ import edu.brown.workload.TransactionTrace;
 public class BasePartitionTxnFilter extends Filter {
     
     private final PartitionEstimator p_estimator;
-    private final Database catalog_db;
-    private final Set<Integer> base_partitions = new HashSet<Integer>();
+    private final CatalogContext catalogContext;
+    private final BitSet base_partitions;
     
     public BasePartitionTxnFilter(PartitionEstimator p_estimator, int...base_partitions) {
         super();
         this.p_estimator = p_estimator;
-        this.catalog_db = p_estimator.getDatabase();
+        this.catalogContext = p_estimator.getCatalogContext();
         
+        this.base_partitions = new BitSet(this.catalogContext.numberOfPartitions);
         for (int p : base_partitions) {
-            this.base_partitions.add(p);
+            this.base_partitions.set(p);
         }
     }
     
-    public void addPartitions(Collection<Integer> p) {
-        this.base_partitions.addAll(p);
+    public void addPartitions(Collection<Integer> partitions) {
+        for (Integer p : partitions) {
+            this.base_partitions.set(p.intValue());
+        }
     }
     
     @Override
@@ -42,7 +44,7 @@ public class BasePartitionTxnFilter extends Filter {
     protected FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
         if (element instanceof TransactionTrace) {
             TransactionTrace xact = (TransactionTrace)element;
-            Procedure catalog_proc = xact.getCatalogItem(this.catalog_db);
+            Procedure catalog_proc = xact.getCatalogItem(this.catalogContext.database);
             int partition = HStoreConstants.NULL_PARTITION_ID;
             try {
                 partition = this.p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
@@ -51,7 +53,7 @@ public class BasePartitionTxnFilter extends Filter {
                 assert(false);
             }
             assert(partition >= 0);
-            return (this.base_partitions.contains(partition) ? FilterResult.ALLOW : FilterResult.SKIP);
+            return (this.base_partitions.get(partition) ? FilterResult.ALLOW : FilterResult.SKIP);
         }
         return FilterResult.ALLOW;
     }

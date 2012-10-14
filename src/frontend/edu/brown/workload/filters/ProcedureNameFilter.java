@@ -20,6 +20,7 @@ import edu.brown.workload.TransactionTrace;
  */
 public class ProcedureNameFilter extends Filter {
     private static final Logger LOG = Logger.getLogger(ProcedureNameFilter.class);
+    private static final boolean d = LOG.isDebugEnabled();
     
     public static final String INCLUDE_ALL = "*";
     public static final Integer INCLUDE_UNLIMITED = -1;
@@ -96,7 +97,9 @@ public class ProcedureNameFilter extends Filter {
     
     @Override
     public String debugImpl() {
-        return (this.getClass().getSimpleName() + "[include=" + this.includeCounters + " exclude=" + this.exclude + "]");
+        return String.format("%s[include=%s / exclude=%s / finished=%s]",
+                             this.getClass().getSimpleName(),
+                             this.includeCounters, this.exclude, this.includeFinished);
     }
     
     @Override
@@ -112,7 +115,6 @@ public class ProcedureNameFilter extends Filter {
     public FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
         FilterResult result = FilterResult.ALLOW;
         if (element instanceof TransactionTrace) {
-            final boolean trace = LOG.isTraceEnabled();
             final String name = element.getCatalogItemName();
             
             // BLACKLIST
@@ -120,8 +122,8 @@ public class ProcedureNameFilter extends Filter {
                 result = FilterResult.SKIP;
                 
             // WHITELIST
-            } else if (!this.includeCounters.isEmpty()) {
-                if (trace) LOG.trace("Checking whether " + name + " is in whitelist [total=" + this.includeCounters.size() + ", finished=" + this.includeFinished.size() + "]");
+            } else if (this.includeCounters.isEmpty() == false) {
+                if (d) LOG.debug("Checking whether " + name + " is in whitelist [total=" + this.includeCounters.size() + ", finished=" + this.includeFinished.size() + "]");
                 
                 // If the HALT countdown is zero, then we know that we have all of the procs that
                 // we want for this workload
@@ -129,20 +131,17 @@ public class ProcedureNameFilter extends Filter {
                     result = FilterResult.HALT;
                     
                 // Check whether this guy is allowed and keep count of how many we've added
-                } else if (this.includeCounters.containsKey(name)) {
+                } else if (this.includeCounters.containsKey(name) && this.includeFinished.contains(name) == false) {
                     int weight = (this.weighted ? element.getWeight() : 1);
                     int count = this.includeCounters.get(name).getAndAdd(-1*weight);
                     
                     // If the counter goes to zero, then we have seen enough of this procedure
                     // Reset its counter back to 1 so that the next time we see it it will always get skipped
-                    if (count == 0) {
+                    if (count <= 0) {
                         result = FilterResult.SKIP;
-                        synchronized (this) {
-                            this.includeCounters.get(name).set(0);
-                            this.includeFinished.add(name);
-                        } // SYNCH
-                        if (trace) LOG.debug("Transaction '" + name + "' has exhausted count. Skipping...");
-                    } else if (trace) {
+                        this.includeFinished.add(name);
+                        if (d) LOG.debug("Transaction '" + name + "' has exhausted count. Skipping...");
+                    } else if (d) {
                         LOG.debug("Transaction '" + name + "' is allowed [remaining=" + count + "]");
                     }
                 // Not allowed. Just skip...

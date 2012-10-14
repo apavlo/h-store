@@ -64,7 +64,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
 
-        if (markovs == null) {
+        if (isFirstSetup()) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
             File file = this.getWorkloadFile(ProjectType.TPCC);
