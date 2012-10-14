@@ -319,18 +319,16 @@ public class PartitionEstimator {
     // BASE DATA MEMBERS METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * Return the current CatalogContext used in this instance
+     * @return
+     */
     public CatalogContext getCatalogContext() {
         return (this.catalogContext);
     }
     
-    @Deprecated
-    public Database getDatabase() {
-        return catalogContext.database;
-    }
-
     /**
-     * Return the hasher used in this estimator instance
-     * 
+     * Return the hasher used in this instance
      * @return
      */
     public AbstractHasher getHasher() {
@@ -339,7 +337,6 @@ public class PartitionEstimator {
 
     /**
      * Initialize a new catalog for this PartitionEstimator
-     * 
      * @param new_catalog_db
      */
     public void initCatalog(CatalogContext newCatalogContext) {
@@ -826,7 +823,7 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Integer getBasePartition(final TransactionTrace txn_trace) throws Exception {
+    public int getBasePartition(final TransactionTrace txn_trace) throws Exception {
         if (debug.get())
             LOG.debug("Calculating base partition for " + txn_trace.toString());
         return (this.getBasePartition(txn_trace.getCatalogItem(this.catalogContext.database), txn_trace.getParams(), true));
