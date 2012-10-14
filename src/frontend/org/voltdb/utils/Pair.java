@@ -38,12 +38,13 @@ public class Pair<T, U> implements Comparable<Pair<T, U>> {
         this(first, second, true);
     }
 
-    private int computeHashCode() {
+    protected int computeHashCode() {
         return (m_first == null ? 0 : m_first.hashCode() * 31) +
                (m_second == null ? 0 : m_second.hashCode());
     }
     
-    public int hashCode() {
+    @Override
+    public final int hashCode() {
         if (m_hash != Integer.MIN_VALUE) return (m_hash);
         return (this.computeHashCode());
     }

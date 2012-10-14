@@ -294,9 +294,9 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public LocalTransaction testInit(Long txn_id,
-                                      int base_partition,
-                                      PartitionSet predict_touchedPartitions,
-                                      Procedure catalog_proc) {
+                                     int base_partition,
+                                     PartitionSet predict_touchedPartitions,
+                                     Procedure catalog_proc) {
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
         this.initiateTime = EstTime.currentTimeMillis();

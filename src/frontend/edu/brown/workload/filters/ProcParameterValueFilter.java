@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.ProcParameter;
 
@@ -17,6 +18,8 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  */
 public class ProcParameterValueFilter extends Filter {
+    private static final Logger LOG = Logger.getLogger(ProcParameterValueFilter.class);
+    private static final boolean d = LOG.isDebugEnabled();
     
     private final Map<Integer, Set<Object>> values = new HashMap<Integer, Set<Object>>(); 
     
@@ -55,16 +58,23 @@ public class ProcParameterValueFilter extends Filter {
     protected FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
         if (element instanceof TransactionTrace) {
             TransactionTrace xact = (TransactionTrace)element;
-            boolean allow = false;
+            boolean allow = true;
             for (Entry<Integer, Set<Object>> e : this.values.entrySet()) {
                 Object param_val = xact.getParam(e.getKey());
+                
+                // The parameter must equal at least one of these values
                 for (Object val : e.getValue()) {
                     allow = val.equals(param_val); 
-//                    System.err.println(xact + " [" + val + " (" + val.getClass().getSimpleName() + ") <=> " +
-//                                       param_val + " (" + param_val.getClass().getSimpleName() + ")] = " + allow);
+                    if (d) LOG.debug(String.format("%s #%02d => [%s (%s) <-> %s (%s)] = %s",
+                                     xact, e.getKey(),
+                                     val, val.getClass().getSimpleName(),
+                                     param_val, param_val.getClass().getSimpleName(),
+                                     (allow ? FilterResult.ALLOW : FilterResult.SKIP)));
                     if (allow) break;
                 } // FOR
-                if (allow) break;
+                
+                // If none of them are equal, then we need to halt here
+                if (allow == false) break;
             } // FOR
             return (allow ? FilterResult.ALLOW : FilterResult.SKIP);
         }

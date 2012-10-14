@@ -5,7 +5,6 @@ import java.util.Collection;
 
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.CatalogType;
-import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.utils.PartitionEstimator;
@@ -44,10 +43,9 @@ public class BasePartitionTxnFilter extends Filter {
     protected FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
         if (element instanceof TransactionTrace) {
             TransactionTrace xact = (TransactionTrace)element;
-            Procedure catalog_proc = xact.getCatalogItem(this.catalogContext.database);
             int partition = HStoreConstants.NULL_PARTITION_ID;
             try {
-                partition = this.p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
+                partition = this.p_estimator.getBasePartition(xact);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 assert(false);
