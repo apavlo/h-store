@@ -150,7 +150,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     @Override
-    public boolean hasQueryList() {
+    public boolean hasQueryEstimate() {
         return (this.path != null);
     }
     

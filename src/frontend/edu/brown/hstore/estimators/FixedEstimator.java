@@ -87,7 +87,7 @@ public abstract class FixedEstimator extends TransactionEstimator {
         // ----------------------------------------------------------------------------
         
         @Override
-        public boolean hasQueryList() {
+        public boolean hasQueryEstimate() {
             return false;
         }
         

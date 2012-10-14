@@ -411,8 +411,7 @@ public abstract class CollectionUtil {
         }
         int ctr = 0;
         for (T t : items) {
-            if (ctr++ == idx)
-                return (t);
+            if (ctr++ == idx) return (t);
         }
         return (null);
     }

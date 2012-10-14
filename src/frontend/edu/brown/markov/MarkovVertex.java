@@ -266,7 +266,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
 
     @Override
-    public boolean hasQueryList() {
+    public boolean hasQueryEstimate() {
         return false;
     }
     

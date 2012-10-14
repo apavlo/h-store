@@ -23,7 +23,7 @@ public interface TransactionEstimate {
      * that the transaction will execute
      * @return
      */
-    public boolean hasQueryList();
+    public boolean hasQueryEstimate();
     
     /**
      * 

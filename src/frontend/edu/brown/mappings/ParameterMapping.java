@@ -29,12 +29,12 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
     }
     
     public Statement statement;
-    public Integer statement_index;
+    public int statement_index;
     public StmtParameter statement_parameter;
     public Column statement_column;
     public ProcParameter procedure_parameter;
-    public Integer procedure_parameter_index;
-    public Double coefficient;
+    public int procedure_parameter_index;
+    public double coefficient;
     private transient Integer hashcode;
 
     /**
@@ -50,13 +50,13 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
      * @param index
      * @param coefficient
      */
-    public ParameterMapping(Statement catalog_stmt, Integer catalog_stmt_index, StmtParameter catalog_stmt_param, ProcParameter catalog_proc_param, Integer catalog_proc_param_index, Double coefficient) {
+    public ParameterMapping(Statement catalog_stmt, int catalog_stmt_index, StmtParameter catalog_stmt_param, ProcParameter catalog_proc_param, int catalog_proc_param_index, double coefficient) {
         this.statement = catalog_stmt;
-        this.statement_index = catalog_stmt_index.intValue();
+        this.statement_index = catalog_stmt_index;
         this.statement_parameter = catalog_stmt_param;
         this.procedure_parameter = catalog_proc_param;
-        this.procedure_parameter_index = catalog_proc_param_index.intValue();
-        this.coefficient = coefficient.doubleValue();
+        this.procedure_parameter_index = catalog_proc_param_index;
+        this.coefficient = coefficient;
 
         // My father told me to trust no one...
         // He took that advice to the grave...
@@ -68,11 +68,10 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
         assert(this.statement_index >= 0);
         assert(this.statement_parameter != null);
         assert(this.statement_parameter.getParent().equals(this.statement));
-        assert(this.coefficient != null);
         assert(this.coefficient >= -1.0);
         assert(this.coefficient <= 1.0);
-        assert(this.procedure_parameter_index >= 0);
-        assert(this.procedure_parameter_index == 0 || (this.procedure_parameter.getIsarray() && this.statement_index >= 0));
+        assert(this.procedure_parameter_index == ParametersUtil.NULL_PROC_PARAMETER_OFFSET ||
+               (this.procedure_parameter.getIsarray() && this.statement_index >= 0));
         
         // Always grab the Column that the StmtParameter is mapped to in the Statement
         try {
@@ -89,7 +88,7 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
     public Column getStatementColumn() {
         return (this.statement_column);
     }
-    public Integer getStatementIndex() {
+    public int getStatementIndex() {
         return this.statement_index;
     }
     public StmtParameter getStmtParameter() {
@@ -99,11 +98,15 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
     public ProcParameter getProcParameter() {
         return this.procedure_parameter;
     }
-    public Integer getProcParameterIndex() {
+    
+    public boolean hasProcParameterIndex() {
+        return (this.procedure_parameter_index != ParametersUtil.NULL_PROC_PARAMETER_OFFSET);
+    }
+    public int getProcParameterIndex() {
         return this.procedure_parameter_index;
     }
     
-    public Double getCoefficient() {
+    public double getCoefficient() {
         return this.coefficient;
     }
 
@@ -155,10 +158,10 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
         if (obj instanceof ParameterMapping) {
             ParameterMapping c = (ParameterMapping)obj;
             return (this.statement.equals(c.statement) &&
-                    this.statement_index.equals(c.statement_index) &&
+                    this.statement_index == c.statement_index &&
                     this.statement_parameter.equals(c.statement_parameter) &&
                     this.procedure_parameter.equals(c.procedure_parameter) &&
-                    this.procedure_parameter_index.equals(c.procedure_parameter_index));
+                    this.procedure_parameter_index == c.procedure_parameter_index);
         }
         return (false);
     }

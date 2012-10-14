@@ -160,7 +160,7 @@ public class TestMappingCalculator extends BaseTestCase {
             
             assert(c.getCoefficient() >= threshold);
             assertEquals("[" + i + "]", expected_param[i], c.getProcParameter());
-            assertEquals("[" + i + "]", expected_index[i], c.getProcParameterIndex().intValue());
+            assertEquals("[" + i + "]", expected_index[i], c.getProcParameterIndex());
         } // FOR
     }
     

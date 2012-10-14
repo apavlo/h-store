@@ -23,10 +23,12 @@ import edu.brown.utils.CollectionUtil;
 /**
  * @author pavlo
  */
-public class ParametersUtil {
+public abstract class ParametersUtil {
     private static final Logger LOG = Logger.getLogger(ParametersUtil.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
+    public static final int NULL_PROC_PARAMETER_OFFSET = -1;
+    
     /**
      *
      */

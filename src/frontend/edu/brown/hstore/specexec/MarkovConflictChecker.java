@@ -3,11 +3,8 @@ package edu.brown.hstore.specexec;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.SortedSet;
 
 import org.apache.log4j.Logger;
@@ -20,9 +17,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 
-import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.conflicts.ConflictParameterPair;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.designer.ColumnSet;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -34,6 +29,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.mappings.ParametersUtil;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.CollectionUtil;
 
@@ -53,28 +49,35 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     private final ParameterMappingsSet paramMappings;
     private final EstimationThresholds thresholds;
     private final boolean disabled;
-    private final Map<Statement, Map<Statement, ConflictPair>> stmtConflicts =
-                        new HashMap<Statement, Map<Statement,ConflictPair>>();
-    private final IdentityHashMap<ConflictPair, ConflictParameterPair> conflictParams = 
-                        new IdentityHashMap<ConflictPair, ConflictParameterPair>();
 
     // ------------------------------------------------------------
     // PRECOMPUTED CACHE
     // ------------------------------------------------------------
+
+    private static class StatementCache {
+        /**
+         * We maintain a mapping to another Statement that it conflicts
+         * with and its corresponding ConflictPair that represents that conflict
+         */
+        final Map<Statement, ConflictPair> conflicts = new HashMap<Statement, ConflictPair>();  
+
+        /**
+         * We maintain a list of the StmtParameters that are used in predicates with 
+         * the target table's primary key
+         */
+        final Map<Column, StmtParameter> colParams = new HashMap<Column, StmtParameter>();
+    } // CLASS
     
     /**
-     * For each Statement, we have maintain a list of the StmtParameters
-     * that are used in predicates with the target table's primary key
+     * We have a separate cache object for each Statement
      */
-    private final Map<Statement, Map<Table, StmtParameter[]>> stmtParameterCache = 
-                        new HashMap<Statement, Map<Table, StmtParameter[]>>();
+    private final Map<Statement, StatementCache> stmtCache = new HashMap<Statement, StatementCache>();
+    
     
     /**
      * Table -> Primary Keys
      */
     private final Map<Table, Column[]> pkeysCache = new HashMap<Table, Column[]>();
-    
-    private final Map<Statement, Table[]> stmtTablesCache = new HashMap<Statement, Table[]>();
     
     
     // ------------------------------------------------------------
@@ -92,7 +95,15 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         } // FOR (table)
         
         for (Procedure proc : this.catalogContext.getRegularProcedures()) {
+            Collection<ConflictPair> conflicts = ConflictSetUtil.getAllConflictPairs(proc);
             for (Statement stmt : proc.getStatements()) {
+                StatementCache cache = new StatementCache();
+                for (ConflictPair cp : conflicts) {
+                    if (cp.getStatement0().equals(stmt)) {
+                        cache.conflicts.put(cp.getStatement1(), cp);
+                    }
+                } // FOR
+                
                 ColumnSet cset = CatalogUtil.extractStatementColumnSet(stmt, false);
                 Map<Table, StmtParameter[]> tableParams = new HashMap<Table, StmtParameter[]>();
                 List<StmtParameter> stmtParamOffsets = new ArrayList<StmtParameter>();
@@ -109,28 +120,14 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                             // we need to do here. The StmtParameter that we get back will be null
                             StmtParameter stmtParam = CollectionUtil.first(params);
                             assert(stmtParam != null);
-                            stmtParamOffsets.add(stmtParam);
+                            cache.colParams.put(col, stmtParam);
                         }
                     } // FOR
                     tableParams.put(tbl, stmtParamOffsets.toArray(new StmtParameter[0]));
                 } // FOR
-                this.stmtParameterCache.put(stmt, tableParams);
+                this.stmtCache.put(stmt, cache);
             } // FOR (stmt)
         } // FOR (proc)
-    }
-    
-    private void precomputeConflicts(Procedure proc0) {
-        // For each Procedure (including the one we're calling this method for), we 
-        // want to compute the minimum number of ConflictParameterPairs that we need
-        // to evaluate in order to determine that two transactions will never be
-        // conflicting.
-        for (Procedure proc1 : this.catalogContext.getRegularProcedures()) {
-             Collection<ConflictPair> conflicts = ConflictSetUtil.getAllConflictPairs(proc0, proc1);
-             for (ConflictPair cp : conflicts) {
-                 
-             }
-             
-        }
     }
 
     @Override
@@ -155,14 +152,14 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         // queries that the transaction is going to execute
         TransactionEstimate dtxnEst = dtxnState.getLastEstimate();
         assert(dtxnEst != null);
-        if (dtxnEst.hasQueryList() == false) {
+        if (dtxnEst.hasQueryEstimate() == false) {
             if (debug.get())
                 LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));
             return (false);
         }
         TransactionEstimate tsEst = tsState.getInitialEstimate();
         assert(tsEst != null);
-        if (tsEst.hasQueryList() == false) {
+        if (tsEst.hasQueryEstimate() == false) {
             if (debug.get())
                 LOG.debug(String.format("No query list estimate is available for candidate %s", ts));
             return (false);
@@ -180,89 +177,95 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         QueryEstimate queries0 = dtxnEst.getEstimatedQueries(partitionId);
         QueryEstimate queries1 = tsEst.getEstimatedQueries(partitionId);
         
+        return this.canExecute(dtxn, queries0, ts, queries1);
+    }
+    
+    protected boolean canExecute(AbstractTransaction ts0, QueryEstimate queries0,
+                                 AbstractTransaction ts1, QueryEstimate queries1) {
+        ParameterSet params0 = ts0.getProcedureParameters();
+        ParameterSet params1 = ts1.getProcedureParameters();
+        Statement stmt0, stmt1;
+        int stmtCtr0, stmtCtr1;
+        StatementCache cache0, cache1;
+        Map<StmtParameter, SortedSet<ParameterMapping>> mappings0, mappings1;
         
-        Collection<ConflictPair> allConflicts = this.getConflicts(queries0, queries1);
-        assert(allConflicts != null);
-        if (allConflicts.isEmpty()) {
-            if (debug.get())
-                LOG.debug(String.format("No ConflictPairs between %s<->%s", dtxn, ts));
-            return (false);
-        }
-        
+        // TODO: Rather than checking the values referenced in each ConflictPair
+        // individually, we should go through all of them first and just get the 
+        // ProcParameter + Offsets that actually matter. Then we can just check the
+        // values one after each other.
         
         // Now with ConflictPairs, we need to get the minimum set of ProcParameters that are
         // used as input to the conflicting Statements and then check whether they have the same
         // value. If they do, then we cannot run the candidate txn.
-        // If one of the ConflictPairs is marked as "Always Conflicting", then we need to stop
-        // right away because we simply cannot run the candidate txn
         
-        
-        return (true);
-    }
-    
-    private boolean analyzeConflicts(AbstractTransaction ts0, AbstractTransaction ts1, Collection<ConflictPair> allConflicts) {
-        Procedure proc0 = this.catalogContext.getProcedureById(ts0.getProcedureId());
-        ParameterSet params0 = ts0.getProcedureParameters();
-        if (params0 == null) {
-            if (debug.get())
-                LOG.debug(String.format("No Procedure ParameterSet is available for dtxn %s", ts0));
-            return (false);
-        }
-        
-        Procedure proc1 = this.catalogContext.getProcedureById(ts1.getProcedureId());
-        ParameterSet params1 = ts1.getProcedureParameters();
-        assert(params1 != null);
-        
-        Set<ConflictParameterPair> paramPairs = new HashSet<ConflictParameterPair>();
-        for (ConflictPair cp : allConflicts) {
-            Statement stmt0 = cp.getStatement0();
-            Statement stmt1 = cp.getStatement1();
+        for (int i0 = 0, cnt0 = queries0.size(); i0 < cnt0; i0++) {
+            stmt0 = queries0.getStatement(i0);
+            stmtCtr0 = queries0.getStatementCounter(i0);
+            cache0 = this.stmtCache.get(stmt0);
+            mappings0 = this.catalogContext.paramMappings.get(stmt0, stmtCtr0);
             
-            ConflictParameterPair pair = this.conflictParams.get(cp);
-        }
-        
-        return (true);
-    }
-    
-    private Collection<ConflictPair> getConflicts(QueryEstimate dtxnQueries, QueryEstimate tsQueries) {
-        Set<ConflictPair> allConflicts = new HashSet<ConflictPair>();
-        for (int i0 = 0, cnt0 = dtxnQueries.size(); i0 < cnt0; i0++) {
-            Statement stmt0 = dtxnQueries.getStatement(i0);
-            int counter0 = dtxnQueries.getStatementCounter(i0);
-            Map<Statement, ConflictPair> conflicts = this.stmtConflicts.get(stmt0);
-            
-            for (int i1 = 0, cnt1 = tsQueries.size(); i1 < cnt1; i1++) {
-                Statement stmt1 = tsQueries.getStatement(i1);
-                int counter1 = tsQueries.getStatementCounter(i0);
-                ConflictPair cp = conflicts.get(stmt1);
+            for (int i1 = 0, cnt1 = queries1.size(); i1 < cnt1; i1++) {
+                stmt1 = queries1.getStatement(i1);
+                stmtCtr1 = queries0.getStatementCounter(i1);
+                ConflictPair cp = cache0.conflicts.get(stmt1);
+
                 // If there isn't a ConflictPair, then there isn't a conflict
-                if (cp == null) continue;
-                allConflicts.add(cp);
+                if (cp == null) {
+                    continue;
+                }
+                // If the ConflictPair is marked as always conflicting, then
+                // we can stop right here
+                else if (cp.getAlwaysconflicting()) {
+                    return (true);
+                }
+                
+                // Otherwise, at this point we know that we have two queries that both 
+                // reference the same table(s). Therefore, we need to evaluate the values 
+                // of the primary keys referenced in the queries to see whether they conflict
+                cache1 = this.stmtCache.get(stmt1);
+                mappings1 = this.catalogContext.paramMappings.get(stmt1, stmtCtr1);
+                
+                for (Column col : cache0.colParams.keySet()) {
+                    StmtParameter param0 = cache0.colParams.get(col);
+                    StmtParameter param1 = cache1.colParams.get(col);
+                    assert(param1 != null);
+                    
+                    ParameterMapping pm0 = CollectionUtil.first(mappings0.get(param0));
+                    assert(pm0 != null);
+                    ParameterMapping pm1 = CollectionUtil.first(mappings1.get(param1));
+                    assert(pm1 != null);
+                    
+                    if (this.equalParameters(params0, pm0, params1, pm1) == false) {
+                        return (true);
+                    }
+                } // FOR
             } // FOR
         } // FOR
-        return (allConflicts);
+        return (false);
     }
     
-
-    private ConflictParameterPair getConflictParameterPair(Statement stmt0, int stmtCtr0, Statement stmt1, int stmtCtr1) {
-        int params[][] = new int[2][2];
-        for (int i = 0; i < 2; i++) {
-            Statement stmt = (i == 0 ? stmt0 : stmt1);
-            int stmtCtr = (i == 0 ? stmtCtr0 : stmtCtr1);
-            for (Table tbl : this.stmtTablesCache.get(stmt)) {
-                for (Column col : this.pkeysCache.get(tbl)) {
-                    
-                }
-            }
-            
-            // Get the ParameterMappings. We only need to examine the
-            // ones for the primary key columns of the table being
-            // referenced in the Statement
-            Map<StmtParameter, SortedSet<ParameterMapping>> mappings = this.catalogContext.paramMappings.get(stmt, stmtCtr);
-            
+    protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0, ParameterSet params1, ParameterMapping pm1) {
+        Object val0, val1;
+        
+        if (pm0.procedure_parameter.getIsarray()) {
+            assert(pm0.procedure_parameter_index != ParametersUtil.NULL_PROC_PARAMETER_OFFSET);
+            val0 = ((Object[])params0.toArray()[pm0.procedure_parameter.getIndex()])[pm0.procedure_parameter_index];
+        } else {
+            val0 = params0.toArray()[pm0.procedure_parameter.getIndex()];
+        }
+        if (pm1.procedure_parameter.getIsarray()) {
+            assert(pm1.procedure_parameter_index != ParametersUtil.NULL_PROC_PARAMETER_OFFSET);
+            val1 = ((Object[])params1.toArray()[pm1.procedure_parameter.getIndex()])[pm1.procedure_parameter_index];
+        } else {
+            val1 = params1.toArray()[pm1.procedure_parameter.getIndex()];
         }
         
-        return (null);
+        if (val0 == null) {
+            return (val1 != null);
+        } else if (val1 == null) {
+            return (false);
+        }
+        return (val0.equals(val1));
     }
 
 }
