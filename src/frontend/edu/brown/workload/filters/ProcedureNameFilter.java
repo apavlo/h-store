@@ -23,7 +23,7 @@ public class ProcedureNameFilter extends Filter {
     private static final boolean d = LOG.isDebugEnabled();
     
     public static final String INCLUDE_ALL = "*";
-    public static final Integer INCLUDE_UNLIMITED = -1;
+    public static final Integer INCLUDE_UNLIMITED = Integer.MAX_VALUE;
 
     /** If set to true, then we will increase includedTxn by the txn's weights */
     private final boolean weighted;
