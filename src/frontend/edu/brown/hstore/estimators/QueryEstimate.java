@@ -28,4 +28,15 @@ public class QueryEstimate extends Pair<Statement[], int[]> {
         return (this.getSecond()[offset]);
     }
     
+    public String debug() {
+        Statement statements[] = this.getFirst();
+        int counters[] = this.getSecond();
+        String ret = "";
+        for (int i = 0; i < statements.length; i++) {
+            if (i > 0) ret += "\n";
+            ret += statements[i].fullName() + " / " + counters[i];
+        }
+        return (ret);
+    }
+    
 }

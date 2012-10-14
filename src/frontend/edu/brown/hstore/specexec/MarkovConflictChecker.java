@@ -104,6 +104,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 } // FOR
                 
                 ColumnSet cset = CatalogUtil.extractStatementColumnSet(stmt, false);
+                if (stmt.getName().equalsIgnoreCase("getLastOrder")) {
+                    System.err.println(cset.debug());
+                    System.err.println("=============================================");
+                }
+                
                 Map<Table, StmtParameter[]> tableParams = new HashMap<Table, StmtParameter[]>();
                 List<StmtParameter> stmtParamOffsets = new ArrayList<StmtParameter>();
                 for (Table tbl : CatalogUtil.getReferencedTables(stmt)) {
@@ -207,6 +212,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         // used as input to the conflicting Statements and then check whether they have the same
         // value. If they do, then we cannot run the candidate txn.
         
+        // (1) We only need to examine the READ-WRITE conflicts and WRITE->WRITE
+        
         for (int i0 = 0, cnt0 = queries0.size(); i0 < cnt0; i0++) {
             stmt0 = queries0.getStatement(i0);
             stmtCtr0 = queries0.getStatementCounter(i0);
@@ -217,7 +224,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 stmt1 = queries1.getStatement(i1);
                 if (stmt0.getReadonly() && stmt1.getReadonly()) continue;
                 
-                stmtCtr1 = queries0.getStatementCounter(i1);
+                stmtCtr1 = queries1.getStatementCounter(i1);
                 ConflictPair cp = cache0.conflicts.get(stmt1);
 
                 // If there isn't a ConflictPair, then there isn't a conflict
