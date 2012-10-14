@@ -261,6 +261,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * @param txn_id
      * @param client_handle
      * @param base_partition
+     * @param parameters TODO
      * @param sysproc
      * @param predict_singlePartition
      * @param predict_readOnly
@@ -271,6 +272,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected final AbstractTransaction init(Long txn_id,
                                              long client_handle,
                                              int base_partition,
+                                             ParameterSet parameters,
                                              int proc_id,
                                              boolean sysproc,
                                              boolean predict_singlePartition,
@@ -280,6 +282,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
+        this.parameters = parameters;
         this.proc_id = proc_id;
         this.sysproc = sysproc;
         this.predict_singlePartition = predict_singlePartition;
@@ -305,7 +308,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.pending_error = null;
         this.status = null;
         this.sysproc = false;
-        
+        this.parameters = null;
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
         

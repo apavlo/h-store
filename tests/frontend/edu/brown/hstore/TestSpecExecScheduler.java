@@ -45,8 +45,8 @@ public class TestSpecExecScheduler extends BaseTestCase {
         this.dtxn = new LocalTransaction(this.hstore_site);
         this.dtxn.testInit(NEXT_TXN_ID++,
                            BASE_PARTITION,
-                           catalogContext.getAllPartitionIds(),
-                           catalog_proc);
+                           null,
+                           catalogContext.getAllPartitionIds(), catalog_proc);
         assertFalse(this.dtxn.isPredictAllLocal());
     }
     
@@ -68,7 +68,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertNotNull(proc);
         
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
-        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
         
@@ -105,7 +105,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // First time we should be able to get through
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
-        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
         StartTxnMessage next = this.scheduler.next(this.dtxn);
@@ -118,7 +118,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         // Now have the dtxn "write" to one of the tables in our ConflictSet
         dtxn.clearReadWriteSets();
         dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
-        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
         next = this.scheduler.next(this.dtxn);
@@ -129,7 +129,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         // Reads aren't allowed either
         dtxn.clearReadWriteSets();
         dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
-        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
         next = this.scheduler.next(this.dtxn);
@@ -164,7 +164,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertFalse(conflictTables.isEmpty());
         
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
-        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
         StartTxnMessage next = this.scheduler.next(this.dtxn);
@@ -177,7 +177,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         // Reads are allowed!
         dtxn.clearReadWriteSets();
         dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
-        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
         next = this.scheduler.next(this.dtxn);
@@ -190,7 +190,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         // But writes are not!
         dtxn.clearReadWriteSets();
         dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
-        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
         next = this.scheduler.next(this.dtxn);

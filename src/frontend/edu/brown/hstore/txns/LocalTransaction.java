@@ -252,7 +252,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.initiateTime = initiateTime;
         this.catalog_proc = catalog_proc;
         this.client_callback = client_callback;
-        this.parameters = params;
         this.mapreduce = catalog_proc.getMapreduce();
         
         // Initialize the predicted execution properties for this transaction
@@ -263,19 +262,21 @@ public class LocalTransaction extends AbstractTransaction {
         super.init(txn_id,
                    clientHandle,
                    base_partition,
+                   params,
                    catalog_proc.getId(),
                    catalog_proc.getSystemproc(),
                    (this.predict_touchedPartitions.size() == 1),
                    predict_readOnly,
-                   predict_abortable,
-                   true);
+                   predict_abortable, true);
         
         
         // Grab a DistributedState that will have all the goodies that we need
         // to execute a distributed transaction
         if (this.predict_singlePartition == false) {
             try {
-                this.dtxnState = hstore_site.getObjectPools().getDistributedStatePool(base_partition).borrowObject(); 
+                this.dtxnState = hstore_site.getObjectPools()
+                                            .getDistributedStatePool(base_partition)
+                                            .borrowObject(); 
                 this.dtxnState.init(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
@@ -289,12 +290,14 @@ public class LocalTransaction extends AbstractTransaction {
      * Testing Constructor
      * @param txn_id
      * @param base_partition
+     * @param params TODO
      * @param predict_touchedPartitions
      * @param catalog_proc
      * @return
      */
     public LocalTransaction testInit(Long txn_id,
                                      int base_partition,
+                                     ParameterSet params,
                                      PartitionSet predict_touchedPartitions,
                                      Procedure catalog_proc) {
         this.predict_touchedPartitions = predict_touchedPartitions;
@@ -309,6 +312,7 @@ public class LocalTransaction extends AbstractTransaction {
                           txn_id,                       // TxnId
                           Integer.MAX_VALUE,            // ClientHandle
                           base_partition,               // BasePartition
+                          params,                       // Procedure Parameters
                           catalog_proc.getId(),         // ProcedureId
                           catalog_proc.getSystemproc(), // SysProc
                           predict_singlePartition,      // SinglePartition
@@ -331,15 +335,14 @@ public class LocalTransaction extends AbstractTransaction {
                                      int base_partition,
                                      PartitionSet predict_touchedPartitions,
                                      Procedure catalog_proc,
-                                     Object... proc_params) {
-        this.parameters = new ParameterSet(proc_params);
+                                     Object...proc_params) {
         this.client_callback = new RpcCallback<ClientResponseImpl>() {
             public void run(ClientResponseImpl parameter) {}
         };
         return this.testInit(txn_id,
                              base_partition,
-                             predict_touchedPartitions,
-                             catalog_proc);
+                             new ParameterSet(proc_params),
+                             predict_touchedPartitions, catalog_proc);
     }
     
     @Override

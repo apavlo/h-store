@@ -98,7 +98,7 @@ public class TestLocalTransaction extends BaseTestCase {
      * testStartRound
      */
     public void testStartRound() throws Exception {
-        this.ts.testInit(TXN_ID, BASE_PARTITION, new PartitionSet(BASE_PARTITION), this.catalog_proc);
+        this.ts.testInit(TXN_ID, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), this.catalog_proc);
         ExecutionState state = new ExecutionState(this.executor);
         this.ts.setExecutionState(state);
         this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);

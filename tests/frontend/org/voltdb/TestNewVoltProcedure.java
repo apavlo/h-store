@@ -86,7 +86,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         volt_proc.registerCallback(observer);
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
-        LocalTransaction ts = new LocalTransaction(hstore_site).testInit(xact_id, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), catalog_proc);
+        LocalTransaction ts = new LocalTransaction(hstore_site).testInit(xact_id, LOCAL_PARTITION, null, new PartitionSet(LOCAL_PARTITION), catalog_proc);
         // FIXME site.txn_states.put(xact_id, ts);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure

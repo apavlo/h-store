@@ -1109,7 +1109,7 @@ public class PartitionEstimator {
                                          Integer base_partition) throws Exception {
         // Loop through this Statement's plan fragments and get the partitions
         for (PlanFragment catalog_frag : fragments) {
-            assert(catalog_frag != null);
+            assert(catalog_frag != null) : "Unexpected null PlanFragment";
             PartitionSet partitions = null;
 
             // If we have a FragPartion map, then use an entry from that

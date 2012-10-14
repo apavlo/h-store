@@ -26,6 +26,7 @@
 package edu.brown.hstore.txns;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
@@ -64,6 +65,7 @@ public class RemoteTransaction extends AbstractTransaction {
     
     public RemoteTransaction init(long txnId,
                                   int base_partition,
+                                  ParameterSet parameters,
                                   Procedure catalog_proc,
                                   boolean predict_abortable) {
         int proc_id = catalog_proc.getId();
@@ -73,6 +75,7 @@ public class RemoteTransaction extends AbstractTransaction {
                             txnId,              // TxnId
                             -1,                 // ClientHandle
                             base_partition,     // BasePartition
+                            parameters,         // Procedure Parameters
                             proc_id,            // ProcedureId
                             sysproc,            // SysProc
                             false,              // SinglePartition 

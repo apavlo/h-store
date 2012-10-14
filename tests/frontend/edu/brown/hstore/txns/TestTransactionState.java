@@ -126,8 +126,8 @@ public class TestTransactionState extends BaseTestCase {
         this.ts = new LocalTransaction(hstore_site);
         this.ts.testInit(TXN_ID,
                          LOCAL_PARTITION,
-                         catalogContext.getAllPartitionIds(),
-                         this.getProcedure(TARGET_PROCEDURE));
+                         null,
+                         catalogContext.getAllPartitionIds(), this.getProcedure(TARGET_PROCEDURE));
         this.ts.setExecutionState(this.execState);
         assertNull(this.ts.getCurrentRoundState(LOCAL_PARTITION));
     }

@@ -127,7 +127,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
             partitions.add(p);
         } // FOR
 
-        this.ts.testInit(TXN_ID, LOCAL_PARTITION, partitions, this.getProcedure(TARGET_PREFETCH_PROCEDURE));
+        this.ts.testInit(TXN_ID, LOCAL_PARTITION, null, partitions, this.getProcedure(TARGET_PREFETCH_PROCEDURE));
 
         this.partition_site_xref = new int[catalogContext.numberOfPartitions];
         for (Partition catalog_part : catalogContext.getAllPartitions()) {

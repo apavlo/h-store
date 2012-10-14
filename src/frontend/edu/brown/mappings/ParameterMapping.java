@@ -55,7 +55,6 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
         this.statement_index = catalog_stmt_index;
         this.statement_parameter = catalog_stmt_param;
         this.procedure_parameter = catalog_proc_param;
-        this.procedure_parameter_index = catalog_proc_param_index;
         this.coefficient = coefficient;
 
         // My father told me to trust no one...
@@ -70,8 +69,13 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
         assert(this.statement_parameter.getParent().equals(this.statement));
         assert(this.coefficient >= -1.0);
         assert(this.coefficient <= 1.0);
-        assert(this.procedure_parameter_index == ParametersUtil.NULL_PROC_PARAMETER_OFFSET ||
-               (this.procedure_parameter.getIsarray() && this.statement_index >= 0));
+        
+        if (this.procedure_parameter.getIsarray()) {
+            assert(this.procedure_parameter_index >= 0);
+            this.procedure_parameter_index = catalog_proc_param_index;
+        } else {
+            this.procedure_parameter_index = ParametersUtil.NULL_PROC_PARAMETER_OFFSET;
+        }
         
         // Always grab the Column that the StmtParameter is mapped to in the Statement
         try {

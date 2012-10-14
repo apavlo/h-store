@@ -63,15 +63,29 @@ import org.voltdb.*;
 )
 public class ostatByCustomerId extends VoltProcedure {
     // Parameters: w_id, d_id, c_id
-    public final SQLStmt getCustomerByCustomerId = new SQLStmt("SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?;");
+    public final SQLStmt getCustomerByCustomerId = new SQLStmt(
+        "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE" +
+        "  FROM CUSTOMER " +
+        " WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?;"
+    );
 
     // Parameters: w_id, d_id, c_id
-    public final SQLStmt getLastOrder = new SQLStmt("SELECT O_ID, O_CARRIER_ID, O_ENTRY_D FROM ORDERS WHERE O_W_ID = ? AND O_D_ID = ? AND O_C_ID = ? ORDER BY O_ID DESC LIMIT 1");
+    public final SQLStmt getLastOrder = new SQLStmt(
+        "SELECT O_ID, O_CARRIER_ID, O_ENTRY_D " +
+        "  FROM ORDERS " +
+        " WHERE O_W_ID = ? AND O_D_ID = ? AND O_C_ID = ? " +
+        " ORDER BY O_ID DESC LIMIT 1"
+    );
     private int O_ID_IDX = 0;
 
     // Parameters: w_id, d_id, o_id
-    public final SQLStmt getOrderLines = new SQLStmt("SELECT OL_SUPPLY_W_ID, OL_I_ID, OL_QUANTITY, OL_AMOUNT, OL_DELIVERY_D FROM ORDER_LINE WHERE OL_W_ID = ? AND OL_O_ID = ? AND OL_D_ID = ?");
-    //gets returned directly, as, since all data must be returned as VoltTables, this the most useful form the data can be presented in.
+    // This gets returned directly, as, since all data must be returned as VoltTables, 
+    // this the most useful form the data can be presented in.
+    public final SQLStmt getOrderLines = new SQLStmt(
+        "SELECT OL_SUPPLY_W_ID, OL_I_ID, OL_QUANTITY, OL_AMOUNT, OL_DELIVERY_D " +
+        "  FROM ORDER_LINE " +
+        " WHERE OL_W_ID = ? AND OL_O_ID = ? AND OL_D_ID = ?"
+    );
 
     public VoltTable[] getOrderStatus(short w_id, byte d_id, int c_id, VoltTable customer) {
         voltQueueSQL(getLastOrder, w_id, d_id, c_id);

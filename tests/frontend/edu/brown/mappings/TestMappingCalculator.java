@@ -54,7 +54,7 @@ public class TestMappingCalculator extends BaseTestCase {
      * testQueryInstance
      */
     public void testQueryInstance() {
-        ProcedureCorrelations procc = this.pc.getProcedureCorrelations(this.catalog_proc);
+        ProcedureMappings procc = this.pc.getProcedureCorrelations(this.catalog_proc);
         procc.start();
         for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
             Set<QueryInstance> previous = new HashSet<QueryInstance>();
@@ -73,7 +73,7 @@ public class TestMappingCalculator extends BaseTestCase {
      * testProcParameterCorrelation
      */
     public void testProcParameterCorrelation() {
-        ProcedureCorrelations procc = this.pc.getProcedureCorrelations(this.catalog_proc);
+        ProcedureMappings procc = this.pc.getProcedureCorrelations(this.catalog_proc);
         procc.start();
         
         Statement catalog_stmt = CollectionUtil.first(this.catalog_proc.getStatements());
@@ -114,7 +114,7 @@ public class TestMappingCalculator extends BaseTestCase {
         } // FOR
         this.pc.calculate();
         
-        ProcedureCorrelations procc = this.pc.getProcedureCorrelations(this.catalog_proc);
+        ProcedureMappings procc = this.pc.getProcedureCorrelations(this.catalog_proc);
         assertNotNull(procc);
 //         System.err.println(xact_trace.debug(catalog_db));
         

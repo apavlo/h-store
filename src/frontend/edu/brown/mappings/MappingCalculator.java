@@ -25,6 +25,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractTraceElement;
@@ -33,6 +34,8 @@ import edu.brown.workload.TransactionTrace;
 
 public class MappingCalculator {
     private static final Logger LOG = Logger.getLogger(MappingCalculator.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     
     public static final String DEFAULT_SPACER = StringUtil.SPACER;
     public static final String DEFAULT_DOUBLE_LINE = StringUtil.DOUBLE_LINE;
@@ -43,7 +46,7 @@ public class MappingCalculator {
     /**
      * Represents the correlation calculations for a single stored procedure
      */
-    protected class ProcedureCorrelations {
+    protected class ProcedureMappings {
         private final Procedure catalog_proc;
         private final Map<Statement, AtomicInteger> query_counters = new TreeMap<Statement, AtomicInteger>();
         private final Map<Statement, Map<Integer, QueryInstance>> query_instances = new TreeMap<Statement, Map<Integer,QueryInstance>>();
@@ -54,7 +57,7 @@ public class MappingCalculator {
          * Constructor
          * @param catalog_proc
          */
-        public ProcedureCorrelations(Procedure catalog_proc) {
+        public ProcedureMappings(Procedure catalog_proc) {
             super();
             
             this.catalog_proc = catalog_proc;
@@ -70,7 +73,7 @@ public class MappingCalculator {
          */
         public void start() {
             assert(!this.started);
-            if (LOG.isTraceEnabled()) LOG.trace("Starting new transaction for " + this.catalog_proc + " and reseting query instance counters");
+            if (trace.get()) LOG.trace("Starting new transaction for " + this.catalog_proc + " and reseting query instance counters");
             this.started = true;
             for (Statement catalog_stmt : this.query_counters.keySet()) {
                 this.query_counters.get(catalog_stmt).set(0);
@@ -83,7 +86,7 @@ public class MappingCalculator {
          */
         public void finish() {
             assert(this.started);
-            if (LOG.isTraceEnabled()) LOG.trace("Finished transaction for " + this.catalog_proc);
+            if (trace.get()) LOG.trace("Finished transaction for " + this.catalog_proc);
             this.started = false;
         }
         
@@ -91,14 +94,14 @@ public class MappingCalculator {
          * Calculate the correlations for all underlying counters
          */
         public void calculate() {
-            if (LOG.isTraceEnabled()) LOG.trace("Calculating correlation coefficient for " + this.query_instances.size() + " query instances in " + this.catalog_proc);
+            if (trace.get()) LOG.trace("Calculating correlation coefficient for " + this.query_instances.size() + " query instances in " + this.catalog_proc);
             for (Entry<Statement, Map<Integer, QueryInstance>> e : this.query_instances.entrySet()) {
-                if (LOG.isTraceEnabled()) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " query instances"); 
+                if (trace.get()) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " query instances"); 
                 for (QueryInstance query_instance : e.getValue().values()) {
                     query_instance.calculate();
                 }
             } // FOR
-            if (LOG.isTraceEnabled()) LOG.trace("Completed Calculations for " + this.catalog_proc);
+            if (trace.get()) LOG.trace("Completed Calculations for " + this.catalog_proc);
         }
         
         /**
@@ -122,7 +125,7 @@ public class MappingCalculator {
             if (ret == null) {
                 ret = new QueryInstance(catalog_stmt, current);
                 instances.put(current, ret);
-                if (LOG.isTraceEnabled()) LOG.trace("Created new QueryInstance for record " + ret);
+                if (trace.get()) LOG.trace("Created new QueryInstance for record " + ret);
             }
             assert(ret != null);
             return (ret);
@@ -136,12 +139,12 @@ public class MappingCalculator {
          * @return
          */
         public ParameterMappingsSet getCorrelations(double threshold) {
-            if (LOG.isTraceEnabled()) LOG.trace("Extracting correlations above " + threshold + " for " + this.catalog_proc);
+            if (trace.get()) LOG.trace("Extracting correlations above " + threshold + " for " + this.catalog_proc);
             ParameterMappingsSet results = new ParameterMappingsSet();
             for (Entry<Statement, Map<Integer, QueryInstance>> e : this.query_instances.entrySet()) {
-                if (LOG.isTraceEnabled()) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " query instances"); 
+                if (trace.get()) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " query instances"); 
                 for (QueryInstance query_instance : e.getValue().values()) {
-                    results.addAll(query_instance.getCorrelations(threshold));
+                    results.addAll(query_instance.getParameterMappingsSet(threshold));
                 } // FOR
             } // FOR
             return (results);
@@ -208,9 +211,9 @@ public class MappingCalculator {
         }
         
         public void calculate() {
-            if (LOG.isTraceEnabled()) LOG.trace("Calculating correlation coefficients for " + this.correlations.size() + " StmtParameters in " + this.getFirst());
+            if (trace.get()) LOG.trace("Calculating correlation coefficients for " + this.correlations.size() + " StmtParameters in " + this.getFirst());
             for (Entry<StmtParameter, Map<ProcParameter, ProcParameterCorrelation>> e : this.correlations.entrySet()) {
-                if (LOG.isTraceEnabled()) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " ProcParameterCorrelations"); 
+                if (trace.get()) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " ProcParameterMappings"); 
                 for (ProcParameterCorrelation ppc : e.getValue().values()) {
                     ppc.calculate();
                 } // FOR
@@ -224,16 +227,16 @@ public class MappingCalculator {
          * @param threshold
          * @return
          */
-        public ParameterMappingsSet getCorrelations(double threshold) {
+        public ParameterMappingsSet getParameterMappingsSet(double threshold) {
             ParameterMappingsSet results = new ParameterMappingsSet();
-            if (LOG.isTraceEnabled()) LOG.trace("Extracting correlations for " + this.correlations.size() + " StmtParameters in " + this.getFirst());
+            if (trace.get()) LOG.trace("Extracting correlations for " + this.correlations.size() + " StmtParameters in " + this.getFirst());
             
             for (Entry<StmtParameter, Map<ProcParameter, ProcParameterCorrelation>> e : this.correlations.entrySet()) {
-                if (LOG.isTraceEnabled()) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " ProcParameterCorrelations"); 
+                if (trace.get()) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " ProcParameterMappings"); 
                 // Loop through all of the ProcParameter correlation objects and create new 
                 // Correlation objects for any results that we get back from each of them 
                 for (ProcParameterCorrelation ppc : e.getValue().values()) {
-                    for (Pair<Integer, Double> pair : ppc.getCorrelations(threshold)) {
+                    for (Pair<Integer, Double> pair : ppc.getMappings(threshold)) {
                         ParameterMapping c = new ParameterMapping(
                                 this.getFirst(),
                                 this.getSecond(),
@@ -243,7 +246,7 @@ public class MappingCalculator {
                                 pair.getSecond()
                         );
                         results.add(c);
-                        if (LOG.isTraceEnabled()) LOG.trace("New Correlation: " + c);
+                        if (trace.get()) LOG.trace("New Correlation: " + c);
                     } // FOR (results)
                 }
             } // FOR
@@ -308,11 +311,11 @@ public class MappingCalculator {
         }
         
         public void calculate() {
-            if (LOG.isTraceEnabled()) LOG.trace("Calculating correlation coefficients for " + this.size() + " ProcParameters instances");
+            if (trace.get()) LOG.trace("Calculating correlation coefficients for " + this.size() + " ProcParameters instances");
             for (AbstractMapping p : this.values()) {
                 p.calculate();
             } // FOR
-            if (LOG.isTraceEnabled()) LOG.trace(this.toString());
+            if (trace.get()) LOG.trace(this.toString());
         }
 
         /**
@@ -320,7 +323,7 @@ public class MappingCalculator {
          * @param threshold
          * @return
          */
-        public Set<Pair<Integer, Double>> getCorrelations(double threshold) {
+        public Set<Pair<Integer, Double>> getMappings(double threshold) {
             Set<Pair<Integer, Double>> ret = new HashSet<Pair<Integer,Double>>();
             for (Integer index : this.keySet()) {
                 AbstractMapping p = this.get(index);
@@ -361,7 +364,7 @@ public class MappingCalculator {
     } // END CLASS
 
     private final Database catalog_db;
-    private final Map<Procedure, ProcedureCorrelations> correlations = new HashMap<Procedure, ProcedureCorrelations>();
+    private final Map<Procedure, ProcedureMappings> mappings = new HashMap<Procedure, ProcedureMappings>();
    
     /**
      * Constructor
@@ -371,23 +374,23 @@ public class MappingCalculator {
         this.catalog_db = catalog_db;
         
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
-            this.correlations.put(catalog_proc, new ProcedureCorrelations(catalog_proc));
+            this.mappings.put(catalog_proc, new ProcedureMappings(catalog_proc));
         } // FOR
     }
     
-    public ProcedureCorrelations getProcedureCorrelations(Procedure catalog_proc) {
-        return (this.correlations.get(catalog_proc));
+    public ProcedureMappings getProcedureCorrelations(Procedure catalog_proc) {
+        return (this.mappings.get(catalog_proc));
     }
     
     /**
      * Recursively invoke the calculate method for all underlying ProcedureCorrelation objects
      */
     public void calculate() {
-        if (LOG.isDebugEnabled()) LOG.debug("Calculating correlation for " + this.correlations.size() + " ProcedureCorrelations");
-        for (ProcedureCorrelations correlation : this.correlations.values()) {
+        if (debug.get()) LOG.debug("Calculating correlation for " + this.mappings.size() + " ProcedureCorrelations");
+        for (ProcedureMappings correlation : this.mappings.values()) {
             correlation.calculate();
         } // FOR
-        if (LOG.isDebugEnabled()) LOG.debug("Completed calculations for all ProcedureCorrelations!");
+        if (debug.get()) LOG.debug("Completed calculations for all ProcedureCorrelations!");
     }
     
     /**
@@ -415,10 +418,10 @@ public class MappingCalculator {
      * @throws Exception
      */
     public void processTransaction(TransactionTrace xact_trace) throws Exception {
-        if (LOG.isTraceEnabled()) LOG.trace("Processing correlations for " + xact_trace);
+        if (trace.get()) LOG.trace("Processing correlations for " + xact_trace);
         Procedure catalog_proc = xact_trace.getCatalogItem(this.catalog_db);
         assert(catalog_proc != null);
-        ProcedureCorrelations correlation = this.correlations.get(catalog_proc);
+        ProcedureMappings correlation = this.mappings.get(catalog_proc);
         correlation.start();
         
         // Cast all the ProcParameters once in the beginning
@@ -480,14 +483,14 @@ public class MappingCalculator {
     }
     
     /**
-     * Get a ParameterCorrelations object
+     * Get a ParameterMappings object
      * @param threshold
      * @return
      */
-    public ParameterMappingsSet getParameterCorrelations(double threshold) {
+    public ParameterMappingsSet getParameterMappings(double threshold) {
         ParameterMappingsSet ret = new ParameterMappingsSet();
-        LOG.debug("Extracting ParameterCorrelations above threshold " + threshold + " [# of correlations=" + this.correlations.size() + "]");
-        for (ProcedureCorrelations pc : this.correlations.values()) {
+        LOG.debug("Extracting ParameterMappings above threshold " + threshold + " [# of correlations=" + this.mappings.size() + "]");
+        for (ProcedureMappings pc : this.mappings.values()) {
             ret.addAll(pc.getCorrelations(threshold));
         } // FOR
         return (ret);
@@ -564,10 +567,10 @@ public class MappingCalculator {
         if (args.hasDoubleParam(ArgumentsParser.PARAM_MAPPINGS_THRESHOLD)) {
             threshold = args.getDoubleParam(ArgumentsParser.PARAM_MAPPINGS_THRESHOLD);
         }
-        ParameterMappingsSet pc = cc.getParameterCorrelations(threshold);
+        ParameterMappingsSet pc = cc.getParameterMappings(threshold);
         File output_path = args.getFileParam(ArgumentsParser.PARAM_MAPPINGS_OUTPUT);
         assert(!pc.isEmpty());
-        if (LOG.isDebugEnabled()) LOG.debug("DEBUG DUMP:\n" + pc.debug());
+        if (debug.get()) LOG.debug("DEBUG DUMP:\n" + pc.debug());
         pc.save(output_path);
         LOG.info("Wrote Correlations to " + output_path);
     }

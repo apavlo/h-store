@@ -257,7 +257,7 @@ public class TransactionInitializer {
         try {
             // Remote Transaction
             ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();
-            ts.init(txn_id, base_partition, catalog_proc, true);
+            ts.init(txn_id, base_partition, null, catalog_proc, true);
             if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [singlePartitioned=%s, hashCode=%d]",
                                            ts, base_partition, false, ts.hashCode()));
         } catch (Exception ex) {

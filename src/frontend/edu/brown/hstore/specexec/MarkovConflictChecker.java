@@ -54,7 +54,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     // PRECOMPUTED CACHE
     // ------------------------------------------------------------
 
-    private static class StatementCache {
+    protected static class StatementCache {
         /**
          * We maintain a mapping to another Statement that it conflicts
          * with and its corresponding ConflictPair that represents that conflict
@@ -71,13 +71,12 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     /**
      * We have a separate cache object for each Statement
      */
-    private final Map<Statement, StatementCache> stmtCache = new HashMap<Statement, StatementCache>();
-    
+    protected final Map<Statement, StatementCache> stmtCache = new HashMap<Statement, StatementCache>();
     
     /**
      * Table -> Primary Keys
      */
-    private final Map<Table, Column[]> pkeysCache = new HashMap<Table, Column[]>();
+    protected final Map<Table, Column[]> pkeysCache = new HashMap<Table, Column[]>();
     
     
     // ------------------------------------------------------------
@@ -188,6 +187,17 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         StatementCache cache0, cache1;
         Map<StmtParameter, SortedSet<ParameterMapping>> mappings0, mappings1;
         
+        if (params0 == null) {
+            if (debug.get())
+                LOG.warn(String.format("The ParameterSet for %s is null.", ts0));
+            return (false);
+        }
+        else if (params1 == null) {
+            if (debug.get())
+                LOG.warn(String.format("The ParameterSet for %s is null.", ts1));
+            return (false);
+        }
+        
         // TODO: Rather than checking the values referenced in each ConflictPair
         // individually, we should go through all of them first and just get the 
         // ProcParameter + Offsets that actually matter. Then we can just check the
@@ -205,6 +215,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
             
             for (int i1 = 0, cnt1 = queries1.size(); i1 < cnt1; i1++) {
                 stmt1 = queries1.getStatement(i1);
+                if (stmt0.getReadonly() && stmt1.getReadonly()) continue;
+                
                 stmtCtr1 = queries0.getStatementCounter(i1);
                 ConflictPair cp = cache0.conflicts.get(stmt1);
 
@@ -215,7 +227,9 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 // If the ConflictPair is marked as always conflicting, then
                 // we can stop right here
                 else if (cp.getAlwaysconflicting()) {
-                    return (true);
+                    if (debug.get())
+                        LOG.debug(String.format("%s - Marked as always conflicting", cp.fullName()));
+                    return (false);
                 }
                 
                 // Otherwise, at this point we know that we have two queries that both 
@@ -229,7 +243,10 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                     StmtParameter param0 = cache0.colParams.get(col);
                     StmtParameter param1 = cache1.colParams.get(col);
                     if (param0 == null || param1 == null) {
-                        return (true);
+                        if (debug.get())
+                            LOG.debug(String.format("%s - Missing StmtParameters [param0=%s / param1=%s]",
+                                      cp.fullName(), param0, param1));
+                        return (false);
                     }
                     
                     ParameterMapping pm0 = CollectionUtil.first(mappings0.get(param0));
@@ -238,12 +255,15 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                     assert(pm1 != null);
                     
                     if (this.equalParameters(params0, pm0, params1, pm1) == false) {
-                        return (true);
+                        if (debug.get())
+                            LOG.debug(String.format("%s - Parameter values are equal [param0=%s / param1=%s]",
+                                      cp.fullName(), param0, param1));
+                        return (false);
                     }
-                } // FOR
-            } // FOR
-        } // FOR
-        return (false);
+                } // FOR (col)
+            } // FOR (stmt1)
+        } // FOR (stmt0)
+        return (true);
     }
     
     protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0, ParameterSet params1, ParameterMapping pm1) {

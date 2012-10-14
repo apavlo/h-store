@@ -11,6 +11,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.slev;
+import org.voltdb.catalog.ConflictPair;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -21,6 +22,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.QueryEstimate;
+import edu.brown.hstore.specexec.MarkovConflictChecker.StatementCache;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.mappings.ParameterMapping;
@@ -111,8 +113,10 @@ public class TestMarkovConflictChecker extends BaseTestCase {
         p_estimator.getAllPartitions(partitions, txn_trace);
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
         ts.testInit(txn_trace.getTransactionId(),
-                    base_partition, partitions,
-                    txn_trace.getCatalogItem(catalogContext.database));
+                    base_partition,
+                    partitions,
+                    txn_trace.getCatalogItem(catalogContext.database),
+                    txn_trace.getParams());
         return (ts);
     }
     
@@ -123,7 +127,8 @@ public class TestMarkovConflictChecker extends BaseTestCase {
         for (QueryTrace q : txn_trace.getQueries()) {
             Statement stmt = q.getCatalogItem(catalogContext.database); 
             stmts.add(stmt);
-            stmtCtrs.add(stmtHistogram.put(stmt));
+            stmtCtrs.add(stmtHistogram.get(stmt, 0l));
+            stmtHistogram.put(stmt);
         } // FOR
         QueryEstimate est = new QueryEstimate(stmts.toArray(new Statement[0]),
                                               CollectionUtil.toIntArray(stmtCtrs));
@@ -134,11 +139,29 @@ public class TestMarkovConflictChecker extends BaseTestCase {
     // TESTS
     // ----------------------------------------------------------------------------------
     
+    /**
+     * testStatementCache
+     */
+    public void testStatementCache() throws Exception {
+        Procedure proc0 = this.getProcedure(slev.class);
+        Statement stmt0 = this.getStatement(proc0, "GetStockCount");
+        Procedure proc1 = this.getProcedure(neworder.class);
+        Statement stmt1 = this.getStatement(proc1, "createOrderLine");
+        
+        // STMT0 is going to try to read to a table that STMT1 will write to
+        // So we should be able to see that conflict
+        StatementCache cache = this.checker.stmtCache.get(stmt0);
+        assertNotNull(stmt0.fullName(), cache);
+        
+        ConflictPair cp = cache.conflicts.get(stmt1);
+        assertNotNull(stmt0.fullName()+"->"+stmt1.fullName(), cp);
+        assertTrue(cp.getAlwaysconflicting());
+    }
     
     /**
-     * testCanExecuteConflicting
+     * testCanExecuteNonConflicting
      */
-    public void testCanExecuteConflicting() throws Exception {
+    public void testCanExecuteNonConflicting() throws Exception {
         Procedure procs[] = {
             this.getProcedure(neworder.class),
             this.getProcedure(ostatByCustomerId.class),
@@ -147,20 +170,19 @@ public class TestMarkovConflictChecker extends BaseTestCase {
         
         // We need need at least a TransactionTrace for all of the procedures
         // such that they have the same warehouse ids
-        int w_id = -1;
-        for (int w : TARGET_WAREHOUSES) {
-            boolean foundAll = true;
-            for (int i = 0; i < procs.length; i++) {
-                traces[i] = this.getTransactionTrace(procs[i], w);
-                foundAll = foundAll && (traces[i] != null); 
+        int last = -1;
+        for (int i = 0; i < procs.length; i++) {
+            for (int w_id : TARGET_WAREHOUSES) {
+                if (w_id == last) continue;
+                traces[i] = this.getTransactionTrace(procs[i], w_id);
+                if (traces[i] != null) {
+                    last = w_id;
+                    break;
+                }
             } // FOR
-            if (foundAll) {
-                w_id = w;
-                break;
-            }
+            assertNotNull(traces[i]);
+            assert(last >= 0);
         } // FOR
-        assert(w_id >= 0);
-        
         
         AbstractTransaction txns[] = new AbstractTransaction[procs.length];
         QueryEstimate queries[] = new QueryEstimate[procs.length];
@@ -177,35 +199,85 @@ public class TestMarkovConflictChecker extends BaseTestCase {
                 Arrays.toString(traces[0].getParams()),
                 Arrays.toString(traces[1].getParams())
         ));
+        System.err.println(StringUtil.columns(
+                StringUtil.join("\n", queries[0].getFirst()),
+                StringUtil.join("\n", queries[1].getFirst())
+        ));
         boolean result = this.checker.canExecute(txns[0], queries[0], txns[1], queries[1]);
-        assertFalse(result);
+        assertTrue(result);
     }
     
-    /**
-     * testEqualParameters
-     */
-    public void testEqualParameters() throws Exception {
-        Procedure catalog_proc = this.getProcedure(neworder.class);
-        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
-        assertNotNull(catalog_stmt);
-        StmtParameter catalog_stmt_param = CollectionUtil.first(catalog_stmt.getParameters());
-        assertNotNull(catalog_stmt_param);
-        
-        TransactionTrace txn_trace = CollectionUtil.first(workload.getTraces(catalog_proc));
-        assertNotNull(txn_trace);
-        
-        ParameterSet params = new ParameterSet(txn_trace.getParams());
-        for (ProcParameter catalog_param : catalog_proc.getParameters()) {
-            if (catalog_param.getIsarray()) {
-                Object inner[] = (Object[])params.toArray()[catalog_param.getIndex()];
-                for (int i = 0; i < inner.length; i++) {
-                    ParameterMapping pm = new ParameterMapping(catalog_stmt, 0, catalog_stmt_param, catalog_param, i, 1.0d); 
-                    assertTrue(this.checker.equalParameters(params, pm, params, pm));
-                } // FOR
-            } else {
-                ParameterMapping pm = new ParameterMapping(catalog_stmt, 0, catalog_stmt_param, catalog_param, ParametersUtil.NULL_PROC_PARAMETER_OFFSET, 1.0d); 
-                assertTrue(this.checker.equalParameters(params, pm, params, pm));
-            }
-        } // FOR
-    }
+//    /**
+//     * testCanExecuteConflicting
+//     */
+//    public void testCanExecuteConflicting() throws Exception {
+//        Procedure procs[] = {
+//            this.getProcedure(neworder.class),
+//            this.getProcedure(ostatByCustomerId.class),
+//        };
+//        TransactionTrace traces[] = new TransactionTrace[procs.length];
+//        
+//        // We need need at least a TransactionTrace for all of the procedures
+//        // such that they have the same warehouse ids
+//        int w_id = -1;
+//        for (int w : TARGET_WAREHOUSES) {
+//            boolean foundAll = true;
+//            for (int i = 0; i < procs.length; i++) {
+//                traces[i] = this.getTransactionTrace(procs[i], w);
+//                foundAll = foundAll && (traces[i] != null); 
+//            } // FOR
+//            if (foundAll) {
+//                w_id = w;
+//                break;
+//            }
+//        } // FOR
+//        assert(w_id >= 0);
+//        
+//        
+//        AbstractTransaction txns[] = new AbstractTransaction[procs.length];
+//        QueryEstimate queries[] = new QueryEstimate[procs.length];
+//        for (int i = 0; i < procs.length; i++) {
+//            txns[i] = this.createTransaction(traces[i]);
+//            queries[i] = this.createQueryEstimate(traces[i]);
+//            assert(queries[i].size() > 0);
+//        }
+//        
+//        // Both txns should be going after the same warehouse + district id, so 
+//        // that means they will be conflicting
+////        System.err.println(StringUtil.columns(trace0.debug(catalog_db), trace1.debug(catalog_db)));
+//        System.err.println(StringUtil.columns(
+//                Arrays.toString(traces[0].getParams()),
+//                Arrays.toString(traces[1].getParams())
+//        ));
+//        boolean result = this.checker.canExecute(txns[0], queries[0], txns[1], queries[1]);
+//        assertFalse(result);
+//    }
+//    
+//    /**
+//     * testEqualParameters
+//     */
+//    public void testEqualParameters() throws Exception {
+//        Procedure catalog_proc = this.getProcedure(neworder.class);
+//        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
+//        assertNotNull(catalog_stmt);
+//        StmtParameter catalog_stmt_param = CollectionUtil.first(catalog_stmt.getParameters());
+//        assertNotNull(catalog_stmt_param);
+//        
+//        TransactionTrace txn_trace = CollectionUtil.first(workload.getTraces(catalog_proc));
+//        assertNotNull(txn_trace);
+//        
+//        ParameterSet params = new ParameterSet(txn_trace.getParams());
+//        for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+//            if (catalog_param.getIsarray()) {
+//                Object inner[] = (Object[])params.toArray()[catalog_param.getIndex()];
+//                for (int i = 0; i < inner.length; i++) {
+//                    ParameterMapping pm = new ParameterMapping(catalog_stmt, 0, catalog_stmt_param, catalog_param, i, 1.0d); 
+//                    assertTrue(this.checker.equalParameters(params, pm, params, pm));
+//                } // FOR
+//            } else {
+//                ParameterMapping pm = new ParameterMapping(catalog_stmt, 0, catalog_stmt_param, catalog_param, ParametersUtil.NULL_PROC_PARAMETER_OFFSET, 1.0d); 
+//                assertTrue(this.checker.equalParameters(params, pm, params, pm));
+//            }
+//        } // FOR
+//    }
 }
