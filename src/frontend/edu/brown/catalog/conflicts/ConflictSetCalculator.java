@@ -103,8 +103,6 @@ public class ConflictSetCalculator {
             } // FOR (statement)
             this.procedures.put(catalog_proc, pInfo);
         } // FOR (procedure)
-        
-
     }
     
     /**

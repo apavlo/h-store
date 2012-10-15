@@ -1,6 +1,7 @@
 package edu.brown.hstore.specexec;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -104,17 +105,19 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 } // FOR
                 
                 ColumnSet cset = CatalogUtil.extractStatementColumnSet(stmt, false);
-                if (stmt.getName().equalsIgnoreCase("getLastOrder")) {
-                    System.err.println(cset.debug());
-                    System.err.println("=============================================");
+                boolean debug = stmt.getName().equalsIgnoreCase("getLastOrder");
+                
+                if (debug) {
+                    LOG.info(cset.debug());
                 }
                 
                 Map<Table, StmtParameter[]> tableParams = new HashMap<Table, StmtParameter[]>();
                 List<StmtParameter> stmtParamOffsets = new ArrayList<StmtParameter>();
                 for (Table tbl : CatalogUtil.getReferencedTables(stmt)) {
-                    for (Column col : this.pkeysCache.get(tbl)) {
+                    Column pkeys[] = this.pkeysCache.get(tbl);
+                    if (debug) LOG.info(tbl + " => " + Arrays.toString(pkeys));
+                    for (Column col : pkeys) {
                         Collection<StmtParameter> params = cset.findAllForOther(StmtParameter.class, col);
-                        
                         // If there are more than one, then it should always conflict
                         if (params.size() > 1) {
                             // TODO

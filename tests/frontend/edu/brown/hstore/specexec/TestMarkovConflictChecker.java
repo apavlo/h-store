@@ -153,29 +153,28 @@ public class TestMarkovConflictChecker extends BaseTestCase {
     // TESTS
     // ----------------------------------------------------------------------------------
     
-    /**
-     * testColumnStmtParameters
-     */
-    public void testColumnStmtParameters() throws Exception {
-        Procedure proc = this.getProcedure(ostatByCustomerId.class);
-        Statement stmt = this.getStatement(proc, "getLastOrder");
-        StatementCache cache = this.checker.stmtCache.get(stmt);
-        assertNotNull(stmt.fullName(), cache);
-        
-        Table tbl = this.getTable(TPCCConstants.TABLENAME_ORDERS);
-        Collection<Column> cols = CatalogUtil.getReferencedColumns(stmt);
-        assertFalse(cols.isEmpty());
-        System.err.println(stmt.fullName() + " -> " + cols + "\n" + StringUtil.formatMaps(cache.colParams));
-        
-        Set<StmtParameter> seenParams = new HashSet<StmtParameter>();
-        for (Column col : cols) {
-            StmtParameter param = cache.colParams.get(col);
-            assertNotNull(col.fullName(), param);
-            assertFalse(param.fullName(), seenParams.contains(param));
-            seenParams.add(param);
-        } // FOR
-        assertEquals(cols.size(), seenParams.size());
-    }
+//    /**
+//     * testColumnStmtParameters
+//     */
+//    public void testColumnStmtParameters() throws Exception {
+//        Procedure proc = this.getProcedure(neworder.class);
+//        Statement stmt = this.getStatement(proc, "getDistrict");
+//        StatementCache cache = this.checker.stmtCache.get(stmt);
+//        assertNotNull(stmt.fullName(), cache);
+//        
+//        Collection<Column> cols = CatalogUtil.getReferencedColumns(stmt);
+//        assertFalse(cols.isEmpty());
+//        System.err.println(stmt.fullName() + " -> " + cols + "\n" + StringUtil.formatMaps(cache.colParams));
+//        
+//        Set<StmtParameter> seenParams = new HashSet<StmtParameter>();
+//        for (Column col : cols) {
+//            StmtParameter param = cache.colParams.get(col);
+//            assertNotNull(col.fullName(), param);
+//            assertFalse(param.fullName(), seenParams.contains(param));
+//            seenParams.add(param);
+//        } // FOR
+//        assertEquals(cols.size(), seenParams.size());
+//    }
     
 //    /**
 //     * testStatementCache
@@ -281,23 +280,23 @@ public class TestMarkovConflictChecker extends BaseTestCase {
             txns[i] = this.createTransaction(traces[i]);
             queries[i] = this.createQueryEstimate(traces[i]);
             assert(queries[i].size() > 0);
-        }
+        } // FOR
         
         // Both txns should be going after the same warehouse + district id, so 
         // that means they will be conflicting
 //        System.err.println(StringUtil.columns(trace0.debug(catalog_db), trace1.debug(catalog_db)));
         System.err.println(StringUtil.columns(
-                Arrays.toString(traces[0].getParams()),
-                Arrays.toString(traces[1].getParams())
+            Arrays.toString(traces[0].getParams()),
+            Arrays.toString(traces[1].getParams())
         ));
         System.err.println(StringUtil.columns(
-                queries[0].debug(),
-                queries[1].debug()
+            queries[0].debug(),
+            queries[1].debug()
         ));
         boolean result = this.checker.canExecute(txns[0], queries[0], txns[1], queries[1]);
         assertFalse(result);
     }
-//    
+    
 //    /**
 //     * testEqualParameters
 //     */
