@@ -2571,25 +2571,33 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             // Format: <Parent>.<Item>
             if (item instanceof Column || item instanceof Statement || item instanceof Constraint || item instanceof Index) {
                 ret = String.format("%s.%s", item.getParent().getName(), item.getName());
-
-                // ProcParameter/StmtParameter
-                // Format: <Parent>.<Item>
-            } else if (item instanceof ProcParameter || item instanceof StmtParameter) {
+            }
+            // StmtParameter
+            // Format: <Procedure>.<Statement>.<Item>
+            else if (item instanceof StmtParameter) {
+                ret = String.format("%s.%s.#%02d",
+                                    item.getParent().getParent().getName(),
+                                    item.getParent().getName(),
+                                    ((StmtParameter)item).getIndex());
+            }    
+            // ProcParameter/StmtParameter
+            // Format: <Parent>.<Item>
+            else if (item instanceof ProcParameter) {
                 ret = String.format("%s.%s", item.getParent().getName(), (include_class ? item : item.getName()));
-
-                // PlanFragment
-                // Format: <Procedure>.<Statement>.[Fragment #XYZ]
-            } else if (item instanceof PlanFragment) {
+            }
+            // PlanFragment
+            // Format: <Procedure>.<Statement>.[Fragment #XYZ]
+            else if (item instanceof PlanFragment) {
                 ret = String.format("%s.%s.[Fragment #%s]", item.getParent().getParent().getName(), item.getParent().getName(), item.getName());
-
-                // ConstantValue
-                // Format: ConstantValue{XYZ}
-            } else if (item instanceof ConstantValue) {
+            }
+            // ConstantValue
+            // Format: ConstantValue{XYZ}
+            else if (item instanceof ConstantValue) {
                 ret = String.format("%s{%s}", item.getClass().getSimpleName(), ((ConstantValue) item).getValue());
-
-                // Everything Else
-                // Format: <OptionalClassName>.<Item>
-            } else {
+            }
+            // Everything Else
+            // Format: <OptionalClassName>.<Item>
+            else {
                 ret = String.format("%s%s", (include_class ? item.getClass().getSimpleName() + ":" : ""), item.getName());
             }
             return (ret);

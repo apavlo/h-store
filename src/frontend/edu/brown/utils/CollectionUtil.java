@@ -404,9 +404,13 @@ public abstract class CollectionUtil {
      * @return
      */
     public static <T> T get(Iterable<T> items, int idx) {
-        if (items instanceof AbstractList<?>) {
+        if (items == null) {
+            return (null);
+        }
+        else if (items instanceof AbstractList<?>) {
             return ((AbstractList<T>) items).get(idx);
-        } else if (items instanceof ListOrderedSet<?>) {
+        }
+        else if (items instanceof ListOrderedSet<?>) {
             return ((ListOrderedSet<T>) items).get(idx);
         }
         int ctr = 0;

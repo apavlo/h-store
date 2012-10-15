@@ -105,17 +105,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 } // FOR
                 
                 ColumnSet cset = CatalogUtil.extractStatementColumnSet(stmt, false);
-                boolean debug = stmt.getName().equalsIgnoreCase("getLastOrder");
-                
-                if (debug) {
-                    LOG.info(cset.debug());
-                }
-                
                 Map<Table, StmtParameter[]> tableParams = new HashMap<Table, StmtParameter[]>();
                 List<StmtParameter> stmtParamOffsets = new ArrayList<StmtParameter>();
                 for (Table tbl : CatalogUtil.getReferencedTables(stmt)) {
                     Column pkeys[] = this.pkeysCache.get(tbl);
-                    if (debug) LOG.info(tbl + " => " + Arrays.toString(pkeys));
+                    if (trace.get()) LOG.trace(tbl + " => " + Arrays.toString(pkeys));
                     for (Column col : pkeys) {
                         Collection<StmtParameter> params = cset.findAllForOther(StmtParameter.class, col);
                         // If there are more than one, then it should always conflict
@@ -248,29 +242,60 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 cache1 = this.stmtCache.get(stmt1);
                 mappings1 = this.catalogContext.paramMappings.get(stmt1, stmtCtr1);
                 
+                boolean allEqual = true;
                 for (Column col : cache0.colParams.keySet()) {
                     // If either StmtParameters are null, then that's a conflict!
                     StmtParameter param0 = cache0.colParams.get(col);
                     StmtParameter param1 = cache1.colParams.get(col);
+                    
+                    // It's ok if we're missing one of the parameters that we need if
+                    // the values are still not the same. It's only a problem if they're 
+                    // all the same because we have no idea know whether they're 
+                    // actually the same or not
                     if (param0 == null || param1 == null) {
-                        if (debug.get())
-                            LOG.debug(String.format("%s - Missing StmtParameters [param0=%s / param1=%s]",
-                                      cp.fullName(), param0, param1));
-                        return (false);
+                        if (trace.get())
+                            LOG.trace(String.format("%s - Missing StmtParameters for %s [param0=%s / param1=%s]",
+                                      cp.fullName(), col.fullName(), param0, param1));
+                        continue;
                     }
                     
+                    // Similarly, if we don't have a ParameterMapping then there is nothing
+                    // else we can do. Again, this is ok as long as at least one of the 
+                    // pkey values are different.
                     ParameterMapping pm0 = CollectionUtil.first(mappings0.get(param0));
-                    assert(pm0 != null);
                     ParameterMapping pm1 = CollectionUtil.first(mappings1.get(param1));
-                    assert(pm1 != null);
+                    if (pm0 == null) {
+                        if (trace.get())
+                            LOG.trace(String.format("%s - No ParameterMapping for %s",
+                                      cp.fullName(), param0.fullName()));
+                        continue;
+                    }
+                    else if (pm1 == null) {
+                        if (trace.get())
+                            LOG.trace(String.format("%s - No ParameterMapping for %s",
+                                      cp.fullName(), param1.fullName()));
+                        continue;
+                    }
                     
+                    // If the values are not equal, then we can stop checking the 
+                    // other columns right away.
                     if (this.equalParameters(params0, pm0, params1, pm1) == false) {
-                        if (debug.get())
-                            LOG.debug(String.format("%s - Parameter values are equal [param0=%s / param1=%s]",
-                                      cp.fullName(), param0, param1));
-                        return (false);
+                        if (trace.get())
+                            LOG.trace(String.format("%s - Parameter values are equal for %s [param0=%s / param1=%s]",
+                                      cp.fullName(), col.fullName(), param0, param1));
+                        allEqual = false;
+                        break;
                     }
                 } // FOR (col)
+                
+                // If all the parameters are equal, than means they are likely to be
+                // accessing the same row in the table. That's a conflict!
+                if (allEqual) {
+                    if (debug.get())
+                        LOG.debug(String.format("%s - All known parameter values are equal", cp.fullName()));
+                    return (false);
+                }
+                
             } // FOR (stmt1)
         } // FOR (stmt0)
         return (true);
