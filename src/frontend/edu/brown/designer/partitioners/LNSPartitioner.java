@@ -1054,7 +1054,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         m[0].put("Remaining Time", (hints.limit_total_time != null ? (hints.limit_total_time - this.total_search_time.getTotalThinkTimeSeconds()) + " sec" : "-"));
         m[0].put("Cost Model", info.getCostModel().getClass().getSimpleName());
         m[0].put("# of Transactions", info.workload.getTransactionCount());
-        m[0].put("# of Partitions", CatalogUtil.getNumberOfPartitions(info.catalogContext.database));
+        m[0].put("# of Partitions", info.catalogContext.numberOfPartitions);
         m[0].put("# of Intervals", info.getArgs().num_intervals);
         m[0].put("# of Restarts", (this.restart_ctr != null ? this.restart_ctr : "-"));
         m[0].put("Database Total Size", StringUtil.formatSize(info.getMemoryEstimator().estimateTotalSize(info.catalogContext.database)));

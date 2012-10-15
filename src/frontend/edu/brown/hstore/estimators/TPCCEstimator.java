@@ -80,7 +80,7 @@ public class TPCCEstimator extends FixedEstimator {
         assert(partitions != null);
         assert(readonly != null);
         
-        ret.createNextEstimate(partitions, readonly, EMPTY_PARTITION_SET);
+        ret.createInitialEstimate(partitions, readonly, EMPTY_PARTITION_SET);
         return (ret);
         
     }

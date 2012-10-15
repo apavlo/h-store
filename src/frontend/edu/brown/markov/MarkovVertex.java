@@ -400,7 +400,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @return
      */
     public PartitionSet getPartitions() {
-        return partitions;
+        return this.partitions;
     }
     
     /**
@@ -408,7 +408,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @return
      */
     public PartitionSet getPastPartitions() {
-        return past_partitions;
+        return this.past_partitions;
     }
 
     public boolean equals(Object o) {

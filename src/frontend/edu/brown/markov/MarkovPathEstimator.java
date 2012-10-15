@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -586,11 +585,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     }
     
     @Override
-    protected void callback_stop() {
+    protected void callback_last(MarkovVertex last_v) {
+        if (d) LOG.debug("Callback Last! Last Element = " + last_v);
         List<MarkovVertex> path = this.getVisitPath();
         this.estimate.copyMarkovPath(path);
-        MarkovVertex last_v = path.get(path.size()-1);
-        if (d) LOG.debug("Callback Stop! Last Element = " + last_v);
         MarkovGraph markov = (MarkovGraph)this.getGraph();
         MarkovVertex first_v = markov.getStartVertex();
         

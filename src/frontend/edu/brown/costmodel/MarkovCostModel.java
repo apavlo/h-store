@@ -287,6 +287,8 @@ public class MarkovCostModel extends AbstractCostModel {
         this.e_read_partitions.clear();
         this.e_write_partitions.clear();
         MarkovEstimate initialEst = s.getInitialEstimate();
+        assert(initialEst != null);
+        assert(initialEst.isInitialized());
         for (Integer partition : initialEst.getTouchedPartitions(this.thresholds)) {
             if (initialEst.isFinishPartition(this.thresholds, partition.intValue()) == false) {
                 for (MarkovVertex v : initialEst.getMarkovPath()) {
@@ -301,14 +303,14 @@ public class MarkovCostModel extends AbstractCostModel {
             }
         } // FOR
 
-        List<MarkovVertex> actual = s.getActualPath();
+        List<MarkovVertex> actualPath = s.getActualPath();
         this.a_read_partitions.clear();
         this.a_write_partitions.clear();
-        MarkovUtil.getReadWritePartitions(actual, this.a_read_partitions, this.a_write_partitions);
+        MarkovUtil.getReadWritePartitions(actualPath, this.a_read_partitions, this.a_write_partitions);
 
         // Try fast version
         try {
-            if (this.force_full_comparison || !this.comparePathsFast(CollectionUtil.last(initialEst.getMarkovPath()), actual)) {
+            if (this.force_full_comparison || !this.comparePathsFast(CollectionUtil.last(initialEst.getMarkovPath()), actualPath)) {
                 // Otherwise we have to do the full path comparison to figure
                 // out just how wrong we are
                 cost = this.comparePathsFull(s);

@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.hstore.estimators.QueryEstimate;
 import edu.brown.logging.LoggerUtil;
@@ -34,6 +35,9 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     private final List<MarkovVertex> path = new ArrayList<MarkovVertex>();
 
     // Partition-specific
+    /**
+     * The number of Statements executed at each partition
+     */
     private final int touched[];
     
     // Probabilities
@@ -94,7 +98,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public final boolean isInitialized() {
-        return (this.vertex != null);
+        return (this.vertex != null); //  && this.path.isEmpty() == false);
     }
     
     @Override
@@ -152,22 +156,39 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public boolean hasQueryEstimate() {
-        return (this.path != null);
+        return (this.path.isEmpty() == false);
     }
     
     @Override
     public QueryEstimate getEstimatedQueries(int partition) {
-        // TODO Auto-generated method stub
-        return null;
+        int num_stmts = this.touched[partition];
+        Statement stmts[] = new Statement[num_stmts];
+        int stmtCtrs[] = new int[num_stmts];
+        
+        int i = 0;
+        for (MarkovVertex v : this.path) {
+            PartitionSet partitions = v.getPartitions();
+            if (partitions.contains(partitions)) {
+                stmts[i] = v.getCatalogItem();
+                stmtCtrs[i] = v.getQueryCounter();
+                i += 1;
+            }
+        } // FOR
+        assert(num_stmts == i) :
+            String.format("Expected %d Statements for partition #%d but only found %d",
+                          num_stmts, partition, i);
+        return new QueryEstimate(stmts, stmtCtrs);
     }
     
-    public void copyMarkovPath(Collection<MarkovVertex> path) {
+    protected void copyMarkovPath(Collection<MarkovVertex> path) {
+        assert(this.path.isEmpty());
+        assert(path.isEmpty() == false);
         this.path.addAll(path);
     }
     
     public List<MarkovVertex> getMarkovPath() {
-        assert(this.path.isEmpty() == false) :
-            "Trying to access MarkovPath before it was set";
+//        assert(this.path.isEmpty() == false) :
+//            "Trying to access MarkovPath before it was set";
         return (this.path);
     }
     
@@ -187,6 +208,11 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         return (this.batch);
     }
 
+    /**
+     * Increment an internal counter of the number of Statements
+     * that are going to be executed at each partition
+     * @param partition
+     */
     protected void incrementTouchedCounter(int partition) {
         this.touched[partition]++;
     }

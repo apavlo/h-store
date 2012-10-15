@@ -47,11 +47,11 @@ public abstract class FixedEstimator extends TransactionEstimator {
             this.init(txn_id, base_partition, EstTime.currentTimeMillis());
         }
         
-        protected FixedEstimation createNextEstimate(PartitionSet partitions,
-                                                     PartitionSet readonly,
-                                                     PartitionSet finished) {
+        protected FixedEstimation createInitialEstimate(PartitionSet partitions,
+                                                        PartitionSet readonly,
+                                                        PartitionSet finished) {
             FixedEstimation next = new FixedEstimation(partitions, readonly, finished);
-            this.addEstimate(next);
+            this.addInitialEstimate(next);
             return (next);
         }
 
