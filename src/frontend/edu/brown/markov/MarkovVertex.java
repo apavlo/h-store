@@ -264,6 +264,17 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         } // FOR
         this.resetAllProbabilities();
     }
+    
+
+    @Override
+    public boolean isInitialized() {
+        return (true);
+    }
+
+    @Override
+    public void finish() {
+        // Nothing to do
+    }
 
     @Override
     public boolean hasQueryEstimate() {

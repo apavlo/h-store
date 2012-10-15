@@ -71,6 +71,16 @@ public abstract class FixedEstimator extends TransactionEstimator {
             this.readonly = readonly;
             this.finished = finished;
         }
+
+        @Override
+        public boolean isInitialized() {
+            return (this.partitions != null);
+        }
+
+        @Override
+        public void finish() {
+            // Nothing to do...
+        }
         
         @Override
         public boolean isValid() {

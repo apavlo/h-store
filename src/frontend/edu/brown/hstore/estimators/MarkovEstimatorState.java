@@ -88,14 +88,6 @@ public final class MarkovEstimatorState extends EstimatorState {
 //                      this.txn_id, this.initial_estimator.hashCode()));
 //        }
      
-        // We maintain a local cache of Estimates, so there is no pool to return them to
-        // The MarkovPathEstimator is responsible for its own MarkovEstimate object, so we
-        // don't want to return that here.
-        for (int i = 0; i < this.num_estimates; i++) {
-            MarkovEstimate est = (MarkovEstimate)this.estimates.get(i);
-            if (est != null) est.finish();
-        } // FOR
-        this.num_estimates = 0;
         
         this.markov.incrementTransasctionCount();
         this.actual_path.clear();
@@ -109,16 +101,10 @@ public final class MarkovEstimatorState extends EstimatorState {
      * @return
      */
     protected MarkovEstimate createNextEstimate(MarkovVertex v) {
-        MarkovEstimate next = null;
-        // FIXME
-//        if (this.num_estimates < this.estimates.size()) {
-//            next = (MarkovEstimate)this.estimates.get(this.num_estimates);
-//        } else {
-            next = new MarkovEstimate(this.catalogContext);
-            this.estimates.add(next);
-//        }
-        next.init(v, this.num_estimates++);
-        return (next);
+        assert(v != null);
+        MarkovEstimate next = new MarkovEstimate(this.catalogContext);
+        next.init(v, this.getEstimateCount());
+        return this.addEstimate(next);
     }
 
     // ----------------------------------------------------------------------------

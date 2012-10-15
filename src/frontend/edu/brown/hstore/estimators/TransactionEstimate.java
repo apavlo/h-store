@@ -2,10 +2,17 @@ package edu.brown.hstore.estimators;
 
 
 import edu.brown.markov.EstimationThresholds;
+import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
 
-public interface TransactionEstimate {
+public interface TransactionEstimate extends Poolable {
 
+    /**
+     * Returns true if this TransactionEstimate is considered valid
+     * It is up to the implementing classes to descide what it means
+     * for it to be valid. 
+     * @return
+     */
     public boolean isValid();
     
     /**

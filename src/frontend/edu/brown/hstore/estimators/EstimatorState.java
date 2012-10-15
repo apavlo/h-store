@@ -1,7 +1,6 @@
 package edu.brown.hstore.estimators;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,6 +12,7 @@ import org.voltdb.utils.EstTime;
 
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.pools.Poolable;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
@@ -27,8 +27,8 @@ public abstract class EstimatorState implements Poolable {
     protected int base_partition;
     protected long start_time;
     
-    protected final List<TransactionEstimate> estimates = new ArrayList<TransactionEstimate>();
-    protected int num_estimates = 0;
+    private TransactionEstimate initialEstimate;
+    private final List<TransactionEstimate> estimates = new ArrayList<TransactionEstimate>();
     
     /**
      * Constructor
@@ -52,7 +52,12 @@ public abstract class EstimatorState implements Poolable {
     
     @Override
     public void finish() {
-        this.num_estimates = 0;
+        this.initialEstimate = null;
+        for (TransactionEstimate estimate : this.estimates) {
+            if (estimate != null) estimate.finish();
+        } // FOR
+        this.estimates.clear();
+        
         this.touched_partitions.clear();
         this.query_instance_cnts.clear();
         this.prefetchable_stmts.clear();
@@ -75,26 +80,39 @@ public abstract class EstimatorState implements Poolable {
         return (this.prefetchable_stmts);
     }
     
+    // ----------------------------------------------------------------------------
+    // TRANSACTION ESTIMATES
+    // ----------------------------------------------------------------------------
+    
+    protected void addInitialEstimate(TransactionEstimate estimate) {
+        assert(this.initialEstimate == null);
+        this.initialEstimate = estimate;
+    }
+
+    protected final <T extends TransactionEstimate> T addEstimate(T est) {
+        assert(this.initialEstimate != null);
+        assert(est.isInitialized());
+        this.estimates.add(est);
+        return (est);
+    }
+    
     /**
      * Get the number of TransactionEstimates generated for this transaction
-     * This count includes the initial estimate
+     * This count does <B>not</B> include the initial estimate
      * @return
      */
     public int getEstimateCount() {
-        return (this.num_estimates);
+        return (this.estimates.size());
     }
+    
     /**
      * Return the full list of estimates generated for this transaction
      * <B>NOTE:</B> This should only be used for testing 
      * @return
      */
     public List<TransactionEstimate> getEstimates() {
-        return (Collections.unmodifiableList(this.estimates.subList(0, this.num_estimates)));
+        return (this.estimates);
     }
-    
-    // ----------------------------------------------------------------------------
-    // API METHODS
-    // ----------------------------------------------------------------------------
     
     /**
      * Return the initial TransactionEstimate made for this transaction 
@@ -103,7 +121,7 @@ public abstract class EstimatorState implements Poolable {
      */
     @SuppressWarnings("unchecked")
     public final <T extends TransactionEstimate> T getInitialEstimate() {
-        return ((T)this.estimates.get(0));
+        return ((T)this.initialEstimate);
     }
 
     /**
@@ -114,17 +132,12 @@ public abstract class EstimatorState implements Poolable {
      */
     @SuppressWarnings("unchecked")
     public final <T extends TransactionEstimate> T getLastEstimate() {
-        return (T)this.estimates.get(this.num_estimates-1);
-    }
-
-    protected void addEstimate(TransactionEstimate est) {
-        this.num_estimates++;
-        this.estimates.add(est);
+        return ((T)CollectionUtil.last(this.estimates));
     }
     
-    public int getNumEstimates() {
-        return (this.num_estimates);
-    }
+    // ----------------------------------------------------------------------------
+    // API METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Get the number of milli-seconds that have passed since the txn started

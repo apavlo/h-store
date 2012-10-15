@@ -27,7 +27,6 @@
  ***************************************************************************/
 package edu.brown.utils;
 
-import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -407,8 +406,8 @@ public abstract class CollectionUtil {
         if (items == null) {
             return (null);
         }
-        else if (items instanceof AbstractList<?>) {
-            return ((AbstractList<T>) items).get(idx);
+        else if (items instanceof List<?>) {
+            return ((List<T>) items).get(idx);
         }
         else if (items instanceof ListOrderedSet<?>) {
             return ((ListOrderedSet<T>) items).get(idx);
@@ -429,8 +428,8 @@ public abstract class CollectionUtil {
      */
     public static <T> T last(Iterable<T> items) {
         T last = null;
-        if (items instanceof AbstractList<?>) {
-            AbstractList<T> list = (AbstractList<T>) items;
+        if (items instanceof List<?>) {
+            List<T> list = (List<T>) items;
             last = (list.isEmpty() ? null : list.get(list.size() - 1));
         } else {
             for (T t : items) {

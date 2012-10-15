@@ -365,6 +365,8 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovEstimate estimate = state.createNextEstimate(state.current);
         assert(estimate != null);
         if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate));
+        assert(estimate.isInitialized()) :
+            String.format("Unexpected uninitialized MarkovEstimate for txn #%d\n%s", state.txn_id, estimate);
         assert(estimate.isValid()) :
             String.format("Invalid MarkovEstimate for txn #%d\n%s", state.txn_id, estimate);
         

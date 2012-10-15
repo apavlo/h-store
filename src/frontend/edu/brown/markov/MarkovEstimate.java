@@ -6,8 +6,6 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Statement;
-import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.estimators.QueryEstimate;
 import edu.brown.logging.LoggerUtil;
@@ -93,7 +91,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     @Override
-    public boolean isInitialized() {
+    public final boolean isInitialized() {
         return (this.vertex != null);
     }
     

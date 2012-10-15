@@ -517,6 +517,7 @@ public class MarkovCostModel extends AbstractCostModel {
         first_penalty = true;
         for (TransactionEstimate e : estimates) {
             MarkovEstimate est = (MarkovEstimate)e;
+            assert(est.isInitialized()) : "Uninitialized MarkovEstimate from " + s;
             MarkovVertex v = est.getVertex();
             assert (v != null) : "No vertex?\n" + est;
             boolean isAbortable = est.isAbortable(this.thresholds);
