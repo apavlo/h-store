@@ -143,6 +143,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         estimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
         assert(estimator.isInitialized());
         estimator.enableForceTraversal(true);
+        estimator.traverse(this.graph.getStartVertex());
         
         List<MarkovVertex> visitPath = estimator.getVisitPath();
         System.err.println(StringUtil.columns(StringUtil.join("\n", visitPath), this.estimate.toString()));
