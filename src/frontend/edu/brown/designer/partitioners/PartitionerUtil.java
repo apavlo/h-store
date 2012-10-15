@@ -161,8 +161,8 @@ public abstract class PartitionerUtil {
     public static ListOrderedSet<String> generateProcParameterOrder(final DesignerInfo info, final Database catalog_db, final Procedure catalog_proc, final DesignerHints hints) throws Exception {
         // HACK: Reload the correlations file so that we can get the proper
         // catalog objects
-        ParameterMappingsSet correlations = info.getMappings();
-        assert (correlations != null);
+        ParameterMappingsSet mappings = info.getMappings();
+        assert (mappings != null);
         // ParameterCorrelations correlations = new ParameterCorrelations();
         // assert(info.getCorrelationsFile() != null) :
         // "The correlations file path was not set";
@@ -198,15 +198,21 @@ public abstract class PartitionerUtil {
                         for (ProcParameter inner : mpp) {
                             // Divide the values by the number of attributes in
                             // mpp so that we take the average
-                            for (ParameterMapping c : correlations.get(inner, catalog_col)) {
-                                param_correlations.get(catalog_proc_param).add(c.getCoefficient() / (double) mpp.size());
-                            } // FOR (Correlation)
+                            Collection<ParameterMapping> pms = mappings.get(inner, catalog_col);
+                            if (pms != null) {
+                                for (ParameterMapping c : pms) {
+                                    param_correlations.get(catalog_proc_param).add(c.getCoefficient() / (double) mpp.size());
+                                } // FOR (ParameterMapping)
+                            }
                         } // FOR
                     }
                 } else {
-                    for (ParameterMapping c : correlations.get(catalog_proc_param, catalog_col)) {
-                        param_correlations.get(catalog_proc_param).add(c.getCoefficient());
-                    } // FOR (Correlation)
+                    Collection<ParameterMapping> pms = mappings.get(catalog_proc_param, catalog_col);
+                    if (pms != null) {
+                        for (ParameterMapping c : pms) {
+                            param_correlations.get(catalog_proc_param).add(c.getCoefficient());
+                        } // FOR (Correlation)
+                    }
                 }
             } // FOR (ProcParameter)
         } // FOR (Table)
