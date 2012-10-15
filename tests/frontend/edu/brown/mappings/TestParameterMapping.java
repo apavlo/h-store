@@ -4,7 +4,6 @@ import org.json.*;
 import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -53,10 +52,14 @@ public class TestParameterMapping extends BaseTestCase {
         assertNotNull(c.getProcParameter());
         assertNotNull(c.getProcParameterIndex());
         assertNotNull(c.getCoefficient());
-        
         assertTrue(c.getStatementIndex() >= 0);
-        assertTrue(c.getProcParameterIndex() >= 0);
         assertTrue(c.getCoefficient() >= 0);
+        
+        if (c.getProcParameter().getIsarray()) {
+            assertTrue(c.getProcParameterIndex() >= 0);
+        } else {
+            assertEquals(ParametersUtil.NULL_PROC_PARAMETER_OFFSET, c.getProcParameterIndex());
+        }
     }
     
     /**
