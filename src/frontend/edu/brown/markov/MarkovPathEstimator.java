@@ -588,7 +588,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     @Override
     protected void callback_stop() {
         List<MarkovVertex> path = this.getVisitPath();
-        this.estimate.setMarkovPath(path);
+        this.estimate.copyMarkovPath(path);
         MarkovVertex last_v = path.get(path.size()-1);
         if (d) LOG.debug("Callback Stop! Last Element = " + last_v);
         MarkovGraph markov = (MarkovGraph)this.getGraph();

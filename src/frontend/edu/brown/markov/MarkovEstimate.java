@@ -1,5 +1,7 @@
 package edu.brown.markov;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     private float confidence;
     private float singlepartition;
     private float abort;
+    private final List<MarkovVertex> path = new ArrayList<MarkovVertex>();
 
     // Partition-specific
     private final int touched[];
@@ -45,7 +48,6 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     private PartitionSet write_partitions;
 
     private transient MarkovVertex vertex;
-    private transient List<MarkovVertex> path;
     private transient int batch;
     private transient Long time;
     private transient boolean initializing = true;
@@ -110,6 +112,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         this.confidence = MarkovUtil.NULL_MARKER;
         this.singlepartition = MarkovUtil.NULL_MARKER;
         this.abort = MarkovUtil.NULL_MARKER;
+        this.path.clear();
         
         if (this.finished_partitions != null) this.finished_partitions.clear();
         if (this.touched_partitions != null) this.touched_partitions.clear();
@@ -158,11 +161,13 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         return null;
     }
     
-    protected void setMarkovPath(List<MarkovVertex> path) {
-        this.path = path;
+    public void copyMarkovPath(Collection<MarkovVertex> path) {
+        this.path.addAll(path);
     }
     
     public List<MarkovVertex> getMarkovPath() {
+        assert(this.path.isEmpty() == false) :
+            "Trying to access MarkovPath before it was set";
         return (this.path);
     }
     
