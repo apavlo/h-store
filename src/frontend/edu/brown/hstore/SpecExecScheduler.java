@@ -105,7 +105,7 @@ public class SpecExecScheduler {
                         LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, ts));
                     continue;
                 }
-                if (this.checker.canExecute(dtxn, ts, this.partitionId) == false) {
+                if (this.checker.canExecute(dtxn, ts, this.partitionId)) {
                     next = txn_msg;
                     break;
                 }
