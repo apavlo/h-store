@@ -196,7 +196,7 @@ public class MarkovEstimator extends TransactionEstimator {
         
         MarkovVertex start = markov.getStartVertex();
         assert(start != null) : "The start vertex is null. This should never happen!";
-        MarkovEstimate initialEst = state.createNextEstimate(start);
+        MarkovEstimate initialEst = state.createNextEstimate(start, true);
         MarkovPathEstimator pathEstimator = null;
         
         // We'll reuse the last MarkovPathEstimator (and it's path) if the graph has been accurate for
@@ -362,7 +362,7 @@ public class MarkovEstimator extends TransactionEstimator {
             }
         }
         
-        MarkovEstimate estimate = state.createNextEstimate(state.current);
+        MarkovEstimate estimate = state.createNextEstimate(state.current, false);
         assert(estimate != null);
         if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate));
         assert(estimate.isInitialized()) :
@@ -536,7 +536,7 @@ public class MarkovEstimator extends TransactionEstimator {
             this.commit(s);
         }
         
-        assert(s.getEstimateCount()-1 == txn_trace.getBatchCount()) :
+        assert(s.getEstimateCount() == txn_trace.getBatchCount()) :
             String.format("EstimateCount[%d] != BatchCount[%d]",
                           s.getEstimateCount(), txn_trace.getBatchCount());
         assert(s.actual_path.size() == (txn_trace.getQueryCount() + 2)) :

@@ -100,11 +100,16 @@ public final class MarkovEstimatorState extends EstimatorState {
      * Get the next Estimate object for this State
      * @return
      */
-    protected MarkovEstimate createNextEstimate(MarkovVertex v) {
+    protected MarkovEstimate createNextEstimate(MarkovVertex v, boolean initial) {
         assert(v != null);
         MarkovEstimate next = new MarkovEstimate(this.catalogContext);
         next.init(v, this.getEstimateCount());
-        return this.addEstimate(next);
+        if (initial) {
+            this.addInitialEstimate(next);
+        } else {
+            this.addEstimate(next);
+        }
+        return (next);
     }
 
     // ----------------------------------------------------------------------------

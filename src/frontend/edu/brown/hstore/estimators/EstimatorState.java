@@ -90,7 +90,8 @@ public abstract class EstimatorState implements Poolable {
     }
 
     protected final <T extends TransactionEstimate> T addEstimate(T est) {
-        assert(this.initialEstimate != null);
+        assert(this.initialEstimate != null) : 
+            "Trying to add a new estimate before the initial estimate";
         assert(est.isInitialized());
         this.estimates.add(est);
         return (est);
@@ -132,6 +133,9 @@ public abstract class EstimatorState implements Poolable {
      */
     @SuppressWarnings("unchecked")
     public final <T extends TransactionEstimate> T getLastEstimate() {
+        if (this.estimates.isEmpty()) {
+            return (T)this.initialEstimate;
+        }
         return ((T)CollectionUtil.last(this.estimates));
     }
     

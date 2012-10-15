@@ -198,7 +198,7 @@ public class TestMarkovEstimator extends BaseTestCase {
         assertNotNull(s);
         
         // We should have an MarkovEstimate for each batch
-        assertEquals(txn_trace.getBatchCount(), s.getEstimateCount()-1);
+        assertEquals(txn_trace.getBatchCount(), s.getEstimateCount());
         List<TransactionEstimate> estimates = s.getEstimates();
         for (int i = 0, cnt = txn_trace.getBatchCount(); i < cnt; i++) {
             List<QueryTrace> queries = txn_trace.getBatchQueries(i);
