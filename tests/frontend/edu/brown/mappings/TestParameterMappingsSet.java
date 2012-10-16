@@ -61,10 +61,10 @@ public class TestParameterMappingsSet extends BaseTestCase {
         
         Collection<ParameterMapping> mappings = this.pc.get(catalog_proc_param, col);
         assertNotNull(mappings);
-        assertEquals(1, mappings.size());
-        ParameterMapping pm = CollectionUtil.first(mappings);
-        assertNotNull(pm);
-        assertEquals(col, pm.getColumn());
+        for (ParameterMapping pm : mappings) {
+            assertNotNull(pm);
+            assertEquals(col, pm.getColumn());    
+        } // FOR
     }
     
     /**
