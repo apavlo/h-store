@@ -36,8 +36,8 @@ public abstract class SEATSConstants {
     // ----------------------------------------------------------------
     
     public static final int FREQUENCY_DELETE_RESERVATION        = 5;
-    public static final int FREQUENCY_FIND_FLIGHTS              = 10;
-    public static final int FREQUENCY_FIND_OPEN_SEATS           = 50;
+    public static final int FREQUENCY_FIND_FLIGHTS              = 15;
+    public static final int FREQUENCY_FIND_OPEN_SEATS           = 45;
     public static final int FREQUENCY_NEW_RESERVATION           = 25;
     public static final int FREQUENCY_UPDATE_CUSTOMER           = 5;
     public static final int FREQUENCY_UPDATE_RESERVATION        = 5;
@@ -70,8 +70,8 @@ public abstract class SEATSConstants {
      * NUM_FLIGHTS_PER_DAY = 15000
      * Source: http://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236&DB_Short_Name=On-Time
      */
-    public static final int FLIGHTS_PER_DAY_MIN = 1125;
-    public static final int FLIGHTS_PER_DAY_MAX = 1875;
+    public static final int FLIGHTS_PER_DAY_MIN = 11250;
+    public static final int FLIGHTS_PER_DAY_MAX = 18750;
     
     /**
      * Number of seats available per flight
@@ -182,7 +182,7 @@ public abstract class SEATSConstants {
     /**
      * Probability that FindFlights will use two random airports as its input
      */
-    public static final int PROB_FIND_FLIGHTS_RANDOM_AIRPORTS = 10;
+    public static final int PROB_FIND_FLIGHTS_RANDOM_AIRPORTS = 30;
     
     // ----------------------------------------------------------------
     // TIME CONSTANTS
