@@ -997,9 +997,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // the SpecExecScheduler is only examining the work queue when utilityWork() is called
             // But it will never be called at this point because if we add this txn back to the queue
             // it will get picked up right away.
-            
-            this.currentTxn = ts;
-            this.executeTransaction(ts);
+            if (this.currentDtxn != null) {
+                this.blockTransaction(ts);
+            }
+            else {
+                this.currentTxn = ts;
+                this.executeTransaction(ts);
+            }
         }
         // -------------------------------    
         // DISTRIBUTED TRANSACTION
@@ -1077,7 +1081,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 else if (this.currentDtxn != this.currentTxn) {
                     if (d) LOG.warn(String.format("%s - Blocking on partition %d until current Dtxn %s finishes",
                                                   this.currentTxn, this.partitionId, this.currentDtxn));
-                    this.currentBlockedTxns.add(work);
+                    this.blockTransaction(work);
                     return;
                 }
                 assert(this.currentDtxn == this.currentTxn) :
@@ -1627,6 +1631,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             ts.addResult(result.getPartitionId(), depId, vt);
         } // FOR (dependencies)
         if (needs_profiling) ts.profiler.stopDeserialization();
+    }
+    
+    private void blockTransaction(InternalTxnMessage work) {
+        this.currentBlockedTxns.add(work);
     }
     
     private void blockTransaction(LocalTransaction ts) {

@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Test;
 
+import org.voltdb.regressionsuites.TestTM1Suite;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.catalog.Catalog;
@@ -35,10 +36,6 @@ public class TestSpecExecSuite extends RegressionSuite {
     private static final String PREFIX = "specexec";
     private static final double SCALEFACTOR = 0.0001;
     
-    private static final String args[] = {
-        "NOCONNECTIONS=true",
-    };
-
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
      * @param name The name of the method to test. This is just passed to the superclass.
@@ -47,26 +44,12 @@ public class TestSpecExecSuite extends RegressionSuite {
         super(name);
     }
     
-    private void initializeDatabase(final Client client) throws Exception {
-        TM1Loader loader = new TM1Loader(args) {
-            {
-                this.setCatalog(TestSpecExecSuite.this.getCatalog());
-                this.setClientHandle(client);
-            }
-            @Override
-            public Catalog getCatalog() {
-                return TestSpecExecSuite.this.getCatalog();
-            }
-        };
-        loader.load();
-    }
-    
 //    /**
 //     * testConflictingTxns
 //     */
 //    public void testConflictingTxns() throws Exception {
 //        Client client = this.getClient();
-//        this.initializeDatabase(client);
+//        TestTM1Suite.initializeTM1Database(this.getCatalog(), client);
 //        
 //        // Submit a distributed txn and make sure that our conflicting
 //        // txn is not speculatively executed
@@ -134,7 +117,7 @@ public class TestSpecExecSuite extends RegressionSuite {
      */
     public void testRemoteIdle() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        TestTM1Suite.initializeTM1Database(this.getCatalog(), client);
         
         final int sleepTime = 10000; // ms
         final ClientResponse dtxnResponse[] = new ClientResponse[1];

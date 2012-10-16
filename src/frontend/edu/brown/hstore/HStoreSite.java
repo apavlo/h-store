@@ -1579,12 +1579,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         PartitionExecutor executor = this.executors[base_partition];
         boolean success = true;
         
-        // If we are using the Markov models, then we have to initialize the transaction
-        // right here.
+        // We will initialize the transaction right here if the configuration parameter
+        // is set to true. 
         // TODO: We need to measure whether it is faster to do it this way (with and without
         // the models) or whether it is faster to queue things up in the PartitionExecutor
         // and let it be responsible for sorting things out
-        if (hstore_conf.site.markov_enable) {
+        if (hstore_conf.site.txn_network_thread_initialization) {
             LocalTransaction ts = this.txnInitializer.createLocalTransaction(
                                             buffer,
                                             timestamp,

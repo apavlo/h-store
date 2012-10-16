@@ -552,6 +552,17 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
+            description="If set to true, then incoming transaction requests will be processed " +
+                        "using the TransactionInitializer using the same thread that processed " +
+                        "network messages from the client. Otherwise, the transactions will be " +
+                        "processed using the PartitionExecutor's thread. " +
+                        "It is not clear which approach is better.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean txn_network_thread_initialization;
+        
+        @ConfigProperty(
             description="Enable transaction profiling. This will measure the amount of time a " +
             		    "transaction spends in different parts of the system (e.g., waiting in " +
             		    "the work queue, planning, executing).",

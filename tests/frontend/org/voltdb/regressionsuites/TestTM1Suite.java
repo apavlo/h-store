@@ -27,10 +27,6 @@ public class TestTM1Suite extends RegressionSuite {
     private static final double SCALEFACTOR = 0.0001;
     private static final long NUM_SUBSCRIBERS = (long)(SCALEFACTOR * TM1Constants.SUBSCRIBER_SIZE);
     
-    private static final String args[] = {
-        "NOCONNECTIONS=true",
-    };
-
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
      * @param name The name of the method to test. This is just passed to the superclass.
@@ -39,15 +35,16 @@ public class TestTM1Suite extends RegressionSuite {
         super(name);
     }
     
-    private void initializeDatabase(final Client client) throws Exception {
+    public static final void initializeTM1Database(final Catalog catalog, final Client client) throws Exception {
+        String args[] = { "NOCONNECTIONS=true", };
         TM1Loader loader = new TM1Loader(args) {
             {
-                this.setCatalog(TestTM1Suite.this.getCatalog());
+                this.setCatalog(catalog);
                 this.setClientHandle(client);
             }
             @Override
             public Catalog getCatalog() {
-                return TestTM1Suite.this.getCatalog();
+                return (catalog);
             }
         };
         loader.load();
@@ -58,7 +55,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testInitialize() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        initializeTM1Database(this.getCatalog(), client);
         
         String procName = VoltSystemProcedure.procCallName(AdHoc.class);
         for (String tableName : TM1Constants.TABLENAMES) {
@@ -82,7 +79,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testDeleteCallForwarding() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         
@@ -105,7 +102,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testGetAccessData() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.GET_ACCESS_DATA;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = client.callProcedure(txn.callName, params);
@@ -118,7 +115,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testGetNewDestination() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = null;
@@ -138,7 +135,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testGetSubscriberData() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.GET_SUBSCRIBER_DATA;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = client.callProcedure(txn.callName, params);
@@ -150,7 +147,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testInsertCallForwarding() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.INSERT_CALL_FORWARDING;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = null;
@@ -169,7 +166,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testUpdateLocation() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = client.callProcedure(txn.callName, params);
@@ -182,7 +179,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testUpdateSubscriberData() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.UPDATE_SUBSCRIBER_DATA;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = null;

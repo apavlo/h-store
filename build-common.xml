@@ -118,6 +118,7 @@
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
 <arg value="site.network_profiling=${site.network_profiling}" />
+<arg value="site.txn_network_thread_initialization=${site.txn_network_thread_initialization}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_counters=${site.txn_counters}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
