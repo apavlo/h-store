@@ -136,7 +136,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
         loadSomeData(client, 25, 25);
 
         // add a procedure "InsertOrderLineBatched"
-        newCatalogURL = Configuration.getPathToCatalogForTest("catalogupdate-cluster-expanded.jar");
+        newCatalogURL = VoltServerConfig.getPathToCatalogForTest("catalogupdate-cluster-expanded.jar");
         callback = new CatTestCallback(Status.OK);
         client.callProcedure(callback, "@UpdateApplicationCatalog", newCatalogURL);
 
@@ -167,7 +167,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
         loadSomeData(client, 50, 5);
 
         // this is a do nothing change... shouldn't affect anything
-        newCatalogURL = Configuration.getPathToCatalogForTest("catalogupdate-cluster-expanded.jar");
+        newCatalogURL = VoltServerConfig.getPathToCatalogForTest("catalogupdate-cluster-expanded.jar");
         results = client.callProcedure("@UpdateApplicationCatalog", newCatalogURL).getResults();
         assertTrue(results.length == 1);
 
@@ -183,7 +183,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
         loadSomeData(client, 55, 5);
 
         // remove the procedure we just added async
-        newCatalogURL = Configuration.getPathToCatalogForTest("catalogupdate-cluster-base.jar");
+        newCatalogURL = VoltServerConfig.getPathToCatalogForTest("catalogupdate-cluster-base.jar");
         callback = new CatTestCallback(Status.OK);
         client.callProcedure(callback, "@UpdateApplicationCatalog", newCatalogURL);
 
@@ -214,7 +214,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
         loadSomeData(client, 60, 5);
 
         // change the insert new order procedure
-        newCatalogURL = Configuration.getPathToCatalogForTest("catalogupdate-cluster-conflict.jar");
+        newCatalogURL = VoltServerConfig.getPathToCatalogForTest("catalogupdate-cluster-conflict.jar");
         results = client.callProcedure("@UpdateApplicationCatalog", newCatalogURL).getResults();
         assertTrue(results.length == 1);
 
@@ -224,7 +224,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
         assertEquals(1776, results[0].asScalarLong());
 
         // load a big catalog change just to make sure nothing fails horribly
-        newCatalogURL = Configuration.getPathToCatalogForTest("catalogupdate-cluster-many.jar");
+        newCatalogURL = VoltServerConfig.getPathToCatalogForTest("catalogupdate-cluster-many.jar");
         results = client.callProcedure("@UpdateApplicationCatalog", newCatalogURL).getResults();
         assertTrue(results.length == 1);
 
@@ -251,7 +251,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
     public void testStuffThatShouldObviouslyFail(Client client) throws UnsupportedEncodingException {
         // this fails because it tries to change schema
         String newCatalogURL;
-        newCatalogURL = Configuration.getPathToCatalogForTest("catalogupdate-cluster-addtables.jar");
+        newCatalogURL = VoltServerConfig.getPathToCatalogForTest("catalogupdate-cluster-addtables.jar");
         try {
             client.callProcedure("@UpdateApplicationCatalog", newCatalogURL);
             fail();

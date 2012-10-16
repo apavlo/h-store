@@ -35,7 +35,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.ServerThread;
-import org.voltdb.VoltDB;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Site;
 import org.voltdb.compiler.VoltProjectBuilder;
@@ -186,7 +185,7 @@ public class LocalCluster extends VoltServerConfig {
         tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
         System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));*/
         
-        m_jarFileName = new File(VoltDB.Configuration.getPathToCatalogForTest(jarFileName));
+        m_jarFileName = new File(VoltServerConfig.getPathToCatalogForTest(jarFileName));
         m_partitionPerSite = siteCount;
         m_target = target;
         m_siteCount = partitionsPerSite;
