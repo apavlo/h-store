@@ -117,7 +117,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.appStatusString = appStatusString;
         this.restartCounter = ts.getRestartCounter();
         this.speculative = ts.isSpeculative();
-        this.singlepartition = (ts.isPredictSinglePartition() == false);
+        this.singlepartition = ts.isPredictSinglePartition();
         this.setResults(status, results, statusString, e);
     }
     
@@ -253,7 +253,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     }
     
     @Override
-    public boolean getSpeculative() {
+    public boolean isSpeculative() {
         return (this.speculative);
     }
     

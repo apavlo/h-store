@@ -66,13 +66,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
         // Send the final result from all the partitions for this MR job
         // back to the client.
         ClientResponseImpl cresponse = new ClientResponseImpl(); 
-        cresponse.init(ts.getTransactionId().longValue(),
-                       ts.getClientHandle(), 
-                       ts.getBasePartition(), 
-                       Status.OK, 
-                       this.finalResults, 
-                       "",
-                       ts.getPendingError()); 
+        cresponse.init(ts, Status.OK, this.finalResults, "");
         hstore_site.responseSend(ts, cresponse);
 
         if (hstore_site.getHStoreConf().site.mr_map_blocking) {

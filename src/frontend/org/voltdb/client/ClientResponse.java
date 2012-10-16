@@ -123,6 +123,6 @@ public interface ClientResponse extends Poolable {
      * Returns true if this transaction was executed speculatively by the system.
      * @return
      */
-    public boolean getSpeculative();
+    public boolean isSpeculative();
     
 }

@@ -40,7 +40,7 @@ public class TestClientResponseImpl extends TestCase {
             FastDeserializer fds = new FastDeserializer(invocation_bytes);
             ClientResponseImpl clone = fds.readObject(ClientResponseImpl.class);
             assertNotNull(clone);
-            assertEquals(expected, clone.getSpeculative());
+            assertEquals(expected, clone.isSpeculative());
         } // FOR
     }
     

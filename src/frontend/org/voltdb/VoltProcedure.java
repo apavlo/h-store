@@ -743,9 +743,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 //        }
         
         response = new ClientResponseImpl();
-        response.init(this.m_currentTxnState.getTransactionId().longValue(),
-                      this.m_currentTxnState.getClientHandle(),
-                      this.partitionId,
+        response.init(this.m_localTxnState,
                       this.status,
                       this.m_statusCode,
                       this.m_statusString,
@@ -753,9 +751,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                       this.status_msg,
                       this.error
         );
-        if (this.m_localTxnState.isPredictSinglePartition() == false) {
-            response.setSinglePartition(false);
-        }
                       
         if (this.observable != null) this.observable.notifyObservers(response);
         if (t) LOG.trace(response);
@@ -1458,89 +1453,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         m_statusString = statusString;
     }
 
-    /**
-     *
-     * @param e
-     * @return A ClientResponse containing error information
-     */
-    @SuppressWarnings("unused")
-    private ClientResponseImpl getErrorResponse(Throwable e) {
-        StackTraceElement[] stack = e.getStackTrace();
-        ArrayList<StackTraceElement> matches = new ArrayList<StackTraceElement>();
-        for (StackTraceElement ste : stack) {
-            if (ste.getClassName().equals(getClass().getName()))
-                matches.add(ste);
-        }
-
-        Status status = Status.ABORT_UNEXPECTED;
-        StringBuilder msg = new StringBuilder();
-
-        if (e.getClass() == VoltAbortException.class) {
-            status = Status.ABORT_USER;
-            msg.append("USER ABORT\n");
-        }
-        else if (e.getClass() == org.voltdb.exceptions.ConstraintFailureException.class) {
-            status = Status.ABORT_GRACEFUL;
-            msg.append("CONSTRAINT VIOLATION\n");
-        }
-        else if (e.getClass() == org.voltdb.exceptions.SQLException.class) {
-            status = Status.ABORT_GRACEFUL;
-            msg.append("SQL ERROR\n");
-        }
-        else if (e.getClass() == org.voltdb.ExpectedProcedureException.class) {
-            msg.append("HSQL-BACKEND ERROR\n");
-            if (e.getCause() != null)
-                e = e.getCause();
-        }
-        else {
-            msg.append("UNEXPECTED FAILURE:\n");
-        }
-
-        String exMsg = e.getMessage();
-        if (exMsg == null)
-            if (e.getClass() == NullPointerException.class) {
-                exMsg = "Null Pointer Exception";
-            }
-            else {
-                exMsg = "Possible Null Pointer Exception (";
-                exMsg += e.getClass().getSimpleName() + ")";
-                e.printStackTrace();
-            }
-
-        msg.append("  ").append(exMsg);
-
-        for (StackTraceElement ste : matches) {
-            msg.append("\n    at ");
-            msg.append(ste.getClassName()).append(".").append(ste.getMethodName());
-            msg.append("(").append(ste.getFileName()).append(":");
-            msg.append(ste.getLineNumber()).append(")");
-        }
-
-        return getErrorResponse(
-                status, msg.toString(),
-                e instanceof SerializableException ? (SerializableException)e : null);
-    }
-
-    private ClientResponseImpl getErrorResponse(Status status, String msg, SerializableException e) {
-
-        StringBuilder msgOut = new StringBuilder();
-        msgOut.append("\n===============================================================================\n");
-        msgOut.append("VOLTDB ERROR: ");
-        msgOut.append(msg);
-        msgOut.append("\n===============================================================================\n");
-
-        LOG.trace(msgOut);
-
-        return new ClientResponseImpl(
-                this.m_currentTxnState.getTransactionId(),
-                this.partitionId,
-                status,
-                m_statusCode,
-                m_statusString,
-                new VoltTable[0],
-                msgOut.toString(), e);
-    }
-    
     @SuppressWarnings("unused")
     private String mispredictDebug(SQLStmt batchStmts[],
                                    ParameterSet params[],

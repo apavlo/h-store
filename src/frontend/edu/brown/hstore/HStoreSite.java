@@ -1692,7 +1692,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             
             if (msg != null) {
-                this.responseError(client_handle, Status.ABORT_GRACEFUL, msg, clientCallback, EstTime.currentTimeMillis());
+                this.responseError(client_handle,
+                                   Status.ABORT_GRACEFUL,
+                                   msg,
+                                   clientCallback,
+                                   EstTime.currentTimeMillis());
                 return (true);
             }
             
@@ -2119,13 +2123,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         ts.setStatus(status);
         ClientResponseImpl cresponse = new ClientResponseImpl();
-        cresponse.init(ts.getTransactionId(),
-                       ts.getClientHandle(),
-                       ts.getBasePartition(),
-                       status,
-                       HStoreConstants.EMPTY_RESULT,
-                       msg,
-                       ts.getPendingError());
+        cresponse.init(ts, status, HStoreConstants.EMPTY_RESULT, msg);
         this.responseSend(ts, cresponse);
 
         if (hstore_conf.site.txn_counters) {
@@ -2166,8 +2164,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                    hstore_conf.site.txn_restart_limit);
         if (orig_ts.getRestartCounter() > restart_limit) {
             if (orig_ts.isSysProc()) {
-                throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
-                                                         orig_ts, orig_ts.getRestartCounter()));
+                String msg = String.format("%s has been restarted %d times! Rejecting...",
+                                           orig_ts, orig_ts.getRestartCounter());
+                throw new RuntimeException(msg);
             } else {
                 this.transactionReject(orig_ts, Status.ABORT_REJECT);
                 return (Status.ABORT_REJECT);
@@ -2194,8 +2193,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
                 redirect_partition = CollectionUtil.first(most_touched);
-            } else if (most_touched.isEmpty() == false) {
-                redirect_partition = CollectionUtil.random(most_touched);
+            }
+            // If the original base partition is in our most touched set, then
+            // we'll prefer to use that
+            else if (most_touched.isEmpty() == false) {
+                if (most_touched.contains(base_partition)) {
+                    redirect_partition = base_partition;
+                } else {
+                    redirect_partition = CollectionUtil.random(most_touched);
+                }
             } else {
                 redirect_partition = CollectionUtil.random(this.catalogContext.getAllPartitionIds());
             }
