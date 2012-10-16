@@ -49,7 +49,6 @@ public class FindFlights extends VoltProcedure {
     
     private static final VoltTable.ColumnInfo[] RESULT_COLS = {
         new VoltTable.ColumnInfo("F_ID", VoltType.BIGINT),
-        //new VoltTable.ColumnInfo("SEATS_LEFT", VoltType.BIGINT),
         new VoltTable.ColumnInfo("AL_NAME", VoltType.STRING),
         new VoltTable.ColumnInfo("DEPART_TIME", VoltType.TIMESTAMP),
         new VoltTable.ColumnInfo("DEPART_AP_CODE", VoltType.STRING),
@@ -134,8 +133,8 @@ public class FindFlights extends VoltProcedure {
                                                start_date, end_date));
             
             while (flightResults[0].advanceRow()) {
-                long f_depart_airport = flightResults[0].getLong(3);
-                long f_arrive_airport = flightResults[0].getLong(5);
+                long f_depart_airport = flightResults[0].getLong(2);
+                long f_arrive_airport = flightResults[0].getLong(4);
                 voltQueueSQL(GetAirportInfo, f_depart_airport);
                 voltQueueSQL(GetAirportInfo, f_arrive_airport);
             } // WHILE
@@ -149,13 +148,12 @@ public class FindFlights extends VoltProcedure {
                 Object row[] = new Object[RESULT_COLS.length];
                 int r = 0;
                 
-                row[r++] = flightResults[0].getLong("F_ID");             // [00] F_ID
-                //row[r++] = flightResults[0].getLong(2);             // [01] SEATS_LEFT
-                row[r++] = flightResults[0].getString("AL_NAME");           // [02] AL_NAME
+                row[r++] = flightResults[0].getLong(0);             // [00] F_ID
+                row[r++] = flightResults[0].getString(6);           // [01] AL_NAME
                 
                 adv = airportResults[++i].advanceRow();
                 assert(adv);
-                row[r++] = flightResults[0].getTimestampAsLong("F_DEPART_TIME");  // [03] DEPART_TIME
+                row[r++] = flightResults[0].getTimestampAsTimestamp(3); // [03] DEPART_TIME
                 row[r++] = airportResults[i].getString(0);          // [04] DEPART_AP_CODE
                 row[r++] = airportResults[i].getString(1);          // [05] DEPART_AP_NAME
                 row[r++] = airportResults[i].getString(2);          // [06] DEPART_AP_CITY
@@ -163,7 +161,7 @@ public class FindFlights extends VoltProcedure {
                 
                 adv = airportResults[++i].advanceRow();
                 assert(adv);
-                row[r++] = flightResults[0].getTimestampAsLong("F_ARRIVE_TIME");  // [08] ARRIVE_TIME
+                row[r++] = flightResults[0].getTimestampAsTimestamp(5); // [08] ARRIVE_TIME
                 row[r++] = airportResults[i].getString(0);          // [09] ARRIVE_AP_CODE
                 row[r++] = airportResults[i].getString(1);          // [10] ARRIVE_AP_NAME
                 row[r++] = airportResults[i].getString(2);          // [11] ARRIVE_AP_CITY

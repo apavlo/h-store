@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -16,6 +17,9 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.AggregatePlanNode;
+import org.voltdb.plannodes.SeqScanPlanNode;
 
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
@@ -24,12 +28,14 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.Workload;
 
 public class CatalogInfo {
+    private static final Logger LOG = Logger.getLogger(CatalogInfo.class);
 
     private static final String HOST_INNER = "\u251c";
     private static final String HOST_LAST = "\u2514";
@@ -147,6 +153,18 @@ public class CatalogInfo {
         
         System.out.println(getInfo(args.catalog, args.catalog_path));
         
+        // Check for Sequential Scans
+//        for (Procedure proc : args.catalogContext.database.getProcedures()) {
+//            for (Statement stmt : proc.getStatements()) {
+//                AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(stmt, true);
+//                Collection<SeqScanPlanNode> scans = PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class);
+//                Collection<AggregatePlanNode> aggs = PlanNodeUtil.getPlanNodes(root, AggregatePlanNode.class);
+//                if (scans.isEmpty() == false && aggs.isEmpty()) {
+//                    LOG.warn("Sequential Scan: " + stmt.fullName());
+//                }
+//            } // FOR (stmt)
+//        } // FOR (proc)
+//        
         // DUMP PREFETCHABLE QUERIES
 //        for (Procedure proc : args.catalogContext.database.getProcedures()) {
 //            boolean hasPrefetchable = false;

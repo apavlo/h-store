@@ -102,12 +102,12 @@ public class SEATSClient extends BenchmarkComponent {
      * Airline Benchmark Transactions
      */
     public static enum Transaction {
-        DELETE_RESERVATION          (DeleteReservation.class,   SEATSConstants.FREQUENCY_DELETE_RESERVATION),
-        FIND_FLIGHTS                (FindFlights.class,         SEATSConstants.FREQUENCY_FIND_FLIGHTS),
-        FIND_OPEN_SEATS             (FindOpenSeats.class,       SEATSConstants.FREQUENCY_FIND_OPEN_SEATS),
-        NEW_RESERVATION             (NewReservation.class,      SEATSConstants.FREQUENCY_NEW_RESERVATION),
-        UPDATE_CUSTOMER             (UpdateCustomer.class,      SEATSConstants.FREQUENCY_UPDATE_CUSTOMER),
-        UPDATE_RESERVATION          (UpdateReservation.class,   SEATSConstants.FREQUENCY_UPDATE_RESERVATION);
+        DELETE_RESERVATION  (DeleteReservation.class,   SEATSConstants.FREQUENCY_DELETE_RESERVATION),
+        FIND_FLIGHTS        (FindFlights.class,         SEATSConstants.FREQUENCY_FIND_FLIGHTS),
+        FIND_OPEN_SEATS     (FindOpenSeats.class,       SEATSConstants.FREQUENCY_FIND_OPEN_SEATS),
+        NEW_RESERVATION     (NewReservation.class,      SEATSConstants.FREQUENCY_NEW_RESERVATION),
+        UPDATE_CUSTOMER     (UpdateCustomer.class,      SEATSConstants.FREQUENCY_UPDATE_CUSTOMER),
+        UPDATE_RESERVATION  (UpdateReservation.class,   SEATSConstants.FREQUENCY_UPDATE_RESERVATION);
         
         private Transaction(Class<? extends VoltProcedure> proc_class, int weight) {
             this.proc_class = proc_class;
@@ -261,6 +261,7 @@ public class SEATSClient extends BenchmarkComponent {
     // -----------------------------------------------------------------
     
     private final SEATSProfile profile;
+    private final SEATSConfig config;
     private final RandomGenerator rng;
     private final AtomicBoolean first = new AtomicBoolean(true);
     private final RandomDistribution.FlatHistogram<Transaction> xacts;
@@ -317,6 +318,7 @@ public class SEATSClient extends BenchmarkComponent {
         super(args);
 
         this.rng = new RandomGenerator(0); // FIXME
+        this.config = SEATSConfig.createConfig(this.getCatalog(), m_extraParams);
         this.profile = new SEATSProfile(this.getCatalog(), this.rng);
     
         if (this.noClientConnections() == false) {
@@ -500,7 +502,15 @@ public class SEATSClient extends BenchmarkComponent {
             this.stopComputeTime(txn.displayName);
             return (false);
         }
-        int rand = rng.number(1, 100);
+        int rand;
+        if (config.force_all_distributed) {
+            rand = SEATSConstants.PROB_DELETE_WITH_CUSTOMER_ID_STR + 1;
+        }
+        else if (config.force_all_singlepartition) {
+            rand = 100;
+        } else {
+            rand = rng.number(1, 100);
+        }
         
         // Parameters
         long f_id = r.flight_id.encode();
@@ -905,6 +915,7 @@ public class SEATSClient extends BenchmarkComponent {
         long attr0 = this.rng.nextLong();
         long attr1 = this.rng.nextLong();
         long update_ff = (this.rng.number(1, 100) <= SEATSConstants.PROB_UPDATE_FREQUENT_FLYER ? 1 : 0);
+        if (config.force_all_distributed) update_ff = 1;
         
         // Update with the Customer's id as a string 
         if (rng.nextInt(100) < SEATSConstants.PROB_UPDATE_WITH_CUSTOMER_ID_STR) {
