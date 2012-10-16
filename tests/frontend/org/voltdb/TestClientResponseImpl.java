@@ -28,6 +28,23 @@ public class TestClientResponseImpl extends TestCase {
     }
     
     /**
+     * testSetSpeculative
+     */
+    public void testSetSpeculative() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            boolean expected = (i % 2 == 0);
+            cr.setSpeculative(expected);
+            byte[] invocation_bytes = FastSerializer.serialize(cr);
+            assertNotNull(invocation_bytes);
+            
+            FastDeserializer fds = new FastDeserializer(invocation_bytes);
+            ClientResponseImpl clone = fds.readObject(ClientResponseImpl.class);
+            assertNotNull(clone);
+            assertEquals(expected, clone.getSpeculative());
+        } // FOR
+    }
+    
+    /**
      * testSetRestartCounter
      */
     public void testSetRestartCounter() throws Exception {

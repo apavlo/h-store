@@ -29,6 +29,7 @@ import org.voltdb.messaging.FastSerializer;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -53,22 +54,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private boolean singlepartition = true;
     private int basePartition = -1;
     private int restartCounter = 0;
+    private boolean speculative = false;
 
     /** opaque data optionally provided by and returned to the client */
     private long clientHandle = -1;
     
     public ClientResponseImpl() {}
-
-    /**
-     * Used in the successful procedure invocation case.
-     * @param client_handle TODO
-     * @param status
-     * @param results
-     * @param extra
-     */
-    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString) {
-        this(txn_id, client_handle, basePartition, status, appStatus, appStatusString, results, statusString, null);
-    }
 
     /**
      * 
@@ -94,25 +85,11 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, e);
     }
 
-    /**
-     * Use this when generating an error response in VoltProcedure
-     * @param status
-     * @param results
-     * @param extra
-     * @param e
-     */
-    public ClientResponseImpl(long txn_id, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable results[], String extra, SerializableException e) {
-        this(txn_id, -1, basePartition, status, appStatus, appStatusString, results, extra, e);
-    }
-
     public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
         this.init(txn_id, client_handle, basePartition, status, appStatus, appStatusString, results, statusString, e);
     }
-    
-    public void init(Long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString, SerializableException e) {
-        this.init(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, e);
-    }
-    
+
+    @Deprecated
     public void init(Long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
         this.txn_id = txn_id.longValue();
         this.clientHandle = client_handle;
@@ -120,6 +97,28 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.appStatus = appStatus;
         this.appStatusString = appStatusString;
         setResults(status, results, statusString, e);
+    }
+    
+    public void init(LocalTransaction ts, Status status, VoltTable[] results, String statusString) {
+        this.init(ts, status, Byte.MIN_VALUE, null, results, statusString, ts.getPendingError());
+    }
+    
+    public void init(LocalTransaction ts,
+                     Status status,
+                     byte appStatus,
+                     String appStatusString,
+                     VoltTable[] results,
+                     String statusString,
+                     SerializableException e) {
+        this.txn_id = ts.getTransactionId().longValue();
+        this.clientHandle = ts.getClientHandle();
+        this.basePartition = ts.getBasePartition();
+        this.appStatus = appStatus;
+        this.appStatusString = appStatusString;
+        this.restartCounter = ts.getRestartCounter();
+        this.speculative = ts.isSpeculative();
+        this.singlepartition = (ts.isPredictSinglePartition() == false);
+        this.setResults(status, results, statusString, e);
     }
     
     @Override
@@ -253,6 +252,14 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         restartCounter = restarts;
     }
     
+    @Override
+    public boolean getSpeculative() {
+        return (this.speculative);
+    }
+    
+    public void setSpeculative(boolean val) {
+        this.speculative = val;
+    }
     
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
@@ -262,6 +269,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         clientHandle = in.readLong();       // 8 bytes
         singlepartition = in.readBoolean(); // 1 byte
         basePartition = in.readInt();       // 4 bytes
+        speculative = in.readBoolean();     // 1 byte
         status = Status.valueOf(in.readByte()); // 1 byte
         
         byte presentFields = in.readByte(); // 1 byte
@@ -295,6 +303,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
         out.writeInt(basePartition);
+        out.writeBoolean(speculative);
         out.write((byte)status.ordinal());
         
         byte presentFields = 0;
@@ -332,6 +341,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
                         (this.statusString == null || this.statusString.isEmpty() ? "" : " / " + this.statusString));
         m.put("Handle", this.clientHandle);
         m.put("Restart Counter", this.restartCounter);
+        m.put("Speculatively Executed", this.speculative);
         m.put("Single-Partition", this.singlepartition);
         m.put("Base Partition", this.basePartition);
         m.put("Exception", m_exception);
@@ -389,7 +399,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Status status) {
-        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 = 23 
+        b.put(24, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 + 1 = 24 
     }
     
     // ----------------------------------------------------------------------------

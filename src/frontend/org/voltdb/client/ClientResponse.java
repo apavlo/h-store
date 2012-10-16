@@ -118,4 +118,11 @@ public interface ClientResponse extends Poolable {
      * @return The number of times this transaction has been restarted.
      */
     public int getRestartCounter();
+    
+    /**
+     * Returns true if this transaction was executed speculatively by the system.
+     * @return
+     */
+    public boolean getSpeculative();
+    
 }
