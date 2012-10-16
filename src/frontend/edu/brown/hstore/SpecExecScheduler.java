@@ -29,6 +29,8 @@ public class SpecExecScheduler {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    private AbstractTransaction lastDtxn;
+    
     private final CatalogContext catalogContext;
     private final int partitionId;
     private final Queue<InternalMessage> work_queue;
@@ -61,21 +63,21 @@ public class SpecExecScheduler {
     public StartTxnMessage next(AbstractTransaction dtxn) {
         Procedure dtxnProc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
         if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
-            if (debug.get())
-                LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists [%s]",
-                          dtxn, dtxnProc));
+            if (debug.get()) //  && (this.lastDtxn == null || this.lastDtxn.equals(dtxn) == false))
+                LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists", dtxn));
+            this.lastDtxn = dtxn;
             return (null);
         }
         
         // If this is a LocalTransaction and all of the remote partitions that it needs are
         // on the same site, then we won't bother with trying to pick something out
         // because there is going to be very small wait times.
-        if (dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
-            if (debug.get())
-                LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
-                		  "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
-            return (null);
-        }
+//        if (dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
+//            if (debug.get())
+//                LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
+//                		  "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
+//            return (null);
+//        }
         
         // Now peek in the queue looking for single-partition txns that do not
         // conflict with the current dtxn

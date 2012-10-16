@@ -990,6 +990,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         if (ts.isPredictSinglePartition() && ts.isMapReduce() == false && ts.isSysProc() == false) {
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
+            
+            // TODO: If we are in the middle of a distributed txn at this partition, then we can't
+            // just go and fire off this txn. We actually need to use our SpecExecScheduler to
+            // decide whether it is safe to speculatively execute this txn. But the problem is that
+            // the SpecExecScheduler is only examining the work queue when utilityWork() is called
+            // But it will never be called at this point because if we add this txn back to the queue
+            // it will get picked up right away.
+            
             this.currentTxn = ts;
             this.executeTransaction(ts);
         }

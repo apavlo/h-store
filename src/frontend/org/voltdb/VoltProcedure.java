@@ -221,7 +221,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 
     /**
      * Get the Transaction state handle for the current invocation
-     * This should only be used for debugging
+     * <B>NOTE:</B> This should only be used for debugging/testing.
      * @return
      */
     protected final AbstractTransaction getTransactionState() {
