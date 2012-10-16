@@ -36,7 +36,7 @@ public final class MarkovEstimatorState extends EstimatorState {
     protected final List<MarkovVertex> actual_path = new ArrayList<MarkovVertex>();
     protected final List<MarkovEdge> actual_path_edges = new ArrayList<MarkovEdge>();
     
-    protected MarkovGraph markov;
+    private MarkovGraph markov;
     protected transient MarkovVertex current;
     protected transient final PartitionSet cache_past_partitions = new PartitionSet();
     protected transient final PartitionSet cache_last_partitions = new PartitionSet();

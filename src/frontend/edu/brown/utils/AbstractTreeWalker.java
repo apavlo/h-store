@@ -207,6 +207,8 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
      * Depth limit (for debugging)
      */
     private int depth_limit = -1;
+    
+    private boolean invoked_finished = false;
 
     // ----------------------------------------------------------------------
     // POOLABLE METHODS
@@ -225,6 +227,7 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         this.depth = -1;
         this.stop = false;
         this.allow_revisit = false;
+        this.invoked_finished = false;
         this.counter = 0;
         this.depth_limit = -1;
         if (this.stop_elements != null)
@@ -426,15 +429,14 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
 
     /**
      * Depth first traversal
-     * 
      * @param element
      */
     public final void traverse(E element) {
         final boolean trace = LOG.isTraceEnabled();
-        assert (element != null) : "AbstractTreeWalker.traverse() was passed a null element";
+        assert (element != null) : "AbstractTreeWalker.innerTraverse() was passed a null element";
 
         if (trace)
-            LOG.trace("traverse(" + element + ")");
+            LOG.trace("innerTraverse(" + element + ")");
         if (this.first == null && this.stop == false) {
             assert (this.counter == 0) : "Unexpected counter value on first element [" + this.counter + "]";
             this.first = element;
@@ -452,6 +454,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         if (this.stop) {
             if (trace)
                 LOG.trace("Stop Called. Halting traversal.");
+            if (this.invoked_finished == false) {
+                this.callback_finish();
+                this.invoked_finished = true;
+            }
             return;
         }
 
@@ -495,6 +501,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         if (this.stop) {
             if (trace)
                 LOG.trace("Stop Called. Halting traversal.");
+            if (this.invoked_finished == false) {
+                this.callback_finish();
+                this.invoked_finished = true;
+            }
             return;
         }
 
@@ -508,6 +518,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         if (this.stop) {
             if (trace)
                 LOG.trace("Stop Called. Halting traversal.");
+            if (this.invoked_finished == false) {
+                this.callback_finish();
+                this.invoked_finished = true;
+            }
             return;
         }
 
@@ -525,6 +539,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         if (this.stop) {
             if (trace)
                 LOG.trace("Stop Called. Halting traversal.");
+            if (this.invoked_finished == false) {
+                this.callback_finish();
+                this.invoked_finished = true;
+            }
             return;
         }
 
@@ -536,6 +554,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         if (this.stop) {
             if (trace)
                 LOG.trace("Stop Called. Halting traversal.");
+            if (this.invoked_finished == false) {
+                this.callback_finish();
+                this.invoked_finished = true;
+            }
             return;
         }
 
@@ -556,6 +578,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
             if (trace)
                 LOG.trace("callback_last(" + element + ")");
             this.callback_last(element);
+            if (this.invoked_finished == false) {
+                this.callback_finish();
+                this.invoked_finished = true;
+            }
         }
         return;
     }
@@ -574,9 +600,7 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     // ----------------------------------------------------------------------
 
     /**
-     * This method will be called after the walker has explored a node's
-     * children
-     * 
+     * This method will be called after the walker has explored a node's children
      * @param element
      *            the object to perform an operation on
      */
@@ -584,7 +608,6 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
 
     /**
      * Optional callback method before we visit any of the node's children
-     * 
      * @param element
      */
     protected void callback_before(E element) {
@@ -594,7 +617,6 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     /**
      * Optional callback method after we have finished visiting all of a node's
      * children and will return back to their parent.
-     * 
      * @param element
      */
     protected void callback_after(E element) {
@@ -603,7 +625,6 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
 
     /**
      * Optional callback method on the very first element in the tree.
-     * 
      * @param element
      */
     protected void callback_first(E element) {
@@ -612,7 +633,6 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
 
     /**
      * Optional callback method on the very last element in the tree
-     * 
      * @param element
      */
     protected void callback_last(E element) {
@@ -623,6 +643,16 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
      * Optional callback method when stop() is called
      */
     protected void callback_stop() {
+        // Do nothing
+    }
+    
+    /**
+     * Optional callback method that is called at the very end, regardless
+     * of whether the traversal is ending because of stop() or because it
+     * reached the end of the tree
+     * This won't be called 
+     */
+    protected void callback_finish() {
         // Do nothing
     }
 }

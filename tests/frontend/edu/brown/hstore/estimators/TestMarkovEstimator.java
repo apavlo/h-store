@@ -141,17 +141,18 @@ public class TestMarkovEstimator extends BaseTestCase {
         assertNotNull(state);
         MarkovEstimate est = state.getInitialEstimate();
         assertNotNull(est);
+        assertTrue(est.isInitialized());
         assertNotNull(state.getLastEstimate());
 //        System.err.println(est.toString());
         
-        MarkovEstimate initialEst = state.getInitialEstimate();
-        MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
-        List<MarkovVertex> initial_path = initialEst.getMarkovPath();
+        MarkovGraph markov = state.getMarkovGraph();
+        List<MarkovVertex> initial_path = est.getMarkovPath();
+        assertNotNull(initial_path);
         assertFalse(initial_path.isEmpty());
         
         System.err.println("# of Vertices: " + markov.getVertexCount());
         System.err.println("# of Edges:    " + markov.getEdgeCount());
-        System.err.println("Confidence:    " + String.format("%.4f", initialEst.getConfidenceCoefficient()));
+        System.err.println("Confidence:    " + String.format("%.4f", est.getConfidenceCoefficient()));
         System.err.println("\nINITIAL PATH:\n" + StringUtil.join("\n", initial_path));
 //        System.err.println(multip_trace.debug(catalog_db));
 

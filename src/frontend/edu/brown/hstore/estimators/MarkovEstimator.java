@@ -258,6 +258,8 @@ public class MarkovEstimator extends TransactionEstimator {
 //            pathEstimator.getEstimate().incrementReusedCounter();
 //        }
         assert(pathEstimator != null);
+        assert(pathEstimator.getVisitPath().isEmpty() == false);
+        assert(initialEst.getMarkovPath().isEmpty() == false);
         if (t) {
             String txnName = AbstractTransaction.formatTxnName(catalog_proc, txn_id);
             List<MarkovVertex> path = pathEstimator.getVisitPath();
@@ -271,12 +273,12 @@ public class MarkovEstimator extends TransactionEstimator {
         // Update EstimatorState.prefetch any time we transition to a MarkovVertex where the
         // underlying Statement catalog object was marked as prefetchable
         // Do we want to put this traversal above?
-        for (MarkovVertex vertex : pathEstimator.getVisitPath()) {
+        for (MarkovVertex vertex : initialEst.getMarkovPath()) {
             Statement statement = (Statement) vertex.getCatalogItem();
             if (statement.getPrefetchable()) {
                 state.addPrefetchableStatement(statement, vertex.getQueryCounter());
             }
-        }
+        } // FOR
         
         return (state);
     }
@@ -385,7 +387,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // The transaction for the given txn_id is in limbo, so we just want to remove it
         if (status != Status.OK && status != Status.ABORT_USER) {
             if (state != null && status == Status.ABORT_MISPREDICT) 
-                state.markov.incrementMispredictionCount();
+                state.getMarkovGraph().incrementMispredictionCount();
             return;
         }
 
