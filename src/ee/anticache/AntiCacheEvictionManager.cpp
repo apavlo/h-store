@@ -274,7 +274,6 @@ Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSi
 }
 
 Table* AntiCacheEvictionManager::readBlocks(PersistentTable *table, int numBlocks, uint16_t blockIds[]) {
-    // TODO
     
     return (m_readResultTable);
 }

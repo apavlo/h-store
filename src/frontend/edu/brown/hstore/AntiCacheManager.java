@@ -52,8 +52,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152 * 64;  //512 MB 
+    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
+    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152 * 64;  
     
     private boolean evicting;  
 
@@ -114,7 +114,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
                     // check to see if we should start eviction
                     if (hstore_conf.site.anticache_enable && checkEviction()) {
 						evicted = true; 
-                        //executeEviction(); 
+                        executeEviction(); 
                     }
 
             } catch (Throwable ex) {
@@ -267,7 +267,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
 
 		LOG.info("Current Memory Usage: " + (total_size_kb/1024) + " MB"); 
 
-        return((total_size_kb > (1024 * 512)) && !evicted);
+        //return((total_size_kb > (1024 * 512)) && !evicted);
+        return((total_size_kb > (1024 * 512)));
         
 		//return(stats.javausedheapmem > (1024 * 1024 * 1024));
         //return (usage >= this.memoryThreshold);

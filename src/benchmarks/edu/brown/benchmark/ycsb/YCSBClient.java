@@ -35,6 +35,10 @@ import java.util.Map;
 import java.util.List; 
 import java.util.LinkedList; 
 
+import org.apache.log4j.Logger;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
@@ -45,7 +49,6 @@ import edu.brown.benchmark.ycsb.YCSBUtil;
 
 import edu.brown.benchmark.ycsb.distributions.CounterGenerator;
 import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
-import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
 
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
@@ -53,6 +56,8 @@ import edu.brown.statistics.Histogram;
 
 public class YCSBClient extends BenchmarkComponent {
 	
+    private int transaction_count = 0; 
+    
 	private ZipfianGenerator readRecord;
     private static CounterGenerator insertRecord;
     private ZipfianGenerator randScan;
@@ -60,8 +65,19 @@ public class YCSBClient extends BenchmarkComponent {
 	private List<String> value_list; 
 	
 	private final FlatHistogram<Transaction> txnWeights;
+    
+    private final double SIGMA = 1.4; 
+    
+    private Histogram<Integer> zipf_histogram; 
 	
 	Client client; 
+    
+    private static final Logger LOG = Logger.getLogger(YCSBClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     public static void main(String args[]) {
         BenchmarkComponent.main(YCSBClient.class, args, false);
@@ -73,7 +89,7 @@ public class YCSBClient extends BenchmarkComponent {
 		int init_record_count = YCSBConstants.NUM_RECORDS;  
 		
 		// initialize distribution generators 
-		readRecord = new ZipfianGenerator(init_record_count);// pool for read keys
+		readRecord = new ZipfianGenerator(init_record_count, SIGMA);// pool for read keys
         randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
 		
 		value_list = new LinkedList<String>(); 
@@ -84,6 +100,9 @@ public class YCSBClient extends BenchmarkComponent {
                 insertRecord = new CounterGenerator(init_record_count);
             }
 		}  // end SYNC
+        
+        
+        zipf_histogram = new Histogram<Integer>(); 
 		
 		// Initialize the sampling table
         Histogram<Transaction> txns = new Histogram<Transaction>(); 
@@ -133,11 +152,19 @@ public class YCSBClient extends BenchmarkComponent {
             Random rand = new Random();
 			int key = -1; 
 			int scan_count; 
+            
+            int run_count = 0; 
 			
             while (true) {
 				
 				runOnce(); 
+                
+
+                    run_count = 0; 
+
             } 
+            
+            
         } 
 		catch (IOException e) {
             
@@ -159,6 +186,15 @@ public class YCSBClient extends BenchmarkComponent {
 		
 		int key = 0; 
 		int scan_count = 0; 
+        
+		/*
+        transaction_count++; 
+        
+        if(transaction_count % 5000 == 0)
+        {
+            LOG.info("Zipfian distribution histogram: \n" + zipf_histogram.toString()); 
+        }
+		 */
 		
 		if (procName.equals("DeleteRecord")) {
 			
@@ -211,6 +247,8 @@ public class YCSBClient extends BenchmarkComponent {
 			procParams = new Object[1]; 
 			key = readRecord.nextInt();
 		}
+        
+        zipf_histogram.put(new Integer(key)); 
 		
 		procParams[0] = key; 
 		
