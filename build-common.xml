@@ -105,6 +105,7 @@
 <arg value="site.specexec_enable=${site.specexec_enable}" />
 <arg value="site.specexec_idle=${site.specexec_idle}" />
 <arg value="site.specexec_nonblocking=${site.specexec_nonblocking}" />
+<arg value="site.specexec_markov=${site.specexec_markov}" />
 <arg value="site.commandlog_enable=${site.commandlog_enable}" />
 <arg value="site.commandlog_dir=${site.commandlog_dir}" />
 <arg value="site.commandlog_timeout=${site.commandlog_timeout}" />

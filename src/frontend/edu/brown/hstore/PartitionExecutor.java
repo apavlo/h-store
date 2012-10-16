@@ -133,6 +133,9 @@ import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
+import edu.brown.hstore.specexec.AbstractConflictChecker;
+import edu.brown.hstore.specexec.MarkovConflictChecker;
+import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -250,7 +253,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private final PartitionEstimator p_estimator;
     private final TransactionEstimator t_estimator;
-    private EstimationThresholds thresholds;
+    private EstimationThresholds thresholds = EstimationThresholds.factory();
     
     // Each execution site manages snapshot using a SnapshotSiteProcessor
     private final SnapshotSiteProcessor m_snapshotter;
@@ -268,6 +271,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private HStoreCoordinator hstore_coordinator;
     private HStoreConf hstore_conf;
     private TransactionInitializer txnInitializer;
+    
+    private final AbstractConflictChecker specExecChecker;
     private final SpecExecScheduler specExecScheduler;
     
     // ----------------------------------------------------------------------------
@@ -541,6 +546,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.utility_queue = null;
         this.ee = null;
         this.hsql = null;
+        this.specExecChecker = null;
         this.specExecScheduler = null;
         this.p_estimator = null;
         this.t_estimator = null;
@@ -576,6 +582,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 hstore_conf.site.queue_incoming_increase,
                 hstore_conf.site.queue_incoming_increase_max
         );
+        this.backend_target = target;
         this.catalogContext = catalogContext;
         this.partition = catalogContext.getPartitionById(partitionId);
         assert(this.partition != null) : "Invalid Partition #" + partitionId;
@@ -584,11 +591,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.site = this.partition.getParent();
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;
         this.siteId = this.site.getId();
-        
-        this.specExecScheduler = new SpecExecScheduler(this.catalogContext, this.partitionId, this.work_queue);
-        
-        this.backend_target = target;
 
+        // Speculative Execution
+        if (hstore_conf.site.specexec_markov) {
+            // The MarkovConflictChecker is thread-safe, so we all of the partitions
+            // at this site can reuse the same one.
+            this.specExecChecker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
+        } else {
+            this.specExecChecker = new TableConflictChecker(this.catalogContext);
+        }
+        this.specExecScheduler = new SpecExecScheduler(this.catalogContext, this.specExecChecker,
+                                                       this.partitionId, this.work_queue);
+        
         // The PartitionEstimator is what we use to figure our where each query needs
         // to be sent to
         this.p_estimator = p_estimator;
@@ -724,7 +738,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getCoordinator();
-        this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
+        this.thresholds = hstore_site.getThresholds();
+        this.specExecChecker.setEstimationThresholds(this.thresholds);
         this.txnInitializer = hstore_site.getTransactionInitializer();
         
         if (hstore_conf.site.exec_deferrable_queries) {

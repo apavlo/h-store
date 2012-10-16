@@ -5,6 +5,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.markov.EstimationThresholds;
 
 /**
  * A ConflictChecker is used to determine whether a local single-partition
@@ -17,6 +18,10 @@ public abstract class AbstractConflictChecker {
     
     public AbstractConflictChecker(CatalogContext catalogContext) {
         this.catalogContext = catalogContext;
+    }
+    
+    public void setEstimationThresholds(EstimationThresholds t) {
+        // Nothing...
     }
     
     /**

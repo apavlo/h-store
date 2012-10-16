@@ -430,6 +430,16 @@ public final class HStoreConf {
         )
         public boolean specexec_nonblocking;
         
+        @ConfigProperty(
+            description="Use the row-based MarkovConflictChecker to determine whether queued transactions " +
+            		    "conflict with the current distributed transaction. This is used to selecte " +
+            		    "speculative execution candidates at runtime. " +
+            		    "Note that ${site.markov_enable} must be set to true.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean specexec_markov;
+        
         // ----------------------------------------------------------------------------
         // Command Logging Options
         // ----------------------------------------------------------------------------

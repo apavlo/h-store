@@ -11,7 +11,6 @@ import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
-import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -39,14 +38,15 @@ public class SpecExecScheduler {
     /**
      * Constructor
      * @param catalogContext
+     * @param checker TODO
      * @param partitionId
      * @param work_queue
      */
-    public SpecExecScheduler(CatalogContext catalogContext, int partitionId, Queue<InternalMessage> work_queue) {
+    public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, Queue<InternalMessage> work_queue) {
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;
-        this.checker = new TableConflictChecker(this.catalogContext);
+        this.checker = checker;
     }
 
     /**

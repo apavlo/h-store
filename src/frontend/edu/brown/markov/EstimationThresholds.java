@@ -46,6 +46,18 @@ public class EstimationThresholds implements JSONSerializable {
 //        this.abort = default_value;
     }
     
+    private static EstimationThresholds CACHED_DEFAULT; 
+    public static EstimationThresholds factory() {
+        if (CACHED_DEFAULT == null) {
+            synchronized (EstimationThresholds.class) {
+                if (CACHED_DEFAULT == null) {
+                    CACHED_DEFAULT = new EstimationThresholds();
+                }
+            } // SYNCH
+        }
+        return (CACHED_DEFAULT);
+    }
+    
     /**
      * @return the single_partition
      */

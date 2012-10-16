@@ -48,8 +48,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     }
     
     private final ParameterMappingsSet paramMappings;
-    private final EstimationThresholds thresholds;
     private final boolean disabled;
+    private EstimationThresholds thresholds;
 
     // ------------------------------------------------------------
     // PRECOMPUTED CACHE
@@ -84,7 +84,12 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     // INITIALIZATION
     // ------------------------------------------------------------
     
-    public MarkovConflictChecker(CatalogContext catalogContext, EstimationThresholds thresholds) {
+    /**
+     * 
+     * @param catalogContext
+     * @param thresholds
+     */
+    protected MarkovConflictChecker(CatalogContext catalogContext, EstimationThresholds thresholds) {
         super(catalogContext);
         this.paramMappings = catalogContext.paramMappings;
         this.thresholds = thresholds;
@@ -130,6 +135,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         } // FOR (proc)
     }
 
+    @Override
+    public void setEstimationThresholds(EstimationThresholds t) {
+        this.thresholds = t;
+    }
+    
     @Override
     public boolean ignoreProcedure(Procedure proc) {
         return (this.disabled);
@@ -325,4 +335,16 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         return (val0.equals(val1));
     }
 
+    
+    private static MarkovConflictChecker SINGLETON;
+    public static MarkovConflictChecker singleton(CatalogContext catalogContext, EstimationThresholds t) {
+        if (SINGLETON == null) {
+            synchronized (MarkovConflictChecker.class) {
+                if (SINGLETON == null) {
+                    SINGLETON = new MarkovConflictChecker(catalogContext, t);
+                }
+            } // SYNCH
+        }
+        return (SINGLETON);
+    }
 }
