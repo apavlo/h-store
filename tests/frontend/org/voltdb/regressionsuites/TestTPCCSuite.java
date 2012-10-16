@@ -843,18 +843,18 @@ public class TestTPCCSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-//        config = new LocalSingleProcessServer("tpcc-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
-//        
-//        /////////////////////////////////////////////////////////////
-//        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
-//        /////////////////////////////////////////////////////////////
-//        config = new LocalSingleProcessServer("tpcc-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalSingleProcessServer("tpcc-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer("tpcc-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
