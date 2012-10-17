@@ -304,9 +304,9 @@ public abstract class JSONUtil {
             if (debug.get())
                 LOG.debug("writeNullFieldValue(" + field_class + ", " + field_value + ")");
             stringer.value(null);
-
-            // Collections
-        } else if (ClassUtil.getInterfaces(field_class).contains(Collection.class)) {
+        }
+        // Collections
+        else if (ClassUtil.getInterfaces(field_class).contains(Collection.class)) {
             if (debug.get())
                 LOG.debug("writeCollectionFieldValue(" + field_class + ", " + field_value + ")");
             stringer.array();
@@ -318,9 +318,9 @@ public abstract class JSONUtil {
                 }
             } // FOR
             stringer.endArray();
-
-            // Maps
-        } else if (field_value instanceof Map) {
+        }
+        // Maps
+        else if (field_value instanceof Map) {
             if (debug.get())
                 LOG.debug("writeMapFieldValue(" + field_class + ", " + field_value + ")");
             stringer.object();
@@ -346,9 +346,9 @@ public abstract class JSONUtil {
                 }
             } // FOR
             stringer.endObject();
-
-            // Primitive
-        } else {
+        }
+        // Primitives
+        else {
             if (debug.get())
                 LOG.debug("writePrimitiveFieldValue(" + field_class + ", " + field_value + ")");
             stringer.value(makePrimitiveValue(field_class, field_value));

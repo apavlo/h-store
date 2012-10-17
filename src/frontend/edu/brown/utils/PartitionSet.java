@@ -25,20 +25,26 @@
  ***************************************************************************/
 package edu.brown.utils;
 
-import java.util.ArrayList;
+import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Database;
 
 /**
  * Container class that represents a list of partitionIds
  * For now it's just a HashSet
  * @author pavlo
  */
-public class PartitionSet implements Collection<Integer> {
+public class PartitionSet implements Collection<Integer>, JSONSerializable {
     
 //    private final List<Integer> inner = new ArrayList<Integer>();
     private final Set<Integer> inner = new HashSet<Integer>();
@@ -210,4 +216,40 @@ public class PartitionSet implements Collection<Integer> {
             return this.inner.containsAll(c);
         }
     } // CLASS
+    
+    // ----------------------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // ----------------------------------------------------------------------------
+
+    @Override
+    public void load(File input_path, Database catalog_db) throws IOException {
+        JSONUtil.load(this, catalog_db, input_path);
+    }
+
+    @Override
+    public void save(File output_path) throws IOException {
+        JSONUtil.save(this, output_path);
+    }
+
+    @Override
+    public String toJSONString() {
+        return (JSONUtil.toJSONString(this));
+    }
+
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        stringer.key("P").array();
+        for (Integer p : this.inner) {
+            stringer.value(p);
+        } // FOR
+        stringer.endArray();
+    }
+
+    @Override
+    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+        JSONArray json_arr = json_object.getJSONArray("P");
+        for (int i = 0, cnt = json_arr.length(); i < cnt; i++) {
+            this.inner.add(json_arr.getInt(i));
+        }
+    }
 }
