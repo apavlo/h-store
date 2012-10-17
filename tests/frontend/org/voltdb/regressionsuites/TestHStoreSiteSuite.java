@@ -40,7 +40,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         
         // Enable the feature on the server
         String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
-        String confParams[] = {"site.txn_network_thread_initialization"};
+        String confParams[] = {"site.network_txn_initialization"};
         String confValues[] = {"true"};
         ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
         assertNotNull(cresponse);

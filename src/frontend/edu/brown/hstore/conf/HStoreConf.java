@@ -424,6 +424,15 @@ public final class HStoreConf {
         public boolean specexec_idle;
         
         @ConfigProperty(
+            description="If this parameter is true, then the SpecExecScheduler will not attempt to " +
+                        "speculatively execute any transactions if the current distributed transaction " +
+                        "is using only partitions that are all on the same site.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean specexec_ignore_all_local;
+        
+        @ConfigProperty(
             description="Special non-blocking remote query execution.",
             defaultBoolean=false,
             experimental=true
@@ -547,10 +556,6 @@ public final class HStoreConf {
         )
         public boolean network_profiling;
         
-        // ----------------------------------------------------------------------------
-        // Incoming Transaction Queue Options
-        // ----------------------------------------------------------------------------
-        
         @ConfigProperty(
             description="If set to true, then incoming transaction requests will be processed " +
                         "using the TransactionInitializer using the same thread that processed " +
@@ -560,7 +565,11 @@ public final class HStoreConf {
             defaultBoolean=false,
             experimental=true
         )
-        public boolean txn_network_thread_initialization;
+        public boolean network_txn_initialization;
+        
+        // ----------------------------------------------------------------------------
+        // Incoming Transaction Queue Options
+        // ----------------------------------------------------------------------------
         
         @ConfigProperty(
             description="Enable transaction profiling. This will measure the amount of time a " +

@@ -104,6 +104,7 @@
 <arg value="site.exec_deferrable_queries=${site.exec_deferrable_queries}" />
 <arg value="site.specexec_enable=${site.specexec_enable}" />
 <arg value="site.specexec_idle=${site.specexec_idle}" />
+<arg value="site.specexec_ignore_all_local=${site.specexec_ignore_all_local}" />
 <arg value="site.specexec_nonblocking=${site.specexec_nonblocking}" />
 <arg value="site.specexec_markov=${site.specexec_markov}" />
 <arg value="site.commandlog_enable=${site.commandlog_enable}" />
@@ -118,7 +119,7 @@
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
 <arg value="site.network_profiling=${site.network_profiling}" />
-<arg value="site.txn_network_thread_initialization=${site.txn_network_thread_initialization}" />
+<arg value="site.network_txn_initialization=${site.network_txn_initialization}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_counters=${site.txn_counters}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
