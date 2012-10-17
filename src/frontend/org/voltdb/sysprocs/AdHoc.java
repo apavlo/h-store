@@ -48,7 +48,7 @@ public class AdHoc extends VoltSystemProcedure {
     }
 
     @Override
-    public DependencySet executePlanFragment(long txn_id, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, SystemProcedureExecutionContext context) {
+    public DependencySet executePlanFragment(Long txn_id, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, SystemProcedureExecutionContext context) {
         // get the three params (depId, json plan, sql stmt)
         int outputDepId = (Integer) params.toArray()[0];
         String plan = (String) params.toArray()[1];

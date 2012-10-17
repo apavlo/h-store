@@ -3,8 +3,10 @@ package org.voltdb.regressionsuites;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.sysprocs.SetConfiguration;
 
 import edu.brown.benchmark.tm1.TM1Client;
 import edu.brown.benchmark.tm1.TM1Client.Transaction;
@@ -18,6 +20,7 @@ import edu.brown.hstore.Hstoreservice.Status;
  */
 public class TestHStoreSiteSuite extends RegressionSuite {
     
+    private static final String PREFIX = "hstoresite";
     private static final double SCALEFACTOR = 0.0001;
     private static final long NUM_SUBSCRIBERS = (long)(SCALEFACTOR * TM1Constants.SUBSCRIBER_SIZE);
     
@@ -30,14 +33,23 @@ public class TestHStoreSiteSuite extends RegressionSuite {
     }
     
     /**
-     * testUpdateLocation
+     * testNetworkThreadInitialization
      */
-    public void testUpdateLocation() throws Exception {
+    public void testNetworkThreadInitialization() throws Exception {
         Client client = this.getClient();
+        
+        // Enable the feature on the server
+        String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
+        String confParams[] = {"site.txn_network_thread_initialization"};
+        String confValues[] = {"true"};
+        ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
+        assertNotNull(cresponse);
+        assertEquals(Status.OK, cresponse.getStatus());
+        
         TestTM1Suite.initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+        cresponse = client.callProcedure(txn.callName, params);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
     }
@@ -45,7 +57,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
     public static Test suite() {
         VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
-        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestTM1Suite.class);
+        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestHStoreSiteSuite.class);
         builder.setGlobalConfParameter("client.scalefactor", SCALEFACTOR);
 
         // build up a project builder for the TPC-C app
@@ -57,7 +69,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("tm1-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -65,7 +77,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -73,7 +85,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);

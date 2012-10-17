@@ -23,7 +23,7 @@ public class NoOp extends VoltSystemProcedure {
     }
     
     @Override
-    public DependencySet executePlanFragment(long txnId, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, SystemProcedureExecutionContext context) {
+    public DependencySet executePlanFragment(Long txnId, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, SystemProcedureExecutionContext context) {
         // TODO Auto-generated method stub
         return null;
     }

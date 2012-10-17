@@ -186,9 +186,9 @@ public class LocalCluster extends VoltServerConfig {
         System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));*/
         
         m_jarFileName = new File(VoltServerConfig.getPathToCatalogForTest(jarFileName));
-        m_partitionPerSite = siteCount;
+        m_siteCount = siteCount;
+        m_partitionPerSite = partitionsPerSite;
         m_target = target;
-        m_siteCount = partitionsPerSite;
         m_replication = replication;
         String buildDir = System.getenv("VOLTDB_BUILD_DIR");  // via build.xml
         if (buildDir == null)

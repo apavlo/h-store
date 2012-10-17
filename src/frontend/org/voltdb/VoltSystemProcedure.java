@@ -116,7 +116,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         public boolean last_task = false;
     }
 
-    abstract public DependencySet executePlanFragment(long txn_id,
+    abstract public DependencySet executePlanFragment(Long txn_id,
                                                       Map<Integer,List<VoltTable>> dependencies,
                                                       int fragmentId,
                                                       ParameterSet params,
@@ -283,14 +283,25 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         int i = 0;
         for (Site catalog_site : catalogContext.sites.values()) {
             Partition catalog_part = null;
-            int first_id = Integer.MAX_VALUE;
-            for (Partition p : catalog_site.getPartitions().values()) {
-                if (catalog_part == null || p.getId() < first_id) {
-                    catalog_part = p;
-                    first_id = p.getId();
-                }
-            } // FOr
+            
+            // If this is the same as our local site, then we'll send it
+            // to our base partition
+            if (catalog_site.getId() == hstore_site.getSiteId()) {
+                catalog_part = this.executor.getPartition();
+            } else {
+                int first_id = Integer.MAX_VALUE;
+                for (Partition p : catalog_site.getPartitions().values()) {
+                    if (catalog_part == null || p.getId() < first_id) {
+                        catalog_part = p;
+                        first_id = p.getId();
+                    }
+                } // FOR
+            }
             assert(catalog_part != null) : "No partitions for " + catalog_site;
+
+            if (debug.get())
+                LOG.debug(String.format("%s - Creating PlanFragment #%d for %s on %s",
+                          this.m_localTxnState, distributeId, catalog_part, catalog_site));
             pfs[i] = new SynthesizedPlanFragment();
             pfs[i].fragmentId = distributeId;
             pfs[i].inputDependencyIds = new int[] { };

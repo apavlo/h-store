@@ -1020,7 +1020,7 @@ public class LocalTransaction extends AbstractTransaction {
                 dinfo.finish();
             }
         } else {
-            dinfo = new DependencyInfo();
+            dinfo = new DependencyInfo(hstore_site.getCatalogContext());
             stmt_dinfos.put(dep_id, dinfo);
             if (d) LOG.debug(String.format("%s - Created new DependencyInfo for %s [hashCode=%d]",
                                            this, debugStmtDep(stmt_index, dep_id), dinfo.hashCode()));

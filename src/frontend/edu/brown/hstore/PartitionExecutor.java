@@ -470,11 +470,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 return;
             }
             
-            if (d) LOG.debug(String.format("Processing TransactionWorkResponse for %s with %d results",
-                             ts, msg.getResultsCount()));
+            if (d) LOG.debug(String.format("Processing TransactionWorkResponse for %s with %d results%s",
+                             ts, msg.getResultsCount(), (t ? "\n"+msg : "")));
             for (int i = 0, cnt = msg.getResultsCount(); i < cnt; i++) {
                 WorkResult result = msg.getResults(i); 
-                if (t) LOG.trace(String.format("Got %s from partition %d for %s",
+                if (d) LOG.debug(String.format("Got %s from partition %d for %s",
                                  result.getClass().getSimpleName(), result.getPartitionId(), ts));
                 PartitionExecutor.this.processWorkResult(ts, result);
             } // FOR
@@ -1362,7 +1362,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     assert(deps != null);
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
-                    if (t) LOG.trace(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d\n" + deps,
+                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d\n" + deps,
                                      ts, deps.size(), input_dep_id));
                 }
                 // Otherwise they will be "attached" inputs to the RemoteTransaction handle
@@ -1393,7 +1393,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         } // FOR (fragments)
         if (d) {
             if (inputs.isEmpty() == false) {
-
                 LOG.debug(String.format("%s - Retrieved %d InputDependencies for %s on partition %d",
                                         ts, inputs.size(), fragment.getFragmentIdList(), fragment.getPartitionId())); // StringUtil.formatMaps(inputs)));
             } else if (fragment.getNeedsInput()) {
@@ -1579,7 +1578,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private void processWorkResult(LocalTransaction ts, WorkResult result) {
         boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
-        if (d) LOG.debug(String.format("Processing FragmentResponseMessage for %s on partition %d [srcPartition=%d, deps=%d]",
+        if (d) LOG.debug(String.format("Processing WorkResult for %s on partition %d [srcPartition=%d, deps=%d]",
                          ts, this.partitionId, result.getPartitionId(), result.getDepDataCount()));
         
         // If the Fragment failed to execute, then we need to abort the Transaction
@@ -1615,8 +1614,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         if (needs_profiling) ts.profiler.startDeserialization();
         for (int i = 0, cnt = result.getDepDataCount(); i < cnt; i++) {
-            if (t) LOG.trace(String.format("Storing intermediate results from partition %d for %s",
-                                                    result.getPartitionId(), ts));
+            if (d) LOG.debug(String.format("Storing intermediate results from partition %d for %s",
+                             result.getPartitionId(), ts));
             int depId = result.getDepId(i);
             ByteString bs = result.getDepData(i);
             VoltTable vt = null;
@@ -2196,8 +2195,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 String msg = "Unexpected error when executing system procedure";
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
             }
-            if (d) LOG.debug(String.format("%s - Finished executing sysproc fragment %d%s",
-                                           ts, fragment_id, (t ? "\n" + result : "")));
+            if (d) LOG.debug(String.format("%s - Finished executing sysproc fragment for %s (#%d)%s",
+                                           ts, 
+                                           m_registeredSysProcPlanFragments.get(fragment_id).getClass().getSimpleName(),
+                                           fragment_id, (t ? "\n" + result : "")));
         // -------------------------------
         // REGULAR FRAGMENTS
         // -------------------------------
@@ -2779,8 +2780,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             // Bombs away!
             this.hstore_coordinator.transactionWork(ts, target_site, builder.build(), this.request_work_callback);
-            if (d) LOG.debug(String.format("%s - Sent Work request to remote HStoreSites for %s",
-                             ts, target_site));
+            if (d) LOG.debug(String.format("%s - Sent Work request to remote site %s",
+                             ts, HStoreThreadManager.formatSiteName(target_site)));
 
         } // FOR
 

@@ -1585,6 +1585,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // the models) or whether it is faster to queue things up in the PartitionExecutor
         // and let it be responsible for sorting things out
         if (hstore_conf.site.txn_network_thread_initialization) {
+            if (t) LOG.trace("Initializing transaction request using network processing thread");
             LocalTransaction ts = this.txnInitializer.createLocalTransaction(
                                             buffer,
                                             timestamp,

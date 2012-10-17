@@ -19,7 +19,9 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /** 
  * Set HStoreConf parameters throughout the cluster
@@ -28,6 +30,7 @@ import edu.brown.utils.CollectionUtil;
 @ProcInfo(singlePartition = false)
 public class SetConfiguration extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(SetConfiguration.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
     public static final ColumnInfo nodeResultsColumns[] = {
         new ColumnInfo("SITE", VoltType.INTEGER),
@@ -52,7 +55,7 @@ public class SetConfiguration extends VoltSystemProcedure {
     }
 
     @Override
-    public DependencySet executePlanFragment(long txn_id,
+    public DependencySet executePlanFragment(Long txn_id,
                                              Map<Integer, List<VoltTable>> dependencies,
                                              int fragmentId,
                                              ParameterSet params,
@@ -75,7 +78,7 @@ public class SetConfiguration extends VoltSystemProcedure {
                     m.put(confNames[i], confValues[i]);
                 } // FOR
                 hstore_conf.loadFromArgs(m);
-                if (LOG.isDebugEnabled())
+                if (debug.get())
                     LOG.debug(String.format("Updating %d conf parameters on %s",
                               m.size(), executor.getHStoreSite().getSiteName()));
                 
@@ -93,6 +96,9 @@ public class SetConfiguration extends VoltSystemProcedure {
                     vt.addRow(row);
                 } // FOR
                 result = new DependencySet(DISTRIBUTE_ID, vt);
+                if (debug.get())
+                    LOG.info(String.format("%s - Sending back result for partition %d",
+                             m_localTxnState, this.executor.getPartitionId()));
                 break;
             }
             // Aggregate Results
@@ -102,6 +108,9 @@ public class SetConfiguration extends VoltSystemProcedure {
                     String msg = "Missing site results";
                     throw new ServerFaultException(msg, txn_id);
                 }
+                if (debug.get())
+                    LOG.debug("# of Results: " + siteResults.size() + "\n" +
+                              StringUtil.join("\n************\n", siteResults));
                 
                 // Make sure that everyone is the same value
                 VoltTable vt = new VoltTable(aggregateResultsColumns);

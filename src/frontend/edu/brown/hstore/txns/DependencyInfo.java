@@ -10,6 +10,7 @@ import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -44,19 +45,18 @@ public class DependencyInfo implements Poolable {
     /**
      * List of PartitionIds that we expect to get responses/results back
      */
-    private final BitSet partitions = new BitSet();
+    private final BitSet partitions;
     
     /**
-     * The list of VoltTable results that have been sent back partitions
+     * The list of VoltTable results that have been sent back from partitions
      * We store it as a list so that we don't have to convert it for ExecutionSite
      */
     private final List<VoltTable> results = new ArrayList<VoltTable>();
-    private int results_ctr = 0;
     
     /**
-     * The last partition that we inserted data for
+     * The List of PartitionIds that we have succesffuly gotten back from partitions
      */
-    private int results_lastPartition = -1;
+    private final BitSet resultPartitions;
     
     /**
      * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
@@ -83,8 +83,9 @@ public class DependencyInfo implements Poolable {
     /**
      * Constructor
      */
-    public DependencyInfo() {
-        // Nothing...
+    protected DependencyInfo(CatalogContext catalogContext) {
+        this.partitions = new BitSet(catalogContext.numberOfPartitions);
+        this.resultPartitions = new BitSet(catalogContext.numberOfPartitions);
     }
     
     public void init(Long txn_id, int round, int stmt_index, int dependency_id) {
@@ -122,10 +123,8 @@ public class DependencyInfo implements Poolable {
         this.blockedTasksReleased = false;
         this.internal = false;
         
-        for (int i = 0, cnt = this.results.size(); i < cnt; i++)
-            this.results.set(i, null);
-        this.results_ctr = 0;
-        this.results_lastPartition = -1;
+        this.results.clear();
+        this.resultPartitions.clear();
     }
     
     public int getStatementIndex() {
@@ -212,23 +211,16 @@ public class DependencyInfo implements Poolable {
     public synchronized boolean addResult(int partition, VoltTable result) {
         if (d) LOG.debug(String.format("#%s - Storing RESULT for DependencyId #%d from Partition #%d with %d tuples",
                                        this.txn_id, this.dependency_id, partition, result.getRowCount()));
-        if (partition >= this.results.size()) {
-            if (d) LOG.debug(String.format("#%s - Resizing internal result list for DependencyId #%d [OLD:%d -> NEW:%d]",
-                                           this.txn_id, this.dependency_id, this.results.size(), partition+1));
-            int ctr = (partition+1) - this.results.size();
-            while (ctr-- > 0) this.results.add(null);
-        }
-        assert(this.results.get(partition) == null) :
+        assert(this.resultPartitions.get(partition) == false) :
             String.format("Trying to add result for {Partition:%d, Dependency:%d} twice for %s!",
                           partition, this.dependency_id, this.txn_id); 
-        this.results.set(partition, result);
-        this.results_ctr++;
-        this.results_lastPartition = partition;
+        this.results.add(result);
+        this.resultPartitions.set(partition);
         return (true); 
     }
     
     protected int getResultsCount() {
-        return (this.results_ctr);
+        return (this.resultPartitions.cardinality());
     }
     protected List<VoltTable> getResults() {
         return (this.results);
@@ -240,11 +232,10 @@ public class DependencyInfo implements Poolable {
      * @return
      */
     public VoltTable getResult() {
-        assert(this.results_ctr > 0) : "There are no result available for " + this;
-        assert(this.results_ctr == 1) : 
-            "There are " + this.results_ctr + " results for " + this + "\n-------\n" + this.results;
-        assert(this.results_lastPartition != -1);
-        return (this.results.get(this.results_lastPartition));
+        assert(this.resultPartitions.cardinality() > 0) : "There are no results available for " + this;
+        assert(this.resultPartitions.cardinality() == 1) : 
+            "There are " + this.resultPartitions.cardinality() + " results for " + this + "\n-------\n" + this.results;
+        return (this.results.get(0));
     }
     
     /**
@@ -258,15 +249,16 @@ public class DependencyInfo implements Poolable {
                                        "# of Partitions: %d",
                                        this.txn_id,
                                        this.blockedTasks.isEmpty() == false,
-                                       this.results_ctr, this.partitions.cardinality()));
-        assert(this.results_ctr <= this.partitions.cardinality()) :
+                                       this.resultPartitions.cardinality(),
+                                       this.partitions.cardinality()));
+        assert(this.resultPartitions.cardinality() <= this.partitions.cardinality()) :
             String.format("Invalid DependencyInfo state for txn #%d. " +
             		      "There are %d results but %d partitions",
-            		      this.txn_id, this.results_ctr, this.partitions.cardinality());
+            		      this.txn_id, this.resultPartitions.cardinality(), this.partitions.cardinality());
         
         return (this.blockedTasks.isEmpty() == false) &&
                (this.blockedTasksReleased == false) &&
-               (this.results_ctr == this.partitions.cardinality());
+               (this.resultPartitions.cardinality() == this.partitions.cardinality());
     }
     
     public boolean hasTasksBlocked() {
@@ -284,7 +276,7 @@ public class DependencyInfo implements Poolable {
         }
         
         String status = null;
-        if (this.results_ctr == this.partitions.cardinality()) {
+        if (this.resultPartitions.cardinality() == this.partitions.cardinality()) {
             if (this.blockedTasksReleased == false) {
                 status = "READY";
             } else {
