@@ -116,77 +116,85 @@ public class TestMarkovEstimator extends BaseTestCase {
         this.thresholds = new EstimationThresholds();
     }
 
-    /**
-     * testMultipleStartTransaction
-     */
-    @Test
-    public void testMultipleStartTransaction() throws Exception {
-        Set<MarkovEstimatorState> all_states = new HashSet<MarkovEstimatorState>();
-        
-        for (int i = 0; i < 20; i++) {
-            MarkovEstimatorState state = (MarkovEstimatorState)t_estimator.startTransaction(XACT_ID++, this.catalog_proc, multip_trace.getParams());
-            assertNotNull(state);
-            assertFalse(all_states.contains(state));
-            all_states.add(state);
-        } // FOR
-    }
-    
-    /**
-     * testStartTransaction
-     */
-    @Test
-    public void testStartTransaction() throws Exception {
-        long txn_id = XACT_ID++;
-        MarkovEstimatorState state = (MarkovEstimatorState)t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
-        assertNotNull(state);
-        MarkovEstimate est = state.getInitialEstimate();
-        assertNotNull(est);
-        assertTrue(est.isInitialized());
-        assertNotNull(state.getLastEstimate());
-//        System.err.println(est.toString());
-        
-        MarkovGraph markov = state.getMarkovGraph();
-        List<MarkovVertex> initial_path = est.getMarkovPath();
-        assertNotNull(initial_path);
-        assertFalse(initial_path.isEmpty());
-        
-        System.err.println("# of Vertices: " + markov.getVertexCount());
-        System.err.println("# of Edges:    " + markov.getEdgeCount());
-        System.err.println("Confidence:    " + String.format("%.4f", est.getConfidenceCoefficient()));
-        System.err.println("\nINITIAL PATH:\n" + StringUtil.join("\n", initial_path));
-//        System.err.println(multip_trace.debug(catalog_db));
-
-        p_estimator.getAllPartitions(partitions, singlep_trace);
-        assertNotNull(partitions);
-//        assert(partitions.size() > 1) : partitions;
-        System.err.println("partitions: " + partitions);
-        
-//        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, null);
-//        gv.highlightPath(markov.getPath(initial_path), "blue");
-//        gv.writeToTempFile(this.catalog_proc, 0);
+//    /**
+//     * testMultipleStartTransaction
+//     */
+//    @Test
+//    public void testMultipleStartTransaction() throws Exception {
+//        Set<MarkovEstimatorState> all_states = new HashSet<MarkovEstimatorState>();
+//        
+//        for (int i = 0; i < 20; i++) {
+//            MarkovEstimatorState state = (MarkovEstimatorState)t_estimator.startTransaction(XACT_ID++, this.catalog_proc, multip_trace.getParams());
+//            assertNotNull(state);
+//            assertFalse(all_states.contains(state));
+//            all_states.add(state);
+//        } // FOR
+//    }
+//    
+//    /**
+//     * testStartTransaction
+//     */
+//    @Test
+//    public void testStartTransaction() throws Exception {
+//        long txn_id = XACT_ID++;
+//        MarkovEstimatorState state = (MarkovEstimatorState)t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
+//        assertNotNull(state);
+//        assertNotNull(state.getLastEstimate());
+//        
+//        MarkovEstimate est = state.getInitialEstimate();
+//        assertNotNull(est);
+//        assertTrue(est.toString(), est.isInitialized());
+//        assertTrue(est.toString(), est.isSinglePartitionProbabilitySet());
+//        assertTrue(est.toString(), est.isAbortProbabilitySet());
+//        assertTrue(est.toString(), est.getSinglePartitionProbability() < 1.0f);
+//        assertTrue(est.toString(), est.isConfidenceCoefficientSet());
+//        assertTrue(est.toString(), est.getConfidenceCoefficient() >= 0f);
+//        assertTrue(est.toString(), est.getConfidenceCoefficient() <= 1f);
 //
-//        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
-        
-        Collection<Integer> est_partitions = est.getTouchedPartitions(thresholds);
-        assertNotNull(est_partitions);
-        assertEquals(partitions.size(), est_partitions.size());
-        assertEquals(partitions, est_partitions);
-        
-        assert(est.isSinglePartitioned(this.thresholds));
-        assertTrue(est.isAbortable(this.thresholds));
-        
-        for (Integer partition : ALL_PARTITIONS) {
-            if (partitions.contains(partition)) { //  == BASE_PARTITION) {
-                assertFalse("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
-                assertTrue("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition) == true);
-                assertTrue("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition) == true);
-            } else {
-                assertTrue("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
-                assertFalse("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition) == true);
-                assertFalse("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition) == true);
-            }
-        } // FOR
-    }
+//        //        System.err.println(est.toString());
+//        
+//        MarkovGraph markov = state.getMarkovGraph();
+//        List<MarkovVertex> initial_path = est.getMarkovPath();
+//        assertNotNull(initial_path);
+//        assertFalse(initial_path.isEmpty());
+//        
+//        System.err.println("# of Vertices: " + markov.getVertexCount());
+//        System.err.println("# of Edges:    " + markov.getEdgeCount());
+//        System.err.println("Confidence:    " + String.format("%.4f", est.getConfidenceCoefficient()));
+//        System.err.println("\nINITIAL PATH:\n" + StringUtil.join("\n", initial_path));
+////        System.err.println(multip_trace.debug(catalog_db));
+//
+//        p_estimator.getAllPartitions(partitions, singlep_trace);
+//        assertNotNull(partitions);
+////        assert(partitions.size() > 1) : partitions;
+//        System.err.println("partitions: " + partitions);
+//        
+////        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, null);
+////        gv.highlightPath(markov.getPath(initial_path), "blue");
+////        gv.writeToTempFile(this.catalog_proc, 0);
+////
+////        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
+//        
+//        Collection<Integer> est_partitions = est.getTouchedPartitions(thresholds);
+//        assertNotNull(est_partitions);
+//        assertEquals(partitions.size(), est_partitions.size());
+//        assertEquals(partitions, est_partitions);
+//        
+//        assert(est.isSinglePartitioned(this.thresholds));
+//        assertTrue(est.isAbortable(this.thresholds));
+//        
+//        for (Integer partition : ALL_PARTITIONS) {
+//            if (partitions.contains(partition)) { //  == BASE_PARTITION) {
+//                assertFalse("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
+//                assertTrue("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition));
+//                assertTrue("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition));
+//            } else {
+//                assertTrue("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
+//                assertFalse("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition));
+//                assertFalse("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition));
+//            }
+//        } // FOR
+//    }
     
     /**
      * testProcessTransactionTrace
@@ -198,6 +206,17 @@ public class TestMarkovEstimator extends BaseTestCase {
         MarkovEstimatorState s = this.t_estimator.processTransactionTrace(txn_trace);
         assertNotNull(s);
         
+        MarkovEstimate initialEst = s.getInitialEstimate();
+        assertNotNull(initialEst);
+        assertTrue(initialEst.toString(), initialEst.isInitialized());
+        assertTrue(initialEst.toString(), initialEst.isSinglePartitionProbabilitySet());
+        assertTrue(initialEst.toString(), initialEst.isAbortProbabilitySet());
+        assertTrue(initialEst.toString(), initialEst.getSinglePartitionProbability() < 1.0f);
+        assertTrue(initialEst.toString(), initialEst.isConfidenceCoefficientSet());
+        assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() >= 0f);
+        assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() <= 1f);
+        assertTrue(initialEst.toString(), initialEst.getMarkovPath().isEmpty() == false);
+        
         // We should have an MarkovEstimate for each batch
         assertEquals(txn_trace.getBatchCount(), s.getEstimateCount());
         List<TransactionEstimate> estimates = s.getEstimates();
@@ -206,7 +225,15 @@ public class TestMarkovEstimator extends BaseTestCase {
             assertFalse(queries.isEmpty());
             
             MarkovEstimate est = (MarkovEstimate)estimates.get(i);
+            assertNotSame(initialEst, est);
             assertNotNull(est);
+            assertTrue(est.toString(), est.isSinglePartitionProbabilitySet());
+            assertTrue(est.toString(), est.isAbortProbabilitySet());
+            assertTrue(est.toString(), est.getSinglePartitionProbability() < 1.0f);
+            assertTrue(est.toString(), est.isConfidenceCoefficientSet());
+            assertTrue(est.toString(), est.getConfidenceCoefficient() >= 0f);
+            assertTrue(est.toString(), est.getConfidenceCoefficient() <= 1f);
+            assertTrue(est.toString(), est.getMarkovPath().isEmpty() == false);
             
             // The last vertex in each MarkovEstimate should correspond to the last query in each batch
             MarkovVertex last_v = est.getVertex();

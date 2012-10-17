@@ -107,6 +107,7 @@ public final class MarkovEstimatorState extends EstimatorState {
         if (initial) {
             this.addInitialEstimate(next);
         } else {
+            assert(v.isStartVertex() == false);
             this.addEstimate(next);
         }
         return (next);

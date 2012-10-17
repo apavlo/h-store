@@ -29,7 +29,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     private final CatalogContext catalogContext;
     
     // Global
-    private float confidence;
+    protected float confidence;
     private float singlepartition;
     private float abort;
     private final List<MarkovVertex> path = new ArrayList<MarkovVertex>();
@@ -80,19 +80,11 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         assert(v != null);
         assert(this.initializing == false);
         assert(this.vertex == null) : "Trying to initialize the same object twice!";
+        
         this.batch = batch;
         this.vertex = v;
+        this.time = v.getExecutionTime();
         
-        if (this.vertex.isStartVertex() == false) {
-            this.setSinglePartitionProbability(v.getSinglePartitionProbability());
-            this.setAbortProbability(v.getAbortProbability());
-            for (int i = 0; i < this.touched.length; i++) {
-                this.setFinishProbability(i, v.getFinishProbability(i));
-                this.setReadOnlyProbability(i, v.getReadOnlyProbability(i));
-                this.setWriteProbability(i, v.getWriteProbability(i));
-            } // FOR
-            this.time = v.getExecutionTime();
-        }
         return (this);
     }
     
@@ -226,14 +218,16 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     // ----------------------------------------------------------------------------
-    // PROBABILITIES
+    // CONFIDENCE COEFFICIENT
     // ----------------------------------------------------------------------------
     
+    public boolean isConfidenceCoefficientSet() {
+        return (this.confidence != MarkovUtil.NULL_MARKER);
+    }
     public float getConfidenceCoefficient() {
         return (this.confidence);
     }
-    
-    protected void setConfidenceProbability(float prob) {
+    public void setConfidenceCoefficient(float prob) {
         this.confidence = prob;
         if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
         else if (this.valid == null) this.valid = true;
@@ -424,15 +418,10 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     public boolean isTargetPartition(EstimationThresholds t, int partition) {
         return ((1 - this.finished[partition]) >= t.getFinishedThreshold());
     }
-    public boolean isConfidenceProbabilitySet() {
-        return (this.confidence != MarkovUtil.NULL_MARKER);
-    }
     public int getTouchedCounter(int partition) {
         return (this.touched[partition]);
     }
-    public float getConfidenceProbability() {
-        return (this.confidence);
-    }
+
     public long getExecutionTime() {
         return time;
     }

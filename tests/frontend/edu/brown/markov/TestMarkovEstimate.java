@@ -50,7 +50,7 @@ public class TestMarkovEstimate extends BaseTestCase {
                 est.setFinishProbability(p, 1.0f);
             }
         } // FOR
-        est.setConfidenceProbability(0.92f);
+        est.setConfidenceCoefficient(0.92f);
         est.setSinglePartitionProbability(1.0f);
         est.setAbortProbability(0.0f);
         assert(this.est.isValid());

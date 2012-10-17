@@ -363,10 +363,35 @@ public class MarkovEstimator extends TransactionEstimator {
                                          state.cache_last_partitions);
             }
         }
-        
+
+        // 2012-10-17: This is kind of funky because we have to populate the
+        // probabilities for the MarkovEstimate here, whereas for the initial estimate 
+        // we did it inside of the MarkovPathEstimator
         MarkovEstimate estimate = state.createNextEstimate(state.current, false);
         assert(estimate != null);
-        if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate));
+        estimate.setSinglePartitionProbability(state.current.getSinglePartitionProbability());
+        estimate.setAbortProbability(state.current.getAbortProbability());
+        for (int i = 0; i < this.catalogContext.numberOfPartitions; i++) {
+            estimate.setFinishProbability(i, state.current.getFinishProbability(i));
+            estimate.setReadOnlyProbability(i, state.current.getReadOnlyProbability(i));
+            estimate.setWriteProbability(i, state.current.getWriteProbability(i));
+        } // FOR
+        // HACK: Always set the confidence to 1.0
+        estimate.setConfidenceCoefficient(1.0f);
+        
+        List<MarkovVertex> estimatePath = estimate.getMarkovPath();
+        boolean copy = false;
+        List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
+        for (MarkovVertex v : initialPath) {
+            if (copy || v.equals(state.current)) {
+                copy = true;
+                estimatePath.add(v);
+                
+            }
+        } // FOR
+        
+        
+        if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate.toString()));
         assert(estimate.isInitialized()) :
             String.format("Unexpected uninitialized MarkovEstimate for txn #%d\n%s", state.txn_id, estimate);
         assert(estimate.isValid()) :

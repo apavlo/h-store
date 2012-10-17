@@ -75,7 +75,7 @@ public class TestMarkovSuite extends RegressionSuite {
         } // FOR
         
         Object params[] = {
-            w_id,                   // W_ID
+            (short)w_id,            // W_ID
             (byte)rng.nextInt(10),  // D_ID
             1,                      // C_ID
             new TimestampType(),    // TIMESTAMP

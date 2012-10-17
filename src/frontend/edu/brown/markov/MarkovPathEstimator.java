@@ -588,14 +588,17 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     protected void callback_finish() {
 //        if (d)
 //            LOG.info("Callback Last! Last Element = " + last_v);
+        
+        // Confidence
+        this.estimate.setConfidenceCoefficient(this.confidence);
+        float inverse_prob = 1.0f - this.confidence;
+        
+        // MarkovVertex Path
         List<MarkovVertex> path = this.getVisitPath();
         this.estimate.copyMarkovPath(path);
         MarkovGraph markov = (MarkovGraph)this.getGraph();
         MarkovVertex first_v = markov.getStartVertex();
-        
-        // Confidence
-        this.estimate.setConfidenceProbability(this.confidence);
-        float inverse_prob = 1.0f - this.confidence;
+
         
         // Partition Probabilities
         boolean is_singlepartition = this.touched_partitions.size() == 1;
@@ -627,7 +630,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             this.estimate.setAbortProbability(1.0f);
         }
     }
-    
     
     /**
      * Convenience method that returns the traversal path predicted for this instance
