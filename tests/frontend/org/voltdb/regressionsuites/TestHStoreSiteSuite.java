@@ -46,7 +46,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
         
-        TestTM1Suite.initializeTM1Database(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         cresponse = client.callProcedure(txn.callName, params);

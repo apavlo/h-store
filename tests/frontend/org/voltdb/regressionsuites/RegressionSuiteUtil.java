@@ -7,6 +7,8 @@ import junit.framework.TestCase;
 
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.benchmark.tpcc.TPCCLoader;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
@@ -14,6 +16,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.VoltTypeUtil;
 
+import edu.brown.benchmark.tm1.TM1Loader;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 
@@ -56,6 +59,36 @@ public abstract class RegressionSuiteUtil {
         // System.err.printf("Loading %d rows for %s\n%s\n\n", vt.getRowCount(), catalog_tbl, vt.toString());
         ClientResponse cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
         TestCase.assertEquals(Status.OK, cr.getStatus());
+    }
+
+    public static final void initializeTPCCDatabase(final Catalog catalog, final Client client) throws Exception {
+        String args[] = { "NOCONNECTIONS=true", };
+        TPCCLoader loader = new TPCCLoader(args) {
+            {
+                this.setCatalog(catalog);
+                this.setClientHandle(client);
+            }
+            @Override
+            public Catalog getCatalog() {
+                return (catalog);
+            }
+        };
+        loader.load();
+    }
+
+    public static final void initializeTM1Database(final Catalog catalog, final Client client) throws Exception {
+        String args[] = { "NOCONNECTIONS=true", };
+        TM1Loader loader = new TM1Loader(args) {
+            {
+                this.setCatalog(catalog);
+                this.setClientHandle(client);
+            }
+            @Override
+            public Catalog getCatalog() {
+                return (catalog);
+            }
+        };
+        loader.load();
     }
     
 }

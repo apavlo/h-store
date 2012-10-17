@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Test;
 
-import org.voltdb.regressionsuites.TestTM1Suite;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.client.Client;
@@ -47,7 +46,7 @@ public class TestSpecExecSuite extends RegressionSuite {
      */
     public void testConflictingTxns() throws Exception {
         Client client = this.getClient();
-        TestTM1Suite.initializeTM1Database(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalog(), client);
         
         // Submit a distributed txn and make sure that our conflicting
         // txn is not speculatively executed
@@ -116,7 +115,7 @@ public class TestSpecExecSuite extends RegressionSuite {
      */
     public void testRemoteIdle() throws Exception {
         Client client = this.getClient();
-        TestTM1Suite.initializeTM1Database(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalog(), client);
         
         final int sleepTime = 10000; // ms
         final ClientResponse dtxnResponse[] = new ClientResponse[1];
