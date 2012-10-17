@@ -47,7 +47,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     private static final Set<Integer> multip_partitions = new HashSet<Integer>();
     private static final List<MarkovVertex> multip_path = new ArrayList<MarkovVertex>();
     
-    private MarkovPathEstimator estimator;
+    private MarkovPathEstimator pathEstimator;
     private MarkovEstimate estimate; 
     private Procedure catalog_proc;
     private MarkovGraph graph;
@@ -114,7 +114,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         assertFalse(multip_path.isEmpty());
 
         // Setup
-        this.estimator = new MarkovPathEstimator(catalogContext, p_estimator);
+        this.pathEstimator = new MarkovPathEstimator(catalogContext, p_estimator);
         this.graph = markovs.get(BASE_PARTITION, this.catalog_proc);
         assertNotNull("No graph exists for " + this.catalog_proc + " on Partition #" + BASE_PARTITION, this.graph);
         this.estimate = new MarkovEstimate(catalogContext);
@@ -125,28 +125,27 @@ public class TestMarkovPathEstimator extends BaseTestCase {
      * testFinish
      */
     public void testFinish() throws Exception {
-        MarkovPathEstimator estimator = new MarkovPathEstimator(catalogContext, p_estimator);
-        estimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
-        assert(estimator.isInitialized());
-        estimator.enableForceTraversal(true);
+        pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
+        assertTrue(pathEstimator.isInitialized());
+        pathEstimator.enableForceTraversal(true);
         
-        assertEquals(1.0f, estimator.getConfidence(), MarkovGraph.PROBABILITY_EPSILON);
-        estimator.traverse(this.graph.getStartVertex());
-        estimator.finish();
-        assertFalse(estimator.isInitialized());
-        assertEquals(MarkovUtil.NULL_MARKER, estimator.getConfidence(), MarkovGraph.PROBABILITY_EPSILON);
+        assertEquals(1.0f, estimate.getConfidenceCoefficient(), MarkovGraph.PROBABILITY_EPSILON);
+        pathEstimator.traverse(this.graph.getStartVertex());
+        assertTrue(pathEstimator.isInitialized());
+        pathEstimator.finish();
+        assertFalse(pathEstimator.isInitialized());
     }
     
     /**
      * testMarkovEstimate
      */
     public void testMarkovEstimate() throws Exception {
-        estimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
-        assert(estimator.isInitialized());
-        estimator.enableForceTraversal(true);
-        estimator.traverse(this.graph.getStartVertex());
+        pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
+        assert(pathEstimator.isInitialized());
+        pathEstimator.enableForceTraversal(true);
+        pathEstimator.traverse(this.graph.getStartVertex());
         
-        List<MarkovVertex> visitPath = estimator.getVisitPath();
+        List<MarkovVertex> visitPath = pathEstimator.getVisitPath();
         System.err.println(StringUtil.columns(StringUtil.join("\n", visitPath), this.estimate.toString()));
         
         assertFalse(singlep_trace.isAborted());
@@ -189,12 +188,12 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         MarkovVertex abort = this.graph.getAbortVertex();
         
 //        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
-        estimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
-        estimator.enableForceTraversal(true);
-        estimator.traverse(this.graph.getStartVertex());
-        ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(estimator.getVisitPath());
+        pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
+        pathEstimator.enableForceTraversal(true);
+        pathEstimator.traverse(this.graph.getStartVertex());
+        ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(pathEstimator.getVisitPath());
         assertTrue(estimate.isConfidenceCoefficientSet());
-        float confidence = estimator.getConfidence();
+        float confidence = this.estimate.getConfidenceCoefficient();
         
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
 //        System.err.println("CONFIDENCE: " + confidence);
@@ -227,10 +226,10 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         MarkovVertex commit = this.graph.getCommitVertex();
         MarkovVertex abort = this.graph.getAbortVertex();
         
-        estimator.init(this.graph, this.estimate, BASE_PARTITION, multip_trace.getParams());
-        estimator.enableForceTraversal(true);
-        estimator.traverse(this.graph.getStartVertex());
-        ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(estimator.getVisitPath());
+        pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, multip_trace.getParams());
+        pathEstimator.enableForceTraversal(true);
+        pathEstimator.traverse(this.graph.getStartVertex());
+        ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(pathEstimator.getVisitPath());
         
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
         
