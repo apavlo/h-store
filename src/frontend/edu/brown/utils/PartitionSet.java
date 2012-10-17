@@ -38,6 +38,8 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.NotImplementedException;
 
+import edu.brown.hstore.HStoreConstants;
+
 /**
  * Container class that represents a list of partitionIds
  * For now it's just a HashSet
@@ -47,6 +49,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     
     // private final Set<Integer> inner = new HashSet<Integer>();
     private final BitSet inner = new BitSet();
+    private boolean contains_null = false;
 
     public PartitionSet() {
         // Nothing...
@@ -98,14 +101,17 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     public boolean contains(Object o) {
         if (o instanceof Integer) {
             Integer p = (Integer)o;
-            return this.inner.get(p.intValue());
+            return this.contains(p.intValue());
         }
         return (false);
     }
     public boolean contains(Integer p) {
-        return this.inner.get(p.intValue());
+        return this.contains(p.intValue());
     }
     public boolean contains(int p) {
+        if (p == HStoreConstants.NULL_PARTITION_ID) {
+            return (this.contains_null);
+        }
         return (this.inner.get(p));
     }
     @Override
@@ -137,24 +143,30 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     }
     @Override
     public boolean add(Integer e) {
-        this.inner.set(e.intValue());
-        return (true);
+        return (this.add(e.intValue()));
     }
     public boolean add(int p) {
-        this.inner.set(p);
+        if (p == HStoreConstants.NULL_PARTITION_ID) {
+            this.contains_null = true;
+        } else {
+            this.inner.set(p);
+        }
         return (true);
     }
     @Override
     public boolean remove(Object o) {
         if (o instanceof Integer) {
             Integer p = (Integer)o;
-            this.inner.set(p.intValue(), false);
-            return (true);
+            return (this.remove(p.intValue()));
         }
         return (false);
     }
     public boolean remove(int p) {
-        this.inner.set(p, false);
+        if (p == HStoreConstants.NULL_PARTITION_ID) {
+            this.contains_null = false;
+        } else {
+            this.inner.set(p, false);            
+        }
         return (true);
     }
     @Override
@@ -212,8 +224,12 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     
     private class Itr implements Iterator<Integer> {
         int idx = 0;
+        boolean shown_null = false;
         @Override
         public boolean hasNext() {
+            if (contains_null && this.shown_null == false) {
+                return (true);
+            }
             for (int cnt = inner.size(); this.idx < cnt; this.idx++) {
                 if (inner.get(this.idx)) {
                     return (true);
@@ -223,6 +239,10 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
         }
         @Override
         public Integer next() {
+            if (contains_null && this.shown_null == false) {
+                this.shown_null = true;
+                return (HStoreConstants.NULL_PARTITION_ID);
+            }
             return Integer.valueOf(this.idx++);
         }
         @Override

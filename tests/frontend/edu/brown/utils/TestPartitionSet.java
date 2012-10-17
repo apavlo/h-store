@@ -4,6 +4,8 @@ import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 
+import edu.brown.hstore.HStoreConstants;
+
 import junit.framework.TestCase;
 
 public class TestPartitionSet extends TestCase {
@@ -17,6 +19,38 @@ public class TestPartitionSet extends TestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();
+    }
+    
+    /**
+     * testNullPartitionId
+     */
+    public void testNullPartitionId() {
+        assertFalse(pset.toString(), pset.contains(HStoreConstants.NULL_PARTITION_ID));
+        pset.add(HStoreConstants.NULL_PARTITION_ID);
+        assertTrue(pset.toString(), pset.contains(HStoreConstants.NULL_PARTITION_ID));
+        for (Integer p : pset) {
+            assertEquals(HStoreConstants.NULL_PARTITION_ID, p.intValue());
+        }
+        
+        int num_elements = rand.nextInt(NUM_PARTITIONS);
+        for (int i = 0; i < num_elements; i++) {
+            int p = rand.nextInt(NUM_PARTITIONS);
+            pset.add(p);
+        } // FOR
+        assertTrue(pset.toString(), pset.contains(HStoreConstants.NULL_PARTITION_ID));
+        boolean found_null = false;
+        for (Integer p : pset) {
+            System.err.println(p);
+            if (p.intValue() == HStoreConstants.NULL_PARTITION_ID) {
+                found_null = true;
+            } else {
+                assertNotSame(HStoreConstants.NULL_PARTITION_ID, p.intValue());
+            }
+        }
+        assertTrue(pset.toString(), found_null);
+        
+        pset.remove(HStoreConstants.NULL_PARTITION_ID);
+        assertFalse(pset.toString(), pset.contains(HStoreConstants.NULL_PARTITION_ID));
     }
     
     /**
@@ -48,7 +82,7 @@ public class TestPartitionSet extends TestCase {
         
         int cnt = 0;
         for (Integer p : pset) {
-            System.err.println(cnt + " - " + p);
+//            System.err.println(cnt + " - " + p);
             assertNotNull(pset.toString(), p);
             assertTrue(p.toString(), set.contains(p));
             cnt++;
