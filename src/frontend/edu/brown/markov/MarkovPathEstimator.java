@@ -23,6 +23,7 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
@@ -115,19 +116,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     // TEMPORARY TRAVERSAL MEMBERS
     // ----------------------------------------------------------------------------
     
-    private final transient PartitionSet past_partitions = new PartitionSet();
-    
-    private final transient SortedSet<MarkovEdge> candidates = new TreeSet<MarkovEdge>();
-    
-    private transient MarkovEdge candidate_edge = null;
-    
-    private final transient Set<Pair<Statement, Integer>> next_statements = new HashSet<Pair<Statement, Integer>>();
-    
-    private final transient PartitionSet stmt_partitions = new PartitionSet();
-    
-    private final transient Map<Statement, StmtParameter[]> stmt_params = new HashMap<Statement, StmtParameter[]>();
-    
-    private final transient Map<Statement, Object[]> stmt_param_arrays = new HashMap<Statement, Object[]>();
+    private final PartitionSet stmt_partitions = new PartitionSet();
+    private final PartitionSet past_partitions = new PartitionSet();
+    private final SortedSet<MarkovEdge> candidate_edges = new TreeSet<MarkovEdge>();
+    private final Collection<CountedStatement> next_statements = new HashSet<CountedStatement>();
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -185,7 +177,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.greatest_abort = MarkovUtil.NULL_MARKER;
         this.cached = false;
         this.estimate = null;
-        this.past_partitions.clear();
         this.forced_vertices.clear();
     }
     
@@ -220,18 +211,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         return this.forced_vertices;
     }
 
-    private StmtParameter[] getStatementParams(Statement catalog_stmt) {
-        StmtParameter arr[] = this.stmt_params.get(catalog_stmt);
-        if (arr == null) {
-            arr = new StmtParameter[catalog_stmt.getParameters().size()];
-            for (StmtParameter catalog_param : catalog_stmt.getParameters()) {
-                arr[catalog_param.getIndex()] = catalog_param;
-            }
-            this.stmt_param_arrays.put(catalog_stmt, arr);
-        }
-        return (arr);
-    }
-    
 //    private Object[] getStatementParamsArray(Statement catalog_stmt) {
 //        Object arr[] = this.stmt_param_arrays.get(catalog_stmt);
 //        int size = catalog_stmt.getParameters().size();
@@ -253,7 +232,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
 //        }
         
         // Initialize temporary data
-        this.candidates.clear();
+        this.candidate_edges.clear();
         this.next_statements.clear();
         this.past_partitions.addAll(element.getPartitions());
         
@@ -296,32 +275,33 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             if (next.isCommitVertex() || next.isAbortVertex()) {
                 MarkovEdge candidate = markov.findEdge(element, next);
                 assert(candidate != null);
-                this.candidates.add(candidate);
+                this.candidate_edges.add(candidate);
             } else {
-                this.next_statements.add(Pair.of(next_catalog_stmt, next_catalog_stmt_index));
+                this.next_statements.add(next.getCountedStatement());
             }
         } // FOR
         
         // Now for the unique set of Statement+StatementIndex pairs, figure out which partitions
         // the queries will go to.
-        for (Pair<Statement, Integer> pair : this.next_statements) {
-            Statement catalog_stmt = pair.getFirst();
-            Integer catalog_stmt_index = pair.getSecond();
-            if (t) LOG.trace("Examining " + pair);
+        MarkovEdge candidate_edge;
+        for (CountedStatement cstmt : this.next_statements) {
+            Statement catalog_stmt = cstmt.statement;
+            Integer catalog_stmt_index = cstmt.counter;
+            if (t) LOG.trace("Examining " + cstmt);
             
             // Get the mapping objects (if any) for next
             // This is the only way we can predict what partitions we will touch
             Map<StmtParameter, SortedSet<ParameterMapping>> stmtMappings = this.allMappings.get(catalog_stmt, catalog_stmt_index);
             if (stmtMappings == null) {
                 if (d) {
-                    LOG.warn("No parameter mappings for " + pair);
+                    LOG.warn("No parameter mappings for " + catalog_stmt);
                     LOG.trace(this.allMappings.debug(catalog_stmt));
                 }
                 continue;
             }
             
             // Go through the StmtParameters and map values from ProcParameters
-            StmtParameter stmt_params[] = this.getStatementParams(catalog_stmt);
+            StmtParameter stmt_params[] = catalog_stmt.getParameters().values();
             Object stmt_args[] = new Object[stmt_params.length]; // this.getStatementParamsArray(catalog_stmt);
             boolean stmt_args_set = false;
             for (int i = 0; i < stmt_args.length; i++) {
@@ -331,7 +311,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 
                 SortedSet<ParameterMapping> mappings = stmtMappings.get(catalog_stmt_param);
                 if (mappings == null || mappings.isEmpty()) {
-                    if (t) LOG.trace("No parameter mappings for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
+                    if (t) LOG.trace("No parameter mappings for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + cstmt);
                     continue;
                 }
                 if (t) LOG.trace("Found " + mappings.size() + " mapping(s) for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
@@ -401,34 +381,33 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 // Now for this given list of partitions, find a Vertex in our next set
                 // that has the same partitions
                 if (this.stmt_partitions.isEmpty() == false) {
-                    this.candidate_edge = null;
+                    candidate_edge = null;
                     for (MarkovVertex next : next_vertices) {
                         if (next.isEqual(catalog_stmt, this.stmt_partitions, this.past_partitions, catalog_stmt_index)) {
                             // BINGO!!!
-                            assert(this.candidate_edge == null);
+                            assert(candidate_edge == null);
                             try {
-                                this.candidate_edge = markov.findEdge(element, next);
+                                candidate_edge = markov.findEdge(element, next);
                             } catch (NullPointerException ex) {
                                 continue;
                             }
-                            assert(this.candidate_edge != null);
-
-                            this.candidates.add(this.candidate_edge);
-                            if (t) LOG.trace("Found candidate edge to " + next + " [" + this.candidate_edge + "]");
+                            assert(candidate_edge != null);
+                            this.candidate_edges.add(candidate_edge);
+                            if (t) LOG.trace("Found candidate edge to " + next + " [" + candidate_edge + "]");
                             break; // ???
                         }
                     } // FOR (Vertex
-                    if (candidate_edge == null && t) LOG.trace("Failed to find candidate edge from " + element + " to " + pair);
+                    if (candidate_edge == null && t) LOG.trace("Failed to find candidate edge from " + element + " to " + cstmt);
                 }
             // Without any stmt_args, there's nothing we can do here...
             } else {
-                if (t) LOG.trace("No stmt_args for " + pair + ". Skipping...");
+                if (t) LOG.trace("No stmt_args for " + cstmt + ". Skipping...");
             } // IF
         } // FOR
         
         // If we don't have any candidate edges and the FORCE TRAVERSAL flag is set, then we'll just
         // grab all of the edges from our currect vertex
-        int num_candidates = this.candidates.size();
+        int num_candidates = this.candidate_edges.size();
         boolean was_forced = false;
         if (num_candidates == 0 && this.force_traversal) {
             if (t) LOG.trace("No candidate edges were found. Force travesal flag is set, so taking all");
@@ -442,17 +421,17 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
 //                LOG.info("Created a new vertex " + v);
 //            } else {
             Collection<MarkovEdge> out_edges = markov.getOutEdges(element);
-            if (out_edges != null) this.candidates.addAll(out_edges);
+            if (out_edges != null) this.candidate_edges.addAll(out_edges);
 //            }
-            num_candidates = this.candidates.size();
+            num_candidates = this.candidate_edges.size();
             was_forced = true;
         }
         
         // So now we have our list of candidate edges. We can pick the first one
         // since they will be sorted by their probability
-        if (t) LOG.trace("Candidate Edges: " + this.candidates);
+        if (t) LOG.trace("Candidate Edges: " + this.candidate_edges);
         if (num_candidates > 0) {
-            MarkovEdge next_edge = CollectionUtil.first(this.candidates);
+            MarkovEdge next_edge = CollectionUtil.first(this.candidate_edges);
             MarkovVertex next_vertex = markov.getOpposite(element, next_edge);
             children.addAfter(next_vertex);
             if (was_forced) this.forced_vertices.add(next_vertex);
@@ -462,13 +441,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             double total_probability = 0.0;
             if (d) LOG.debug("CANDIDATES:");
             int i = 0;
-            for (MarkovEdge e : this.candidates) {
+            for (MarkovEdge e : this.candidate_edges) {
                 MarkovVertex v = markov.getOpposite(element, e);
                 total_probability += e.getProbability();
                 if (d) {
                     LOG.debug(String.format("  [%d] %s  --[%s]--> %s%s",
                                             i++, element, e, v, (next_vertex.equals(v) ? " <== SELECTED" : "")));
-                    if (this.candidates.size() > 1) LOG.debug(StringUtil.addSpacers(v.debug()));
+                    if (this.candidate_edges.size() > 1) LOG.debug(StringUtil.addSpacers(v.debug()));
                 }
             } // FOR
             this.estimate.confidence *= next_edge.getProbability() / total_probability;

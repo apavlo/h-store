@@ -1,7 +1,6 @@
 package edu.brown.hstore;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.voltdb.ParameterSet;
@@ -18,6 +17,7 @@ import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 
 public class TestBatchPlannerMapReduce extends BaseTestCase {
@@ -66,7 +66,7 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
     public void testForceSinglePartitionPlan() throws Exception {
         this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, true);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         

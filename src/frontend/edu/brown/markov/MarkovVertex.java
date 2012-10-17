@@ -22,9 +22,11 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Statement;
+import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.hstore.estimators.QueryEstimate;
@@ -180,6 +182,11 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      */
     private transient String to_string = null;
     
+    /**
+     * Special wrapper object that contains the Statement + the query counter
+     */
+    private transient CountedStatement counted_stmt = null;
+    
 
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -283,8 +290,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     
     @Override
     public QueryEstimate getEstimatedQueries(int partition) {
-        // TODO Auto-generated method stub
-        return null;
+        throw new NotImplementedException(ClassUtil.getCurrentMethodName() + " is not implemented");
     }
 
     @Override
@@ -394,6 +400,17 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return (int)this.counter;
     }
     
+    public CountedStatement getCountedStatement() {
+        if (this.counted_stmt == null) {
+            synchronized (this) {
+                if (this.counted_stmt == null) {
+                    this.counted_stmt = new CountedStatement((Statement)this.catalog_item, this.counter);
+                }
+            } // SYNCH
+        }
+        return (this.counted_stmt);
+    }
+    
 
     /**
      * Return the set of partitions that the query represented by this vertex touches
@@ -409,6 +426,11 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      */
     public PartitionSet getPastPartitions() {
         return this.past_partitions;
+    }
+    
+    @Override
+    public PartitionSet getTouchedPartitions(EstimationThresholds t) {
+        return (this.partitions);
     }
 
     public boolean equals(Object o) {
@@ -778,14 +800,13 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return (true);
     }
     
-
     /**
      * The 'score' of a vertex is a measure of how often it has been hit in the current workload.
      * When this value differs enough from getOriginalScore() shoudlRecompute() will return true
      * @param xact_count
      * @return
      */
-    public double getChangeScore(int xact_count) {
+    private double getChangeScore(int xact_count) {
         return (double) (this.instancehits * 1.0 / xact_count);
     }
 
@@ -985,13 +1006,4 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             break;
         } // SWITCH
     }
-
-    @Override
-    public PartitionSet getTouchedPartitions(EstimationThresholds t) {
-        return (this.partitions);
-    }
-
-
-
-
 }

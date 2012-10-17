@@ -2,7 +2,6 @@ package edu.brown.markov;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +74,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     protected PartitionSet most_touched_partitionset;
     protected PartitionSet read_partitionset;
     protected PartitionSet write_partitionset;
-
+    
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS + INITIALIZATION
     // ----------------------------------------------------------------------------

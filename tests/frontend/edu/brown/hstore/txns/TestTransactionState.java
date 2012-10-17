@@ -33,6 +33,7 @@ import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
@@ -113,7 +114,7 @@ public class TestTransactionState extends BaseTestCase {
             hstore_site.addPartitionExecutor(LOCAL_PARTITION, executor);
             
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
+            plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
             plan.getWorkFragments(TXN_ID, ftasks);
 //            System.err.println("FTASKS: " + ftasks);

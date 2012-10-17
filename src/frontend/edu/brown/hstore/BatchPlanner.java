@@ -217,7 +217,7 @@ public class BatchPlanner implements Loggable {
         // ----------------------------------------------------------------------------
         private boolean cached = false;
 
-        private Integer base_partition = null;
+        private int base_partition = HStoreConstants.NULL_PARTITION_ID;
         private PlanGraph graph;
         private MispredictionException mispredict;
 
@@ -297,7 +297,7 @@ public class BatchPlanner implements Loggable {
          * @param base_partition
          * @param batchSize
          */
-        private BatchPlan init(long client_handle, Integer base_partition) {
+        private BatchPlan init(long client_handle, int base_partition) {
             assert (this.cached == false);
             this.base_partition = base_partition;
             this.mispredict = null;
@@ -444,8 +444,11 @@ public class BatchPlanner implements Loggable {
      * @param forceSinglePartition
      */
     @SuppressWarnings("unchecked")
-    public BatchPlanner(SQLStmt[] batchStmts, int batchSize, Procedure catalog_proc, PartitionEstimator p_estimator,
-            boolean forceSinglePartition) {
+    public BatchPlanner(SQLStmt[] batchStmts,
+                        int batchSize,
+                        Procedure catalog_proc,
+                        PartitionEstimator p_estimator,
+                        boolean forceSinglePartition) {
         assert (catalog_proc != null);
         assert (p_estimator != null);
 
@@ -562,9 +565,9 @@ public class BatchPlanner implements Loggable {
      * @param batchArgs
      * @return
      */
-    public BatchPlan plan(Long txn_id, long client_handle, Integer base_partition,
-            Collection<Integer> predict_partitions, boolean predict_singlePartitioned,
-            Histogram<Integer> touched_partitions, ParameterSet[] batchArgs) {
+    public BatchPlan plan(Long txn_id, long client_handle, int base_partition,
+                          PartitionSet predict_partitions, boolean predict_singlePartitioned,
+                          Histogram<Integer> touched_partitions, ParameterSet[] batchArgs) {
         if (hstore_conf.site.planner_profiling) {
             if (this.profiler == null)
                 this.profiler = new BatchPlannerProfiler();
@@ -609,7 +612,7 @@ public class BatchPlanner implements Loggable {
                         Object params[] = batchArgs[stmt_index].toArray();
                         cache_isSinglePartition[stmt_index] = true;
                         for (int idx : cache_fastLookups[stmt_index]) {
-                            if (hasher.hash(params[idx]) != base_partition.intValue()) {
+                            if (hasher.hash(params[idx]) != base_partition) {
                                 cache_isSinglePartition[stmt_index] = false;
                                 break;
                             }
@@ -627,14 +630,14 @@ public class BatchPlanner implements Loggable {
             // If all of the Statements are single-partition, then we can use
             // the cached BatchPlan if we already have one.
             // This saves a lot of trouble
-            if (is_allSinglePartition && cache_singlePartitionPlans[base_partition.intValue()] != null) {
+            if (is_allSinglePartition && cache_singlePartitionPlans[base_partition] != null) {
                 if (d)
                     LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id,
                             base_partition, Arrays.toString(this.catalog_stmts)));
                 if (hstore_conf.site.planner_profiling && profiler != null)
                     profiler.time_plan.stop();
                 touched_partitions.put(base_partition, this.batchSize);
-                return (cache_singlePartitionPlans[base_partition.intValue()]);
+                return (cache_singlePartitionPlans[base_partition]);
             }
         }
 
@@ -685,14 +688,13 @@ public class BatchPlanner implements Loggable {
                 assert (has_singlepartition_plan);
 
                 if (this.cache_singlePartitionFragmentPartitions == null) {
-                    this.cache_singlePartitionFragmentPartitions = CACHED_FRAGMENT_PARTITION_MAPS[base_partition
-                            .intValue()];
+                    this.cache_singlePartitionFragmentPartitions = CACHED_FRAGMENT_PARTITION_MAPS[base_partition];
                 }
                 Map<PlanFragment, PartitionSet> cached_frag_partitions = this.cache_singlePartitionFragmentPartitions
                         .get(catalog_stmt);
                 if (cached_frag_partitions == null) {
                     cached_frag_partitions = new HashMap<PlanFragment, PartitionSet>();
-                    PartitionSet p = this.catalogContext.getPartitionSetSingleton(base_partition.intValue());
+                    PartitionSet p = this.catalogContext.getPartitionSetSingleton(base_partition);
                     for (PlanFragment catalog_frag : catalog_stmt.getFragments().values()) {
                         cached_frag_partitions.put(catalog_frag, p);
                     } // FOR
@@ -703,7 +705,7 @@ public class BatchPlanner implements Loggable {
                     plan.frag_partitions_swap[stmt_index] = plan.frag_partitions[stmt_index];
                 }
                 stmt_all_partitions = plan.stmt_partitions[stmt_index] = this.catalogContext
-                        .getPartitionSetSingleton(base_partition.intValue());
+                        .getPartitionSetSingleton(base_partition);
                 frag_partitions = plan.frag_partitions[stmt_index] = cached_frag_partitions;
             }
 
@@ -935,12 +937,12 @@ public class BatchPlanner implements Loggable {
         // If this a single-partition plan and we have caching enabled, we'll
         // add this to our cached listing. We'll mark it as cached so that it is never
         // returned back to the BatchPlan object pool
-        else if (this.enable_caching && cache_singlePartitionPlans[base_partition.intValue()] == null
+        else if (this.enable_caching && cache_singlePartitionPlans[base_partition] == null
                 && plan.isSingledPartitionedAndLocal()) {
-            cache_singlePartitionPlans[base_partition.intValue()] = plan;
+            cache_singlePartitionPlans[base_partition] = plan;
             plan.cached = true;
             plan = new BatchPlan(this.maxRoundSize);
-            return cache_singlePartitionPlans[base_partition.intValue()];
+            return cache_singlePartitionPlans[base_partition];
         }
 
         if (d)

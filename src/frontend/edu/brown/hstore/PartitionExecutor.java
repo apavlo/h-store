@@ -238,7 +238,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     protected int siteId;
     private Partition partition;
     private int partitionId;
-    private Integer partitionIdObj;
 
     private final BackendTarget backend_target;
     private final ExecutionEngine ee;
@@ -579,7 +578,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.partition = catalogContext.getPartitionById(partitionId);
         assert(this.partition != null) : "Invalid Partition #" + partitionId;
         this.partitionId = this.partition.getId();
-        this.partitionIdObj = Integer.valueOf(this.partitionId);
         this.site = this.partition.getParent();
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;
         this.siteId = this.site.getId();
@@ -2508,7 +2506,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // local executor or to Evan's magical distributed transaction manager
         BatchPlanner.BatchPlan plan = planner.plan(ts.getTransactionId(),
                                                    ts.getClientHandle(),
-                                                   this.partitionIdObj, 
+                                                   this.partitionId, 
                                                    ts.getPredictTouchedPartitions(),
                                                    ts.isPredictSinglePartition(),
                                                    ts.getTouchedPartitions(),

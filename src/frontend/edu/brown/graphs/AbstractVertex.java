@@ -67,7 +67,7 @@ public class AbstractVertex extends AbstractGraphElement {
         return (this.catalog_item.getName());
     }
     
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public String debug(IGraph<?, ?> graph) {
         String ret = super.debug(graph);

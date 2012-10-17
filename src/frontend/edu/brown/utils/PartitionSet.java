@@ -27,17 +27,16 @@ package edu.brown.utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.BitSet;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
+import org.voltdb.utils.NotImplementedException;
 
 /**
  * Container class that represents a list of partitionIds
@@ -46,20 +45,21 @@ import org.voltdb.catalog.Database;
  */
 public class PartitionSet implements Collection<Integer>, JSONSerializable {
     
-//    private final List<Integer> inner = new ArrayList<Integer>();
-    private final Set<Integer> inner = new HashSet<Integer>();
-    
+    // private final Set<Integer> inner = new HashSet<Integer>();
+    private final BitSet inner = new BitSet();
+
     public PartitionSet() {
         // Nothing...
     }
     
     public PartitionSet(Collection<Integer> partitions) {
-        this.inner.addAll(partitions);
+        for (Integer p : partitions)
+            this.add(p);
     }
     
     public PartitionSet(Integer...partitions) {
         for (Integer p : partitions)
-            this.inner.add(p);
+            this.add(p);
     }
     
     @Override
@@ -70,7 +70,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
         else if (obj instanceof Collection<?>) {
             Collection<?> other = (Collection<?>)obj;
             if (this.inner.size() != other.size()) return (false);
-            return (this.inner.containsAll(other));
+            return (this.containsAll(other));
         }
         return (false);
     }
@@ -84,7 +84,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     }
     @Override
     public int size() {
-        return this.inner.size();
+        return this.inner.cardinality();
     }
     @Override
     public void clear() {
@@ -96,126 +96,140 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     }
     @Override
     public boolean contains(Object o) {
-        return this.inner.contains(o);
+        if (o instanceof Integer) {
+            Integer p = (Integer)o;
+            return this.inner.get(p.intValue());
+        }
+        return (false);
+    }
+    public boolean contains(Integer p) {
+        return this.inner.get(p.intValue());
+    }
+    public boolean contains(int p) {
+        return (this.inner.get(p));
     }
     @Override
     public Iterator<Integer> iterator() {
-        return this.inner.iterator();
+        return new Itr();
     }
     @Override
     public Object[] toArray() {
-        return this.inner.toArray();
+        int length = this.inner.cardinality();
+        Object arr[] = new Object[length];
+        int idx = 0;
+        for (Integer p : this) {
+            arr[idx++] = p;
+        }
+        return (arr);
     }
+    @SuppressWarnings("unchecked")
     @Override
     public <T> T[] toArray(T[] a) {
-        return this.inner.toArray(a);
+        int length = this.inner.cardinality();
+        if (a.length != length) {
+            a = (T[])new Object[length];
+        }
+        int idx = 0;
+        for (Integer p : this) {
+            a[idx++] = (T)p;
+        } // FOR
+        return (a);
     }
     @Override
     public boolean add(Integer e) {
-        return this.inner.add(e);
-//        if (this.inner.contains(e) == false) {
-//            return this.inner.add(e);
-//        }
-//        return (false);
+        this.inner.set(e.intValue());
+        return (true);
+    }
+    public boolean add(int p) {
+        this.inner.set(p);
+        return (true);
     }
     @Override
     public boolean remove(Object o) {
-        return this.inner.remove(o);
+        if (o instanceof Integer) {
+            Integer p = (Integer)o;
+            this.inner.set(p.intValue(), false);
+            return (true);
+        }
+        return (false);
+    }
+    public boolean remove(int p) {
+        this.inner.set(p, false);
+        return (true);
     }
     @Override
     public boolean containsAll(Collection<?> c) {
-        return this.inner.containsAll(c);
+        for (Object o : c) {
+            if (this.contains(o) == false) {
+                return (false);
+            }
+        } // FOR
+        return (true);
     }
     @Override
     public boolean addAll(Collection<? extends Integer> c) {
-        return this.inner.addAll(c);
-//        boolean ret = true;
-//        for (Integer i : c) {
-//            ret = ret && this.add(i);
-//        }
-//        return ret;
+        boolean ret = true;
+        for (Integer o : c) {
+            ret = this.add(o) && ret;
+        }
+        return (ret);
     }
     @Override
     public boolean removeAll(Collection<?> c) {
-        return this.inner.removeAll(c);
+        boolean ret = true;
+        for (Object o : c) {
+            if (o instanceof Integer) {
+                ret = this.remove((Integer)o) && ret;
+            } else {
+                ret = false;
+            }
+        }
+        return (ret);
     }
     @Override
     public boolean retainAll(Collection<?> c) {
-        return this.inner.retainAll(c);
+        for (Integer p : this) {
+            if (c.contains(p) == false) {
+                this.remove(p);
+            }
+        }
+        return (true);
     }
     
     // ----------------------------------------------------------------------------
-    // UNMODIFIABLE WRAPPER (DEBUGGING)
+    // STATIC METHODS
     // ----------------------------------------------------------------------------
     
-    public static PartitionSet umodifiable(PartitionSet ps) {
-        return new UnmodifiablePartitionSet(ps);
+    public static PartitionSet singleton(int p) {
+        PartitionSet ret = new PartitionSet();
+        ret.add(p);
+        return (ret);
     }
-
-    private static class UnmodifiablePartitionSet extends PartitionSet {
-        final Collection<Integer> inner;
-        
-        private UnmodifiablePartitionSet(PartitionSet ps) {
-            this.inner = Collections.unmodifiableCollection(new PartitionSet(ps));
-        }
-        
+    
+    // ----------------------------------------------------------------------------
+    // ITERATOR
+    // ----------------------------------------------------------------------------
+    
+    private class Itr implements Iterator<Integer> {
+        int idx = 0;
         @Override
-        public Iterator<Integer> iterator() {
-            return this.inner.iterator();
-        }
-        @Override
-        public int size() {
-            return this.inner.size();
-        }
-        @Override
-        public boolean isEmpty() {
-            return this.inner.isEmpty();
+        public boolean hasNext() {
+            for (int cnt = inner.size(); this.idx < cnt; this.idx++) {
+                if (inner.get(this.idx)) {
+                    return (true);
+                }
+            } // FOR
+            return (false);
         }
         @Override
-        public boolean contains(Object o) {
-            return this.inner.contains(o);
+        public Integer next() {
+            return Integer.valueOf(this.idx++);
         }
         @Override
-        public boolean add(Integer e) {
-            return this.inner.add(e);
+        public void remove() {
+            throw new NotImplementedException("PartitionSet Iterator remove is not implemented");
         }
-        @Override
-        public boolean addAll(Collection<? extends Integer> c) {
-            return this.inner.addAll(c);
-        }
-        @Override
-        public boolean remove(Object o) {
-            return this.inner.remove(o);
-        }
-        @Override
-        public boolean removeAll(Collection<?> c) {
-            return this.inner.removeAll(c);
-        }
-        @Override
-        public void clear() {
-            this.inner.clear();
-        }
-        @Override
-        public boolean equals(Object o) {
-            return this.inner.equals(o);
-        }
-        @Override
-        public int hashCode() {
-            return this.inner.hashCode();
-        }
-        @Override
-        public Object[] toArray() {
-            return this.inner.toArray();
-        }
-        @Override
-        public <T> T[] toArray(T[] a) {
-            return this.inner.toArray(a);
-        }
-        @Override
-        public boolean containsAll(Collection<?> c) {
-            return this.inner.containsAll(c);
-        }
-    } // CLASS
+    }
     
     // ----------------------------------------------------------------------------
     // SERIALIZATION METHODS
@@ -239,7 +253,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
         stringer.key("P").array();
-        for (Integer p : this.inner) {
+        for (Integer p : this) {
             stringer.value(p);
         } // FOR
         stringer.endArray();
@@ -249,7 +263,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
         JSONArray json_arr = json_object.getJSONArray("P");
         for (int i = 0, cnt = json_arr.length(); i < cnt; i++) {
-            this.inner.add(json_arr.getInt(i));
+            this.inner.set(json_arr.getInt(i));
         }
     }
 }
