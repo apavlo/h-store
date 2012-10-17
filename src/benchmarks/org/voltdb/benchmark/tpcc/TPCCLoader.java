@@ -37,6 +37,7 @@
 
 package org.voltdb.benchmark.tpcc;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,11 +48,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.client.NoConnectionsException;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.api.Loader;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.EventObservableExceptionHandler;
@@ -65,7 +66,7 @@ import edu.brown.utils.EventObserver;
  * uses (o_w_id, o_d_id, o_id), whereas the order table is defined as (o_id,
  * o_d_id, o_w_id).
  */
-public class TPCCLoader extends BenchmarkComponent {
+public class TPCCLoader extends Loader {
     private static final Logger LOG = Logger.getLogger(TPCCLoader.class);
 
     /**
@@ -151,11 +152,6 @@ public class TPCCLoader extends BenchmarkComponent {
     @Override
     protected int getExpectedOutgoingMessageSize() {
         return 10485760;
-    }
-
-    @Override
-    protected String[] getTransactionDisplayNames() {
-        return new String[0];
     }
 
     class LoadThread extends Thread {
@@ -775,7 +771,7 @@ public class TPCCLoader extends BenchmarkComponent {
     private ConcurrentLinkedQueue<Integer> availableWarehouseIds = new ConcurrentLinkedQueue<Integer>();
 
     @Override
-    public void runLoop() throws NoConnectionsException {
+    public void load() throws IOException {
         final EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
         handler.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
             public void update(edu.brown.utils.EventObservable<Pair<Thread,Throwable>> o, Pair<Thread,Throwable> t) {

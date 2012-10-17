@@ -68,6 +68,17 @@ public final class TPCCConstants {
     public static final String TABLENAME_ORDERS = "ORDERS";
     public static final String TABLENAME_NEW_ORDER = "NEW_ORDER";
     public static final String TABLENAME_ORDER_LINE = "ORDER_LINE";
+    public static final String TABLENAMES[] = {
+        TABLENAME_WAREHOUSE,
+        TABLENAME_DISTRICT,
+        TABLENAME_ITEM,
+        TABLENAME_CUSTOMER,
+        TABLENAME_HISTORY,
+        TABLENAME_STOCK,
+        TABLENAME_ORDERS,
+        TABLENAME_NEW_ORDER,
+        TABLENAME_ORDER_LINE,
+    };
 
     public static final int FREQUENCY_STOCK_LEVEL = 4;
     public static final int FREQUENCY_DELIVERY = 4;
