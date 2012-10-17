@@ -44,73 +44,74 @@ public class TestSpecExecSuite extends RegressionSuite {
         super(name);
     }
     
-//    /**
-//     * testConflictingTxns
-//     */
-//    public void testConflictingTxns() throws Exception {
-//        Client client = this.getClient();
-//        TestTM1Suite.initializeTM1Database(this.getCatalog(), client);
-//        
-//        // Submit a distributed txn and make sure that our conflicting
-//        // txn is not speculatively executed
-//        final int sleepTime = 5000; // ms
-//        final ClientResponse dtxnResponse[] = new ClientResponse[1];
-//        final CountDownLatch dtxnLatch = new CountDownLatch(1);
-//        final ProcedureCallback dtxnCallback = new ProcedureCallback() {
-//            @Override
-//            public void clientCallback(ClientResponse clientResponse) {
-//                System.err.println("DISTRUBTED RESULT " + clientResponse);
-//                dtxnResponse[0] = clientResponse;
-//                dtxnLatch.countDown();
-//            }
-//        };
-//        
-//        // We're going to first execute a dtxn that updates all SUBSCRIBER records
-//        String dtxnProcName = UpdateAll.class.getSimpleName();
-//        Object dtxnParams[] = { 0, sleepTime };
-//        client.callProcedure(dtxnCallback, dtxnProcName, dtxnParams);
-//        
-//        // Then fire off a proc that updates SUBSCRIBER as well. This should never
-//        // be allowed to execute speculatively
-//        String spProcName = UpdateOne.class.getSimpleName();
-//        Object spParams[] = new Object[]{ 1 };
-//        final ClientResponse spResponse[] = new ClientResponse[1];
-//        final CountDownLatch spLatch = new CountDownLatch(1);
-//        final ProcedureCallback spCallback = new ProcedureCallback() {
-//            @Override
-//            public void clientCallback(ClientResponse clientResponse) {
-//                System.err.println("SINGLE-PARTITION RESULT " + clientResponse);
-//                spResponse[0] = clientResponse;
-//                spLatch.countDown();
-//            }
-//        };
-//        ThreadUtil.sleep(1000);
-//        client.callProcedure(spCallback, spProcName, spParams);
-//        
-//        // Wait until we have both latches
-//        dtxnLatch.await(sleepTime*2, TimeUnit.MILLISECONDS);
-//        spLatch.await(sleepTime*2, TimeUnit.MILLISECONDS);
-//        
-//        // Then verify the DTXN results
-//        assertNotNull(dtxnResponse[0]);
-//        assertEquals(Status.OK, dtxnResponse[0].getStatus());
-//        assertFalse(dtxnResponse[0].isSinglePartition());
-//        assertFalse(dtxnResponse[0].isSpeculative());
-//        
-//        // And the SP results. Where is your god now?
-//        assertNotNull(spResponse[0]);
-//        assertEquals(Status.OK, spResponse[0].getStatus());
-//        assertTrue(spResponse[0].isSinglePartition());
-//        assertFalse(spResponse[0].isSpeculative());
-//        
-//        // SANITY CHECK
-//        // We should have exaclty two different MSC_LOCATION values
-//        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-//        String query = "SELECT COUNT(DISTINCT MSC_LOCATION) FROM " + TM1Constants.TABLENAME_SUBSCRIBER;
-//        ClientResponse cresponse = client.callProcedure(procName, query);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//        assertEquals(2, cresponse.getResults()[0].asScalarLong());
-//    }
+    /**
+     * testConflictingTxns
+     */
+    public void testConflictingTxns() throws Exception {
+        Client client = this.getClient();
+        TestTM1Suite.initializeTM1Database(this.getCatalog(), client);
+        
+        // Submit a distributed txn and make sure that our conflicting
+        // txn is not speculatively executed
+        final int sleepTime = 5000; // ms
+        final ClientResponse dtxnResponse[] = new ClientResponse[1];
+        final CountDownLatch dtxnLatch = new CountDownLatch(1);
+        final ProcedureCallback dtxnCallback = new ProcedureCallback() {
+            @Override
+            public void clientCallback(ClientResponse clientResponse) {
+                System.err.println("DISTRUBTED RESULT " + clientResponse);
+                dtxnResponse[0] = clientResponse;
+                dtxnLatch.countDown();
+            }
+        };
+        
+        // We're going to first execute a dtxn that updates all SUBSCRIBER records
+        String dtxnProcName = UpdateAll.class.getSimpleName();
+        Object dtxnParams[] = { 0, sleepTime };
+        client.callProcedure(dtxnCallback, dtxnProcName, dtxnParams);
+        
+        // Then fire off a proc that updates SUBSCRIBER as well. This should never
+        // be allowed to execute speculatively
+        String spProcName = UpdateOne.class.getSimpleName();
+        Object spParams[] = new Object[]{ 1 };
+        final ClientResponse spResponse[] = new ClientResponse[1];
+        final CountDownLatch spLatch = new CountDownLatch(1);
+        final ProcedureCallback spCallback = new ProcedureCallback() {
+            @Override
+            public void clientCallback(ClientResponse clientResponse) {
+                System.err.println("SINGLE-PARTITION RESULT " + clientResponse);
+                spResponse[0] = clientResponse;
+                spLatch.countDown();
+            }
+        };
+        ThreadUtil.sleep(1000);
+        client.callProcedure(spCallback, spProcName, spParams);
+        
+        // Wait until we have both latches
+        dtxnLatch.await(sleepTime*2, TimeUnit.MILLISECONDS);
+        spLatch.await(sleepTime*2, TimeUnit.MILLISECONDS);
+        
+        // Then verify the DTXN results
+        assertNotNull(dtxnResponse[0]);
+        assertEquals(Status.OK, dtxnResponse[0].getStatus());
+        assertFalse(dtxnResponse[0].isSinglePartition());
+        assertFalse(dtxnResponse[0].isSpeculative());
+        
+        // And the SP results. Where is your god now?
+        assertNotNull(spResponse[0]);
+        assertEquals(Status.OK, spResponse[0].getStatus());
+        assertTrue(spResponse[0].isSinglePartition());
+        assertFalse(spResponse[0].isSpeculative());
+        
+        // SANITY CHECK
+        // We should have exaclty two different MSC_LOCATION values
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        String query = "SELECT COUNT(DISTINCT MSC_LOCATION) FROM " + TM1Constants.TABLENAME_SUBSCRIBER;
+        ClientResponse cresponse = client.callProcedure(procName, query);
+        assertEquals(Status.OK, cresponse.getStatus());
+        assertEquals(2, cresponse.getResults()[0].asScalarLong());
+        System.err.println(cresponse);
+    }
     
     /**
      * testRemoteIdle

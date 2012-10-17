@@ -1,7 +1,7 @@
 package edu.brown.hstore;
 
 import java.util.Iterator;
-import java.util.Queue;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -33,7 +33,7 @@ public class SpecExecScheduler {
     
     private final CatalogContext catalogContext;
     private final int partitionId;
-    private final Queue<InternalMessage> work_queue;
+    private final List<InternalMessage> work_queue;
     private final AbstractConflictChecker checker;
 
     
@@ -44,7 +44,7 @@ public class SpecExecScheduler {
      * @param partitionId
      * @param work_queue
      */
-    public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, Queue<InternalMessage> work_queue) {
+    public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, List<InternalMessage> work_queue) {
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;
@@ -61,6 +61,9 @@ public class SpecExecScheduler {
      * @return
      */
     public StartTxnMessage next(AbstractTransaction dtxn) {
+        if (trace.get()) LOG.trace(String.format("%s - Checking queue for transaction to speculatively execute [queueSize=%d]",
+                                   dtxn, this.work_queue.size()));
+        
         Procedure dtxnProc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
         if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
             if (debug.get()) //  && (this.lastDtxn == null || this.lastDtxn.equals(dtxn) == false))

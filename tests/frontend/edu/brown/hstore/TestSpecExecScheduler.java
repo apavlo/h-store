@@ -2,7 +2,7 @@ package edu.brown.hstore;
 
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.Queue;
+import java.util.List;
 
 import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Procedure;
@@ -29,7 +29,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     private static long NEXT_TXN_ID = 1;
     
     private MockHStoreSite hstore_site;
-    private final Queue<InternalMessage> work_queue = new LinkedList<InternalMessage>();
+    private final List<InternalMessage> work_queue = new LinkedList<InternalMessage>();
     private SpecExecScheduler scheduler;
     private AbstractConflictChecker checker;
     private LocalTransaction dtxn;
