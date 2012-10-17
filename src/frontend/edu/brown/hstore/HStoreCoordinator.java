@@ -79,6 +79,7 @@ import edu.brown.hstore.handlers.TransactionWorkHandler;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.PrefetchQueryPlanner;
+import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
@@ -725,6 +726,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             
             // Make sure that we initialize our internal PrefetchState for this txn
             ts.initializePrefetch();
+            TransactionCounter.PREFETCH_LOCAL.inc(ts.getProcedure());
             
             TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
             int sent_ctr = 0;
