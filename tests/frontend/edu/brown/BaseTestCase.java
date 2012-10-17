@@ -549,7 +549,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     }
     
     public File getWorkloadFile(ProjectType type, String suffix) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "workloads", suffix+".trace"));
+        return (type.getProjectFile(new File(".").getCanonicalFile(), "workloads", suffix+".trace"));
     }
     
     /**
@@ -560,7 +560,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * @throws IOException
      */
     public File getStatsFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "stats", ".stats"));
+        return (type.getProjectFile(new File(".").getCanonicalFile(), "stats", ".stats"));
     }
     
     /**
@@ -592,36 +592,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
 //        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "markovs", ".markovs"));
 //    }
     
-    /**
-     * 
-     * @param current
-     * @param type
-     * @return
-     * @throws IOException
-     */
-    private File getProjectFile(File current, ProjectType type, String target_dir, String target_ext) throws IOException {
-        boolean has_svn = false;
-        for (File file : current.listFiles()) {
-            if (file.getCanonicalPath().endsWith("files") && file.isDirectory()) {
-                // Look for either a .<target_ext> or a .<target_ext>.gz file
-                String file_name = type.name().toLowerCase() + target_ext;
-                for (int i = 0; i < 2; i++) {
-                    if (i > 0) file_name += ".gz";
-                    File target_file = new File(file + File.separator + target_dir + File.separator + file_name);
-                    if (target_file.exists() && target_file.isFile()) {
-                        return (target_file);
-                    }
-                } // FOR
-                assert(false) : "Unable to find '" + file_name + "' for '" + type + "' in directory '" + file + "'";
-            // Make sure that we don't go to far down...
-            } else if (file.getCanonicalPath().endsWith("/.svn")) {
-                has_svn = true;
-            }
-        } // FOR
-        assert(has_svn) : "Unable to find files directory [last_dir=" + current.getAbsolutePath() + "]";  
-        File next = new File(current.getCanonicalPath() + File.separator + "..");
-        return (this.getProjectFile(next, type, target_dir, target_ext));
-    }
+    
  
     /**
      * Generate an array of random input parameters for a given Statement
@@ -637,8 +608,6 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         } // FOR
         return (params);
     }
-    
-    
     
     @Override
     public void uncaughtException(Thread t, Throwable e) {

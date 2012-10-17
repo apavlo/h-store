@@ -1,6 +1,7 @@
 package edu.brown.mappings;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,6 +20,8 @@ import org.voltdb.utils.JarReader;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
+import edu.brown.utils.ProjectType;
 
 /**
  * @author pavlo
@@ -28,6 +31,24 @@ public abstract class ParametersUtil {
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
     public static final int NULL_PROC_PARAMETER_OFFSET = -1;
+    
+    
+    /**
+     * Find a parameter correlations file for a given project type
+     * @param current
+     * @param type
+     * @return
+     * @throws IOException
+     */
+    public static File getParameterMappingsFile(ProjectType type) throws IOException {
+        // HACK HACK HACK
+        File srcDir = FileUtil.findDirectory("src");
+        File mappingsFile = FileUtil.join(srcDir.getAbsolutePath(),
+                                         "benchmarks",
+                                         type.getPackageName().replace(".", File.separator),
+                                         type.name().toLowerCase() + ".mappings");
+        return (mappingsFile);
+    }
     
     /**
      *
