@@ -120,14 +120,7 @@ public class PrefetchQueryPlanner implements Loggable {
             return (null);
         }
         
-        // FIXME(cjl6) ts.getEstimatorState().getPrefetchableStatements();
-        
         if (debug.get()) LOG.debug(ts + " - Generating prefetch WorkFragments");
-        
-//        ParameterMapping pm = CollectionUtil.first(this.catalogContext.paramMappings.get(
-//                Statement catalog_stmt, int catalog_stmt_index, StmtParameter catalog_stmt_param));
-//        pm.procedure_parameter.getIsarray();
-//        pm.procedure_parameter_index;
         
         Procedure catalog_proc = ts.getProcedure();
         assert (ts.getProcedureParameters() != null) : 

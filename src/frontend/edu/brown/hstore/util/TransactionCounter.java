@@ -54,6 +54,10 @@ public enum TransactionCounter {
     BLOCKED_LOCAL,
     /** The number of transactions that were blocked due to a remote partition's timestamps */
     BLOCKED_REMOTE,
+    /** The number of transactions that were sent out with prefetch queries */
+    PREFETCH_LOCAL,
+    /** The number of transactions with prefetch queries that were received and prefetched before needed by the sender */
+    PREFETCH_REMOTE,
     ;
     
     private final Histogram<String> h = new Histogram<String>();
@@ -126,6 +130,8 @@ public enum TransactionCounter {
             case THROTTLED:
             case BLOCKED_LOCAL:
             case BLOCKED_REMOTE:
+            case PREFETCH_LOCAL:
+            case PREFETCH_REMOTE:
                 total = RECEIVED.get();
                 break;
             case COMPLETED:

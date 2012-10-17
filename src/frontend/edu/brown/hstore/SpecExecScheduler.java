@@ -34,7 +34,6 @@ public class SpecExecScheduler {
     private final List<InternalMessage> work_queue;
     private final AbstractConflictChecker checker;
     private boolean ignore_all_local = false;
-
     
     /**
      * Constructor
@@ -97,7 +96,7 @@ public class SpecExecScheduler {
             if (msg instanceof WorkFragmentMessage) {
                 if (debug.get())
                     LOG.debug(String.format("%s - Not choosing a txn to speculatively execute because there " +
-                    		                "are still WorkFragments in the queue", dtxn));
+                    		  "are still WorkFragments in the queue", dtxn));
                 return (null);
             }
             // A StartTxnMessage will have a fully initialized LocalTransaction handle
