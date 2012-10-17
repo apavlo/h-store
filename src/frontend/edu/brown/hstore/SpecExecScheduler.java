@@ -29,12 +29,11 @@ public class SpecExecScheduler {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private AbstractTransaction lastDtxn;
-    
     private final CatalogContext catalogContext;
     private final int partitionId;
     private final List<InternalMessage> work_queue;
     private final AbstractConflictChecker checker;
+    private boolean ignore_all_local = false;
 
     
     /**
@@ -49,6 +48,10 @@ public class SpecExecScheduler {
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;
         this.checker = checker;
+    }
+    
+    public void setIgnoreAllLocal(boolean ignore_all_local) {
+        this.ignore_all_local = ignore_all_local;
     }
 
     /**
@@ -66,21 +69,20 @@ public class SpecExecScheduler {
         
         Procedure dtxnProc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
         if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
-            if (debug.get()) //  && (this.lastDtxn == null || this.lastDtxn.equals(dtxn) == false))
+            if (debug.get())
                 LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists", dtxn));
-            this.lastDtxn = dtxn;
             return (null);
         }
         
         // If this is a LocalTransaction and all of the remote partitions that it needs are
         // on the same site, then we won't bother with trying to pick something out
         // because there is going to be very small wait times.
-//        if (dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
-//            if (debug.get())
-//                LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
-//                		  "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
-//            return (null);
-//        }
+        if (this.ignore_all_local && dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
+            if (debug.get())
+                LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
+                		  "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
+            return (null);
+        }
         
         // Now peek in the queue looking for single-partition txns that do not
         // conflict with the current dtxn

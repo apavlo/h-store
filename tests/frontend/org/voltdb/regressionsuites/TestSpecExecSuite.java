@@ -9,7 +9,6 @@ import junit.framework.Test;
 import org.voltdb.regressionsuites.TestTM1Suite;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltSystemProcedure;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
@@ -22,7 +21,6 @@ import org.voltdb.sysprocs.AdHoc;
 import edu.brown.benchmark.tm1.TM1Client;
 import edu.brown.benchmark.tm1.TM1Client.Transaction;
 import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.benchmark.tm1.TM1Loader;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.utils.ThreadUtil;
@@ -185,6 +183,7 @@ public class TestSpecExecSuite extends RegressionSuite {
         builder.setGlobalConfParameter("client.scalefactor", SCALEFACTOR);
         builder.setGlobalConfParameter("site.specexec_enable", true);
         builder.setGlobalConfParameter("site.specexec_idle", true);
+        builder.setGlobalConfParameter("site.specexec_ignore_all_local", false);
 
         // build up a project builder for the TPC-C app
         TM1ProjectBuilder project = new TM1ProjectBuilder();
@@ -203,13 +202,13 @@ public class TestSpecExecSuite extends RegressionSuite {
         assert(success);
         builder.addServerConfig(config);
 
-//        ////////////////////////////////////////////////////////////
-//        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
-//        ////////////////////////////////////////////////////////////
-//        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        ////////////////////////////////////////////////////////////
+        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }

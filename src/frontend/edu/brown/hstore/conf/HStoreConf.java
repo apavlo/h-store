@@ -742,14 +742,14 @@ public final class HStoreConf {
                         "is aborted due to a misprediction. The Markov model is queued in the PartitionExecutorHelper " +
                         "for processing rather than being executed directly within the PartitionExecutor's thread.",
             defaultBoolean=true,
-            experimental=false
+            experimental=true
         )
         public boolean markov_mispredict_recompute;
 
         @ConfigProperty(
             description="", // TODO
             defaultNull=true,
-            experimental=false
+            experimental=true
         )
         public String markov_path;
         
