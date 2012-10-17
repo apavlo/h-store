@@ -13,6 +13,7 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
@@ -21,6 +22,7 @@ import org.voltdb.regressionsuites.specexecprocs.RemoteIdle;
 import org.voltdb.regressionsuites.specexecprocs.UpdateAll;
 import org.voltdb.regressionsuites.specexecprocs.UpdateOne;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Client;
@@ -30,6 +32,7 @@ import edu.brown.benchmark.tm1.TM1Loader;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.mappings.ParametersUtil;
+import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
@@ -41,6 +44,8 @@ public class TestMarkovSuite extends RegressionSuite {
     
     private static final String PREFIX = "markov";
     private static final double SCALEFACTOR = 0.0001;
+    private static final DefaultRandomGenerator rng = new DefaultRandomGenerator(0);
+    
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -50,94 +55,75 @@ public class TestMarkovSuite extends RegressionSuite {
         super(name);
     }
     
-    /**
-     * testInitialize
-     */
-    public void testInitialize() throws Exception {
-        Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+    private Object[] generateNewOrder(int num_warehouses, int w_id, boolean dtxn) throws Exception {
+        short remote_w_id;
+        if (dtxn) {
+            remote_w_id = (short)rng.numberExcluding(TPCCConstants.STARTING_WAREHOUSE, num_warehouses+1, w_id);
+        } else {
+            remote_w_id = (short)w_id;
+        }
         
-        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-        for (String tableName : TPCCConstants.TABLENAMES) {
-            String query = "SELECT COUNT(*) FROM " + tableName;
-            ClientResponse cresponse = client.callProcedure(procName, query);
-            assertEquals(Status.OK, cresponse.getStatus());
-            VoltTable results[] = cresponse.getResults();
-            assertEquals(1, results.length);
-            long count = results[0].asScalarLong();
-            assertTrue(tableName + " -> " + count, count > 0);
-            System.err.println(tableName + "\n" + results[0]);
+        // ORDER_LINE ITEMS
+        int num_items = rng.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
+        int item_ids[] = new int[num_items];
+        short supwares[] = new short[num_items];
+        int quantities[] = new int[num_items];
+        for (int i = 0; i < num_items; i++) { 
+            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS * SCALEFACTOR));
+            supwares[i] = remote_w_id;
+            quantities[i] = rng.number(TPCCConstants.MIN_QUANTITY, TPCCConstants.MAX_QUANTITY);
         } // FOR
+        
+        Object params[] = {
+            w_id,                   // W_ID
+            (byte)rng.nextInt(10),  // D_ID
+            1,                      // C_ID
+            new TimestampType(),    // TIMESTAMP
+            item_ids,               // ITEM_IDS
+            supwares,               // SUPPLY W_IDS
+            quantities              // QUANTITIES
+        };
+        return (params);
     }
     
 //    /**
-//     * testDistributedTxn
+//     * testInitialize
 //     */
-//    public void testDistributedTxn() throws Exception {
+//    public void testInitialize() throws Exception {
 //        Client client = this.getClient();
-//        TestMarkovSuite.initializeTPCCDatabase(this.getCatalog(), client);
+//        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
 //        
-//        // Submit a distributed txn and make sure that our conflicting
-//        // txn is not speculatively executed
-//        final int sleepTime = 5000; // ms
-//        final ClientResponse dtxnResponse[] = new ClientResponse[1];
-//        final CountDownLatch dtxnLatch = new CountDownLatch(1);
-//        final ProcedureCallback dtxnCallback = new ProcedureCallback() {
-//            @Override
-//            public void clientCallback(ClientResponse clientResponse) {
-//                System.err.println("DISTRUBTED RESULT " + clientResponse);
-//                dtxnResponse[0] = clientResponse;
-//                dtxnLatch.countDown();
-//            }
-//        };
-//        
-//        // We're going to first execute a dtxn that updates all SUBSCRIBER records
-//        String dtxnProcName = UpdateAll.class.getSimpleName();
-//        Object dtxnParams[] = { 0, sleepTime };
-//        client.callProcedure(dtxnCallback, dtxnProcName, dtxnParams);
-//        
-//        // Then fire off a proc that updates SUBSCRIBER as well. This should never
-//        // be allowed to execute speculatively
-//        String spProcName = UpdateOne.class.getSimpleName();
-//        Object spParams[] = new Object[]{ 1 };
-//        final ClientResponse spResponse[] = new ClientResponse[1];
-//        final CountDownLatch spLatch = new CountDownLatch(1);
-//        final ProcedureCallback spCallback = new ProcedureCallback() {
-//            @Override
-//            public void clientCallback(ClientResponse clientResponse) {
-//                System.err.println("SINGLE-PARTITION RESULT " + clientResponse);
-//                spResponse[0] = clientResponse;
-//                spLatch.countDown();
-//            }
-//        };
-//        ThreadUtil.sleep(1000);
-//        client.callProcedure(spCallback, spProcName, spParams);
-//        
-//        // Wait until we have both latches
-//        dtxnLatch.await(sleepTime*2, TimeUnit.MILLISECONDS);
-//        spLatch.await(sleepTime*2, TimeUnit.MILLISECONDS);
-//        
-//        // Then verify the DTXN results
-//        assertNotNull(dtxnResponse[0]);
-//        assertEquals(Status.OK, dtxnResponse[0].getStatus());
-//        assertFalse(dtxnResponse[0].isSinglePartition());
-//        assertFalse(dtxnResponse[0].isSpeculative());
-//        
-//        // And the SP results. Where is your god now?
-//        assertNotNull(spResponse[0]);
-//        assertEquals(Status.OK, spResponse[0].getStatus());
-//        assertTrue(spResponse[0].isSinglePartition());
-//        assertFalse(spResponse[0].isSpeculative());
-//        
-//        // SANITY CHECK
-//        // We should have exaclty two different MSC_LOCATION values
 //        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-//        String query = "SELECT COUNT(DISTINCT MSC_LOCATION) FROM " + TM1Constants.TABLENAME_SUBSCRIBER;
-//        ClientResponse cresponse = client.callProcedure(procName, query);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//        assertEquals(2, cresponse.getResults()[0].asScalarLong());
-//        System.err.println(cresponse);
+//        for (String tableName : TPCCConstants.TABLENAMES) {
+//            String query = "SELECT COUNT(*) FROM " + tableName;
+//            ClientResponse cresponse = client.callProcedure(procName, query);
+//            assertEquals(Status.OK, cresponse.getStatus());
+//            VoltTable results[] = cresponse.getResults();
+//            assertEquals(1, results.length);
+//            long count = results[0].asScalarLong();
+//            assertTrue(tableName + " -> " + count, count > 0);
+//            System.err.println(tableName + "\n" + results[0]);
+//        } // FOR
 //    }
+    
+    /**
+     * testDistributedTxn
+     */
+    public void testDistributedTxn() throws Exception {
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+
+        // Fire off a distributed neworder txn
+        // It should always come back with zero restarts
+        String procName = neworder.class.getSimpleName();
+        Object params[] = this.generateNewOrder(1, 2, true);
+        
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assertNotNull(cresponse);
+        assertFalse(cresponse.toString(), cresponse.isSinglePartition());
+        assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
+        System.err.println(cresponse);
+    }
     
     public static Test suite() throws Exception {
         File mappings = ParametersUtil.getParameterMappingsFile(ProjectType.TPCC);

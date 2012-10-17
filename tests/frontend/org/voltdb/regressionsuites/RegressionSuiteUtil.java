@@ -5,6 +5,7 @@ import java.util.Random;
 
 import junit.framework.TestCase;
 
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCLoader;
@@ -14,6 +15,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.tm1.TM1Loader;
@@ -57,12 +59,17 @@ public abstract class RegressionSuiteUtil {
             vt.addRow(row);
         } // FOR (row)
         // System.err.printf("Loading %d rows for %s\n%s\n\n", vt.getRowCount(), catalog_tbl, vt.toString());
-        ClientResponse cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
+        String procName = VoltSystemProcedure.procCallName(LoadMultipartitionTable.class);
+        ClientResponse cr = client.callProcedure(procName, catalog_tbl.getName(), vt);
         TestCase.assertEquals(Status.OK, cr.getStatus());
     }
 
     public static final void initializeTPCCDatabase(final Catalog catalog, final Client client) throws Exception {
-        String args[] = { "NOCONNECTIONS=true", };
+        String args[] = {
+            "NOCONNECTIONS=true",
+            "BENCHMARK.WAREHOUSE_PER_PARTITION=true",
+            "BENCHMARK.NUM_LOADTHREADS=1",
+        };
         TPCCLoader loader = new TPCCLoader(args) {
             {
                 this.setCatalog(catalog);

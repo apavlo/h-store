@@ -54,7 +54,7 @@ import org.voltdb.benchmark.tpcc.procedures.*;
 
 /** Holds TPC-C constants.  */
 public final class TPCCConstants {
-    static int STARTING_WAREHOUSE = 1;
+    public static int STARTING_WAREHOUSE = 1;
 
     private TPCCConstants() { assert false; }
     

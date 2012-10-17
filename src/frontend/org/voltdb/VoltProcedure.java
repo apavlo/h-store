@@ -864,7 +864,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             return param;
         }
         throw new Exception(
-                "tryToMakeCompatible: Unable to match parameters:"
+                "tryToMakeCompatible: Unable to match parameters: "
                 + slot.getName() + " to provided " + pclass.getName());
     }
 
