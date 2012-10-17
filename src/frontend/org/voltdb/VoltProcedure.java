@@ -714,10 +714,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             status_msg = "UNEXPECTED ERROR IN " + this.m_localTxnState;
         } finally {
             this.m_localTxnState.markAsExecuted();
-            if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + status + "]");
+            if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + this.status + "]");
 
             // Workload Trace - Stop the transaction trace record.
-            if (this.workloadTraceEnable && workloadTxnHandle != null && this.status == Status.OK) {
+            if (this.workloadTraceEnable && this.workloadTxnHandle != null && this.status == Status.OK) {
                 if (hstore_conf.site.trace_txn_output) {
                     ProcedureProfiler.workloadTrace.stopTransaction(this.workloadTxnHandle, this.results);
                 } else {

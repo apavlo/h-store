@@ -149,7 +149,7 @@ public class Statistics extends VoltSystemProcedure {
 
                 // Choose the lowest site ID on this host to do the scan
                 // All other sites should just return empty results tables.
-                if (isFirstLocalPartition()) {
+                if (this.isFirstLocalPartition()) {
                     Pair<SysProcSelector, Integer> pair = STATS_DATA.get(fragmentId);; 
                     result = executor.getHStoreSite().getStatsAgent().getStats(
                                     pair.getFirst(),

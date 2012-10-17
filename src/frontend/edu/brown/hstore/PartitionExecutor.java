@@ -997,13 +997,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // the SpecExecScheduler is only examining the work queue when utilityWork() is called
             // But it will never be called at this point because if we add this txn back to the queue
             // it will get picked up right away.
-            if (this.currentDtxn != null) {
-                this.blockTransaction(ts);
-            }
-            else {
+//            if (this.currentDtxn != null) {
+//                this.blockTransaction(ts);
+//            }
+//            else {
                 this.currentTxn = ts;
                 this.executeTransaction(ts);
-            }
+//            }
         }
         // -------------------------------    
         // DISTRIBUTED TRANSACTION
@@ -1950,20 +1950,30 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             result = this.executeWorkFragment(ts, fragment, parameters);
             
         } catch (EvictedTupleAccessException ex) {
-            // XXX: What do we do if this is not a single-partition txn? 
+            // XXX: What do we do if this is not a single-partition txn?
+            LOG.error(String.format("%s - Unexpected %s on partition %d",
+                      ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
         } catch (ConstraintFailureException ex) {
+            LOG.error(String.format("%s - Unexpected %s on partition %d",
+                    ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (SQLException ex) {
+            LOG.error(String.format("%s - Unexpected %s on partition %d",
+                    ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (EEException ex) {
+            LOG.error(String.format("%s - Unexpected %s on partition %d",
+                    ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             // this.crash(ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
+            LOG.error(String.format("%s - Unexpected %s on partition %d",
+                    ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             if (ex instanceof SerializableException) {
                 error = (SerializableException)ex;
@@ -1972,6 +1982,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
         } finally {
             if (error != null) {
+                error.printStackTrace();
                 LOG.error(String.format("%s - Unexpected %s on partition %d",
                           ts, error.getClass().getSimpleName(), this.partitionId), error);
             }

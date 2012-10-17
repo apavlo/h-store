@@ -283,20 +283,13 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         int i = 0;
         for (Site catalog_site : catalogContext.sites.values()) {
             Partition catalog_part = null;
-            
-            // If this is the same as our local site, then we'll send it
-            // to our base partition
-            if (catalog_site.getId() == hstore_site.getSiteId()) {
-                catalog_part = this.executor.getPartition();
-            } else {
-                int first_id = Integer.MAX_VALUE;
-                for (Partition p : catalog_site.getPartitions().values()) {
-                    if (catalog_part == null || p.getId() < first_id) {
-                        catalog_part = p;
-                        first_id = p.getId();
-                    }
-                } // FOR
-            }
+            int first_id = Integer.MAX_VALUE;
+            for (Partition p : catalog_site.getPartitions().values()) {
+                if (catalog_part == null || p.getId() < first_id) {
+                    catalog_part = p;
+                    first_id = p.getId();
+                }
+            } // FOR
             assert(catalog_part != null) : "No partitions for " + catalog_site;
 
             if (debug.get())
