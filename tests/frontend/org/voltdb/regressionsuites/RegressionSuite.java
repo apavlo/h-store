@@ -31,6 +31,7 @@ import java.util.Random;
 
 import junit.framework.TestCase;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
@@ -135,6 +136,10 @@ public class RegressionSuite extends TestCase {
      */
     public final Catalog getCatalog() {
         return m_config.getCatalog();
+    }
+    
+    public final CatalogContext getCatalogContext() {
+        return m_config.getCatalogContext();
     }
 
     /**

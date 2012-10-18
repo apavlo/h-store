@@ -183,6 +183,7 @@ public class TestSpecExecSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.specexec_enable", true);
         builder.setGlobalConfParameter("site.specexec_idle", true);
         builder.setGlobalConfParameter("site.specexec_ignore_all_local", false);
+        builder.setGlobalConfParameter("site.specexec_markov", false);
 
         // build up a project builder for the TPC-C app
         TM1ProjectBuilder project = new TM1ProjectBuilder();

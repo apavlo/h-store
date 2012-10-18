@@ -394,7 +394,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.exec_lastUndoToken[offset] = undoToken;
             
             // FIRST UNDO TOKEN
-            if (this.exec_firstUndoToken[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN) { 
+            if (this.exec_firstUndoToken[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN ||
+                this.exec_firstUndoToken[offset] == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
                 this.exec_firstUndoToken[offset] = undoToken;
             }
         }
@@ -404,8 +405,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
-        if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d]",
-                         this, this.round_ctr[offset], partition, undoToken));
+        if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d / first=%d / last=%d]",
+                         this, this.round_ctr[offset], partition,
+                         undoToken, this.exec_firstUndoToken[offset],  this.exec_lastUndoToken[offset]));
     }
     
     /**
@@ -963,7 +965,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         m.put("SysProc", this.sysproc);
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
+        m.put("First UndoToken", Arrays.toString(this.exec_firstUndoToken));
         m.put("Last UndoToken", Arrays.toString(this.exec_lastUndoToken));
+        m.put("No Undo Buffer", Arrays.toString(this.exec_noUndoBuffer));
         m.put("# of Rounds", Arrays.toString(this.round_ctr));
         m.put("Executed Work", Arrays.toString(this.exec_eeWork));
         if (this.pending_error != null)

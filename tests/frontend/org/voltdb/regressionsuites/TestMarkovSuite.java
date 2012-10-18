@@ -49,7 +49,12 @@ public class TestMarkovSuite extends RegressionSuite {
         super(name);
     }
     
-    private Object[] generateNewOrder(int num_warehouses, short w_id, boolean dtxn) throws Exception {
+    protected static Object[] generateNewOrder(int num_warehouses, boolean dtxn, short w_id) throws Exception {
+        int d_id = rng.number(1, TPCCConstants.DISTRICTS_PER_WAREHOUSE);
+        return generateNewOrder(num_warehouses, dtxn, w_id, d_id);
+    }
+        
+    protected static Object[] generateNewOrder(int num_warehouses, boolean dtxn, int w_id, int d_id) throws Exception {
         short supply_w_id;
         if (dtxn) {
             supply_w_id = (short)rng.numberExcluding(TPCCConstants.STARTING_WAREHOUSE, num_warehouses, w_id);
@@ -65,14 +70,13 @@ public class TestMarkovSuite extends RegressionSuite {
         int quantities[] = new int[num_items];
         for (int i = 0; i < num_items; i++) { 
             item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS * SCALEFACTOR));
-            supwares[i] = (i % 2 == 0 ? supply_w_id : w_id);
+            supwares[i] = (i % 2 == 0 ? supply_w_id : (short)w_id);
             quantities[i] = 1;
         } // FOR
         
-        byte d_id = (byte)rng.number(1, TPCCConstants.DISTRICTS_PER_WAREHOUSE);
         Object params[] = {
-            w_id,               // W_ID
-            d_id,               // D_ID
+            (short)w_id,        // W_ID
+            (byte)d_id,         // D_ID
             1,                  // C_ID
             new TimestampType(),// TIMESTAMP
             item_ids,           // ITEM_IDS
@@ -120,7 +124,7 @@ public class TestMarkovSuite extends RegressionSuite {
         // Fire off a single-partition txn
         // It should always come back with zero restarts
         procName = neworder.class.getSimpleName();
-        Object params[] = this.generateNewOrder(2, (short)1, false);
+        Object params[] = generateNewOrder(2, false, (short)1);
         cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
         assertTrue(cresponse.toString(), cresponse.isSinglePartition());
@@ -188,7 +192,7 @@ public class TestMarkovSuite extends RegressionSuite {
         // Fire off a distributed neworder txn
         // It should always come back with zero restarts
         String procName = neworder.class.getSimpleName();
-        Object params[] = this.generateNewOrder(2, (short)1, true);
+        Object params[] = generateNewOrder(2, true, (short)1);
         
         ClientResponse cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());

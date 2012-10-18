@@ -235,11 +235,6 @@ public class MarkovEstimator extends TransactionEstimator {
         return (state);
     }
     
-//    public final AtomicInteger batch_cache_attempts = new AtomicInteger(0);
-//    public final AtomicInteger batch_cache_success = new AtomicInteger(0);
-//    public final ProfileMeasurement CACHE = new ProfileMeasurement("CACHE");
-//    public final ProfileMeasurement CONSUME = new ProfileMeasurement("CONSUME");
-    
     @Override
     public TransactionEstimate executeQueries(EstimatorState s, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup) {
         MarkovEstimatorState state = (MarkovEstimatorState)s; 

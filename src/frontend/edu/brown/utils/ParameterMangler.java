@@ -107,14 +107,14 @@ public class ParameterMangler {
                         case TINYINT: {
                             if (orig[i] instanceof byte[]) {
                                 byte arr[] = (byte[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Byte[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR
                             }
                             else {
                                 Byte arr[] = (Byte[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Byte[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR
@@ -124,14 +124,14 @@ public class ParameterMangler {
                         case SMALLINT: {
                             if (orig[i] instanceof short[]) {
                                 short arr[] = (short[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Short[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR
                             }
                             else {
                                 Short arr[] = (Short[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Short[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR
@@ -141,14 +141,14 @@ public class ParameterMangler {
                         case INTEGER: {
                             if (orig[i] instanceof int[]) {
                                 int arr[] = (int[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Integer[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR
                             }
                             else {
                                 Integer arr[] = (Integer[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Integer[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR    
@@ -158,14 +158,14 @@ public class ParameterMangler {
                         case BIGINT: {
                             if (orig[i] instanceof long[]) {
                                 long arr[] = (long[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Long[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR
                             }
                             else {
                                 Long arr[] = (Long[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Long[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR
@@ -175,21 +175,21 @@ public class ParameterMangler {
                         case FLOAT: {
                             if (orig[i] instanceof float[]) {
                                 float arr[] = (float[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Double[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = Double.valueOf(arr[j]);
                                 } // FOR
                             }
                             else if (orig[i] instanceof double[]) {
                                 double arr[] = (double[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Double[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR
                             }
                             else {
                                 Double arr[] = (Double[]) orig[i];
-                                inner = new Object[arr.length];
+                                inner = new Double[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
                                     inner[j] = arr[j];
                                 } // FOR

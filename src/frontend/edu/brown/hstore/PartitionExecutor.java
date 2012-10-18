@@ -2207,7 +2207,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // then we can go back and check whether we want to disable undo logging for the rest of the transaction
         // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
         if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false) {
-            
             TransactionEstimate est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
             if (hstore_conf.site.exec_no_undo_logging == false ||
@@ -2216,7 +2215,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
                 undoToken = this.getNextUndoToken();
             } else if (d) {
-                LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s\n%s\n%s",
+                LOG.warn(String.format("Bold! Disabling undo buffers for inflight %s\n%s\n%s",
                           ts, est, plan.toString()));
             }
         }
@@ -3383,7 +3382,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // SANITY CHECK: Make sure that they're not trying to undo a transaction that
                 // modified the database but did not use undo logging
                 if (ts.isExecReadOnly(this.partitionId) == false && commit == false) {
-                    String msg = "TRYING TO ABORT TRANSACTION ON PARTITION " + this.partitionId + " WITHOUT UNDO LOGGING";
+                    String msg = String.format("TRYING TO ABORT TRANSACTION ON PARTITION %d WITHOUT UNDO LOGGING [undoToken=%d]",
+                                               this.partitionId, undoToken); 
                     LOG.fatal(msg + "\n" + ts.debug());
                     this.crash(new ServerFaultException(msg, ts.getTransactionId()));
                 }
