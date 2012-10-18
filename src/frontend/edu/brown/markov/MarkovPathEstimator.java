@@ -534,7 +534,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     @Override
     protected void callback_finish() {
-        this.estimate.populateProbabilities(this.getFirst());
+        this.estimate.populateProbabilities();
     }
     
     public static void fastEstimation(MarkovEstimate estimate, List<MarkovVertex> initialPath, MarkovVertex current) {
@@ -545,7 +545,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 add = true;
             }
         } // FOR
-        estimate.populateProbabilities(current);
+        estimate.populateProbabilities();
     }
     
     /**

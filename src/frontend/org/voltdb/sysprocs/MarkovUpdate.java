@@ -60,10 +60,10 @@ public class MarkovUpdate extends VoltSystemProcedure {
                 
             MarkovEstimator t_estimator = (MarkovEstimator)this.executor.getTransactionEstimator();
             assert(t_estimator != null);
-            MarkovGraphsContainer markovs = t_estimator.getMarkovs();
+            MarkovGraphsContainer markovs = t_estimator.getMarkovGraphsContainer();
             
-            if (t_estimator.getMarkovs() != null) {
-                boolean is_global = t_estimator.getMarkovs().isGlobal();
+            if (t_estimator.getMarkovGraphsContainer() != null) {
+                boolean is_global = t_estimator.getMarkovGraphsContainer().isGlobal();
 
                 // We will only write out our file if we are the first partition in the list at this site
                 if (is_global == false ||

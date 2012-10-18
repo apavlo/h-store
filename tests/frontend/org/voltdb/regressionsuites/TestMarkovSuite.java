@@ -14,6 +14,7 @@ import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Statistics;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
@@ -59,7 +60,7 @@ public class TestMarkovSuite extends RegressionSuite {
         for (int i = 0; i < num_items; i++) { 
             item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS * SCALEFACTOR));
             supwares[i] = (i % 2 == 0 ? supply_w_id : w_id);
-            quantities[i] = rng.number(TPCCConstants.MIN_QUANTITY, TPCCConstants.MAX_QUANTITY);
+            quantities[i] = 1;
         } // FOR
         
         Object params[] = {
@@ -92,6 +93,62 @@ public class TestMarkovSuite extends RegressionSuite {
             assertTrue(tableName + " -> " + count, count > 0);
             System.err.println(tableName + "\n" + results[0]);
         } // FOR
+    }
+    
+    /**
+     * testSinglePartitionCaching
+     */
+    public void testSinglePartitionCaching() throws Exception {
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+
+        // Enable the feature on the server
+        String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
+        String confParams[] = {"site.markov_path_caching"};
+        String confValues[] = {"true"};
+        ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
+        assertNotNull(cresponse);
+        assertEquals(Status.OK, cresponse.getStatus());
+        
+        // Fire off a single-partition txn
+        // It should always come back with zero restarts
+        procName = neworder.class.getSimpleName();
+        Object params[] = this.generateNewOrder(2, (short)1, false);
+        cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertTrue(cresponse.toString(), cresponse.isSinglePartition());
+        assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
+        
+        // Then execute the same thing again. It should use the cache estimate
+        // from the previous txn
+        cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertTrue(cresponse.toString(), cresponse.isSinglePartition());
+        assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
+        
+        // So we need to grab the MarkovEstimatorProfiler stats and check 
+        // that the cache counter is greater than one
+        procName = VoltSystemProcedure.procCallName(Statistics.class);
+        params = new Object[]{ SysProcSelector.MARKOVPROFILER.name(), 0 };
+        cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        VoltTable results[] = cresponse.getResults();
+        boolean found = false;
+        while (results[0].advanceRow()) {
+            for (int i = 0; i < results[0].getColumnCount(); i++) {
+                String col = results[0].getColumnName(i).toUpperCase();
+                if (col.endsWith("_CNT") && col.contains("CACHE")) {
+                    long cnt = results[0].getLong(i);
+                    if (cnt > 0) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        } // WHILE
+        System.err.println(VoltTableUtil.format(results[0]));
+        assertTrue(found);
     }
     
     /**
@@ -134,6 +191,7 @@ public class TestMarkovSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.network_txn_initialization", true);
         builder.setGlobalConfParameter("site.markov_enable", true);
         builder.setGlobalConfParameter("site.markov_profiling", true);
+        builder.setGlobalConfParameter("site.markov_path_caching", true);
         builder.setGlobalConfParameter("site.markov_path", markovs.getAbsolutePath());
 
         // build up a project builder for the TPC-C app

@@ -79,8 +79,7 @@ public class MarkovEstimator extends TransactionEstimator {
     /**
      * We can maintain a cache of the last successful MarkovPathEstimator per MarkovGraph
      */
-    @Deprecated
-    private final Map<MarkovGraph, MarkovPathEstimator> cached_estimators = new HashMap<MarkovGraph, MarkovPathEstimator>();
+    private final Map<MarkovGraph, List<MarkovVertex>> cached_estimators = new HashMap<MarkovGraph, List<MarkovVertex>>();
     
     private transient boolean enable_recomputes = false;
     
@@ -153,25 +152,9 @@ public class MarkovEstimator extends TransactionEstimator {
     public void enableGraphRecomputes() {
        this.enable_recomputes = true;
     }
-    public MarkovGraphsContainer getMarkovs() {
+    public MarkovGraphsContainer getMarkovGraphsContainer() {
         return (this.markovs);
     }
-    
-    /**
-     * Return the initial path estimation for the given transaction id
-     * @param txn_id
-     * @return
-     */
-//    protected List<MarkovVertex> getInitialPath(long txn_id) {
-//        State s = this.txn_states.get(txn_id);
-//        assert(s != null) : "Unexpected Transaction #" + txn_id;
-//        return (s.getInitialPath());
-//    }
-//    protected double getConfidence(long txn_id) {
-//        State s = this.txn_states.get(txn_id);
-//        assert(s != null) : "Unexpected Transaction #" + txn_id;
-//        return (s.getInitialPathConfidence());
-//    }
     
     // ----------------------------------------------------------------------------
     // RUNTIME METHODS
@@ -209,17 +192,8 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovVertex start = markov.getStartVertex();
         assert(start != null) : "The start vertex is null. This should never happen!";
         MarkovEstimate initialEst = state.createNextEstimate(start, true);
+        this.estimatePath(state, initialEst, catalog_proc, args);
         
-        // We'll reuse the last MarkovPathEstimator (and it's path) if the graph has been accurate for
-        // other previous transactions. This prevents us from having to recompute the path every single time,
-        // especially for single-partition transactions where the clustered MarkovGraphs are accurate
-        if (hstore_conf.site.markov_path_caching && markov.getAccuracyRatio() >= hstore_conf.site.markov_path_caching_threshold) {
-            // pathEstimator = this.cached_estimators.get(markov);
-        }
-        // Otherwise we have to recalculate everything from scratch again
-        else {
-            this.estimatePath(state, initialEst, catalog_proc, args);
-        }
 //        else {
 //            if (d) LOG.info(String.format("Using cached MarkovPathEstimator for %s [hashCode=%d, ratio=%.02f]",
 //                            AbstractTransaction.formatTxnName(catalog_proc, txn_id),
@@ -236,12 +210,12 @@ public class MarkovEstimator extends TransactionEstimator {
         if (d) {
             String txnName = AbstractTransaction.formatTxnName(catalog_proc, txn_id);
             LOG.debug(String.format("%s - Initial MarkovEstimate\n%s", txnName, initialEst));
-//            if (t) {
+            if (t) {
                 List<MarkovVertex> path = initialEst.getMarkovPath();
-                LOG.debug(String.format("%s - Estimated Path [length=%d]\n%s",
+                LOG.trace(String.format("%s - Estimated Path [length=%d]\n%s",
                           txnName, path.size(),
                           StringUtil.join("\n----------------------\n", path)));
-//            }
+            }
             
         }
         
@@ -407,18 +381,19 @@ public class MarkovEstimator extends TransactionEstimator {
         next_v.addInstanceTime(txn_id, state.getExecutionTimeOffset(timestamp));
         
         // Store this as the last accurate MarkovPathEstimator for this graph
-//        if (hstore_conf.site.markov_path_caching &&
-//                this.cached_estimators.containsKey(state.markov) == false &&
-//                state.getInitialEstimate().isValid()) {
-//            synchronized (this.cached_estimators) {
-//                if (this.cached_estimators.containsKey(state.markov) == false) {
-//                    state.initial_estimator.setCached(true);
-//                    if (d) LOG.debug(String.format("Storing cached MarkovPathEstimator for %s used by txn #%d [cached=%s, hashCode=%d]",
-//                                                   state.markov, txn_id, state.initial_estimator.isCached(), state.initial_estimator.hashCode()));
-//                    this.cached_estimators.put(state.markov, state.initial_estimator);
-//                }
-//            } // SYNCH
-//        }
+        if (hstore_conf.site.markov_path_caching &&
+            this.cached_estimators.containsKey(state.getMarkovGraph()) == false &&
+            state.getInitialEstimate().isValid()) {
+            
+            MarkovEstimate initialEst = s.getInitialEstimate(); 
+            synchronized (this.cached_estimators) {
+                if (this.cached_estimators.containsKey(state.getMarkovGraph()) == false) {
+                    if (d) LOG.debug(String.format("Storing cached MarkovVertex path for %s used by txn #%d",
+                                                   state.getMarkovGraph(), txn_id));
+                    this.cached_estimators.put(state.getMarkovGraph(), initialEst.getMarkovPath());
+                }
+            } // SYNCH
+        }
         return;
     }
 
@@ -432,7 +407,7 @@ public class MarkovEstimator extends TransactionEstimator {
       
         // Calculate initial path estimate
         if (t) LOG.trace(String.format("%s - Estimating initial execution path",
-                         AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
+                AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
         MarkovVertex currentVertex = est.getVertex();
         assert(currentVertex != null);
         currentVertex.addInstanceTime(state.getTransactionId(), EstTime.currentTimeMillis());
@@ -448,10 +423,36 @@ public class MarkovEstimator extends TransactionEstimator {
                 if (this.profiler != null) this.profiler.time_fast_estimate.start();
                 try {
                     MarkovPathEstimator.fastEstimation(est, initialPath, currentVertex);
+                    compute_path = false;
                 } finally {
                     if (this.profiler != null) this.profiler.time_fast_estimate.stop();
                 }
-                compute_path = false;
+            }
+        }
+        // We'll reuse the last MarkovPathEstimator (and it's path) if the graph has been accurate for
+        // other previous transactions. This prevents us from having to recompute the path every single time,
+        // especially for single-partition transactions where the clustered MarkovGraphs are accurate
+        else if (hstore_conf.site.markov_path_caching) {
+            if (d) LOG.debug(String.format("%s - Checking whether we have a cached path [accuracy=%.02f]",
+                             AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov.getAccuracyRatio()));
+            List<MarkovVertex> cached = this.cached_estimators.get(markov);
+            if (cached == null) {
+                if (d) LOG.debug(String.format("%s - No cached path available",
+                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
+            }
+            else if (markov.getAccuracyRatio() < hstore_conf.site.markov_path_caching_threshold) {
+                if (d) LOG.debug(String.format("%s - MarkovGraph accuracy is below caching threshold [%.02f < %.02f]",
+                        AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()),
+                        markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
+            }
+            else {
+                if (this.profiler != null) this.profiler.time_cached_estimate.start();
+                try {
+                    MarkovPathEstimator.fastEstimation(est, cached, currentVertex);
+                    compute_path = false;
+                } finally {
+                    if (this.profiler != null) this.profiler.time_cached_estimate.stop();
+                }
             }
         }
         
