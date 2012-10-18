@@ -92,7 +92,7 @@ public class ScaleParameters {
     }
     
     public static ScaleParameters makeWithScaleFactor(int warehouses, int firstWarehouse, double scaleFactor) {
-        int items = (int)Math.max(1, TPCCConstants.NUM_ITEMS * scaleFactor);
+        int items = TPCCConstants.NUM_ITEMS; // (int)Math.max(1, TPCCConstants.NUM_ITEMS * scaleFactor);
         int districts = TPCCConstants.DISTRICTS_PER_WAREHOUSE;
         int customers = (int)Math.max(1, TPCCConstants.CUSTOMERS_PER_DISTRICT * scaleFactor);
         int newOrders = (int)Math.max(1, TPCCConstants.INITIAL_NEW_ORDERS_PER_DISTRICT * scaleFactor);
