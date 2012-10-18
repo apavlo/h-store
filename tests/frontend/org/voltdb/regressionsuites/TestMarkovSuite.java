@@ -1,6 +1,10 @@
 package org.voltdb.regressionsuites;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import junit.framework.Test;
 
@@ -13,6 +17,7 @@ import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcedureCallback;
 import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Statistics;
@@ -23,6 +28,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.ThreadUtil;
 
 /**
  * Simple test suite for the TM1 benchmark
@@ -58,7 +64,7 @@ public class TestMarkovSuite extends RegressionSuite {
         short supwares[] = new short[num_items];
         int quantities[] = new int[num_items];
         for (int i = 0; i < num_items; i++) { 
-            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS));
+            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS * SCALEFACTOR));
             supwares[i] = (i % 2 == 0 ? supply_w_id : w_id);
             quantities[i] = 1;
         } // FOR
@@ -120,14 +126,36 @@ public class TestMarkovSuite extends RegressionSuite {
         assertTrue(cresponse.toString(), cresponse.isSinglePartition());
         assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
         
-        // Then execute the same thing again. It should use the cache estimate
-        // from the previous txn
-        // We have to generate new params so that we get different item ids
-        params = this.generateNewOrder(2, (short)1, false);
-        cresponse = client.callProcedure(procName, params);
-        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-        assertTrue(cresponse.toString(), cresponse.isSinglePartition());
-        assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
+        // Sleep a little bit to give them for the txn to get cleaned up
+        ThreadUtil.sleep(2500);
+        
+        // Then execute the same thing again multiple times.
+        // It should use the cache estimate from the first txn
+        // We are going to execute them asynchronously to check whether we
+        // can share the cache properly
+        final int num_invocations = 10;
+        final CountDownLatch latch = new CountDownLatch(num_invocations);
+        final List<ClientResponse> cresponses = new ArrayList<ClientResponse>();
+        ProcedureCallback callback = new ProcedureCallback() {
+            @Override
+            public void clientCallback(ClientResponse clientResponse) {
+                cresponses.add(clientResponse);
+                latch.countDown();
+            }
+        };
+        for (int i = 0; i < num_invocations; i++) {
+            client.callProcedure(callback, procName, params);
+        } // FOR
+        
+        // Now wait for the responses
+        boolean result = latch.await(5, TimeUnit.SECONDS);
+        assertTrue(result);
+        
+        for (ClientResponse cr : cresponses) {
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());
+            assertTrue(cr.toString(), cr.isSinglePartition());
+            assertEquals(cr.toString(), 0, cr.getRestartCounter());
+        } // FOR
         
         // So we need to grab the MarkovEstimatorProfiler stats and check 
         // that the cache counter is greater than one
@@ -136,23 +164,18 @@ public class TestMarkovSuite extends RegressionSuite {
         cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
         VoltTable results[] = cresponse.getResults();
-        boolean found = false;
+        long found = 0;
         while (results[0].advanceRow()) {
             for (int i = 0; i < results[0].getColumnCount(); i++) {
                 String col = results[0].getColumnName(i).toUpperCase();
                 if (col.endsWith("_CNT") && col.contains("CACHE")) {
-                    long cnt = results[0].getLong(i);
-                    if (cnt > 0) {
-                        found = true;
-                        break;
-                    }
+                    found += results[0].getLong(i);
+                    break;
                 }
-                if (found) break;
-            }
+            } // FOR
         } // WHILE
         System.err.println(VoltTableUtil.format(results[0]));
-
-        // FIXME assertTrue(found);
+        assertEquals(num_invocations, found);
     }
     
     /**

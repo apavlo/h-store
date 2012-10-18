@@ -389,7 +389,7 @@ public class MarkovEstimator extends TransactionEstimator {
             synchronized (this.cached_estimators) {
                 if (this.cached_estimators.containsKey(state.getMarkovGraph()) == false) {
                     if (d) LOG.debug(String.format("Storing cached MarkovVertex path for %s used by txn #%d",
-                                                   state.getMarkovGraph(), txn_id));
+                                                   state.getMarkovGraph().toString(), txn_id));
                     this.cached_estimators.put(state.getMarkovGraph(), initialEst.getMarkovPath());
                 }
             } // SYNCH
@@ -401,13 +401,18 @@ public class MarkovEstimator extends TransactionEstimator {
     // INTERNAL ESTIMATION METHODS
     // ----------------------------------------------------------------------------
     
+    /**
+     * Estimate the execution path of the txn based on its current vertex in the graph
+     * The estimate will be stored in the given MarkovEstimate
+     * @param state The txn's TransactionEstimator state
+     * @param est The current TransactionEstimate for the txn
+     * @param catalog_proc The Procedure being executed by the txn 
+     * @param args Procedure arguments (mangled)
+     */
     private void estimatePath(MarkovEstimatorState state, MarkovEstimate est, Procedure catalog_proc, Object args[]) {
-        if (d) LOG.debug(String.format("%s - Recalculating initial path estimate",
+        if (d) LOG.debug(String.format("%s - Estimating execution path",
                          AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
-      
-        // Calculate initial path estimate
-        if (t) LOG.trace(String.format("%s - Estimating initial execution path",
-                AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
+        
         MarkovVertex currentVertex = est.getVertex();
         assert(currentVertex != null);
         currentVertex.addInstanceTime(state.getTransactionId(), EstTime.currentTimeMillis());
@@ -458,7 +463,8 @@ public class MarkovEstimator extends TransactionEstimator {
         
         // Use the MarkovPathEstimator to estimate a new path for this txn
         if (compute_path) {
-            
+            if (d) LOG.debug(String.format("%s - Need to compute new path in %s using MarkovPathEstimator",
+                             AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
             MarkovPathEstimator pathEstimator = null;
             try {
                 pathEstimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();

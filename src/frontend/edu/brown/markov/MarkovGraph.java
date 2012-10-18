@@ -146,7 +146,9 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     @Override
     public String toString() {
 //        return (this.getClass().getSimpleName() + "<" + this.getProcedure().getName() + ", " + this.getBasePartition() + ">");
-        return (this.getClass().getSimpleName() + "<" + this.getProcedure().getName() + ">");
+        String ret = this.getClass().getSimpleName() + "<" + this.getProcedure().getName() + ">";
+        // ret += "/" + this.hashCode();
+        return (ret);
     }
     
     @Override
