@@ -162,6 +162,9 @@ public class MarkovEstimator extends TransactionEstimator {
 
     @Override
     public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
+        ParameterMangler mangler = this.manglers.get(catalog_proc);
+        if (mangler != null) args = mangler.convert(args);
+        
         assert (catalog_proc != null);
         long start_time = EstTime.currentTimeMillis();
         if (d) LOG.debug(String.format("%s - Starting transaction estimation [partition=%d]",
@@ -180,8 +183,6 @@ public class MarkovEstimator extends TransactionEstimator {
         if (t) LOG.trace(String.format("%s - Creating new MarkovEstimatorState",
                          AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
         MarkovEstimatorState state = null;
-        ParameterMangler mangler = this.manglers.get(catalog_proc);
-        if (mangler != null) args = mangler.convert(args);
         try {
             state = (MarkovEstimatorState)POOL_STATES.borrowObject();
             state.init(txn_id, base_partition, markov, args, start_time);
