@@ -55,12 +55,13 @@ public class TestMarkovSuite extends RegressionSuite {
         super(name);
     }
     
-    private Object[] generateNewOrder(int num_warehouses, int w_id, boolean dtxn) throws Exception {
-        short remote_w_id;
+    private Object[] generateNewOrder(int num_warehouses, short w_id, boolean dtxn) throws Exception {
+        short supply_w_id;
         if (dtxn) {
-            remote_w_id = (short)rng.numberExcluding(TPCCConstants.STARTING_WAREHOUSE, num_warehouses+1, w_id);
+            supply_w_id = (short)rng.numberExcluding(TPCCConstants.STARTING_WAREHOUSE, num_warehouses, w_id);
+            assert(supply_w_id != w_id);
         } else {
-            remote_w_id = (short)w_id;
+            supply_w_id = (short)w_id;
         }
         
         // ORDER_LINE ITEMS
@@ -70,12 +71,12 @@ public class TestMarkovSuite extends RegressionSuite {
         int quantities[] = new int[num_items];
         for (int i = 0; i < num_items; i++) { 
             item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS * SCALEFACTOR));
-            supwares[i] = remote_w_id;
+            supwares[i] = (i % 2 == 0 ? supply_w_id : w_id);
             quantities[i] = rng.number(TPCCConstants.MIN_QUANTITY, TPCCConstants.MAX_QUANTITY);
         } // FOR
         
         Object params[] = {
-            (short)w_id,            // W_ID
+            w_id,                   // W_ID
             (byte)rng.nextInt(10),  // D_ID
             1,                      // C_ID
             new TimestampType(),    // TIMESTAMP
@@ -116,13 +117,13 @@ public class TestMarkovSuite extends RegressionSuite {
         // Fire off a distributed neworder txn
         // It should always come back with zero restarts
         String procName = neworder.class.getSimpleName();
-        Object params[] = this.generateNewOrder(1, 2, true);
+        Object params[] = this.generateNewOrder(2, (short)1, true);
         
         ClientResponse cresponse = client.callProcedure(procName, params);
         assertNotNull(cresponse);
         assertFalse(cresponse.toString(), cresponse.isSinglePartition());
         assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
-        System.err.println(cresponse);
+//        System.err.println(cresponse);
     }
     
     public static Test suite() throws Exception {
