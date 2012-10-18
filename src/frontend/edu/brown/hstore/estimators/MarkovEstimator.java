@@ -30,6 +30,7 @@ import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
+import edu.brown.profilers.MarkovEstimatorProfiler;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
@@ -88,6 +89,8 @@ public class MarkovEstimator extends TransactionEstimator {
      */
     private final Map<Procedure, ParameterMangler> manglers;
     
+    private final MarkovEstimatorProfiler profiler;
+    
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------
@@ -128,6 +131,12 @@ public class MarkovEstimator extends TransactionEstimator {
                         HStoreConf.singleton().site.pool_pathestimators_idle);
             }
         } // SYNC
+        
+        if (HStoreConf.singleton().site.markov_profiling) {
+            this.profiler = new MarkovEstimatorProfiler();
+        } else {
+            this.profiler = null;
+        }
     }
 
     // ----------------------------------------------------------------------------
@@ -213,7 +222,8 @@ public class MarkovEstimator extends TransactionEstimator {
             if (mangler != null) mangledArgs = mangler.convert(args);
             
             if (d) LOG.debug(String.format("%s - Recalculating initial path estimate",
-                             AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
+                             AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+            if (this.profiler != null) this.profiler.time_path_estimate.start();
             try {
                 pathEstimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();
                 pathEstimator.init(markov, initialEst, base_partition, mangledArgs);
@@ -222,6 +232,8 @@ public class MarkovEstimator extends TransactionEstimator {
                 String msg = "Failed to intitialize new MarkovPathEstimator for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id); 
                 LOG.error(msg, ex);
                 throw new RuntimeException(msg, ex);
+            } finally {
+                if (this.profiler != null) this.profiler.time_path_estimate.stop();
             }
             
             // Calculate initial path estimate
@@ -260,14 +272,16 @@ public class MarkovEstimator extends TransactionEstimator {
         assert(pathEstimator != null);
         assert(pathEstimator.getVisitPath().isEmpty() == false);
         assert(initialEst.getMarkovPath().isEmpty() == false);
-        if (t) {
+        if (d) {
             String txnName = AbstractTransaction.formatTxnName(catalog_proc, txn_id);
-            List<MarkovVertex> path = pathEstimator.getVisitPath();
-            LOG.trace(String.format("%s - Estimated Path [length=%d]\n%s",
-                      txnName, path.size(),
-                      StringUtil.join("\n----------------------\n", path, "debug")));
-            LOG.trace(String.format("%s - MarkovEstimate\n%s",
-                      txnName, initialEst));
+            LOG.debug(String.format("%s - Initial MarkovEstimate\n%s", txnName, initialEst));
+//            if (t) {
+                List<MarkovVertex> path = pathEstimator.getVisitPath();
+                LOG.debug(String.format("%s - Estimated Path [length=%d]\n%s",
+                          txnName, path.size(),
+                          StringUtil.join("\n----------------------\n", path)));
+//            }
+            
         }
         
         // Update EstimatorState.prefetch any time we transition to a MarkovVertex where the
@@ -532,6 +546,10 @@ public class MarkovEstimator extends TransactionEstimator {
     // ----------------------------------------------------------------------------
     // HELPER METHODS
     // ----------------------------------------------------------------------------
+    
+    public MarkovEstimatorProfiler getProfiler() {
+        return (this.profiler);
+    }
     
     public MarkovEstimatorState processTransactionTrace(TransactionTrace txn_trace) throws Exception {
         Long txn_id = txn_trace.getTransactionId();

@@ -54,6 +54,8 @@ public abstract class StatsSource {
      */
     protected final Map<String, Integer> columnNameToIndex = new LinkedHashMap<String, Integer>();
 
+    protected final int first_stats_col;
+    
     /**
      * Initialize this source of statistical information with the specified name. Populate the column schema by calling populateColumnSchema
      * on the derived class and use it to populate the columnNameToIndex map.
@@ -66,6 +68,7 @@ public abstract class StatsSource {
         for (int ii = 0; ii < columns.size(); ii++) {
             columnNameToIndex.put(columns.get(ii).name, ii);
         }
+        this.first_stats_col = this.columnNameToIndex.size();
 
         String hostname = null;
         int hostId = 0;

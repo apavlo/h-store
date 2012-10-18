@@ -144,6 +144,7 @@
 <arg value="site.markov_batch_caching_min=${site.markov_batch_caching_min}" />
 <arg value="site.exec_neworder_cheat=${site.exec_neworder_cheat}" />
 <arg value="site.markov_fixed=${site.markov_fixed}" />
+<arg value="site.markov_profiling=${site.markov_profiling}" />
 <arg value="site.planner_profiling=${site.planner_profiling}" />
 <arg value="site.planner_caching=${site.planner_caching}" />
 <arg value="site.planner_max_round_size=${site.planner_max_round_size}" />

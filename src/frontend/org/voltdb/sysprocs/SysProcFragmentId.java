@@ -41,16 +41,18 @@ public class SysProcFragmentId {
     public static final int PF_partitionCount = 17;
     public static final int PF_ioData = 18;
     public static final int PF_ioDataAggregator = 19;
-    public static final int PF_txnCounterData = 20;
-    public static final int PF_txnCounterDataAggregator = 21;
-    public static final int PF_txnProfilerData = 22;
-    public static final int PF_txnProfilerDataAggregator = 23;
-    public static final int PF_execProfilerData = 24;
-    public static final int PF_execProfilerDataAggregator = 25;
-    public static final int PF_queueProfilerData = 26;
-    public static final int PF_queueProfilerDataAggregator = 27;
-    public static final int PF_poolData = 28;
-    public static final int PF_poolDataAggregator = 29;
+    public static final int PF_poolData = 20;
+    public static final int PF_poolDataAggregator = 21;
+    public static final int PF_txnCounterData = 22;
+    public static final int PF_txnCounterDataAggregator = 23;
+    public static final int PF_txnProfilerData = 24;
+    public static final int PF_txnProfilerDataAggregator = 25;
+    public static final int PF_execProfilerData = 26;
+    public static final int PF_execProfilerDataAggregator = 27;
+    public static final int PF_queueProfilerData = 28;
+    public static final int PF_queueProfilerDataAggregator = 29;
+    public static final int PF_markovProfilerData = 30;
+    public static final int PF_markovProfilerDataAggregator = 31;
 
     // @Shutdown
     public static final int PF_shutdownCommand = 50;

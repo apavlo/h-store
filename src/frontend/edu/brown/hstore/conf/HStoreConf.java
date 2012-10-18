@@ -799,6 +799,13 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean markov_fixed;
+        
+        @ConfigProperty(
+            description="Enable profiling in the MarkovEstimator.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean markov_profiling;
 
         // ----------------------------------------------------------------------------
         // BatchPlanner
