@@ -22,10 +22,10 @@ import org.voltdb.catalog.StmtParameter;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.QueryEstimate;
 import edu.brown.hstore.specexec.MarkovConflictChecker.StatementCache;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -161,26 +161,22 @@ public class TestMarkovConflictChecker extends BaseTestCase {
         return (ts);
     }
     
-    private QueryEstimate createQueryEstimate(TransactionTrace txn_trace) {
+    private List<CountedStatement> createQueryEstimate(TransactionTrace txn_trace) {
         return this.createQueryEstimate(txn_trace, null);
     }
     
-    private QueryEstimate createQueryEstimate(TransactionTrace txn_trace, Statement start) {
-        List<Statement> stmts = new ArrayList<Statement>();
-        List<Long> stmtCtrs = new ArrayList<Long>();
+    private List<CountedStatement> createQueryEstimate(TransactionTrace txn_trace, Statement start) {
         Histogram<Statement> stmtHistogram = new Histogram<Statement>();
+        List<CountedStatement> queries = new ArrayList<CountedStatement>();
         boolean include = (start == null);
         for (QueryTrace q : txn_trace.getQueries()) {
             Statement stmt = q.getCatalogItem(catalogContext.database);
             if (include == false && stmt.equals(start) == false) continue;
             include = true;
-            stmts.add(stmt);
-            stmtCtrs.add(stmtHistogram.get(stmt, 0l));
+            queries.add(new CountedStatement(stmt, (int)stmtHistogram.get(stmt, 0l)));
             stmtHistogram.put(stmt);
         } // FOR
-        QueryEstimate est = new QueryEstimate(stmts.toArray(new Statement[0]),
-                                              CollectionUtil.toIntArray(stmtCtrs));
-        return (est);
+        return (queries);
     }
     
     // ----------------------------------------------------------------------------------
@@ -244,7 +240,8 @@ public class TestMarkovConflictChecker extends BaseTestCase {
         TransactionTrace traces[] = this.getTransactionTraces(procs, true);
         
         AbstractTransaction txns[] = new AbstractTransaction[procs.length];
-        QueryEstimate queries[] = new QueryEstimate[procs.length];
+        @SuppressWarnings("unchecked")
+        List<CountedStatement> queries[] = (List<CountedStatement>[])(new ArrayList<?>[procs.length]);
         for (int i = 0; i < procs.length; i++) {
             txns[i] = this.createTransaction(traces[i]);
             queries[i] = this.createQueryEstimate(traces[i], startStmts[i]);
@@ -277,7 +274,8 @@ public class TestMarkovConflictChecker extends BaseTestCase {
         TransactionTrace traces[] = this.getTransactionTraces(procs, true);
         
         AbstractTransaction txns[] = new AbstractTransaction[procs.length];
-        QueryEstimate queries[] = new QueryEstimate[procs.length];
+        @SuppressWarnings("unchecked")
+        List<CountedStatement> queries[] = (List<CountedStatement>[])(new ArrayList<?>[procs.length]);
         for (int i = 0; i < procs.length; i++) {
             txns[i] = this.createTransaction(traces[i]);
             queries[i] = this.createQueryEstimate(traces[i]);
@@ -326,7 +324,8 @@ public class TestMarkovConflictChecker extends BaseTestCase {
         assert(w_id >= 0);
         
         AbstractTransaction txns[] = new AbstractTransaction[procs.length];
-        QueryEstimate queries[] = new QueryEstimate[procs.length];
+        @SuppressWarnings("unchecked")
+        List<CountedStatement> queries[] = (List<CountedStatement>[])(new ArrayList<?>[procs.length]);
         for (int i = 0; i < procs.length; i++) {
             txns[i] = this.createTransaction(traces[i]);
             queries[i] = this.createQueryEstimate(traces[i]);

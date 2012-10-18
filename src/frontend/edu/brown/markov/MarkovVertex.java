@@ -29,7 +29,6 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
-import edu.brown.hstore.estimators.QueryEstimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -289,7 +288,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     
     @Override
-    public QueryEstimate getEstimatedQueries(int partition) {
+    public List<CountedStatement> getEstimatedQueries(int partition) {
         throw new NotImplementedException(ClassUtil.getCurrentMethodName() + " is not implemented");
     }
 

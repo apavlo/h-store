@@ -7,9 +7,8 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Statement;
 
-import edu.brown.hstore.estimators.QueryEstimate;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -73,6 +72,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     protected PartitionSet most_touched_partitionset;
     protected PartitionSet read_partitionset;
     protected PartitionSet write_partitionset;
+    
+    private List<CountedStatement> query_estimate;
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS + INITIALIZATION
@@ -178,6 +179,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         if (this.most_touched_partitionset != null) this.most_touched_partitionset.clear();
         if (this.read_partitionset != null) this.read_partitionset.clear();
         if (this.write_partitionset != null) this.write_partitionset.clear();
+        if (this.query_estimate != null) this.query_estimate.clear();
         this.valid = true;
     }
     
@@ -215,24 +217,19 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     @Override
-    public QueryEstimate getEstimatedQueries(int partition) {
-        int num_stmts = this.touched[partition];
-        Statement stmts[] = new Statement[num_stmts];
-        int stmtCtrs[] = new int[num_stmts];
-        
-        int i = 0;
-        for (MarkovVertex v : this.path) {
-            PartitionSet partitions = v.getPartitions();
-            if (partitions.contains(partitions)) {
-                stmts[i] = v.getCatalogItem();
-                stmtCtrs[i] = v.getQueryCounter();
-                i += 1;
-            }
-        } // FOR
-        assert(num_stmts == i) :
-            String.format("Expected %d Statements for partition #%d but only found %d",
-                          num_stmts, partition, i);
-        return new QueryEstimate(stmts, stmtCtrs);
+    public List<CountedStatement> getEstimatedQueries(int partition) {
+        if (this.query_estimate == null) {
+            this.query_estimate = new ArrayList<CountedStatement>();
+        }
+        if (this.query_estimate.isEmpty()) {
+            for (MarkovVertex v : this.path) {
+                PartitionSet partitions = v.getPartitions();
+                if (partitions.contains(partition)) {
+                    this.query_estimate.add(v.getCountedStatement());
+                }
+            } // FOR
+        }
+        return (this.query_estimate);
     }
     
     public List<MarkovVertex> getMarkovPath() {

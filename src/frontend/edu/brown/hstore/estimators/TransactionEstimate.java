@@ -1,6 +1,9 @@
 package edu.brown.hstore.estimators;
 
 
+import java.util.List;
+
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
@@ -36,7 +39,7 @@ public interface TransactionEstimate extends Poolable {
      * 
      * @return
      */
-    public QueryEstimate getEstimatedQueries(int partition);
+    public List<CountedStatement> getEstimatedQueries(int partition);
     
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY

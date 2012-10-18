@@ -20,9 +20,9 @@ import org.voltdb.catalog.Table;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.designer.ColumnSet;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.QueryEstimate;
 import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -184,18 +184,17 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
             return (false);
         }
         
-        QueryEstimate queries0 = dtxnEst.getEstimatedQueries(partitionId);
-        QueryEstimate queries1 = tsEst.getEstimatedQueries(partitionId);
+        List<CountedStatement> queries0 = dtxnEst.getEstimatedQueries(partitionId);
+        List<CountedStatement> queries1 = tsEst.getEstimatedQueries(partitionId);
         
         return this.canExecute(dtxn, queries0, ts, queries1);
     }
     
-    protected boolean canExecute(AbstractTransaction ts0, QueryEstimate queries0,
-                                 AbstractTransaction ts1, QueryEstimate queries1) {
+    protected boolean canExecute(AbstractTransaction ts0, List<CountedStatement> queries0,
+                                 AbstractTransaction ts1, List<CountedStatement> queries1) {
         ParameterSet params0 = ts0.getProcedureParameters();
         ParameterSet params1 = ts1.getProcedureParameters();
-        Statement stmt0, stmt1;
-        int stmtCtr0, stmtCtr1;
+        CountedStatement stmt0, stmt1;
         StatementCache cache0, cache1;
         Map<StmtParameter, SortedSet<ParameterMapping>> mappings0, mappings1;
         
@@ -222,18 +221,15 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         // (1) We only need to examine the READ-WRITE conflicts and WRITE->WRITE
         
         for (int i0 = 0, cnt0 = queries0.size(); i0 < cnt0; i0++) {
-            stmt0 = queries0.getStatement(i0);
-            stmtCtr0 = queries0.getStatementCounter(i0);
-            cache0 = this.stmtCache.get(stmt0);
-            mappings0 = this.catalogContext.paramMappings.get(stmt0, stmtCtr0);
+            stmt0 = queries0.get(i0);
+            cache0 = this.stmtCache.get(stmt0.statement);
+            mappings0 = this.catalogContext.paramMappings.get(stmt0.statement, stmt0.counter);
             
             for (int i1 = 0, cnt1 = queries1.size(); i1 < cnt1; i1++) {
-                stmt1 = queries1.getStatement(i1);
-                if (stmt0.getReadonly() && stmt1.getReadonly()) continue;
+                stmt1 = queries1.get(i1);
+                if (stmt0.statement.getReadonly() && stmt1.statement.getReadonly()) continue;
                 
-                stmtCtr1 = queries1.getStatementCounter(i1);
-                ConflictPair cp = cache0.conflicts.get(stmt1);
-
+                ConflictPair cp = cache0.conflicts.get(stmt1.statement);
                 // If there isn't a ConflictPair, then there isn't a conflict
                 if (cp == null) {
                     continue;
@@ -249,8 +245,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 // Otherwise, at this point we know that we have two queries that both 
                 // reference the same table(s). Therefore, we need to evaluate the values 
                 // of the primary keys referenced in the queries to see whether they conflict
-                cache1 = this.stmtCache.get(stmt1);
-                mappings1 = this.catalogContext.paramMappings.get(stmt1, stmtCtr1);
+                cache1 = this.stmtCache.get(stmt1.statement);
+                mappings1 = this.catalogContext.paramMappings.get(stmt1.statement, stmt1.counter);
                 
                 boolean allEqual = true;
                 for (Column col : cache0.colParams.keySet()) {

@@ -1,9 +1,12 @@
 package edu.brown.hstore.estimators;
 
+import java.util.List;
+
 import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.CatalogContext;
 import org.voltdb.utils.EstTime;
 
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
@@ -102,7 +105,7 @@ public abstract class FixedEstimator extends TransactionEstimator {
         }
         
         @Override
-        public QueryEstimate getEstimatedQueries(int partition) {
+        public List<CountedStatement> getEstimatedQueries(int partition) {
             // TODO Auto-generated method stub
             return null;
         }
