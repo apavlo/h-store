@@ -1,13 +1,9 @@
 package org.voltdb.regressionsuites;
 
 import java.io.File;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Test;
 
-import org.voltdb.regressionsuites.TestTM1Suite;
 import org.voltdb.BackendTarget;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
@@ -17,27 +13,15 @@ import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcCallException;
-import org.voltdb.client.ProcedureCallback;
-import org.voltdb.regressionsuites.specexecprocs.RemoteIdle;
-import org.voltdb.regressionsuites.specexecprocs.UpdateAll;
-import org.voltdb.regressionsuites.specexecprocs.UpdateOne;
 import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.Statistics;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
-import edu.brown.BaseTestCase;
-import edu.brown.benchmark.tm1.TM1Client;
-import edu.brown.benchmark.tm1.TM1Client.Transaction;
-import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.benchmark.tm1.TM1Loader;
-import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.ThreadUtil;
 
 /**
  * Simple test suite for the TM1 benchmark
