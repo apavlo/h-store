@@ -16,6 +16,7 @@ import org.voltdb.catalog.StmtParameter;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.seats.procedures.NewReservation;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -105,7 +106,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
 
         final ParameterSet params = new ParameterSet(this.proc_params);
         final EstimatorState estimator = new MarkovEstimatorState.Factory(catalogContext).makeObject();
-        estimator.addPrefetchableStatement(catalog_stmt, 0);
+        estimator.addPrefetchableStatement(new CountedStatement(catalog_stmt, 0));
         
         this.ts = new LocalTransaction(this.hstore_sites[LOCAL_SITE]) {
             @Override

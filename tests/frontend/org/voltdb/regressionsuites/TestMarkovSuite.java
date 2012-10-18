@@ -87,25 +87,25 @@ public class TestMarkovSuite extends RegressionSuite {
         return (params);
     }
     
-//    /**
-//     * testInitialize
-//     */
-//    public void testInitialize() throws Exception {
-//        Client client = this.getClient();
-//        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
-//        
-//        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-//        for (String tableName : TPCCConstants.TABLENAMES) {
-//            String query = "SELECT COUNT(*) FROM " + tableName;
-//            ClientResponse cresponse = client.callProcedure(procName, query);
-//            assertEquals(Status.OK, cresponse.getStatus());
-//            VoltTable results[] = cresponse.getResults();
-//            assertEquals(1, results.length);
-//            long count = results[0].asScalarLong();
-//            assertTrue(tableName + " -> " + count, count > 0);
-//            System.err.println(tableName + "\n" + results[0]);
-//        } // FOR
-//    }
+    /**
+     * testInitialize
+     */
+    public void testInitialize() throws Exception {
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+        
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        for (String tableName : TPCCConstants.TABLENAMES) {
+            String query = "SELECT COUNT(*) FROM " + tableName;
+            ClientResponse cresponse = client.callProcedure(procName, query);
+            assertEquals(Status.OK, cresponse.getStatus());
+            VoltTable results[] = cresponse.getResults();
+            assertEquals(1, results.length);
+            long count = results[0].asScalarLong();
+            assertTrue(tableName + " -> " + count, count > 0);
+            System.err.println(tableName + "\n" + results[0]);
+        } // FOR
+    }
     
     /**
      * testDistributedTxn

@@ -756,7 +756,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators" +
                         "for transactions running at the same partition.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=true
         )
         public boolean markov_path_caching;

@@ -79,6 +79,7 @@ public class MarkovEstimator extends TransactionEstimator {
     /**
      * We can maintain a cache of the last successful MarkovPathEstimator per MarkovGraph
      */
+    @Deprecated
     private final Map<MarkovGraph, MarkovPathEstimator> cached_estimators = new HashMap<MarkovGraph, MarkovPathEstimator>();
     
     private transient boolean enable_recomputes = false;
@@ -196,9 +197,11 @@ public class MarkovEstimator extends TransactionEstimator {
         if (t) LOG.trace(String.format("%s - Creating new MarkovEstimatorState",
                          AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
         MarkovEstimatorState state = null;
+        ParameterMangler mangler = this.manglers.get(catalog_proc);
+        if (mangler != null) args = mangler.convert(args);
         try {
             state = (MarkovEstimatorState)POOL_STATES.borrowObject();
-            state.init(txn_id, base_partition, markov, start_time);
+            state.init(txn_id, base_partition, markov, args, start_time);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -206,56 +209,16 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovVertex start = markov.getStartVertex();
         assert(start != null) : "The start vertex is null. This should never happen!";
         MarkovEstimate initialEst = state.createNextEstimate(start, true);
-        MarkovPathEstimator pathEstimator = null;
         
         // We'll reuse the last MarkovPathEstimator (and it's path) if the graph has been accurate for
         // other previous transactions. This prevents us from having to recompute the path every single time,
         // especially for single-partition transactions where the clustered MarkovGraphs are accurate
         if (hstore_conf.site.markov_path_caching && markov.getAccuracyRatio() >= hstore_conf.site.markov_path_caching_threshold) {
-            pathEstimator = this.cached_estimators.get(markov);
+            // pathEstimator = this.cached_estimators.get(markov);
         }
-            
         // Otherwise we have to recalculate everything from scratch again
-        if (pathEstimator == null) {
-            ParameterMangler mangler = this.manglers.get(catalog_proc);
-            Object mangledArgs[] = args;
-            if (mangler != null) mangledArgs = mangler.convert(args);
-            
-            if (d) LOG.debug(String.format("%s - Recalculating initial path estimate",
-                             AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-            if (this.profiler != null) this.profiler.time_path_estimate.start();
-            try {
-                pathEstimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();
-                pathEstimator.init(markov, initialEst, base_partition, mangledArgs);
-                pathEstimator.enableForceTraversal(true);
-            } catch (Throwable ex) {
-                String msg = "Failed to intitialize new MarkovPathEstimator for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id); 
-                LOG.error(msg, ex);
-                throw new RuntimeException(msg, ex);
-            } finally {
-                if (this.profiler != null) this.profiler.time_path_estimate.stop();
-            }
-            
-            // Calculate initial path estimate
-            if (t) LOG.trace(String.format("%s - Estimating initial execution path",
-                             AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-            start.addInstanceTime(txn_id, start_time);
-            synchronized (markov) {
-                try {
-                    pathEstimator.traverse(start);
-                    // if (catalog_proc.getName().equalsIgnoreCase("NewBid")) throw new Exception ("Fake!");
-                } catch (Throwable ex) {
-                    try {
-                        GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(pathEstimator.getVisitPath()));
-                        LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
-                    } catch (Exception ex2) {
-                        throw new RuntimeException(ex2);
-                    }
-                    String msg = "Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
-                    LOG.error(msg, ex);
-                    throw new RuntimeException(msg, ex);
-                }
-            } // SYNCH
+        else {
+            this.estimatePath(state, initialEst, catalog_proc, args);
         }
 //        else {
 //            if (d) LOG.info(String.format("Using cached MarkovPathEstimator for %s [hashCode=%d, ratio=%.02f]",
@@ -269,14 +232,12 @@ public class MarkovEstimator extends TransactionEstimator {
 //                              AbstractTransaction.formatTxnName(catalog_proc, txn_id), pathEstimator.hashCode());
 //            pathEstimator.getEstimate().incrementReusedCounter();
 //        }
-        assert(pathEstimator != null);
-        assert(pathEstimator.getVisitPath().isEmpty() == false);
         assert(initialEst.getMarkovPath().isEmpty() == false);
         if (d) {
             String txnName = AbstractTransaction.formatTxnName(catalog_proc, txn_id);
             LOG.debug(String.format("%s - Initial MarkovEstimate\n%s", txnName, initialEst));
 //            if (t) {
-                List<MarkovVertex> path = pathEstimator.getVisitPath();
+                List<MarkovVertex> path = initialEst.getMarkovPath();
                 LOG.debug(String.format("%s - Estimated Path [length=%d]\n%s",
                           txnName, path.size(),
                           StringUtil.join("\n----------------------\n", path)));
@@ -290,13 +251,15 @@ public class MarkovEstimator extends TransactionEstimator {
         for (MarkovVertex vertex : initialEst.getMarkovPath()) {
             Statement statement = (Statement) vertex.getCatalogItem();
             if (statement.getPrefetchable()) {
-                state.addPrefetchableStatement(statement, vertex.getQueryCounter());
+                state.addPrefetchableStatement(vertex.getCountedStatement());
             }
         } // FOR
         
+        
+        
         return (state);
     }
-
+    
 //    public final AtomicInteger batch_cache_attempts = new AtomicInteger(0);
 //    public final AtomicInteger batch_cache_success = new AtomicInteger(0);
 //    public final ProfileMeasurement CACHE = new ProfileMeasurement("CACHE");
@@ -309,7 +272,7 @@ public class MarkovEstimator extends TransactionEstimator {
         int batch_size = catalog_stmts.length;
         MarkovGraph markov = state.getMarkovGraph();
             
-        MarkovVertex current = state.current;
+        MarkovVertex current = state.getCurrent();
         MarkovVertex next_v = null;
         MarkovEdge next_e = null;
         Statement last_stmt = null;
@@ -367,10 +330,10 @@ public class MarkovEstimator extends TransactionEstimator {
             
             // Update our cache if we tried and failed before
             if (attempt_cache_lookup) {
-                if (d) LOG.debug(String.format("Updating cache batch end for %s: %s -> %s", markov, current, state.current));
+                if (d) LOG.debug(String.format("Updating cache batch end for %s: %s -> %s", markov, current, state.getCurrent()));
                 markov.addCachedBatchEnd(current,
                                          CollectionUtil.last(state.actual_path_edges),
-                                         state.current,
+                                         state.getCurrent(),
                                          last_stmt,
                                          stmt_idxs[batch_size-1],
                                          state.cache_past_partitions,
@@ -381,29 +344,11 @@ public class MarkovEstimator extends TransactionEstimator {
         // 2012-10-17: This is kind of funky because we have to populate the
         // probabilities for the MarkovEstimate here, whereas for the initial estimate 
         // we did it inside of the MarkovPathEstimator
-        MarkovEstimate estimate = state.createNextEstimate(state.current, false);
+        MarkovEstimate estimate = state.createNextEstimate(state.getCurrent(), false);
         assert(estimate != null);
-        estimate.setSinglePartitionProbability(state.current.getSinglePartitionProbability());
-        estimate.setAbortProbability(state.current.getAbortProbability());
-        for (int i = 0; i < this.catalogContext.numberOfPartitions; i++) {
-            estimate.setFinishProbability(i, state.current.getFinishProbability(i));
-            estimate.setReadOnlyProbability(i, state.current.getReadOnlyProbability(i));
-            estimate.setWriteProbability(i, state.current.getWriteProbability(i));
-        } // FOR
-        // HACK: Always set the confidence to 1.0
-        estimate.setConfidenceCoefficient(1.0f);
-        
-        List<MarkovVertex> estimatePath = estimate.getMarkovPath();
-        boolean copy = false;
-        List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
-        for (MarkovVertex v : initialPath) {
-            if (copy || v.equals(state.current)) {
-                copy = true;
-                estimatePath.add(v);
-                
-            }
-        } // FOR
-        
+        Procedure catalog_proc = markov.getProcedure();
+        Object procArgs[] = state.getProcedureParameters();
+        this.estimatePath(state, estimate, catalog_proc, procArgs);
         
         if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate.toString()));
         assert(estimate.isInitialized()) :
@@ -481,6 +426,52 @@ public class MarkovEstimator extends TransactionEstimator {
     // INTERNAL ESTIMATION METHODS
     // ----------------------------------------------------------------------------
     
+    private void estimatePath(MarkovEstimatorState state, MarkovEstimate est, Procedure catalog_proc, Object args[]) {
+        if (d) LOG.debug(String.format("%s - Recalculating initial path estimate",
+                         AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
+      
+        MarkovPathEstimator pathEstimator = null;
+        try {
+            pathEstimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();
+            pathEstimator.init(state.getMarkovGraph(), est, state.getBasePartition(), args);
+            pathEstimator.enableForceTraversal(true);
+        } catch (Throwable ex) {
+            String txnName = AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
+            String msg = "Failed to intitialize new MarkovPathEstimator for " + txnName; 
+            LOG.error(msg, ex);
+            throw new RuntimeException(msg, ex);
+        }
+      
+        // Calculate initial path estimate
+        if (t) LOG.trace(String.format("%s - Estimating initial execution path",
+                         AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
+        MarkovVertex v = est.getVertex();
+        assert(v != null);
+        v.addInstanceTime(state.getTransactionId(), EstTime.currentTimeMillis());
+      
+        MarkovGraph markov = state.getMarkovGraph();
+        synchronized (markov) {
+            if (this.profiler != null) this.profiler.time_path_estimate.start();
+            try {
+                pathEstimator.traverse(est.getVertex());
+            } catch (Throwable ex) {
+                try {
+                    GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(pathEstimator.getVisitPath()));
+                    LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
+                } catch (Exception ex2) {
+                    throw new RuntimeException(ex2);
+                }
+                String msg = "Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
+                LOG.error(msg, ex);
+                throw new RuntimeException(msg, ex);
+            } finally {
+                if (this.profiler != null) this.profiler.time_path_estimate.stop();
+            }
+        } // SYNCH
+        
+        POOL_ESTIMATORS.returnObject(pathEstimator);
+    }
+    
     /**
      * Figure out the next vertex that the txn will transition to for the give Statement catalog object
      * and the partitions that it will touch when it is executed. If no vertex exists, we will create
@@ -490,7 +481,11 @@ public class MarkovEstimator extends TransactionEstimator {
      * @param catalog_stmt
      * @param partitions
      */
-    private void consume(MarkovEstimatorState state, MarkovGraph markov, Statement catalog_stmt, Collection<Integer> partitions, int queryInstanceIndex) {
+    private void consume(MarkovEstimatorState state,
+                         MarkovGraph markov,
+                         Statement catalog_stmt,
+                         PartitionSet partitions,
+                         int queryInstanceIndex) {
 //        CONSUME.start();
         // Update the number of times that we have executed this query in the txn
         if (queryInstanceIndex < 0) queryInstanceIndex = state.updateQueryInstanceCount(catalog_stmt);

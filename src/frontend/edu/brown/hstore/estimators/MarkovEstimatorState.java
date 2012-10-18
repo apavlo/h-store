@@ -37,9 +37,11 @@ public final class MarkovEstimatorState extends EstimatorState {
     protected final List<MarkovEdge> actual_path_edges = new ArrayList<MarkovEdge>();
     
     private MarkovGraph markov;
-    protected transient MarkovVertex current;
-    protected transient final PartitionSet cache_past_partitions = new PartitionSet();
-    protected transient final PartitionSet cache_last_partitions = new PartitionSet();
+    private MarkovVertex current;
+    private Object args[];
+    
+    protected final PartitionSet cache_past_partitions = new PartitionSet();
+    protected final PartitionSet cache_last_partitions = new PartitionSet();
     
     /**
      * State Factory
@@ -66,33 +68,21 @@ public final class MarkovEstimatorState extends EstimatorState {
         super(catalogContext);
     }
     
-    public void init(Long txn_id, int base_partition, MarkovGraph markov, long start_time) {
+    public void init(Long txn_id, int base_partition, MarkovGraph markov, Object args[], long start_time) {
         this.markov = markov;
+        this.args = args;
         this.setCurrent(markov.getStartVertex(), null);
         super.init(txn_id, base_partition, start_time);
     }
     
     @Override
     public void finish() {
-        // Only return the MarkovPathEstimator to it's object pool if it hasn't been cached
-//        if (this.initial_estimator.isCached() == false) {
-//            if (d) LOG.debug(String.format("Initial MarkovPathEstimator is not marked as cached for txn #%d. Returning to pool... [hashCode=%d]",
-//                             this.txn_id, this.initial_estimator.hashCode()));
-//            try {
-//                MarkovEstimator.POOL_ESTIMATORS.returnObject(this.initial_estimator);
-//            } catch (Exception ex) {
-//                throw new RuntimeException("Failed to return MarkovPathEstimator for txn" + this.txn_id, ex);
-//            }
-//        } else if (d) {
-//            LOG.debug(String.format("Initial MarkovPathEstimator is marked as cached for txn #%d. Will not return to pool... [hashCode=%d]",
-//                      this.txn_id, this.initial_estimator.hashCode()));
-//        }
-     
-        
         this.markov.incrementTransasctionCount();
         this.actual_path.clear();
         this.actual_path_edges.clear();
         this.current = null;
+        this.markov = null;
+        this.args = null;
         super.finish();
     }
     
@@ -116,6 +106,10 @@ public final class MarkovEstimatorState extends EstimatorState {
     // ----------------------------------------------------------------------------
     // MARKOV GRAPH METHODS
     // ----------------------------------------------------------------------------
+    
+    public Object[] getProcedureParameters() {
+        return (this.args);
+    }
     
     public MarkovGraph getMarkovGraph() {
         return (this.markov);

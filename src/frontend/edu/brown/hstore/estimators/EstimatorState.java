@@ -173,7 +173,7 @@ public abstract class EstimatorState implements Poolable {
         return StringUtil.formatMaps(m0);
     }
 
-    public void addPrefetchableStatement(Statement statement, int counter) {
-        this.prefetchable_stmts.add(new CountedStatement(statement, counter));
+    public void addPrefetchableStatement(CountedStatement cntStmt) {
+        this.prefetchable_stmts.add(cntStmt);
     }
 }
