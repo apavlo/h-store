@@ -58,19 +58,20 @@ public class TestMarkovSuite extends RegressionSuite {
         short supwares[] = new short[num_items];
         int quantities[] = new int[num_items];
         for (int i = 0; i < num_items; i++) { 
-            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS * SCALEFACTOR));
+            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS));
             supwares[i] = (i % 2 == 0 ? supply_w_id : w_id);
             quantities[i] = 1;
         } // FOR
         
+        byte d_id = (byte)rng.number(1, TPCCConstants.DISTRICTS_PER_WAREHOUSE);
         Object params[] = {
-            w_id,                   // W_ID
-            (byte)rng.nextInt(10),  // D_ID
-            1,                      // C_ID
-            new TimestampType(),    // TIMESTAMP
-            item_ids,               // ITEM_IDS
-            supwares,               // SUPPLY W_IDS
-            quantities              // QUANTITIES
+            w_id,               // W_ID
+            d_id,               // D_ID
+            1,                  // C_ID
+            new TimestampType(),// TIMESTAMP
+            item_ids,           // ITEM_IDS
+            supwares,           // SUPPLY W_IDS
+            quantities          // QUANTITIES
         };
         return (params);
     }
@@ -91,7 +92,7 @@ public class TestMarkovSuite extends RegressionSuite {
             assertEquals(1, results.length);
             long count = results[0].asScalarLong();
             assertTrue(tableName + " -> " + count, count > 0);
-            System.err.println(tableName + "\n" + results[0]);
+            System.err.println(tableName + "\n" + VoltTableUtil.format(results[0]));
         } // FOR
     }
     
@@ -121,6 +122,8 @@ public class TestMarkovSuite extends RegressionSuite {
         
         // Then execute the same thing again. It should use the cache estimate
         // from the previous txn
+        // We have to generate new params so that we get different item ids
+        params = this.generateNewOrder(2, (short)1, false);
         cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
         assertTrue(cresponse.toString(), cresponse.isSinglePartition());
@@ -148,6 +151,7 @@ public class TestMarkovSuite extends RegressionSuite {
             }
         } // WHILE
         System.err.println(VoltTableUtil.format(results[0]));
+
         // FIXME assertTrue(found);
     }
     

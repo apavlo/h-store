@@ -84,7 +84,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     private final int num_partitions;
     private final ParameterMappingsSet allMappings;
     private final PartitionEstimator p_estimator;
-    private final PartitionSet all_partitions;
     
     /**
      * If this flag is set to true, then we will always try to go to the end
@@ -133,7 +132,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     public MarkovPathEstimator(CatalogContext catalogContext, PartitionEstimator p_estimator) {
         super();
         this.num_partitions = catalogContext.numberOfPartitions;
-        this.all_partitions = catalogContext.getAllPartitionIds();
         this.p_estimator = p_estimator;
         this.allMappings = catalogContext.paramMappings;
         assert(this.allMappings != null);

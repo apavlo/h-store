@@ -158,9 +158,9 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //        }
         
         for (int p : catalogContext.getAllPartitionIdArray()) {
-            assert(estimate.isReadOnlyProbabilitySet(p));
-            assert(estimate.isWriteProbabilitySet(p));
-            assert(estimate.isFinishProbabilitySet(p));
+            assertTrue(estimate.toString(), estimate.isReadOnlyProbabilitySet(p));
+            assertTrue(estimate.toString(), estimate.isWriteProbabilitySet(p));
+            assertTrue(estimate.toString(), estimate.isFinishProbabilitySet(p));
             
             if (estimate.getFinishProbability(p) < 0.9f) {
                 assert(estimate.getTouchedCounter(p) > 0) : String.format("TOUCHED[%d]: %d", p, estimate.getTouchedCounter(p)); 
@@ -174,7 +174,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         assert(estimate.isAbortProbabilitySet());
         assert(estimate.getSinglePartitionProbability() < 1.0f);
         
-        assertTrue(estimate.isConfidenceCoefficientSet());
+        assertTrue(estimate.toString(), estimate.isConfidenceCoefficientSet());
         assert(estimate.getConfidenceCoefficient() >= 0f);
         assert(estimate.getConfidenceCoefficient() <= 1f);
     }

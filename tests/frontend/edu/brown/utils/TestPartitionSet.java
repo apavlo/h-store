@@ -23,6 +23,73 @@ public class TestPartitionSet extends TestCase {
     }
     
     /**
+     * testToString
+     */
+    public void testToString() {
+        for (int p = 0; p < NUM_PARTITIONS; p++) {
+            assertFalse(pset.toString(), pset.contains(p));
+            pset.add(p);
+            String s = pset.toString();
+            assertTrue(p+"->"+s, s.contains(Integer.toString(p)));
+        } // FOR
+        
+        int p = HStoreConstants.NULL_PARTITION_ID;
+        pset.add(p);
+        String s = pset.toString();
+        assertTrue(p+"->"+s, s.contains(Integer.toString(p)));
+        System.err.println(s);
+    }
+    
+    /**
+     * testIsEmptyNull
+     */
+    public void testIsEmptyNull() {
+        assertTrue(pset.toString(), pset.isEmpty());
+        assertTrue(set.toString(), set.isEmpty());
+        
+        pset.add(HStoreConstants.NULL_PARTITION_ID);
+        set.add(HStoreConstants.NULL_PARTITION_ID);
+        assertFalse(pset.toString(), pset.isEmpty());
+        assertTrue(pset.toString(), pset.contains(HStoreConstants.NULL_PARTITION_ID));
+        assertFalse(set.toString(), set.isEmpty());
+        assertTrue(set.toString(), set.contains(HStoreConstants.NULL_PARTITION_ID));
+        assertEquals(set.size(), pset.size());
+        
+        pset.clear();
+        set.clear();
+        assertTrue(pset.toString(), pset.isEmpty());
+        assertTrue(set.toString(), set.isEmpty());
+        assertEquals(set.size(), pset.size());
+    }
+    
+    /**
+     * testIsEmpty
+     */
+    public void testIsEmpty() {
+        assertTrue(pset.toString(), pset.isEmpty());
+        assertTrue(set.toString(), set.isEmpty());
+        
+        for (int p = 0; p < NUM_PARTITIONS; p++) {
+            assertFalse(pset.toString(), pset.contains(p));
+            assertFalse(set.toString(), set.contains(p));
+            
+            pset.add(p);
+            set.add(p);
+            assertFalse(pset.toString(), pset.isEmpty());
+            assertTrue(pset.toString(), pset.contains(p));
+            assertFalse(set.toString(), set.isEmpty());
+            assertTrue(set.toString(), set.contains(p));
+            assertEquals(set.size(), pset.size());
+        } // FOR
+        
+        pset.clear();
+        set.clear();
+        assertTrue(pset.toString(), pset.isEmpty());
+        assertTrue(set.toString(), set.isEmpty());
+        assertEquals(set.size(), pset.size());
+    }
+    
+    /**
      * testMinMax
      */
     public void testMinMax() {

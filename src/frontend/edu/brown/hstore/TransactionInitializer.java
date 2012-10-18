@@ -35,6 +35,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
@@ -573,6 +574,12 @@ public class TransactionInitializer {
                         predict_partitions = t_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = t_estimate.isReadOnlyAllPartitions(this.thresholds);
                         predict_abortable = (predict_partitions.size() == 1 || t_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+                        
+                        if (d && predict_partitions.isEmpty()) {
+                            LOG.warn(String.format("%s - Unexpected empty predicted PartitonSet from %s\n%s",
+                            		AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                            		t_estimator, t_estimate));
+                        }
                     }
                 }
             } catch (Throwable ex) {
@@ -591,7 +598,7 @@ public class TransactionInitializer {
             }
         }
         
-        if (predict_partitions == null) {
+        if (predict_partitions == null || predict_partitions.isEmpty()) {
             // -------------------------------
             // FORCE SINGLE-PARTITIONED
             // -------------------------------

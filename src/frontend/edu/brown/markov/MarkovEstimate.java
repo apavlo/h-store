@@ -109,20 +109,21 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     protected void populateProbabilities() {
+        assert(this.vertex != null);
         boolean is_singlepartition = (this.touched_partitions.size() == 1);
         float untouched_finish = 1.0f;
         float inverse_prob = 1.0f - this.confidence;
-        for (int p : this.catalogContext.getAllPartitionIdArray()) {
+        for (int p = 0; p < this.catalogContext.numberOfPartitions; p++) {
+            float finished_prob = vertex.getFinishProbability(p);
             if (this.touched_partitions.contains(p) == false) {
                 this.setReadOnlyProbability(p, vertex.getReadOnlyProbability(p));
                 this.setWriteProbability(p, vertex.getWriteProbability(p));
-                
-                float finished_prob = vertex.getFinishProbability(p);
-                this.setFinishProbability(p, finished_prob);
                 if (is_singlepartition) untouched_finish = Math.min(untouched_finish, finished_prob);
-            } else if (this.isWriteProbabilitySet(p) == false) {
+            }
+            else if (this.isWriteProbabilitySet(p) == false) {
                 this.setWriteProbability(p, inverse_prob);
             }
+            this.setFinishProbability(p, finished_prob);
         } // FOR
         
         // Single-Partition Probability

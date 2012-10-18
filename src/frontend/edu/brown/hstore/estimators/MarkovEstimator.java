@@ -433,17 +433,17 @@ public class MarkovEstimator extends TransactionEstimator {
         // other previous transactions. This prevents us from having to recompute the path every single time,
         // especially for single-partition transactions where the clustered MarkovGraphs are accurate
         else if (hstore_conf.site.markov_path_caching) {
-            if (d) LOG.debug(String.format("%s - Checking whether we have a cached path [accuracy=%.02f]",
-                             AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov.getAccuracyRatio()));
+            if (d) LOG.debug(String.format("%s - Checking whether we have a cached path for %s",
+                             AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
             List<MarkovVertex> cached = this.cached_estimators.get(markov);
             if (cached == null) {
-                if (d) LOG.debug(String.format("%s - No cached path available",
-                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
+                if (d) LOG.debug(String.format("%s - No cached path available for %s",
+                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
             }
             else if (markov.getAccuracyRatio() < hstore_conf.site.markov_path_caching_threshold) {
-                if (d) LOG.debug(String.format("%s - MarkovGraph accuracy is below caching threshold [%.02f < %.02f]",
+                if (d) LOG.debug(String.format("%s - MarkovGraph %s accuracy is below caching threshold [%.02f < %.02f]",
                         AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()),
-                        markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
+                        markov, markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
             }
             else {
                 if (this.profiler != null) this.profiler.time_cached_estimate.start();

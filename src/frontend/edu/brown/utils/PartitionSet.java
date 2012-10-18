@@ -83,19 +83,27 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     }
     @Override
     public String toString() {
-        return this.inner.toString();
+        String s = this.inner.toString(); 
+        // HACK
+        if (this.contains_null) {
+            s = s.substring(0, 1) +
+                HStoreConstants.NULL_PARTITION_ID + ", " +
+                s.substring(1);
+        }
+        return (s);
     }
     @Override
     public int size() {
-        return this.inner.cardinality();
+        return (this.contains_null ? 1 : 0) + this.inner.cardinality();
     }
     @Override
     public void clear() {
+        this.contains_null = false;
         this.inner.clear();
     }
     @Override
     public boolean isEmpty() {
-        return this.inner.isEmpty();
+        return (this.contains_null == false && this.inner.isEmpty());
     }
     @Override
     public boolean contains(Object o) {
