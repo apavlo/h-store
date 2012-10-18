@@ -80,7 +80,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     private int base_partition;
     private Object args[];
-    private float greatest_abort = MarkovUtil.NULL_MARKER;
 
     private final int num_partitions;
     private final ParameterMappingsSet allMappings;
@@ -173,7 +172,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     public void finish() {
         if (d) LOG.debug(String.format("Cleaning up MarkovPathEstimator [cached=%s, hashCode=%d]", this.cached, this.hashCode()));
         super.finish();
-        this.greatest_abort = MarkovUtil.NULL_MARKER;
         this.cached = false;
         this.estimate = null;
         this.forced_vertices.clear();
@@ -506,8 +504,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             }
             
             // Keep track of the highest abort probability that we've seen thus far
-            if (next_vertex.isQueryVertex() && next_vertex.getAbortProbability() > this.greatest_abort) {
-                this.greatest_abort = next_vertex.getAbortProbability();
+            if (next_vertex.isQueryVertex() && next_vertex.getAbortProbability() > this.estimate.greatest_abort) {
+                this.estimate.greatest_abort = next_vertex.getAbortProbability();
             }
             
             if (d) {
@@ -536,41 +534,18 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     @Override
     protected void callback_finish() {
-        // Partition Probabilities
-        MarkovGraph markov = (MarkovGraph)this.getGraph();
-        MarkovVertex first_v = markov.getStartVertex();
-        boolean is_singlepartition = (this.estimate.touched_partitions.size() == 1);
-        float untouched_finish = 1.0f;
-        float inverse_prob = 1.0f - this.estimate.confidence;
-        for (int p : this.all_partitions) {
-            if (this.estimate.touched_partitions.contains(p) == false) {
-                this.estimate.setReadOnlyProbability(p, first_v.getReadOnlyProbability(p));
-                this.estimate.setWriteProbability(p, first_v.getWriteProbability(p));
-                
-                float finished_prob = first_v.getFinishProbability(p);
-                this.estimate.setFinishProbability(p, finished_prob);
-                if (is_singlepartition) untouched_finish = Math.min(untouched_finish, finished_prob);
-            } else if (this.estimate.isWriteProbabilitySet(p) == false) {
-                this.estimate.setWriteProbability(p, inverse_prob);
+        this.estimate.populateProbabilities(this.getFirst());
+    }
+    
+    public static void fastEstimation(MarkovEstimate estimate, List<MarkovVertex> initialPath, MarkovVertex current) {
+        boolean add = false;
+        for (MarkovVertex v : initialPath) {
+            if (add || current.equals(v)) {
+                estimate.path.add(v);
+                add = true;
             }
         } // FOR
-        
-        // Single-Partition Probability
-        if (is_singlepartition) {
-            if (t) LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???", this.estimate.touched_partitions)); 
-            this.estimate.setSinglePartitionProbability(untouched_finish);
-        } else {
-            this.estimate.setSinglePartitionProbability(1.0f - untouched_finish);
-        }
-        
-        // Abort Probability
-        // Only use the abort probability if we have seen at least ABORT_MIN_TXNS
-        if (markov.getStartVertex().getTotalHits() >= MarkovGraph.MIN_HITS_FOR_NO_ABORT) {
-            if (this.greatest_abort == MarkovUtil.NULL_MARKER) this.greatest_abort = 0.0f;
-            this.estimate.setAbortProbability(this.greatest_abort);
-        } else {
-            this.estimate.setAbortProbability(1.0f);
-        }
+        estimate.populateProbabilities(current);
     }
     
     /**

@@ -927,8 +927,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_db
      * @return
      */
-    public static Set<Integer> getLocalPartitionIds(Site catalog_site) {
-        Set<Integer> partition_ids = new HashSet<Integer>();
+    public static PartitionSet getLocalPartitionIds(Site catalog_site) {
+        PartitionSet partition_ids = new PartitionSet();
         for (Partition catalog_proc : catalog_site.getPartitions()) {
             partition_ids.add(catalog_proc.getId());
         } // FOR
@@ -940,8 +940,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param base_partition
      * @return
      */
-    public static Set<Integer> getLocalPartitionIds(Database catalog_db, int base_partition) {
-        Set<Integer> partition_ids = new ListOrderedSet<Integer>();
+    public static PartitionSet getLocalPartitionIds(Database catalog_db, int base_partition) {
+        PartitionSet partition_ids = new PartitionSet();
         for (Partition catalog_proc : CatalogUtil.getLocalPartitions(catalog_db, base_partition)) {
             partition_ids.add(catalog_proc.getId());
         } // FOR

@@ -1,5 +1,6 @@
 package edu.brown.utils;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -22,6 +23,19 @@ public class TestPartitionSet extends TestCase {
     }
     
     /**
+     * testMinMax
+     */
+    public void testMinMax() {
+        int min = 6;
+        int max = 19;
+        for (int i = min; i <= max; i++) {
+            pset.add(i);
+        }
+        assertEquals(min, Collections.min(pset).intValue());
+        assertEquals(max, Collections.max(pset).intValue());
+    }
+    
+    /**
      * testNullPartitionId
      */
     public void testNullPartitionId() {
@@ -40,7 +54,7 @@ public class TestPartitionSet extends TestCase {
         assertTrue(pset.toString(), pset.contains(HStoreConstants.NULL_PARTITION_ID));
         boolean found_null = false;
         for (Integer p : pset) {
-            System.err.println(p);
+            // System.err.println(p);
             if (p.intValue() == HStoreConstants.NULL_PARTITION_ID) {
                 found_null = true;
             } else {

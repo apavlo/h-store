@@ -29,17 +29,15 @@ public class MarkovEstimatorProfilerStats extends StatsSource {
     }
 
     private final HStoreSite hstore_site;
-    private final PartitionSet onePartition;
 
     public MarkovEstimatorProfilerStats(HStoreSite hstore_site) {
         super(SysProcSelector.MARKOVPROFILER.name(), false);
         this.hstore_site = hstore_site;
-        this.onePartition = new PartitionSet(CollectionUtil.first(hstore_site.getLocalPartitionIds()));
     }
     
     @Override
     protected Iterator<Object> getStatsRowKeyIterator(boolean interval) {
-        final Iterator<Integer> it = this.onePartition.iterator();
+        final Iterator<Integer> it = hstore_site.getLocalPartitionIds().iterator();
         return new Iterator<Object>() {
             @Override
             public boolean hasNext() {
@@ -64,6 +62,7 @@ public class MarkovEstimatorProfilerStats extends StatsSource {
         MarkovEstimatorProfiler profiler = new MarkovEstimatorProfiler();
         assert(profiler != null);
         
+        columns.add(new VoltTable.ColumnInfo("PARTITION", VoltType.INTEGER));
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             String name = pm.getType().toUpperCase();
             // We need two columns per ProfileMeasurement
@@ -81,7 +80,8 @@ public class MarkovEstimatorProfilerStats extends StatsSource {
         MarkovEstimatorProfiler profiler = ((MarkovEstimator)est).getProfiler();
         assert(profiler != null);
         
-        int offset = this.first_stats_col;
+        int offset = columnNameToIndex.get("PARTITION");
+        rowValues[offset++] = partition;
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();
             rowValues[offset++] = pm.getInvocations();

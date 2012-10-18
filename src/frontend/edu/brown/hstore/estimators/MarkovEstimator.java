@@ -430,46 +430,67 @@ public class MarkovEstimator extends TransactionEstimator {
         if (d) LOG.debug(String.format("%s - Recalculating initial path estimate",
                          AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
       
-        MarkovPathEstimator pathEstimator = null;
-        try {
-            pathEstimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();
-            pathEstimator.init(state.getMarkovGraph(), est, state.getBasePartition(), args);
-            pathEstimator.enableForceTraversal(true);
-        } catch (Throwable ex) {
-            String txnName = AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
-            String msg = "Failed to intitialize new MarkovPathEstimator for " + txnName; 
-            LOG.error(msg, ex);
-            throw new RuntimeException(msg, ex);
-        }
-      
         // Calculate initial path estimate
         if (t) LOG.trace(String.format("%s - Estimating initial execution path",
                          AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
-        MarkovVertex v = est.getVertex();
-        assert(v != null);
-        v.addInstanceTime(state.getTransactionId(), EstTime.currentTimeMillis());
+        MarkovVertex currentVertex = est.getVertex();
+        assert(currentVertex != null);
+        currentVertex.addInstanceTime(state.getTransactionId(), EstTime.currentTimeMillis());
       
+        // TODO: If the current vertex is in the initial estimate's list,
+        // then we can just use the truncated list as the estimate, since we know
+        // that the path will be the same. We don't need to recalculate everything
         MarkovGraph markov = state.getMarkovGraph();
-        synchronized (markov) {
-            if (this.profiler != null) this.profiler.time_path_estimate.start();
-            try {
-                pathEstimator.traverse(est.getVertex());
-            } catch (Throwable ex) {
+        boolean compute_path = true;
+        if (currentVertex.isStartVertex() == false) {
+            List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
+            if (initialPath.contains(currentVertex)) {
+                if (this.profiler != null) this.profiler.time_fast_estimate.start();
                 try {
-                    GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(pathEstimator.getVisitPath()));
-                    LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
-                } catch (Exception ex2) {
-                    throw new RuntimeException(ex2);
+                    MarkovPathEstimator.fastEstimation(est, initialPath, currentVertex);
+                } finally {
+                    if (this.profiler != null) this.profiler.time_fast_estimate.stop();
                 }
-                String msg = "Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
+                compute_path = false;
+            }
+        }
+        
+        // Use the MarkovPathEstimator to estimate a new path for this txn
+        if (compute_path) {
+            
+            MarkovPathEstimator pathEstimator = null;
+            try {
+                pathEstimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();
+                pathEstimator.init(state.getMarkovGraph(), est, state.getBasePartition(), args);
+                pathEstimator.enableForceTraversal(true);
+            } catch (Throwable ex) {
+                String txnName = AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
+                String msg = "Failed to intitialize new MarkovPathEstimator for " + txnName; 
                 LOG.error(msg, ex);
                 throw new RuntimeException(msg, ex);
-            } finally {
-                if (this.profiler != null) this.profiler.time_path_estimate.stop();
             }
-        } // SYNCH
-        
-        POOL_ESTIMATORS.returnObject(pathEstimator);
+            
+            synchronized (markov) {
+                if (this.profiler != null) this.profiler.time_full_estimate.start();
+                try {
+                    pathEstimator.traverse(est.getVertex());
+                } catch (Throwable ex) {
+                    try {
+                        GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(pathEstimator.getVisitPath()));
+                        LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
+                    } catch (Exception ex2) {
+                        throw new RuntimeException(ex2);
+                    }
+                    String msg = "Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
+                    LOG.error(msg, ex);
+                    throw new RuntimeException(msg, ex);
+                } finally {
+                    if (this.profiler != null) this.profiler.time_full_estimate.stop();
+                }
+            } // SYNCH
+            
+            POOL_ESTIMATORS.returnObject(pathEstimator);
+        }
     }
     
     /**

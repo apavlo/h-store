@@ -139,6 +139,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_txnProfilerData:
             case SysProcFragmentId.PF_execProfilerData:
             case SysProcFragmentId.PF_queueProfilerData:
+            case SysProcFragmentId.PF_markovProfilerData:
             case SysProcFragmentId.PF_poolData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =

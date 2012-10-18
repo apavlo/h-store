@@ -225,8 +225,10 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     private class Itr implements Iterator<Integer> {
         int idx = 0;
         boolean shown_null = false;
+        boolean need_seek = true;
         @Override
         public boolean hasNext() {
+            this.need_seek = false;
             if (contains_null && this.shown_null == false) {
                 return (true);
             }
@@ -239,6 +241,9 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
         }
         @Override
         public Integer next() {
+            if (this.need_seek) {
+                if (this.hasNext() == false) return (null);
+            }
             if (contains_null && this.shown_null == false) {
                 this.shown_null = true;
                 return (HStoreConstants.NULL_PARTITION_ID);

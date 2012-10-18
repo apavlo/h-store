@@ -34,6 +34,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     protected float confidence = MarkovUtil.NULL_MARKER;
     protected float singlepartition;
     protected float abort;
+    protected float greatest_abort = MarkovUtil.NULL_MARKER;
 
     // MarkovPathEstimator data 
     protected final List<MarkovVertex> path = new ArrayList<MarkovVertex>();
@@ -107,6 +108,43 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         return (this);
     }
     
+    protected void populateProbabilities(MarkovVertex first_v) {
+        boolean is_singlepartition = (this.touched_partitions.size() == 1);
+        float untouched_finish = 1.0f;
+        float inverse_prob = 1.0f - this.confidence;
+        for (int p : this.catalogContext.getAllPartitionIdArray()) {
+            if (this.touched_partitions.contains(p) == false) {
+                this.setReadOnlyProbability(p, first_v.getReadOnlyProbability(p));
+                this.setWriteProbability(p, first_v.getWriteProbability(p));
+                
+                float finished_prob = first_v.getFinishProbability(p);
+                this.setFinishProbability(p, finished_prob);
+                if (is_singlepartition) untouched_finish = Math.min(untouched_finish, finished_prob);
+            } else if (this.isWriteProbabilitySet(p) == false) {
+                this.setWriteProbability(p, inverse_prob);
+            }
+        } // FOR
+        
+        // Single-Partition Probability
+        if (is_singlepartition) {
+            if (trace.get())
+                LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???",
+                          this.touched_partitions)); 
+            this.setSinglePartitionProbability(untouched_finish);
+        } else {
+            this.setSinglePartitionProbability(1.0f - untouched_finish);
+        }
+        
+        // Abort Probability
+        // Only use the abort probability if we have seen at least ABORT_MIN_TXNS
+        if (first_v.getTotalHits() >= MarkovGraph.MIN_HITS_FOR_NO_ABORT) {
+            if (this.greatest_abort == MarkovUtil.NULL_MARKER) this.greatest_abort = 0.0f;
+            this.setAbortProbability(this.greatest_abort);
+        } else {
+            this.setAbortProbability(1.0f);
+        }
+    }
+    
     @Override
     public final boolean isInitialized() {
         return (this.vertex != null); //  && this.path.isEmpty() == false);
@@ -127,6 +165,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         this.confidence = MarkovUtil.NULL_MARKER;
         this.singlepartition = MarkovUtil.NULL_MARKER;
         this.abort = MarkovUtil.NULL_MARKER;
+        this.greatest_abort = MarkovUtil.NULL_MARKER;
         this.path.clear();
         
         this.touched_partitions.clear();

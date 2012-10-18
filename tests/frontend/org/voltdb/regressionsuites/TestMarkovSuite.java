@@ -9,6 +9,7 @@ import junit.framework.Test;
 
 import org.voltdb.regressionsuites.TestTM1Suite;
 import org.voltdb.BackendTarget;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
@@ -22,7 +23,9 @@ import org.voltdb.regressionsuites.specexecprocs.RemoteIdle;
 import org.voltdb.regressionsuites.specexecprocs.UpdateAll;
 import org.voltdb.regressionsuites.specexecprocs.UpdateOne;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.Statistics;
 import org.voltdb.types.TimestampType;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Client;
@@ -120,10 +123,17 @@ public class TestMarkovSuite extends RegressionSuite {
         Object params[] = this.generateNewOrder(2, (short)1, true);
         
         ClientResponse cresponse = client.callProcedure(procName, params);
-        assertNotNull(cresponse);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
         assertFalse(cresponse.toString(), cresponse.isSinglePartition());
         assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
 //        System.err.println(cresponse);
+        
+        // Get the MarkovEstimatorProfiler stats
+        procName = VoltSystemProcedure.procCallName(Statistics.class);
+        params = new Object[]{ SysProcSelector.MARKOVPROFILER.name(), 0 };
+        cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        System.err.println(VoltTableUtil.format(cresponse.getResults()[0]));
     }
     
     public static Test suite() throws Exception {
@@ -139,6 +149,7 @@ public class TestMarkovSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.specexec_ignore_all_local", false);
         builder.setGlobalConfParameter("site.network_txn_initialization", true);
         builder.setGlobalConfParameter("site.markov_enable", true);
+        builder.setGlobalConfParameter("site.markov_profiling", true);
         builder.setGlobalConfParameter("site.markov_path", markovs.getAbsolutePath());
 
         // build up a project builder for the TPC-C app
@@ -159,12 +170,12 @@ public class TestMarkovSuite extends RegressionSuite {
         builder.addServerConfig(config);
 
         ////////////////////////////////////////////////////////////
-        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        // CONFIG #2: cluster of 2 nodes running 1 site each, one replica
         ////////////////////////////////////////////////////////////
-//        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }
