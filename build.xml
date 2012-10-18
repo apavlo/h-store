@@ -972,6 +972,7 @@ TEST CASES
     <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--copy=${localcopy}" />
         <arg line="--symlink=${symlink}" />
+        <arg line="--update" />
         <arg line="${files.dir}" />
     </exec>
 </target>
