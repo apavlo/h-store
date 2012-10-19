@@ -1013,6 +1013,7 @@ TEST CASES
                 <exclude name='edu/brown/markov/TestMarkovGraph*' />
 
                 <!-- VoltDB Regression Suite -->
+                <exclude name="**/TestMarkovSuite.class" />
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
@@ -1100,6 +1101,7 @@ TEST CASES
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 
                 <!-- VoltDB Regression Suite -->
+                <exclude name="**/TestMarkovSuite.class" />
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
@@ -1177,6 +1179,7 @@ TEST CASES
                 <fileset dir='${build.test.dir}'>
                     <include name='org/voltdb/regressionsuites/Test*.class'/>
                     <exclude name="**/*$*.class"/>
+                    <exclude name="**/TestMarkovSuite.class" />
                     <exclude name="**/TestCatalogUpdateSuite.class" />
                     <exclude name="**/TestFailureDetectSuite.class" />
                     <exclude name="**/TestReplicationSuite.class" />
