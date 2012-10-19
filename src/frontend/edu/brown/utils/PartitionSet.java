@@ -194,6 +194,13 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
         }
         return (ret);
     }
+    public boolean addAll(PartitionSet partitions) {
+        if (partitions.contains_null) this.contains_null = true;
+        for (int p = 0, cnt = partitions.inner.size(); p < cnt; p++) {
+            if (partitions.inner.get(p)) this.inner.set(p);
+        } // FOR
+        return (true);
+    }
     @Override
     public boolean removeAll(Collection<?> c) {
         boolean ret = true;

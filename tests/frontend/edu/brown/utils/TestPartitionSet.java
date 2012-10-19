@@ -184,5 +184,13 @@ public class TestPartitionSet extends TestCase {
         pset.addAll(set);
         assertFalse(pset.isEmpty());
         assertEquals(set.size(), pset.size());
+        
+        PartitionSet pset0 = new PartitionSet();
+        PartitionSet pset1 = new PartitionSet();
+        
+        pset0.addAll(set);
+        pset1.addAll(pset);
+        assertEquals(pset0.size(), pset1.size());
+        assertEquals(pset0, pset1);
     }
 }
