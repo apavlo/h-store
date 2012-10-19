@@ -541,6 +541,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             if (add || current.equals(v)) {
                 estimate.path.add(v);
                 add = true;
+                // Update touched partitions
+                PartitionSet partitions = v.getPartitions();
+                estimate.incrementTouchedCounter(partitions);
+                estimate.touched_partitions.addAll(partitions);
             }
         } // FOR
         estimate.populateProbabilities();

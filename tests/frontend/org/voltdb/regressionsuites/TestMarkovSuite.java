@@ -21,12 +21,10 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Statistics;
-import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.mappings.ParametersUtil;
-import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
@@ -37,9 +35,6 @@ import edu.brown.utils.ThreadUtil;
 public class TestMarkovSuite extends RegressionSuite {
     
     private static final String PREFIX = "markov";
-    private static final double SCALEFACTOR = 0.0001;
-    private static final DefaultRandomGenerator rng = new DefaultRandomGenerator(0);
-    
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -47,43 +42,6 @@ public class TestMarkovSuite extends RegressionSuite {
      */
     public TestMarkovSuite(String name) {
         super(name);
-    }
-    
-    protected static Object[] generateNewOrder(int num_warehouses, boolean dtxn, short w_id) throws Exception {
-        int d_id = rng.number(1, TPCCConstants.DISTRICTS_PER_WAREHOUSE);
-        return generateNewOrder(num_warehouses, dtxn, w_id, d_id);
-    }
-        
-    protected static Object[] generateNewOrder(int num_warehouses, boolean dtxn, int w_id, int d_id) throws Exception {
-        short supply_w_id;
-        if (dtxn) {
-            supply_w_id = (short)rng.numberExcluding(TPCCConstants.STARTING_WAREHOUSE, num_warehouses, w_id);
-            assert(supply_w_id != w_id);
-        } else {
-            supply_w_id = (short)w_id;
-        }
-        
-        // ORDER_LINE ITEMS
-        int num_items = rng.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
-        int item_ids[] = new int[num_items];
-        short supwares[] = new short[num_items];
-        int quantities[] = new int[num_items];
-        for (int i = 0; i < num_items; i++) { 
-            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS * SCALEFACTOR));
-            supwares[i] = (i % 2 == 0 ? supply_w_id : (short)w_id);
-            quantities[i] = 1;
-        } // FOR
-        
-        Object params[] = {
-            (short)w_id,        // W_ID
-            (byte)d_id,         // D_ID
-            1,                  // C_ID
-            new TimestampType(),// TIMESTAMP
-            item_ids,           // ITEM_IDS
-            supwares,           // SUPPLY W_IDS
-            quantities          // QUANTITIES
-        };
-        return (params);
     }
     
     /**
@@ -124,7 +82,7 @@ public class TestMarkovSuite extends RegressionSuite {
         // Fire off a single-partition txn
         // It should always come back with zero restarts
         procName = neworder.class.getSimpleName();
-        Object params[] = generateNewOrder(2, false, (short)1);
+        Object params[] = RegressionSuiteUtil.generateNewOrder(2, false, (short)1);
         cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
         assertTrue(cresponse.toString(), cresponse.isSinglePartition());
@@ -192,7 +150,7 @@ public class TestMarkovSuite extends RegressionSuite {
         // Fire off a distributed neworder txn
         // It should always come back with zero restarts
         String procName = neworder.class.getSimpleName();
-        Object params[] = generateNewOrder(2, true, (short)1);
+        Object params[] = RegressionSuiteUtil.generateNewOrder(2, true, (short)1);
         
         ClientResponse cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
@@ -215,7 +173,7 @@ public class TestMarkovSuite extends RegressionSuite {
         VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestMarkovSuite.class);
-        builder.setGlobalConfParameter("client.scalefactor", SCALEFACTOR);
+        builder.setGlobalConfParameter("client.scalefactor", RegressionSuiteUtil.SCALEFACTOR);
         builder.setGlobalConfParameter("site.specexec_enable", true);
         builder.setGlobalConfParameter("site.specexec_idle", true);
         builder.setGlobalConfParameter("site.specexec_ignore_all_local", false);

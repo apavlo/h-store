@@ -81,7 +81,7 @@ public abstract class TransactionEstimator implements Loggable {
      * @param BASE_PARTITION
      * @return an estimate for the transaction's future
      */
-    public final EstimatorState startTransaction(Long txn_id, Procedure catalog_proc, Object args[]) {
+    public final <T extends EstimatorState> T startTransaction(Long txn_id, Procedure catalog_proc, Object args[]) {
         int base_partition = HStoreConstants.NULL_PARTITION_ID;
         try {
             base_partition = this.p_estimator.getBasePartition(catalog_proc, args);
@@ -101,12 +101,12 @@ public abstract class TransactionEstimator implements Loggable {
      * @param args
      * @return
      */
-    public final EstimatorState startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
+    public final <T extends EstimatorState> T startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
         if (debug.get()) LOG.debug(String.format("Checking %s input parameters:\nARGS: %s",
                                    catalog_proc.getName(),
                                    StringUtil.toString(args, true, true)));
 
-        EstimatorState state = this.startTransactionImpl(txn_id, base_partition, catalog_proc, args);
+        T state = this.startTransactionImpl(txn_id, base_partition, catalog_proc, args);
         if (state != null) this.txn_count.incrementAndGet();
         return (state);
     }
@@ -120,7 +120,7 @@ public abstract class TransactionEstimator implements Loggable {
      * @param args
      * @return
      */
-    public abstract EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]);
+    public abstract <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]);
     
     
     /**
@@ -132,7 +132,7 @@ public abstract class TransactionEstimator implements Loggable {
      * @param allow_cache_lookup TODO
      * @return
      */
-    public abstract TransactionEstimate executeQueries(EstimatorState state, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup);
+    public abstract <T extends TransactionEstimate> T executeQueries(EstimatorState state, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup);
     
     /**
      * The transaction with provided txn_id is finished

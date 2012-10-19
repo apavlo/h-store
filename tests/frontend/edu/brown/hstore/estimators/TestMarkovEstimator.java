@@ -195,6 +195,104 @@ public class TestMarkovEstimator extends BaseTestCase {
     }
     
     /**
+     * testExecuteQueries
+     */
+    @Test
+    public void testExecuteQueries() throws Exception {
+        TransactionTrace txn_trace = multip_trace;
+        long txn_id = XACT_ID++;
+        MarkovEstimatorState state = t_estimator.startTransaction(txn_id, this.catalog_proc, txn_trace.getParams());
+        assertNotNull(state);
+        assertNotNull(state.getLastEstimate());
+        
+        MarkovEstimate initialEst = state.getInitialEstimate();
+        assertNotNull(initialEst);
+        assertTrue(initialEst.toString(), initialEst.isInitialized());
+        assertTrue(initialEst.toString(), initialEst.isSinglePartitionProbabilitySet());
+        assertTrue(initialEst.toString(), initialEst.isAbortProbabilitySet());
+        assertTrue(initialEst.toString(), initialEst.getSinglePartitionProbability() < 1.0f);
+        assertTrue(initialEst.toString(), initialEst.isConfidenceCoefficientSet());
+        assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() >= 0f);
+        assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() <= 1f);
+
+        // Execute a bunch of batches
+        // All should say that the txn is not finished with the partitions until we 
+        // get to the one that contains the updateStock queries, which should be the last.
+        Statement lastBatchStmt = this.getStatement(this.catalog_proc, "updateStock");
+        for (int i = 0, cnt = txn_trace.getBatchCount(); i < cnt; i++) {
+            List<QueryTrace> queries = txn_trace.getBatchQueries(i);
+            assertFalse(queries.isEmpty());
+            boolean is_last = (i+1 == cnt);
+            Statement stmts[] = new Statement[queries.size()];
+            PartitionSet partitions[] = new PartitionSet[queries.size()];
+            
+            boolean found = false;
+            int idx = 0;
+            for (QueryTrace q : queries) {
+                stmts[idx] = q.getCatalogItem(catalogContext.database);
+                assertNotNull(stmts[idx]);
+                partitions[idx] = new PartitionSet();
+                p_estimator.getAllPartitions(partitions[idx], q, state.getBasePartition());
+                assertFalse(partitions[idx].isEmpty());
+                
+                found = found || stmts[idx].equals(lastBatchStmt);
+                idx++;
+            } // FOR
+            if (is_last) assertTrue(StringUtil.join("\n", queries), found); 
+                
+            MarkovEstimate est = t_estimator.executeQueries(state, stmts, partitions, true);
+            assertNotNull(est);
+        } // FOR 
+            
+            
+            
+        
+        //        System.err.println(est.toString());
+        
+        MarkovGraph markov = state.getMarkovGraph();
+        List<MarkovVertex> initial_path = initialEst.getMarkovPath();
+        assertNotNull(initial_path);
+        assertFalse(initial_path.isEmpty());
+        
+        System.err.println("# of Vertices: " + markov.getVertexCount());
+        System.err.println("# of Edges:    " + markov.getEdgeCount());
+        System.err.println("Confidence:    " + String.format("%.4f", initialEst.getConfidenceCoefficient()));
+        System.err.println("\nINITIAL PATH:\n" + StringUtil.join("\n", initial_path));
+//        System.err.println(multip_trace.debug(catalog_db));
+
+        p_estimator.getAllPartitions(partitions, singlep_trace);
+        assertNotNull(partitions);
+//        assert(partitions.size() > 1) : partitions;
+        System.err.println("partitions: " + partitions);
+        
+//        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, null);
+//        gv.highlightPath(markov.getPath(initial_path), "blue");
+//        gv.writeToTempFile(this.catalog_proc, 0);
+//
+//        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
+        
+        Collection<Integer> est_partitions = initialEst.getTouchedPartitions(thresholds);
+        assertNotNull(est_partitions);
+        assertEquals(partitions.size(), est_partitions.size());
+        assertEquals(partitions, est_partitions);
+        
+        assert(initialEst.isSinglePartitioned(this.thresholds));
+        assertTrue(initialEst.isAbortable(this.thresholds));
+        
+        for (Integer partition : catalogContext.getAllPartitionIds()) {
+            if (partitions.contains(partition)) { //  == BASE_PARTITION) {
+                assertFalse("isFinishedPartition(" + partition + ")", initialEst.isFinishPartition(thresholds, partition));
+                assertTrue("isWritePartition(" + partition + ")", initialEst.isWritePartition(thresholds, partition));
+                assertTrue("isTargetPartition(" + partition + ")", initialEst.isTargetPartition(thresholds, partition));
+            } else {
+                assertTrue("isFinishedPartition(" + partition + ")", initialEst.isFinishPartition(thresholds, partition));
+                assertFalse("isWritePartition(" + partition + ")", initialEst.isWritePartition(thresholds, partition));
+                assertFalse("isTargetPartition(" + partition + ")", initialEst.isTargetPartition(thresholds, partition));
+            }
+        } // FOR
+    }
+    
+    /**
      * testProcessTransactionTrace
      */
     @Test

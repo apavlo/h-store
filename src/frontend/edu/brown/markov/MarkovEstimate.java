@@ -46,7 +46,6 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     private long time;
     private boolean initializing = true;
     private boolean valid = true;
-    private int reused = 0;
     
     // ----------------------------------------------------------------------------
     // PARTITION-SPECIFIC DATA
@@ -115,16 +114,20 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         float untouched_finish = 1.0f;
         float inverse_prob = 1.0f - this.confidence;
         for (int p = 0; p < this.catalogContext.numberOfPartitions; p++) {
-            float finished_prob = vertex.getFinishProbability(p);
+            float finished_prob = this.vertex.getFinishProbability(p);
             if (this.touched_partitions.contains(p) == false) {
-                this.setReadOnlyProbability(p, vertex.getReadOnlyProbability(p));
-                this.setWriteProbability(p, vertex.getWriteProbability(p));
+                this.setReadOnlyProbability(p, this.vertex.getReadOnlyProbability(p));
+                this.setWriteProbability(p, this.vertex.getWriteProbability(p));
                 if (is_singlepartition) untouched_finish = Math.min(untouched_finish, finished_prob);
             }
-            else if (this.isWriteProbabilitySet(p) == false) {
-                this.setWriteProbability(p, inverse_prob);
+            if (this.isReadOnlyProbabilitySet(p) == false) {
+                this.setReadOnlyProbability(p, this.vertex.getReadOnlyProbability(p));
             }
-            this.setFinishProbability(p, finished_prob);
+            if (this.isWriteProbabilitySet(p) == false) {
+                this.setWriteProbability(p, this.vertex.getWriteProbability(p));
+                // this.setWriteProbability(p, inverse_prob);
+            }
+            this.setFinishProbability(p, finished_prob);    
         } // FOR
         
         // Single-Partition Probability
@@ -139,7 +142,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         
         // Abort Probability
         // Only use the abort probability if we have seen at least ABORT_MIN_TXNS
-        if (vertex.getTotalHits() >= MarkovGraph.MIN_HITS_FOR_NO_ABORT) {
+        if (this.vertex.getTotalHits() >= MarkovGraph.MIN_HITS_FOR_NO_ABORT) {
             if (this.greatest_abort == MarkovUtil.NULL_MARKER) this.greatest_abort = 0.0f;
             this.setAbortProbability(this.greatest_abort);
         } else {
@@ -263,12 +266,10 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         this.touched[partition]++;
     }
     
-    public int getReusedCounter() {
-        return (this.reused);
-    }
-    
-    public int incrementReusedCounter() {
-        return (++this.reused);
+    protected void incrementTouchedCounter(PartitionSet partitions) {
+        for (int p = 0; p < this.touched.length; p++) {
+            if (partitions.contains(p)) this.touched[p]++;
+        } // FOR
     }
     
     // ----------------------------------------------------------------------------
@@ -541,7 +542,6 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         m0.put("BatchEstimate", (this.batch == MarkovUtil.INITIAL_ESTIMATE_BATCH ? "<INITIAL>" : "#" + this.batch));
         m0.put("HashCode", this.hashCode());
         m0.put("Valid", this.valid);
-        m0.put("Reused Ctr", this.reused);
         m0.put("Vertex", this.vertex);
         m0.put("Confidence", this.confidence);
         m0.put("Single-P", (this.singlepartition != MarkovUtil.NULL_MARKER ? String.format(f, this.singlepartition) : "-"));

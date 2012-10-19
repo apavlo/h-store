@@ -160,8 +160,9 @@ public class MarkovEstimator extends TransactionEstimator {
     // RUNTIME METHODS
     // ----------------------------------------------------------------------------
 
+    @SuppressWarnings("unchecked")
     @Override
-    public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
+    public MarkovEstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         ParameterMangler mangler = this.manglers.get(catalog_proc);
         if (mangler != null) args = mangler.convert(args);
         
@@ -230,13 +231,12 @@ public class MarkovEstimator extends TransactionEstimator {
             }
         } // FOR
         
-        
-        
         return (state);
     }
     
+    @SuppressWarnings("unchecked")
     @Override
-    public TransactionEstimate executeQueries(EstimatorState s, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup) {
+    public MarkovEstimate executeQueries(EstimatorState s, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup) {
         MarkovEstimatorState state = (MarkovEstimatorState)s; 
         if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.txn_id));
         int batch_size = catalog_stmts.length;
@@ -421,6 +421,8 @@ public class MarkovEstimator extends TransactionEstimator {
         if (currentVertex.isStartVertex() == false) {
             List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
             if (initialPath.contains(currentVertex)) {
+                if (d) LOG.debug(String.format("%s - Using fast path estimation for %s",
+                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
                 if (this.profiler != null) this.profiler.time_fast_estimate.start();
                 try {
                     MarkovPathEstimator.fastEstimation(est, initialPath, currentVertex);
@@ -510,7 +512,8 @@ public class MarkovEstimator extends TransactionEstimator {
                          Statement catalog_stmt,
                          PartitionSet partitions,
                          int queryInstanceIndex) {
-//        CONSUME.start();
+        if (this.profiler != null) this.profiler.time_consume.start();
+        
         // Update the number of times that we have executed this query in the txn
         if (queryInstanceIndex < 0) queryInstanceIndex = state.updateQueryInstanceCount(catalog_stmt);
         assert(markov != null);
@@ -559,7 +562,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // Update the state information
         state.setCurrent(next_v, next_e);
         if (t) LOG.trace("Updated State Information for Txn #" + state.txn_id + ":\n" + state);
-//        CONSUME.stop();
+        if (this.profiler != null) this.profiler.time_consume.stop();
     }
 
     // ----------------------------------------------------------------------------

@@ -18,6 +18,7 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.regressionsuites.specexecprocs.Sleeper;
 
 import edu.brown.mappings.ParametersUtil;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
@@ -60,7 +61,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         final int sleepBefore = 5000; // ms
         final int sleepAfter = 5000; // ms
         procName = Sleeper.class.getSimpleName();
-        params = new Object[]{ w_id, sleepBefore, sleepAfter };
+        params = new Object[]{ w_id+1, sleepBefore, sleepAfter };
         client.callProcedure(new NullCallback(), procName, params);
         
         // Now fire off a distributed NewOrder transaction
@@ -73,7 +74,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
             }
         };
         procName = neworder.class.getSimpleName();
-        params = TestMarkovSuite.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id);
+        params = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id);
         client.callProcedure(dtxnCallback, procName, params);
         long start = System.currentTimeMillis();
         
@@ -91,11 +92,11 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         };
         while (dtxnResponse.isEmpty()) {
             // Just sleep for a little bit so that we don't blast the cluster
-            ThreadUtil.sleep(500);
+            ThreadUtil.sleep(1000);
             
-            spLatch.incrementAndGet();
-            params = TestMarkovSuite.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id+1);
-            client.callProcedure(spCallback, procName, params);
+//            spLatch.incrementAndGet();
+//            params = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id+1);
+//            client.callProcedure(spCallback, procName, params);
             
             // We'll only check the txns half way through the dtxns expected
             // sleep time
@@ -120,7 +121,9 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         // are speculative, afterwards none should be speculative
         boolean first_spec = false;
         boolean last_spec = false;
+        Histogram<Boolean> specExecHistogram = new Histogram<Boolean>(); 
         for (ClientResponse cr : spResponse) {
+            specExecHistogram.put(cr.isSpeculative());
             if (cr.isSpeculative()) {
                 if (first_spec == false) {
                     first_spec = true;
@@ -131,6 +134,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
                 }
             }
         } // FOR
+        System.err.println(specExecHistogram);
     }
 
     public static Test suite() throws Exception {
