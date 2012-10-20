@@ -7,7 +7,19 @@ public class CountedStatement {
     public final int counter;
     
     public CountedStatement(Statement statement, int counter) {
+        assert(counter >= 0);
+        assert(statement != null);
         this.statement = statement;
         this.counter = counter;
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof CountedStatement) {
+            CountedStatement other = (CountedStatement)obj;
+            return (this.counter == other.counter &&
+                    this.statement.equals(other.statement));
+        }
+        return (false);
     }
 }

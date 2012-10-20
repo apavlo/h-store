@@ -110,7 +110,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     protected void populateProbabilities() {
         assert(this.vertex != null);
-        if (debug.get()) LOG.debug("Populating internal properties based on current vertex " + this.vertex);
+        if (debug.get())
+            LOG.debug("Populating internal properties based on current vertex\n" + this.vertex.debug());
         
         boolean is_singlepartition = (this.touched_partitions.size() == 1);
         float untouched_finish = 1.0f;
@@ -129,7 +130,9 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
                 this.setWriteProbability(p, this.vertex.getWriteProbability(p));
                 // this.setWriteProbability(p, inverse_prob);
             }
-            this.setFinishProbability(p, finished_prob);    
+            if (this.isFinishProbabilitySet(p) == false) {
+                this.setFinishProbability(p, finished_prob);
+            }
         } // FOR
         
         // Single-Partition Probability

@@ -519,36 +519,36 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         if (this.isQueryVertex()) {
             m0.put("Partitions", this.partitions);
             m0.put("Previous", this.past_partitions);
-            
-            // Global Probabilities
-            List<String> header = new ArrayList<String>();
-            header.add(" ");
-            MarkovVertex.Probability ptypes[] = MarkovVertex.Probability.values();
-            for (MarkovVertex.Probability type : ptypes) {
-                if (type.single_value) {
-                    float val = this.probabilities[type.ordinal()][DEFAULT_PARTITION_ID];
-                    String val_str = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
-                    m1.put(type.name(), val_str);
-                } else {
-                    header.add(type.name());
-                }
-            } // FOR
-    
-            // Partition-based Probabilities
-            int num_partitions = this.probabilities[MarkovVertex.Probability.WRITE.ordinal()].length;
-            Object rows[][] = new String[num_partitions][header.size()];
-            for (int row_idx = 0, cnt = num_partitions; row_idx < cnt; row_idx++) {
-                int col_idx = 0;
-                rows[row_idx][col_idx++] = String.format("[%02d]", row_idx);
-                for (MarkovVertex.Probability type : ptypes) {
-                    if (type.single_value) continue;
-                    float val = this.probabilities[type.ordinal()][row_idx];
-                    rows[row_idx][col_idx++] = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
-                } // FOR
-            } // FOR
-            
-            m2 = TableUtil.tableMap(header.toArray(new String[0]), rows);
         }
+            
+        // Global Probabilities
+        List<String> header = new ArrayList<String>();
+        header.add(" ");
+        MarkovVertex.Probability ptypes[] = MarkovVertex.Probability.values();
+        for (MarkovVertex.Probability type : ptypes) {
+            if (type.single_value) {
+                float val = this.probabilities[type.ordinal()][DEFAULT_PARTITION_ID];
+                String val_str = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
+                m1.put(type.name(), val_str);
+            } else {
+                header.add(type.name());
+            }
+        } // FOR
+
+        // Partition-based Probabilities
+        int num_partitions = this.probabilities[MarkovVertex.Probability.WRITE.ordinal()].length;
+        Object rows[][] = new String[num_partitions][header.size()];
+        for (int row_idx = 0, cnt = num_partitions; row_idx < cnt; row_idx++) {
+            int col_idx = 0;
+            rows[row_idx][col_idx++] = String.format("[%02d]", row_idx);
+            for (MarkovVertex.Probability type : ptypes) {
+                if (type.single_value) continue;
+                float val = this.probabilities[type.ordinal()][row_idx];
+                rows[row_idx][col_idx++] = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
+            } // FOR
+        } // FOR
+        
+        m2 = TableUtil.tableMap(header.toArray(new String[0]), rows);
 
         return (StringUtil.formatMaps(m0, m1, m2));
 
