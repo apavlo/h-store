@@ -335,6 +335,63 @@ public class TestMarkovEstimator extends BaseTestCase {
     }
     
     /**
+     * testFastPath
+     */
+    @Test
+    public void testFastPath() throws Exception {
+        TransactionTrace txn_trace = multip_trace;
+        int base_partition = p_estimator.getBasePartition(txn_trace);
+        
+        List<QueryTrace> queries = txn_trace.getBatchQueries(1);
+        assertFalse(queries.isEmpty());
+        Statement stmts[] = new Statement[queries.size()];
+        PartitionSet partitions[] = new PartitionSet[queries.size()];
+        int idx = 0;
+        for (QueryTrace q : queries) {
+            stmts[idx] = q.getCatalogItem(catalogContext.database);
+            assertNotNull(stmts[idx]);
+            partitions[idx] = new PartitionSet();
+            p_estimator.getAllPartitions(partitions[idx], q, base_partition);
+            idx++;
+        } // FOR
+        
+        MarkovEstimatorState states[] = new MarkovEstimatorState[2];
+        MarkovEstimate ests[] = new MarkovEstimate[states.length];
+        for (int i = 0; i < states.length; i++) {
+            HStoreConf.singleton().site.markov_fast_path = (i != 0);
+            states[i] = t_estimator.startTransaction(XACT_ID.getAndIncrement(), this.catalog_proc, txn_trace.getParams());
+            assertNotNull(states[i]);
+            assertNotNull(states[i].getLastEstimate());
+            ests[i] = t_estimator.executeQueries(states[i], stmts, partitions, true);
+            assertNotNull(ests[i]);
+        } // FOR
+
+        // Now compare that estimates look reasonable the same
+        for (int i = 0; i < states.length; i++) {
+            for (int ii = i+1; ii < states.length; ii++) {
+                assertEquals(states[i].getBasePartition(), states[ii].getBasePartition());
+                assertEquals(ests[i].getTouchedPartitions(thresholds), ests[ii].getTouchedPartitions(thresholds));
+                assertEquals(ests[i].getBatchId(), ests[ii].getBatchId());
+                assertEquals(ests[i].getSinglePartitionProbability(), ests[ii].getSinglePartitionProbability());
+                assertEquals(ests[i].getAbortProbability(), ests[ii].getAbortProbability());
+                
+                for (Integer partition : catalogContext.getAllPartitionIds()) {
+                    String debug = String.format("Batch %02d / Partition %02d\n%s",
+                                                 ests[i].getBatchId(), partition, ests[i].toString());
+                    
+                    assertEquals(debug, ests[i].getTouchedCounter(partition), ests[ii].getTouchedCounter(partition));
+                    assertEquals(debug, ests[i].isFinishProbabilitySet(partition), ests[ii].isFinishProbabilitySet(partition));
+                    assertEquals(debug, ests[i].isWriteProbabilitySet(partition), ests[ii].isWriteProbabilitySet(partition));
+                    assertEquals(debug, ests[i].isReadOnlyProbabilitySet(partition), ests[ii].isReadOnlyProbabilitySet(partition));
+                    assertEquals(debug, ests[i].isFinishPartition(thresholds, partition), ests[ii].isFinishPartition(thresholds, partition));
+                    assertEquals(debug, ests[i].isWritePartition(thresholds, partition), ests[ii].isWritePartition(thresholds, partition));
+                    assertEquals(debug, ests[i].isReadOnlyPartition(thresholds, partition), ests[ii].isReadOnlyPartition(thresholds, partition));
+                } // FOR
+            } // FOR        
+        }
+    }
+    
+    /**
      * testProcessTransactionTrace
      */
     @Test
