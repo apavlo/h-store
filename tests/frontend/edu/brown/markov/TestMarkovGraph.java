@@ -103,7 +103,7 @@ public class TestMarkovGraph extends BaseTestCase {
                 {
                     this.put(MarkovVertex.Probability.DONE, done);
                     this.put(MarkovVertex.Probability.WRITE, write);
-                    this.put(MarkovVertex.Probability.READ_ONLY, read_only);
+                    this.put(MarkovVertex.Probability.READ, read_only);
                 }
             };
             for (Entry<MarkovVertex.Probability, Float> e : probabilities.entrySet()) {
