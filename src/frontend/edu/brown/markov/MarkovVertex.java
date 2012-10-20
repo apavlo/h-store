@@ -314,7 +314,8 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             case START: {
                 // START should not have any inbound edges
                 if (inbound.size() > 0) {
-                    throw new InvalidGraphElementException(markov, this, String.format("START state has %d inbound edges", outbound.size()));
+                    String msg = String.format("START state has %d inbound edges", outbound.size());
+                    throw new InvalidGraphElementException(markov, this, msg);
                 }
                 break;
             }
@@ -322,7 +323,8 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             case ABORT: {
                 // COMMIT and ABORT should not have any outbound edges
                 if (outbound.size() > 0) {
-                    throw new InvalidGraphElementException(markov, this, String.format("%s state has %d outbound edges", this.type, outbound.size()));
+                    String msg = String.format("%s state has %d outbound edges", this.type, outbound.size());
+                    throw new InvalidGraphElementException(markov, this, msg);
                 }
                 break;
             }
@@ -337,7 +339,8 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
                         float prob = this.probabilities[idx][i];
                         if (MathUtil.greaterThanEquals(prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false ||
                             MathUtil.lessThanEquals(prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false) {
-                            throw new InvalidGraphElementException(markov, this, String.format("Invalid %s probability at partition #%d: %f", ptype.name(), i, prob));
+                            String msg = String.format("Invalid %s probability at partition #%d: %f", ptype.name(), i, prob);
+                            throw new InvalidGraphElementException(markov, this, msg);
                         }
                     } // FOR
                 }
@@ -345,12 +348,14 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
                 // If this isn't the first time we are executing this query, then we should at least have
                 // past partitions that we have touched
                 if (this.counter > 0 && this.past_partitions.isEmpty()) {
-                    throw new InvalidGraphElementException(markov, this, "No past partitions for at non-first query vertex");
+                    String msg = "No past partitions for at non-first query vertex";
+                    throw new InvalidGraphElementException(markov, this, msg);
                 }
                 
                 // And we should always have some partitions that we're touching now
                 if (this.partitions.isEmpty()) {
-                    throw new InvalidGraphElementException(markov, this, "No current partitions");
+                    String msg = "No current partitions";
+                    throw new InvalidGraphElementException(markov, this, msg);
                 }
                 break;
             }
