@@ -44,7 +44,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.MarkovEstimatorState;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;

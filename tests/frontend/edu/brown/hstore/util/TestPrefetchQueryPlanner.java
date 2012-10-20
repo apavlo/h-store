@@ -23,7 +23,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.MarkovEstimatorState;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;

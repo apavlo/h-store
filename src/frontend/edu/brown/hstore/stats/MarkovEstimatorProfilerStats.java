@@ -11,8 +11,8 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.MarkovEstimatorProfiler;

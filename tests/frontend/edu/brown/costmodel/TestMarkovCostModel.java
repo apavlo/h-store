@@ -16,10 +16,10 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.costmodel.MarkovCostModel.Penalty;
-import edu.brown.hstore.estimators.MarkovEstimator;
-import edu.brown.hstore.estimators.MarkovEstimatorState;
+import edu.brown.hstore.estimators.markov.MarkovEstimate;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.MarkovVertex.Type;

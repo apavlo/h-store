@@ -1,4 +1,4 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.markov;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -17,14 +17,15 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState.Factory;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
-import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovPathEstimator;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphsContainer;
@@ -229,11 +230,12 @@ public class MarkovEstimator extends TransactionEstimator {
     @Override
     public MarkovEstimate executeQueries(EstimatorState s, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup) {
         MarkovEstimatorState state = (MarkovEstimatorState)s; 
-        if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.txn_id));
+        if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.getTransactionId()));
         int batch_size = catalog_stmts.length;
         MarkovGraph markov = state.getMarkovGraph();
             
         MarkovVertex current = state.getCurrent();
+        PartitionSet touchedPartitions = state.getTouchedPartitions();
         MarkovVertex next_v = null;
         MarkovEdge next_e = null;
         Statement last_stmt = null;
@@ -271,12 +273,12 @@ public class MarkovEstimator extends TransactionEstimator {
                 if (d) LOG.debug(String.format("Got cached batch end for %s: %s -> %s", markov, current, next_v));
                 
                 // Update the counters and other info for the next vertex and edge
-                next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
+                next_v.addInstanceTime(state.getTransactionId(), state.getExecutionTimeOffset());
                 
                 // Update the state information
                 state.setCurrent(next_v, next_e);
-                state.touched_partitions.addAll(state.cache_last_partitions);
-                state.touched_partitions.addAll(state.cache_past_partitions);
+                touchedPartitions.addAll(state.cache_last_partitions);
+                touchedPartitions.addAll(state.cache_past_partitions);
             }
         }
         
@@ -286,7 +288,7 @@ public class MarkovEstimator extends TransactionEstimator {
             for (int i = 0; i < batch_size; i++) {
                 int idx = (attempt_cache_lookup ? stmt_idxs[i] : -1);
                 this.consume(state, markov, catalog_stmts[i], partitions[i], idx);
-                if (attempt_cache_lookup == false) state.touched_partitions.addAll(partitions[i]);
+                if (attempt_cache_lookup == false) touchedPartitions.addAll(partitions[i]);
             } // FOR
             
             // Update our cache if we tried and failed before
@@ -311,11 +313,11 @@ public class MarkovEstimator extends TransactionEstimator {
         Object procArgs[] = state.getProcedureParameters();
         this.estimatePath(state, estimate, catalog_proc, procArgs);
         
-        if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate.toString()));
+        if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.getTransactionId(), estimate.toString()));
         assert(estimate.isInitialized()) :
-            String.format("Unexpected uninitialized MarkovEstimate for txn #%d\n%s", state.txn_id, estimate);
+            String.format("Unexpected uninitialized MarkovEstimate for txn #%d\n%s", state.getTransactionId(), estimate);
         assert(estimate.isValid()) :
-            String.format("Invalid MarkovEstimate for txn #%d\n%s", state.txn_id, estimate);
+            String.format("Invalid MarkovEstimate for txn #%d\n%s", state.getTransactionId(), estimate);
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
@@ -517,6 +519,7 @@ public class MarkovEstimator extends TransactionEstimator {
         
         // Examine all of the vertices that are adjacent to our current vertex
         // and see which vertex we are going to move to next
+        PartitionSet touchedPartitions = state.getTouchedPartitions();
         MarkovVertex current = state.getCurrent();
         assert(current != null);
         MarkovVertex next_v = null;
@@ -525,11 +528,11 @@ public class MarkovEstimator extends TransactionEstimator {
         // Synchronize on the single vertex so that it's more fine-grained than the entire graph
         synchronized (current) {
             Collection<MarkovEdge> edges = markov.getOutEdges(current); 
-            if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.txn_id);
+            if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.getTransactionId());
             for (MarkovEdge e : edges) {
                 MarkovVertex v = markov.getDest(e);
-                if (v.isEqual(catalog_stmt, partitions, state.touched_partitions, queryInstanceIndex)) {
-                    if (t) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
+                if (v.isEqual(catalog_stmt, partitions, touchedPartitions, queryInstanceIndex)) {
+                    if (t) LOG.trace("Found next vertex " + v + " for Txn #" + state.getTransactionId());
                     next_v = v;
                     next_e = e;
                     break;
@@ -544,21 +547,21 @@ public class MarkovEstimator extends TransactionEstimator {
                                           MarkovVertex.Type.QUERY,
                                           queryInstanceIndex,
                                           partitions,
-                                          state.touched_partitions);
+                                          touchedPartitions);
                 markov.addVertex(next_v);
                 next_e = markov.addToEdge(current, next_v);
                 if (t) LOG.trace(String.format("Created new edge from %s to new %s for txn #%d", 
-                                 state.getCurrent(), next_v, state.txn_id));
-                assert(state.getCurrent().getPartitions().size() <= state.touched_partitions.size());
+                                 state.getCurrent(), next_v, state.getTransactionId()));
+                assert(state.getCurrent().getPartitions().size() <= touchedPartitions.size());
             }
         } // SYNCH
 
         // Update the counters and other info for the next vertex and edge
-        next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
+        next_v.addInstanceTime(state.getTransactionId(), state.getExecutionTimeOffset());
         
         // Update the state information
         state.setCurrent(next_v, next_e);
-        if (t) LOG.trace("Updated State Information for Txn #" + state.txn_id + ":\n" + state);
+        if (t) LOG.trace("Updated State Information for Txn #" + state.getTransactionId() + ":\n" + state);
         if (this.profiler != null) this.profiler.time_consume.stop();
     }
 

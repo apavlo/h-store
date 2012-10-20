@@ -1,4 +1,4 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.markov;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -11,10 +11,10 @@ import org.voltdb.CatalogContext;
 
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
-import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;

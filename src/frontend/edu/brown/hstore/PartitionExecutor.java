@@ -110,6 +110,8 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.PlanFragmentIdGenerator;
+import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
@@ -2659,10 +2661,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Now we can go back through and start running all of the WorkFragments that were not blocked
         // waiting for an input dependency. Note that we pack all the fragments into a single
         // CoordinatorFragment rather than sending each WorkFragment in its own message
-        for (WorkFragment.Builder ftask : fragmentBuilders) {
-            assert(!ts.isBlocked(ftask));
+        for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
+            assert(!ts.isBlocked(fragmentBuilder));
             
-            int target_partition = ftask.getPartitionId();
+            int target_partition = fragmentBuilder.getPartitionId();
             int target_site = catalogContext.getSiteIdForPartitionId(target_partition);
             
             // Make sure that this isn't a single-partition txn trying to access a remote partition
@@ -2681,15 +2683,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 break;
             }
             // Make sure we at least have something to do!
-            else if (ftask.getFragmentIdCount() == 0) {
+            else if (fragmentBuilder.getFragmentIdCount() == 0) {
                 LOG.warn(String.format("%s - Trying to send a WorkFragment request with 0 fragments", ts));
                 continue;
             }
             
             // Add in the specexec query estimate at this partition if needed
-            if (hstore_conf.site.specexec_enable && t_estimate != null) {
-                t_estimate.getQueryEstimate(target_partition);
-                
+            if (hstore_conf.site.specexec_enable && t_estimate != null && t_estimate.hasQueryEstimate(target_partition)) {
+                QueryEstimate.Builder estBuilder = QueryEstimate.newBuilder();
+                List<CountedStatement> estimated = t_estimate.getQueryEstimate(target_partition);
+                if (d) LOG.debug(String.format("%s - Sending QueryEstimate to partition %d containing %d queries",
+                                 ts, target_partition, estimated.size()));
+                assert(estimated.isEmpty() == false);
+                for (CountedStatement countedStmt : estimated) {
+                    estBuilder.addStmtIds(countedStmt.statement.getId());
+                    estBuilder.addStmtCounters(countedStmt.counter);
+                } // FOR
+                fragmentBuilder.setFutureStatements(estBuilder);
             }
            
             // Get the TransactionWorkRequest.Builder for the remote HStoreSite
@@ -2702,14 +2712,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             // Also keep track of what Statements they are executing so that we know
             // we need to send over the wire to them.
-            requestBuilder.addParamIndexes(ftask.getParamIndexList());
+            requestBuilder.addParamIndexes(fragmentBuilder.getParamIndexList());
             
             // Input Dependencies
-            if (ftask.getNeedsInput()) {
+            if (fragmentBuilder.getNeedsInput()) {
                 if (d) LOG.debug("Retrieving input dependencies for " + ts);
                 
                 tmp_removeDependenciesMap.clear();
-                this.getFragmentInputs(ts, ftask.getInputDepIdList(), tmp_removeDependenciesMap);
+                this.getFragmentInputs(ts, fragmentBuilder.getInputDepIdList(), tmp_removeDependenciesMap);
 
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
                     if (requestBuilder.hasInputDependencyId(e.getKey())) continue;
@@ -2727,14 +2737,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                             throw new ServerFaultException(msg, ts.getTransactionId());
                         }
                         if (d) LOG.debug(String.format("%s - Storing %d rows for InputDependency %d to send to partition %d [bytes=%d]",
-                                         ts, vt.getRowCount(), e.getKey(), ftask.getPartitionId(),
+                                         ts, vt.getRowCount(), e.getKey(), fragmentBuilder.getPartitionId(),
                                          CollectionUtil.last(builder.getAttachedDataList()).size()));
                     } // FOR
                     requestBuilder.addInputDependencyId(e.getKey());
                 } // FOR
                 this.fs.getBBContainer().discard();
             }
-            builder.addFragments(ftask);
+            builder.addFragments(fragmentBuilder);
         } // FOR (tasks)
         
         // Bad mojo! We need to throw a MispredictionException so that the VoltProcedure

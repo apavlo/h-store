@@ -1,4 +1,4 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.fixed;
 
 import org.junit.Test;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
@@ -8,6 +8,10 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.fixed.FixedEstimator;
+import edu.brown.hstore.estimators.fixed.TPCCEstimator;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.PartitionSet;

@@ -1,4 +1,4 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.markov;
 
 import java.io.File;
 import java.util.*;
@@ -14,10 +14,11 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.MarkovEstimator;
-import edu.brown.hstore.estimators.MarkovEstimatorState;
+import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.markov.MarkovEstimate;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;

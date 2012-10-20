@@ -1,4 +1,4 @@
-package edu.brown.markov;
+package edu.brown.hstore.estimators.markov;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -14,7 +14,11 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.estimators.markov.MarkovEstimate;
+import edu.brown.hstore.estimators.markov.MarkovPathEstimator;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;

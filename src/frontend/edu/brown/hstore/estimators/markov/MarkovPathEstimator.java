@@ -1,4 +1,4 @@
-package edu.brown.markov;
+package edu.brown.hstore.estimators.markov;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,13 +27,15 @@ import edu.brown.catalog.special.CountedStatement;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.MarkovEstimator;
-import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.markov.MarkovEdge;
+import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovUtil;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.ArgumentsParser;

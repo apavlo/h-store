@@ -1,4 +1,4 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.fixed;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
@@ -6,6 +6,8 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;

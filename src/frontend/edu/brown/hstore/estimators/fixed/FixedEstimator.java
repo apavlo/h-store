@@ -1,4 +1,4 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.fixed;
 
 import java.util.List;
 
@@ -7,6 +7,9 @@ import org.voltdb.CatalogContext;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;

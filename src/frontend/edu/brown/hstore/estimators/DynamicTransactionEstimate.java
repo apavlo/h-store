@@ -1,6 +1,5 @@
-package edu.brown.markov;
+package edu.brown.hstore.estimators;
 
-import edu.brown.hstore.estimators.TransactionEstimate;
 
 /**
  * Special estimation type that can be dynamically calculated as the

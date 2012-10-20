@@ -39,9 +39,9 @@ import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
 
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.FixedEstimator;
-import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.fixed.FixedEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;

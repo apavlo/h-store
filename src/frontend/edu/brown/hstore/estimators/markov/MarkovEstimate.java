@@ -1,4 +1,4 @@
-package edu.brown.markov;
+package edu.brown.hstore.estimators.markov;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -9,8 +9,12 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 
 import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hstore.estimators.DynamicTransactionEstimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovUtil;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;

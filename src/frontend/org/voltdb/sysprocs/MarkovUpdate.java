@@ -16,7 +16,7 @@ import org.voltdb.VoltType;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
-import edu.brown.hstore.estimators.MarkovEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;

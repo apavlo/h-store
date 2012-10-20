@@ -1,10 +1,14 @@
-package edu.brown.markov;
+package edu.brown.hstore.estimators.markov;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
+import edu.brown.hstore.estimators.markov.MarkovEstimate;
+import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestMarkovEstimate extends BaseTestCase {
