@@ -27,6 +27,7 @@ public class SEATSEstimator extends FixedEstimator {
         super(p_estimator);
     }
     
+    @SuppressWarnings("unchecked")
     @Override
     public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();

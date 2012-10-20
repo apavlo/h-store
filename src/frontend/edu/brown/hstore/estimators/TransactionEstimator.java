@@ -157,4 +157,11 @@ public abstract class TransactionEstimator implements Loggable {
      */
     protected abstract void completeTransaction(EstimatorState state, Status status);
     
+    /**
+     * Return the EstimatorState and have it destroyed.
+     * <B>Note:</B> The EstimateState will be invalidated when this method is called.
+     * @param state
+     */
+    public abstract void destroyEstimatorState(EstimatorState state);
+    
 }

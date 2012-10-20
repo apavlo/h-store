@@ -982,7 +982,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // pools.put("Estimators", (TypedObjectPool<?>)MarkovEstimator.POOL_ESTIMATORS); 
 
         // TransactionEstimator.States
-        pools.put("EstimationStates", (TypedObjectPool<?>)MarkovEstimator.POOL_STATES);
+        // pools.put("EstimationStates", (TypedObjectPool<?>)MarkovEstimator.POOL_STATES);
         
         final Map<String, Object> m_pool = new LinkedHashMap<String, Object>();
         for (String key : pools.keySet()) {

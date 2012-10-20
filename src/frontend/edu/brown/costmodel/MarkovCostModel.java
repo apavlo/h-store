@@ -337,8 +337,7 @@ public class MarkovCostModel extends AbstractCostModel {
             throw new RuntimeException(ex);
         }
 
-        MarkovEstimator.POOL_STATES.returnObject(s);
-
+        this.t_estimator.destroyEstimatorState(s);
         return (cost);
     }
 

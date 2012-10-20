@@ -20,6 +20,11 @@ public abstract class FixedEstimator extends TransactionEstimator {
         super(p_estimator);
     }
 
+    @Override
+    public void destroyEstimatorState(EstimatorState state) {
+        // Nothing to do...
+    }
+    
     @SuppressWarnings("unchecked")
     public static <T extends FixedEstimator> T factory(PartitionEstimator p_estimator, CatalogContext catalogContext) {
         FixedEstimator estimator = null;

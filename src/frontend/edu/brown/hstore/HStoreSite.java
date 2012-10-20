@@ -2634,6 +2634,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOG.error(String.format("Unexpected error when cleaning up %s transaction %s",
                       status, ts), ex);
             // Pass...
+        } finally {
+            if (t_state != null && t_estimator != null) {
+                t_estimator.destroyEstimatorState(t_state);
+            }
         }
         
         // Then update transaction profiling counters
