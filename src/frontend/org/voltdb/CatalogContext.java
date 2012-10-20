@@ -101,6 +101,12 @@ public class CatalogContext {
     private final Procedure proceduresArray[];
     
     // ------------------------------------------------------------
+    // STATEMENTS
+    // ------------------------------------------------------------
+    
+    private final Map<Integer, Statement> stmtIdXref = new HashMap<Integer, Statement>();
+    
+    // ------------------------------------------------------------
     // TABLES
     // ------------------------------------------------------------
     
@@ -429,6 +435,26 @@ public class CatalogContext {
      */
     public Collection<Procedure> getMapReduceProcedures() {
         return (this.mrProcedures);
+    }
+    
+    // ------------------------------------------------------------
+    // STATEMENTS
+    // ------------------------------------------------------------
+    
+    public Statement getStatementById(int stmtId) {
+        // HACK: The first call will actually build the cache
+        if (this.stmtIdXref.isEmpty()) {
+            synchronized (this.stmtIdXref) {
+                if (this.stmtIdXref.isEmpty()) {
+                    for (Procedure catalog_proc : this.procedures.values()) {
+                        for (Statement catalog_stmt : catalog_proc.getStatements().values()) {
+                            this.stmtIdXref.put(catalog_stmt.getId(), catalog_stmt);
+                        } // FOR (stmt)
+                    } // FOR (proc)
+                }
+            } // SYNCH
+        }
+        return (this.stmtIdXref.get(stmtId));
     }
     
     // ------------------------------------------------------------

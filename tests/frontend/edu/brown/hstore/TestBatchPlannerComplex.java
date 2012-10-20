@@ -222,7 +222,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             
             // The InputDepId for all WorkFragments should always be the same
             Set<Integer> all_ids = new HashSet<Integer>(builder.getInputDepIdList());
-            assertEquals(builder.toString(), 1, all_ids);
+            assertEquals(builder.toString(), 1, all_ids.size());
             
 //            System.err.println(StringUtil.SINGLE_LINE);
         } // FOR

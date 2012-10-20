@@ -46,7 +46,7 @@ import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 
 /**
- * Path Estimator for TransactionEstimator
+ * Path Estimator for MarkovEstimator
  * @author pavlo
  */
 public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEdge> implements Loggable {

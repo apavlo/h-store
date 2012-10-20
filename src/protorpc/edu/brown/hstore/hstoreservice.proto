@@ -62,7 +62,7 @@ message WorkFragment {
     required bool read_only = 8;
     
     // If true, then the Work embedded in this WorkFragment needs input
-    required bool needs_input = 9;
+    optional bool needs_input = 9 [default = false];
     
     // If true, then this is the final fragment for this transaction at this partition.
     optional bool last_fragment = 10 [default = false];
