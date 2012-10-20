@@ -56,13 +56,13 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     }
     
     public PartitionSet(Collection<Integer> partitions) {
-        for (Integer p : partitions)
-            this.add(p);
+        for (Integer partition : partitions)
+            this.add(partition);
     }
     
     public PartitionSet(Integer...partitions) {
-        for (Integer p : partitions)
-            this.add(p);
+        for (Integer partition : partitions)
+            this.add(partition);
     }
     
     @Override
@@ -108,19 +108,19 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     @Override
     public boolean contains(Object o) {
         if (o instanceof Integer) {
-            Integer p = (Integer)o;
-            return this.contains(p.intValue());
+            Integer partition = (Integer)o;
+            return this.contains(partition.intValue());
         }
         return (false);
     }
-    public boolean contains(Integer p) {
-        return this.contains(p.intValue());
+    public boolean contains(Integer partition) {
+        return this.contains(partition.intValue());
     }
-    public boolean contains(int p) {
-        if (p == HStoreConstants.NULL_PARTITION_ID) {
+    public boolean contains(int partition) {
+        if (partition == HStoreConstants.NULL_PARTITION_ID) {
             return (this.contains_null);
         }
-        return (this.inner.get(p));
+        return (this.inner.get(partition));
     }
     @Override
     public Iterator<Integer> iterator() {
@@ -131,8 +131,8 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
         int length = this.inner.cardinality();
         Object arr[] = new Object[length];
         int idx = 0;
-        for (Integer p : this) {
-            arr[idx++] = p;
+        for (Integer partition : this) {
+            arr[idx++] = partition;
         }
         return (arr);
     }
@@ -144,8 +144,8 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
             a = (T[])new Object[length];
         }
         int idx = 0;
-        for (Integer p : this) {
-            a[idx++] = (T)p;
+        for (Integer partition : this) {
+            a[idx++] = (T)partition;
         } // FOR
         return (a);
     }
@@ -153,27 +153,27 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     public boolean add(Integer e) {
         return (this.add(e.intValue()));
     }
-    public boolean add(int p) {
-        if (p == HStoreConstants.NULL_PARTITION_ID) {
+    public boolean add(int partition) {
+        if (partition == HStoreConstants.NULL_PARTITION_ID) {
             this.contains_null = true;
         } else {
-            this.inner.set(p);
+            this.inner.set(partition);
         }
         return (true);
     }
     @Override
     public boolean remove(Object o) {
         if (o instanceof Integer) {
-            Integer p = (Integer)o;
-            return (this.remove(p.intValue()));
+            Integer partition = (Integer)o;
+            return (this.remove(partition.intValue()));
         }
         return (false);
     }
-    public boolean remove(int p) {
-        if (p == HStoreConstants.NULL_PARTITION_ID) {
+    public boolean remove(int partition) {
+        if (partition == HStoreConstants.NULL_PARTITION_ID) {
             this.contains_null = false;
         } else {
-            this.inner.set(p, false);            
+            this.inner.set(partition, false);            
         }
         return (true);
     }
@@ -189,15 +189,15 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     @Override
     public boolean addAll(Collection<? extends Integer> c) {
         boolean ret = true;
-        for (Integer o : c) {
-            ret = this.add(o) && ret;
+        for (Integer partition : c) {
+            ret = this.add(partition) && ret;
         }
         return (ret);
     }
     public boolean addAll(PartitionSet partitions) {
         if (partitions.contains_null) this.contains_null = true;
-        for (int p = 0, cnt = partitions.inner.size(); p < cnt; p++) {
-            if (partitions.inner.get(p)) this.inner.set(p);
+        for (int partition = 0, cnt = partitions.inner.size(); partition < cnt; partition++) {
+            if (partitions.inner.get(partition)) this.inner.set(partition);
         } // FOR
         return (true);
     }
@@ -215,9 +215,9 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     }
     @Override
     public boolean retainAll(Collection<?> c) {
-        for (Integer p : this) {
-            if (c.contains(p) == false) {
-                this.remove(p);
+        for (Integer partition : this) {
+            if (c.contains(partition) == false) {
+                this.remove(partition);
             }
         }
         return (true);
@@ -227,9 +227,9 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     // STATIC METHODS
     // ----------------------------------------------------------------------------
     
-    public static PartitionSet singleton(int p) {
+    public static PartitionSet singleton(int partition) {
         PartitionSet ret = new PartitionSet();
-        ret.add(p);
+        ret.add(partition);
         return (ret);
     }
     
@@ -293,8 +293,8 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
         stringer.key("P").array();
-        for (Integer p : this) {
-            stringer.value(p);
+        for (Integer partition : this) {
+            stringer.value(partition);
         } // FOR
         stringer.endArray();
     }
