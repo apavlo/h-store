@@ -28,6 +28,7 @@ import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.MarkovEstimator;
+import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -462,54 +463,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             this.estimate.confidence *= next_edge.getProbability() / total_probability;
             
             // Update our list of partitions touched by this transaction
-            PartitionSet next_partitions = next_vertex.getPartitions();
-            // String orig = (debug.get() ? next_partitions.toString() : null);
-            float inverse_prob = 1.0f - this.estimate.confidence;
-            Statement catalog_stmt = next_vertex.getCatalogItem();
-            
-            // READ
-            if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
-                for (int p : next_partitions) {
-                    if (this.estimate.read_partitions.contains(p) == false) {
-                        if (t) LOG.trace(String.format("First time partition %d is read from! Setting read-only probability to %.03f", p, this.estimate.confidence));
-                        this.estimate.setReadOnlyProbability(p, this.estimate.confidence);
-                        if (this.estimate.isFinishProbabilitySet(p) == false) {
-                            this.estimate.setFinishProbability(p, inverse_prob);
-                        }
-                        this.estimate.read_partitions.add(p);
-                    }
-                    this.estimate.incrementTouchedCounter(p);
-                    this.estimate.touched_partitions.add(p);
-                } // FOR
-            }
-            // WRITE
-            else {
-                for (int p : next_partitions) {
-                    if (this.estimate.write_partitions.contains(p) == false) {
-                        if (t) LOG.trace(String.format("First time partition %d is written to! Setting write probability to %.03f", p, this.estimate.confidence));
-                        this.estimate.setReadOnlyProbability(p, inverse_prob);
-                        this.estimate.setWriteProbability(p, this.estimate.confidence);
-                        if (this.estimate.isFinishProbabilitySet(p) == false) {
-                            this.estimate.setFinishProbability(p, inverse_prob);
-                        }
-                        this.estimate.write_partitions.add(p);
-                    }
-                    this.estimate.incrementTouchedCounter(p);
-                    this.estimate.touched_partitions.add(p);
-                } // FOR
-            }
-            
-            // If this is the first time that the path touched more than one partition, then we need to set the single-partition
-            // probability to be the confidence coefficient thus far
-            if (this.estimate.touched_partitions.size() > 1 && this.estimate.isSinglePartitionProbabilitySet() == false) {
-                if (t) LOG.trace("Setting the single-partition probability to current confidence [" + this.estimate.confidence + "]");
-                this.estimate.setSinglePartitionProbability(inverse_prob);
-            }
-            
-            // Keep track of the highest abort probability that we've seen thus far
-            if (next_vertex.isQueryVertex() && next_vertex.getAbortProbability() > this.estimate.greatest_abort) {
-                this.estimate.greatest_abort = next_vertex.getAbortProbability();
-            }
+            MarkovPathEstimator.populateProbabilities(this.estimate, next_vertex);
             
             if (d) {
                 LOG.debug("TOTAL:    " + total_probability);
@@ -535,24 +489,128 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.estimate.path.add(v);
     }
     
+    
     @Override
     protected void callback_finish() {
-        this.estimate.populateProbabilities();
+        MarkovPathEstimator.populateMarkovEstimate(this.estimate, this.estimate.getVertex());
     }
+    
+    // ----------------------------------------------------------------------------
+    // PROBABILITY CALCULATION METHODS
+    // ----------------------------------------------------------------------------
+    
+    protected static void populateProbabilities(MarkovEstimate estimate, MarkovVertex next_vertex) {
+        PartitionSet next_partitions = next_vertex.getPartitions();
+        // String orig = (debug.get() ? next_partitions.toString() : null);
+        float inverse_prob = 1.0f - estimate.confidence;
+        Statement catalog_stmt = next_vertex.getCatalogItem();
+        
+        // READ
+        if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
+            for (int p : next_partitions) {
+                if (estimate.read_partitions.contains(p) == false) {
+                    if (t) LOG.trace(String.format("First time partition %d is read from! Setting read-only probability to %.03f", p, estimate.confidence));
+                    estimate.setReadOnlyProbability(p, estimate.confidence);
+                    if (estimate.isFinishProbabilitySet(p) == false) {
+                        estimate.setFinishProbability(p, inverse_prob);
+                    }
+                    estimate.read_partitions.add(p);
+                }
+                estimate.incrementTouchedCounter(p);
+                estimate.touched_partitions.add(p);
+            } // FOR
+        }
+        // WRITE
+        else {
+            for (int p : next_partitions) {
+                if (estimate.write_partitions.contains(p) == false) {
+                    if (t) LOG.trace(String.format("First time partition %d is written to! Setting write probability to %.03f", p, estimate.confidence));
+                    estimate.setReadOnlyProbability(p, inverse_prob);
+                    estimate.setWriteProbability(p, estimate.confidence);
+                    if (estimate.isFinishProbabilitySet(p) == false) {
+                        estimate.setFinishProbability(p, inverse_prob);
+                    }
+                    estimate.write_partitions.add(p);
+                }
+                estimate.incrementTouchedCounter(p);
+                estimate.touched_partitions.add(p);
+            } // FOR
+        }
+        
+        // If this is the first time that the path touched more than one partition, then we need to set the single-partition
+        // probability to be the confidence coefficient thus far
+        if (estimate.touched_partitions.size() > 1 && estimate.isSinglePartitionProbabilitySet() == false) {
+            if (t) LOG.trace("Setting the single-partition probability to current confidence [" + estimate.confidence + "]");
+            estimate.setSinglePartitionProbability(inverse_prob);
+        }
+        
+        // Keep track of the highest abort probability that we've seen thus far
+        if (next_vertex.isQueryVertex() && next_vertex.getAbortProbability() > estimate.greatest_abort) {
+            estimate.greatest_abort = next_vertex.getAbortProbability();
+        }
+    }
+    
+    protected static void populateMarkovEstimate(MarkovEstimate estimate, MarkovVertex vertex) {
+        assert(vertex != null);
+        if (debug.get())
+            LOG.debug("Populating internal properties based on current vertex\n" + vertex.debug());
+        
+        boolean is_singlepartition = (estimate.touched_partitions.size() == 1);
+        float untouched_finish = 1.0f;
+        float inverse_prob = 1.0f - estimate.confidence;
+        for (int p = 0, cnt = estimate.getCatalogContext().numberOfPartitions; p < cnt; p++) {
+            float finished_prob = vertex.getFinishProbability(p);
+            if (estimate.touched_partitions.contains(p) == false) {
+                estimate.setReadOnlyProbability(p, vertex.getReadOnlyProbability(p));
+                estimate.setWriteProbability(p, vertex.getWriteProbability(p));
+                if (is_singlepartition) untouched_finish = Math.min(untouched_finish, finished_prob);
+            }
+            if (estimate.isReadOnlyProbabilitySet(p) == false) {
+                estimate.setReadOnlyProbability(p, vertex.getReadOnlyProbability(p));
+            }
+            if (estimate.isWriteProbabilitySet(p) == false) {
+                estimate.setWriteProbability(p, vertex.getWriteProbability(p));
+                // estimate.setWriteProbability(p, inverse_prob);
+            }
+            if (estimate.isFinishProbabilitySet(p) == false) {
+                estimate.setFinishProbability(p, finished_prob);
+            }
+        } // FOR
+        
+        // Single-Partition Probability
+        if (is_singlepartition) {
+            if (trace.get())
+                LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???",
+                          estimate.touched_partitions)); 
+            estimate.setSinglePartitionProbability(untouched_finish);
+        } else {
+            estimate.setSinglePartitionProbability(1.0f - untouched_finish);
+        }
+        
+        // Abort Probability
+        // Only use the abort probability if we have seen at least ABORT_MIN_TXNS
+        if (vertex.getTotalHits() >= MarkovGraph.MIN_HITS_FOR_NO_ABORT) {
+            if (estimate.greatest_abort == MarkovUtil.NULL_MARKER) estimate.greatest_abort = 0.0f;
+            estimate.setAbortProbability(estimate.greatest_abort);
+        } else {
+            estimate.setAbortProbability(1.0f);
+        }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // CONVENIENCE METHODS
+    // ----------------------------------------------------------------------------
     
     public static void fastEstimation(MarkovEstimate estimate, List<MarkovVertex> initialPath, MarkovVertex current) {
         boolean add = false;
         for (MarkovVertex v : initialPath) {
             if (add || current.equals(v)) {
+                MarkovPathEstimator.populateProbabilities(estimate, v);
                 estimate.path.add(v);
                 add = true;
-                // Update touched partitions
-                PartitionSet partitions = v.getPartitions();
-                estimate.incrementTouchedCounter(partitions);
-                estimate.touched_partitions.addAll(partitions);
             }
         } // FOR
-        estimate.populateProbabilities();
+        MarkovPathEstimator.populateMarkovEstimate(estimate, estimate.getVertex());
     }
     
     /**

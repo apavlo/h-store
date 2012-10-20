@@ -108,53 +108,6 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         return (this);
     }
     
-    protected void populateProbabilities() {
-        assert(this.vertex != null);
-        if (debug.get())
-            LOG.debug("Populating internal properties based on current vertex\n" + this.vertex.debug());
-        
-        boolean is_singlepartition = (this.touched_partitions.size() == 1);
-        float untouched_finish = 1.0f;
-        float inverse_prob = 1.0f - this.confidence;
-        for (int p = 0; p < this.catalogContext.numberOfPartitions; p++) {
-            float finished_prob = this.vertex.getFinishProbability(p);
-            if (this.touched_partitions.contains(p) == false) {
-                this.setReadOnlyProbability(p, this.vertex.getReadOnlyProbability(p));
-                this.setWriteProbability(p, this.vertex.getWriteProbability(p));
-                if (is_singlepartition) untouched_finish = Math.min(untouched_finish, finished_prob);
-            }
-            if (this.isReadOnlyProbabilitySet(p) == false) {
-                this.setReadOnlyProbability(p, this.vertex.getReadOnlyProbability(p));
-            }
-            if (this.isWriteProbabilitySet(p) == false) {
-                this.setWriteProbability(p, this.vertex.getWriteProbability(p));
-                // this.setWriteProbability(p, inverse_prob);
-            }
-            if (this.isFinishProbabilitySet(p) == false) {
-                this.setFinishProbability(p, finished_prob);
-            }
-        } // FOR
-        
-        // Single-Partition Probability
-        if (is_singlepartition) {
-            if (trace.get())
-                LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???",
-                          this.touched_partitions)); 
-            this.setSinglePartitionProbability(untouched_finish);
-        } else {
-            this.setSinglePartitionProbability(1.0f - untouched_finish);
-        }
-        
-        // Abort Probability
-        // Only use the abort probability if we have seen at least ABORT_MIN_TXNS
-        if (this.vertex.getTotalHits() >= MarkovGraph.MIN_HITS_FOR_NO_ABORT) {
-            if (this.greatest_abort == MarkovUtil.NULL_MARKER) this.greatest_abort = 0.0f;
-            this.setAbortProbability(this.greatest_abort);
-        } else {
-            this.setAbortProbability(1.0f);
-        }
-    }
-    
     @Override
     public final boolean isInitialized() {
         return (this.vertex != null); //  && this.path.isEmpty() == false);
@@ -238,6 +191,10 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
             } // FOR
         }
         return (this.query_estimate);
+    }
+    
+    protected CatalogContext getCatalogContext() {
+        return (this.catalogContext);
     }
     
     public List<MarkovVertex> getMarkovPath() {

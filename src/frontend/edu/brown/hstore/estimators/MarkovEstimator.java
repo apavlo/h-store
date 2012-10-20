@@ -17,7 +17,6 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
@@ -72,7 +71,7 @@ public class MarkovEstimator extends TransactionEstimator {
     private final CatalogContext catalogContext;
     private final MarkovGraphsContainer markovs;
 
-    private final TypedObjectPool<MarkovPathEstimator> estimatorsPool;
+    private final TypedObjectPool<MarkovPathEstimator> pathEstimatorsPool;
     private final TypedObjectPool<MarkovEstimatorState> statesPool;
     
     /**
@@ -116,11 +115,9 @@ public class MarkovEstimator extends TransactionEstimator {
         if (debug.get()) LOG.debug(String.format("Created ParameterManglers for %d procedures",
                                    this.manglers.size()));
         
-        HStoreConf hstore_conf = HStoreConf.singleton();
-        
         if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
         TypedPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.catalogContext, this.p_estimator);
-        estimatorsPool = new TypedObjectPool<MarkovPathEstimator>(m_factory, hstore_conf.site.pool_pathestimators_idle);
+        this.pathEstimatorsPool = new TypedObjectPool<MarkovPathEstimator>(m_factory, hstore_conf.site.pool_pathestimators_idle);
         
         if (d) LOG.debug("Creating TransactionEstimator.State Object Pool");
         TypedPoolableObjectFactory<MarkovEstimatorState> s_factory = new MarkovEstimatorState.Factory(this.catalogContext); 
@@ -465,7 +462,7 @@ public class MarkovEstimator extends TransactionEstimator {
                              AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
             MarkovPathEstimator pathEstimator = null;
             try {
-                pathEstimator = (MarkovPathEstimator)estimatorsPool.borrowObject();
+                pathEstimator = (MarkovPathEstimator)this.pathEstimatorsPool.borrowObject();
                 pathEstimator.init(state.getMarkovGraph(), est, state.getBasePartition(), args);
                 pathEstimator.enableForceTraversal(true);
             } catch (Throwable ex) {
@@ -494,7 +491,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 }
             } // SYNCH
             
-            estimatorsPool.returnObject(pathEstimator);
+            this.pathEstimatorsPool.returnObject(pathEstimator);
         }
     }
     
@@ -629,8 +626,8 @@ public class MarkovEstimator extends TransactionEstimator {
     
     public class Debug implements DebugContext {
     
-        public TypedObjectPool<MarkovPathEstimator> getEstimatorPool() {
-            return (estimatorsPool);
+        public TypedObjectPool<MarkovPathEstimator> getPathEstimatorsPool() {
+            return (pathEstimatorsPool);
         }
         
         public MarkovEstimatorProfiler getProfiler() {
