@@ -50,6 +50,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.interfaces.Loggable;
@@ -469,6 +470,18 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     public void setEstimatorState(EstimatorState state) {
         this.predict_tState = state;
+    }
+    
+    /**
+     * Get the last TransactionEstimate produced for this transaction.
+     * If there is no estimate, then the return result is null.
+     * @return
+     */
+    public TransactionEstimate getLastEstimate() {
+        if (this.predict_tState != null) {
+            return (this.predict_tState.getLastEstimate());
+        }
+        return (null);
     }
     
     // ----------------------------------------------------------------------------

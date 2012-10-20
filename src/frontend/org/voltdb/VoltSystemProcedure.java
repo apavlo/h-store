@@ -82,7 +82,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     @Deprecated
     protected int num_partitions;
     
-    protected final List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+    protected final List<WorkFragment.Builder> fragments = new ArrayList<WorkFragment.Builder>();
 
     public abstract void initImpl();
     
@@ -199,26 +199,21 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                 
                 // Input Dependencies
                 boolean needs_input = false;
-                WorkFragment.InputDependency.Builder inputBuilder = WorkFragment.InputDependency.newBuilder();
-                if (pf.inputDependencyIds != null) {
-                    for (int dep : pf.inputDependencyIds) {
-                        inputBuilder.addIds(dep);
-                        needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
-                    } // FOR
-                }
-                builder.addInputDepId(inputBuilder.build());
+                for (int dep : pf.inputDependencyIds) {
+                    builder.addInputDepId(dep);
+                    needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
+                } // FOR
+                builder.setNeedsInput(needs_input);
                 
                 // Output Dependencies
                 for (int dep : pf.outputDependencyIds) {
                     builder.addOutputDepId(dep);
                 } // FOR
-    
-                builder.setNeedsInput(needs_input);
-                WorkFragment fragment = builder.build(); 
-                this.fragments.add(fragment);
+                
+                this.fragments.add(builder);
                 
                 if (debug.get()) 
-                    LOG.debug(String.format("%s - WorkFragment\n%s", ts, fragment));
+                    LOG.debug(String.format("%s - WorkFragment.Builder\n%s", ts, builder));
             } // FOR
         } // FOR
 

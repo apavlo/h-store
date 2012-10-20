@@ -192,8 +192,8 @@ public class PrefetchQueryPlanner implements Loggable {
                                       ts.isPredictSinglePartition(),
                                       ts.getTouchedPartitions(),
                                       prefetchParams);
-        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-        plan.getWorkFragments(ts.getTransactionId(), fragments);
+        List<WorkFragment.Builder> fragmentBuilders = new ArrayList<WorkFragment.Builder>();
+        plan.getWorkFragmentsBuilders(ts.getTransactionId(), fragmentBuilders);
 
         // Loop through the fragments and check whether at least one of
         // them needs to be executed at the base (local) partition. If so, we need a
@@ -203,8 +203,8 @@ public class PrefetchQueryPlanner implements Loggable {
         // PartitionExecutor is idle. That means, we don't want to serialize all this
         // if it's only going to the base partition.
         TransactionInitRequest.Builder[] builders = new TransactionInitRequest.Builder[this.catalogContext.numberOfSites];
-        for (WorkFragment frag : fragments) {
-            int site_id = this.partitionSiteXref[frag.getPartitionId()];
+        for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
+            int site_id = this.partitionSiteXref[fragmentBuilder.getPartitionId()];
             if (builders[site_id] == null) {
                 builders[site_id] = TransactionInitRequest.newBuilder()
                                             .setTransactionId(ts.getTransactionId().longValue())
@@ -215,7 +215,7 @@ public class PrefetchQueryPlanner implements Loggable {
                     builders[site_id].addPrefetchParams(bs);
                 } // FOR
             }
-            builders[site_id].addPrefetchFragments(frag);
+            builders[site_id].addPrefetchFragments(fragmentBuilder);
         } // FOR (WorkFragment)
 
         Collection<Integer> touched_partitions = ts.getPredictTouchedPartitions();

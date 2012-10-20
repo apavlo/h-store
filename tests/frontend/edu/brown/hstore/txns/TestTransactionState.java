@@ -70,7 +70,7 @@ public class TestTransactionState extends BaseTestCase {
     private static HStoreSite hstore_site;
     private static PartitionExecutor executor;
     private static BatchPlan plan;
-    private static List<WorkFragment> ftasks = new ArrayList<WorkFragment>();
+    private static List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
     
     private LocalTransaction ts;
     private ExecutionState execState;
@@ -116,8 +116,8 @@ public class TestTransactionState extends BaseTestCase {
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
-            plan.getWorkFragments(TXN_ID, ftasks);
-//            System.err.println("FTASKS: " + ftasks);
+            
+            plan.getWorkFragmentsBuilders(TXN_ID, ftasks);
             assertFalse(ftasks.isEmpty());
         }
         assertNotNull(ftasks);
@@ -139,17 +139,15 @@ public class TestTransactionState extends BaseTestCase {
      */
     private void addFragments() {
         this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
-        for (WorkFragment ftask : ftasks) {
+        for (WorkFragment.Builder ftask : ftasks) {
             assertNotNull(ftask);
             this.ts.addWorkFragment(ftask);
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 this.dependency_ids.add(ftask.getOutputDepId(i));
-                WorkFragment.InputDependency input_dep_ids = ftask.getInputDepId(i);
-                for (Integer input_dep_id : input_dep_ids.getIdsList()) {
-                    if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
-                        this.internal_dependency_ids.add(input_dep_id);
-                    }
-                } // FOR
+                int input_dep_id = ftask.getInputDepId(i);
+                if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                    this.internal_dependency_ids.add(input_dep_id);
+                }
             } // FOR
         } // FOR
         for (int d_id : this.dependency_ids) {

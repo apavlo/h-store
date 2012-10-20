@@ -46,7 +46,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
@@ -379,15 +378,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     /**
      * WorkFragments that we need to send to a remote HStoreSite for execution
      */
-    private final List<WorkFragment> tmp_remoteFragmentList = new ArrayList<WorkFragment>();
+    private final List<WorkFragment.Builder> tmp_remoteFragmentBuilders = new ArrayList<WorkFragment.Builder>();
     /**
      * WorkFragments that we need to send to our own PartitionExecutor
      */
-    private final List<WorkFragment> tmp_localWorkFragmentList = new ArrayList<WorkFragment>();
+    private final List<WorkFragment.Builder> tmp_localWorkFragmentBuilders = new ArrayList<WorkFragment.Builder>();
     /**
      * WorkFragments that we need to send to a different PartitionExecutor that is on this same HStoreSite
      */
-    private final List<WorkFragment> tmp_localSiteFragmentList = new ArrayList<WorkFragment>();
+    private final List<WorkFragment.Builder> tmp_localSiteFragmentBuilders = new ArrayList<WorkFragment.Builder>();
     /**
      * Temporary space used when calling removeInternalDependencies()
      */
@@ -1333,61 +1332,59 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         return (fragmentParams);
     }
     
-    private Map<Integer, List<VoltTable>> getFragmentInputs(AbstractTransaction ts, WorkFragment fragment, Map<Integer, List<VoltTable>> inputs) {
+    private Map<Integer, List<VoltTable>> getFragmentInputs(AbstractTransaction ts,
+                                                            List<Integer> input_dep_ids,
+                                                            Map<Integer, List<VoltTable>> inputs) {
         Map<Integer, List<VoltTable>> attachedInputs = ts.getAttachedInputDependencies();
         assert(attachedInputs != null);
         boolean is_local = (ts instanceof LocalTransaction);
         
-        if (d) LOG.debug(String.format("%s - Attempting to retrieve input dependencies for WorkFragment [isLocal=%s]",
-                         ts, is_local));
-        for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
-            WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
-            for (int input_dep_id : input_dep_ids.getIdsList()) {
-                if (input_dep_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
+        if (d) LOG.debug(String.format("%s - Attempting to retrieve input dependencies [isLocal=%s]", ts, is_local));
+        for (Integer input_dep_id : input_dep_ids) {
+            if (input_dep_id.intValue() == HStoreConstants.NULL_DEPENDENCY_ID) continue;
 
-                // If the Transaction is on the same HStoreSite, then all the 
-                // input dependencies will be internal and can be retrieved locally
-                if (is_local) {
-                    List<VoltTable> deps = ((LocalTransaction)ts).getInternalDependency(input_dep_id);
-                    assert(deps != null);
-                    assert(inputs.containsKey(input_dep_id) == false);
-                    inputs.put(input_dep_id, deps);
-                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d\n" + deps,
-                                     ts, deps.size(), input_dep_id));
-                }
-                // Otherwise they will be "attached" inputs to the RemoteTransaction handle
-                // We should really try to merge these two concepts into a single function call
-                else if (attachedInputs.containsKey(input_dep_id)) {
-                    List<VoltTable> deps = attachedInputs.get(input_dep_id);
-                    List<VoltTable> pDeps = null;
-                    // XXX: Do we actually need to copy these???
-                    // XXX: I think we only need to copy if we're debugging the tables!
-                    if (d) { // this.firstPartition == false) {
-                        pDeps = new ArrayList<VoltTable>();
-                        for (VoltTable vt : deps) {
-                            // TODO: Move into VoltTableUtil
-                            ByteBuffer buffer = vt.getTableDataReference();
-                            byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
-                            buffer.get(arr, 0, arr.length);
-                            pDeps.add(new VoltTable(ByteBuffer.wrap(arr), true));
-                        }
-                    } else {
-                        pDeps = deps;
+            // If the Transaction is on the same HStoreSite, then all the 
+            // input dependencies will be internal and can be retrieved locally
+            if (is_local) {
+                List<VoltTable> deps = ((LocalTransaction)ts).getInternalDependency(input_dep_id);
+                assert(deps != null);
+                assert(inputs.containsKey(input_dep_id) == false);
+                inputs.put(input_dep_id, deps);
+                if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d\n" + deps,
+                                 ts, deps.size(), input_dep_id));
+            }
+            // Otherwise they will be "attached" inputs to the RemoteTransaction handle
+            // We should really try to merge these two concepts into a single function call
+            else if (attachedInputs.containsKey(input_dep_id)) {
+                List<VoltTable> deps = attachedInputs.get(input_dep_id);
+                List<VoltTable> pDeps = null;
+                // XXX: Do we actually need to copy these???
+                // XXX: I think we only need to copy if we're debugging the tables!
+                if (d) { // this.firstPartition == false) {
+                    pDeps = new ArrayList<VoltTable>();
+                    for (VoltTable vt : deps) {
+                        // TODO: Move into VoltTableUtil
+                        ByteBuffer buffer = vt.getTableDataReference();
+                        byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
+                        buffer.get(arr, 0, arr.length);
+                        pDeps.add(new VoltTable(ByteBuffer.wrap(arr), true));
                     }
-                    inputs.put(input_dep_id, pDeps); 
-                    if (d) LOG.debug(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
-                                     ts, deps.size(), input_dep_id));
+                } else {
+                    pDeps = deps;
                 }
+                inputs.put(input_dep_id, pDeps); 
+                if (d) LOG.debug(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
+                                 ts, deps.size(), input_dep_id));
+            }
 
-            } // FOR (inputs)
-        } // FOR (fragments)
+        } // FOR (inputs)
         if (d) {
             if (inputs.isEmpty() == false) {
-                LOG.debug(String.format("%s - Retrieved %d InputDependencies for %s on partition %d",
-                                        ts, inputs.size(), fragment.getFragmentIdList(), fragment.getPartitionId())); // StringUtil.formatMaps(inputs)));
-            } else if (fragment.getNeedsInput()) {
-                LOG.warn(String.format("%s - No InputDependencies retrieved for %s on partition %d",
-                                       ts, fragment.getFragmentIdList(), fragment.getPartitionId()));
+                LOG.debug(String.format("%s - Retrieved %d InputDependencies from partition %d",
+                                        ts, inputs.size(), this.partitionId)); // StringUtil.formatMaps(inputs)));
+//            } else if (fragment.getNeedsInput()) {
+//                LOG.warn(String.format("%s - No InputDependencies retrieved for %s on partition %d",
+//                                       ts, fragment.getFragmentIdList(), fragment.getPartitionId()));
             }
         }
         return (inputs);
@@ -2111,18 +2108,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Construct arrays given to the EE
         long fragmentIds[] = tmp_fragmentIds.getArray(fragmentCount);
         int outputDepIds[] = tmp_outputDepIds.getArray(fragmentCount);
-        int inputDepIds[] = tmp_inputDepIds.getArray(fragmentCount); // Is this ok?
+        int inputDepIds[] = tmp_inputDepIds.getArray(fragmentCount);
         for (int i = 0; i < fragmentCount; i++) {
             fragmentIds[i] = fragment.getFragmentId(i);
             outputDepIds[i] = fragment.getOutputDepId(i);
-            for (int input_depId : fragment.getInputDepId(i).getIdsList()) {
-                inputDepIds[i] = input_depId; // FIXME!
-            } // FOR
+            inputDepIds[i] = fragment.getInputDepId(i);
         } // FOR
         
         // Input Dependencies
         this.tmp_EEdependencies.clear();
-        this.getFragmentInputs(ts, fragment, this.tmp_EEdependencies);
+        this.getFragmentInputs(ts, fragment.getInputDepIdList(), this.tmp_EEdependencies);
         
         // *********************************** DEBUG ***********************************
         if (d) {
@@ -2568,7 +2563,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (t) LOG.trace(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
             ExecutionState execState = ts.getExecutionState();
             execState.tmp_partitionFragments.clear();
-            plan.getWorkFragments(ts.getTransactionId(), execState.tmp_partitionFragments);
+            plan.getWorkFragmentsBuilders(ts.getTransactionId(), execState.tmp_partitionFragments);
             if (t) LOG.trace(String.format("%s - Got back %d work fragments",
                              ts, execState.tmp_partitionFragments.size()));
 
@@ -2637,20 +2632,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * at remote sites in the cluster 
      * @param ftasks
      */
-    private void requestWork(LocalTransaction ts, Collection<WorkFragment> tasks, List<ByteString> parameterSets) {
-        assert(!tasks.isEmpty());
+    private void requestWork(LocalTransaction ts, Collection<WorkFragment.Builder> fragmentBuilders, List<ByteString> parameterSets) {
+        assert(!fragmentBuilders.isEmpty());
         assert(ts != null);
         Long txn_id = ts.getTransactionId();
 
         if (t) LOG.trace(String.format("%s - Wrapping %d WorkFragments into a TransactionWorkRequest",
-                         ts, tasks.size()));
+                         ts, fragmentBuilders.size()));
         
         // If our transaction was originally designated as a single-partitioned, then we need to make
         // sure that we don't touch any partition other than our local one. If we do, then we need abort
         // it and restart it as multi-partitioned
         boolean need_restart = false;
         boolean predict_singlepartition = ts.isPredictSinglePartition(); 
-        BitSet done_partitions = ts.getDonePartitions();
+        PartitionSet done_partitions = ts.getDonePartitions();
+
+        TransactionEstimate t_estimate = ts.getLastEstimate();
         
         boolean hasNewDone = false;
         PartitionSet newDone = null;
@@ -2662,7 +2659,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Now we can go back through and start running all of the WorkFragments that were not blocked
         // waiting for an input dependency. Note that we pack all the fragments into a single
         // CoordinatorFragment rather than sending each WorkFragment in its own message
-        for (WorkFragment ftask : tasks) {
+        for (WorkFragment.Builder ftask : fragmentBuilders) {
             assert(!ts.isBlocked(ftask));
             
             int target_partition = ftask.getPartitionId();
@@ -2677,7 +2674,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
             // Make sure that this txn isn't trying ot access a partition that we said we were
             // done with earlier
-            else if (done_partitions.get(target_partition)) {
+            else if (done_partitions.contains(target_partition)) {
                 if (d) LOG.debug(String.format("%s on partition %d was marked as done on partition %d but now it wants to go back for more!",
                                  ts, this.partitionId, target_partition));
                 need_restart = true;
@@ -2687,6 +2684,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             else if (ftask.getFragmentIdCount() == 0) {
                 LOG.warn(String.format("%s - Trying to send a WorkFragment request with 0 fragments", ts));
                 continue;
+            }
+            
+            // Add in the specexec query estimate at this partition if needed
+            if (hstore_conf.site.specexec_enable && t_estimate != null) {
+                t_estimate.getQueryEstimate(target_partition);
+                
             }
            
             // Get the TransactionWorkRequest.Builder for the remote HStoreSite
@@ -2706,7 +2709,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (d) LOG.debug("Retrieving input dependencies for " + ts);
                 
                 tmp_removeDependenciesMap.clear();
-                this.getFragmentInputs(ts, ftask, tmp_removeDependenciesMap);
+                this.getFragmentInputs(ts, ftask.getInputDepIdList(), tmp_removeDependenciesMap);
 
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
                     if (requestBuilder.hasInputDependencyId(e.getKey())) continue;
@@ -2772,26 +2775,26 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * This is the slowest way to execute a bunch of WorkFragments and therefore should only be invoked
      * for batches that need to access non-local Partitions
      * @param ts
-     * @param fragments
+     * @param fragmentBuilders
      * @param parameters
      * @return
      */
     public VoltTable[] dispatchWorkFragments(final LocalTransaction ts,
                                              final int batchSize,
-                                             Collection<WorkFragment> fragments,
+                                             Collection<WorkFragment.Builder> fragmentBuilders,
                                              final ParameterSet parameters[]) {
-        assert(fragments.isEmpty() == false) :
+        assert(fragmentBuilders.isEmpty() == false) :
             "Unexpected empty WorkFragment list for " + ts;
         final boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
         
         // *********************************** DEBUG ***********************************
         if (d) {
             LOG.debug(String.format("%s - Preparing to dispatch %d messages and wait for the results",
-                      ts, fragments.size()));
+                      ts, fragmentBuilders.size()));
             if (t) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(ts + " - WorkFragments:\n");
-                for (WorkFragment fragment : fragments) {
+                for (WorkFragment.Builder fragment : fragmentBuilders) {
                     sb.append(StringBoxUtil.box(fragment.toString()) + "\n");
                 } // FOR
                 sb.append(ts + " - ParameterSets:\n");
@@ -2809,7 +2812,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (hstore_conf.site.exec_validate_work && ts.isSysProc() == false) {
             LOG.warn(String.format("%s - Checking whether all of the WorkFragments are valid", ts));
             boolean has_remote = false; 
-            for (WorkFragment frag : fragments) {
+            for (WorkFragment.Builder frag : fragmentBuilders) {
                 if (frag.getPartitionId() != this.partitionId) {
                     has_remote = true;
                 }
@@ -2819,14 +2822,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     assert(catalog_stmt != null);
                     Procedure catalog_proc = catalog_stmt.getParent();
                     if (catalog_proc.equals(ts.getProcedure()) == false) {
-                        LOG.warn(ts.debug() + "\n" + fragments + "\n---- INVALID ----\n" + frag);
+                        LOG.warn(ts.debug() + "\n" + fragmentBuilders + "\n---- INVALID ----\n" + frag);
                         String msg = String.format("%s - Unexpected %s", ts, catalog_frag.fullName());
                         throw new ServerFaultException(msg, ts.getTransactionId());
                     }
                 }
             } // FOR
             if (has_remote == false) {
-                LOG.warn(ts.debug() + "\n" + fragments);
+                LOG.warn(ts.debug() + "\n" + fragmentBuilders);
                 String msg = ts + "Trying to execute all local single-partition queries using the slow-path!";
                 throw new ServerFaultException(msg, ts.getTransactionId());
             }
@@ -2848,7 +2851,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // Now if we have some work sent out to other partitions, we need to wait until they come back
         // In the first part, we wait until all of our blocked WorkFragments become unblocked
-        final LinkedBlockingDeque<Collection<WorkFragment>> queue = execState.getUnblockedWorkFragmentsQueue();
+        final LinkedBlockingDeque<Collection<WorkFragment.Builder>> queue = execState.getUnblockedWorkFragmentsQueue();
 
         boolean first = true;
         boolean serializedParams = false;
@@ -2887,23 +2890,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 total = 0;
                 
                 if (t) LOG.trace(String.format("%s - Waiting for unblocked tasks on partition %d", ts, this.partitionId));
-                fragments = queue.poll(); // NON-BLOCKING
+                fragmentBuilders = queue.poll(); // NON-BLOCKING
                 
                 // If we didn't get back a list of fragments here, then we will spin through
                 // and invoke utilityWork() to try to do something useful until what we need shows up
                 if (needs_profiling) ts.profiler.startExecDtxnWork();
                 if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.start();
                 try {
-                    while (fragments == null) {
+                    while (fragmentBuilders == null) {
                         // If there is more work that we could do, then we'll just poll the queue
                         // without waiting so that we can go back and execute it again if we have
                         // more time.
                         if (this.utilityWork()) {
-                            fragments = queue.poll();
+                            fragmentBuilders = queue.poll();
                         }
                         // Otherwise we will wait a little so that we don't spin the CPU
                         else {
-                            fragments = queue.poll(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
+                            fragmentBuilders = queue.poll(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
                         }
                     } // WHILE
                 } catch (InterruptedException ex) {
@@ -2916,30 +2919,30 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.stop();
                 }
             }
-            assert(fragments != null);
+            assert(fragmentBuilders != null);
             
             // If the list to fragments unblock is empty, then we 
             // know that we have dispatched all of the WorkFragments for the
             // transaction's current SQLStmt batch. That means we can just wait 
             // until all the results return to us.
-            if (fragments.isEmpty()) {
+            if (fragmentBuilders.isEmpty()) {
                 if (t) LOG.trace(ts + " - Got an empty list of WorkFragments. Blocking until dependencies arrive");
                 break;
             }
 
-            this.tmp_localWorkFragmentList.clear();
+            this.tmp_localWorkFragmentBuilders.clear();
             if (predict_singlePartition == false) {
-                this.tmp_remoteFragmentList.clear();
-                this.tmp_localSiteFragmentList.clear();
+                this.tmp_remoteFragmentBuilders.clear();
+                this.tmp_localSiteFragmentBuilders.clear();
             }
             
             // -------------------------------
             // FAST PATH: Assume everything is local
             // -------------------------------
             if (predict_singlePartition) {
-                for (WorkFragment ftask : fragments) {
-                    if (first == false || ts.addWorkFragment(ftask) == false) {
-                        this.tmp_localWorkFragmentList.add(ftask);
+                for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
+                    if (first == false || ts.addWorkFragment(fragmentBuilder) == false) {
+                        this.tmp_localWorkFragmentBuilders.add(fragmentBuilder);
                         total++;
                         num_localPartition++;
                     }
@@ -2953,14 +2956,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
                 
                 // Execute all of our WorkFragments quickly at our local ExecutionEngine
-                for (WorkFragment fragment : this.tmp_localWorkFragmentList) {
+                for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
                     if (d) LOG.debug(String.format("%s - Got unblocked %s to execute locally",
-                                     ts, fragment.getClass().getSimpleName()));
-                    assert(fragment.getPartitionId() == this.partitionId) :
+                                     ts, fragmentBuilder.getClass().getSimpleName()));
+                    assert(fragmentBuilder.getPartitionId() == this.partitionId) :
                         String.format("Trying to process %s for %s on partition %d but it should have been sent to partition %d" +
                         		      "[singlePartition=%s]\n%s",
-                                      fragment.getClass().getSimpleName(), ts, this.partitionId, fragment.getPartitionId(),
-                                      predict_singlePartition, fragment);
+                                      fragmentBuilder.getClass().getSimpleName(), ts, this.partitionId, fragmentBuilder.getPartitionId(),
+                                      predict_singlePartition, fragmentBuilder);
+                    WorkFragment fragment = fragmentBuilder.build();
                     ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
                     this.processWorkFragment(ts, fragment, fragmentParams);
                 } // FOR
@@ -2971,12 +2975,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             else {
                 // Look at each task and figure out whether it needs to be executed at a remote
                 // HStoreSite or whether we can execute it at one of our local PartitionExecutors.
-                for (WorkFragment fragment : fragments) {
-                    int partition = fragment.getPartitionId();
+                for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
+                    int partition = fragmentBuilder.getPartitionId();
                     is_localSite = hstore_site.isLocalPartition(partition);
                     is_localPartition = (partition == this.partitionId);
                     all_local = all_local && is_localPartition;
-                    if (first == false || ts.addWorkFragment(fragment) == false) {
+                    if (first == false || ts.addWorkFragment(fragmentBuilder) == false) {
                         total++;
                         
                         // At this point we know that all the WorkFragment has been registered
@@ -2984,9 +2988,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                         // whether we already have a prefetched result that we need
                         if (prefetch && is_localPartition == false) {
                             boolean skip_queue = true;
-                            for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
-                                int fragId = fragment.getFragmentId(i);
-                                int paramIdx = fragment.getParamIndex(i);
+                            for (int i = 0, cnt = fragmentBuilder.getFragmentIdCount(); i < cnt; i++) {
+                                int fragId = fragmentBuilder.getFragmentId(i);
+                                int paramIdx = fragmentBuilder.getParamIndex(i);
                                 
                                 VoltTable vt = this.queryCache.getResult(ts.getTransactionId(),
                                                                          fragId,
@@ -2995,7 +2999,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                 if (vt != null) {
                                     if (t) LOG.trace(String.format("%s - Storing cached result from partition %d for fragment %d",
                                                      ts, partition, fragId));
-                                    ts.addResult(partition, fragment.getOutputDepId(i), vt);
+                                    ts.addResult(partition, fragmentBuilder.getOutputDepId(i), vt);
                                 } else {
                                     skip_queue = false;
                                 }
@@ -3014,13 +3018,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                         // Otherwise add it to our list of WorkFragments that we want
                         // queue up right now
                         if (is_localPartition) {
-                            this.tmp_localWorkFragmentList.add(fragment);
+                            this.tmp_localWorkFragmentBuilders.add(fragmentBuilder);
                             num_localPartition++;
                         } else if (is_localSite) {
-                            this.tmp_localSiteFragmentList.add(fragment);
+                            this.tmp_localSiteFragmentBuilders.add(fragmentBuilder);
                             num_localSite++;
                         } else {
-                            this.tmp_remoteFragmentList.add(fragment);
+                            this.tmp_remoteFragmentBuilders.add(fragmentBuilder);
                             num_remote++;
                         }
                     }
@@ -3066,7 +3070,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     }
                     if (d) LOG.debug(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
                                      ts, num_remote));
-                    this.requestWork(ts, tmp_remoteFragmentList, tmp_serializedParams);
+                    this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams);
                     if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
                 
@@ -3075,8 +3079,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (num_localSite > 0) {
                     if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local site's partitions",
                                      ts, num_localSite));
-                    for (WorkFragment fragment : this.tmp_localSiteFragmentList) {
-                        hstore_site.getPartitionExecutor(fragment.getPartitionId()).queueWork(ts, fragment);
+                    for (WorkFragment.Builder builder : this.tmp_localSiteFragmentBuilders) {
+                        hstore_site.getPartitionExecutor(builder.getPartitionId()).queueWork(ts, builder.build());
                     } // FOR
                     if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
@@ -3087,7 +3091,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (num_localPartition > 0) {
                     if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local partition",
                                      ts, num_localPartition));
-                    for (WorkFragment fragment : this.tmp_localWorkFragmentList) {
+                    for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
+                        WorkFragment fragment = fragmentBuilder.build();
                         ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
                         this.processWorkFragment(ts, fragment, fragmentParams);
                     } // FOR
@@ -3293,11 +3298,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         else if (status == Status.OK) {
             // We have to send a prepare message to all of our remote HStoreSites
             // We want to make sure that we don't go back to ones that we've already told
-            BitSet donePartitions = ts.getDonePartitions();
+            PartitionSet donePartitions = ts.getDonePartitions();
             tmp_preparePartitions.clear();
             for (Integer p : ts.getPredictTouchedPartitions()) {
-                if (donePartitions.get(p.intValue()) == false) {
-                    tmp_preparePartitions.add(p);
+                if (donePartitions.contains(p.intValue()) == false) {
+                    tmp_preparePartitions.add(p.intValue());
                 }
             } // FOR
 

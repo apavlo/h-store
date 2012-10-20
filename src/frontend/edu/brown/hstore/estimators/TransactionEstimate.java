@@ -29,17 +29,21 @@ public interface TransactionEstimate extends Poolable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Returns true if this estimate contains a list of queries
-     * that the transaction will execute
+     * Returns true if this estimate has a list of Statements that the transaction 
+     * will execute on the given partition
+     * @param partition TODO
      * @return
      */
-    public boolean hasQueryEstimate();
+    public boolean hasQueryEstimate(int partition);
     
     /**
-     * 
+     * Return a list of CountedStatement handles that the transaction is likely 
+     * to execute on the given partition.
+     * If there are no queries that need to execute on the given partition, then
+     * the returned list will be empty.
      * @return
      */
-    public List<CountedStatement> getEstimatedQueries(int partition);
+    public List<CountedStatement> getQueryEstimate(int partition);
     
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY

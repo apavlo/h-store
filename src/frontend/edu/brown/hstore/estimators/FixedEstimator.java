@@ -105,12 +105,12 @@ public abstract class FixedEstimator extends TransactionEstimator {
         // ----------------------------------------------------------------------------
         
         @Override
-        public boolean hasQueryEstimate() {
+        public boolean hasQueryEstimate(int partition) {
             return false;
         }
         
         @Override
-        public List<CountedStatement> getEstimatedQueries(int partition) {
+        public List<CountedStatement> getQueryEstimate(int partition) {
             // TODO Auto-generated method stub
             return null;
         }

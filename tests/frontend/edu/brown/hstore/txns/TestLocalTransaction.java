@@ -116,16 +116,16 @@ public class TestLocalTransaction extends BaseTestCase {
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
-        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-        plan.getWorkFragments(TXN_ID, fragments);
-        assertFalse(fragments.isEmpty());
+        List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
+        plan.getWorkFragmentsBuilders(TXN_ID, builders);
+        assertFalse(builders.isEmpty());
         
-        List<WorkFragment> ready = new ArrayList<WorkFragment>();
-        for (WorkFragment pf : fragments) {
-            boolean blocked = this.ts.addWorkFragment(pf);
+        List<WorkFragment.Builder> ready = new ArrayList<WorkFragment.Builder>();
+        for (WorkFragment.Builder builder : builders) {
+            boolean blocked = this.ts.addWorkFragment(builder);
             if (blocked == false) {
-                assertFalse(pf.toString(), ready.contains(pf));
-                ready.add(pf);
+                assertFalse(builder.toString(), ready.contains(builder));
+                ready.add(builder);
             }
         } // FOR
         assertFalse(ready.isEmpty());

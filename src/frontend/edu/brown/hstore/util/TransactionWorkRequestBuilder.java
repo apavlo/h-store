@@ -6,15 +6,20 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.voltdb.CatalogContext;
+
 import com.google.protobuf.ByteString;
 
+import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.utils.PartitionSet;
 
 public class TransactionWorkRequestBuilder {
 
-    private TransactionWorkRequest.Builder builder;
-    
     /**
      * Set of ParameterSet indexes that this TransactionWorkRequest needs
      */
@@ -24,6 +29,8 @@ public class TransactionWorkRequestBuilder {
      * Set of input DependencyIds needed by this TransactionWorkRequest
      */
     private final Set<Integer> inputs = new HashSet<Integer>();
+
+    private TransactionWorkRequest.Builder builder;
 
     /**
      * Get the TransactionWorkRequest.Builder
@@ -38,14 +45,19 @@ public class TransactionWorkRequestBuilder {
                                         .setSourcePartition(ts.getBasePartition())
                                         .setProcedureId(ts.getProcedureId());
             if (ts.hasDonePartitions()) {
-                BitSet donePartitions = ts.getDonePartitions();
-                for (int i = 0; i < donePartitions.length(); i++) {
-                    if (donePartitions.get(i)) 
-                        this.builder.addDonePartition(i);
-                } // FOR
+                this.builder.addAllDonePartition(ts.getDonePartitions());
             }
             this.param_indexes.clear();
             this.inputs.clear();
+            
+            // Populate query estimate
+//            TransactionEstimate t_estimate = ts.getLastEstimate();
+//            if (t_estimate != null && t_estimate.hasQueryEstimate()) {
+//                QueryEstimate.Builder est_builder = QueryEstimate.newBuilder();
+//                for (CountedStatement stmt : t_estimate.getEstimatedQueries(partition)) {
+//                    
+//                }
+//            }
         }
         return (this.builder);
     }

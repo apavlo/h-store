@@ -162,14 +162,14 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         // queries that the transaction is going to execute
         TransactionEstimate dtxnEst = dtxnState.getLastEstimate();
         assert(dtxnEst != null);
-        if (dtxnEst.hasQueryEstimate() == false) {
+        if (dtxnEst.hasQueryEstimate(null) == false) {
             if (debug.get())
                 LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));
             return (false);
         }
         TransactionEstimate tsEst = tsState.getInitialEstimate();
         assert(tsEst != null);
-        if (tsEst.hasQueryEstimate() == false) {
+        if (tsEst.hasQueryEstimate(null) == false) {
             if (debug.get())
                 LOG.debug(String.format("No query list estimate is available for candidate %s", ts));
             return (false);
@@ -184,8 +184,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
             return (false);
         }
         
-        List<CountedStatement> queries0 = dtxnEst.getEstimatedQueries(partitionId);
-        List<CountedStatement> queries1 = tsEst.getEstimatedQueries(partitionId);
+        List<CountedStatement> queries0 = dtxnEst.getQueryEstimate(partitionId);
+        List<CountedStatement> queries1 = tsEst.getQueryEstimate(partitionId);
         
         return this.canExecute(dtxn, queries0, ts, queries1);
     }

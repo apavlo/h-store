@@ -282,12 +282,12 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
 
     @Override
-    public boolean hasQueryEstimate() {
+    public boolean hasQueryEstimate(int partition) {
         return false;
     }
     
     @Override
-    public List<CountedStatement> getEstimatedQueries(int partition) {
+    public List<CountedStatement> getQueryEstimate(int partition) {
         throw new NotImplementedException(ClassUtil.getCurrentMethodName() + " is not implemented");
     }
 

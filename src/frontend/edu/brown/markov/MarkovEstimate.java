@@ -72,12 +72,13 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     protected PartitionSet read_partitionset;
     protected PartitionSet write_partitionset;
     
-    private List<CountedStatement> query_estimate;
+    private List<CountedStatement> query_estimate[];
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS + INITIALIZATION
     // ----------------------------------------------------------------------------
     
+    @SuppressWarnings("unchecked")
     public MarkovEstimate(CatalogContext catalogContext) {
         this.catalogContext = catalogContext;
         
@@ -85,6 +86,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         this.finished = new float[this.catalogContext.numberOfPartitions];
         this.read = new float[this.catalogContext.numberOfPartitions];
         this.write = new float[this.catalogContext.numberOfPartitions];
+        this.query_estimate = (List<CountedStatement>[])new List<?>[this.catalogContext.numberOfPartitions];
+        
         this.finish(); // initialize!
         this.initializing = false;
     }
@@ -124,6 +127,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
             this.finished[i] = MarkovUtil.NULL_MARKER;
             this.read[i] = MarkovUtil.NULL_MARKER;
             this.write[i] = MarkovUtil.NULL_MARKER;
+            if (this.query_estimate[i] != null) this.query_estimate[i].clear();
         } // FOR
         this.confidence = MarkovUtil.NULL_MARKER;
         this.singlepartition = MarkovUtil.NULL_MARKER;
@@ -140,7 +144,6 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         if (this.most_touched_partitionset != null) this.most_touched_partitionset.clear();
         if (this.read_partitionset != null) this.read_partitionset.clear();
         if (this.write_partitionset != null) this.write_partitionset.clear();
-        if (this.query_estimate != null) this.query_estimate.clear();
         this.valid = true;
     }
     
@@ -173,24 +176,24 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     @Override
-    public boolean hasQueryEstimate() {
-        return (this.path.isEmpty() == false);
+    public boolean hasQueryEstimate(int partition) {
+        return (this.path.isEmpty() == false && this.touched_partitions.contains(partition));
     }
     
     @Override
-    public List<CountedStatement> getEstimatedQueries(int partition) {
-        if (this.query_estimate == null) {
-            this.query_estimate = new ArrayList<CountedStatement>();
+    public List<CountedStatement> getQueryEstimate(int partition) {
+        if (this.query_estimate[partition] == null) {
+            this.query_estimate[partition] = new ArrayList<CountedStatement>();
         }
-        if (this.query_estimate.isEmpty()) {
+        if (this.query_estimate[partition].isEmpty()) {
             for (MarkovVertex v : this.path) {
                 PartitionSet partitions = v.getPartitions();
                 if (partitions.contains(partition)) {
-                    this.query_estimate.add(v.getCountedStatement());
+                    this.query_estimate[partition].add(v.getCountedStatement());
                 }
             } // FOR
         }
-        return (this.query_estimate);
+        return (this.query_estimate[partition]);
     }
     
     protected CatalogContext getCatalogContext() {

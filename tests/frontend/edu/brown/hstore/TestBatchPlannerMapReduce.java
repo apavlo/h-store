@@ -73,8 +73,8 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
-        List<WorkFragment> tasks = new ArrayList<WorkFragment>(); 
-        plan.getWorkFragments(TXN_ID, tasks);
+        List<WorkFragment.Builder> tasks = new ArrayList<WorkFragment.Builder>(); 
+        plan.getWorkFragmentsBuilders(TXN_ID, tasks);
         int local_frags = TestBatchPlanner.getLocalFragmentCount(tasks, LOCAL_PARTITION);
         int remote_frags = TestBatchPlanner.getRemoteFragmentCount(tasks, LOCAL_PARTITION);
         
