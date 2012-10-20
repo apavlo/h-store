@@ -2575,15 +2575,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             // StmtParameter
             // Format: <Procedure>.<Statement>.<Item>
             else if (item instanceof StmtParameter) {
-                ret = String.format("%s.%s.#%02d",
+                ret = String.format("%s{%s.%s.#%02d}",
+                                    item.getClass().getSimpleName(),
                                     item.getParent().getParent().getName(),
                                     item.getParent().getName(),
                                     ((StmtParameter)item).getIndex());
             }    
-            // ProcParameter/StmtParameter
+            // ProcParameter
             // Format: <Parent>.<Item>
             else if (item instanceof ProcParameter) {
-                ret = String.format("%s.%s", item.getParent().getName(), (include_class ? item : item.getName()));
+                ret = String.format("%s{%s.#%02d}",
+                                    item.getClass().getSimpleName(),
+                                    item.getParent().getName(),
+                                    ((ProcParameter)item).getIndex());
             }
             // PlanFragment
             // Format: <Procedure>.<Statement>.[Fragment #XYZ]

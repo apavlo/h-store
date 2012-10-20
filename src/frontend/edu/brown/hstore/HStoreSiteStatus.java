@@ -979,7 +979,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Map<String, TypedObjectPool<?>> pools = hstore_site.getObjectPools().getGlobalPools(); 
         
         // MarkovPathEstimators
-        pools.put("Estimators", (TypedObjectPool<?>)MarkovEstimator.POOL_ESTIMATORS); 
+        // pools.put("Estimators", (TypedObjectPool<?>)MarkovEstimator.POOL_ESTIMATORS); 
 
         // TransactionEstimator.States
         pools.put("EstimationStates", (TypedObjectPool<?>)MarkovEstimator.POOL_STATES);

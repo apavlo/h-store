@@ -17,8 +17,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.MarkovEstimatorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionSet;
 
 public class MarkovEstimatorProfilerStats extends StatsSource {
     private static final Logger LOG = Logger.getLogger(MarkovEstimatorProfilerStats.class);
@@ -77,7 +75,7 @@ public class MarkovEstimatorProfilerStats extends StatsSource {
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
         Integer partition = (Integer)rowKey;
         TransactionEstimator est = hstore_site.getPartitionExecutor(partition).getTransactionEstimator();
-        MarkovEstimatorProfiler profiler = ((MarkovEstimator)est).getProfiler();
+        MarkovEstimatorProfiler profiler = ((MarkovEstimator)est).getDebugContext().getProfiler();
         assert(profiler != null);
         
         int offset = columnNameToIndex.get("PARTITION");

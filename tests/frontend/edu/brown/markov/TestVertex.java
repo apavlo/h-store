@@ -1,6 +1,5 @@
 package edu.brown.markov;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -19,7 +18,6 @@ import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.markov.MarkovVertex.Type;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
@@ -72,8 +70,11 @@ public class TestVertex extends BaseTestCase {
             if (!instance_ctr.containsKey(catalog_stmt)) {
                 instance_ctr.put(catalog_stmt, new AtomicInteger(0));
             }
-            this.vertices[i] = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, instance_ctr.get(catalog_stmt).getAndIncrement(),
-                                          Arrays.asList(this.partitions[i]), new HashSet<Integer>());
+            this.vertices[i] = new MarkovVertex(catalog_stmt,
+                                                MarkovVertex.Type.QUERY,
+                                                instance_ctr.get(catalog_stmt).getAndIncrement(),
+                                                new PartitionSet(this.partitions[i]),
+                                                new PartitionSet());
         } // FOR
         
         graph = new MarkovGraph(catalog_proc);
@@ -159,8 +160,8 @@ public class TestVertex extends BaseTestCase {
             MarkovVertex new_v = new MarkovVertex((Statement)this.vertices[i].getCatalogItem(),
                     this.vertices[i].getType(),
                     this.vertices[i].getQueryCounter(),
-                    new HashSet<Integer>(this.vertices[i].getPartitions()),
-                    CollectionUtil.addAll(new HashSet<Integer>(), 1));
+                    new PartitionSet(this.vertices[i].getPartitions()),
+                    PartitionSet.singleton(1));
             for (boolean past_partitions_flag : new boolean[]{false, true}) {
                 // If we're at the first vertex, then isEqual() should always return true regardless
                 // of whether we are using the past_partitions_flag or not
@@ -216,7 +217,12 @@ public class TestVertex extends BaseTestCase {
     public void testResetAllProbabilities() {
         Procedure catalog_proc = this.getProcedure(GetNewDestination.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "GetData");
-        MarkovVertex v = new MarkovVertex(catalog_stmt, Type.QUERY, 0, CatalogUtil.getAllPartitionIds(catalog_stmt), new HashSet<Integer>());
+        MarkovVertex v = new MarkovVertex(catalog_stmt,
+                                          Type.QUERY,
+                                          0,
+                                          CatalogUtil.getAllPartitionIds(catalog_stmt),
+                                          new PartitionSet());
+        
         
         // System.err.println(start.debug());
         

@@ -1,7 +1,6 @@
 package edu.brown.markov;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +23,7 @@ import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
@@ -103,7 +103,7 @@ public class TestMarkovGraph extends BaseTestCase {
                 {
                     this.put(MarkovVertex.Probability.DONE, done);
                     this.put(MarkovVertex.Probability.WRITE, write);
-                    this.put(MarkovVertex.Probability.READ, read_only);
+                    this.put(MarkovVertex.Probability.READ_ONLY, read_only);
                 }
             };
             for (Entry<MarkovVertex.Probability, Float> e : probabilities.entrySet()) {
@@ -204,11 +204,11 @@ public class TestMarkovGraph extends BaseTestCase {
         MarkovVertex stop = testGraph.getCommitVertex();
 
         Statement catalog_stmt = CollectionUtil.first(this.catalog_proc.getStatements());
-        Set<Integer> all_previous = new HashSet<Integer>();
+        PartitionSet all_previous = new PartitionSet();
         for (int i = 0; i < 10; i++) {
-            Set<Integer> partitions = new HashSet<Integer>();
+            PartitionSet partitions = new PartitionSet();
             partitions.add(i % NUM_PARTITIONS);
-            Set<Integer> previous = new HashSet<Integer>(all_previous);
+            PartitionSet previous = new PartitionSet(all_previous);
             
             MarkovVertex current = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, i, partitions, previous);
             testGraph.addVertex(current);
@@ -245,10 +245,8 @@ public class TestMarkovGraph extends BaseTestCase {
          graph.initialize();
                 
          MarkovVertex v0 = graph.getStartVertex();
-         MarkovVertex v1 = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, 0, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
-                                                                    CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
-         MarkovVertex v2 = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, 1, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
-                                                                    CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
+         MarkovVertex v1 = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, 0, PartitionSet.singleton(BASE_PARTITION),PartitionSet.singleton(BASE_PARTITION));
+         MarkovVertex v2 = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, 1, PartitionSet.singleton(BASE_PARTITION),PartitionSet.singleton(BASE_PARTITION));
 
          MarkovVertex last = null;
          for (MarkovVertex v : new MarkovVertex[]{v0, v1, v2, graph.getCommitVertex(), null}) {

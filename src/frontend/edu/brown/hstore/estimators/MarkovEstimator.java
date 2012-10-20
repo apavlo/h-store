@@ -19,6 +19,7 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
@@ -64,7 +65,7 @@ public class MarkovEstimator extends TransactionEstimator {
      */
     private static final double RECOMPUTE_TOLERANCE = (double) 0.5;
 
-    public static TypedObjectPool<MarkovPathEstimator> POOL_ESTIMATORS;
+    private final TypedObjectPool<MarkovPathEstimator> POOL_ESTIMATORS;
     
     public static TypedObjectPool<MarkovEstimatorState> POOL_STATES;
     
@@ -117,6 +118,10 @@ public class MarkovEstimator extends TransactionEstimator {
         if (debug.get()) LOG.debug(String.format("Created ParameterManglers for %d procedures",
                                    this.manglers.size()));
         
+        if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
+        TypedPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.catalogContext, this.p_estimator);
+        POOL_ESTIMATORS = new TypedObjectPool<MarkovPathEstimator>(m_factory, HStoreConf.singleton().site.pool_pathestimators_idle);
+        
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
             if (POOL_STATES == null) {
@@ -124,11 +129,6 @@ public class MarkovEstimator extends TransactionEstimator {
                 TypedPoolableObjectFactory<MarkovEstimatorState> s_factory = new MarkovEstimatorState.Factory(this.catalogContext); 
                 POOL_STATES = new TypedObjectPool<MarkovEstimatorState>(s_factory,
                         HStoreConf.singleton().site.pool_estimatorstates_idle);
-                
-                if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
-                TypedPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.catalogContext, this.p_estimator);
-                POOL_ESTIMATORS = new TypedObjectPool<MarkovPathEstimator>(m_factory,
-                        HStoreConf.singleton().site.pool_pathestimators_idle);
             }
         } // SYNC
         
@@ -569,10 +569,6 @@ public class MarkovEstimator extends TransactionEstimator {
     // HELPER METHODS
     // ----------------------------------------------------------------------------
     
-    public MarkovEstimatorProfiler getProfiler() {
-        return (this.profiler);
-    }
-    
     public MarkovEstimatorState processTransactionTrace(TransactionTrace txn_trace) throws Exception {
         Long txn_id = txn_trace.getTransactionId();
         if (d) {
@@ -625,6 +621,29 @@ public class MarkovEstimator extends TransactionEstimator {
             i++;
         } // FOR
         return (readOnly);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    public class Debug implements DebugContext {
+    
+        public TypedObjectPool<MarkovPathEstimator> getEstimatorPool() {
+            return (POOL_ESTIMATORS);
+        }
+        
+        public MarkovEstimatorProfiler getProfiler() {
+            return (profiler);
+        }
+    } // CLASS
+    
+    private MarkovEstimator.Debug cachedDebugContext;
+    public MarkovEstimator.Debug getDebugContext() {
+        if (cachedDebugContext == null) {
+            cachedDebugContext = new MarkovEstimator.Debug(); 
+        }
+        return cachedDebugContext;
     }
 
 }

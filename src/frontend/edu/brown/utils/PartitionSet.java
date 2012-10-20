@@ -56,8 +56,11 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     }
     
     public PartitionSet(Collection<Integer> partitions) {
-        for (Integer partition : partitions)
-            this.add(partition);
+        this.addAll(partitions);
+    }
+    
+    public PartitionSet(PartitionSet partitions) {
+        this.addAll(partitions);
     }
     
     public PartitionSet(Integer...partitions) {
@@ -187,10 +190,10 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
         return (true);
     }
     @Override
-    public boolean addAll(Collection<? extends Integer> c) {
+    public boolean addAll(Collection<? extends Integer> partitions) {
         boolean ret = true;
-        for (Integer partition : c) {
-            ret = this.add(partition) && ret;
+        for (Integer partition : partitions) {
+            ret = this.add(partition.intValue()) && ret;
         }
         return (ret);
     }

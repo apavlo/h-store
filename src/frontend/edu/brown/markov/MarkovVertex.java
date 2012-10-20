@@ -2,7 +2,6 @@ package edu.brown.markov;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -216,7 +215,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @param xact_count
      */
     public MarkovVertex(Statement catalog_stmt, Integer[] partitions, Integer[] past_partitions) {
-        this(catalog_stmt, Type.QUERY, 0, Arrays.asList(partitions), Arrays.asList(past_partitions));
+        this(catalog_stmt, Type.QUERY, 0, new PartitionSet(partitions), new PartitionSet(past_partitions));
     }
 
     /**
@@ -227,7 +226,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @param partitions - the partitions this procedure touches
      * @param past_partitions - the partitions that we've touched in the past
      */
-    public MarkovVertex(Statement catalog_stmt, MarkovVertex.Type type, int query_instance_index, Collection<Integer> partitions, Collection<Integer> past_partitions) {
+    public MarkovVertex(Statement catalog_stmt, MarkovVertex.Type type, int query_instance_index, PartitionSet partitions, PartitionSet past_partitions) {
         super(catalog_stmt);
         this.type = type;
         if (partitions != null) this.partitions.addAll(partitions);
@@ -462,7 +461,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @param other_queryInstanceIndex
      * @return
      */
-    public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex) {
+    public boolean isEqual(Statement other_stmt, PartitionSet other_partitions, PartitionSet other_past, int other_queryInstanceIndex) {
         return (this.isEqual(other_stmt, other_partitions, other_past, other_queryInstanceIndex, MarkovGraph.USE_PAST_PARTITIONS));
     }
     
@@ -478,7 +477,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @param use_past_partitions
      * @return
      */
-    public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex, boolean use_past_partitions) {
+    public boolean isEqual(Statement other_stmt, PartitionSet other_partitions, PartitionSet other_past, int other_queryInstanceIndex, boolean use_past_partitions) {
         return (other_queryInstanceIndex == this.counter && 
                 other_stmt.equals(this.catalog_item) &&
                 this.partitions.equals(other_partitions) &&
