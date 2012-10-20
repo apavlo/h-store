@@ -251,7 +251,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * Runtime Estimators
      */
     private final PartitionEstimator p_estimator;
-    private final TransactionEstimator t_estimator;
+    private final TransactionEstimator localTxnEstimator;
     private EstimationThresholds thresholds = EstimationThresholds.factory();
     
     // Each execution site manages snapshot using a SnapshotSiteProcessor
@@ -541,7 +541,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.specExecChecker = null;
         this.specExecScheduler = null;
         this.p_estimator = null;
-        this.t_estimator = null;
+        this.localTxnEstimator = null;
         this.m_snapshotter = null;
         this.thresholds = null;
         this.site = null;
@@ -605,7 +605,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // where the transaction is in its execution workflow. This allows us to 
         // make predictions about what kind of things we expect the xact to do in 
         // the future
-        this.t_estimator = t_estimator; 
+        this.localTxnEstimator = t_estimator; 
         
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
@@ -1268,7 +1268,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         return (this.p_estimator);
     }
     public TransactionEstimator getTransactionEstimator() {
-        return (this.t_estimator);
+        return (this.localTxnEstimator);
     }
     
     public final BackendTarget getBackendTarget() {
@@ -2517,10 +2517,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         EstimatorState t_state = ts.getEstimatorState();
-        if (this.t_estimator != null && t_state != null) {
+        if (this.localTxnEstimator != null && t_state != null) {
             if (needs_profiling) ts.profiler.startExecEstimation();
             try {
-                this.t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions(), true);
+                this.localTxnEstimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions(), true);
             } finally {
                 if (needs_profiling) ts.profiler.stopExecEstimation();
             }

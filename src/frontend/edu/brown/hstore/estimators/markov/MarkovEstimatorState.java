@@ -61,8 +61,6 @@ public final class MarkovEstimatorState extends EstimatorState {
     
     /**
      * Constructor
-     * @param markov - the graph that this txn is using
-     * @param estimated_path - the initial path estimation from MarkovPathEstimator
      */
     private MarkovEstimatorState(CatalogContext catalogContext) {
         super(catalogContext);
