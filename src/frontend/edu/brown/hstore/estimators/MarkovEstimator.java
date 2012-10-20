@@ -415,7 +415,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // that the path will be the same. We don't need to recalculate everything
         MarkovGraph markov = state.getMarkovGraph();
         boolean compute_path = true;
-        if (currentVertex.isStartVertex() == false) {
+        if (hstore_conf.site.markov_fast_path && currentVertex.isStartVertex() == false) {
             List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
             if (initialPath.contains(currentVertex)) {
                 if (d) LOG.debug(String.format("%s - Using fast path estimation for %s",

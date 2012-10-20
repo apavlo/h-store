@@ -66,6 +66,7 @@ public class TestMarkovEstimator extends BaseTestCase {
         
         HStoreConf hstore_conf = HStoreConf.singleton();
         hstore_conf.site.markov_path_caching = false;
+        hstore_conf.site.markov_fast_path = false;
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
@@ -323,7 +324,7 @@ public class TestMarkovEstimator extends BaseTestCase {
                 assertTrue(debug, est.isWriteProbabilitySet(partition));
                 assertTrue(debug, est.isReadOnlyProbabilitySet(partition));
                 
-                if (touched.contains(partition)) {
+                if (touched.contains(partition) && (is_last == false || partition == state.getBasePartition())) {
                     assertFalse(debug, est.isFinishPartition(thresholds, partition));
                     assertTrue(debug, est.isWritePartition(thresholds, partition));
                 } else {
@@ -338,7 +339,7 @@ public class TestMarkovEstimator extends BaseTestCase {
      */
     @Test
     public void testProcessTransactionTrace() throws Exception {
-        TransactionTrace txn_trace = CollectionUtil.first(workload.getTransactions());
+        TransactionTrace txn_trace = singlep_trace;
         assertNotNull(txn_trace);
         MarkovEstimatorState s = this.t_estimator.processTransactionTrace(txn_trace);
         assertNotNull(s);
@@ -366,7 +367,7 @@ public class TestMarkovEstimator extends BaseTestCase {
             assertNotNull(est);
             assertTrue(est.toString(), est.isSinglePartitionProbabilitySet());
             assertTrue(est.toString(), est.isAbortProbabilitySet());
-            assertTrue(est.toString(), est.getSinglePartitionProbability() < 1.0f);
+            assertTrue(est.toString(), est.isSinglePartitioned(thresholds));
             assertTrue(est.toString(), est.isConfidenceCoefficientSet());
             assertTrue(est.toString(), est.getConfidenceCoefficient() >= 0f);
             assertTrue(est.toString(), est.getConfidenceCoefficient() <= 1f);

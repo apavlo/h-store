@@ -771,6 +771,14 @@ public final class HStoreConf {
         public double markov_path_caching_threshold;
         
         @ConfigProperty(
+            description="If this is set to true, the MarkovEstimator will attempt to use the initial " +
+            		    "path estimate to quickly calculate the new path for a running transaction.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean markov_fast_path;
+        
+        @ConfigProperty(
             description="The minimum number of queries that must be in a batch for the TransactionEstimator " +
                         "to cache the path segment in the procedure's MarkovGraph. Provides a minor speed improvement " +
                         "for large batches with little variability in their execution paths.",
