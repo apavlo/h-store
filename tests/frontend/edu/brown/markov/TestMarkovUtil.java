@@ -53,7 +53,7 @@ public class TestMarkovUtil extends BaseTestCase {
 //        System.err.println("MARKOV FILE: " + temp);
         
         // Now read it back in make sure everything is there
-        Map<Integer, MarkovGraphsContainer> clone = MarkovUtil.load(catalog_db, temp.getAbsolutePath());
+        Map<Integer, MarkovGraphsContainer> clone = MarkovUtil.load(catalog_db, temp);
         assertNotNull(clone);
         assertEquals(markovs.size(), clone.size());
         assert(markovs.keySet().containsAll(clone.keySet()));

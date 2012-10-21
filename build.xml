@@ -2076,6 +2076,7 @@ UTILITIES
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="markov=${markov}" />
         <arg value="markov.output=${output}" />
         <arg value="markov.global=${global}" />
         <classpath refid='project.classpath' />

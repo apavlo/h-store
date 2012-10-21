@@ -134,7 +134,7 @@ public abstract class HStore {
                 long start = System.currentTimeMillis();
                 try {
                     markovs = MarkovGraphContainersUtil.loadIds(catalogContext.database,
-                                                                path.getAbsolutePath(), 
+                                                                path, 
                                                                 singleton.getLocalPartitionIds());
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);

@@ -1,5 +1,6 @@
 package edu.brown.hstore.estimators.markov;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -684,7 +685,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalogContext);
         
         // Create MarkovGraphsContainer
-        String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
+        File input_path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
         Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalog_db, input_path);
         
         // Blah blah blah...

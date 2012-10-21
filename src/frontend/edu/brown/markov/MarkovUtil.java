@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -211,7 +212,7 @@ public abstract class MarkovUtil {
      * @return
      * @throws Exception
      */
-    public static MarkovGraphsContainer loadId(Database catalog_db, String input_path, int id) throws Exception {
+    public static MarkovGraphsContainer loadId(Database catalog_db, File input_path, int id) throws Exception {
         Set<Integer> idset = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), Integer.valueOf(id));
         Map<Integer, MarkovGraphsContainer> markovs = MarkovGraphContainersUtil.load(catalog_db, input_path, null, idset);
         assert(markovs.size() == 1);
@@ -219,7 +220,7 @@ public abstract class MarkovUtil {
         return (markovs.get(id));
     }
     
-    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path) throws Exception {
+    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, File input_path) throws Exception {
         return (MarkovGraphContainersUtil.load(catalog_db, input_path, null, null));
     }
     

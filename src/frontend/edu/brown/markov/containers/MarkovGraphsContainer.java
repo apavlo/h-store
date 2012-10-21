@@ -384,7 +384,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
         args.require(ArgumentsParser.PARAM_CATALOG,
                      ArgumentsParser.PARAM_MARKOV);
         
-        Map<Integer, MarkovGraphsContainer> all_markovs = MarkovUtil.load(args.catalog_db, args.getParam(ArgumentsParser.PARAM_MARKOV));
+        Map<Integer, MarkovGraphsContainer> all_markovs = MarkovUtil.load(args.catalog_db, args.getFileParam(ArgumentsParser.PARAM_MARKOV));
         int cnt_invalid = 0;
         int cnt_total = 0;
         boolean save = true;

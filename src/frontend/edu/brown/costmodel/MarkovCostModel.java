@@ -1,5 +1,6 @@
 package edu.brown.costmodel;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -818,7 +819,7 @@ public class MarkovCostModel extends AbstractCostModel {
             partitions = args.catalogContext.getAllPartitionIds();
         }
 
-        final String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
+        final File input_path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
         final Map<Integer, MarkovGraphsContainer> m = MarkovGraphContainersUtil.load(args.catalog_db, input_path, procedures, partitions);
         assert (m != null);
         final boolean global = m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);

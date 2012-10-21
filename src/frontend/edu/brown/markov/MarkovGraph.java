@@ -793,7 +793,20 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
             containerClass = AuctionMarkMarkovGraphsContainer.class;
         }
         assert(containerClass != null);
-        Map<Integer, MarkovGraphsContainer> markovs_map = MarkovGraphContainersUtil.createMarkovGraphsContainers(args.catalog_db, args.workload, p_estimator, containerClass);
+        
+        Map<Integer, MarkovGraphsContainer> markovs_map = null;
+
+        // Check whether we want to update an existing collection of MarkovGraphsContainers
+        if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
+            File path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
+            markovs_map = MarkovGraphContainersUtil.load(args.catalog_db, path);
+        }
+        
+        if (markovs_map == null) {
+            markovs_map = MarkovGraphContainersUtil.createMarkovGraphsContainers(args.catalog_db, args.workload, p_estimator, containerClass);
+        } else {
+            markovs_map = MarkovGraphContainersUtil.createMarkovGraphsContainers(args.catalog_db, args.workload, p_estimator, containerClass, markovs_map);
+        }
         
         // Save the graphs
         assert(markovs_map != null);

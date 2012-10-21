@@ -118,6 +118,8 @@
 <arg value="site.anticache_threshold=${site.anticache_threshold}" />
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
+<arg value="site.network_startup_wait=${site.network_startup_wait}" />
+<arg value="site.network_startup_retries=${site.network_startup_retries}" />
 <arg value="site.network_profiling=${site.network_profiling}" />
 <arg value="site.network_txn_initialization=${site.network_txn_initialization}" />
 <arg value="site.txn_client_debug=${site.txn_client_debug}" />
