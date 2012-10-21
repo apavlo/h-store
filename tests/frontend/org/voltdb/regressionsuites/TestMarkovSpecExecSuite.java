@@ -9,6 +9,7 @@ import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
+import org.voltdb.ClientResponseDebug;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
@@ -51,6 +52,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         int w_id = 1;
         int d_id = 1;
         ClientResponse cresponse = null;
+        ClientResponseDebug crDebug = null;
         String procName = null;
         Object params[] = null;
         
@@ -107,7 +109,8 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         cresponse = CollectionUtil.first(dtxnResponse);
         assertNotNull(cresponse);
         assertFalse(cresponse.isSinglePartition());
-        assertFalse(cresponse.isSpeculative());
+        assertTrue(cresponse.hasDebug());
+        assertFalse(cresponse.getDebug().isSpeculative());
         
         // Spin and wait for the single-p txns to finish
         while (spLatch.get() > 0) {
@@ -123,8 +126,10 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         boolean last_spec = false;
         Histogram<Boolean> specExecHistogram = new Histogram<Boolean>(); 
         for (ClientResponse cr : spResponse) {
-            specExecHistogram.put(cr.isSpeculative());
-            if (cr.isSpeculative()) {
+            assertTrue(cr.hasDebug());
+            crDebug = cr.getDebug();
+            specExecHistogram.put(crDebug.isSpeculative());
+            if (crDebug.isSpeculative()) {
                 if (first_spec == false) {
                     first_spec = true;
                 }
@@ -143,6 +148,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestMarkovSpecExecSuite.class);
         builder.setGlobalConfParameter("client.scalefactor", SCALEFACTOR);
+        builder.setGlobalConfParameter("site.txn_client_debug", true);
         builder.setGlobalConfParameter("site.specexec_enable", true);
         builder.setGlobalConfParameter("site.specexec_idle", true);
         builder.setGlobalConfParameter("site.specexec_ignore_all_local", false);

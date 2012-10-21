@@ -54,7 +54,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private boolean singlepartition = true;
     private int basePartition = -1;
     private int restartCounter = 0;
-    private boolean speculative = false;
     private ClientResponseDebug debug = null;
 
     /** opaque data optionally provided by and returned to the client */
@@ -117,7 +116,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.appStatus = appStatus;
         this.appStatusString = appStatusString;
         this.restartCounter = ts.getRestartCounter();
-        this.speculative = ts.isSpeculative();
         this.singlepartition = ts.isPredictSinglePartition();
         this.setResults(status, results, statusString, e);
     }
@@ -253,15 +251,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         restartCounter = restarts;
     }
     
-    @Override
-    public boolean isSpeculative() {
-        return (this.speculative);
-    }
-    
-    public void setSpeculative(boolean val) {
-        this.speculative = val;
-    }
-    
     // ----------------------------------------------------------------------------
     // SPECIAL DEBUG HANDLE
     // ----------------------------------------------------------------------------
@@ -290,7 +279,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         clientHandle = in.readLong();       // 8 bytes
         singlepartition = in.readBoolean(); // 1 byte
         basePartition = in.readInt();       // 4 bytes
-        speculative = in.readBoolean();     // 1 byte
         status = Status.valueOf(in.readByte()); // 1 byte
         
         byte presentFields = in.readByte(); // 1 byte
@@ -329,7 +317,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
         out.writeInt(basePartition);
-        out.writeBoolean(speculative);
         out.write((byte)status.ordinal());
         
         byte presentFields = 0;
@@ -373,7 +360,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
                         (this.statusString == null || this.statusString.isEmpty() ? "" : " / " + this.statusString));
         m.put("Handle", this.clientHandle);
         m.put("Restart Counter", this.restartCounter);
-        m.put("Speculatively Executed", this.speculative);
         m.put("Single-Partition", this.singlepartition);
         m.put("Base Partition", this.basePartition);
         m.put("Exception", m_exception);
@@ -431,7 +417,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Status status) {
-        b.put(24, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 + 1 = 24 
+        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 = 23 
     }
     
     // ----------------------------------------------------------------------------

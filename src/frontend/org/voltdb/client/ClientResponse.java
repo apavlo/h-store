@@ -120,12 +120,6 @@ public interface ClientResponse extends Poolable {
      */
     public int getRestartCounter();
     
-    /**
-     * Returns true if this transaction was executed speculatively by the system.
-     * @return
-     */
-    public boolean isSpeculative();
-    
     public boolean hasDebug();
     public ClientResponseDebug getDebug();
     

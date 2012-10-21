@@ -78,6 +78,7 @@ public class ClientResponseDebug implements FastSerializable {
     private boolean predict_readOnly;
     private final PartitionSet predict_touchedPartitions = new PartitionSet();
     
+    private boolean speculative = false;
     private final PartitionSet exec_touchedPartitions = new PartitionSet();
     
     // ----------------------------------------------------------------------------
@@ -95,6 +96,7 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_abortable = ts.isPredictAbortable();
         this.predict_readOnly = ts.isPredictReadOnly();
         this.predict_touchedPartitions.addAll(ts.getPredictTouchedPartitions());
+        this.speculative = ts.isSpeculative();
         this.exec_touchedPartitions.addAll(ts.getTouchedPartitions().values());
         
         EstimatorState t_state = ts.getEstimatorState();
@@ -161,6 +163,10 @@ public class ClientResponseDebug implements FastSerializable {
         return (result);
     }
     
+    public boolean isSpeculative() {
+        return (this.speculative);
+    }
+    
     // ----------------------------------------------------------------------------
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
@@ -172,6 +178,7 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_abortable = in.readBoolean();
         this.predict_readOnly = in.readBoolean();
         this.predict_touchedPartitions.readExternal(in);
+        this.speculative = in.readBoolean();
         this.exec_touchedPartitions.readExternal(in);
         
         // QUERY ESTIMATES
@@ -194,6 +201,7 @@ public class ClientResponseDebug implements FastSerializable {
         out.writeBoolean(this.predict_abortable);
         out.writeBoolean(this.predict_readOnly);
         this.predict_touchedPartitions.writeExternal(out);
+        out.writeBoolean(speculative);
         this.exec_touchedPartitions.writeExternal(out);
         
         // QUERY ESTIMATES
@@ -217,6 +225,7 @@ public class ClientResponseDebug implements FastSerializable {
         m.put("Predict Touched Partitions", this.predict_touchedPartitions);
         m.put("Predict Read Only", this.predict_readOnly);
         m.put("Predict Abortable", this.predict_abortable);
+        m.put("Speculatively Executed", this.speculative);
         m.put("Remote Query Estimates", this.remote_estimates);
         maps.add(m);
         

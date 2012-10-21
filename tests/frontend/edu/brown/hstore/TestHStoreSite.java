@@ -43,7 +43,6 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 public class TestHStoreSite extends BaseTestCase {
