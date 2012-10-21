@@ -2,7 +2,9 @@ package org.voltdb.regressionsuites;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.Test;
@@ -12,16 +14,20 @@ import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseDebug;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.regressionsuites.specexecprocs.Sleeper;
 
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 /**
@@ -39,6 +45,62 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
      */
     public TestMarkovSpecExecSuite(String name) {
         super(name);
+    }
+    
+    /**
+     * testRemoteQueryEstimates
+     */
+    public void testRemoteQueryEstimates() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
+        int w_id = 1;
+        int d_id = 1;
+        
+        // Check to make sure that the system sends query estimates to remote sites for dtxns
+        // This may not work correctly for one site tests
+        String procName = neworder.class.getSimpleName();
+        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id);
+        ClientResponse cr = client.callProcedure(procName, params);
+        assertFalse(cr.isSinglePartition());
+        assertTrue(cr.hasDebug());
+        
+        ClientResponseDebug crDebug = cr.getDebug();
+        assertFalse(crDebug.toString(), crDebug.isPredictSinglePartition());
+        assertFalse(crDebug.toString(), crDebug.isSpeculative());
+        assertEquals(crDebug.toString(), crDebug.getPredictTouchedPartitions(), crDebug.getExecTouchedPartitions());
+        assertEquals(crDebug.toString(), crDebug.getPredictTouchedPartitions(), crDebug.getExecTouchedPartitions());
+        
+        Procedure catalog_proc = catalogContext.procedures.getIgnoreCase(procName);
+        Set<Statement> expectedStmts = new HashSet<Statement>();
+        expectedStmts.add(catalog_proc.getStatements().getIgnoreCase("getStockInfo"));
+        expectedStmts.add(catalog_proc.getStatements().getIgnoreCase("updateStock"));
+        
+        for (int partition : crDebug.getExecTouchedPartitions()) {
+            List<CountedStatement> query_estimates[] = crDebug.getRemoteEstimates(catalogContext, partition);
+            assertNotNull(query_estimates);
+
+//            System.err.println("PARTITION: " + partition);
+//            for (List<CountedStatement> queries : query_estimates) {
+//                System.err.println(StringUtil.join("\n", queries));
+//            } // FOR
+//            System.err.println();
+
+            if (partition == cr.getBasePartition()) {
+                // We can ignore anything on the base partition
+            } else {
+                // We should only see updateStock and getStockInfo on the remote partition
+                Set<CountedStatement> seenQueries = new HashSet<CountedStatement>();
+                for (List<CountedStatement> queries : query_estimates) {
+                    for (CountedStatement cs : queries) {
+                        assertTrue(cs.toString(), expectedStmts.contains(cs.statement));
+                        assertFalse(cs.toString(), seenQueries.contains(cs));
+                        seenQueries.add(cs);
+                    } // FOR
+                } // FOR
+                assertFalse(seenQueries.isEmpty());
+            }
+        } // FOR
     }
     
     /**
@@ -96,9 +158,9 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
             // Just sleep for a little bit so that we don't blast the cluster
             ThreadUtil.sleep(1000);
             
-//            spLatch.incrementAndGet();
-//            params = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id+1);
-//            client.callProcedure(spCallback, procName, params);
+            spLatch.incrementAndGet();
+            params = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id+1);
+            client.callProcedure(spCallback, procName, params);
             
             // We'll only check the txns half way through the dtxns expected
             // sleep time
@@ -182,11 +244,11 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-//        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        config.setConfParameter("site.markov_path", new File("files/markovs/vldb-august2012/tpcc-4p.markov.gz").getAbsolutePath());
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.markov_path", new File("files/markovs/vldb-august2012/tpcc-4p.markov.gz").getAbsolutePath());
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }

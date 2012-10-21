@@ -147,10 +147,9 @@ public class ClientResponseDebug implements FastSerializable {
 
     public List<CountedStatement>[] getRemoteEstimates(CatalogContext catalogContext, int partition) {
         List<QueryEstimate> estimates = this.remote_estimates.get(partition);
-        if (estimates == null) return (null);
-        
+        int num_estimates = (estimates != null ? estimates.size() : 0);
         @SuppressWarnings("unchecked")
-        List<CountedStatement> result[] = (List<CountedStatement>[])new List<?>[estimates.size()];
+        List<CountedStatement> result[] = (List<CountedStatement>[])new List<?>[num_estimates];
         for (int i = 0; i < result.length; i++) {
             result[i] = new ArrayList<CountedStatement>();
             QueryEstimate query_est = estimates.get(i);

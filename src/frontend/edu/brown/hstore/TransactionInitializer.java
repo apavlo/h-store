@@ -540,16 +540,18 @@ public class TransactionInitializer {
             
             try {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitEstimation();
-                t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
+                if (t_estimator != null) {
+                    t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
+                }
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
                     if (d) LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
-                    
+                }
                 // We have a TransactionEstimator, so let's see what it says...
-                } else {
+                else {
                     if (t) LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
                     TransactionEstimate t_estimate = t_state.getInitialEstimate();
                     

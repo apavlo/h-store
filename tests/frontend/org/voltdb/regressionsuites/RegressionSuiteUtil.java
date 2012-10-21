@@ -119,7 +119,7 @@ public abstract class RegressionSuiteUtil {
         short supwares[] = new short[num_items];
         int quantities[] = new int[num_items];
         for (int i = 0; i < num_items; i++) { 
-            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS * SCALEFACTOR));
+            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS));
             supwares[i] = (i % 2 == 0 ? supply_w_id : (short)w_id);
             quantities[i] = 1;
         } // FOR

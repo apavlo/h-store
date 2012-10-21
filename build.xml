@@ -972,6 +972,12 @@ TEST CASES
     <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--copy=${localcopy}" />
         <arg line="--symlink=${symlink}" />
+        <arg line="${files.dir}" />
+    </exec>
+</target>
+<target name="junit-getfiles-update"
+        description="Update the files repository">
+    <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--update" />
         <arg line="${files.dir}" />
     </exec>
@@ -1010,10 +1016,8 @@ TEST CASES
                 <exclude name='edu/brown/hstore/TestAntiCache*'/>
                 <exclude name='edu/brown/benchmark/airline/Test*'/>
                 <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
-                <exclude name='edu/brown/markov/TestMarkovGraph*' />
 
                 <!-- VoltDB Regression Suite -->
-                <exclude name="**/TestMarkovSuite.class" />
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
@@ -1101,7 +1105,6 @@ TEST CASES
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 
                 <!-- VoltDB Regression Suite -->
-                <exclude name="**/TestMarkovSuite.class" />
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
@@ -1179,7 +1182,6 @@ TEST CASES
                 <fileset dir='${build.test.dir}'>
                     <include name='org/voltdb/regressionsuites/Test*.class'/>
                     <exclude name="**/*$*.class"/>
-                    <exclude name="**/TestMarkovSuite.class" />
                     <exclude name="**/TestCatalogUpdateSuite.class" />
                     <exclude name="**/TestFailureDetectSuite.class" />
                     <exclude name="**/TestReplicationSuite.class" />
