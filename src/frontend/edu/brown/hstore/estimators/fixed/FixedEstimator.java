@@ -9,6 +9,7 @@ import org.voltdb.utils.EstTime;
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.Estimate;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.PartitionEstimator;
@@ -93,6 +94,16 @@ public abstract class FixedEstimator extends TransactionEstimator {
             // Nothing to do...
         }
         
+        @Override
+        public boolean isInitialEstimate() {
+            return (true);
+        }
+        
+        @Override
+        public int getBatchId() {
+            return (EstimatorUtil.INITIAL_ESTIMATE_BATCH);
+        }
+
         @Override
         public boolean isValid() {
             return (this.partitions.isEmpty() == false);

@@ -10,6 +10,7 @@ import org.voltdb.utils.NotImplementedException;
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.estimators.Estimate;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.PartitionSet;
 
@@ -25,6 +26,8 @@ public class RemoteEstimate implements Estimate {
     private final List<CountedStatement> countedStmts[];
     private final CatalogContext catalogContext;
     
+    private int batchId;
+    
     @SuppressWarnings("unchecked")
     public RemoteEstimate(CatalogContext catalogContext) {
         this.catalogContext = catalogContext;
@@ -32,6 +35,10 @@ public class RemoteEstimate implements Estimate {
         this.countedStmts = (List<CountedStatement>[])new List<?>[this.catalogContext.numberOfPartitions];
     }
 
+    public void init(int batchId) {
+        this.batchId = batchId;
+    }
+    
     @Override
     public boolean isInitialized() {
         return (true);
@@ -43,8 +50,17 @@ public class RemoteEstimate implements Estimate {
             this.query_estimates[p] = null;
             if (this.countedStmts[p] != null) this.countedStmts[p].clear(); 
         } // FOR
+        this.batchId = EstimatorUtil.INITIAL_ESTIMATE_BATCH;
     }
 
+    @Override
+    public int getBatchId() {
+        return (this.batchId);
+    }
+    @Override
+    public boolean isInitialEstimate() {
+        return (this.batchId == EstimatorUtil.INITIAL_ESTIMATE_BATCH);
+    }
     @Override
     public boolean isValid() {
         return (true);

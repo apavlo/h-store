@@ -19,7 +19,6 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.markov.MarkovEstimatorState.Factory;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
@@ -405,8 +404,9 @@ public class MarkovEstimator extends TransactionEstimator {
      * @param args Procedure arguments (mangled)
      */
     private void estimatePath(MarkovEstimatorState state, MarkovEstimate est, Procedure catalog_proc, Object args[]) {
-        if (d) LOG.debug(String.format("%s - Estimating execution path",
-                         AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId())));
+        if (d) LOG.debug(String.format("%s - Estimating execution path (%s)",
+                         AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()),
+                         (est.isInitialEstimate() ? "INITIAL" : "BATCH #" + est.getBatchId())));
         
         MarkovVertex currentVertex = est.getVertex();
         assert(currentVertex != null);
@@ -466,7 +466,8 @@ public class MarkovEstimator extends TransactionEstimator {
             try {
                 pathEstimator = (MarkovPathEstimator)this.pathEstimatorsPool.borrowObject();
                 pathEstimator.init(state.getMarkovGraph(), est, state.getBasePartition(), args);
-                pathEstimator.enableForceTraversal(true);
+                pathEstimator.setForceTraversal(true);
+                // pathEstimator.setCreateMissing(true);
             } catch (Throwable ex) {
                 String txnName = AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
                 String msg = "Failed to intitialize new MarkovPathEstimator for " + txnName; 

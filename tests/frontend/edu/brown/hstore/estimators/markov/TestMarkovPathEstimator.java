@@ -131,7 +131,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     public void testFinish() throws Exception {
         pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
         assertTrue(pathEstimator.isInitialized());
-        pathEstimator.enableForceTraversal(true);
+        pathEstimator.setForceTraversal(true);
         
         assertEquals(1.0f, estimate.getConfidenceCoefficient(), MarkovGraph.PROBABILITY_EPSILON);
         pathEstimator.traverse(this.graph.getStartVertex());
@@ -146,7 +146,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     public void testMarkovEstimate() throws Exception {
         pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
         assert(pathEstimator.isInitialized());
-        pathEstimator.enableForceTraversal(true);
+        pathEstimator.setForceTraversal(true);
         pathEstimator.traverse(this.graph.getStartVertex());
         
         List<MarkovVertex> visitPath = pathEstimator.getVisitPath();
@@ -193,7 +193,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         
 //        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
         pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
-        pathEstimator.enableForceTraversal(true);
+        pathEstimator.setForceTraversal(true);
         pathEstimator.traverse(this.graph.getStartVertex());
         ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(pathEstimator.getVisitPath());
         assertTrue(estimate.isConfidenceCoefficientSet());
@@ -231,7 +231,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         MarkovVertex abort = this.graph.getAbortVertex();
         
         pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, multip_trace.getParams());
-        pathEstimator.enableForceTraversal(true);
+        pathEstimator.setForceTraversal(true);
         pathEstimator.traverse(this.graph.getStartVertex());
         ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(pathEstimator.getVisitPath());
         

@@ -11,8 +11,21 @@ import edu.brown.utils.PartitionSet;
 public interface Estimate extends Poolable {
 
     /**
-     * Returns true if this TransactionEstimate is considered valid
-     * It is up to the implementing classes to descide what it means
+     * Returns true if this Estimate is for the initial estimate
+     * @return
+     */
+    public boolean isInitialEstimate();
+    
+    /**
+     * Returns the batch id for this Estimate
+     * @return
+     */
+    public int getBatchId();
+    
+    /**
+     * Returns true if this Estimate is considered valid and can be used by 
+     * the runtime system to modify its operations according to its contents.
+     * It is up to the implementing classes to decide what it means
      * for it to be valid. 
      * @return
      */

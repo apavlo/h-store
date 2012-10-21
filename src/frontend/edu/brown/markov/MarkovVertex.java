@@ -29,6 +29,7 @@ import edu.brown.catalog.special.CountedStatement;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.hstore.estimators.DynamicTransactionEstimate;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -293,6 +294,16 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
 
     @Override
+    public int getBatchId() {
+        return (EstimatorUtil.INITIAL_ESTIMATE_BATCH);
+    }
+    
+    @Override
+    public boolean isInitialEstimate() {
+        return (true);
+    }
+    
+    @Override
     public boolean isValid() {
         return (true);
     }
@@ -528,7 +539,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         for (MarkovVertex.Probability type : ptypes) {
             if (type.single_value) {
                 float val = this.probabilities[type.ordinal()][DEFAULT_PARTITION_ID];
-                String val_str = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
+                String val_str = (val == EstimatorUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
                 m1.put(type.name(), val_str);
             } else {
                 header.add(type.name());
@@ -544,7 +555,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             for (MarkovVertex.Probability type : ptypes) {
                 if (type.single_value) continue;
                 float val = this.probabilities[type.ordinal()][row_idx];
-                rows[row_idx][col_idx++] = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
+                rows[row_idx][col_idx++] = (val == EstimatorUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
             } // FOR
         } // FOR
         
@@ -589,7 +600,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             String.format("Invalid partition %d for %s [max=%d]",
                           partition, ptype, this.probabilities[ptype.ordinal()].length);
         float value = this.probabilities[ptype.ordinal()][partition];
-        if (value == MarkovUtil.NULL_MARKER) value = ptype.default_value;
+        if (value == EstimatorUtil.NULL_MARKER) value = ptype.default_value;
         
         // Handle funky rounding error that I think is due to casting
         // Note that we only round when we hand out the number. If we try to round it before we 
@@ -607,7 +618,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         // Important: If the probability is unset, then we need to set its initial value
         // to zero and to the default value
         float previous = this.probabilities[ptype.ordinal()][partition];
-        if (previous == MarkovUtil.NULL_MARKER) previous = 0.0f;
+        if (previous == EstimatorUtil.NULL_MARKER) previous = 0.0f;
         this.setProbability(ptype, partition, previous + probability);
     }
 
@@ -633,7 +644,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             int i = ptype.ordinal();
             if (this.probabilities[i] == null) continue;
             for (int j = 0; j < this.probabilities[i].length; j++) {
-                this.probabilities[i][j] = MarkovUtil.NULL_MARKER;
+                this.probabilities[i][j] = EstimatorUtil.NULL_MARKER;
             } // FOR
         } // FOR
     }
@@ -656,7 +667,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     @Override
     public boolean isSinglePartitionProbabilitySet() {
-        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isSinglePartitioned(EstimationThresholds t) {
@@ -684,7 +695,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     @Override
     public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.READ_ONLY, partition) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.READ_ONLY, partition) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
@@ -726,7 +737,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return (this.getSpecificProbability(Probability.WRITE, partition));
     }
     public boolean isWriteProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.WRITE, partition) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.WRITE, partition) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isWritePartition(EstimationThresholds t, int partition) {
@@ -758,7 +769,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return (this.getSpecificProbability(Probability.DONE, partition));
     }
     public boolean isFinishProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.DONE, partition) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.DONE, partition) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isFinishPartition(EstimationThresholds t, int partition) {
@@ -793,12 +804,12 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     @Override
     public boolean isAbortProbabilitySet() {
-        return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isAbortable(EstimationThresholds t) {
         float prob = this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID);
-        if (prob != MarkovUtil.NULL_MARKER) {
+        if (prob != EstimatorUtil.NULL_MARKER) {
             return (prob >= t.abort);
         }
         return (true);

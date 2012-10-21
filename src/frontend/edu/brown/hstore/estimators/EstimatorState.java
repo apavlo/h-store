@@ -90,8 +90,8 @@ public abstract class EstimatorState implements Poolable {
     }
 
     protected final <T extends Estimate> T addEstimate(T est) {
-        assert(this.initialEstimate != null) : 
-            "Trying to add a new estimate before the initial estimate";
+//        assert(this.initialEstimate != null) : 
+//            "Trying to add a new estimate before the initial estimate";
         assert(est.isInitialized());
         this.estimates.add(est);
         return (est);

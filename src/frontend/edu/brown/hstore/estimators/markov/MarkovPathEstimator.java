@@ -27,6 +27,7 @@ import edu.brown.catalog.special.CountedStatement;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -44,6 +45,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
+import edu.uci.ics.jung.graph.util.EdgeType;
 
 /**
  * Path Estimator for MarkovEstimator
@@ -82,6 +84,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     // INVOCATION MEMBERS
     // ----------------------------------------------------------------------------
     
+    private MarkovEstimate estimate;
     private int base_partition;
     private Object args[];
 
@@ -91,27 +94,31 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     /**
      * If this flag is set to true, then we will always try to go to the end
-     * This means that if we don't have an edge to the vertex that we're pretty sure we want to take, we'll 
-     * just pick the edge from the one that is available that has the highest probability
+     * This means that if we don't have an edge to the vertex that we're pretty sure we
+     * want to take, we'll just pick the edge from the one that is available that has 
+     * the highest probability.
      */
     private boolean force_traversal = false;
-
+    
     /**
      * These are the vertices that we weren't sure about.
-     * This only gets populated when force_traversal is set to true 
+     * This only gets populated when force_traversal is set to true.
+     * This is primarily used for debugging.
      */
     private final Set<MarkovVertex> forced_vertices = new HashSet<MarkovVertex>();
     
     /**
-     * 
+     * If this flag is set to true, then the estimator will be allowed to create vertices
+     * that it knows that it needs to transition to but do not exist.
      */
-    private MarkovEstimate estimate;
+    private boolean create_missing = false;
     
     /**
-     * If this flag is true, then this MarkovPathEstimator is being cached by the TransactionEstimator and should not be returned to
-     * the object pool when its transaction finishes
+     * These are the vertices that we weren't sure about.
+     * This only gets populated when force_traversal is set to true.
+     * This is primarily used for debugging.
      */
-    private transient boolean cached = false;
+    private final Set<MarkovVertex> created_vertices = new HashSet<MarkovVertex>();
 
     // ----------------------------------------------------------------------------
     // TEMPORARY TRAVERSAL MEMBERS
@@ -172,21 +179,14 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     @Override
     public void finish() {
-        if (d) LOG.debug(String.format("Cleaning up MarkovPathEstimator [cached=%s, hashCode=%d]", this.cached, this.hashCode()));
+        if (d) LOG.debug(String.format("Cleaning up MarkovPathEstimator [hashCode=%d]",
+                         this.hashCode()));
         super.finish();
-        this.cached = false;
         this.estimate = null;
         this.forced_vertices.clear();
+        this.created_vertices.clear();
         this.past_partitions.clear();
         this.stmt_partitions.clear();
-    }
-    
-    public void setCached(boolean val) {
-        this.cached = val;
-    }
-    
-    public boolean isCached() {
-        return this.cached;
     }
     
     public void updateLogging() {
@@ -200,29 +200,30 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * to is not in the MarkovGraph.
      * @param flag
      */
-    public void enableForceTraversal(boolean flag) {
+    public void setForceTraversal(boolean flag) {
         this.force_traversal = flag;
+    }
+    protected Collection<MarkovVertex> getForcedVertices() {
+        return this.forced_vertices;
     }
     
     /**
-     * 
-     * @return
+     * Setting this flag to true means that the MarkovPathEstimator is allowed
+     * to create vertices that it knows that it needs to transition to but do not
+     * exist yet in the graph. Note that this is done without any synchronization, so
+     * it is up to whomever is using use to make sure that what we're doing is thread safe.
+     * @param flag
      */
-    public Set<MarkovVertex> getForcedVertices() {
-        return this.forced_vertices;
+    public void setCreateMissing(boolean flag) {
+        this.create_missing = flag;
+    }
+    protected Collection<MarkovVertex> getCreatedVertices() {
+        return this.created_vertices;
     }
 
-//    private Object[] getStatementParamsArray(Statement catalog_stmt) {
-//        Object arr[] = this.stmt_param_arrays.get(catalog_stmt);
-//        int size = catalog_stmt.getParameters().size();
-//        if (arr == null) {
-//            arr = new Object[size];
-//            this.stmt_param_arrays.put(catalog_stmt, arr);
-//        } else {
-//            for (int i = 0; i < size; i++) arr[i] = null;
-//        }
-//        return (arr);
-//    }
+    // ----------------------------------------------------------------------------
+    // TRAVERSAL METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * This is the main part of where we figure out the path that this transaction will take
@@ -311,7 +312,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 
                 SortedSet<ParameterMapping> mappings = stmtMappings.get(catalog_stmt_param);
                 if (mappings == null || mappings.isEmpty()) {
-                    if (t) LOG.trace("No parameter mappings for " + catalog_stmt_param.fullName() + " from " + catalog_stmt);
+                    if (t) LOG.trace("No parameter mappings exists for " + catalog_stmt_param.fullName());
                     continue;
                 }
                 if (t) LOG.trace("Found " + mappings.size() + " mapping(s) for " + catalog_stmt_param.fullName());
@@ -407,7 +408,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                         }
                     } // FOR (Vertex
                     if (t && candidate_edge == null)
-                        LOG.trace("Failed to find candidate edge from " + element + " to " + catalog_stmt);
+                        LOG.trace(String.format("Failed to find candidate edge from %s to %s [partitions=%s]",
+                                  element, catalog_stmt.fullName(), this.stmt_partitions)); 
                 }
             }
             // Without any stmt_args, there's nothing we can do here...
@@ -421,19 +423,45 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         int num_candidates = this.candidate_edges.size();
         boolean was_forced = false;
         if (num_candidates == 0 && this.force_traversal) {
-            if (t) LOG.trace("No candidate edges were found. Force travesal flag is set, so taking all");
-//            if (this.next_statements.size() == 1) {
-//                Pair<Statement, Integer> p = CollectionUtil.getFirst(this.next_statements);
-//                Vertex v = new Vertex(p.getFirst(), Vertex.Type.QUERY, p.getSecond(), this.stmt_partitions, this.past_partitions);
-//                markov.addVertex(v);
-//                this.candidate_edge = new Edge(markov);
-//                markov.addEdge(this.candidate_edge, element, v, EdgeType.DIRECTED);
-//                this.candidates.add(candidate_edge);
-//                LOG.info("Created a new vertex " + v);
-//            } else {
-            Collection<MarkovEdge> out_edges = markov.getOutEdges(element);
-            if (out_edges != null) this.candidate_edges.addAll(out_edges);
-//            }
+            if (t) LOG.trace(String.format("No candidate edges were found. " +
+            		                       "Checking whether we can create our own. [nextStatements=%s]",
+            		                       this.next_statements));
+            
+            // We're allow to create the vertices that we know are missing
+            if (this.create_missing && this.next_statements.size() == 1) {
+                CountedStatement cntStmt = CollectionUtil.first(this.next_statements);
+                MarkovVertex v = new MarkovVertex(cntStmt.statement,
+                                                  MarkovVertex.Type.QUERY,
+                                                  cntStmt.counter,
+                                                  this.stmt_partitions,
+                                                  this.past_partitions);
+                markov.addVertex(v);
+                
+                // For now we'll set the new edge's probability to 1.0 to just
+                // make the calculations down below work. This will get updated
+                // overtime when we recompute the probabilities in the entire graph.
+                candidate_edge = new MarkovEdge(markov, 1, 1.0f);
+                markov.addEdge(candidate_edge, element, v, EdgeType.DIRECTED);
+                this.candidate_edges.add(candidate_edge);
+                this.created_vertices.add(v);
+                if (t) LOG.trace(String.format("Created new vertex %s and connected it to %s", v, element));
+                
+                // 2012-10-21
+                // The problem with allow the estimator to create a new vertex is that 
+                // we don't know what it's children are going to be. That means that when
+                // we invoke this method again at the next vertex (the one we just made above)
+                // then it's not going to have any children, so we don't know what it's
+                // going to do. We are actually better off with just grabbing the next best
+                // vertex from the existing edges and then updating the graph after 
+                // the txn has finished, since now we know exactly what it did.
+            }
+            // Otherwise we'll just make all of the out bound edges from the
+            // current vertex be our candidates
+            else {
+                if (t) LOG.trace("No candidate edges were found. Force travesal flag is set to true, so taking all");
+                Collection<MarkovEdge> out_edges = markov.getOutEdges(element);
+                if (out_edges != null) this.candidate_edges.addAll(out_edges);
+            }
             num_candidates = this.candidate_edges.size();
             was_forced = true;
         }
@@ -553,8 +581,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     protected static void populateMarkovEstimate(MarkovEstimate estimate, MarkovVertex vertex) {
         assert(vertex != null);
-        if (debug.get())
-            LOG.debug("Populating internal properties based on current vertex\n" + vertex.debug());
+        if (d) LOG.debug("Populating internal properties based on current vertex\n" + vertex.debug());
         
         boolean is_singlepartition = (estimate.touched_partitions.size() == 1);
         float untouched_finish = 1.0f;
@@ -580,9 +607,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         
         // Single-Partition Probability
         if (is_singlepartition) {
-            if (trace.get())
-                LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???",
-                          estimate.touched_partitions)); 
+            if (t) LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???",
+                             estimate.touched_partitions)); 
             estimate.setSinglePartitionProbability(untouched_finish);
         } else {
             estimate.setSinglePartitionProbability(1.0f - untouched_finish);
@@ -591,7 +617,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         // Abort Probability
         // Only use the abort probability if we have seen at least ABORT_MIN_TXNS
         if (vertex.getTotalHits() >= MarkovGraph.MIN_HITS_FOR_NO_ABORT) {
-            if (estimate.greatest_abort == MarkovUtil.NULL_MARKER) estimate.greatest_abort = 0.0f;
+            if (estimate.greatest_abort == EstimatorUtil.NULL_MARKER) estimate.greatest_abort = 0.0f;
             estimate.setAbortProbability(estimate.greatest_abort);
         } else {
             estimate.setAbortProbability(1.0f);

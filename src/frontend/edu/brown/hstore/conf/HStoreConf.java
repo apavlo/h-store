@@ -549,6 +549,27 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
 
         @ConfigProperty(
+            description="How long in milliseconds should the HStoreCoordinator wait to establish " +
+            		    "the initial connections to other nodes in the cluster at start-up. " +
+            		    "Increasing this number will help with larger cluster deployments.",
+            defaultInt=15000,
+            experimental=false
+        )
+        public int network_startup_wait;
+        
+        @ConfigProperty(
+            description="If the HStoreCoordinator fails to connect to all of the other " +
+            		    "nodes in the cluster after ${site.network_startup_wait} has passed, " +
+            		    "this parameter defines the number of times that it is allowed to attempt " +
+            		    "to reconnect to them. This helps with some rare network issues with the " +
+            		    "ProtoRpc framework where the initial network connection attempt hangs " +
+            		    "or fails, even though both sites are available.",
+            defaultInt=2,
+            experimental=false
+        )
+        public int network_startup_retries;
+        
+        @ConfigProperty(
             description="Enable profiling for the thread that listens for incoming client requests " +
                         "over the network.",
             defaultBoolean=false,

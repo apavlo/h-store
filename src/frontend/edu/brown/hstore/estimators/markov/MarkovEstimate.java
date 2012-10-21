@@ -10,10 +10,10 @@ import org.voltdb.CatalogContext;
 
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.estimators.DynamicTransactionEstimate;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
@@ -34,10 +34,10 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // GLOBAL DATA
     // ----------------------------------------------------------------------------
     
-    protected float confidence = MarkovUtil.NULL_MARKER;
+    protected float confidence = EstimatorUtil.NULL_MARKER;
     protected float singlepartition;
     protected float abort;
-    protected float greatest_abort = MarkovUtil.NULL_MARKER;
+    protected float greatest_abort = EstimatorUtil.NULL_MARKER;
 
     // MarkovPathEstimator data 
     protected final List<MarkovVertex> path = new ArrayList<MarkovVertex>();
@@ -128,15 +128,15 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         }
         for (int i = 0; i < this.touched.length; i++) {
             this.touched[i] = 0;
-            this.finished[i] = MarkovUtil.NULL_MARKER;
-            this.read[i] = MarkovUtil.NULL_MARKER;
-            this.write[i] = MarkovUtil.NULL_MARKER;
+            this.finished[i] = EstimatorUtil.NULL_MARKER;
+            this.read[i] = EstimatorUtil.NULL_MARKER;
+            this.write[i] = EstimatorUtil.NULL_MARKER;
             if (this.query_estimate[i] != null) this.query_estimate[i].clear();
         } // FOR
-        this.confidence = MarkovUtil.NULL_MARKER;
-        this.singlepartition = MarkovUtil.NULL_MARKER;
-        this.abort = MarkovUtil.NULL_MARKER;
-        this.greatest_abort = MarkovUtil.NULL_MARKER;
+        this.confidence = EstimatorUtil.NULL_MARKER;
+        this.singlepartition = EstimatorUtil.NULL_MARKER;
+        this.abort = EstimatorUtil.NULL_MARKER;
+        this.greatest_abort = EstimatorUtil.NULL_MARKER;
         this.path.clear();
         
         this.touched_partitions.clear();
@@ -151,32 +151,20 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         this.valid = true;
     }
     
-    /**
-     * Returns true if this estimate is valid and can be used by the runtime system
-     * @return
-     */
+    @Override
+    public boolean isInitialEstimate() {
+        return (this.batch == EstimatorUtil.INITIAL_ESTIMATE_BATCH);
+    }
+    @Override
+    public int getBatchId() {
+        return (this.batch);
+    }
     public boolean isValid() {
         if (this.vertex == null) {
             if (debug.get()) LOG.warn("MarkovGraph vertex is null");
             return (false);
         }
         return (this.valid);
-        
-//        for (int i = 0; i < this.touched.length; i++) {
-//            if (this.finished[i] == MarkovUtil.NULL_MARKER) {
-//                if (debug.get()) LOG.warn("finished[" + i + "] is null");
-//                return (false);
-//            } else if (this.read[i] == MarkovUtil.NULL_MARKER) {
-//                if (debug.get()) LOG.warn("read[" + i + "] is null");
-//                return (false);
-//            } else if (this.write[i] == MarkovUtil.NULL_MARKER) {
-//                if (debug.get()) LOG.warn("write[" + i + "] is null");
-//                return (false);
-//            }
-//        } // FOR
-//        if (this.singlepartition == MarkovUtil.NULL_MARKER) return (false);
-//        if (this.userabort == MarkovUtil.NULL_MARKER) return (false);
-//        return (true);
     }
     
     @Override
@@ -218,14 +206,25 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         return (this.vertex);
     }
     
-    /**
-     * Return that BatchId for this Estimate
-     * @return
-     */
-    public int getBatchId() {
-        return (this.batch);
+    public boolean isTargetPartition(EstimationThresholds t, int partition) {
+        return ((1 - this.finished[partition]) >= t.getFinishedThreshold());
     }
-
+    public int getTouchedCounter(int partition) {
+        return (this.touched[partition]);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // PARTITION COUNTERS
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public PartitionSet getTouchedPartitions(EstimationThresholds t) {
+        assert(t != null);
+        if (this.touched_partitionset == null) this.touched_partitionset = new PartitionSet();
+        this.getPartitions(this.touched_partitionset, this.finished, t.getFinishedThreshold(), true);
+        return (this.touched_partitionset);
+    }
+    
     /**
      * Increment an internal counter of the number of Statements
      * that are going to be executed at each partition
@@ -246,14 +245,14 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // ----------------------------------------------------------------------------
     
     public boolean isConfidenceCoefficientSet() {
-        return (this.confidence != MarkovUtil.NULL_MARKER);
+        return (this.confidence != EstimatorUtil.NULL_MARKER);
     }
     public float getConfidenceCoefficient() {
         return (this.confidence);
     }
     public void setConfidenceCoefficient(float probability) {
         this.confidence = probability;
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
@@ -262,14 +261,14 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public void addSinglePartitionProbability(float probability) {
-        this.singlepartition = probability + (this.singlepartition == MarkovUtil.NULL_MARKER ? 0 : this.singlepartition);
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.singlepartition = probability + (this.singlepartition == EstimatorUtil.NULL_MARKER ? 0 : this.singlepartition);
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
     }
     @Override
     public void setSinglePartitionProbability(float probability) {
         this.singlepartition = probability;
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
     }
     @Override
@@ -278,7 +277,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     @Override
     public boolean isSinglePartitionProbabilitySet() {
-        return (this.singlepartition != MarkovUtil.NULL_MARKER);
+        return (this.singlepartition != EstimatorUtil.NULL_MARKER);
     }
 
     
@@ -288,8 +287,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public void addReadOnlyProbability(int partition, float probability) {
-        this.read[partition] = probability + (this.read[partition] == MarkovUtil.NULL_MARKER ? 0 : this.read[partition]); 
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.read[partition] = probability + (this.read[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.read[partition]); 
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
     }
     @Override
@@ -297,7 +296,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         assert(partition >= 0) : "Invalid Partition: " + partition;
         assert(partition < this.read.length) : "Invalid Partition: " + partition;
         this.read[partition] = probability;
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
     }
     @Override
@@ -306,7 +305,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     @Override
     public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.read[partition] != MarkovUtil.NULL_MARKER);
+        return (this.read[partition] != EstimatorUtil.NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
@@ -315,8 +314,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public void addWriteProbability(int partition, float probability) {
-        this.write[partition] = probability + (this.write[partition] == MarkovUtil.NULL_MARKER ? 0 : this.write[partition]);
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.write[partition] = probability + (this.write[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.write[partition]);
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Partition %02d - WRITE %.02f", partition, this.write[partition]));
     }
     @Override
@@ -324,7 +323,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         assert(partition >= 0) : "Invalid Partition: " + partition;
         assert(partition < this.write.length) : "Invalid Partition: " + partition;
         this.write[partition] = probability;
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Partition %02d - WRITE %.02f", partition, this.write[partition]));
     }
     @Override
@@ -333,7 +332,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     @Override
     public boolean isWriteProbabilitySet(int partition) {
-        return (this.write[partition] != MarkovUtil.NULL_MARKER);
+        return (this.write[partition] != EstimatorUtil.NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
@@ -342,8 +341,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
 
     @Override
     public void addFinishProbability(int partition, float probability) {
-        this.finished[partition] = probability + (this.finished[partition] == MarkovUtil.NULL_MARKER ? 0 : this.finished[partition]);
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.finished[partition] = probability + (this.finished[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.finished[partition]);
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.finished[partition]));
     }
     @Override
@@ -351,7 +350,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         assert(partition >= 0) : "Invalid Partition: " + partition;
         assert(partition < this.finished.length) : "Invalid Partition: " + partition;
         this.finished[partition] = probability;
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.finished[partition]));
     }
     @Override
@@ -360,7 +359,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     @Override
     public boolean isFinishProbabilitySet(int partition) {
-        return (this.finished[partition] != MarkovUtil.NULL_MARKER);
+        return (this.finished[partition] != EstimatorUtil.NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
@@ -369,14 +368,14 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public void addAbortProbability(float probability) {
-        this.abort = probability + (this.abort == MarkovUtil.NULL_MARKER ? 0 : this.abort); 
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.abort = probability + (this.abort == EstimatorUtil.NULL_MARKER ? 0 : this.abort); 
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Global - ABORT %.02f", this.abort));
     }
     @Override
     public void setAbortProbability(float probability) {
         this.abort = probability;
-        this.valid = this.valid && (probability != MarkovUtil.NULL_MARKER);
+        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.get()) LOG.trace(String.format("SET Global - ABORT %.02f", this.abort));
     }
     @Override
@@ -385,7 +384,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     @Override
     public boolean isAbortProbabilitySet() {
-        return (this.abort != MarkovUtil.NULL_MARKER);
+        return (this.abort != EstimatorUtil.NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
@@ -438,13 +437,6 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
-    public boolean isTargetPartition(EstimationThresholds t, int partition) {
-        return ((1 - this.finished[partition]) >= t.getFinishedThreshold());
-    }
-    public int getTouchedCounter(int partition) {
-        return (this.touched[partition]);
-    }
-
     public long getExecutionTime() {
         return time;
     }
@@ -485,13 +477,6 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         this.getPartitions(this.finished_partitionset, this.finished, (float)t.getFinishedThreshold(), false);
         return (this.finished_partitionset);
     }
-    @Override
-    public PartitionSet getTouchedPartitions(EstimationThresholds t) {
-        assert(t != null);
-        if (this.touched_partitionset == null) this.touched_partitionset = new PartitionSet();
-        this.getPartitions(this.touched_partitionset, this.finished, t.getFinishedThreshold(), true);
-        return (this.touched_partitionset);
-    }
     
     public PartitionSet getMostTouchedPartitions(EstimationThresholds t) {
         assert(t != null);
@@ -518,13 +503,13 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         final String f = "%-6.02f"; 
         
         Map<String, Object> m0 = new LinkedHashMap<String, Object>();
-        m0.put("BatchEstimate", (this.batch == MarkovUtil.INITIAL_ESTIMATE_BATCH ? "<INITIAL>" : "#" + this.batch));
+        m0.put("BatchEstimate", (this.batch == EstimatorUtil.INITIAL_ESTIMATE_BATCH ? "<INITIAL>" : "#" + this.batch));
         m0.put("HashCode", this.hashCode());
         m0.put("Valid", this.valid);
         m0.put("Vertex", this.vertex);
         m0.put("Confidence", this.confidence);
-        m0.put("Single-P", (this.singlepartition != MarkovUtil.NULL_MARKER ? String.format(f, this.singlepartition) : "-"));
-        m0.put("User Abort", (this.abort != MarkovUtil.NULL_MARKER ? String.format(f, this.abort) : "-"));
+        m0.put("Single-P", (this.singlepartition != EstimatorUtil.NULL_MARKER ? String.format(f, this.singlepartition) : "-"));
+        m0.put("User Abort", (this.abort != EstimatorUtil.NULL_MARKER ? String.format(f, this.abort) : "-"));
         
         String header[] = {
             "",
@@ -537,9 +522,9 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         for (int i = 0; i < rows.length; i++) {
             rows[i] = new String[] {
                 String.format("Partition #%02d", i),
-                (this.read[i] != MarkovUtil.NULL_MARKER ? String.format(f, this.read[i]) : "-"),
-                (this.write[i] != MarkovUtil.NULL_MARKER ? String.format(f, this.write[i]) : "-"),
-                (this.finished[i] != MarkovUtil.NULL_MARKER ? String.format(f, this.finished[i]) : "-"),
+                (this.read[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.read[i]) : "-"),
+                (this.write[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.write[i]) : "-"),
+                (this.finished[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.finished[i]) : "-"),
                 Integer.toString(this.touched[i]),
             };
         } // FOR

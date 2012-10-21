@@ -1,7 +1,5 @@
 package edu.brown.markov;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,7 +26,6 @@ import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
-import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -51,20 +48,10 @@ public abstract class MarkovUtil {
     }
 
     /**
-     * The value to use to indicate that a probability is null
-     */
-    public static final float NULL_MARKER = -1.0f;
-    
-    /**
      * 
      */
     public static final Integer GLOBAL_MARKOV_CONTAINER_ID = -1;
     
-    
-    /**
-     * 
-     */
-    public static final int INITIAL_ESTIMATE_BATCH = -1;
     
     /**
      * Wrapper class for our special "marker" vertices
@@ -98,7 +85,8 @@ public abstract class MarkovUtil {
         public Catalog getCatalog() {
             return (this.catalog);
         }
-        public String getName() {
+        @Override
+        public String getTypeName() {
             return ("--" + this.type.toString() + id +"--");
         }
         @Override

@@ -12,6 +12,7 @@ import org.voltdb.CatalogContext;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
@@ -91,7 +92,8 @@ public final class MarkovEstimatorState extends EstimatorState {
     protected MarkovEstimate createNextEstimate(MarkovVertex v, boolean initial) {
         assert(v != null);
         MarkovEstimate next = new MarkovEstimate(this.catalogContext);
-        next.init(v, this.getEstimateCount());
+        int batchId = (initial ? EstimatorUtil.INITIAL_ESTIMATE_BATCH : this.getEstimateCount());
+        next.init(v, batchId);
         if (initial) {
             this.addInitialEstimate(next);
         } else {

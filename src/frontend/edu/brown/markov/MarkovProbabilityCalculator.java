@@ -11,6 +11,7 @@ import org.voltdb.types.QueryType;
 
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.hstore.estimators.DynamicTransactionEstimate;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.hstore.estimators.markov.MarkovEstimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -169,7 +170,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
         MarkovProbabilityCalculator calc = new MarkovProbabilityCalculator(markov);
         calc.stopAtElement(v);
         MarkovEstimate est = new MarkovEstimate(catalogContext);
-        est.init(v, MarkovUtil.INITIAL_ESTIMATE_BATCH);
+        est.init(v, EstimatorUtil.INITIAL_ESTIMATE_BATCH);
         calc.calculate(est);
 //        LOG.info("MarkovEstimate:\n" + est);
 //        System.exit(1);

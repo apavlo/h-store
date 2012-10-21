@@ -59,7 +59,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         QUERIES
     };
     
-    protected long txn_id;
+    private long txn_id;
     private List<QueryTrace> queries = new ArrayList<QueryTrace>(); 
     private transient LinkedMap<Integer, List<QueryTrace>> query_batches = new LinkedMap<Integer, List<QueryTrace>>();
     
@@ -78,8 +78,10 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     
     @SuppressWarnings("unchecked")
     @Override
-    public TransactionTrace cloneImpl() {
+    protected TransactionTrace cloneImpl() {
         TransactionTrace clone = new TransactionTrace(this.txn_id, this.catalog_item_name, this.params);
+        clone.queries.clear();
+        clone.query_batches.clear();
         for (QueryTrace qt : this.queries) {
             QueryTrace clone_q = (QueryTrace)qt.clone();
             clone.addQuery(clone_q);

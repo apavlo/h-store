@@ -20,6 +20,7 @@ import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovUtil.StatementWrapper;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
@@ -121,6 +122,63 @@ public class TestMarkovEstimator extends BaseTestCase {
         this.thresholds = new EstimationThresholds();
     }
 
+    /**
+     * testUnknownPath
+     */
+    @Test
+    public void testUnknownPath() throws Exception {
+        // This is to test our ability to handle a transaction with
+        // a path that we haven't seen before.
+        
+        // Find the S_W_ID that's different than the base partition, and change
+        // all of the elements in the array to that value.
+        TransactionTrace txn_trace = (TransactionTrace)multip_trace.clone();
+        int w_id = (Integer)txn_trace.getParam(0);
+        Short s_w_ids[] = (Short[])txn_trace.getParam(5);
+        short remote_w_id = -1;
+        assert(s_w_ids.length > 0);
+        for (int i = 0; i < s_w_ids.length; i++) {
+            if (w_id != s_w_ids[i]) {
+                remote_w_id = s_w_ids[i];
+                break;
+            }
+        } // FOR
+        assert(remote_w_id >= 0);
+        assertNotSame(w_id, remote_w_id);
+        Arrays.fill(s_w_ids, remote_w_id);
+//        System.err.println("S_W_ID: " + Arrays.toString(s_w_ids));
+        txn_trace.setParam(5, s_w_ids);
+        
+        MarkovEstimatorState state = t_estimator.startTransaction(XACT_ID.getAndIncrement(),
+                                                                  this.catalog_proc,
+                                                                  txn_trace.getParams());
+        assertNotNull(state);
+            
+        // Even though it won't correctly identify the exact path that we're going to
+        // take (i.e., what partitions the getStockInfo queries will need), the path
+        // should be complete (i.e., we should see each Statement in NewOrder executed
+        // at least once)
+        MarkovEstimate initialEst = state.getInitialEstimate();
+//        System.err.println("FIRST ESTIMATE:\n" + initialEst);
+        List<MarkovVertex> initialPath = initialEst.getMarkovPath();
+        assertFalse(initialPath.isEmpty());
+        Set<Statement> seenStmts = new HashSet<Statement>();
+        for (MarkovVertex v : initialPath) {
+            Statement stmt = v.getCatalogItem();
+            if ((stmt instanceof StatementWrapper) == false) {
+                seenStmts.add(stmt);
+            }
+        } // FOR
+        Procedure proc = txn_trace.getCatalogItem(catalogContext.database);
+        for (Statement stmt : proc.getStatements()) {
+            assertTrue(stmt.fullName(), seenStmts.contains(stmt));
+        }
+//        System.err.println(proc + "\n" + StringUtil.join("\n", proc.getStatements()));
+//        System.err.println("=======================================");
+//        System.err.println("SEEN\n" + StringUtil.join("\n", seenStmts));
+        assertEquals(proc.getStatements().size(), seenStmts.size());
+    }
+    
     /**
      * testMultipleStartTransaction
      */
