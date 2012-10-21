@@ -58,6 +58,7 @@ import org.voltdb.client.ClientStatusListener;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.ClientResponseDebug;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.Status;
@@ -178,6 +179,18 @@ public class MockVoltClient implements Client {
             public boolean isSpeculative() {
                 // TODO Auto-generated method stub
                 return false;
+            }
+
+            @Override
+            public boolean hasDebug() {
+                // TODO Auto-generated method stub
+                return false;
+            }
+
+            @Override
+            public ClientResponseDebug getDebug() {
+                // TODO Auto-generated method stub
+                return null;
             }
         };
     }

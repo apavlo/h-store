@@ -339,7 +339,6 @@ public class TransactionInitializer {
         // Notify anybody that cares about this new txn
         this.newTxnObservable.notifyObservers(ts);
         
-        
         assert(ts.isSysProc() == catalog_proc.getSystemproc()) :
             "Unexpected sysproc mismatch for " + ts;
         return (ts);
@@ -407,6 +406,9 @@ public class TransactionInitializer {
         
         // Increase the restart counter in the new transaction
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
+        
+        // Notify anybody that cares about this new txn
+        this.newTxnObservable.notifyObservers(new_ts);
         
         return (new_ts);
     }

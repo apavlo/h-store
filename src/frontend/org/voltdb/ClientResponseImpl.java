@@ -55,6 +55,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private int basePartition = -1;
     private int restartCounter = 0;
     private boolean speculative = false;
+    private ClientResponseDebug debug = null;
 
     /** opaque data optionally provided by and returned to the client */
     private long clientHandle = -1;
@@ -261,6 +262,26 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.speculative = val;
     }
     
+    // ----------------------------------------------------------------------------
+    // SPECIAL DEBUG HANDLE
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public ClientResponseDebug getDebug() {
+        return (this.debug);
+    }
+    @Override
+    public boolean hasDebug() {
+        return (this.debug != null);
+    }
+    public void setDebug(ClientResponseDebug debug) {
+        this.debug = debug;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // ----------------------------------------------------------------------------
+    
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//Skip version byte   // 1 byte
@@ -292,6 +313,11 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         }
         results = (VoltTable[]) in.readArray(VoltTable.class);
         setProperly = true;
+        
+        if (in.readBoolean()) {
+            this.debug = new ClientResponseDebug();
+            this.debug.readExternal(in);
+        }
     }
 
     @Override
@@ -332,6 +358,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             out.write(b.array());
         }
         out.writeArray(results);
+        
+        // DEBUG HANDLE
+        out.writeBoolean(this.debug != null);
+        if (this.debug != null) {
+            this.debug.writeExternal(out);
+        }
     }
     
     @Override

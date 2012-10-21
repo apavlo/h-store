@@ -568,8 +568,19 @@ public final class HStoreConf {
         public boolean network_txn_initialization;
         
         // ----------------------------------------------------------------------------
-        // Incoming Transaction Queue Options
+        // Transaction Execution Options
         // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="If this parameter is set to true, then the ClientResponse returned by the " +
+            		    "server will include a special ClientResponseDebug handle that contains " +
+            		    "additional information about the transaction. " + 
+            		    "Note that enabling this option will break compatibility with VoltDB's " +
+            		    "client libraries.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean txn_client_debug;
         
         @ConfigProperty(
             description="Enable transaction profiling. This will measure the amount of time a " +
@@ -624,7 +635,7 @@ public final class HStoreConf {
         public boolean txn_partition_id_managers;
         
         // ----------------------------------------------------------------------------
-        // Distributed Transaction Queue Options
+        // Transaction Queue Options
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(

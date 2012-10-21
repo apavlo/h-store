@@ -36,6 +36,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
+import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.messaging.FastSerializable;
+import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.hstore.HStoreConstants;
@@ -45,7 +48,7 @@ import edu.brown.hstore.HStoreConstants;
  * For now it's just a HashSet
  * @author pavlo
  */
-public class PartitionSet implements Collection<Integer>, JSONSerializable {
+public class PartitionSet implements Collection<Integer>, JSONSerializable, FastSerializable {
     
     // private final Set<Integer> inner = new HashSet<Integer>();
     private final BitSet inner = new BitSet();
@@ -278,6 +281,28 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable {
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
 
+
+    @Override
+    public void readExternal(FastDeserializer in) throws IOException {
+        this.clear();
+        this.contains_null = in.readBoolean();
+        int cnt = in.readShort();
+        for (int i = 0; i < cnt; i++) {
+            int partition = in.readInt();
+            this.add(partition);
+        } // FOR
+    }
+
+    @Override
+    public void writeExternal(FastSerializer out) throws IOException {
+        out.writeBoolean(this.contains_null);
+        out.writeShort(this.inner.cardinality());
+        for (Integer partition : this) {
+            out.writeInt(partition.intValue());
+        } // FOR
+    }
+    
+    
     @Override
     public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);

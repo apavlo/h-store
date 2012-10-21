@@ -751,7 +751,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                       this.status_msg,
                       this.error
         );
-                      
+        if (hstore_conf.site.txn_client_debug) {
+            ClientResponseDebug responseDebug = new ClientResponseDebug(m_localTxnState);
+            response.setDebug(responseDebug);
+        }
+
         if (this.observable != null) this.observable.notifyObservers(response);
         if (t) LOG.trace(response);
         return (response);
