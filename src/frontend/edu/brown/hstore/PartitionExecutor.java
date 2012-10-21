@@ -86,6 +86,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
+import org.voltdb.dtxn.TransactionState;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.EvictedTupleAccessException;
@@ -124,7 +125,6 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.remote.RemoteEstimator;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
@@ -1028,7 +1028,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // something that isn't a FinishTaskMessage, then we won't bother processing it
         if (this.currentTxn.isAborted() && (work instanceof FinishTxnMessage) == false) {
             if (d) LOG.debug(String.format("%s - Was marked as aborted. Will not process %s on partition %d",
-                                           this.currentTxn, work.getClass().getSimpleName(), this.partitionId));
+                             this.currentTxn, work.getClass().getSimpleName(), this.partitionId));
             return;
         }
         
@@ -1074,7 +1074,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (this.currentDtxn == null) {
                 this.setCurrentDtxn(this.currentTxn);
                 if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [nextMode=%s]",
-                                                        this.currentTxn, this.partitionId, newMode));                    
+                                 this.currentTxn, this.partitionId, newMode));                    
             }
             // There is a current DTXN but it's not us!
             // That means we need to block ourselves until it finishes
@@ -1088,16 +1088,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 String.format("Trying to execute a second Dtxn %s before the current one has finished [current=%s]",
                               this.currentTxn, this.currentDtxn);
             this.setExecutionMode(this.currentTxn, newMode);
-            
-            if (hstore_conf.site.specexec_enable &&
-                  this.currentTxn instanceof RemoteTransaction &&
-                  fragment.hasFutureStatements()) {
-                QueryEstimate query_estimate = fragment.getFutureStatements();
-                
-                
-                // TODO: Process QueryEstimate
-            }
-            
             this.processWorkFragment(this.currentTxn, fragment, parameters);
             
         // -------------------------------
@@ -2869,6 +2859,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         final ExecutionState execState = ts.getExecutionState();
         final boolean prefetch = ts.hasPrefetchQueries();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
+        final EstimatorState t_state = ts.getEstimatorState();
+        final TransactionEstimate t_estimate = ts.getLastEstimate();
         
         // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
         // can access them directly without needing to deserialize them from the WorkFragments
@@ -3117,6 +3109,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local partition",
                                      ts, num_localPartition));
                     for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
+                        int partition = fragmentBuilder.getPartitionId();
+                        if (t_estimate != null && t_estimate.hasQueryEstimate(partition)) {
+                            QueryEstimate.Builder estBuilder = QueryEstimate.newBuilder();
+                            for (CountedStatement cntStmt : t_estimate.getQueryEstimate(partition)) {
+                                estBuilder.addStmtIds(cntStmt.statement.getId());
+                                estBuilder.addStmtCounters(cntStmt.counter);
+                            } // FOR
+                            fragmentBuilder.setFutureStatements(estBuilder);
+                        }
                         WorkFragment fragment = fragmentBuilder.build();
                         ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
                         this.processWorkFragment(ts, fragment, fragmentParams);
@@ -3148,8 +3149,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (t) LOG.trace(ts.toString());
             }
             boolean timeout = false;
-            long startTime = System.nanoTime();
-            long waitTime = hstore_conf.site.exec_response_timeout*1000000;
+            long startTime = EstTime.currentTimeMillis();
             
             if (needs_profiling) ts.profiler.startExecDtxnWork();
             if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.start();
@@ -3159,7 +3159,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                         timeout = latch.await(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
                         if (timeout == false) break;
                     }
-                    if ((System.nanoTime() - startTime) > waitTime) {
+                    if ((EstTime.currentTimeMillis() - startTime) > hstore_conf.site.exec_response_timeout) {
                         timeout = true;
                         break;
                     }
