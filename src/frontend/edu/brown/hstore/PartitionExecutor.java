@@ -86,7 +86,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
-import org.voltdb.dtxn.TransactionState;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.EvictedTupleAccessException;
@@ -123,7 +122,7 @@ import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
@@ -2209,7 +2208,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // then we can go back and check whether we want to disable undo logging for the rest of the transaction
         // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
         if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false) {
-            TransactionEstimate est = ts.getEstimatorState().getLastEstimate();
+            Estimate est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
             if (hstore_conf.site.exec_no_undo_logging == false ||
                 est.isValid() == false ||
@@ -2654,7 +2653,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         boolean predict_singlepartition = ts.isPredictSinglePartition(); 
         PartitionSet done_partitions = ts.getDonePartitions();
 
-        TransactionEstimate t_estimate = ts.getLastEstimate();
+        Estimate t_estimate = ts.getLastEstimate();
         
         boolean hasNewDone = false;
         PartitionSet newDone = null;
@@ -2695,16 +2694,25 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             // Add in the specexec query estimate at this partition if needed
             if (hstore_conf.site.specexec_enable && t_estimate != null && t_estimate.hasQueryEstimate(target_partition)) {
+                List<CountedStatement> queryEst = t_estimate.getQueryEstimate(target_partition);
+//                if (d) 
+                    LOG.info(String.format("%s - Sending remote query estimate to partition %d containing %d queries\n%s",
+                                 ts, target_partition, queryEst.size(), StringUtil.join("\n", queryEst)));
+                assert(queryEst.isEmpty() == false);
                 QueryEstimate.Builder estBuilder = QueryEstimate.newBuilder();
-                List<CountedStatement> estimated = t_estimate.getQueryEstimate(target_partition);
-                if (d) LOG.debug(String.format("%s - Sending QueryEstimate to partition %d containing %d queries",
-                                 ts, target_partition, estimated.size()));
-                assert(estimated.isEmpty() == false);
-                for (CountedStatement countedStmt : estimated) {
+                for (CountedStatement countedStmt : queryEst) {
                     estBuilder.addStmtIds(countedStmt.statement.getId());
                     estBuilder.addStmtCounters(countedStmt.counter);
                 } // FOR
                 fragmentBuilder.setFutureStatements(estBuilder);
+            } else if (ts.isSysProc() == false) {
+                LOG.info("target_partition: " + target_partition);
+                LOG.info("site.specexec_enable: " + hstore_conf.site.specexec_enable);
+                LOG.info("t_estimate: " + (t_estimate != null));
+                if (t_estimate != null) {
+                    
+                    LOG.info("hasQueryEstimate: " + t_estimate.hasQueryEstimate(target_partition));
+                }
             }
            
             // Get the TransactionWorkRequest.Builder for the remote HStoreSite
@@ -2859,8 +2867,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         final ExecutionState execState = ts.getExecutionState();
         final boolean prefetch = ts.hasPrefetchQueries();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
-        final EstimatorState t_state = ts.getEstimatorState();
-        final TransactionEstimate t_estimate = ts.getLastEstimate();
+        final Estimate t_estimate = ts.getLastEstimate();
         
         // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
         // can access them directly without needing to deserialize them from the WorkFragments
@@ -3109,15 +3116,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local partition",
                                      ts, num_localPartition));
                     for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
-                        int partition = fragmentBuilder.getPartitionId();
-                        if (t_estimate != null && t_estimate.hasQueryEstimate(partition)) {
-                            QueryEstimate.Builder estBuilder = QueryEstimate.newBuilder();
-                            for (CountedStatement cntStmt : t_estimate.getQueryEstimate(partition)) {
-                                estBuilder.addStmtIds(cntStmt.statement.getId());
-                                estBuilder.addStmtCounters(cntStmt.counter);
-                            } // FOR
-                            fragmentBuilder.setFutureStatements(estBuilder);
-                        }
+//                        int partition = fragmentBuilder.getPartitionId();
+//                        if (t_estimate != null && t_estimate.hasQueryEstimate(partition)) {
+//                            List<CountedStatement> remoteQueries = t_estimate.getQueryEstimate(partition);
+//                            // if (t)
+//                            LOG.info(String.format("%s - Sending estimate update to partition %d containing %d queries\n%s",
+//                                     ts, partition, remoteQueries.size(), StringUtil.join("\n", remoteQueries)));
+//                            QueryEstimate.Builder estBuilder = QueryEstimate.newBuilder();
+//                            for (CountedStatement cntStmt : remoteQueries) {
+//                                estBuilder.addStmtIds(cntStmt.statement.getId());
+//                                estBuilder.addStmtCounters(cntStmt.counter);
+//                            } // FOR
+//                            fragmentBuilder.setFutureStatements(estBuilder);
+//                        }
                         WorkFragment fragment = fragmentBuilder.build();
                         ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
                         this.processWorkFragment(ts, fragment, fragmentParams);

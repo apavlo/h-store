@@ -253,6 +253,7 @@ public class LocalCluster extends VoltServerConfig {
         List<String> siteCommand = new ArrayList<String>();
         CollectionUtil.addAll(siteCommand, 
             "ant",
+//            "compile",
             "hstore-site",
             "-Djar=" + m_jarFileName
         );

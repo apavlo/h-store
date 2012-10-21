@@ -14,7 +14,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.markov.MarkovEstimate;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
@@ -415,7 +415,7 @@ public class TestMarkovEstimator extends BaseTestCase {
         
         // We should have an MarkovEstimate for each batch
         assertEquals(txn_trace.getBatchCount(), s.getEstimateCount());
-        List<TransactionEstimate> estimates = s.getEstimates();
+        List<Estimate> estimates = s.getEstimates();
         for (int i = 0, cnt = txn_trace.getBatchCount(); i < cnt; i++) {
             List<QueryTrace> queries = txn_trace.getBatchQueries(i);
             assertFalse(queries.isEmpty());

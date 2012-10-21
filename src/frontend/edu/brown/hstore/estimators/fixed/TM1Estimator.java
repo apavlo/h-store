@@ -5,7 +5,7 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
@@ -32,7 +32,7 @@ public class TM1Estimator extends FixedEstimator {
     }
 
     @Override
-    public TransactionEstimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+    public Estimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
         return (state.getInitialEstimate());
     }
     

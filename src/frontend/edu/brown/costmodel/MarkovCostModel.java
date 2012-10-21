@@ -24,7 +24,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.markov.MarkovEstimate;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
@@ -440,7 +440,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
         final int base_partition = s.getBasePartition();
         final int num_estimates = s.getEstimateCount();
-        List<TransactionEstimate> estimates = null;
+        List<Estimate> estimates = null;
 
         // This is strictly for the paper so that we can show how slow it would
         // be to have calculate probabilities through a traversal for each batch
@@ -449,8 +449,8 @@ public class MarkovCostModel extends AbstractCostModel {
                 String name = AbstractTransaction.formatTxnName(markov.getProcedure(), s.getTransactionId());
                 LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + name);
             }
-            estimates = new ArrayList<TransactionEstimate>();
-            for (TransactionEstimate e : s.getEstimates()) {
+            estimates = new ArrayList<Estimate>();
+            for (Estimate e : s.getEstimates()) {
                 MarkovEstimate est = (MarkovEstimate)e; 
                 MarkovVertex v = est.getVertex();
                 MarkovEstimate new_est = MarkovProbabilityCalculator.generate(this.catalogContext, markov, v);
@@ -517,7 +517,7 @@ public class MarkovCostModel extends AbstractCostModel {
         MarkovVertex abort_v = markov.getAbortVertex();
         boolean last_hadAbortPath = true;
         first_penalty = true;
-        for (TransactionEstimate e : estimates) {
+        for (Estimate e : estimates) {
             MarkovEstimate est = (MarkovEstimate)e;
             assert(est.isInitialized()) : "Uninitialized MarkovEstimate from " + s;
             MarkovVertex v = est.getVertex();

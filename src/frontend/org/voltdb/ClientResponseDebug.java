@@ -16,7 +16,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -101,7 +101,7 @@ public class ClientResponseDebug implements FastSerializable {
         
         EstimatorState t_state = ts.getEstimatorState();
         if (t_state != null) {
-            for (TransactionEstimate est : t_state.getEstimates()) {
+            for (Estimate est : t_state.getEstimates()) {
                 for (int partition : this.exec_touchedPartitions) {
                     if (est.hasQueryEstimate(partition)) {
                         Collection<CountedStatement> stmts = est.getQueryEstimate(partition);

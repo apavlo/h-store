@@ -23,7 +23,7 @@ import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.designer.ColumnSet;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -160,14 +160,14 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         // initial TransactionEstimate for the single-partition txn
         // We need to make sure that both estimates have the list of 
         // queries that the transaction is going to execute
-        TransactionEstimate dtxnEst = dtxnState.getLastEstimate();
+        Estimate dtxnEst = dtxnState.getLastEstimate();
         assert(dtxnEst != null);
         if (dtxnEst.hasQueryEstimate(partitionId) == false) {
             if (debug.get())
                 LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));
             return (false);
         }
-        TransactionEstimate tsEst = tsState.getInitialEstimate();
+        Estimate tsEst = tsState.getInitialEstimate();
         assert(tsEst != null);
         if (tsEst.hasQueryEstimate(partitionId) == false) {
             if (debug.get())

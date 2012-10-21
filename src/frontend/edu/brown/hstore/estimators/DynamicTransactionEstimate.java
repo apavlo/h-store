@@ -6,7 +6,7 @@ package edu.brown.hstore.estimators;
  * transaction runs
  * @author pavlo
  */
-public interface DynamicTransactionEstimate extends TransactionEstimate {
+public interface DynamicTransactionEstimate extends Estimate {
 
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY

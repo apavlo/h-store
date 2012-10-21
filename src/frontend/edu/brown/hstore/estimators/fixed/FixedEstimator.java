@@ -8,7 +8,7 @@ import org.voltdb.utils.EstTime;
 
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.PartitionEstimator;
@@ -72,7 +72,7 @@ public abstract class FixedEstimator extends TransactionEstimator {
      * Fixed Estimator Estimate
      * @author pavlo
      */
-    protected static class FixedEstimation implements TransactionEstimate {
+    protected static class FixedEstimation implements Estimate {
         protected final PartitionSet partitions;
         protected final PartitionSet readonly;
         protected final PartitionSet finished;

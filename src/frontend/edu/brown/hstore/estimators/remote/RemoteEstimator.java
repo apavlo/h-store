@@ -8,7 +8,7 @@ import org.voltdb.utils.NotImplementedException;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
@@ -60,7 +60,7 @@ public class RemoteEstimator extends TransactionEstimator {
     }
 
     @Override
-    public <T extends TransactionEstimate> T executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+    public <T extends Estimate> T executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 

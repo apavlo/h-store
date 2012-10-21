@@ -8,7 +8,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
 
-public interface TransactionEstimate extends Poolable {
+public interface Estimate extends Poolable {
 
     /**
      * Returns true if this TransactionEstimate is considered valid

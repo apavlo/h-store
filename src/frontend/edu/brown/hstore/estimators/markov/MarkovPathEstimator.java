@@ -519,7 +519,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                     estimate.read_partitions.add(p);
                 }
                 estimate.incrementTouchedCounter(p);
-                estimate.touched_partitions.add(p);
             } // FOR
         }
         // WRITE
@@ -535,9 +534,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                     estimate.write_partitions.add(p);
                 }
                 estimate.incrementTouchedCounter(p);
-                estimate.touched_partitions.add(p);
             } // FOR
         }
+        estimate.touched_partitions.addAll(next_vertex.getPartitions());
         
         // If this is the first time that the path touched more than one partition, then we need to set the single-partition
         // probability to be the confidence coefficient thus far

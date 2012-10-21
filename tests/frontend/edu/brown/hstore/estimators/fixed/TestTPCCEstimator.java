@@ -9,7 +9,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.BaseTestCase;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.fixed.FixedEstimator;
 import edu.brown.hstore.estimators.fixed.TPCCEstimator;
 import edu.brown.markov.EstimationThresholds;
@@ -74,7 +74,7 @@ public class TestTPCCEstimator extends BaseTestCase {
             
             // Make sure that it identifies that we are a distributed transaction and 
             // that we expect to touch both the W_ID partition and the REMOTE_W_ID partition
-            TransactionEstimate est = state.getInitialEstimate();
+            Estimate est = state.getInitialEstimate();
             assertNotNull(est);
             PartitionSet partitions = est.getTouchedPartitions(thresholds);
             assertEquals(2, partitions.size());

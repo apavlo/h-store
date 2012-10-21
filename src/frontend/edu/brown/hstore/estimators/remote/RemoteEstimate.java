@@ -9,7 +9,7 @@ import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.PartitionSet;
 
@@ -19,7 +19,7 @@ import edu.brown.utils.PartitionSet;
  * will be available for it.
  * @author pavlo
  */
-public class RemoteEstimate implements TransactionEstimate {
+public class RemoteEstimate implements Estimate {
     
     private final QueryEstimate query_estimates[];
     private final List<CountedStatement> countedStmts[];
