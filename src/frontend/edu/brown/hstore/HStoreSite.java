@@ -82,6 +82,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.ClientInterface.ClientInputHandler;
+import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -93,6 +94,8 @@ import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.remote.RemoteEstimator;
+import edu.brown.hstore.estimators.remote.RemoteEstimatorState;
 import edu.brown.hstore.stats.MarkovEstimatorProfilerStats;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
 import edu.brown.hstore.stats.PoolCounterStats;
@@ -223,6 +226,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Reusable Object Pools
      */
     private final HStoreObjectPools objectPools;
+    
+    /**
+     * This TransactionEstimator is a stand-in for transactions that need to access
+     * this partition but who are running at some other node in the cluster.
+     */
+    private final RemoteEstimator remoteTxnEstimator;
     
     // ----------------------------------------------------------------------------
     // STATS STUFF
@@ -445,6 +454,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                              new Object[]{ this.catalogContext.database, num_partitions },
                                              new Class<?>[]{ Database.class, int.class });
         this.p_estimator = new PartitionEstimator(this.catalogContext, this.hasher);
+        this.remoteTxnEstimator = new RemoteEstimator(this.p_estimator);
 
         // **IMPORTANT**
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
@@ -1888,6 +1898,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(this.isLocalPartition(fragment.getPartitionId())) :
             "Trying to queue work for " + ts + " at non-local partition " + fragment.getPartitionId();
         
+        if (hstore_conf.site.specexec_enable && ts instanceof RemoteTransaction && fragment.hasFutureStatements()) {
+            QueryEstimate query_estimate = fragment.getFutureStatements();
+            RemoteTransaction remote_ts = (RemoteTransaction)ts;
+            RemoteEstimatorState t_state = (RemoteEstimatorState)remote_ts.getEstimatorState();
+            if (t_state == null) {
+                t_state = this.remoteTxnEstimator.startTransaction(ts.getTransactionId(),
+                                                                   ts.getBasePartition(),
+                                                                   ts.getProcedure(),
+                                                                   null);
+                remote_ts.setEstimatorState(t_state);
+                this.remoteTxnEstimator.processQueryEstimate(t_state, query_estimate, fragment.getPartitionId());
+            }
+        }
         this.executors[fragment.getPartitionId()].queueWork(ts, fragment);
     }
 

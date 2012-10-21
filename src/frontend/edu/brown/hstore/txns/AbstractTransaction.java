@@ -577,6 +577,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return this.proc_id;
     }
     /**
+     * Return the underlying procedure catalog object
+     * @return
+     */
+    public Procedure getProcedure() {
+        return (this.hstore_site.getCatalogContext().getProcedureById(this.proc_id));
+    }
+    /**
      * Return the ParameterSet that contains the procedure input
      * parameters for this transaction. These are the original parameters
      * that were sent from the client for this txn.

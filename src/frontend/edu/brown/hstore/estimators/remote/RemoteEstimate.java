@@ -5,9 +5,9 @@ import java.util.List;
 
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Statement;
+import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.catalog.special.CountedStatement;
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.markov.EstimationThresholds;
@@ -26,16 +26,15 @@ public class RemoteEstimate implements TransactionEstimate {
     private final CatalogContext catalogContext;
     
     @SuppressWarnings("unchecked")
-    public RemoteEstimate(HStoreSite hstore_site) {
-        this.catalogContext = hstore_site.getCatalogContext();
+    public RemoteEstimate(CatalogContext catalogContext) {
+        this.catalogContext = catalogContext;
         this.query_estimates = new QueryEstimate[this.catalogContext.numberOfPartitions];
         this.countedStmts = (List<CountedStatement>[])new List<?>[this.catalogContext.numberOfPartitions];
     }
 
     @Override
     public boolean isInitialized() {
-        // TODO Auto-generated method stub
-        return false;
+        return (true);
     }
 
     @Override
@@ -77,90 +76,76 @@ public class RemoteEstimate implements TransactionEstimate {
 
     @Override
     public PartitionSet getTouchedPartitions(EstimationThresholds t) {
-        // TODO Auto-generated method stub
-        return null;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public boolean isSinglePartitionProbabilitySet() {
-        // TODO Auto-generated method stub
-        return false;
+        return (false);
     }
 
     @Override
     public boolean isSinglePartitioned(EstimationThresholds t) {
-        // TODO Auto-generated method stub
-        return false;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public boolean isReadOnlyProbabilitySet(int partition) {
-        // TODO Auto-generated method stub
-        return false;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
-        // TODO Auto-generated method stub
-        return false;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
-        // TODO Auto-generated method stub
-        return false;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-        // TODO Auto-generated method stub
-        return null;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public boolean isWriteProbabilitySet(int partition) {
-        // TODO Auto-generated method stub
-        return false;
+        return (false);
     }
 
     @Override
     public boolean isWritePartition(EstimationThresholds t, int partition) {
-        // TODO Auto-generated method stub
-        return false;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public PartitionSet getWritePartitions(EstimationThresholds t) {
-        // TODO Auto-generated method stub
-        return null;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public boolean isFinishProbabilitySet(int partition) {
-        // TODO Auto-generated method stub
-        return false;
+        return (false);
     }
 
     @Override
     public boolean isFinishPartition(EstimationThresholds t, int partition) {
-        // TODO Auto-generated method stub
-        return false;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public PartitionSet getFinishPartitions(EstimationThresholds t) {
-        // TODO Auto-generated method stub
-        return null;
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
     public boolean isAbortProbabilitySet() {
-        // TODO Auto-generated method stub
         return false;
     }
 
     @Override
     public boolean isAbortable(EstimationThresholds t) {
-        return (true);
+        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 }

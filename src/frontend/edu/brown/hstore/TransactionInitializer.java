@@ -35,7 +35,6 @@ import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;

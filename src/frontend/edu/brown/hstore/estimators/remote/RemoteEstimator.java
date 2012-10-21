@@ -10,6 +10,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimate;
@@ -55,6 +56,12 @@ public class RemoteEstimator extends TransactionEstimator {
         d = debug.get();
         t = trace.get();
     }
+    
+    public void processQueryEstimate(RemoteEstimatorState state, QueryEstimate query_est, int partition) {
+        RemoteEstimate est = state.createNextEstimate(query_est);
+        est.addQueryEstimate(query_est, partition);
+    }
+    
 
     @Override
     public <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {

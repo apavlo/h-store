@@ -197,21 +197,19 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                                                         .addParamIndex(i);
                 ts.getTouchedPartitions().put(destPartitionId);
                 
-                // Input Dependencies
                 boolean needs_input = false;
-                if (pf.inputDependencyIds != null) {
-                    for (int dep : pf.inputDependencyIds) {
-                        builder.addInputDepId(dep);
-                        needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
-                    } // FOR
-                }
-                builder.setNeedsInput(needs_input);
-                
-                // Output Dependencies
-                for (int dep : pf.outputDependencyIds) {
-                    builder.addOutputDepId(dep);
+                for (int ii = 0; ii < pf.outputDependencyIds.length; ii++) {
+                    // Input Dependencies
+                    if (pf.inputDependencyIds != null && ii < pf.inputDependencyIds.length) {
+                        builder.addInputDepId(pf.inputDependencyIds[ii]);
+                        needs_input = needs_input || (pf.inputDependencyIds[ii] != HStoreConstants.NULL_DEPENDENCY_ID);
+                    } else {
+                        builder.addInputDepId(HStoreConstants.NULL_DEPENDENCY_ID);
+                    }
+                    // Output Dependencies
+                    builder.addOutputDepId(pf.outputDependencyIds[ii]);
                 } // FOR
-                
+                builder.setNeedsInput(needs_input);
                 this.fragments.add(builder);
                 
                 if (debug.get()) 

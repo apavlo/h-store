@@ -120,7 +120,7 @@ public abstract class TransactionEstimator implements Loggable {
      * @param args
      * @return
      */
-    public abstract <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]);
+    protected abstract <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]);
     
     
     /**

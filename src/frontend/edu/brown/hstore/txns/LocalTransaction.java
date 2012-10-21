@@ -700,15 +700,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
     
-    /**
-     * Return the underlying procedure catalog object
-     * The VoltProcedure must have already been set
-     * @return
-     */
-    public Procedure getProcedure() {
-        return (this.catalog_proc);
-    }
-    
     public void removeProcedureParameters() {
         this.parameters = null;
     }
@@ -1127,17 +1118,19 @@ public class LocalTransaction extends AbstractTransaction {
             
             // If this WorkFragment needs an input dependency, then we need to make sure it arrives at
             // the executor before it is allowed to start executing
-            int dependency_id = fragment.getInputDepId(i);
-            if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
-                DependencyInfo dinfo = this.getOrCreateDependencyInfo(stmt_index, dependency_id);
-                dinfo.addBlockedWorkFragment(fragment);
-                dinfo.markInternal();
-                if (blocked == false) {
-                    this.state.blocked_tasks.add(fragment);
-                    blocked = true;   
+            if (fragment.getNeedsInput()) {
+                int dependency_id = fragment.getInputDepId(i);
+                if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                    DependencyInfo dinfo = this.getOrCreateDependencyInfo(stmt_index, dependency_id);
+                    dinfo.addBlockedWorkFragment(fragment);
+                    dinfo.markInternal();
+                    if (blocked == false) {
+                        this.state.blocked_tasks.add(fragment);
+                        blocked = true;   
+                    }
+                    if (d) LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
+                                                   this, dependency_id, fragment.getFragmentId(i), dinfo.toString()));
                 }
-                if (d) LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
-                                               this, dependency_id, fragment.getFragmentId(i), dinfo.toString()));
             }
             
             // *********************************** DEBUG ***********************************

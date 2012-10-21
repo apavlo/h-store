@@ -124,6 +124,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimate;
 import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.remote.RemoteEstimator;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
@@ -248,10 +249,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private boolean stop = false;
     
     /**
-     * Runtime Estimators
+     * The PartitionEstimator is what we use to figure our what partitions each 
+     * query invocation needs to be sent to at run time.
+     * It is deterministic.
      */
     private final PartitionEstimator p_estimator;
+    
+    /**
+     * The TransactionEstimator is the runtime piece that we use to keep track of
+     * where a locally running transaction is in its execution workflow. This allows 
+     * us to make predictions about what kind of things we expect the xact to do in 
+     * the future
+     */
     private final TransactionEstimator localTxnEstimator;
+    
     private EstimationThresholds thresholds = EstimationThresholds.factory();
     
     // Each execution site manages snapshot using a SnapshotSiteProcessor
@@ -583,6 +594,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;
         this.siteId = this.site.getId();
 
+        this.p_estimator = p_estimator;
+        this.localTxnEstimator = t_estimator;
+        
         // Speculative Execution
         if (hstore_conf.site.specexec_markov) {
             // The MarkovConflictChecker is thread-safe, so we all of the partitions
@@ -597,15 +611,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             this.specExecScheduler.setIgnoreAllLocal(true);
         }
         
-        // The PartitionEstimator is what we use to figure our where each query needs
-        // to be sent to
-        this.p_estimator = p_estimator;
-        
-        // The TransactionEstimator is the runtime piece that we use to keep track of
-        // where the transaction is in its execution workflow. This allows us to 
-        // make predictions about what kind of things we expect the xact to do in 
-        // the future
-        this.localTxnEstimator = t_estimator; 
+
         
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
@@ -1082,6 +1088,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 String.format("Trying to execute a second Dtxn %s before the current one has finished [current=%s]",
                               this.currentTxn, this.currentDtxn);
             this.setExecutionMode(this.currentTxn, newMode);
+            
+            if (hstore_conf.site.specexec_enable &&
+                  this.currentTxn instanceof RemoteTransaction &&
+                  fragment.hasFutureStatements()) {
+                QueryEstimate query_estimate = fragment.getFutureStatements();
+                
+                
+                // TODO: Process QueryEstimate
+            }
             
             this.processWorkFragment(this.currentTxn, fragment, parameters);
             
