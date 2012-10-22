@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
@@ -59,7 +60,7 @@ public class TestMarkovSuite extends RegressionSuite {
             assertEquals(1, results.length);
             long count = results[0].asScalarLong();
             assertTrue(tableName + " -> " + count, count > 0);
-            System.err.println(tableName + "\n" + VoltTableUtil.format(results[0]));
+            // System.err.println(tableName + "\n" + VoltTableUtil.format(results[0]));
         } // FOR
     }
     
@@ -67,8 +68,9 @@ public class TestMarkovSuite extends RegressionSuite {
      * testSinglePartitionCaching
      */
     public void testSinglePartitionCaching() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
 
         // Enable the feature on the server
         RegressionSuiteUtil.setHStoreConf(client, "site.markov_path_caching", "true");
@@ -76,7 +78,7 @@ public class TestMarkovSuite extends RegressionSuite {
         // Fire off a single-partition txn
         // It should always come back with zero restarts
         String procName = neworder.class.getSimpleName();
-        Object params[] = RegressionSuiteUtil.generateNewOrder(2, false, (short)1);
+        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, false, (short)1);
         ClientResponse cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
         assertTrue(cresponse.toString(), cresponse.isSinglePartition());
@@ -138,13 +140,14 @@ public class TestMarkovSuite extends RegressionSuite {
      * testDistributedTxn
      */
     public void testDistributedTxn() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
 
         // Fire off a distributed neworder txn
         // It should always come back with zero restarts
         String procName = neworder.class.getSimpleName();
-        Object params[] = RegressionSuiteUtil.generateNewOrder(2, true, (short)1);
+        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, (short)2);
         
         ClientResponse cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
@@ -174,7 +177,7 @@ public class TestMarkovSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.network_txn_initialization", true);
         builder.setGlobalConfParameter("site.markov_enable", true);
         builder.setGlobalConfParameter("site.markov_profiling", true);
-        builder.setGlobalConfParameter("site.markov_path_caching", true);
+        builder.setGlobalConfParameter("site.markov_path_caching", false);
         builder.setGlobalConfParameter("site.markov_path", markovs.getAbsolutePath());
 
         // build up a project builder for the TPC-C app
