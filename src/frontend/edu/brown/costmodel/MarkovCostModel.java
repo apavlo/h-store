@@ -1,5 +1,6 @@
 package edu.brown.costmodel;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -24,14 +25,14 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.MarkovEstimator;
-import edu.brown.hstore.estimators.MarkovEstimatorState;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
+import edu.brown.hstore.estimators.markov.MarkovEstimate;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovProbabilityCalculator;
 import edu.brown.markov.MarkovUtil;
@@ -337,8 +338,7 @@ public class MarkovCostModel extends AbstractCostModel {
             throw new RuntimeException(ex);
         }
 
-        MarkovEstimator.POOL_STATES.returnObject(s);
-
+        this.t_estimator.destroyEstimatorState(s);
         return (cost);
     }
 
@@ -441,7 +441,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
         final int base_partition = s.getBasePartition();
         final int num_estimates = s.getEstimateCount();
-        List<TransactionEstimate> estimates = null;
+        List<Estimate> estimates = null;
 
         // This is strictly for the paper so that we can show how slow it would
         // be to have calculate probabilities through a traversal for each batch
@@ -450,8 +450,8 @@ public class MarkovCostModel extends AbstractCostModel {
                 String name = AbstractTransaction.formatTxnName(markov.getProcedure(), s.getTransactionId());
                 LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + name);
             }
-            estimates = new ArrayList<TransactionEstimate>();
-            for (TransactionEstimate e : s.getEstimates()) {
+            estimates = new ArrayList<Estimate>();
+            for (Estimate e : s.getEstimates()) {
                 MarkovEstimate est = (MarkovEstimate)e; 
                 MarkovVertex v = est.getVertex();
                 MarkovEstimate new_est = MarkovProbabilityCalculator.generate(this.catalogContext, markov, v);
@@ -518,7 +518,7 @@ public class MarkovCostModel extends AbstractCostModel {
         MarkovVertex abort_v = markov.getAbortVertex();
         boolean last_hadAbortPath = true;
         first_penalty = true;
-        for (TransactionEstimate e : estimates) {
+        for (Estimate e : estimates) {
             MarkovEstimate est = (MarkovEstimate)e;
             assert(est.isInitialized()) : "Uninitialized MarkovEstimate from " + s;
             MarkovVertex v = est.getVertex();
@@ -819,7 +819,7 @@ public class MarkovCostModel extends AbstractCostModel {
             partitions = args.catalogContext.getAllPartitionIds();
         }
 
-        final String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
+        final File input_path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
         final Map<Integer, MarkovGraphsContainer> m = MarkovGraphContainersUtil.load(args.catalog_db, input_path, procedures, partitions);
         assert (m != null);
         final boolean global = m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);

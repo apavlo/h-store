@@ -39,7 +39,7 @@ public class MockPartitionExecutor extends PartitionExecutor {
     }
     
     @Override
-    public VoltTable[] dispatchWorkFragments(LocalTransaction ts, int batchSize, Collection<WorkFragment> fragments, ParameterSet[] parameters) {
+    public VoltTable[] dispatchWorkFragments(LocalTransaction ts, int batchSize, Collection<WorkFragment.Builder> fragments, ParameterSet[] parameters) {
         return (new VoltTable[]{ });
     }
     

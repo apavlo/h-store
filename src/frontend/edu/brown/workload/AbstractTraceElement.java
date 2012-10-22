@@ -50,7 +50,7 @@ import edu.brown.catalog.CatalogUtil;
  * @author Andy Pavlo <pavlo@cs.brown.edu>
  *
  */
-public abstract class AbstractTraceElement<T extends CatalogType> implements JSONString {
+public abstract class AbstractTraceElement<T extends CatalogType> implements JSONString, Cloneable {
     /** java.util.logging logger. */
     protected static final Logger LOG = Logger.getLogger(AbstractTraceElement.class);
     
@@ -95,6 +95,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         this(catalog_item.getName(), params);
     }
     
+    @Override
     public AbstractTraceElement<T> clone() {
         AbstractTraceElement<T> clone = this.cloneImpl();
         clone.start_timestamp = this.start_timestamp;
@@ -106,7 +107,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         return (clone);
     }
     
-    public abstract <X> X cloneImpl();
+    protected abstract <X> X cloneImpl();
     
     public void setWeight(int weight) {
         this.weight = (short)weight;

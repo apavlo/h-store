@@ -53,6 +53,7 @@ package org.voltdb.client;
 import java.io.IOException;
 import java.net.UnknownHostException;
 
+import org.voltdb.ClientResponseDebug;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.Status;
@@ -170,7 +171,7 @@ public class MockVoltClient implements Client {
             }
 
             @Override
-            public boolean isSpeculative() {
+            public boolean hasDebug() {
                 // TODO Auto-generated method stub
                 return false;
             }
@@ -179,6 +180,11 @@ public class MockVoltClient implements Client {
             public boolean hadPrefetchedQueries() {
                 // TODO Auto-generated method stub
                 return false;
+            }
+            
+            public ClientResponseDebug getDebug() {
+                // TODO Auto-generated method stub
+                return null;
             }
         };
     }

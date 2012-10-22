@@ -99,7 +99,7 @@ public class PartitionEstimator {
     private PartitionSet all_partitions = new PartitionSet();
     private int num_partitions;
 
-    private final HashMap<Procedure, ProcParameter> cache_procPartitionParameters = new HashMap<Procedure, ProcParameter>();
+    private final Map<Procedure, ProcParameter> cache_procPartitionParameters = new HashMap<Procedure, ProcParameter>();
     private final Map<Table, Column> cache_tablePartitionColumns = new HashMap<Table, Column>();
     
     /**
@@ -123,7 +123,7 @@ public class PartitionEstimator {
     private final Map<String, Set<CacheEntry>> table_cache_xref = new HashMap<String, Set<CacheEntry>>();
 
     /**
-     * CacheEntry ColumnKey -> Set<StmtParameterIndex>
+     * CacheEntry ColumnKey -> StmtParameter Offset Array
      */
     private class CacheEntry extends HashMap<Column, int[]> {
         private static final long serialVersionUID = 1L;
@@ -644,7 +644,7 @@ public class PartitionEstimator {
                             // this guy was used against a StmtParameter some where else in the Statement
                             // If this is the case, then we can substitute that mofo in it's place
                             if (stmt_cache.containsKey(catalog_col)) {
-                                for (Integer param_idx : stmt_cache.get(catalog_col)) {
+                                for (int param_idx : stmt_cache.get(catalog_col)) {
                                     if (trace.get())
                                         LOG.trace("Linking " + CatalogUtil.getDisplayName(other_col) + " to parameter #" + param_idx + " because of " + catalog_col.fullName());
                                     stmt_cache.put(other_col, param_idx, (Table) other_col.getParent());

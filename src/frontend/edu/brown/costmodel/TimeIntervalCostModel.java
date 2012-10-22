@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -123,10 +124,10 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     final Histogram<Integer> missing_txn_histogram[];
 
     /** Temporary Data Structures */
-    final ArrayList<Integer> tmp_touched = new ArrayList<Integer>();
-    final ArrayList<Long> tmp_total = new ArrayList<Long>();
-    final ArrayList<Double> tmp_penalties = new ArrayList<Double>();
-    final ArrayList<Long> tmp_potential = new ArrayList<Long>();
+    final List<Integer> tmp_touched = new ArrayList<Integer>();
+    final List<Long> tmp_total = new ArrayList<Long>();
+    final List<Double> tmp_penalties = new ArrayList<Double>();
+    final List<Long> tmp_potential = new ArrayList<Long>();
 
     /** Temporary mapping from intervals to Consumers */
     final Map<Integer, Consumer<Pair<TransactionTrace, Integer>>> tmp_consumers = new HashMap<Integer, Consumer<Pair<TransactionTrace, Integer>>>();

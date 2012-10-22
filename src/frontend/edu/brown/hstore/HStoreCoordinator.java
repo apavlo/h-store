@@ -470,18 +470,26 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
                 if (d) LOG.debug("Attemping to connect to " + arr[i]);
             } // FOR
                     
-            try {
-                channels = ProtoRpcChannel.connectParallel(this.eventLoop, arr, 15000);
-            } catch (RuntimeException ex) {
-                LOG.warn("Failed to connect to remote sites. Going to try again...");
-                // Try again???
+            int tries = hstore_conf.site.network_startup_retries;
+            boolean success = false;
+            Throwable error = null;
+            while (tries-- > 0 && success == false) {
                 try {
-                    channels = ProtoRpcChannel.connectParallel(this.eventLoop, arr);
-                } catch (Exception ex2) {
-                    LOG.fatal("Site #" + this.getLocalSiteId() + " failed to connect to remote sites");
-                    this.listener.close();
-                    throw ex;    
+                    channels = ProtoRpcChannel.connectParallel(this.eventLoop,
+                                                               arr,
+                                                               hstore_conf.site.network_startup_wait);
+                    success = true;
+                } catch (Throwable ex) {
+                    if (tries > 0) {
+                        LOG.warn("Failed to connect to remote sites. Going to try again...");
+                        continue;
+                    }
                 }
+            } // WHILE
+            if (success == false) {
+                LOG.fatal("Site #" + this.getLocalSiteId() + " failed to connect to remote sites");
+                this.listener.close();
+                throw new RuntimeException(error);
             }
             assert channels.length == destinations.size();
             for (int i = 0; i < channels.length; i++) {

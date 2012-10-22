@@ -118,8 +118,11 @@
 <arg value="site.anticache_threshold=${site.anticache_threshold}" />
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
+<arg value="site.network_startup_wait=${site.network_startup_wait}" />
+<arg value="site.network_startup_retries=${site.network_startup_retries}" />
 <arg value="site.network_profiling=${site.network_profiling}" />
 <arg value="site.network_txn_initialization=${site.network_txn_initialization}" />
+<arg value="site.txn_client_debug=${site.txn_client_debug}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_counters=${site.txn_counters}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
@@ -141,9 +144,11 @@
 <arg value="site.markov_path=${site.markov_path}" />
 <arg value="site.markov_path_caching=${site.markov_path_caching}" />
 <arg value="site.markov_path_caching_threshold=${site.markov_path_caching_threshold}" />
+<arg value="site.markov_fast_path=${site.markov_fast_path}" />
 <arg value="site.markov_batch_caching_min=${site.markov_batch_caching_min}" />
 <arg value="site.exec_neworder_cheat=${site.exec_neworder_cheat}" />
 <arg value="site.markov_fixed=${site.markov_fixed}" />
+<arg value="site.markov_profiling=${site.markov_profiling}" />
 <arg value="site.planner_profiling=${site.planner_profiling}" />
 <arg value="site.planner_caching=${site.planner_caching}" />
 <arg value="site.planner_max_round_size=${site.planner_max_round_size}" />

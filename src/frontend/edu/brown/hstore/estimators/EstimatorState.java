@@ -27,8 +27,8 @@ public abstract class EstimatorState implements Poolable {
     protected int base_partition;
     protected long start_time;
     
-    private TransactionEstimate initialEstimate;
-    private final List<TransactionEstimate> estimates = new ArrayList<TransactionEstimate>();
+    private Estimate initialEstimate;
+    private final List<Estimate> estimates = new ArrayList<Estimate>();
     
     /**
      * Constructor
@@ -53,7 +53,7 @@ public abstract class EstimatorState implements Poolable {
     @Override
     public void finish() {
         this.initialEstimate = null;
-        for (TransactionEstimate estimate : this.estimates) {
+        for (Estimate estimate : this.estimates) {
             if (estimate != null) estimate.finish();
         } // FOR
         this.estimates.clear();
@@ -84,14 +84,14 @@ public abstract class EstimatorState implements Poolable {
     // TRANSACTION ESTIMATES
     // ----------------------------------------------------------------------------
     
-    protected void addInitialEstimate(TransactionEstimate estimate) {
+    protected void addInitialEstimate(Estimate estimate) {
         assert(this.initialEstimate == null);
         this.initialEstimate = estimate;
     }
 
-    protected final <T extends TransactionEstimate> T addEstimate(T est) {
-        assert(this.initialEstimate != null) : 
-            "Trying to add a new estimate before the initial estimate";
+    protected final <T extends Estimate> T addEstimate(T est) {
+//        assert(this.initialEstimate != null) : 
+//            "Trying to add a new estimate before the initial estimate";
         assert(est.isInitialized());
         this.estimates.add(est);
         return (est);
@@ -111,7 +111,7 @@ public abstract class EstimatorState implements Poolable {
      * <B>NOTE:</B> This should only be used for testing 
      * @return
      */
-    public List<TransactionEstimate> getEstimates() {
+    public List<Estimate> getEstimates() {
         return (this.estimates);
     }
     
@@ -121,7 +121,7 @@ public abstract class EstimatorState implements Poolable {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public final <T extends TransactionEstimate> T getInitialEstimate() {
+    public final <T extends Estimate> T getInitialEstimate() {
         return ((T)this.initialEstimate);
     }
 
@@ -132,7 +132,7 @@ public abstract class EstimatorState implements Poolable {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public final <T extends TransactionEstimate> T getLastEstimate() {
+    public final <T extends Estimate> T getLastEstimate() {
         if (this.estimates.isEmpty()) {
             return (T)this.initialEstimate;
         }
@@ -173,7 +173,7 @@ public abstract class EstimatorState implements Poolable {
         return StringUtil.formatMaps(m0);
     }
 
-    public void addPrefetchableStatement(Statement statement, int counter) {
-        this.prefetchable_stmts.add(new CountedStatement(statement, counter));
+    public void addPrefetchableStatement(CountedStatement cntStmt) {
+        this.prefetchable_stmts.add(cntStmt);
     }
 }

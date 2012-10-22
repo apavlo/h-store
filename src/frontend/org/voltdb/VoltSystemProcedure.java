@@ -82,7 +82,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     @Deprecated
     protected int num_partitions;
     
-    protected final List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+    protected final List<WorkFragment.Builder> fragments = new ArrayList<WorkFragment.Builder>();
 
     public abstract void initImpl();
     
@@ -197,28 +197,23 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                                                         .addParamIndex(i);
                 ts.getTouchedPartitions().put(destPartitionId);
                 
-                // Input Dependencies
                 boolean needs_input = false;
-                WorkFragment.InputDependency.Builder inputBuilder = WorkFragment.InputDependency.newBuilder();
-                if (pf.inputDependencyIds != null) {
-                    for (int dep : pf.inputDependencyIds) {
-                        inputBuilder.addIds(dep);
-                        needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
-                    } // FOR
-                }
-                builder.addInputDepId(inputBuilder.build());
-                
-                // Output Dependencies
-                for (int dep : pf.outputDependencyIds) {
-                    builder.addOutputDepId(dep);
+                for (int ii = 0; ii < pf.outputDependencyIds.length; ii++) {
+                    // Input Dependencies
+                    if (pf.inputDependencyIds != null && ii < pf.inputDependencyIds.length) {
+                        builder.addInputDepId(pf.inputDependencyIds[ii]);
+                        needs_input = needs_input || (pf.inputDependencyIds[ii] != HStoreConstants.NULL_DEPENDENCY_ID);
+                    } else {
+                        builder.addInputDepId(HStoreConstants.NULL_DEPENDENCY_ID);
+                    }
+                    // Output Dependencies
+                    builder.addOutputDepId(pf.outputDependencyIds[ii]);
                 } // FOR
-    
                 builder.setNeedsInput(needs_input);
-                WorkFragment fragment = builder.build(); 
-                this.fragments.add(fragment);
+                this.fragments.add(builder);
                 
                 if (debug.get()) 
-                    LOG.debug(String.format("%s - WorkFragment\n%s", ts, fragment));
+                    LOG.debug(String.format("%s - WorkFragment.Builder\n%s", ts, builder));
             } // FOR
         } // FOR
 

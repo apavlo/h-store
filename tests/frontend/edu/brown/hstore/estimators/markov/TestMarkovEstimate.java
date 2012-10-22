@@ -1,10 +1,14 @@
-package edu.brown.markov;
+package edu.brown.hstore.estimators.markov;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
+import edu.brown.hstore.estimators.EstimatorUtil;
+import edu.brown.hstore.estimators.markov.MarkovEstimate;
+import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovGraph;
 import edu.brown.utils.ProjectType;
 
 public class TestMarkovEstimate extends BaseTestCase {
@@ -35,7 +39,7 @@ public class TestMarkovEstimate extends BaseTestCase {
      * testProbabilities
      */
     public void testProbabilities() throws Exception {
-        est.init(markov.getStartVertex(), MarkovUtil.INITIAL_ESTIMATE_BATCH);
+        est.init(markov.getStartVertex(), EstimatorUtil.INITIAL_ESTIMATE_BATCH);
         
         // Initialize
         // This is based on an actual estimate generated from a benchmark run
@@ -50,7 +54,7 @@ public class TestMarkovEstimate extends BaseTestCase {
                 est.setFinishProbability(p, 1.0f);
             }
         } // FOR
-        est.setConfidenceProbability(0.92f);
+        est.setConfidenceCoefficient(0.92f);
         est.setSinglePartitionProbability(1.0f);
         est.setAbortProbability(0.0f);
         assert(this.est.isValid());

@@ -1,13 +1,12 @@
-package edu.brown.markov;
+package edu.brown.hstore.estimators;
 
-import edu.brown.hstore.estimators.TransactionEstimate;
 
 /**
  * Special estimation type that can be dynamically calculated as the
  * transaction runs
  * @author pavlo
  */
-public interface DynamicTransactionEstimate extends TransactionEstimate {
+public interface DynamicTransactionEstimate extends Estimate {
 
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY

@@ -61,7 +61,7 @@ public class DependencyInfo implements Poolable {
     /**
      * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
      */
-    private final Set<WorkFragment> blockedTasks = new HashSet<WorkFragment>();
+    private final Set<WorkFragment.Builder> blockedTasks = new HashSet<WorkFragment.Builder>();
     
     /**
      * If set to true, that means we have already released all the tasks that were 
@@ -148,7 +148,7 @@ public class DependencyInfo implements Poolable {
      * for this DependencyInfo
      * @param ftask
      */
-    public void addBlockedWorkFragment(WorkFragment ftask) {
+    public void addBlockedWorkFragment(WorkFragment.Builder ftask) {
         if (t) LOG.trace("Adding block FragmentTaskMessage for txn #" + this.txn_id);
         this.blockedTasks.add(ftask);
     }
@@ -158,7 +158,7 @@ public class DependencyInfo implements Poolable {
      * return results/responses for this DependencyInfo 
      * @return
      */
-    protected Collection<WorkFragment> getBlockedWorkFragments() {
+    protected Collection<WorkFragment.Builder> getBlockedWorkFragments() {
         return (this.blockedTasks);
     }
     
@@ -167,7 +167,7 @@ public class DependencyInfo implements Poolable {
      * If the tasks have already been released, then the return value will be null;
      * @return
      */
-    public Collection<WorkFragment> getAndReleaseBlockedWorkFragments() {
+    public Collection<WorkFragment.Builder> getAndReleaseBlockedWorkFragments() {
         if (this.blockedTasksReleased == false) {
             this.blockedTasksReleased = true;
             if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blockedTasks.size(), this.txn_id));

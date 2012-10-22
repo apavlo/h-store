@@ -1,4 +1,4 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.fixed;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
@@ -6,6 +6,8 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
@@ -27,6 +29,7 @@ public class SEATSEstimator extends FixedEstimator {
         super(p_estimator);
     }
     
+    @SuppressWarnings("unchecked")
     @Override
     public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
@@ -70,7 +73,7 @@ public class SEATSEstimator extends FixedEstimator {
     }
 
     @Override
-    public TransactionEstimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+    public Estimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
         return (state.getInitialEstimate());
     }
 

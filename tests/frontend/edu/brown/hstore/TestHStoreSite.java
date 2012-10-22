@@ -1,6 +1,7 @@
 package edu.brown.hstore;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.voltdb.ClientResponseDebug;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
@@ -91,6 +93,57 @@ public class TestHStoreSite extends BaseTestCase {
     protected void tearDown() throws Exception {
         if (this.client != null) this.client.close();
         if (this.hstore_site != null) this.hstore_site.shutdown();
+    }
+    
+    /**
+     * testClientResponseDebug
+     */
+    @Test
+    public void testClientResponseDebug() throws Exception {
+         hstore_conf.site.txn_client_debug = true;
+        
+        // Submit a transaction and check that our ClientResponseDebug matches
+        // what the transaction was initialized with
+        final Map<Long, LocalTransaction> copiedHandles = new HashMap<Long, LocalTransaction>(); 
+        EventObserver<LocalTransaction> newTxnObserver = new EventObserver<LocalTransaction>() {
+            @Override
+            public void update(EventObservable<LocalTransaction> o, LocalTransaction ts) {
+                LocalTransaction copy = new LocalTransaction(hstore_site);
+                copy.init(ts.getTransactionId(),
+                          ts.getInitiateTime(),
+                          ts.getClientHandle(),
+                          ts.getBasePartition(),
+                          new PartitionSet(ts.getPredictTouchedPartitions()),
+                          ts.isPredictReadOnly(),
+                          ts.isPredictAbortable(),
+                          ts.getProcedure(),
+                          ts.getProcedureParameters(),
+                          null);
+                copiedHandles.put(ts.getTransactionId(), copy);
+            }
+        };
+        hstore_site.getTransactionInitializer().newTxnObservable.addObserver(newTxnObserver);
+        
+        Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
+        Object params[] = { 1234l, "XXXX" };
+        ClientResponse cr = this.client.callProcedure(catalog_proc.getName(), params);
+        assertEquals(Status.OK, cr.getStatus());
+        // System.err.println(cr);
+        // System.err.println(StringUtil.formatMaps(copiedHandles));
+        
+        assertTrue(cr.hasDebug());
+        ClientResponseDebug crDebug = cr.getDebug();
+        assertNotNull(crDebug);
+        
+        LocalTransaction copy = copiedHandles.get(cr.getTransactionId());
+        assertNotNull(copiedHandles.toString(), copy);
+        assertEquals(copy.getTransactionId().longValue(), cr.getTransactionId());
+        assertEquals(copy.getClientHandle(), cr.getClientHandle());
+        assertEquals(copy.getBasePartition(), cr.getBasePartition());
+        assertEquals(copy.isPredictAbortable(), crDebug.isPredictAbortable());
+        assertEquals(copy.isPredictReadOnly(), crDebug.isPredictReadOnly());
+        assertEquals(copy.isPredictSinglePartition(), crDebug.isPredictSinglePartition());
+        assertEquals(copy.getPredictTouchedPartitions(), crDebug.getPredictTouchedPartitions());
     }
     
     /**

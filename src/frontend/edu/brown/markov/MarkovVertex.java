@@ -2,7 +2,6 @@ package edu.brown.markov;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -22,12 +21,15 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Statement;
+import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
-import edu.brown.hstore.estimators.QueryEstimate;
+import edu.brown.hstore.estimators.DynamicTransactionEstimate;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -180,6 +182,11 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      */
     private transient String to_string = null;
     
+    /**
+     * Special wrapper object that contains the Statement + the query counter
+     */
+    private transient CountedStatement counted_stmt = null;
+    
 
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -210,7 +217,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @param xact_count
      */
     public MarkovVertex(Statement catalog_stmt, Integer[] partitions, Integer[] past_partitions) {
-        this(catalog_stmt, Type.QUERY, 0, Arrays.asList(partitions), Arrays.asList(past_partitions));
+        this(catalog_stmt, Type.QUERY, 0, new PartitionSet(partitions), new PartitionSet(past_partitions));
     }
 
     /**
@@ -221,7 +228,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @param partitions - the partitions this procedure touches
      * @param past_partitions - the partitions that we've touched in the past
      */
-    public MarkovVertex(Statement catalog_stmt, MarkovVertex.Type type, int query_instance_index, Collection<Integer> partitions, Collection<Integer> past_partitions) {
+    public MarkovVertex(Statement catalog_stmt, MarkovVertex.Type type, int query_instance_index, PartitionSet partitions, PartitionSet past_partitions) {
         super(catalog_stmt);
         this.type = type;
         if (partitions != null) this.partitions.addAll(partitions);
@@ -277,16 +284,25 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
 
     @Override
-    public boolean hasQueryEstimate() {
+    public boolean hasQueryEstimate(int partition) {
         return false;
     }
     
     @Override
-    public QueryEstimate getEstimatedQueries(int partition) {
-        // TODO Auto-generated method stub
-        return null;
+    public List<CountedStatement> getQueryEstimate(int partition) {
+        throw new NotImplementedException(ClassUtil.getCurrentMethodName() + " is not implemented");
     }
 
+    @Override
+    public int getBatchId() {
+        return (EstimatorUtil.INITIAL_ESTIMATE_BATCH);
+    }
+    
+    @Override
+    public boolean isInitialEstimate() {
+        return (true);
+    }
+    
     @Override
     public boolean isValid() {
         return (true);
@@ -309,7 +325,8 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             case START: {
                 // START should not have any inbound edges
                 if (inbound.size() > 0) {
-                    throw new InvalidGraphElementException(markov, this, String.format("START state has %d inbound edges", outbound.size()));
+                    String msg = String.format("START state has %d inbound edges", outbound.size());
+                    throw new InvalidGraphElementException(markov, this, msg);
                 }
                 break;
             }
@@ -317,7 +334,8 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             case ABORT: {
                 // COMMIT and ABORT should not have any outbound edges
                 if (outbound.size() > 0) {
-                    throw new InvalidGraphElementException(markov, this, String.format("%s state has %d outbound edges", this.type, outbound.size()));
+                    String msg = String.format("%s state has %d outbound edges", this.type, outbound.size());
+                    throw new InvalidGraphElementException(markov, this, msg);
                 }
                 break;
             }
@@ -332,7 +350,8 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
                         float prob = this.probabilities[idx][i];
                         if (MathUtil.greaterThanEquals(prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false ||
                             MathUtil.lessThanEquals(prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false) {
-                            throw new InvalidGraphElementException(markov, this, String.format("Invalid %s probability at partition #%d: %f", ptype.name(), i, prob));
+                            String msg = String.format("Invalid %s probability at partition #%d: %f", ptype.name(), i, prob);
+                            throw new InvalidGraphElementException(markov, this, msg);
                         }
                     } // FOR
                 }
@@ -340,12 +359,14 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
                 // If this isn't the first time we are executing this query, then we should at least have
                 // past partitions that we have touched
                 if (this.counter > 0 && this.past_partitions.isEmpty()) {
-                    throw new InvalidGraphElementException(markov, this, "No past partitions for at non-first query vertex");
+                    String msg = "No past partitions for at non-first query vertex";
+                    throw new InvalidGraphElementException(markov, this, msg);
                 }
                 
                 // And we should always have some partitions that we're touching now
                 if (this.partitions.isEmpty()) {
-                    throw new InvalidGraphElementException(markov, this, "No current partitions");
+                    String msg = "No current partitions";
+                    throw new InvalidGraphElementException(markov, this, msg);
                 }
                 break;
             }
@@ -394,6 +415,17 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return (int)this.counter;
     }
     
+    public CountedStatement getCountedStatement() {
+        if (this.counted_stmt == null) {
+            synchronized (this) {
+                if (this.counted_stmt == null) {
+                    this.counted_stmt = new CountedStatement((Statement)this.catalog_item, this.counter);
+                }
+            } // SYNCH
+        }
+        return (this.counted_stmt);
+    }
+    
 
     /**
      * Return the set of partitions that the query represented by this vertex touches
@@ -409,6 +441,11 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      */
     public PartitionSet getPastPartitions() {
         return this.past_partitions;
+    }
+    
+    @Override
+    public PartitionSet getTouchedPartitions(EstimationThresholds t) {
+        return (this.partitions);
     }
 
     public boolean equals(Object o) {
@@ -436,7 +473,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @param other_queryInstanceIndex
      * @return
      */
-    public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex) {
+    public boolean isEqual(Statement other_stmt, PartitionSet other_partitions, PartitionSet other_past, int other_queryInstanceIndex) {
         return (this.isEqual(other_stmt, other_partitions, other_past, other_queryInstanceIndex, MarkovGraph.USE_PAST_PARTITIONS));
     }
     
@@ -452,7 +489,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @param use_past_partitions
      * @return
      */
-    public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex, boolean use_past_partitions) {
+    public boolean isEqual(Statement other_stmt, PartitionSet other_partitions, PartitionSet other_past, int other_queryInstanceIndex, boolean use_past_partitions) {
         return (other_queryInstanceIndex == this.counter && 
                 other_stmt.equals(this.catalog_item) &&
                 this.partitions.equals(other_partitions) &&
@@ -493,36 +530,36 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         if (this.isQueryVertex()) {
             m0.put("Partitions", this.partitions);
             m0.put("Previous", this.past_partitions);
-            
-            // Global Probabilities
-            List<String> header = new ArrayList<String>();
-            header.add(" ");
-            MarkovVertex.Probability ptypes[] = MarkovVertex.Probability.values();
-            for (MarkovVertex.Probability type : ptypes) {
-                if (type.single_value) {
-                    float val = this.probabilities[type.ordinal()][DEFAULT_PARTITION_ID];
-                    String val_str = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
-                    m1.put(type.name(), val_str);
-                } else {
-                    header.add(type.name());
-                }
-            } // FOR
-    
-            // Partition-based Probabilities
-            int num_partitions = this.probabilities[MarkovVertex.Probability.WRITE.ordinal()].length;
-            Object rows[][] = new String[num_partitions][header.size()];
-            for (int row_idx = 0, cnt = num_partitions; row_idx < cnt; row_idx++) {
-                int col_idx = 0;
-                rows[row_idx][col_idx++] = String.format("[%02d]", row_idx);
-                for (MarkovVertex.Probability type : ptypes) {
-                    if (type.single_value) continue;
-                    float val = this.probabilities[type.ordinal()][row_idx];
-                    rows[row_idx][col_idx++] = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
-                } // FOR
-            } // FOR
-            
-            m2 = TableUtil.tableMap(header.toArray(new String[0]), rows);
         }
+            
+        // Global Probabilities
+        List<String> header = new ArrayList<String>();
+        header.add(" ");
+        MarkovVertex.Probability ptypes[] = MarkovVertex.Probability.values();
+        for (MarkovVertex.Probability type : ptypes) {
+            if (type.single_value) {
+                float val = this.probabilities[type.ordinal()][DEFAULT_PARTITION_ID];
+                String val_str = (val == EstimatorUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
+                m1.put(type.name(), val_str);
+            } else {
+                header.add(type.name());
+            }
+        } // FOR
+
+        // Partition-based Probabilities
+        int num_partitions = this.probabilities[MarkovVertex.Probability.WRITE.ordinal()].length;
+        Object rows[][] = new String[num_partitions][header.size()];
+        for (int row_idx = 0, cnt = num_partitions; row_idx < cnt; row_idx++) {
+            int col_idx = 0;
+            rows[row_idx][col_idx++] = String.format("[%02d]", row_idx);
+            for (MarkovVertex.Probability type : ptypes) {
+                if (type.single_value) continue;
+                float val = this.probabilities[type.ordinal()][row_idx];
+                rows[row_idx][col_idx++] = (val == EstimatorUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
+            } // FOR
+        } // FOR
+        
+        m2 = TableUtil.tableMap(header.toArray(new String[0]), rows);
 
         return (StringUtil.formatMaps(m0, m1, m2));
 
@@ -563,7 +600,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             String.format("Invalid partition %d for %s [max=%d]",
                           partition, ptype, this.probabilities[ptype.ordinal()].length);
         float value = this.probabilities[ptype.ordinal()][partition];
-        if (value == MarkovUtil.NULL_MARKER) value = ptype.default_value;
+        if (value == EstimatorUtil.NULL_MARKER) value = ptype.default_value;
         
         // Handle funky rounding error that I think is due to casting
         // Note that we only round when we hand out the number. If we try to round it before we 
@@ -581,7 +618,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         // Important: If the probability is unset, then we need to set its initial value
         // to zero and to the default value
         float previous = this.probabilities[ptype.ordinal()][partition];
-        if (previous == MarkovUtil.NULL_MARKER) previous = 0.0f;
+        if (previous == EstimatorUtil.NULL_MARKER) previous = 0.0f;
         this.setProbability(ptype, partition, previous + probability);
     }
 
@@ -607,7 +644,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             int i = ptype.ordinal();
             if (this.probabilities[i] == null) continue;
             for (int j = 0; j < this.probabilities[i].length; j++) {
-                this.probabilities[i][j] = MarkovUtil.NULL_MARKER;
+                this.probabilities[i][j] = EstimatorUtil.NULL_MARKER;
             } // FOR
         } // FOR
     }
@@ -630,7 +667,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     @Override
     public boolean isSinglePartitionProbabilitySet() {
-        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isSinglePartitioned(EstimationThresholds t) {
@@ -658,7 +695,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     @Override
     public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.READ_ONLY, partition) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.READ_ONLY, partition) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
@@ -700,7 +737,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return (this.getSpecificProbability(Probability.WRITE, partition));
     }
     public boolean isWriteProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.WRITE, partition) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.WRITE, partition) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isWritePartition(EstimationThresholds t, int partition) {
@@ -732,7 +769,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         return (this.getSpecificProbability(Probability.DONE, partition));
     }
     public boolean isFinishProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.DONE, partition) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.DONE, partition) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isFinishPartition(EstimationThresholds t, int partition) {
@@ -767,25 +804,24 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     @Override
     public boolean isAbortProbabilitySet() {
-        return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID) != MarkovUtil.NULL_MARKER);
+        return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID) != EstimatorUtil.NULL_MARKER);
     }
     @Override
     public boolean isAbortable(EstimationThresholds t) {
         float prob = this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID);
-        if (prob != MarkovUtil.NULL_MARKER) {
+        if (prob != EstimatorUtil.NULL_MARKER) {
             return (prob >= t.abort);
         }
         return (true);
     }
     
-
     /**
      * The 'score' of a vertex is a measure of how often it has been hit in the current workload.
      * When this value differs enough from getOriginalScore() shoudlRecompute() will return true
      * @param xact_count
      * @return
      */
-    public double getChangeScore(int xact_count) {
+    private double getChangeScore(int xact_count) {
         return (double) (this.instancehits * 1.0 / xact_count);
     }
 
@@ -985,13 +1021,4 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             break;
         } // SWITCH
     }
-
-    @Override
-    public PartitionSet getTouchedPartitions(EstimationThresholds t) {
-        return (this.partitions);
-    }
-
-
-
-
 }

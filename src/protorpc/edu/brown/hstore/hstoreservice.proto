@@ -39,9 +39,6 @@ enum Status {
 
 // Specifies the work to be performed at a single partition.
 message WorkFragment {
-    message InputDependency {
-        repeated int32 ids = 1 [packed=true];
-    }
 
     // The partition that needs to execute this work fragment
     required int32 partition_id = 1;
@@ -49,8 +46,8 @@ message WorkFragment {
     // The PlanFragment ids that this partition will execute
     repeated int32 fragment_id = 2 [packed=true];
     
-    // The list of DependencyIds that each PlanFragment needs as input
-    repeated InputDependency input_dep_id = 3;
+    // The DependencyIds that each PlanFragment needs as input
+    repeated int32 input_dep_id = 3 [packed=true];
     
     // The DependencyIds that this work message will generate as output
     repeated int32 output_dep_id = 4 [packed=true];
@@ -65,7 +62,7 @@ message WorkFragment {
     required bool read_only = 8;
     
     // If true, then the Work embedded in this WorkFragment needs input
-    required bool needs_input = 9;
+    optional bool needs_input = 9 [default = false];
     
     // If true, then this is the final fragment for this transaction at this partition.
     optional bool last_fragment = 10 [default = false];
@@ -76,6 +73,10 @@ message WorkFragment {
     // If true, then this fragment should always be executed regardless 
     // of whether its result is cached.
     optional bool force = 12 [default = false];
+
+    // An estimate of the Statements that the transaction might
+    // execute at this partition
+    optional QueryEstimate future_statements = 13;
 }
 
 // The output results of WorkFragments
@@ -94,6 +95,12 @@ message WorkResult {
     
     // If this partition hit an error, this field will contain the SerializableException
     optional bytes error = 5;
+}
+
+// Speculative Execution Estimate
+message QueryEstimate {
+    repeated int32 stmt_ids = 1 [packed=true];
+    repeated int32 stmt_counters = 2 [packed=true];
 }
 
 // -----------------------------------

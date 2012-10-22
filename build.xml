@@ -975,6 +975,13 @@ TEST CASES
         <arg line="${files.dir}" />
     </exec>
 </target>
+<target name="junit-getfiles-update"
+        description="Update the files repository">
+    <exec dir="${tools.dir}" executable="./getfiles.py">
+        <arg line="--update" />
+        <arg line="${files.dir}" />
+    </exec>
+</target>
 
 <!-- Junit tests that run quickly -->
 <target name="junit"
@@ -1009,7 +1016,6 @@ TEST CASES
                 <exclude name='edu/brown/hstore/TestAntiCache*'/>
                 <exclude name='edu/brown/benchmark/airline/Test*'/>
                 <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
-                <exclude name='edu/brown/markov/TestMarkovGraph*' />
 
                 <!-- VoltDB Regression Suite -->
                 <exclude name="**/TestCatalogUpdateSuite.class" />
@@ -2070,6 +2076,7 @@ UTILITIES
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="markov=${markov}" />
         <arg value="markov.output=${output}" />
         <arg value="markov.global=${global}" />
         <classpath refid='project.classpath' />

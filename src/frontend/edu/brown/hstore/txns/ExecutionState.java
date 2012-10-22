@@ -63,7 +63,7 @@ public class ExecutionState implements Poolable {
     /**
      * 
      */
-    public final List<WorkFragment> tmp_partitionFragments = new ArrayList<WorkFragment>(); 
+    public final List<WorkFragment.Builder> tmp_partitionFragments = new ArrayList<WorkFragment.Builder>(); 
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
@@ -104,14 +104,14 @@ public class ExecutionState implements Poolable {
     /**
      * Blocked FragmentTaskMessages
      */
-    protected final List<WorkFragment> blocked_tasks = new ArrayList<WorkFragment>();
+    protected final List<WorkFragment.Builder> blocked_tasks = new ArrayList<WorkFragment.Builder>();
     
     /**
      * Unblocked FragmentTaskMessages
      * The VoltProcedure thread will block on this queue waiting for tasks to execute inside of ExecutionSite
      * This has to be a set so that we make sure that we only submit a single message that contains all of the tasks to the Dtxn.Coordinator
      */
-    protected final LinkedBlockingDeque<Collection<WorkFragment>> unblocked_tasks = new LinkedBlockingDeque<Collection<WorkFragment>>(); 
+    protected final LinkedBlockingDeque<Collection<WorkFragment.Builder>> unblocked_tasks = new LinkedBlockingDeque<Collection<WorkFragment.Builder>>(); 
     
     /**
      * Whether the current transaction still has outstanding WorkFragments that it
@@ -165,7 +165,7 @@ public class ExecutionState implements Poolable {
         return (this.executor.getExecutionThread());
     }
     
-    public LinkedBlockingDeque<Collection<WorkFragment>> getUnblockedWorkFragmentsQueue() {
+    public LinkedBlockingDeque<Collection<WorkFragment.Builder>> getUnblockedWorkFragmentsQueue() {
         return (this.unblocked_tasks);
     }
     
@@ -196,7 +196,7 @@ public class ExecutionState implements Poolable {
     // TESTING STUFF
     // ----------------------------------------------------------------------------
     
-    protected Collection<WorkFragment> getBlockedWorkFragments() {
+    protected Collection<WorkFragment.Builder> getBlockedWorkFragments() {
         return (this.blocked_tasks);
     }
     

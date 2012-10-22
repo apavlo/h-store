@@ -124,13 +124,13 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             this.touched_partitions.clear();
             BatchPlan plan = this.getPlan();
         
-            List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-            plan.getWorkFragments(TXN_ID, fragments);
-            assertFalse(fragments.isEmpty());
+            List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
+            plan.getWorkFragmentsBuilders(TXN_ID, builders);
+            assertFalse(builders.isEmpty());
         
-            for (WorkFragment pf : fragments) {
-                assertNotNull(pf);
-                for (int frag_id : pf.getFragmentIdList()) {
+            for (WorkFragment.Builder builder : builders) {
+                assertNotNull(builder);
+                for (int frag_id : builder.getFragmentIdList()) {
                     PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
                     assertNotNull(catalog_frag);
                     assertEquals(catalog_frag.fullName(), catalog_stmt, catalog_frag.getParent());
@@ -170,16 +170,16 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
-        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-        plan.getWorkFragments(TXN_ID, fragments);
-        assertFalse(fragments.isEmpty());
+        List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
+        plan.getWorkFragmentsBuilders(TXN_ID, builders);
+        assertFalse(builders.isEmpty());
 
         List<Statement> batchStmtOrder = new ArrayList<Statement>();
         boolean first = true;
         Statement last = null;
-        for (WorkFragment pf : fragments) {
-            assertNotNull(pf);
-            for (int frag_id : pf.getFragmentIdList()) {
+        for (WorkFragment.Builder builder : builders) {
+            assertNotNull(builder);
+            for (int frag_id : builder.getFragmentIdList()) {
                 PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
                 assertNotNull(catalog_frag);
                 Statement current = catalog_frag.getParent();
@@ -199,19 +199,19 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      * testBuildWorkFragments
      */
     public void testBuildWorkFragments() throws Exception {
-        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+        List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
         BatchPlan plan = this.getPlan();
-        plan.getWorkFragments(TXN_ID, fragments);
-        assertFalse(fragments.isEmpty());
+        plan.getWorkFragmentsBuilders(TXN_ID, builders);
+        assertFalse(builders.isEmpty());
         
-        for (WorkFragment pf : fragments) {
-            assertNotNull(pf);
+        for (WorkFragment.Builder builder : builders) {
+            assertNotNull(builder);
 //            System.err.println(pf);
             
             // If this WorkFragment is not for the base partition, then
             // we should make sure that it only has distributed queries...
-            if (pf.getPartitionId() != BASE_PARTITION) {
-                for (int frag_id : pf.getFragmentIdList()) {
+            if (builder.getPartitionId() != BASE_PARTITION) {
+                for (int frag_id : builder.getFragmentIdList()) {
                     PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog, frag_id);
                     assertNotNull(catalog_frag);
                     Statement catalog_stmt = catalog_frag.getParent();
@@ -221,11 +221,8 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             }
             
             // The InputDepId for all WorkFragments should always be the same
-            Set<Integer> all_ids = new HashSet<Integer>();
-            for (WorkFragment.InputDependency input_dep_ids : pf.getInputDepIdList()) {
-                all_ids.addAll(input_dep_ids.getIdsList());
-            } // FOR
-            assertEquals(pf.toString(), 1, all_ids.size());
+            Set<Integer> all_ids = new HashSet<Integer>(builder.getInputDepIdList());
+            assertEquals(builder.toString(), 1, all_ids.size());
             
 //            System.err.println(StringUtil.SINGLE_LINE);
         } // FOR

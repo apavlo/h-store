@@ -1,15 +1,31 @@
 package edu.brown.hstore.estimators;
 
 
+import java.util.List;
+
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
 
-public interface TransactionEstimate extends Poolable {
+public interface Estimate extends Poolable {
 
     /**
-     * Returns true if this TransactionEstimate is considered valid
-     * It is up to the implementing classes to descide what it means
+     * Returns true if this Estimate is for the initial estimate
+     * @return
+     */
+    public boolean isInitialEstimate();
+    
+    /**
+     * Returns the batch id for this Estimate
+     * @return
+     */
+    public int getBatchId();
+    
+    /**
+     * Returns true if this Estimate is considered valid and can be used by 
+     * the runtime system to modify its operations according to its contents.
+     * It is up to the implementing classes to decide what it means
      * for it to be valid. 
      * @return
      */
@@ -26,17 +42,21 @@ public interface TransactionEstimate extends Poolable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Returns true if this estimate contains a list of queries
-     * that the transaction will execute
+     * Returns true if this estimate has a list of Statements that the transaction 
+     * will execute on the given partition
+     * @param partition TODO
      * @return
      */
-    public boolean hasQueryEstimate();
+    public boolean hasQueryEstimate(int partition);
     
     /**
-     * 
+     * Return a list of CountedStatement handles that the transaction is likely 
+     * to execute on the given partition.
+     * If there are no queries that need to execute on the given partition, then
+     * the returned list will be empty.
      * @return
      */
-    public QueryEstimate getEstimatedQueries(int partition);
+    public List<CountedStatement> getQueryEstimate(int partition);
     
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY

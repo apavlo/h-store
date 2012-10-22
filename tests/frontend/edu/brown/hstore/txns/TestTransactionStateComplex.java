@@ -68,7 +68,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private static HStoreSite hstore_site;
     private static PartitionExecutor executor;
     private static BatchPlan plan;
-    private static List<WorkFragment> ftasks = new ArrayList<WorkFragment>();
+    private static List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
     private Histogram<Integer> touched_partitions = new Histogram<Integer>();
     
     private LocalTransaction ts;
@@ -76,7 +76,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
-    private List<WorkFragment> first_tasks = new ArrayList<WorkFragment>();
+    private List<WorkFragment.Builder> first_tasks = new ArrayList<WorkFragment.Builder>();
     private Map<Integer, Set<Integer>> dependency_partitions = new HashMap<Integer, Set<Integer>>();
     private Procedure catalog_proc;
     private Statement catalog_stmt;
@@ -116,7 +116,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
-            plan.getWorkFragments(TXN_ID, ftasks);
+            plan.getWorkFragmentsBuilders(TXN_ID, ftasks);
             assertFalse(ftasks.isEmpty());
         }
         assertNotNull(executor);
@@ -132,8 +132,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
      */
     private void addFragments() {
         this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
-        for (WorkFragment ftask : ftasks) {
-            assertNotNull(ftask);
+        for (WorkFragment.Builder ftask : ftasks) {
 //            System.err.println(ftask);
 //            System.err.println("+++++++++++++++++++++++++++++++++++");
             this.ts.addWorkFragment(ftask);
@@ -146,13 +145,11 @@ public class TestTransactionStateComplex extends BaseTestCase {
                 }
                 this.dependency_partitions.get(dep_id).add(ftask.getPartitionId());
                 
-                WorkFragment.InputDependency input_dep_ids = ftask.getInputDepId(i); 
-                if (input_dep_ids.getIdsCount() == 1 && input_dep_ids.getIds(0) == HStoreConstants.NULL_DEPENDENCY_ID) {
+                int input_dep_id = ftask.getInputDepId(i); 
+                if (input_dep_id == HStoreConstants.NULL_DEPENDENCY_ID) {
                     this.first_tasks.add(ftask);
                 } else {
-                    for (Integer input_dep_id : input_dep_ids.getIdsList()) {
-                        if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
-                    } // FOR
+                    this.internal_dependency_ids.add(input_dep_id);
                 }
             } // FOR
         } // FOR
@@ -184,7 +181,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         // and make sure that the things get unblocked at the right time
         // (1) Add a result for the first output dependency
         assertEquals(1, this.first_tasks.size());
-        WorkFragment first_ftask = CollectionUtil.first(this.first_tasks);
+        WorkFragment.Builder first_ftask = CollectionUtil.first(this.first_tasks);
         assertNotNull(first_ftask);
         int partition = first_ftask.getPartitionId();
         int first_output_dependency_id = first_ftask.getOutputDepId(0);
@@ -197,7 +194,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
         first_ftask = CollectionUtil.first(first_dinfo.getBlockedWorkFragments());
         DependencyInfo second_dinfo = this.ts.getDependencyInfo(first_ftask.getOutputDepId(0));
-        for (WorkFragment ftask : first_dinfo.getBlockedWorkFragments()) {
+        for (WorkFragment.Builder ftask : first_dinfo.getBlockedWorkFragments()) {
             assertFalse(second_dinfo.hasTasksReady());
             partition = ftask.getPartitionId();
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {

@@ -24,7 +24,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.MarkovEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.ThrottlingQueue;
@@ -979,10 +979,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Map<String, TypedObjectPool<?>> pools = hstore_site.getObjectPools().getGlobalPools(); 
         
         // MarkovPathEstimators
-        pools.put("Estimators", (TypedObjectPool<?>)MarkovEstimator.POOL_ESTIMATORS); 
+        // pools.put("Estimators", (TypedObjectPool<?>)MarkovEstimator.POOL_ESTIMATORS); 
 
         // TransactionEstimator.States
-        pools.put("EstimationStates", (TypedObjectPool<?>)MarkovEstimator.POOL_STATES);
+        // pools.put("EstimationStates", (TypedObjectPool<?>)MarkovEstimator.POOL_STATES);
         
         final Map<String, Object> m_pool = new LinkedHashMap<String, Object>();
         for (String key : pools.keySet()) {

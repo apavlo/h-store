@@ -32,6 +32,7 @@ public class AbstractVertex extends AbstractGraphElement {
     }
     
     public AbstractVertex(CatalogType catalog_item) {
+        assert(catalog_item != null);
         this.catalog_item = catalog_item;
         this.catalog_key = CatalogKey.createKey(this.catalog_item);
         this.catalog_class = this.catalog_item.getClass();
@@ -67,7 +68,7 @@ public class AbstractVertex extends AbstractGraphElement {
         return (this.catalog_item.getName());
     }
     
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public String debug(IGraph<?, ?> graph) {
         String ret = super.debug(graph);

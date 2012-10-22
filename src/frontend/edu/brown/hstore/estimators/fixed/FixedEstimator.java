@@ -1,9 +1,16 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.fixed;
+
+import java.util.List;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.CatalogContext;
 import org.voltdb.utils.EstTime;
 
+import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.Estimate;
+import edu.brown.hstore.estimators.EstimatorUtil;
+import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
@@ -17,6 +24,11 @@ public abstract class FixedEstimator extends TransactionEstimator {
         super(p_estimator);
     }
 
+    @Override
+    public void destroyEstimatorState(EstimatorState state) {
+        // Nothing to do...
+    }
+    
     @SuppressWarnings("unchecked")
     public static <T extends FixedEstimator> T factory(PartitionEstimator p_estimator, CatalogContext catalogContext) {
         FixedEstimator estimator = null;
@@ -61,7 +73,7 @@ public abstract class FixedEstimator extends TransactionEstimator {
      * Fixed Estimator Estimate
      * @author pavlo
      */
-    protected static class FixedEstimation implements TransactionEstimate {
+    protected static class FixedEstimation implements Estimate {
         protected final PartitionSet partitions;
         protected final PartitionSet readonly;
         protected final PartitionSet finished;
@@ -83,6 +95,16 @@ public abstract class FixedEstimator extends TransactionEstimator {
         }
         
         @Override
+        public boolean isInitialEstimate() {
+            return (true);
+        }
+        
+        @Override
+        public int getBatchId() {
+            return (EstimatorUtil.INITIAL_ESTIMATE_BATCH);
+        }
+
+        @Override
         public boolean isValid() {
             return (this.partitions.isEmpty() == false);
         }
@@ -97,12 +119,12 @@ public abstract class FixedEstimator extends TransactionEstimator {
         // ----------------------------------------------------------------------------
         
         @Override
-        public boolean hasQueryEstimate() {
+        public boolean hasQueryEstimate(int partition) {
             return false;
         }
         
         @Override
-        public QueryEstimate getEstimatedQueries(int partition) {
+        public List<CountedStatement> getQueryEstimate(int partition) {
             // TODO Auto-generated method stub
             return null;
         }

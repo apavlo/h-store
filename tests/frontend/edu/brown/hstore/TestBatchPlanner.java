@@ -2,7 +2,6 @@ package edu.brown.hstore;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -22,15 +21,14 @@ import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.benchmark.tm1.procedures.InsertCallForwarding;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
-import edu.brown.hstore.HStoreConstants;
 
 public class TestBatchPlanner extends BaseTestCase {
 
@@ -57,20 +55,16 @@ public class TestBatchPlanner extends BaseTestCase {
     
     private Procedure catalog_proc;
     private Statement catalog_stmt;
-    private Collection<Integer> all_partitions;
     private SQLStmt batch[];
     private ParameterSet args[];
-    private Histogram<Integer> touched_partitions;
-    private List<WorkFragment> fragments;
+    private final Histogram<Integer> touched_partitions = new Histogram<Integer>();
+    private final List<WorkFragment.Builder> fragments = new ArrayList<WorkFragment.Builder>();
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITIONS);
         p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, NUM_PARTITIONS));
-        this.all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
-        this.touched_partitions = new Histogram<Integer>();
-        this.fragments = new ArrayList<WorkFragment>();
     }
     
     private void init(Class<? extends VoltProcedure> volt_proc, String stmt_name, Object raw_args[]) {
@@ -92,16 +86,16 @@ public class TestBatchPlanner extends BaseTestCase {
         this.args = new ParameterSet[] { VoltProcedure.getCleanParams(this.batch[0], raw_args) };
     }
     
-    protected static int getLocalFragmentCount(Collection<WorkFragment> ftasks, int base_partition) {
+    protected static int getLocalFragmentCount(Collection<WorkFragment.Builder> ftasks, int base_partition) {
         int cnt = 0;
-        for (WorkFragment ftask : ftasks) {
+        for (WorkFragment.Builder ftask : ftasks) {
             if (ftask.getPartitionId() == base_partition) cnt++;
         } // FOR
         return (cnt);
     }
-    protected static int getRemoteFragmentCount(Collection<WorkFragment> ftasks, int base_partition) {
+    protected static int getRemoteFragmentCount(Collection<WorkFragment.Builder> ftasks, int base_partition) {
         int cnt = 0;
-        for (WorkFragment ftask : ftasks) {
+        for (WorkFragment.Builder ftask : ftasks) {
             if (ftask.getPartitionId() != base_partition) cnt++;
         } // FOR
         return (cnt);
@@ -188,9 +182,9 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testSingleSitedLocalPlan() throws Exception {
         this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
         assertNotNull(plan);
-        plan.getWorkFragments(TXN_ID, fragments);
+        plan.getWorkFragmentsBuilders(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
         
@@ -212,7 +206,7 @@ public class TestBatchPlanner extends BaseTestCase {
         try {
             this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
             BatchPlanner planner = new BatchPlanner(batch, this.catalog_proc, p_estimator);
-            BatchPlanner.BatchPlan plan0 = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
+            BatchPlanner.BatchPlan plan0 = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
             assertNotNull(plan0);
             assertFalse(plan0.hasMisprediction());
             assertTrue(plan0.isLocal());
@@ -222,11 +216,11 @@ public class TestBatchPlanner extends BaseTestCase {
             assertEquals(1, this.touched_partitions.getSampleCount());
             assertEquals(LOCAL_PARTITION, CollectionUtil.first(this.touched_partitions.getMaxCountValues()).intValue());
             
-            plan0.getWorkFragments(TXN_ID, fragments);
+            plan0.getWorkFragmentsBuilders(TXN_ID, fragments);
             assertEquals(1, getLocalFragmentCount(fragments, LOCAL_PARTITION)); // local_frags
             assertEquals(0, getRemoteFragmentCount(fragments, LOCAL_PARTITION)); // remote_frags
             
-            BatchPlanner.BatchPlan plan1 = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
+            BatchPlanner.BatchPlan plan1 = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
             assertNotNull(plan1);
             assertFalse(plan1.hasMisprediction());
             assert(plan0 == plan1);
@@ -250,7 +244,7 @@ public class TestBatchPlanner extends BaseTestCase {
         
         this.init(GetNewDestination.class, "GetData", params);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
@@ -258,7 +252,7 @@ public class TestBatchPlanner extends BaseTestCase {
         assertEquals(1, this.touched_partitions.getSampleCount());
         assertEquals(LOCAL_PARTITION, CollectionUtil.first(this.touched_partitions.getMaxCountValues()).intValue());
         
-        plan.getWorkFragments(TXN_ID, fragments);
+        plan.getWorkFragmentsBuilders(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
         
@@ -282,10 +276,10 @@ public class TestBatchPlanner extends BaseTestCase {
         
         this.init(InsertCallForwarding.class, "update", params);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
-        plan.getWorkFragments(TXN_ID, fragments);
+        plan.getWorkFragmentsBuilders(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
         
@@ -301,10 +295,10 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testSingleSitedRemotePlan() throws Exception {
         this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, REMOTE_PARTITION, Collections.singleton(LOCAL_PARTITION), false, this.touched_partitions, this.args);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, REMOTE_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), false, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
-        plan.getWorkFragments(TXN_ID, fragments);
+        plan.getWorkFragmentsBuilders(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, REMOTE_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, REMOTE_PARTITION);
         
@@ -320,10 +314,10 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testMultiSitedLocalPlan() throws Exception {
         this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.all_partitions, false, this.touched_partitions, this.args);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, catalogContext.getAllPartitionIds(), false, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
-        plan.getWorkFragments(TXN_ID, fragments);
+        plan.getWorkFragmentsBuilders(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
         
@@ -339,10 +333,10 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testMultiSitedRemotePlan() throws Exception {
         this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, REMOTE_PARTITION, this.all_partitions, false, this.touched_partitions, this.args);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, REMOTE_PARTITION, catalogContext.getAllPartitionIds(), false, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
-        plan.getWorkFragments(TXN_ID, fragments);
+        plan.getWorkFragmentsBuilders(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
          
@@ -358,24 +352,23 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testGetWorkFragments() throws Exception {
         this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.all_partitions, false, this.touched_partitions, this.args);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, catalogContext.getAllPartitionIds(), false, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
-        plan.getWorkFragments(TXN_ID, fragments);
+        plan.getWorkFragmentsBuilders(TXN_ID, fragments);
 //        System.err.println("TASKS:\n" + ftasks);
 //        System.err.println("----------------------------------------");
         Set<Integer> output_dependencies = new HashSet<Integer>();
-        WorkFragment local_ftask = null;
-        for (WorkFragment ftask : fragments) {
+        WorkFragment.Builder local_ftask = null;
+        for (WorkFragment.Builder ftask : fragments) {
             ftask.toString(); // Why does this prevent the test from failing????
             
             // All tasks for the multi-partition query should have exactly one output with no inputs
-            if (ftask.getInputDepId(0).getIds(0) == HStoreConstants.NULL_DEPENDENCY_ID) {
+            if (ftask.getInputDepId(0) == HStoreConstants.NULL_DEPENDENCY_ID) {
                 assertEquals("WorkFragment for multi-partition query does not have the right # of fragments", 1, ftask.getFragmentIdCount());
                 for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
-                    assertEquals(1, ftask.getInputDepId(i).getIdsCount());
-                    assertEquals(HStoreConstants.NULL_DEPENDENCY_ID, ftask.getInputDepId(i).getIds(0));
+                    assertEquals(HStoreConstants.NULL_DEPENDENCY_ID, ftask.getInputDepId(i));
                 } // FOR
                 assertEquals(1, ftask.getOutputDepIdCount());
                 output_dependencies.add(ftask.getOutputDepId(0));
@@ -397,13 +390,11 @@ public class TestBatchPlanner extends BaseTestCase {
 
         // Check that one of them needs input and that it outputs something
         // that the other partitions are not outputting (i.e., data for the client)
-        if (local_ftask.getInputDepId(0).getIds(0) != HStoreConstants.NULL_DEPENDENCY_ID) {
+        if (local_ftask.getInputDepId(0) != HStoreConstants.NULL_DEPENDENCY_ID) {
 //            with_input_dependencies++;
             assertEquals(output_dependencies.size(), local_ftask.getInputDepIdCount());
             for (int i = 0, cnt = local_ftask.getFragmentIdCount(); i < cnt; i++) {
-                WorkFragment.InputDependency input_dep = local_ftask.getInputDepId(i);
-                assertEquals(1, input_dep.getIdsCount());
-                int input_dependency = input_dep.getIds(0);
+                int input_dependency = local_ftask.getInputDepId(i);
                 assert(output_dependencies.contains(input_dependency));
             } // FOR
             assertFalse(output_dependencies.contains(local_ftask.getOutputDepId(0)));

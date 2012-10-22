@@ -1,4 +1,4 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.fixed;
 
 import java.util.Arrays;
 
@@ -7,6 +7,8 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
@@ -86,7 +88,7 @@ public class TPCCEstimator extends FixedEstimator {
     }
     
     @Override
-    public TransactionEstimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+    public Estimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
         return state.getInitialEstimate();
     }
 

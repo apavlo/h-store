@@ -71,6 +71,7 @@ public abstract class VoltTableUtil {
             if (result_idx > 0) sb.append("\n\n");
             
             VoltTable vt = results[result_idx];
+            vt.resetRowPosition();
             String header[] = new String[vt.getColumnCount()];
             for (int i = 0; i < header.length; i++) {
                 String colName = vt.getColumnName(i);

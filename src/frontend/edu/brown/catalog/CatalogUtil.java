@@ -927,8 +927,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_db
      * @return
      */
-    public static Set<Integer> getLocalPartitionIds(Site catalog_site) {
-        Set<Integer> partition_ids = new HashSet<Integer>();
+    public static PartitionSet getLocalPartitionIds(Site catalog_site) {
+        PartitionSet partition_ids = new PartitionSet();
         for (Partition catalog_proc : catalog_site.getPartitions()) {
             partition_ids.add(catalog_proc.getId());
         } // FOR
@@ -940,8 +940,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param base_partition
      * @return
      */
-    public static Set<Integer> getLocalPartitionIds(Database catalog_db, int base_partition) {
-        Set<Integer> partition_ids = new ListOrderedSet<Integer>();
+    public static PartitionSet getLocalPartitionIds(Database catalog_db, int base_partition) {
+        PartitionSet partition_ids = new PartitionSet();
         for (Partition catalog_proc : CatalogUtil.getLocalPartitions(catalog_db, base_partition)) {
             partition_ids.add(catalog_proc.getId());
         } // FOR
@@ -2575,15 +2575,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             // StmtParameter
             // Format: <Procedure>.<Statement>.<Item>
             else if (item instanceof StmtParameter) {
-                ret = String.format("%s.%s.#%02d",
+                ret = String.format("%s{%s.%s.#%02d}",
+                                    item.getClass().getSimpleName(),
                                     item.getParent().getParent().getName(),
                                     item.getParent().getName(),
                                     ((StmtParameter)item).getIndex());
             }    
-            // ProcParameter/StmtParameter
+            // ProcParameter
             // Format: <Parent>.<Item>
             else if (item instanceof ProcParameter) {
-                ret = String.format("%s.%s", item.getParent().getName(), (include_class ? item : item.getName()));
+                ret = String.format("%s{%s.#%02d}",
+                                    item.getClass().getSimpleName(),
+                                    item.getParent().getName(),
+                                    ((ProcParameter)item).getIndex());
             }
             // PlanFragment
             // Format: <Procedure>.<Statement>.[Fragment #XYZ]

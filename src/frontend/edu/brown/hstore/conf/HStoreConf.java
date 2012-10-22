@@ -549,6 +549,27 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
 
         @ConfigProperty(
+            description="How long in milliseconds should the HStoreCoordinator wait to establish " +
+            		    "the initial connections to other nodes in the cluster at start-up. " +
+            		    "Increasing this number will help with larger cluster deployments.",
+            defaultInt=15000,
+            experimental=false
+        )
+        public int network_startup_wait;
+        
+        @ConfigProperty(
+            description="If the HStoreCoordinator fails to connect to all of the other " +
+            		    "nodes in the cluster after ${site.network_startup_wait} has passed, " +
+            		    "this parameter defines the number of times that it is allowed to attempt " +
+            		    "to reconnect to them. This helps with some rare network issues with the " +
+            		    "ProtoRpc framework where the initial network connection attempt hangs " +
+            		    "or fails, even though both sites are available.",
+            defaultInt=2,
+            experimental=false
+        )
+        public int network_startup_retries;
+        
+        @ConfigProperty(
             description="Enable profiling for the thread that listens for incoming client requests " +
                         "over the network.",
             defaultBoolean=false,
@@ -568,8 +589,19 @@ public final class HStoreConf {
         public boolean network_txn_initialization;
         
         // ----------------------------------------------------------------------------
-        // Incoming Transaction Queue Options
+        // Transaction Execution Options
         // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="If this parameter is set to true, then the ClientResponse returned by the " +
+            		    "server will include a special ClientResponseDebug handle that contains " +
+            		    "additional information about the transaction. " + 
+            		    "Note that enabling this option will break compatibility with VoltDB's " +
+            		    "client libraries.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean txn_client_debug;
         
         @ConfigProperty(
             description="Enable transaction profiling. This will measure the amount of time a " +
@@ -624,7 +656,7 @@ public final class HStoreConf {
         public boolean txn_partition_id_managers;
         
         // ----------------------------------------------------------------------------
-        // Distributed Transaction Queue Options
+        // Transaction Queue Options
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
@@ -756,7 +788,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators" +
                         "for transactions running at the same partition.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=true
         )
         public boolean markov_path_caching;
@@ -769,6 +801,14 @@ public final class HStoreConf {
             experimental=true
         )
         public double markov_path_caching_threshold;
+        
+        @ConfigProperty(
+            description="If this is set to true, the MarkovEstimator will attempt to use the initial " +
+            		    "path estimate to quickly calculate the new path for a running transaction.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean markov_fast_path;
         
         @ConfigProperty(
             description="The minimum number of queries that must be in a batch for the TransactionEstimator " +
@@ -799,6 +839,13 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean markov_fixed;
+        
+        @ConfigProperty(
+            description="Enable profiling in the MarkovEstimator.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean markov_profiling;
 
         // ----------------------------------------------------------------------------
         // BatchPlanner

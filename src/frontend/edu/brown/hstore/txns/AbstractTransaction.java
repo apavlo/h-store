@@ -50,6 +50,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.interfaces.Loggable;
@@ -394,7 +395,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.exec_lastUndoToken[offset] = undoToken;
             
             // FIRST UNDO TOKEN
-            if (this.exec_firstUndoToken[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN) { 
+            if (this.exec_firstUndoToken[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN ||
+                this.exec_firstUndoToken[offset] == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
                 this.exec_firstUndoToken[offset] = undoToken;
             }
         }
@@ -404,8 +406,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
-        if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d]",
-                         this, this.round_ctr[offset], partition, undoToken));
+        if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d / first=%d / last=%d]",
+                         this, this.round_ctr[offset], partition,
+                         undoToken, this.exec_firstUndoToken[offset],  this.exec_lastUndoToken[offset]));
     }
     
     /**
@@ -467,6 +470,18 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     public void setEstimatorState(EstimatorState state) {
         this.predict_tState = state;
+    }
+    
+    /**
+     * Get the last TransactionEstimate produced for this transaction.
+     * If there is no estimate, then the return result is null.
+     * @return
+     */
+    public Estimate getLastEstimate() {
+        if (this.predict_tState != null) {
+            return (this.predict_tState.getLastEstimate());
+        }
+        return (null);
     }
     
     // ----------------------------------------------------------------------------
@@ -560,6 +575,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      */
     public final int getProcedureId() {
         return this.proc_id;
+    }
+    /**
+     * Return the underlying procedure catalog object
+     * @return
+     */
+    public Procedure getProcedure() {
+        return (this.hstore_site.getCatalogContext().getProcedureById(this.proc_id));
     }
     /**
      * Return the ParameterSet that contains the procedure input
@@ -963,7 +985,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         m.put("SysProc", this.sysproc);
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
+        m.put("First UndoToken", Arrays.toString(this.exec_firstUndoToken));
         m.put("Last UndoToken", Arrays.toString(this.exec_lastUndoToken));
+        m.put("No Undo Buffer", Arrays.toString(this.exec_noUndoBuffer));
         m.put("# of Rounds", Arrays.toString(this.round_ctr));
         m.put("Executed Work", Arrays.toString(this.exec_eeWork));
         if (this.pending_error != null)

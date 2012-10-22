@@ -343,7 +343,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 this.all_partitions.remove(partition);
         }
 
-        public void addAllPartitions(String table_key, Collection<Integer> partitions) {
+        public void addAllPartitions(String table_key, PartitionSet partitions) {
             this.getPartitions(table_key).addAll(partitions);
             this.all_partitions.addAll(partitions);
         }

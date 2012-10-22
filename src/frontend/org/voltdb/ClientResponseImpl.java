@@ -56,6 +56,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private int restartCounter = 0;
     private boolean speculative = false;
     private boolean prefetched = false;
+    private ClientResponseDebug debug = null;
 
     /** opaque data optionally provided by and returned to the client */
     private long clientHandle = -1;
@@ -117,7 +118,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.appStatus = appStatus;
         this.appStatusString = appStatusString;
         this.restartCounter = ts.getRestartCounter();
-        this.speculative = ts.isSpeculative();
         this.singlepartition = ts.isPredictSinglePartition();
         this.prefetched = ts.hasPrefetchQueries();
         this.setResults(status, results, statusString, e);
@@ -254,14 +254,25 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         restartCounter = restarts;
     }
     
+    // ----------------------------------------------------------------------------
+    // SPECIAL DEBUG HANDLE
+    // ----------------------------------------------------------------------------
+    
     @Override
-    public boolean isSpeculative() {
-        return (this.speculative);
+    public ClientResponseDebug getDebug() {
+        return (this.debug);
+    }
+    @Override
+    public boolean hasDebug() {
+        return (this.debug != null);
+    }
+    public void setDebug(ClientResponseDebug debug) {
+        this.debug = debug;
     }
     
-    public void setSpeculative(boolean val) {
-        this.speculative = val;
-    }
+    // ----------------------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // ----------------------------------------------------------------------------
     
     @Override
     public boolean hadPrefetchedQueries() {
@@ -304,6 +315,11 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         }
         results = (VoltTable[]) in.readArray(VoltTable.class);
         setProperly = true;
+        
+        if (in.readBoolean()) {
+            this.debug = new ClientResponseDebug();
+            this.debug.readExternal(in);
+        }
     }
 
     @Override
@@ -345,6 +361,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             out.write(b.array());
         }
         out.writeArray(results);
+        
+        // DEBUG HANDLE
+        out.writeBoolean(this.debug != null);
+        if (this.debug != null) {
+            this.debug.writeExternal(out);
+        }
     }
     
     @Override
@@ -354,7 +376,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
                         (this.statusString == null || this.statusString.isEmpty() ? "" : " / " + this.statusString));
         m.put("Handle", this.clientHandle);
         m.put("Restart Counter", this.restartCounter);
-        m.put("Speculatively Executed", this.speculative);
         m.put("Single-Partition", this.singlepartition);
         m.put("Base Partition", this.basePartition);
         m.put("Exception", m_exception);
@@ -412,7 +433,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Status status) {
-        b.put(24, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 + 1 = 24 
+        b.put(26, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 + 1 + 1 + 1 = 26
     }
     
     // ----------------------------------------------------------------------------

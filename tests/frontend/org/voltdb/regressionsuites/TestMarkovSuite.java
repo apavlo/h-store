@@ -1,33 +1,28 @@
 package org.voltdb.regressionsuites;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Test;
 
-import org.voltdb.regressionsuites.TestTM1Suite;
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.regressionsuites.specexecprocs.RemoteIdle;
-import org.voltdb.regressionsuites.specexecprocs.UpdateAll;
-import org.voltdb.regressionsuites.specexecprocs.UpdateOne;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.Statistics;
+import org.voltdb.utils.VoltTableUtil;
 
-import edu.brown.BaseTestCase;
-import edu.brown.benchmark.tm1.TM1Client;
-import edu.brown.benchmark.tm1.TM1Client.Transaction;
-import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.benchmark.tm1.TM1Loader;
-import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.ProjectType;
@@ -40,7 +35,6 @@ import edu.brown.utils.ThreadUtil;
 public class TestMarkovSuite extends RegressionSuite {
     
     private static final String PREFIX = "markov";
-    private static final double SCALEFACTOR = 0.0001;
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -66,78 +60,108 @@ public class TestMarkovSuite extends RegressionSuite {
             assertEquals(1, results.length);
             long count = results[0].asScalarLong();
             assertTrue(tableName + " -> " + count, count > 0);
-            System.err.println(tableName + "\n" + results[0]);
+            // System.err.println(tableName + "\n" + VoltTableUtil.format(results[0]));
         } // FOR
     }
     
-//    /**
-//     * testDistributedTxn
-//     */
-//    public void testDistributedTxn() throws Exception {
-//        Client client = this.getClient();
-//        TestMarkovSuite.initializeTPCCDatabase(this.getCatalog(), client);
-//        
-//        // Submit a distributed txn and make sure that our conflicting
-//        // txn is not speculatively executed
-//        final int sleepTime = 5000; // ms
-//        final ClientResponse dtxnResponse[] = new ClientResponse[1];
-//        final CountDownLatch dtxnLatch = new CountDownLatch(1);
-//        final ProcedureCallback dtxnCallback = new ProcedureCallback() {
-//            @Override
-//            public void clientCallback(ClientResponse clientResponse) {
-//                System.err.println("DISTRUBTED RESULT " + clientResponse);
-//                dtxnResponse[0] = clientResponse;
-//                dtxnLatch.countDown();
-//            }
-//        };
-//        
-//        // We're going to first execute a dtxn that updates all SUBSCRIBER records
-//        String dtxnProcName = UpdateAll.class.getSimpleName();
-//        Object dtxnParams[] = { 0, sleepTime };
-//        client.callProcedure(dtxnCallback, dtxnProcName, dtxnParams);
-//        
-//        // Then fire off a proc that updates SUBSCRIBER as well. This should never
-//        // be allowed to execute speculatively
-//        String spProcName = UpdateOne.class.getSimpleName();
-//        Object spParams[] = new Object[]{ 1 };
-//        final ClientResponse spResponse[] = new ClientResponse[1];
-//        final CountDownLatch spLatch = new CountDownLatch(1);
-//        final ProcedureCallback spCallback = new ProcedureCallback() {
-//            @Override
-//            public void clientCallback(ClientResponse clientResponse) {
-//                System.err.println("SINGLE-PARTITION RESULT " + clientResponse);
-//                spResponse[0] = clientResponse;
-//                spLatch.countDown();
-//            }
-//        };
-//        ThreadUtil.sleep(1000);
-//        client.callProcedure(spCallback, spProcName, spParams);
-//        
-//        // Wait until we have both latches
-//        dtxnLatch.await(sleepTime*2, TimeUnit.MILLISECONDS);
-//        spLatch.await(sleepTime*2, TimeUnit.MILLISECONDS);
-//        
-//        // Then verify the DTXN results
-//        assertNotNull(dtxnResponse[0]);
-//        assertEquals(Status.OK, dtxnResponse[0].getStatus());
-//        assertFalse(dtxnResponse[0].isSinglePartition());
-//        assertFalse(dtxnResponse[0].isSpeculative());
-//        
-//        // And the SP results. Where is your god now?
-//        assertNotNull(spResponse[0]);
-//        assertEquals(Status.OK, spResponse[0].getStatus());
-//        assertTrue(spResponse[0].isSinglePartition());
-//        assertFalse(spResponse[0].isSpeculative());
-//        
-//        // SANITY CHECK
-//        // We should have exaclty two different MSC_LOCATION values
-//        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-//        String query = "SELECT COUNT(DISTINCT MSC_LOCATION) FROM " + TM1Constants.TABLENAME_SUBSCRIBER;
-//        ClientResponse cresponse = client.callProcedure(procName, query);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//        assertEquals(2, cresponse.getResults()[0].asScalarLong());
+    /**
+     * testSinglePartitionCaching
+     */
+    public void testSinglePartitionCaching() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
+
+        // Enable the feature on the server
+        RegressionSuiteUtil.setHStoreConf(client, "site.markov_path_caching", "true");
+        
+        // Fire off a single-partition txn
+        // It should always come back with zero restarts
+        String procName = neworder.class.getSimpleName();
+        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, false, (short)1);
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertTrue(cresponse.toString(), cresponse.isSinglePartition());
+        assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
+        
+        // Sleep a little bit to give them for the txn to get cleaned up
+        ThreadUtil.sleep(2500);
+        
+        // Then execute the same thing again multiple times.
+        // It should use the cache estimate from the first txn
+        // We are going to execute them asynchronously to check whether we
+        // can share the cache properly
+        final int num_invocations = 10;
+        final CountDownLatch latch = new CountDownLatch(num_invocations);
+        final List<ClientResponse> cresponses = new ArrayList<ClientResponse>();
+        ProcedureCallback callback = new ProcedureCallback() {
+            @Override
+            public void clientCallback(ClientResponse clientResponse) {
+                cresponses.add(clientResponse);
+                latch.countDown();
+            }
+        };
+        for (int i = 0; i < num_invocations; i++) {
+            client.callProcedure(callback, procName, params);
+        } // FOR
+        
+        // Now wait for the responses
+        boolean result = latch.await(5, TimeUnit.SECONDS);
+        assertTrue(result);
+        
+        for (ClientResponse cr : cresponses) {
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());
+            assertTrue(cr.toString(), cr.isSinglePartition());
+            assertEquals(cr.toString(), 0, cr.getRestartCounter());
+        } // FOR
+        
+        // So we need to grab the MarkovEstimatorProfiler stats and check 
+        // that the cache counter is greater than one
+        procName = VoltSystemProcedure.procCallName(Statistics.class);
+        params = new Object[]{ SysProcSelector.MARKOVPROFILER.name(), 0 };
+        cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        VoltTable results[] = cresponse.getResults();
+        long found = 0;
+        while (results[0].advanceRow()) {
+            for (int i = 0; i < results[0].getColumnCount(); i++) {
+                String col = results[0].getColumnName(i).toUpperCase();
+                if (col.endsWith("_CNT") && col.contains("CACHE")) {
+                    found += results[0].getLong(i);
+                    break;
+                }
+            } // FOR
+        } // WHILE
+        System.err.println(VoltTableUtil.format(results[0]));
+        assertEquals(num_invocations, found);
+    }
+    
+    /**
+     * testDistributedTxn
+     */
+    public void testDistributedTxn() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
+
+        // Fire off a distributed neworder txn
+        // It should always come back with zero restarts
+        String procName = neworder.class.getSimpleName();
+        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, (short)2);
+        
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertFalse(cresponse.toString(), cresponse.isSinglePartition());
+        assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
 //        System.err.println(cresponse);
-//    }
+        
+        // Get the MarkovEstimatorProfiler stats
+        procName = VoltSystemProcedure.procCallName(Statistics.class);
+        params = new Object[]{ SysProcSelector.MARKOVPROFILER.name(), 0 };
+        cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        System.err.println(VoltTableUtil.format(cresponse.getResults()[0]));
+    }
     
     public static Test suite() throws Exception {
         File mappings = ParametersUtil.getParameterMappingsFile(ProjectType.TPCC);
@@ -146,12 +170,14 @@ public class TestMarkovSuite extends RegressionSuite {
         VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestMarkovSuite.class);
-        builder.setGlobalConfParameter("client.scalefactor", SCALEFACTOR);
+        builder.setGlobalConfParameter("client.scalefactor", RegressionSuiteUtil.SCALEFACTOR);
         builder.setGlobalConfParameter("site.specexec_enable", true);
         builder.setGlobalConfParameter("site.specexec_idle", true);
         builder.setGlobalConfParameter("site.specexec_ignore_all_local", false);
         builder.setGlobalConfParameter("site.network_txn_initialization", true);
         builder.setGlobalConfParameter("site.markov_enable", true);
+        builder.setGlobalConfParameter("site.markov_profiling", true);
+        builder.setGlobalConfParameter("site.markov_path_caching", false);
         builder.setGlobalConfParameter("site.markov_path", markovs.getAbsolutePath());
 
         // build up a project builder for the TPC-C app
@@ -172,12 +198,12 @@ public class TestMarkovSuite extends RegressionSuite {
         builder.addServerConfig(config);
 
         ////////////////////////////////////////////////////////////
-        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        // CONFIG #2: cluster of 2 nodes running 1 site each, one replica
         ////////////////////////////////////////////////////////////
-//        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }

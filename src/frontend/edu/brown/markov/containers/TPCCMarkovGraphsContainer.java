@@ -65,13 +65,12 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
         }
         
         // ARRAYLENGTH(S_W_IDS)
-        short arr[] = (short[])params[5];
-        int arr_len = arr.length;
+        Short arr[] = (Short[])params[5];
         
         // SAMEVALUE(S_W_IDS)
         int arr_same = 1;
         int last_hash = -1;
-        for (int i = 0; i < arr_len; i++) {
+        for (int i = 0; i < arr.length; i++) {
             int hash = this.hasher.hash(arr[i]);
             if (i > 0 && last_hash != hash) {
                 arr_same = 0;
@@ -91,11 +90,11 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
             		                "  SAME_VALUE(S_W_IDS) = %d",
             		                txn_id,
             		                d_id,
-            		                arr_len, Arrays.toString(hashes),
+            		                arr.length, Arrays.toString(hashes),
             		                arr_same));
         }
         
-        return (d_id | arr_len<<8 | arr_same<<16);
+        return (d_id | arr.length<<8 | arr_same<<16);
     }
     
     public int processPayment(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {

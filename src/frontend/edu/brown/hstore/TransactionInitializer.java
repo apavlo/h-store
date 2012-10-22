@@ -41,9 +41,9 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.MarkovEstimatorState;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
@@ -339,7 +339,6 @@ public class TransactionInitializer {
         // Notify anybody that cares about this new txn
         this.newTxnObservable.notifyObservers(ts);
         
-        
         assert(ts.isSysProc() == catalog_proc.getSystemproc()) :
             "Unexpected sysproc mismatch for " + ts;
         return (ts);
@@ -407,6 +406,9 @@ public class TransactionInitializer {
         
         // Increase the restart counter in the new transaction
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
+        
+        // Notify anybody that cares about this new txn
+        this.newTxnObservable.notifyObservers(new_ts);
         
         return (new_ts);
     }
@@ -538,18 +540,20 @@ public class TransactionInitializer {
             
             try {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitEstimation();
-                t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
+                if (t_estimator != null) {
+                    t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
+                }
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
                     if (d) LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
-                    
+                }
                 // We have a TransactionEstimator, so let's see what it says...
-                } else {
+                else {
                     if (t) LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
-                    TransactionEstimate t_estimate = t_state.getInitialEstimate();
+                    Estimate t_estimate = t_state.getInitialEstimate();
                     
                     // Bah! We didn't get back a Estimation for some reason...
                     if (t_estimate == null) {
@@ -573,6 +577,12 @@ public class TransactionInitializer {
                         predict_partitions = t_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = t_estimate.isReadOnlyAllPartitions(this.thresholds);
                         predict_abortable = (predict_partitions.size() == 1 || t_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+                        
+                        if (d && predict_partitions.isEmpty()) {
+                            LOG.warn(String.format("%s - Unexpected empty predicted PartitonSet from %s\n%s",
+                            		AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                            		t_estimator, t_estimate));
+                        }
                     }
                 }
             } catch (Throwable ex) {
@@ -591,7 +601,7 @@ public class TransactionInitializer {
             }
         }
         
-        if (predict_partitions == null) {
+        if (predict_partitions == null || predict_partitions.isEmpty()) {
             // -------------------------------
             // FORCE SINGLE-PARTITIONED
             // -------------------------------

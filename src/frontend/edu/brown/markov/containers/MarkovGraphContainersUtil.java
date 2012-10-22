@@ -60,11 +60,26 @@ public abstract class MarkovGraphContainersUtil {
      * @param args
      * @throws Exception
      */
-    @SuppressWarnings("unchecked")
     public static <T extends MarkovGraphsContainer> Map<Integer, MarkovGraphsContainer> createMarkovGraphsContainers(final Database catalog_db, final Workload workload, final PartitionEstimator p_estimator, final Class<T> containerClass) throws Exception {
+        final Map<Integer, MarkovGraphsContainer> markovs_map = new ConcurrentHashMap<Integer, MarkovGraphsContainer>();
+        return createMarkovGraphsContainers(catalog_db, workload, p_estimator, containerClass, markovs_map);
+    }
+
+    /**
+     * Create the MarkovGraphsContainers for the given workload.
+     * The markovs_map could contain an existing collection MarkovGraphsContainers
+     * @param catalog_db
+     * @param workload
+     * @param p_estimator
+     * @param containerClass
+     * @param markovs_map
+     * @return
+     * @throws Exception
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends MarkovGraphsContainer> Map<Integer, MarkovGraphsContainer> createMarkovGraphsContainers(final Database catalog_db, final Workload workload, final PartitionEstimator p_estimator, final Class<T> containerClass, final Map<Integer, MarkovGraphsContainer> markovs_map) throws Exception {
         final String className = containerClass.getSimpleName();
         
-        final Map<Integer, MarkovGraphsContainer> markovs_map = new ConcurrentHashMap<Integer, MarkovGraphsContainer>();
         final List<Runnable> runnables = new ArrayList<Runnable>();
         final Set<Procedure> procedures = workload.getProcedures(catalog_db);
         final Histogram<Procedure> proc_h = new Histogram<Procedure>();
@@ -345,11 +360,15 @@ public abstract class MarkovGraphContainersUtil {
     // LOAD METHODS
     // ----------------------------------------------------------------------------
     
-    public static Map<Integer, MarkovGraphsContainer> loadIds(Database catalog_db, String input_path, Collection<Integer> ids) throws Exception {
+    public static Map<Integer, MarkovGraphsContainer> load(Database catalog_db, File input_path) throws Exception {
+        return (MarkovGraphContainersUtil.load(catalog_db, input_path, null, null));
+    }
+    
+    public static Map<Integer, MarkovGraphsContainer> loadIds(Database catalog_db, File input_path, Collection<Integer> ids) throws Exception {
         return (MarkovGraphContainersUtil.load(catalog_db, input_path, null, ids));
     }
 
-    public static Map<Integer, MarkovGraphsContainer> loadProcedures(Database catalog_db, String input_path, Collection<Procedure> procedures) throws Exception {
+    public static Map<Integer, MarkovGraphsContainer> loadProcedures(Database catalog_db, File input_path, Collection<Procedure> procedures) throws Exception {
         return (MarkovGraphContainersUtil.load(catalog_db, input_path, procedures, null));
     }
 
@@ -361,9 +380,8 @@ public abstract class MarkovGraphContainersUtil {
      * @return
      * @throws Exception
      */
-    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path, Collection<Procedure> procedures, Collection<Integer> ids) throws Exception {
+    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, final File file, Collection<Procedure> procedures, Collection<Integer> ids) throws Exception {
         final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
-        final File file = new File(input_path);
         LOG.info(String.format("Loading in MarkovGraphContainers from '%s' [procedures=%s, ids=%s]",
                                file.getName(), (procedures == null ? "*ALL*" : CatalogUtil.debug(procedures)), (ids == null ? "*ALL*" : ids)));
         
@@ -409,10 +427,10 @@ public abstract class MarkovGraphContainersUtil {
                 }
                 line_ctr++;
             } // WHILE
-            if (line_ctr == 0) throw new IOException("The MarkovGraphsContainer file '" + input_path + "' is empty");
+            if (line_ctr == 0) throw new IOException("The MarkovGraphsContainer file '" + file + "' is empty");
             
         } catch (Exception ex) {
-            LOG.error("Failed to deserialize the MarkovGraphsContainer from file '" + input_path + "'", ex);
+            LOG.error("Failed to deserialize the MarkovGraphsContainer from file '" + file + "'", ex);
             throw new IOException(ex);
         }
         if (debug.get()) LOG.debug("The loading of the MarkovGraphsContainer is complete");

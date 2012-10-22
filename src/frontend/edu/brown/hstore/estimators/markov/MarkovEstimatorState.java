@@ -1,4 +1,4 @@
-package edu.brown.hstore.estimators;
+package edu.brown.hstore.estimators.markov;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -11,10 +11,11 @@ import org.voltdb.CatalogContext;
 
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
-import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
@@ -37,9 +38,11 @@ public final class MarkovEstimatorState extends EstimatorState {
     protected final List<MarkovEdge> actual_path_edges = new ArrayList<MarkovEdge>();
     
     private MarkovGraph markov;
-    protected transient MarkovVertex current;
-    protected transient final PartitionSet cache_past_partitions = new PartitionSet();
-    protected transient final PartitionSet cache_last_partitions = new PartitionSet();
+    private MarkovVertex current;
+    private Object args[];
+    
+    protected final PartitionSet cache_past_partitions = new PartitionSet();
+    protected final PartitionSet cache_last_partitions = new PartitionSet();
     
     /**
      * State Factory
@@ -59,40 +62,31 @@ public final class MarkovEstimatorState extends EstimatorState {
     
     /**
      * Constructor
-     * @param markov - the graph that this txn is using
-     * @param estimated_path - the initial path estimation from MarkovPathEstimator
      */
     private MarkovEstimatorState(CatalogContext catalogContext) {
         super(catalogContext);
     }
     
-    public void init(Long txn_id, int base_partition, MarkovGraph markov, long start_time) {
+    public void init(Long txn_id, int base_partition, MarkovGraph markov, Object args[], long start_time) {
         this.markov = markov;
+        this.args = args;
         this.setCurrent(markov.getStartVertex(), null);
         super.init(txn_id, base_partition, start_time);
     }
     
     @Override
+    public boolean isInitialized() {
+        return (this.markov != null && super.isInitialized());
+    }
+    
+    @Override
     public void finish() {
-        // Only return the MarkovPathEstimator to it's object pool if it hasn't been cached
-//        if (this.initial_estimator.isCached() == false) {
-//            if (d) LOG.debug(String.format("Initial MarkovPathEstimator is not marked as cached for txn #%d. Returning to pool... [hashCode=%d]",
-//                             this.txn_id, this.initial_estimator.hashCode()));
-//            try {
-//                MarkovEstimator.POOL_ESTIMATORS.returnObject(this.initial_estimator);
-//            } catch (Exception ex) {
-//                throw new RuntimeException("Failed to return MarkovPathEstimator for txn" + this.txn_id, ex);
-//            }
-//        } else if (d) {
-//            LOG.debug(String.format("Initial MarkovPathEstimator is marked as cached for txn #%d. Will not return to pool... [hashCode=%d]",
-//                      this.txn_id, this.initial_estimator.hashCode()));
-//        }
-     
-        
         this.markov.incrementTransasctionCount();
         this.actual_path.clear();
         this.actual_path_edges.clear();
         this.current = null;
+        this.markov = null;
+        this.args = null;
         super.finish();
     }
     
@@ -103,10 +97,12 @@ public final class MarkovEstimatorState extends EstimatorState {
     protected MarkovEstimate createNextEstimate(MarkovVertex v, boolean initial) {
         assert(v != null);
         MarkovEstimate next = new MarkovEstimate(this.catalogContext);
-        next.init(v, this.getEstimateCount());
+        int batchId = (initial ? EstimatorUtil.INITIAL_ESTIMATE_BATCH : this.getEstimateCount());
+        next.init(v, batchId);
         if (initial) {
             this.addInitialEstimate(next);
         } else {
+            assert(v.isStartVertex() == false);
             this.addEstimate(next);
         }
         return (next);
@@ -115,6 +111,10 @@ public final class MarkovEstimatorState extends EstimatorState {
     // ----------------------------------------------------------------------------
     // MARKOV GRAPH METHODS
     // ----------------------------------------------------------------------------
+    
+    public Object[] getProcedureParameters() {
+        return (this.args);
+    }
     
     public MarkovGraph getMarkovGraph() {
         return (this.markov);
@@ -155,8 +155,8 @@ public final class MarkovEstimatorState extends EstimatorState {
     public String toString() {
         Map<String, Object> m0 = new LinkedHashMap<String, Object>();
         m0.put("TransactionId", this.txn_id);
-        m0.put("Procedure", this.markov.getProcedure().getName());
-        m0.put("MarkovGraph Id", this.markov.getGraphId());
+        m0.put("Procedure", (this.markov != null ? this.markov.getProcedure().getName() : null));
+        m0.put("MarkovGraph Id", (this.markov != null ? this.markov.getGraphId() : null));
         
         Map<String, Object> m1 = new LinkedHashMap<String, Object>();
         m1.put("Initial Estimate", this.getInitialEstimate().toString());

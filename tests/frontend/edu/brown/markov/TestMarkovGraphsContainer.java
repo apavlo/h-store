@@ -16,12 +16,23 @@ public class TestMarkovGraphsContainer extends BaseTestCase {
 
     final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     Procedure catalog_proc;
+    File tempFile = null;
     
     public void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(10);
         catalog_proc = this.getProcedure(TARGET_PROCEDURE);
     }
+    
+    @Override
+    protected void tearDown() throws Exception {
+        super.tearDown();
+        
+        if (tempFile != null && tempFile.exists()) {
+            tempFile.delete();
+        }
+    }
+    
     
     public void testSerialization() throws Exception {
         MarkovGraphsContainer markovs = new MarkovGraphsContainer();
@@ -30,14 +41,14 @@ public class TestMarkovGraphsContainer extends BaseTestCase {
         } // FOR
     
         // Serialize them out to a file. This will also make a nice little index in the file
-        File temp = FileUtil.getTempFile("markovs", false);
-        assertNotNull(temp);
-        markovs.save(temp);
-        System.err.println("MARKOV FILE: " + temp);
+        tempFile = FileUtil.getTempFile("markovs", false);
+        assertNotNull(tempFile);
+        markovs.save(tempFile);
+        System.err.println("MARKOV FILE: " + tempFile);
     
         // Now read it back in make sure everything is there
         MarkovGraphsContainer clone = new MarkovGraphsContainer();
-        clone.load(temp, catalog_db);
+        clone.load(tempFile, catalog_db);
         assertNotNull(clone);
         assertEquals(markovs.size(), clone.size());
         assert(markovs.keySet().containsAll(clone.keySet()));

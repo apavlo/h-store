@@ -402,7 +402,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected final Statement getStatement(Database catalog_db, Procedure catalog_proc, String stmt_name) {
         assertNotNull(catalog_db);
         assertNotNull(catalog_proc);
-        Statement catalog_stmt = catalog_proc.getStatements().get(stmt_name);
+        Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmt_name);
         assert(catalog_stmt != null) : "Failed to retrieve Statement '" + stmt_name + "' from Procedure '" + catalog_proc.getName() + "'";
         return (catalog_stmt);
     }

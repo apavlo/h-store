@@ -5,8 +5,10 @@ import java.util.Random;
 
 import junit.framework.TestCase;
 
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCLoader;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
@@ -14,14 +16,32 @@ import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.sysprocs.LoadMultipartitionTable;
+import org.voltdb.sysprocs.SetConfiguration;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.tm1.TM1Loader;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.rand.DefaultRandomGenerator;
 
 public abstract class RegressionSuiteUtil {
 
+    static final double SCALEFACTOR = 0.0001;
+    private static final DefaultRandomGenerator rng = new DefaultRandomGenerator(0);
+    
+    public static void setHStoreConf(Client client, String paramName, Object paramValue) throws Exception {
+        assert(HStoreConf.isConfParameter(paramName)) :
+            "Invalid HStoreConf parameter '" + paramName + "'";
+        String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
+        String confParams[] = {paramName};
+        String confValues[] = {paramValue.toString()};
+        ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
+        assert(cresponse.getStatus() == Status.OK);
+    }
+    
     /**
      * Populate the given table with a bunch of random tuples
      * @param client
@@ -57,12 +77,17 @@ public abstract class RegressionSuiteUtil {
             vt.addRow(row);
         } // FOR (row)
         // System.err.printf("Loading %d rows for %s\n%s\n\n", vt.getRowCount(), catalog_tbl, vt.toString());
-        ClientResponse cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
+        String procName = VoltSystemProcedure.procCallName(LoadMultipartitionTable.class);
+        ClientResponse cr = client.callProcedure(procName, catalog_tbl.getName(), vt);
         TestCase.assertEquals(Status.OK, cr.getStatus());
     }
 
     public static final void initializeTPCCDatabase(final Catalog catalog, final Client client) throws Exception {
-        String args[] = { "NOCONNECTIONS=true", };
+        String args[] = {
+            "NOCONNECTIONS=true",
+            "BENCHMARK.WAREHOUSE_PER_PARTITION=true",
+            "BENCHMARK.NUM_LOADTHREADS=1",
+        };
         TPCCLoader loader = new TPCCLoader(args) {
             {
                 this.setCatalog(catalog);
@@ -89,6 +114,43 @@ public abstract class RegressionSuiteUtil {
             }
         };
         loader.load();
+    }
+
+    protected static Object[] generateNewOrder(int num_warehouses, boolean dtxn, int w_id, int d_id) throws Exception {
+        short supply_w_id;
+        if (dtxn) {
+            supply_w_id = (short)rng.numberExcluding(TPCCConstants.STARTING_WAREHOUSE, num_warehouses, w_id);
+            assert(supply_w_id != w_id);
+        } else {
+            supply_w_id = (short)w_id;
+        }
+        
+        // ORDER_LINE ITEMS
+        int num_items = rng.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
+        int item_ids[] = new int[num_items];
+        short supwares[] = new short[num_items];
+        int quantities[] = new int[num_items];
+        for (int i = 0; i < num_items; i++) { 
+            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS));
+            supwares[i] = (i % 2 == 0 ? supply_w_id : (short)w_id);
+            quantities[i] = 1;
+        } // FOR
+        
+        Object params[] = {
+            (short)w_id,        // W_ID
+            (byte)d_id,         // D_ID
+            1,                  // C_ID
+            new TimestampType(),// TIMESTAMP
+            item_ids,           // ITEM_IDS
+            supwares,           // SUPPLY W_IDS
+            quantities          // QUANTITIES
+        };
+        return (params);
+    }
+
+    protected static Object[] generateNewOrder(int num_warehouses, boolean dtxn, short w_id) throws Exception {
+        int d_id = rng.number(1, TPCCConstants.DISTRICTS_PER_WAREHOUSE);
+        return generateNewOrder(num_warehouses, dtxn, w_id, d_id);
     }
     
 }
