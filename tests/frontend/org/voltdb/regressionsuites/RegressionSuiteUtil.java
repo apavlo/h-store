@@ -24,6 +24,7 @@ import org.voltdb.utils.VoltTypeUtil;
 import edu.brown.benchmark.tm1.TM1Loader;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.rand.DefaultRandomGenerator;
 
 public abstract class RegressionSuiteUtil {
@@ -32,6 +33,8 @@ public abstract class RegressionSuiteUtil {
     private static final DefaultRandomGenerator rng = new DefaultRandomGenerator(0);
     
     public static void setHStoreConf(Client client, String paramName, Object paramValue) throws Exception {
+        assert(HStoreConf.isConfParameter(paramName)) :
+            "Invalid HStoreConf parameter '" + paramName + "'";
         String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
         String confParams[] = {paramName};
         String confValues[] = {paramValue.toString()};

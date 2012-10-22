@@ -177,10 +177,13 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovEstimatorState state = null;
         try {
             state = (MarkovEstimatorState)statesPool.borrowObject();
+            assert(state.isInitialized() == false);
             state.init(txn_id, base_partition, markov, args, start_time);
-        } catch (Exception ex) {
+        } catch (Throwable ex) {
             throw new RuntimeException(ex);
         }
+        assert(state.isInitialized()) : 
+            "Unexecpted uninitialized MarkovEstimatorState\n" + state;
         
         MarkovVertex start = markov.getStartVertex();
         assert(start != null) : "The start vertex is null. This should never happen!";
@@ -231,7 +234,10 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovEstimatorState state = (MarkovEstimatorState)s; 
         if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.getTransactionId()));
         int batch_size = catalog_stmts.length;
+        
+        // If we get here, then we should definitely have a MarkovGraph
         MarkovGraph markov = state.getMarkovGraph();
+        assert(markov != null);
             
         MarkovVertex current = state.getCurrent();
         PartitionSet touchedPartitions = state.getTouchedPartitions();
@@ -404,6 +410,8 @@ public class MarkovEstimator extends TransactionEstimator {
      * @param args Procedure arguments (mangled)
      */
     private void estimatePath(MarkovEstimatorState state, MarkovEstimate est, Procedure catalog_proc, Object args[]) {
+        assert(state.isInitialized()) : state.hashCode();
+        assert(est.isInitialized()) : state.hashCode();
         if (d) LOG.debug(String.format("%s - Estimating execution path (%s)",
                          AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()),
                          (est.isInitialEstimate() ? "INITIAL" : "BATCH #" + est.getBatchId())));
@@ -416,6 +424,9 @@ public class MarkovEstimator extends TransactionEstimator {
         // then we can just use the truncated list as the estimate, since we know
         // that the path will be the same. We don't need to recalculate everything
         MarkovGraph markov = state.getMarkovGraph();
+        assert(markov != null) :
+            String.format("Unexpected null MarkovGraph for %s [hashCode=%d]\n%s",
+                          AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), state.hashCode(), state);
         boolean compute_path = true;
         if (hstore_conf.site.markov_fast_path && currentVertex.isStartVertex() == false) {
             List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
@@ -642,7 +653,11 @@ public class MarkovEstimator extends TransactionEstimator {
     private MarkovEstimator.Debug cachedDebugContext;
     public MarkovEstimator.Debug getDebugContext() {
         if (cachedDebugContext == null) {
-            cachedDebugContext = new MarkovEstimator.Debug(); 
+            synchronized (MarkovEstimator.class) {
+                if (cachedDebugContext == null) {
+                    cachedDebugContext = new MarkovEstimator.Debug();
+                }
+            } // SYNCH
         }
         return cachedDebugContext;
     }

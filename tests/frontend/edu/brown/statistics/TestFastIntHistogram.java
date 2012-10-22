@@ -53,12 +53,12 @@ public class TestFastIntHistogram extends BaseTestCase {
         for (int i = 0; i < NUM_SAMPLES; i++) {
             int val = rand.nextInt(min) + min; 
             h.put(val);
-            fast_h.fastPut(val);
+            fast_h.put(val);
         }
         for (int i = 0; i < NUM_SAMPLES; i++) {
             int val = rand.nextInt(RANGE); 
             h.put(val);
-            fast_h.fastPut(val);
+            fast_h.put(val);
         }
     }
     
@@ -75,7 +75,7 @@ public class TestFastIntHistogram extends BaseTestCase {
         
         assertEquals(fast_h.fastSize(), clone.fastSize());
         for (int i = 0, cnt = fast_h.fastSize(); i < cnt; i++) {
-            assertEquals(fast_h.fastGet(i), clone.fastGet(i));
+            assertEquals(fast_h.get(i), clone.get(i));
         } // FOR
     }
     
@@ -99,7 +99,7 @@ public class TestFastIntHistogram extends BaseTestCase {
         for (Integer val : h.values()) {
             assertEquals(val.toString(), 0, h.get(val).intValue());
             assertEquals(h.get(val), fast_h.get(val));
-            assertEquals(h.get(val).intValue(), fast_h.fastGet(val));
+            assertEquals(h.get(val).intValue(), fast_h.get(val.intValue()));
         } // FOR
     }
     
@@ -122,7 +122,7 @@ public class TestFastIntHistogram extends BaseTestCase {
         
         for (Integer val : h.values()) {
             assertEquals(h.get(val), fast_h.get(val));
-            assertEquals(h.get(val).intValue(), fast_h.fastGet(val));
+            assertEquals(h.get(val).intValue(), fast_h.get(val.intValue()));
         } // FOR
     }
     

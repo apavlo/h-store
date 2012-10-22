@@ -889,9 +889,9 @@ public abstract class BenchmarkComponent {
         Status status = cresponse.getStatus();
         if (status == Status.OK || status == Status.ABORT_USER) {
             synchronized (m_txnStats.transactions) {
-                m_txnStats.transactions.fastPut(txn_idx);
+                m_txnStats.transactions.put(txn_idx);
                 if (cresponse.isSinglePartition() == false) {
-                    m_txnStats.dtxns.fastPut(txn_idx);
+                    m_txnStats.dtxns.put(txn_idx);
                 }
             } // SYNCH
 

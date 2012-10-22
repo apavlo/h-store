@@ -75,6 +75,11 @@ public final class MarkovEstimatorState extends EstimatorState {
     }
     
     @Override
+    public boolean isInitialized() {
+        return (this.markov != null && super.isInitialized());
+    }
+    
+    @Override
     public void finish() {
         this.markov.incrementTransasctionCount();
         this.actual_path.clear();
@@ -150,8 +155,8 @@ public final class MarkovEstimatorState extends EstimatorState {
     public String toString() {
         Map<String, Object> m0 = new LinkedHashMap<String, Object>();
         m0.put("TransactionId", this.txn_id);
-        m0.put("Procedure", this.markov.getProcedure().getName());
-        m0.put("MarkovGraph Id", this.markov.getGraphId());
+        m0.put("Procedure", (this.markov != null ? this.markov.getProcedure().getName() : null));
+        m0.put("MarkovGraph Id", (this.markov != null ? this.markov.getGraphId() : null));
         
         Map<String, Object> m1 = new LinkedHashMap<String, Object>();
         m1.put("Initial Estimate", this.getInitialEstimate().toString());

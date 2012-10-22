@@ -272,7 +272,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                         profiler.concurrent_dtxn_ids.add(this.lockQueuesLastTxn[partition]);   
                     }
                 } // FOR
-                profiler.concurrent_dtxn.fastPut(profiler.concurrent_dtxn_ids.size());
+                profiler.concurrent_dtxn.put(profiler.concurrent_dtxn_ids.size());
             }
             
         } // WHILE

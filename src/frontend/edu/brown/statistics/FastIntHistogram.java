@@ -59,10 +59,10 @@ public class FastIntHistogram extends Histogram<Integer> {
         } // FOR
         return (values);
     }
-    public long fastGet(int value) {
+    public long get(int value) {
         return (this.histogram[value] != NULL_COUNT ? this.histogram[value] : 0);
     }
-    public long fastPut(int idx) {
+    public long put(int idx) {
         if (this.histogram[idx] == NULL_COUNT) {
             this.histogram[idx] = 1;
             this.value_count++;
@@ -72,7 +72,7 @@ public class FastIntHistogram extends Histogram<Integer> {
         this.num_samples++;
         return (this.histogram[idx]);
     }
-    public void fastPut(FastIntHistogram fast) {
+    public void put(FastIntHistogram fast) {
         assert(fast.histogram.length <= this.histogram.length);
         for (int i = 0; i < fast.histogram.length; i++) {
             if (fast.histogram[i] != NULL_COUNT) {
@@ -110,7 +110,7 @@ public class FastIntHistogram extends Histogram<Integer> {
 
     @Override
     public Long get(Integer value) {
-        return Long.valueOf(this.fastGet(value.intValue()));
+        return Long.valueOf(this.get(value.intValue()));
     }
 
     @Override
@@ -125,7 +125,7 @@ public class FastIntHistogram extends Histogram<Integer> {
 
     @Override
     public long put(Integer value) {
-        return this.fastPut(value.intValue());
+        return this.put(value.intValue());
     }
         
     @Override
@@ -156,7 +156,7 @@ public class FastIntHistogram extends Histogram<Integer> {
     @Override
     public synchronized void put(Histogram<Integer> other) {
         if (other instanceof FastIntHistogram) {
-            this.fastPut((FastIntHistogram)other);
+            this.put((FastIntHistogram)other);
         } else {
             for (Integer v : other.values()) {
                 this.put(v, other.get(v));

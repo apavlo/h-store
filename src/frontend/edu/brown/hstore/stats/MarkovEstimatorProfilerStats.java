@@ -75,7 +75,10 @@ public class MarkovEstimatorProfilerStats extends StatsSource {
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
         Integer partition = (Integer)rowKey;
         TransactionEstimator est = hstore_site.getPartitionExecutor(partition).getTransactionEstimator();
-        MarkovEstimatorProfiler profiler = ((MarkovEstimator)est).getDebugContext().getProfiler();
+        assert(est != null) : "Unexpected null TransactionEstimator for partition " + partition;
+        MarkovEstimator.Debug dbg = ((MarkovEstimator)est).getDebugContext();
+        assert(dbg != null);
+        MarkovEstimatorProfiler profiler = dbg.getProfiler();
         assert(profiler != null);
         
         int offset = columnNameToIndex.get("PARTITION");

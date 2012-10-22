@@ -1918,29 +1918,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
         } catch (EvictedTupleAccessException ex) {
             // XXX: What do we do if this is not a single-partition txn?
-            LOG.error(String.format("%s - Unexpected %s on partition %d",
-                      ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
         } catch (ConstraintFailureException ex) {
-            LOG.error(String.format("%s - Unexpected %s on partition %d",
-                    ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (SQLException ex) {
-            LOG.error(String.format("%s - Unexpected %s on partition %d",
-                    ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (EEException ex) {
-            LOG.error(String.format("%s - Unexpected %s on partition %d",
-                    ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             // this.crash(ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
-            LOG.error(String.format("%s - Unexpected %s on partition %d",
-                    ts, ex.getClass().getSimpleName(), this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             if (ex instanceof SerializableException) {
                 error = (SerializableException)ex;

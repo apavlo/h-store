@@ -2664,6 +2664,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Pass...
         } finally {
             if (t_state != null && t_estimator != null) {
+                assert(ts.getTransactionId() == t_state.getTransactionId()) :
+                    String.format("Unexpected mismatch txnId in %s [%d != %d]",
+                                  t_state.getClass().getSimpleName(),
+                                  ts.getTransactionId(), t_state.getTransactionId());
                 t_estimator.destroyEstimatorState(t_state);
             }
         }

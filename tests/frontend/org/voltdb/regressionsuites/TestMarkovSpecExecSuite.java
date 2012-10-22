@@ -232,6 +232,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestMarkovSpecExecSuite.class);
         builder.setGlobalConfParameter("client.scalefactor", SCALEFACTOR);
+        builder.setGlobalConfParameter("site.network_startup_wait", 30000);
         builder.setGlobalConfParameter("site.txn_client_debug", true);
         builder.setGlobalConfParameter("site.specexec_enable", true);
         builder.setGlobalConfParameter("site.specexec_idle", true);
