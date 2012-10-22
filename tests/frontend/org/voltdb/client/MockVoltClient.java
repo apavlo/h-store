@@ -53,11 +53,6 @@ package org.voltdb.client;
 import java.io.IOException;
 import java.net.UnknownHostException;
 
-import org.voltdb.client.Client;
-import org.voltdb.client.ClientStatusListener;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcedureCallback;
-import org.voltdb.client.ProcCallException;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.Status;
@@ -176,6 +171,12 @@ public class MockVoltClient implements Client {
 
             @Override
             public boolean isSpeculative() {
+                // TODO Auto-generated method stub
+                return false;
+            }
+
+            @Override
+            public boolean hadPrefetchedQueries() {
                 // TODO Auto-generated method stub
                 return false;
             }
