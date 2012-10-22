@@ -19,7 +19,6 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.sysprocs.AdHoc;
-import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.VoltTableUtil;
 
@@ -72,18 +71,13 @@ public class TestMarkovSuite extends RegressionSuite {
         RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
 
         // Enable the feature on the server
-        String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
-        String confParams[] = {"site.markov_path_caching"};
-        String confValues[] = {"true"};
-        ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
-        assertNotNull(cresponse);
-        assertEquals(Status.OK, cresponse.getStatus());
+        RegressionSuiteUtil.setHStoreConf(client, "site.markov_path_caching", "true");
         
         // Fire off a single-partition txn
         // It should always come back with zero restarts
-        procName = neworder.class.getSimpleName();
+        String procName = neworder.class.getSimpleName();
         Object params[] = RegressionSuiteUtil.generateNewOrder(2, false, (short)1);
-        cresponse = client.callProcedure(procName, params);
+        ClientResponse cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
         assertTrue(cresponse.toString(), cresponse.isSinglePartition());
         assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());

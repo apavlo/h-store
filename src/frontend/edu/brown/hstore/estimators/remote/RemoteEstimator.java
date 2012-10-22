@@ -3,6 +3,7 @@ package edu.brown.hstore.estimators.remote;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.utils.EstTime;
 import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
@@ -39,11 +40,6 @@ public class RemoteEstimator extends TransactionEstimator {
     }
 
     @Override
-    public void destroyEstimatorState(EstimatorState state) {
-        this.statesPool.returnObject((RemoteEstimatorState)state);
-    }
-
-    @Override
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
@@ -56,7 +52,19 @@ public class RemoteEstimator extends TransactionEstimator {
 
     @Override
     public <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
-        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
+        RemoteEstimatorState state = null;
+        try {
+            state = this.statesPool.borrowObject();
+            state.init(txn_id, base_partition, EstTime.currentTimeMillis());
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        return ((T)state);
+    }
+    
+    @Override
+    public void destroyEstimatorState(EstimatorState state) {
+        this.statesPool.returnObject((RemoteEstimatorState)state);
     }
 
     @Override

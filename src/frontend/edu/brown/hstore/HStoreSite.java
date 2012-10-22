@@ -2577,6 +2577,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         AbstractTransaction rm = this.inflight_txns.remove(ts.getTransactionId());
         if (d) LOG.debug(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
+        EstimatorState t_state = ts.getEstimatorState(); 
+        if (t_state != null) {
+            this.remoteTxnEstimator.destroyEstimatorState(t_state);
+        }
+        
         this.objectPools.getRemoteTransactionPool(ts.getBasePartition())
                         .returnObject(ts);
         return;

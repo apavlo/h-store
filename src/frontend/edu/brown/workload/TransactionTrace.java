@@ -298,8 +298,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
                 QueryTrace query = QueryTrace.loadFromJSONObject(jsonQuery, catalog_proc);
                 this.addQuery(query);
             } catch (JSONException ex) {
-                LOG.fatal("Failed to load query trace #" + i + " for transaction record on " + this.catalog_item_name + "]", ex);
-                throw ex;
+                throw new RuntimeException("Failed to load query trace #" + i + " for transaction record on " + this.catalog_item_name + "]", ex);
             }
         } // FOR
     } 

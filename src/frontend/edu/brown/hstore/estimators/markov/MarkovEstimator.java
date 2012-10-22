@@ -551,7 +551,7 @@ public class MarkovEstimator extends TransactionEstimator {
                                           touchedPartitions);
                 markov.addVertex(next_v);
                 next_e = markov.addToEdge(current, next_v);
-                if (t) LOG.trace(String.format("Created new edge from %s to new %s for txn #%d", 
+                if (t) LOG.trace(String.format("Created new edge from %s to new vertex %s for txn #%d", 
                                  state.getCurrent(), next_v, state.getTransactionId()));
                 assert(state.getCurrent().getPartitions().size() <= touchedPartitions.size());
             }

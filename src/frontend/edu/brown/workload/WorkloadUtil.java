@@ -206,7 +206,13 @@ public abstract class WorkloadUtil {
                         // line should be a continue and not a break.
                         
                         // Load the xact from the jsonObject
-                        TransactionTrace xact = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
+                        TransactionTrace xact = null;
+                        try {
+                            xact = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
+                        } catch (Throwable ex) {
+                            LOG.warn(ex.getMessage());
+                            continue;
+                        }
                         if (xact == null) {
                             throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
                         } else if (filter != null) {

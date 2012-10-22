@@ -17,6 +17,7 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
+import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTypeUtil;
 
@@ -29,6 +30,14 @@ public abstract class RegressionSuiteUtil {
 
     static final double SCALEFACTOR = 0.0001;
     private static final DefaultRandomGenerator rng = new DefaultRandomGenerator(0);
+    
+    public static void setHStoreConf(Client client, String paramName, Object paramValue) throws Exception {
+        String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
+        String confParams[] = {paramName};
+        String confValues[] = {paramValue.toString()};
+        ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
+        assert(cresponse.getStatus() == Status.OK);
+    }
     
     /**
      * Populate the given table with a bunch of random tuples

@@ -252,14 +252,16 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         assert(source != null);
         assert(dest != null);
         
-        MarkovEdge e = null;
-        synchronized (source) {
-            e = this.findEdge(source, dest);
-            if (e == null) {
-                e = new MarkovEdge(this);
-                this.addEdge(e, source, dest);
-            }
-        } // SYNCH
+        MarkovEdge e = this.findEdge(source, dest);
+        if (e == null) {
+            synchronized (source) {
+                e = this.findEdge(source, dest);
+                if (e == null) {
+                    e = new MarkovEdge(this);
+                    this.addEdge(e, source, dest);
+                }
+            } // SYNCH
+        }
         return (e);
     }
     
@@ -268,25 +270,22 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      */
     @Override
     public boolean addVertex(MarkovVertex v) {
-        boolean ret;
-        synchronized (v) {
-            ret = super.addVertex(v);
-            if (ret) {
-                if (v.isQueryVertex()) {
-                    Set<MarkovVertex> stmt_vertices = this.cache_stmtVertices.get(v.getCatalogItem());
-                    if (stmt_vertices == null) {
-                        stmt_vertices = new HashSet<MarkovVertex>();
-                        this.cache_stmtVertices.put((Statement)v.getCatalogItem(), stmt_vertices);
-                    }
-                    stmt_vertices.add(v);
-                } else {
-                    MarkovVertex.Type vtype = v.getType();
-                    int idx = vtype.ordinal();
-                    assert(this.cache_specialVertices[idx] == null) : "Trying add duplicate " + vtype + " vertex";
-                    this.cache_specialVertices[idx] = v;
+        boolean ret = super.addVertex(v);
+        if (ret) {
+            if (v.isQueryVertex()) {
+                Set<MarkovVertex> stmt_vertices = this.cache_stmtVertices.get(v.getCatalogItem());
+                if (stmt_vertices == null) {
+                    stmt_vertices = new HashSet<MarkovVertex>();
+                    this.cache_stmtVertices.put((Statement)v.getCatalogItem(), stmt_vertices);
                 }
+                stmt_vertices.add(v);
+            } else {
+                MarkovVertex.Type vtype = v.getType();
+                int idx = vtype.ordinal();
+                assert(this.cache_specialVertices[idx] == null) : "Trying add duplicate " + vtype + " vertex";
+                this.cache_specialVertices[idx] = v;
             }
-        } // SYNCH
+        }
         return (ret);
     }
 

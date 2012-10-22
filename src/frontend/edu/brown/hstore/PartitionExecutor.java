@@ -2695,8 +2695,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // Add in the specexec query estimate at this partition if needed
             if (hstore_conf.site.specexec_enable && t_estimate != null && t_estimate.hasQueryEstimate(target_partition)) {
                 List<CountedStatement> queryEst = t_estimate.getQueryEstimate(target_partition);
-//                if (d) 
-                    LOG.info(String.format("%s - Sending remote query estimate to partition %d containing %d queries\n%s",
+                if (d) LOG.debug(String.format("%s - Sending remote query estimate to partition %d containing %d queries\n%s",
                                  ts, target_partition, queryEst.size(), StringUtil.join("\n", queryEst)));
                 assert(queryEst.isEmpty() == false);
                 QueryEstimate.Builder estBuilder = QueryEstimate.newBuilder();
@@ -2705,14 +2704,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     estBuilder.addStmtCounters(countedStmt.counter);
                 } // FOR
                 fragmentBuilder.setFutureStatements(estBuilder);
-            } else if (ts.isSysProc() == false) {
-                LOG.info("target_partition: " + target_partition);
-                LOG.info("site.specexec_enable: " + hstore_conf.site.specexec_enable);
-                LOG.info("t_estimate: " + (t_estimate != null));
-                if (t_estimate != null) {
-                    
-                    LOG.info("hasQueryEstimate: " + t_estimate.hasQueryEstimate(target_partition));
-                }
             }
            
             // Get the TransactionWorkRequest.Builder for the remote HStoreSite
@@ -2867,7 +2858,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         final ExecutionState execState = ts.getExecutionState();
         final boolean prefetch = ts.hasPrefetchQueries();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
-        final Estimate t_estimate = ts.getLastEstimate();
         
         // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
         // can access them directly without needing to deserialize them from the WorkFragments
@@ -3116,19 +3106,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local partition",
                                      ts, num_localPartition));
                     for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
-//                        int partition = fragmentBuilder.getPartitionId();
-//                        if (t_estimate != null && t_estimate.hasQueryEstimate(partition)) {
-//                            List<CountedStatement> remoteQueries = t_estimate.getQueryEstimate(partition);
-//                            // if (t)
-//                            LOG.info(String.format("%s - Sending estimate update to partition %d containing %d queries\n%s",
-//                                     ts, partition, remoteQueries.size(), StringUtil.join("\n", remoteQueries)));
-//                            QueryEstimate.Builder estBuilder = QueryEstimate.newBuilder();
-//                            for (CountedStatement cntStmt : remoteQueries) {
-//                                estBuilder.addStmtIds(cntStmt.statement.getId());
-//                                estBuilder.addStmtCounters(cntStmt.counter);
-//                            } // FOR
-//                            fragmentBuilder.setFutureStatements(estBuilder);
-//                        }
                         WorkFragment fragment = fragmentBuilder.build();
                         ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
                         this.processWorkFragment(ts, fragment, fragmentParams);
