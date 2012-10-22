@@ -54,7 +54,7 @@ public class BenchmarkComponentResults implements JSONSerializable {
     }
     
     public BenchmarkComponentResults copy() {
-        final BenchmarkComponentResults copy = new BenchmarkComponentResults(this.transactions.fastSize());
+        final BenchmarkComponentResults copy = new BenchmarkComponentResults(this.transactions.size());
         copy.transactions.setDebugLabels(this.transactions.getDebugLabels());
         copy.transactions.put(this.transactions);
         copy.dtxns.setDebugLabels(this.transactions.getDebugLabels());

@@ -41,7 +41,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
-import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
@@ -1459,7 +1458,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Deletable", this.deletable);
         m.put("Needs Restart", this.needs_restart);
         m.put("Needs CommandLog", this.log_enabled);
-        m.put("Estimator State", this.predict_tState);
+        m.put("Estimator State", this.getEstimatorState());
         maps.add(m);
 
         m = new LinkedHashMap<String, Object>();

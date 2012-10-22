@@ -153,7 +153,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     /**
      * EstimationState Handle
      */
-    protected EstimatorState predict_tState;
+    private EstimatorState predict_tState;
     
     // ----------------------------------------------------------------------------
     // PER PARTITION EXECUTION FLAGS
@@ -304,15 +304,18 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      */
     @Override
     public void finish() {
-        this.predict_readOnly = false;
+        this.predict_singlePartition = false;
         this.predict_abortable = true;
+        this.predict_readOnly = false;
+        this.predict_tState = null;
+        
         this.pending_error = null;
         this.status = null;
         this.sysproc = false;
         this.parameters = null;
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
-        
+
         // If this transaction handle was keeping track of pre-fetched queries,
         // then go ahead and reset those state variables.
         if (this.prefetch != null) {
@@ -320,12 +323,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
                        .getPrefetchStatePool(this.base_partition)
                        .returnObject(this.prefetch);
             this.prefetch = null;
-        }
-        
-        // Return our TransactionEstimator.State handle
-        if (this.predict_tState != null) {
-            this.predict_tState.finish();
-            this.predict_tState = null;
         }
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
@@ -348,7 +345,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         
         this.proc_id = -1;
-        this.base_partition = -1;
+        this.base_partition = HStoreConstants.NULL_PARTITION_ID;
         this.txn_id = null;
     }
     

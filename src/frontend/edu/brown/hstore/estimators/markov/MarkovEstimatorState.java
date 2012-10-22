@@ -159,11 +159,11 @@ public final class MarkovEstimatorState extends EstimatorState {
         m0.put("MarkovGraph Id", (this.markov != null ? this.markov.getGraphId() : null));
         
         Map<String, Object> m1 = new LinkedHashMap<String, Object>();
-        m1.put("Initial Estimate", this.getInitialEstimate().toString());
+        m1.put("Initial Estimate", this.getInitialEstimate());
         
         Map<String, Object> m2 = new LinkedHashMap<String, Object>();
         m2.put("Actual Partitions", this.getTouchedPartitions());
-        m2.put("Current Estimate", this.current.debug());
+        m2.put("Current Estimate", (this.current != null ? this.current.debug() : null));
         
         return StringUtil.formatMaps(m0, m1, m2);
     }

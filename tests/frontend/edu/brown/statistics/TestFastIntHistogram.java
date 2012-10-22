@@ -73,8 +73,8 @@ public class TestFastIntHistogram extends BaseTestCase {
         JSONObject jsonObj = new JSONObject(json);
         clone.fromJSON(jsonObj, null);
         
-        assertEquals(fast_h.fastSize(), clone.fastSize());
-        for (int i = 0, cnt = fast_h.fastSize(); i < cnt; i++) {
+        assertEquals(fast_h.size(), clone.size());
+        for (int i = 0, cnt = fast_h.size(); i < cnt; i++) {
             assertEquals(fast_h.get(i), clone.get(i));
         } // FOR
     }

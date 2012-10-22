@@ -41,7 +41,7 @@ public class FastIntHistogram extends Histogram<Integer> {
     // FAST ACCESS METHODS
     // ----------------------------------------------------------------------------
     
-    public int fastSize() {
+    public int size() {
         return (this.histogram.length);
     }
     public int[] fastValues() {
