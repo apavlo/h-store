@@ -38,6 +38,18 @@ public class FastIntHistogram extends Histogram<Integer> {
     }
     
     // ----------------------------------------------------------------------------
+    // INTERNAL METHODS
+    // ----------------------------------------------------------------------------
+    
+    private void grow(int newSize) {
+        assert(newSize >= this.histogram.length);
+        long temp[] = new long[newSize+1];
+        Arrays.fill(this.histogram, this.histogram.length, temp.length, NULL_COUNT);
+        System.arraycopy(this.histogram, 0, temp, 0, this.histogram.length);
+        this.histogram = temp;
+    }
+    
+    // ----------------------------------------------------------------------------
     // FAST ACCESS METHODS
     // ----------------------------------------------------------------------------
     
@@ -60,9 +72,15 @@ public class FastIntHistogram extends Histogram<Integer> {
         return (values);
     }
     public long get(int value) {
+        if (value >= this.histogram.length) {
+            return (0);
+        }
         return (this.histogram[value] != NULL_COUNT ? this.histogram[value] : 0);
     }
     public long put(int idx) {
+        if (idx >= this.histogram.length) {
+            this.grow(idx);
+        }
         if (this.histogram[idx] == NULL_COUNT) {
             this.histogram[idx] = 1;
             this.value_count++;
@@ -74,6 +92,9 @@ public class FastIntHistogram extends Histogram<Integer> {
     }
     public void put(FastIntHistogram fast) {
         assert(fast.histogram.length <= this.histogram.length);
+        if (fast.histogram.length >= this.histogram.length) {
+            this.grow(fast.histogram.length);
+        }
         for (int i = 0; i < fast.histogram.length; i++) {
             if (fast.histogram[i] != NULL_COUNT) {
                 if (this.histogram[i] == NULL_COUNT) {
@@ -90,7 +111,7 @@ public class FastIntHistogram extends Histogram<Integer> {
         return this.fastDec(idx, 1);
     }
     public long fastDec(int idx, long count) {
-        if (this.histogram[idx] == NULL_COUNT) {
+        if (this.histogram[idx] == NULL_COUNT || this.histogram.length <= idx) {
             throw new IllegalArgumentException("No value exists for " + idx);
         } else if (this.histogram[idx] < count) {
             throw new IllegalArgumentException("Count for " + idx + " cannot be negative");
