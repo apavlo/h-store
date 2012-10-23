@@ -24,7 +24,6 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.ThrottlingQueue;
@@ -35,6 +34,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.pools.TypedObjectPool;
+import edu.brown.profilers.NetworkProfiler;
 import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
@@ -316,20 +316,22 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                   (ci.hasBackPressure() ? " / *THROTTLED*" : ""));
             siteInfo.put("Client Interface Queue", value);
             
-            if (hstore_conf.site.network_profiling) {
+            if (hstore_conf.site.network_profiling && ci.getProfiler() != null) {
                 // Compute the approximate arrival rate of transaction
                 // requests per second from clients
-                pm = ci.getNetworkProcessing();
+                NetworkProfiler profiler = ci.getProfiler();
+                
+                pm = profiler.network_processing;
                 double totalTime = System.currentTimeMillis() - startTime;
                 double arrivalRate = (totalTime > 0 ? (pm.getInvocations() / totalTime) : 0d);
                 
                 value = String.format("%.02f txn/sec [total=%d]", arrivalRate, pm.getInvocations());
                 siteInfo.put("Arrival Rate", value);
                 
-                pm = ci.getNetworkBackPressureOn();
+                pm = profiler.network_backup_off;
                 siteInfo.put("Back Pressure Off", formatProfileMeasurements(pm, null, true, false));
                 
-                pm = ci.getNetworkBackPressureOff();
+                pm = profiler.network_backup_on;
                 siteInfo.put("Back Pressure On", formatProfileMeasurements(pm, null, true, false));
             }
         }
@@ -578,11 +580,13 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         }
         
         // Incoming Partition Distribution
-        if (siteDebug.getIncomingPartitionHistogram().isEmpty() == false) {
-            Histogram<Integer> incoming = siteDebug.getIncomingPartitionHistogram();
-            incoming.setDebugLabels(partitionLabels);
-            incoming.enablePercentages();
-            m_exec.put("Incoming Txns\nBase Partitions", incoming.toString(50, 10) + "\n");
+        if (siteDebug.getProfiler() != null) {
+            Histogram<Integer> incoming = siteDebug.getProfiler().network_incoming_partitions;
+            if (incoming.isEmpty() == false) {
+                incoming.setDebugLabels(partitionLabels);
+                incoming.enablePercentages();
+                m_exec.put("Incoming Txns\nBase Partitions", incoming.toString(50, 10) + "\n");
+            }
         }
         if (invokedTxns.isEmpty() == false) {
             invokedTxns.setDebugLabels(partitionLabels);

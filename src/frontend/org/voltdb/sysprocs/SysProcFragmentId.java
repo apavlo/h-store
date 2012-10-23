@@ -55,6 +55,8 @@ public class SysProcFragmentId {
     public static final int PF_markovProfilerDataAggregator = 31;
     public static final int PF_specexecProfilerData = 32;
     public static final int PF_specexecProfilerDataAggregator = 33;
+    public static final int PF_networkProfilerData = 34;
+    public static final int PF_networkProfilerDataAggregator = 35;
 
     // @Shutdown
     public static final int PF_shutdownCommand = 50;

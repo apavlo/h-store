@@ -65,16 +65,14 @@ public class ResetProfiling extends VoltSystemProcedure {
                 if (this.isFirstLocalPartition()) {
                     
                     // NETWORK
-                    if (hstore_conf.site.network_profiling) {
-                        ClientInterface ci = hstore_site.getClientInterface();
-                        ci.getNetworkProcessing().reset();
-                        ci.getNetworkBackPressureOff().reset();
-                        ci.getNetworkBackPressureOn().reset();
+                    ClientInterface ci = hstore_site.getClientInterface();
+                    if (hstore_conf.site.network_profiling && ci.getProfiler() != null) {
+                        ci.getProfiler().reset();
                     }
                     
                     // COMMAND LOGGER
-                    if (hstore_conf.site.commandlog_profiling) {
-                        CommandLogWriter commandLog = hstore_site.getCommandLogWriter();
+                    CommandLogWriter commandLog = hstore_site.getCommandLogWriter();
+                    if (hstore_conf.site.commandlog_profiling && commandLog.getProfiler() != null) {
                         commandLog.getProfiler().reset();
                     }
                 }

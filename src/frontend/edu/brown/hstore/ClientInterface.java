@@ -55,6 +55,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.NetworkProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -257,17 +258,17 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
                                         socket.configureBlocking(false);
                                         socket.socket().setTcpNoDelay(false);
                                         socket.socket().setKeepAlive(true);
-
-                                        synchronized (m_connections){
-                                            Connection c = null;
-                                            if (!m_hasDTXNBackPressure) {
-                                                c = m_network.registerChannel(socket, handler, SelectionKey.OP_READ);
-                                            }
-                                            else {
-                                                c = m_network.registerChannel(socket, handler, 0);
-                                            }
-                                            m_connections.add(c);
+                                        
+                                        Connection c = null;
+                                        if (!m_hasDTXNBackPressure) {
+                                            c = m_network.registerChannel(socket, handler, SelectionKey.OP_READ);
                                         }
+                                        else {
+                                            c = m_network.registerChannel(socket, handler, 0);
+                                        }
+                                        synchronized (m_connections){
+                                            m_connections.add(c);
+                                        } // SYNCH
                                         success = true;
                                     }
                                 } catch (IOException e) {
@@ -473,9 +474,9 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
 
         @Override
         public void handleMessage(ByteBuffer message, Connection c) {
-            if (network_processing != null) network_processing.start();
+            if (profiler != null) profiler.network_processing.start();
             hstore_site.invocationQueue(message, this, c);
-            if (network_processing != null) network_processing.stop();
+            if (profiler != null) profiler.network_processing.stop();
         }
 
         @Override
@@ -597,21 +598,9 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
      */
     private long m_tickCounter = 0;
     
-    // ----------------------------------------------------------------------------
-    // PROFILING DATA
-    // ----------------------------------------------------------------------------
-    
-    private final ProfileMeasurement network_processing;
-    
-    /**
-     * How much time the site spends with backup pressure blocking disabled
-     */
-    private final ProfileMeasurement network_backup_off;
-    
-    /**
-     * How much time the site spends with backup pressure blocking enabled
-     */
-    private final ProfileMeasurement network_backup_on;
+
+    private final NetworkProfiler profiler;
+
     
     // ----------------------------------------------------------------------------
     // BACKPRESSURE OBSERVERS
@@ -625,8 +614,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
             if (debug.get()) LOG.debug("Had back pressure disabling read selection");
             synchronized (m_connections) {
-                if (network_backup_off != null) {
-                    ProfileMeasurement.swap(network_backup_off, network_backup_on);
+                if (profiler != null) {
+                    ProfileMeasurement.swap(profiler.network_backup_off, profiler.network_backup_on);
                 }
                 m_hasDTXNBackPressure = true;
                 for (final Connection c : m_connections) {
@@ -644,8 +633,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
             if (debug.get()) LOG.debug("No more back pressure attempting to enable read selection");
             synchronized (m_connections) {
-                if (network_backup_off != null) {
-                    ProfileMeasurement.swap(network_backup_on, network_backup_off);
+                if (profiler != null) {
+                    ProfileMeasurement.swap(profiler.network_backup_on, profiler.network_backup_off);
                 }
                 m_hasDTXNBackPressure = false;
                 if (m_hasGlobalClientBackPressure) {
@@ -719,18 +708,14 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         m_acceptor = new ClientAcceptor(port, network);
         
         if (hstore_site.getHStoreConf().site.network_profiling) {
-            network_processing = new ProfileMeasurement("PROCESSING");
-            network_backup_off = new ProfileMeasurement("BACKUP-OFF");
-            network_backup_on = new ProfileMeasurement("BACKUP-ON");
+            this.profiler = new NetworkProfiler();
         } else {
-            network_processing = null;
-            network_backup_off = null;
-            network_backup_on = null;
+            this.profiler = null;
         }
     }
     
     public void startAcceptingConnections() throws IOException {
-        if (this.network_backup_off != null) this.network_backup_off.start(); 
+        if (profiler != null) profiler.network_backup_off.start(); 
         m_acceptor.start();
     }
     
@@ -766,24 +751,21 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         return m_numConnections.get();
     }
     
-    public ProfileMeasurement getNetworkProcessing() {
-        return network_processing;
+    public EventObservable<HStoreSite> getOnBackPressureObservable() {
+        return (this.onBackPressure);
     }
     
-    public ProfileMeasurement getNetworkBackPressureOn() {
-        return network_backup_on;
+    public EventObservable<HStoreSite> getOffBackPressureObservable() {
+        return (this.offBackPressure);
     }
-    
-    public ProfileMeasurement getNetworkBackPressureOff() {
-        return network_backup_off;
-    }
-    
     
     public void increaseBackpressure(int messageSize) {
-        if (debug.get()) LOG.debug("Increasing Backpressure: " + messageSize);
-        
         long pendingBytes = m_pendingTxnBytes.addAndGet(messageSize);
         int pendingTxns = m_pendingTxnCount.incrementAndGet();
+        if (debug.get()) 
+            LOG.debug(String.format("Increased Backpressure by %d bytes: [BYTES: %d/%d] [TXNS: %d/%d]",
+                      messageSize,
+                      pendingBytes, MAX_DESIRED_PENDING_BYTES, pendingTxns, MAX_DESIRED_PENDING_TXNS));
         if (pendingBytes > MAX_DESIRED_PENDING_BYTES || pendingTxns > MAX_DESIRED_PENDING_TXNS) {
             if (!m_hadBackPressure) {
                 if (trace.get()) LOG.trace("DTXN back pressure began");
@@ -882,6 +864,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         return context;
     }
 
+    public NetworkProfiler getProfiler() {
+        return (this.profiler);
+    }
+    
     /**
      * A dummy connection to provide to the DTXN. It routes
      * ClientResponses back to the daemon

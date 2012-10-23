@@ -51,6 +51,7 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.StatsAgent;
+import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
@@ -96,6 +97,7 @@ import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimatorState;
+import edu.brown.hstore.stats.NetworkProfilerStats;
 import edu.brown.hstore.stats.MarkovEstimatorProfilerStats;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
 import edu.brown.hstore.stats.PoolCounterStats;
@@ -239,14 +241,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     private final StatsAgent statsAgent = new StatsAgent();
-    private final MemoryStats memoryStats;
-    private final TransactionCounterStats txnCounterStats;
-    private final TransactionProfilerStats txnProfilerStats;
-    private final PartitionExecutorProfilerStats execProfilerStats;
-    private final TransactionQueueManagerProfilerStats queueProfilerStats;
-    private final MarkovEstimatorProfilerStats markovProfilerStats;
-    private final SpecExecProfilerStats specexecProfilerStats;
-    private final PoolCounterStats poolStats;
+    private TransactionProfilerStats txnProfilerStats;
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -405,11 +400,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Status Monitor
      */
     private HStoreSiteStatus status_monitor = null;
-    
-    /**
-     * The number of incoming transaction requests per partition 
-     */
-    private final Histogram<Integer> network_incoming_partitions = new Histogram<Integer>();
     
     private HStoreSiteProfiler profiler; 
     
@@ -572,42 +562,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // -------------------------------
-        // STATS SETUP
-        // -------------------------------
-        
-        // MEMORY
-        this.memoryStats = new MemoryStats();
-        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, this.memoryStats);
-        
-        // TXN COUNTERS
-        this.txnCounterStats = new TransactionCounterStats(this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, this.txnCounterStats);
-
-        // TXN PROFILERS
-        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
-
-        // EXECUTOR PROFILERS
-        this.execProfilerStats = new PartitionExecutorProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.EXECPROFILER, 0, this.execProfilerStats);
-        
-        // QUEUE PROFILER
-        this.queueProfilerStats = new TransactionQueueManagerProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.QUEUEPROFILER, 0, this.queueProfilerStats);
-        
-        // MARKOV ESTIMATOR PROFILER
-        this.markovProfilerStats = new MarkovEstimatorProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.MARKOVPROFILER, 0, this.markovProfilerStats);
-        
-        // SPECEXEC PROFILER
-        this.specexecProfilerStats = new SpecExecProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.SPECEXECPROFILER, 0, this.specexecProfilerStats);
-        
-        // OBJECT POOL COUNTERS
-        this.poolStats = new PoolCounterStats(this.objectPools);
-        this.statsAgent.registerStatsSource(SysProcSelector.POOL, 0, this.poolStats);
-        
-        // -------------------------------
         // NETWORK SETUP
         // -------------------------------
         
@@ -710,6 +664,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // CACHED MESSAGES
         this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();
         
+        // -------------------------------
+        // STATS SETUP
+        // -------------------------------
+        
+        this.initStatSources();
+        
         // Profiling
         if (hstore_conf.site.network_profiling) {
             this.profiler = new HStoreSiteProfiler();
@@ -721,6 +681,49 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
+    }
+    
+    /**
+     * Initial internal stats sources
+     */
+    private void initStatSources() {
+        StatsSource statsSource = null;
+        
+        // MEMORY
+        statsSource = new MemoryStats();
+        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, statsSource);
+        
+        // TXN COUNTERS
+        statsSource = new TransactionCounterStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
+
+        // TXN PROFILERS
+        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
+
+        // EXECUTOR PROFILERS
+        statsSource = new PartitionExecutorProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.EXECPROFILER, 0, statsSource);
+        
+        // QUEUE PROFILER
+        statsSource = new TransactionQueueManagerProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.QUEUEPROFILER, 0, statsSource);
+        
+        // MARKOV ESTIMATOR PROFILER
+        statsSource = new MarkovEstimatorProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.MARKOVPROFILER, 0, statsSource);
+        
+        // SPECEXEC PROFILER
+        statsSource = new SpecExecProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.SPECEXECPROFILER, 0, statsSource);
+        
+        // CLIENT INTERFACE PROFILER
+        statsSource = new NetworkProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.NETWORKPROFILER, 0, statsSource);
+        
+        // OBJECT POOL COUNTERS
+        statsSource = new PoolCounterStats(this.objectPools);
+        this.statsAgent.registerStatsSource(SysProcSelector.POOL, 0, statsSource);
     }
     
     // ----------------------------------------------------------------------------
@@ -1256,9 +1259,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         this.shutdown_state = ShutdownState.STARTED;
-        if (hstore_conf.site.network_profiling) {
-            this.profiler.network_idle_time.start();
-        }
+//        if (hstore_conf.site.network_profiling) {
+//            this.profiler.network_idle_time.start();
+//        }
         this.ready = true;
         this.ready_observable.notifyObservers(this);
 
@@ -1488,13 +1491,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param clientCallback
      */
     public void invocationProcess(ByteBuffer buffer, RpcCallback<ClientResponseImpl> clientCallback) {
-        if (hstore_conf.site.network_profiling || hstore_conf.site.txn_profiling) {
-            long timestamp = ProfileMeasurement.getTime();
-            if (hstore_conf.site.network_profiling) {
-                ProfileMeasurement.swap(timestamp, this.profiler.network_idle_time, this.profiler.network_processing_time);
-            }
-            // TODO: Write profiling timestamp into StoredProcedureInvocation bytes
-        }
+//        if (hstore_conf.site.network_profiling || hstore_conf.site.txn_profiling) {
+//            long timestamp = ProfileMeasurement.getTime();
+//            if (hstore_conf.site.network_profiling) {
+//                ProfileMeasurement.swap(timestamp, this.profiler.network_idle_time, this.profiler.network_processing_time);
+//            }
+//        }
         long timestamp = EstTime.currentTimeMillis();
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
@@ -1578,8 +1580,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Profiling Updates
         if (hstore_conf.site.txn_counters) TransactionCounter.RECEIVED.inc(procName);
         if (hstore_conf.site.network_profiling && base_partition != -1) {
-            synchronized (this.network_incoming_partitions) {
-                this.network_incoming_partitions.put(base_partition);
+            synchronized (profiler.network_incoming_partitions) {
+                profiler.network_incoming_partitions.put(base_partition);
             } // SYNCH
         }
         
@@ -1648,9 +1650,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (t) LOG.trace(String.format("Finished initial processing of new txn. [success=%s]", success));
         EstTimeUpdater.update(System.currentTimeMillis());
-        if (hstore_conf.site.network_profiling) {
-            ProfileMeasurement.swap(this.profiler.network_processing_time, this.profiler.network_idle_time);
-        }
+//        if (hstore_conf.site.network_profiling) {
+//            ProfileMeasurement.swap(this.profiler.network_processing_time, this.profiler.network_idle_time);
+//        }
     }
     
     
@@ -2152,8 +2154,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 StringWriter writer = new StringWriter();
                 ex.printStackTrace(new PrintWriter(writer));
                 msg = writer.toString();
-                LOG.warn(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
-                         ts, status, ts.getClientHandle()), ex);
+                if (d) LOG.warn(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
+                                ts, status, ts.getClientHandle()), ex);
             }
         }
         
@@ -2873,11 +2875,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	        return (postProcessorQueue.size());
 	    }
 	    
-	    /**
-	     * Returns true if this HStoreSite is throttling incoming transactions
-	     */
-	    public Histogram<Integer> getIncomingPartitionHistogram() {
-	        return (network_incoming_partitions);
+	    public HStoreSiteProfiler getProfiler() {
+	        return (profiler);
 	    }
 	}
 	

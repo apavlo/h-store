@@ -59,6 +59,7 @@
 <arg value="client.output_csv=${client.output_csv}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
 <arg value="client.output_queue_profiling=${client.output_queue_profiling}" />
+<arg value="client.output_network_profiling=${client.output_network_profiling}" />
 <arg value="client.output_txn_profiling=${client.output_txn_profiling}" />
 <arg value="client.output_txn_profiling_combine=${client.output_txn_profiling_combine}" />
 <arg value="client.output_specexec_profiling=${client.output_specexec_profiling}" />

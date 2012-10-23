@@ -100,6 +100,8 @@ public class Statistics extends VoltSystemProcedure {
                        Pair.of(SysProcSelector.MARKOVPROFILER, SysProcFragmentId.PF_markovProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_specexecProfilerData,
                        Pair.of(SysProcSelector.SPECEXECPROFILER, SysProcFragmentId.PF_specexecProfilerDataAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_networkProfilerData,
+                       Pair.of(SysProcSelector.NETWORKPROFILER, SysProcFragmentId.PF_networkProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_poolData,
                        Pair.of(SysProcSelector.POOL, SysProcFragmentId.PF_poolDataAggregator));
     } // STATIC
@@ -131,10 +133,7 @@ public class Statistics extends VoltSystemProcedure {
                                              SystemProcedureExecutionContext context) {
         switch (fragmentId) {
             // ----------------------------------------------------------------------------
-            // NODE MEMORY
-            // TRANSACTION COUNTER
-            // TRANSACTION PROFILER
-            // OBJECT POOL PROFILER
+            // PROFILER DATA COLLECTION
             // ----------------------------------------------------------------------------
             case SysProcFragmentId.PF_nodeMemory:
             case SysProcFragmentId.PF_txnCounterData:
@@ -143,6 +142,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_queueProfilerData:
             case SysProcFragmentId.PF_markovProfilerData:
             case SysProcFragmentId.PF_specexecProfilerData:
+            case SysProcFragmentId.PF_networkProfilerData:
             case SysProcFragmentId.PF_poolData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =
@@ -156,7 +156,7 @@ public class Statistics extends VoltSystemProcedure {
                 // Choose the lowest site ID on this host to do the scan
                 // All other sites should just return empty results tables.
                 if (this.isFirstLocalPartition()) {
-                    Pair<SysProcSelector, Integer> pair = STATS_DATA.get(fragmentId);; 
+                    Pair<SysProcSelector, Integer> pair = STATS_DATA.get(fragmentId);
                     result = executor.getHStoreSite().getStatsAgent().getStats(
                                     pair.getFirst(),
                                     catalogIds,
@@ -172,36 +172,32 @@ public class Statistics extends VoltSystemProcedure {
                 }
                 return new DependencySet(fragmentId, result);
             }
-            case SysProcFragmentId.PF_nodeMemoryAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_nodeMemory));
-                return new DependencySet(fragmentId, result);
-            }
-            case SysProcFragmentId.PF_txnCounterDataAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_txnCounterData));
-                return new DependencySet(fragmentId, result);
-            }
-            case SysProcFragmentId.PF_txnProfilerDataAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_txnProfilerData));
-                return new DependencySet(fragmentId, result);
-            }
-            case SysProcFragmentId.PF_execProfilerDataAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_execProfilerData));
-                return new DependencySet(fragmentId, result);
-            }
-            case SysProcFragmentId.PF_queueProfilerDataAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_queueProfilerData));
-                return new DependencySet(fragmentId, result);
-            }
-            case SysProcFragmentId.PF_markovProfilerDataAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_markovProfilerData));
-                return new DependencySet(fragmentId, result);
-            }
-            case SysProcFragmentId.PF_specexecProfilerDataAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_specexecProfilerData));
-                return new DependencySet(fragmentId, result);
-            }
+            // ----------------------------------------------------------------------------
+            // PROFILER DATA AGGREGATION
+            // ----------------------------------------------------------------------------
+            case SysProcFragmentId.PF_nodeMemoryAggregator:
+            case SysProcFragmentId.PF_txnCounterDataAggregator:
+            case SysProcFragmentId.PF_txnProfilerDataAggregator:
+            case SysProcFragmentId.PF_execProfilerDataAggregator:
+            case SysProcFragmentId.PF_queueProfilerDataAggregator:
+            case SysProcFragmentId.PF_markovProfilerDataAggregator:
+            case SysProcFragmentId.PF_specexecProfilerDataAggregator:
+            case SysProcFragmentId.PF_networkProfilerDataAggregator:
             case SysProcFragmentId.PF_poolDataAggregator: {
-                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_poolData));
+                // Do a reverse look up to find the input dependency id
+                int dataFragmentId = -1;
+                for (Integer id : STATS_DATA.keySet()) {
+                    Pair<SysProcSelector, Integer> pair = STATS_DATA.get(id);
+                    if (pair.getSecond().equals(fragmentId)) {
+                        dataFragmentId = id.intValue();
+                        break;
+                    }
+                } // FOR
+                if (dataFragmentId == -1) {
+                    String msg = "Failed to find input data dependency for SysProc #" + fragmentId;
+                    throw new ServerFaultException(msg, txn_id);
+                }
+                VoltTable result = VoltTableUtil.union(dependencies.get(dataFragmentId));
                 return new DependencySet(fragmentId, result);
             }
             
@@ -261,6 +257,17 @@ public class Statistics extends VoltSystemProcedure {
             // IO statistics
             // ----------------------------------------------------------------------------
             case SysProcFragmentId.PF_ioData: {
+                ColumnInfo ioColumnInfo[] = new ColumnInfo[] {
+                        new ColumnInfo( "TIMESTAMP", VoltType.BIGINT),
+                        new ColumnInfo( VoltSystemProcedure.CNAME_HOST_ID, VoltSystemProcedure.CTYPE_ID),
+                        new ColumnInfo( "HOSTNAME", VoltType.STRING),
+                        new ColumnInfo( "CONNECTION_ID", VoltType.BIGINT),
+                        new ColumnInfo( "CONNECTION_HOSTNAME", VoltType.STRING),
+                        new ColumnInfo( "BYTES_READ", VoltType.BIGINT),
+                        new ColumnInfo( "MESSAGES_READ", VoltType.BIGINT),
+                        new ColumnInfo( "BYTES_WRITTEN", VoltType.BIGINT),
+                        new ColumnInfo( "MESSAGES_WRITTEN", VoltType.BIGINT)
+                };
                 final VoltTable result = new VoltTable(ioColumnInfo);
                 // Choose the lowest site ID on this host to do the scan
                 // All other sites should just return empty results tables.
@@ -297,9 +304,12 @@ public class Statistics extends VoltSystemProcedure {
                 return new DependencySet(DEP_ioData, result);
             }
             case SysProcFragmentId.PF_ioDataAggregator: {
-                final VoltTable result = new VoltTable(ioColumnInfo);
+                VoltTable result = null;
                 List<VoltTable> dep = dependencies.get(DEP_ioData);
                 for (VoltTable t : dep) {
+                    if (result == null) {
+                        result = new VoltTable(t);
+                    }
                     while (t.advanceRow()) {
                         result.add(t);
                     }
@@ -316,19 +326,6 @@ public class Statistics extends VoltSystemProcedure {
         assert (false);
         return null;
     }
-
-    private static final ColumnInfo ioColumnInfo[] = new ColumnInfo[] {
-        new ColumnInfo( "TIMESTAMP", VoltType.BIGINT),
-        new ColumnInfo( VoltSystemProcedure.CNAME_HOST_ID, VoltSystemProcedure.CTYPE_ID),
-        new ColumnInfo( "HOSTNAME", VoltType.STRING),
-        new ColumnInfo( "CONNECTION_ID", VoltType.BIGINT),
-        new ColumnInfo( "CONNECTION_HOSTNAME", VoltType.STRING),
-        new ColumnInfo( "BYTES_READ", VoltType.BIGINT),
-        new ColumnInfo( "MESSAGES_READ", VoltType.BIGINT),
-        new ColumnInfo( "BYTES_WRITTEN", VoltType.BIGINT),
-        new ColumnInfo( "MESSAGES_WRITTEN", VoltType.BIGINT)
-    };
-
 
     /**
      * Returns a table stats.

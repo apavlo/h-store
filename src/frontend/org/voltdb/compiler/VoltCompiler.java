@@ -96,6 +96,7 @@ import org.voltdb.sysprocs.Quiesce;
 import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Shutdown;
+import org.voltdb.sysprocs.Sleep;
 import org.voltdb.sysprocs.SnapshotDelete;
 import org.voltdb.sysprocs.SnapshotRestore;
 import org.voltdb.sysprocs.SnapshotSave;
@@ -1263,6 +1264,7 @@ public class VoltCompiler {
             {MarkovUpdate.class,                    true,       true},
             {Shutdown.class,                        false,      true},
             {NoOp.class,                            true,       false},
+            {Sleep.class,                           true,       true},
             {AdHoc.class,                           false,      false},
             {GetConfiguration.class,                true,       false},
             {SetConfiguration.class,                true,       true},

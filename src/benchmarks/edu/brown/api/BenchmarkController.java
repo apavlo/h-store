@@ -87,6 +87,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
@@ -503,6 +504,9 @@ public class BenchmarkController {
         if (hstore_conf.client.output_queue_profiling != null) {
             m_config.siteParameters.put("site.queue_profiling", Boolean.TRUE.toString());
         }
+        if (hstore_conf.client.output_network_profiling != null) {
+            m_config.siteParameters.put("site.network_profiling", Boolean.TRUE.toString());
+        }
         if (hstore_conf.client.output_specexec_profiling != null) {
             m_config.siteParameters.put("site.specexec_profiling", Boolean.TRUE.toString());
         }
@@ -830,8 +834,9 @@ public class BenchmarkController {
                             if (uploadArgs.isEmpty() == false) curClientArgs.addAll(uploadArgs);
                             
                             if (local_client != null && i % 3 == 0) {
+                                String procName = VoltSystemProcedure.procCallName(NoOp.class); 
                                 try {
-                                    local_client.callProcedure(NoOp.getNoOpCallback(), "@NoOp"); 
+                                    local_client.callProcedure(new NullCallback(), procName); 
                                 } catch (Exception ex) {
                                     throw new RuntimeException(ex);
                                 }        
@@ -1224,41 +1229,22 @@ public class BenchmarkController {
                 throw new Exception("Failed to dump database contents", ex);
             }
         }
-        
-        // Dump Exec Profiling Info
-        if (hstore_conf.client.output_exec_profiling != null) {
-            this.writeStats(client,
-                            SysProcSelector.EXECPROFILER,
-                            hstore_conf.client.output_exec_profiling);
-        }
-        
-        // Dump Queue Profiling Info
-        if (hstore_conf.client.output_queue_profiling != null) {
-            this.writeStats(client,
-                            SysProcSelector.QUEUEPROFILER,
-                            hstore_conf.client.output_queue_profiling);
-        }
-        
-        // Dump Txn Profiling Info
-        if (hstore_conf.client.output_txn_profiling != null) {
-            this.writeStats(client,
-                            SysProcSelector.TXNPROFILER,
-                            hstore_conf.client.output_txn_profiling);
-        }
-        
-        // Dump SpecExec Profiling Info
-        if (hstore_conf.client.output_specexec_profiling != null) {
-            this.writeStats(client,
-                            SysProcSelector.SPECEXECPROFILER,
-                            hstore_conf.client.output_specexec_profiling);
-        }
-        
-        // Dump Txn Counters Info
-        if (hstore_conf.client.output_txn_counters != null) {
-            this.writeStats(client,
-                            SysProcSelector.TXNCOUNTER,
-                            hstore_conf.client.output_txn_counters);
-        }
+
+        // Dump Profiling Information
+        @SuppressWarnings("unchecked")
+        Pair<SysProcSelector, String> profilingData[] = (Pair<SysProcSelector, String>[])new Pair<?,?>[]{
+            Pair.of(SysProcSelector.EXECPROFILER, hstore_conf.client.output_exec_profiling),
+            Pair.of(SysProcSelector.QUEUEPROFILER, hstore_conf.client.output_queue_profiling),
+            Pair.of(SysProcSelector.TXNPROFILER, hstore_conf.client.output_txn_profiling),
+            Pair.of(SysProcSelector.NETWORKPROFILER, hstore_conf.client.output_network_profiling),
+            Pair.of(SysProcSelector.SPECEXECPROFILER, hstore_conf.client.output_specexec_profiling),
+            Pair.of(SysProcSelector.TXNCOUNTER, hstore_conf.client.output_txn_counters),
+        };
+        for (Pair<SysProcSelector, String> pair : profilingData) {
+            if (pair.getSecond() != null) {
+                this.writeStats(client, pair.getFirst(), pair.getSecond());
+            }
+        } // FOR
         
         // Recompute MarkovGraphs
         if (m_config.markovRecomputeAfterEnd && this.stop == false) {

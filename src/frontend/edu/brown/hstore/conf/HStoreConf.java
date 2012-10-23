@@ -579,7 +579,8 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Enable profiling for the thread that listens for incoming client requests " +
-                        "over the network.",
+                        "over the network. " +
+                        "This data can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
             experimental=false
         )
@@ -849,7 +850,8 @@ public final class HStoreConf {
         public boolean markov_fixed;
         
         @ConfigProperty(
-            description="Enable profiling in the MarkovEstimator.",
+            description="Enable profiling in the MarkovEstimator. " +
+            		    "This data can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
             experimental=false
         )
@@ -1550,6 +1552,15 @@ public final class HStoreConf {
             experimental=false
         )
         public String output_queue_profiling;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "ClientInterface profiling stats. Note that this will automatically enable " +
+                        "${site.network_profiling}, which will affect the runtime performance.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_network_profiling;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
