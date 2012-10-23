@@ -2,8 +2,12 @@ package edu.brown.utils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import org.junit.Test;
+
+import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.Histogram;
 
 import junit.framework.TestCase;
 
@@ -102,4 +106,26 @@ public class TestMathUtil extends TestCase {
         double stddev = MathUtil.stdev(CollectionUtil.toDoubleArray(values));
         assertEquals(expected, stddev, 0.001);
     }
+    
+    /**
+     * testStandardDeviationHistogram
+     */
+    @Test
+    public void testStandardDeviationHistogram() {
+        Random rand = new Random(0);
+        List<Integer> values = new ArrayList<Integer>();
+        FastIntHistogram h0 = new FastIntHistogram(100);
+        Histogram<Integer> h1 = new Histogram<Integer>(); 
+        for (int i = 0; i < 1000; i++) {
+            int val = rand.nextInt(100);
+            values.add(val);
+            h0.put(val);
+            h1.put(val);
+        } // FOR
+        
+        double expected = MathUtil.stdev(CollectionUtil.toDoubleArray(values));
+        assertEquals(expected, MathUtil.stdev(h0), 0.001);
+        assertEquals(expected, MathUtil.stdev(h1), 0.001);
+    }
+
 }

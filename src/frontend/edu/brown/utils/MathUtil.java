@@ -208,6 +208,20 @@ public abstract class MathUtil {
         return Math.sqrt(sum / (data.length - 1));
     }
     
+    public static <T extends Number> double stdev(Histogram<T> h) {
+        double values[] = new double[h.getSampleCount()];
+        int idx = 0;
+        for (T val : h.values()) {
+            double value = val.doubleValue();
+            long weight = h.get(val, 0l);
+            for (int i = 0; i < weight; i++) {
+                values[idx++] = value;
+            }
+        } // FOR
+        assert(idx == values.length) : idx + "!=" + values.length;
+        return (MathUtil.stdev(values));
+    }
+    
     /** Compute the sum of the given array */
     public static long sum(long...values) {
         long total = 0;
