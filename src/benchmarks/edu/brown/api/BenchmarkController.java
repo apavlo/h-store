@@ -1359,11 +1359,11 @@ public class BenchmarkController {
     private void recomputeMarkovs(Client client) {
         String output_directory = hstore_conf.global.temp_dir + "/markovs/" + m_projectBuilder.getProjectName();
         FileUtil.makeDirIfNotExists(output_directory);
-        ThreadUtil.sleep(60000);
         LOG.info("Requesting HStoreSites to recalculate Markov models");
         ClientResponse cr = null;
+        String procName = VoltSystemProcedure.procCallName(MarkovUpdate.class);
         try {
-            cr = client.callProcedure("@RecomputeMarkovs", true);
+            cr = client.callProcedure(procName, true);
         } catch (Exception ex) {
             LOG.error("Failed to recompute MarkovGraphs", ex);
             return;

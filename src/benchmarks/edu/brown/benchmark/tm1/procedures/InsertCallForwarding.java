@@ -39,7 +39,10 @@ import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 
-@ProcInfo(singlePartition = false)
+@ProcInfo(
+    partitionParam = 0,
+    singlePartition = false
+)
 public class InsertCallForwarding extends VoltProcedure {
     public final SQLStmt query1 = new SQLStmt(
         "SELECT s_id FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE sub_nbr = ?"

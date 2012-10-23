@@ -15,10 +15,10 @@ import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.StringUtil;
 
 public abstract class AbstractGraphElement implements JSONSerializable, Comparable<AbstractGraphElement> {
 //    private static final Logger LOG = Logger.getLogger(AbstractGraphElement.class.getName());
-    public static final String DEBUG_SPACER = "  ";
     
     private Map<IGraph<?, ?>, Map<String, Object>> attributes;
     private Long element_id;
@@ -50,7 +50,9 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     private Map<IGraph<?, ?>, Map<String, Object>> lazyAttributeAllocation() {
         if (this.attributes == null) {
             synchronized (this) {
-                if (this.attributes == null) this.attributes = new HashMap<IGraph<?, ?>, Map<String,Object>>();            
+                if (this.attributes == null) {
+                    this.attributes = new HashMap<IGraph<?, ?>, Map<String,Object>>();            
+                }
             } // SYNCH
         }
         return (this.attributes);
@@ -157,9 +159,9 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     
     public String debug(IGraph<?, ?> graph) {
         this.lazyAttributeAllocation();
-        String ret = DEBUG_SPACER + graph + "\n";
+        String ret = StringUtil.SPACER + graph + "\n";
         for (String key : this.attributes.get(graph).keySet()) {
-            ret += DEBUG_SPACER + DEBUG_SPACER + key + ": " + this.attributes.get(graph).get(key) + "\n";
+            ret += StringUtil.SPACER + StringUtil.SPACER + key + ": " + this.attributes.get(graph).get(key) + "\n";
         } // FOR
         return (ret);
     }

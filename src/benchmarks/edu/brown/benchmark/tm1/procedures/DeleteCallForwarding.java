@@ -41,7 +41,10 @@ import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 
-@ProcInfo(singlePartition = false)
+@ProcInfo(
+    partitionParam = 0,
+    singlePartition = false
+)
 public class DeleteCallForwarding extends VoltProcedure {
 
     public final SQLStmt query = new SQLStmt(

@@ -39,7 +39,10 @@ import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 
-@ProcInfo(singlePartition = false)
+@ProcInfo(
+    partitionParam = 1,
+    singlePartition = false
+)
 public class UpdateLocation extends VoltProcedure {
 
     public final SQLStmt getSubscriber = new SQLStmt(

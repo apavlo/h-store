@@ -904,6 +904,7 @@ public class PartitionEstimator {
         else {
             if (debug.get())
                 LOG.debug("Calculating base partition using " + catalog_param.fullName() + ": " + params[catalog_param.getIndex()]);
+            assert(catalog_param.getIndex() >= 0) : "Invalid parameter offset " + catalog_param.fullName();
             partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
         }
         return (partition);

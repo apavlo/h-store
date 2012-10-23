@@ -7,6 +7,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.utils.StringUtil;
 import edu.uci.ics.jung.graph.DelegateForest;
 
 /**
@@ -73,7 +74,7 @@ public class AbstractVertex extends AbstractGraphElement {
     public String debug(IGraph<?, ?> graph) {
         String ret = super.debug(graph);
         if (graph instanceof DelegateForest) {
-            ret += DEBUG_SPACER + DEBUG_SPACER + "PARENT: " + ((DelegateForest)graph).getParent(this) + "\n";
+            ret += StringUtil.SPACER + StringUtil.SPACER + "PARENT: " + ((DelegateForest)graph).getParent(this) + "\n";
         }
         return (ret);
     }
