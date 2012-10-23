@@ -1116,7 +1116,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Check whether there is something we can speculatively execute right now
         if (hstore_conf.site.specexec_enable && this.currentDtxn != null) {
             if (t) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
-            work = this.specExecScheduler.next(this.currentDtxn);
+            if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
+            try {
+                work = this.specExecScheduler.next(this.currentDtxn);
+            } finally {
+                if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.stop();
+            }
             
             // Because we don't have fine-grained undo support, we are just going
             // keep all of our speculative execution txn results around
@@ -2200,14 +2205,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false) {
             Estimate est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
-            if (hstore_conf.site.exec_no_undo_logging == false ||
+            if (hstore_conf.site.exec_force_undo_logging_all == true ||
+                hstore_conf.site.exec_no_undo_logging == false ||
                 est.isValid() == false ||
                 est.isAbortable(this.thresholds) ||
                 est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
                 undoToken = this.getNextUndoToken();
             } else if (d) {
                 LOG.warn(String.format("Bold! Disabling undo buffers for inflight %s\n%s\n%s",
-                          ts, est, plan.toString()));
+                         ts, est, plan.toString()));
             }
         }
         // If the transaction is predicted to be read-only, then we won't bother with an undo buffer

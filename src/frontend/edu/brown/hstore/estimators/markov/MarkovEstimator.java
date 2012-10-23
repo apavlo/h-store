@@ -225,6 +225,11 @@ public class MarkovEstimator extends TransactionEstimator {
             }
         } // FOR
         
+        // We want to add the estimate to the state down here after we have initialized
+        // everything. This prevents other threads from accessing it before we have
+        // initialized it properly.
+        state.addInitialEstimate(initialEst);
+        
         return (state);
     }
     
@@ -329,6 +334,12 @@ public class MarkovEstimator extends TransactionEstimator {
         if (this.enable_recomputes && markov.shouldRecompute(this.txn_count.get(), RECOMPUTE_TOLERANCE)) {
             markov.calculateProbabilities();
         }
+        
+        // We want to add the estimate to the state down here after we have initialized
+        // everything. This prevents other threads from accessing it before we have
+        // initialized it properly.
+        state.addEstimate(estimate);
+        
         return (estimate);
     }
 

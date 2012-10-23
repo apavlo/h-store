@@ -187,6 +187,13 @@ public class ParameterMangler {
                                     inner[j] = arr[j];
                                 } // FOR
                             }
+                            else if (orig[i] instanceof Float[]) {
+                                Float arr[] = (Float[]) orig[i];
+                                inner = new Double[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = Double.valueOf(arr[j]);
+                                } // FOR
+                            }
                             else {
                                 Double arr[] = (Double[]) orig[i];
                                 inner = new Double[arr.length];

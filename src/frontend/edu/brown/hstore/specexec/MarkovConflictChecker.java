@@ -11,12 +11,15 @@ import java.util.SortedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ConflictPair;
+import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
@@ -176,13 +179,13 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         }
         
         // If both txns are read-only, then we can let our homeboy go
-        boolean readonly0 = dtxnEst.isReadOnlyPartition(this.thresholds, partitionId);
-        boolean readonly1 = tsEst.isReadOnlyPartition(this.thresholds, partitionId);
-        if (readonly0 && readonly1) {
-            if (debug.get())
-                LOG.debug(String.format("%s<->%s are both are read-only. No conflict!", dtxn, ts));
-            return (false);
-        }
+//        boolean readonly0 = dtxnEst.isReadOnlyPartition(this.thresholds, partitionId);
+//        boolean readonly1 = tsEst.isReadOnlyPartition(this.thresholds, partitionId);
+//        if (readonly0 && readonly1) {
+//            if (debug.get())
+//                LOG.debug(String.format("%s<->%s are both are read-only. No conflict!", dtxn, ts));
+//            return (false);
+//        }
         
         List<CountedStatement> queries0 = dtxnEst.getQueryEstimate(partitionId);
         List<CountedStatement> queries1 = tsEst.getQueryEstimate(partitionId);
@@ -307,22 +310,69 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         return (true);
     }
     
+    protected Object getValue(ParameterSet params, ParameterMapping pm) {
+        Object val = null;
+        Object orig = params.toArray()[pm.procedure_parameter.getIndex()];
+        VoltType vtype = VoltType.get(pm.procedure_parameter.getType());
+        if (pm.procedure_parameter.getIsarray()) {
+            assert(pm.procedure_parameter_index != ParametersUtil.NULL_PROC_PARAMETER_OFFSET);
+            switch (vtype) {
+                case TINYINT: {
+                    if (orig instanceof byte[])
+                        val = ((byte[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Byte[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case SMALLINT: {
+                    if (orig instanceof short[])
+                        val = ((short[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Short[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case INTEGER: {
+                    if (orig instanceof int[])
+                        val = ((int[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Integer[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case BIGINT: {
+                    if (orig instanceof long[])
+                        val = ((long[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Long[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case FLOAT: {
+                    if (orig instanceof float[])
+                        val = ((float[])orig)[pm.procedure_parameter_index];
+                    else if (orig instanceof double[])
+                        val = ((double[])orig)[pm.procedure_parameter_index];
+                    else if (orig instanceof Float[])
+                        val = ((Float[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Double[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case TIMESTAMP: {
+                    val = ((TimestampType[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                default:
+                    val = ((Object[])orig)[pm.procedure_parameter_index];
+            } // SWITCH
+        } else {
+            val = params.toArray()[pm.procedure_parameter.getIndex()];
+        }
+        
+        return (val);
+    }
+    
     protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0, ParameterSet params1, ParameterMapping pm1) {
-        Object val0, val1;
-        
-        if (pm0.procedure_parameter.getIsarray()) {
-            assert(pm0.procedure_parameter_index != ParametersUtil.NULL_PROC_PARAMETER_OFFSET);
-            val0 = ((Object[])params0.toArray()[pm0.procedure_parameter.getIndex()])[pm0.procedure_parameter_index];
-        } else {
-            val0 = params0.toArray()[pm0.procedure_parameter.getIndex()];
-        }
-        if (pm1.procedure_parameter.getIsarray()) {
-            assert(pm1.procedure_parameter_index != ParametersUtil.NULL_PROC_PARAMETER_OFFSET);
-            val1 = ((Object[])params1.toArray()[pm1.procedure_parameter.getIndex()])[pm1.procedure_parameter_index];
-        } else {
-            val1 = params1.toArray()[pm1.procedure_parameter.getIndex()];
-        }
-        
+        Object val0 = this.getValue(params0, pm0);
+        Object val1 = this.getValue(params1, pm1);
         if (val0 == null) {
             return (val1 != null);
         } else if (val1 == null) {

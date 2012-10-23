@@ -37,9 +37,9 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.seats.SEATSConstants;
 
 @ProcInfo(
-		singlePartition = true
-)
-	
+    partitionParam = 0,
+	singlePartition = true
+)	
 public class FindFlights extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(FindFlights.class);
     

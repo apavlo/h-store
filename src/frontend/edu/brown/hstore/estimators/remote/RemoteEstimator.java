@@ -50,6 +50,7 @@ public class RemoteEstimator extends TransactionEstimator {
         est.addQueryEstimate(query_est, partition);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         RemoteEstimatorState state = null;

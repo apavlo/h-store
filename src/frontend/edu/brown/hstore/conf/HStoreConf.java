@@ -209,7 +209,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Force all transactions to execute with undo logging. For testing purposes only.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=true
         )
         public boolean exec_force_undo_logging_all;

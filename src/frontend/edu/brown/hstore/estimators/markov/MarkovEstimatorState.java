@@ -11,6 +11,7 @@ import org.voltdb.CatalogContext;
 
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.logging.LoggerUtil;
@@ -92,6 +93,8 @@ public final class MarkovEstimatorState extends EstimatorState {
     
     /**
      * Get the next Estimate object for this State
+     * This will not add the Estimate to this the State's list
+     * That must be done separately.
      * @return
      */
     protected MarkovEstimate createNextEstimate(MarkovVertex v, boolean initial) {
@@ -99,15 +102,19 @@ public final class MarkovEstimatorState extends EstimatorState {
         MarkovEstimate next = new MarkovEstimate(this.catalogContext);
         int batchId = (initial ? EstimatorUtil.INITIAL_ESTIMATE_BATCH : this.getEstimateCount());
         next.init(v, batchId);
-        if (initial) {
-            this.addInitialEstimate(next);
-        } else {
-            assert(v.isStartVertex() == false);
-            this.addEstimate(next);
-        }
         return (next);
     }
 
+    @Override
+    protected void addInitialEstimate(Estimate estimate) {
+        super.addInitialEstimate(estimate);
+    }
+    
+    @Override
+    protected Estimate addEstimate(Estimate est) {
+        return super.addEstimate(est);
+    }
+    
     // ----------------------------------------------------------------------------
     // MARKOV GRAPH METHODS
     // ----------------------------------------------------------------------------
