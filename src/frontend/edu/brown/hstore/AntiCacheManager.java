@@ -52,8 +52,9 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
-    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152 * 64;  
+    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1MB
+
+	public static final long DEFAULT_MEMORY_THRESHOLD_MB = 128; 
     
     private boolean evicting;  
 
@@ -157,7 +158,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
         
         CatalogContext catalogContext = hstore_site.getCatalogContext();
-        this.memoryThreshold = hstore_conf.site.anticache_threshold;
+        //this.memoryThreshold = hstore_conf.site.anticache_threshold;
+		this.memoryThreshold = DEFAULT_MEMORY_THRESHOLD_MB;
         this.evictableTables = catalogContext.getEvictableTables(); 
                 
         this.partitionSizes = new long[hstore_site.getLocalPartitionIds().size()];
@@ -267,12 +269,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
 
 		LOG.info("Current Memory Usage: " + (total_size_kb/1024) + " MB"); 
 
-        //return((total_size_kb > (1024 * 512)) && !evicted);
-        return((total_size_kb > (1024 * 512)));
-        
-		//return(stats.javausedheapmem > (1024 * 1024 * 1024));
-        //return (usage >= this.memoryThreshold);
-        //return (false);
+        return ((total_size_kb/1024) >= DEFAULT_MEMORY_THRESHOLD_MB);
     }
     
     protected void executeEviction() {

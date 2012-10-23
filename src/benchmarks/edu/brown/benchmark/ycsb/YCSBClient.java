@@ -69,6 +69,8 @@ public class YCSBClient extends BenchmarkComponent {
     private final double SIGMA = 1.4; 
     
     private Histogram<Integer> zipf_histogram; 
+
+	private Random rand_gen; 
 	
 	Client client; 
     
@@ -85,6 +87,8 @@ public class YCSBClient extends BenchmarkComponent {
 
     public YCSBClient(String args[]) {
         super(args);
+
+		rand_gen = new Random(); 
 		
 		int init_record_count = YCSBConstants.NUM_RECORDS;  
 		
@@ -121,7 +125,7 @@ public class YCSBClient extends BenchmarkComponent {
 		
 		DELETE_RECORD("Delete Record", YCSBConstants.FREQUENCY_DELETE_RECORD), 
 		
-		//READ_MODIFY_WRITE_RECORD("read Modify Write Record", YCSBConstants.FREQUENCY_READ_MODIFY_WRITE_RECORD), 
+		// READ_MODIFY_WRITE_RECORD("read Modify Write Record", YCSBConstants.FREQUENCY_READ_MODIFY_WRITE_RECORD), 
 		
 		READ_RECORD("Read Record", YCSBConstants.FREQUENCY_READ_RECORD), 
 		
@@ -247,8 +251,13 @@ public class YCSBClient extends BenchmarkComponent {
 			procParams = new Object[1]; 
 			key = readRecord.nextInt();
 		}
+		
+		key = readRecord.nextInt(); 
         
         zipf_histogram.put(new Integer(key)); 
+
+		//if(key != 0)
+		//	System.out.println("key = " + key); 
 		
 		procParams[0] = key; 
 		

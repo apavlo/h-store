@@ -71,6 +71,7 @@
 #include "common/NValue.hpp"
 #include "common/ValuePeeker.hpp"
 #include <set>
+#include <list>
 #endif
 
 using namespace voltdb;
@@ -504,16 +505,16 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     }
     
 #ifdef ANTICACHE
-    /*
     // anti-cache variables
     //EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
-	std::set<uint16_t> evicted_block_ids(); 
+	list<uint16_t> evicted_block_ids; 
+	
+	ValuePeeker peeker; 
 	
 	TableTuple m_evicted_tuple(m_targetTable->getEvictedTable()->schema()); 
 	
 	int block_id_index; 
 	uint16_t block_id;
-     */
 #endif        
 
 
@@ -525,23 +526,34 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
            ((m_lookupType != INDEX_LOOKUP_TYPE_EQ || m_numOfSearchkeys == 0) &&
             !(m_tuple = m_index->nextValue()).isNullTuple()))
     {
+		int tuple_id = (int)peeker.peekBigInt(m_tuple.getNValue(0));
+	
+		if(tuple_id != 0)
+		{
+			VOLT_INFO("Looking up tuple %d in index.", tuple_id); 
+		}
+	
         
 #ifdef ANTICACHE
-        /*
         // We are pointing to an entry for an evicted tuple
+
+		
+
+
 		if(m_tuple.isEvicted())
         {
+			VOLT_INFO("Found an evicted tuple: %d", m_tuple.getTupleID());
+	
 			// create an evicted tuple from the current tuple address
 			// NOTE: This is necessary because the original table tuple and the evicted tuple do not have the same schema
 			m_evicted_tuple.move(m_tuple.address()); 
 			
 			// determine the block id using the evicted tuple
 			block_id_index = m_evicted_tuple.getSchema()->columnCount() - 1; 
-			block_id = ValuePeeker.peekSmallInt(m_evicted_tuple.getNValue(block_id_index)); 
+			block_id = peeker.peekSmallInt(m_evicted_tuple.getNValue(block_id_index)); 
 
-			evicted_block_ids.insert(block_id); 
+			evicted_block_ids.push_back(block_id); 
 		}
-         */
 #endif        
         
         //
@@ -682,18 +694,24 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     }
     
 #ifdef ANTICACHE
-    /*
     // throw exception indicating evicted blocks are needed
     if(evicted_block_ids.size() > 0)
     {
-        uint16_t* block_ids = new uint16_t[evicted_block_ids.size()]; 
-        for(std::set<uint16_t>::iterator itr = evicted_block_ids.begin(), int i = 0; itr != evicted_block_ids.end(); ++itr, ++i)
+		evicted_block_ids.unique(); 
+		
+		int num_block_ids = static_cast<int>(evicted_block_ids.size()); 
+		
+        uint16_t* block_ids = new uint16_t[evicted_block_ids.size()];
+		int i = 0; 
+        for(list<uint16_t>::iterator itr = evicted_block_ids.begin(); itr != evicted_block_ids.end(); ++itr, ++i)
         {
             block_ids[i] = *itr; 
         }
-        throw new EvictedTupleAccessException(0, evicted_block_ids.size(), block_ids); 
+		
+		VOLT_INFO("Throwing EvictedTupleAccessException"); 
+
+        throw new EvictedTupleAccessException(0, num_block_ids, block_ids); 
     }
-     */
 #endif
     
     

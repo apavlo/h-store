@@ -201,7 +201,6 @@ bool AntiCacheEvictionManager::removeTuple(PersistentTable* table, int removal_i
             
             printf("iterations = %d", iterations); 
             
-            
             next_tuple_id = tuple.getTupleID(); 
             
             // create a tuple from the previous tuple id in the chain
