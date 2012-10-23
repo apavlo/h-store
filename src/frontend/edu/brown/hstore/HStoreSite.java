@@ -99,6 +99,7 @@ import edu.brown.hstore.estimators.remote.RemoteEstimatorState;
 import edu.brown.hstore.stats.MarkovEstimatorProfilerStats;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
 import edu.brown.hstore.stats.PoolCounterStats;
+import edu.brown.hstore.stats.SpecExecProfilerStats;
 import edu.brown.hstore.stats.TransactionCounterStats;
 import edu.brown.hstore.stats.TransactionProfilerStats;
 import edu.brown.hstore.stats.TransactionQueueManagerProfilerStats;
@@ -244,6 +245,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final PartitionExecutorProfilerStats execProfilerStats;
     private final TransactionQueueManagerProfilerStats queueProfilerStats;
     private final MarkovEstimatorProfilerStats markovProfilerStats;
+    private final SpecExecProfilerStats specexecProfilerStats;
     private final PoolCounterStats poolStats;
     
     // ----------------------------------------------------------------------------
@@ -596,6 +598,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // MARKOV ESTIMATOR PROFILER
         this.markovProfilerStats = new MarkovEstimatorProfilerStats(this);
         this.statsAgent.registerStatsSource(SysProcSelector.MARKOVPROFILER, 0, this.markovProfilerStats);
+        
+        // SPECEXEC PROFILER
+        this.specexecProfilerStats = new SpecExecProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.SPECEXECPROFILER, 0, this.specexecProfilerStats);
         
         // OBJECT POOL COUNTERS
         this.poolStats = new PoolCounterStats(this.objectPools);

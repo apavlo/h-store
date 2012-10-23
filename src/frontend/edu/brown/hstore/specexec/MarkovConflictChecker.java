@@ -310,6 +310,17 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         return (true);
     }
     
+    protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0, ParameterSet params1, ParameterMapping pm1) {
+        Object val0 = this.getValue(params0, pm0);
+        Object val1 = this.getValue(params1, pm1);
+        if (val0 == null) {
+            return (val1 != null);
+        } else if (val1 == null) {
+            return (false);
+        }
+        return (val0.equals(val1));
+    }
+
     protected Object getValue(ParameterSet params, ParameterMapping pm) {
         Object val = null;
         Object orig = params.toArray()[pm.procedure_parameter.getIndex()];
@@ -366,21 +377,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         } else {
             val = params.toArray()[pm.procedure_parameter.getIndex()];
         }
-        
         return (val);
     }
-    
-    protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0, ParameterSet params1, ParameterMapping pm1) {
-        Object val0 = this.getValue(params0, pm0);
-        Object val1 = this.getValue(params1, pm1);
-        if (val0 == null) {
-            return (val1 != null);
-        } else if (val1 == null) {
-            return (false);
-        }
-        return (val0.equals(val1));
-    }
-
     
     private static MarkovConflictChecker SINGLETON;
     public static MarkovConflictChecker singleton(CatalogContext catalogContext, EstimationThresholds t) {

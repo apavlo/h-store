@@ -98,6 +98,8 @@ public class Statistics extends VoltSystemProcedure {
                        Pair.of(SysProcSelector.QUEUEPROFILER, SysProcFragmentId.PF_queueProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_markovProfilerData,
                        Pair.of(SysProcSelector.MARKOVPROFILER, SysProcFragmentId.PF_markovProfilerDataAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_specexecProfilerData,
+                       Pair.of(SysProcSelector.SPECEXECPROFILER, SysProcFragmentId.PF_specexecProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_poolData,
                        Pair.of(SysProcSelector.POOL, SysProcFragmentId.PF_poolDataAggregator));
     } // STATIC
@@ -140,6 +142,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_execProfilerData:
             case SysProcFragmentId.PF_queueProfilerData:
             case SysProcFragmentId.PF_markovProfilerData:
+            case SysProcFragmentId.PF_specexecProfilerData:
             case SysProcFragmentId.PF_poolData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =
@@ -191,6 +194,10 @@ public class Statistics extends VoltSystemProcedure {
             }
             case SysProcFragmentId.PF_markovProfilerDataAggregator: {
                 VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_markovProfilerData));
+                return new DependencySet(fragmentId, result);
+            }
+            case SysProcFragmentId.PF_specexecProfilerDataAggregator: {
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_specexecProfilerData));
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_poolDataAggregator: {

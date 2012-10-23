@@ -53,6 +53,8 @@ public class SysProcFragmentId {
     public static final int PF_queueProfilerDataAggregator = 29;
     public static final int PF_markovProfilerData = 30;
     public static final int PF_markovProfilerDataAggregator = 31;
+    public static final int PF_specexecProfilerData = 32;
+    public static final int PF_specexecProfilerDataAggregator = 33;
 
     // @Shutdown
     public static final int PF_shutdownCommand = 50;

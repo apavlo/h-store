@@ -449,6 +449,14 @@ public final class HStoreConf {
         )
         public boolean specexec_markov;
         
+        @ConfigProperty(
+            description="If enabled, then the SpecExecScheduler will keep track of various internal " +
+                        "profile statistics.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean specexec_profiling;
+        
         // ----------------------------------------------------------------------------
         // Command Logging Options
         // ----------------------------------------------------------------------------

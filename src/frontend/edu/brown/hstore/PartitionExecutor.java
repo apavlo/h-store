@@ -3727,6 +3727,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     
     public class Debug implements DebugContext {
         
+        public SpecExecScheduler getSpecExecScheduler() {
+            return (PartitionExecutor.this.specExecScheduler);
+        }
         public Collection<BatchPlanner> getBatchPlanners() {
             return (PartitionExecutor.this.batchPlanners.values());
         }
