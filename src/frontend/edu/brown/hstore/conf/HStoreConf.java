@@ -1570,6 +1570,15 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "the speculative execution stats. Note that this will automatically enable " +
+                        "${site.specexec_profiling}, which will affect the runtime performance.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_specexec_profiling;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
                         "transaction counter stats. This will contain information about how the " +
                         "transactions were executed (i.e., whether they were single-partitioned or not," +
                         "whether they were speculatively executed). " +

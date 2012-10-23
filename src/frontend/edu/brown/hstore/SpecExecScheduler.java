@@ -142,6 +142,7 @@ public class SpecExecScheduler {
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
         if (next != null) {
+            if (this.profiler != null) this.profiler.success++;
             it.remove();
             LocalTransaction next_ts = next.getTransaction();
             next_ts.setSpeculative(true);

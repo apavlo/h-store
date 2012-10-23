@@ -23,6 +23,20 @@ public class SpecExecProfiler extends AbstractProfiler {
      * The number of messages analyzed per invocation of SpecExecScheduler.next()
      */
     public final FastIntHistogram num_comparisons = new FastIntHistogram(100);
+    
+    /**
+     * The number of times that the SpecExecScheduler successfully found
+     * something to execute that didn't have conflicts.
+     */
+    public int success = 0;
 
+    
+    @Override
+    public void reset() {
+        super.reset();
+        this.success = 0;
+        this.num_comparisons.clear();
+        this.queue_size.clear();
+    }
     
 }

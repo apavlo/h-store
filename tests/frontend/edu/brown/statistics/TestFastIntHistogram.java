@@ -28,6 +28,7 @@
 package edu.brown.statistics;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Random;
 
 import org.json.JSONObject;
@@ -60,6 +61,29 @@ public class TestFastIntHistogram extends BaseTestCase {
             h.put(val);
             fast_h.put(val);
         }
+    }
+
+    /**
+     * testGrowing
+     */
+    public void testGrowing() throws Exception {
+        Histogram<Integer> origH = new Histogram<Integer>();
+        FastIntHistogram fastH = new FastIntHistogram(1);
+        for (int i = 0; i < 100; i++) {
+            fastH.put(i);
+            origH.put(i);
+        } // FOR
+        assertEquals(origH.getValueCount(), origH.getValueCount());
+        assertEquals(origH.getSampleCount(), fastH.getSampleCount());
+        assertEquals(new HashSet<Integer>(origH.values()), new HashSet<Integer>(fastH.values()));
+        
+        for (int i = 100; i < 500; i+=19) {
+            fastH.put(i);
+            origH.put(i);
+        } // FOR
+        assertEquals(origH.getValueCount(), origH.getValueCount());
+        assertEquals(origH.getSampleCount(), fastH.getSampleCount());
+        assertEquals(new HashSet<Integer>(origH.values()), new HashSet<Integer>(fastH.values()));
     }
     
     /**

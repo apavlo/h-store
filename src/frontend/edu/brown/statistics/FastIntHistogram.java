@@ -43,8 +43,8 @@ public class FastIntHistogram extends Histogram<Integer> {
     
     private void grow(int newSize) {
         assert(newSize >= this.histogram.length);
-        long temp[] = new long[newSize+1];
-        Arrays.fill(this.histogram, this.histogram.length, temp.length, NULL_COUNT);
+        long temp[] = new long[newSize+10];
+        Arrays.fill(temp, this.histogram.length, temp.length, NULL_COUNT);
         System.arraycopy(this.histogram, 0, temp, 0, this.histogram.length);
         this.histogram = temp;
     }

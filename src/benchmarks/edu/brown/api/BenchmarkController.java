@@ -503,6 +503,9 @@ public class BenchmarkController {
         if (hstore_conf.client.output_queue_profiling != null) {
             m_config.siteParameters.put("site.queue_profiling", Boolean.TRUE.toString());
         }
+        if (hstore_conf.client.output_specexec_profiling != null) {
+            m_config.siteParameters.put("site.specexec_profiling", Boolean.TRUE.toString());
+        }
         if (hstore_conf.client.output_txn_profiling != null) {
             m_config.siteParameters.put("site.txn_profiling", Boolean.TRUE.toString());
         }
@@ -1242,6 +1245,14 @@ public class BenchmarkController {
                             SysProcSelector.TXNPROFILER,
                             hstore_conf.client.output_txn_profiling);
         }
+        
+        // Dump SpecExec Profiling Info
+        if (hstore_conf.client.output_specexec_profiling != null) {
+            this.writeStats(client,
+                            SysProcSelector.SPECEXECPROFILER,
+                            hstore_conf.client.output_specexec_profiling);
+        }
+        
         // Dump Txn Counters Info
         if (hstore_conf.client.output_txn_counters != null) {
             this.writeStats(client,
