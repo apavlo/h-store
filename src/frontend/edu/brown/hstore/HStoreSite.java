@@ -123,7 +123,6 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
-import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;

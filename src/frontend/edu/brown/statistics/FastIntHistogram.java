@@ -29,7 +29,7 @@ public class FastIntHistogram extends Histogram<Integer> {
     private int value_count = 0;
     
     public FastIntHistogram() {
-        // Deserialization
+        this(10); // HACK
     }
     
     public FastIntHistogram(int size) {
