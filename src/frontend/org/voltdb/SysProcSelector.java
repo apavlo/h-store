@@ -31,6 +31,6 @@ public enum SysProcSelector {
     QUEUEPROFILER,  // transaction queue manager profiler information
     MARKOVPROFILER, // markov estimation profiler information
     SPECEXECPROFILER, // speculative execution profiler information
-    NETWORKPROFILER, // network profiler information
+    SITEPROFILER, // network profiler information
     POOL,           // info about how object pools
 }

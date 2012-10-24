@@ -100,8 +100,8 @@ public class Statistics extends VoltSystemProcedure {
                        Pair.of(SysProcSelector.MARKOVPROFILER, SysProcFragmentId.PF_markovProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_specexecProfilerData,
                        Pair.of(SysProcSelector.SPECEXECPROFILER, SysProcFragmentId.PF_specexecProfilerDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_networkProfilerData,
-                       Pair.of(SysProcSelector.NETWORKPROFILER, SysProcFragmentId.PF_networkProfilerDataAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_siteProfilerData,
+                       Pair.of(SysProcSelector.SITEPROFILER, SysProcFragmentId.PF_siteProfilerDataAggregator));
         STATS_DATA.put(SysProcFragmentId.PF_poolData,
                        Pair.of(SysProcSelector.POOL, SysProcFragmentId.PF_poolDataAggregator));
     } // STATIC
@@ -142,7 +142,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_queueProfilerData:
             case SysProcFragmentId.PF_markovProfilerData:
             case SysProcFragmentId.PF_specexecProfilerData:
-            case SysProcFragmentId.PF_networkProfilerData:
+            case SysProcFragmentId.PF_siteProfilerData:
             case SysProcFragmentId.PF_poolData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =
@@ -182,7 +182,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_queueProfilerDataAggregator:
             case SysProcFragmentId.PF_markovProfilerDataAggregator:
             case SysProcFragmentId.PF_specexecProfilerDataAggregator:
-            case SysProcFragmentId.PF_networkProfilerDataAggregator:
+            case SysProcFragmentId.PF_siteProfilerDataAggregator:
             case SysProcFragmentId.PF_poolDataAggregator: {
                 // Do a reverse look up to find the input dependency id
                 int dataFragmentId = -1;

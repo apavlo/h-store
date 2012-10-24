@@ -48,7 +48,7 @@ public class TestClientInterface extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
-        this.hstore_conf.site.network_profiling = true;
+        this.hstore_conf.site.profiling = true;
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
         this.clientInterface = this.hstore_site.getClientInterface();

@@ -15,7 +15,6 @@ import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
-import edu.brown.hstore.ClientInterface;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.wal.CommandLogWriter;
@@ -63,12 +62,6 @@ public class ResetProfiling extends VoltSystemProcedure {
                 // The first partition at this HStoreSite will have to reset
                 // any global profling parameters
                 if (this.isFirstLocalPartition()) {
-                    
-                    // NETWORK
-                    ClientInterface ci = hstore_site.getClientInterface();
-                    if (hstore_conf.site.network_profiling && ci.getProfiler() != null) {
-                        ci.getProfiler().reset();
-                    }
                     
                     // COMMAND LOGGER
                     CommandLogWriter commandLog = hstore_site.getCommandLogWriter();

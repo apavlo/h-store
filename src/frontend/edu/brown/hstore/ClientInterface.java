@@ -55,7 +55,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.profilers.NetworkProfiler;
+import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -598,8 +598,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
      */
     private long m_tickCounter = 0;
     
-
-    private final NetworkProfiler profiler;
+    private final HStoreSiteProfiler profiler;
 
     
     // ----------------------------------------------------------------------------
@@ -707,8 +706,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         
         m_acceptor = new ClientAcceptor(port, network);
         
-        if (hstore_site.getHStoreConf().site.network_profiling) {
-            this.profiler = new NetworkProfiler();
+        if (hstore_site.getHStoreConf().site.profiling) {
+            this.profiler = hstore_site.getProfiler();
         } else {
             this.profiler = null;
         }
@@ -864,10 +863,6 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         return context;
     }
 
-    public NetworkProfiler getProfiler() {
-        return (this.profiler);
-    }
-    
     /**
      * A dummy connection to provide to the DTXN. It routes
      * ClientResponses back to the daemon

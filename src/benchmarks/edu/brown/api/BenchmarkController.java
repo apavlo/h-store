@@ -504,8 +504,8 @@ public class BenchmarkController {
         if (hstore_conf.client.output_queue_profiling != null) {
             m_config.siteParameters.put("site.queue_profiling", Boolean.TRUE.toString());
         }
-        if (hstore_conf.client.output_network_profiling != null) {
-            m_config.siteParameters.put("site.network_profiling", Boolean.TRUE.toString());
+        if (hstore_conf.client.output_site_profiling != null) {
+            m_config.siteParameters.put("site.profiling", Boolean.TRUE.toString());
         }
         if (hstore_conf.client.output_specexec_profiling != null) {
             m_config.siteParameters.put("site.specexec_profiling", Boolean.TRUE.toString());
@@ -1236,7 +1236,7 @@ public class BenchmarkController {
             Pair.of(SysProcSelector.EXECPROFILER, hstore_conf.client.output_exec_profiling),
             Pair.of(SysProcSelector.QUEUEPROFILER, hstore_conf.client.output_queue_profiling),
             Pair.of(SysProcSelector.TXNPROFILER, hstore_conf.client.output_txn_profiling),
-            Pair.of(SysProcSelector.NETWORKPROFILER, hstore_conf.client.output_network_profiling),
+            Pair.of(SysProcSelector.SITEPROFILER, hstore_conf.client.output_site_profiling),
             Pair.of(SysProcSelector.SPECEXECPROFILER, hstore_conf.client.output_specexec_profiling),
             Pair.of(SysProcSelector.TXNCOUNTER, hstore_conf.client.output_txn_counters),
         };

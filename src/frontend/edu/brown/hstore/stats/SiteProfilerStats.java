@@ -14,11 +14,11 @@ import org.voltdb.VoltType;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.profilers.NetworkProfiler;
+import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 
-public class NetworkProfilerStats extends StatsSource {
-    private static final Logger LOG = Logger.getLogger(NetworkProfilerStats.class);
+public class SiteProfilerStats extends StatsSource {
+    private static final Logger LOG = Logger.getLogger(SiteProfilerStats.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -27,8 +27,8 @@ public class NetworkProfilerStats extends StatsSource {
 
     private final HStoreSite hstore_site;
 
-    public NetworkProfilerStats(HStoreSite hstore_site) {
-        super(SysProcSelector.NETWORKPROFILER.name(), false);
+    public SiteProfilerStats(HStoreSite hstore_site) {
+        super(SysProcSelector.SITEPROFILER.name(), false);
         this.hstore_site = hstore_site;
     }
     
@@ -58,7 +58,7 @@ public class NetworkProfilerStats extends StatsSource {
         super.populateColumnSchema(columns);
         
         // Make a dummy profiler just so that we can get the fields from it
-        NetworkProfiler profiler = new NetworkProfiler();
+        HStoreSiteProfiler profiler = new HStoreSiteProfiler();
         assert(profiler != null);
         
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
@@ -73,7 +73,7 @@ public class NetworkProfilerStats extends StatsSource {
 
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
-        NetworkProfiler profiler = this.hstore_site.getClientInterface().getProfiler();
+        HStoreSiteProfiler profiler = this.hstore_site.getProfiler();
         int offset = this.columnNameToIndex.get("HOSTNAME")+1;
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();

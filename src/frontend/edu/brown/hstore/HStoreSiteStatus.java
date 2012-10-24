@@ -34,7 +34,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.pools.TypedObjectPool;
-import edu.brown.profilers.NetworkProfiler;
 import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
@@ -315,26 +314,27 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                   ci.getPendingTxnBytes(),
                                   (ci.hasBackPressure() ? " / *THROTTLED*" : ""));
             siteInfo.put("Client Interface Queue", value);
-            
-            if (hstore_conf.site.network_profiling && ci.getProfiler() != null) {
-                // Compute the approximate arrival rate of transaction
-                // requests per second from clients
-                NetworkProfiler profiler = ci.getProfiler();
-                
-                pm = profiler.network_processing;
-                double totalTime = System.currentTimeMillis() - startTime;
-                double arrivalRate = (totalTime > 0 ? (pm.getInvocations() / totalTime) : 0d);
-                
-                value = String.format("%.02f txn/sec [total=%d]", arrivalRate, pm.getInvocations());
-                siteInfo.put("Arrival Rate", value);
-                
-                pm = profiler.network_backup_off;
-                siteInfo.put("Back Pressure Off", formatProfileMeasurements(pm, null, true, false));
-                
-                pm = profiler.network_backup_on;
-                siteInfo.put("Back Pressure On", formatProfileMeasurements(pm, null, true, false));
-            }
         }
+        
+        if (hstore_conf.site.profiling && hstore_site.getProfiler() != null) {
+            // Compute the approximate arrival rate of transaction
+            // requests per second from clients
+            HStoreSiteProfiler profiler = hstore_site.getProfiler();
+            
+            pm = profiler.network_processing;
+            double totalTime = System.currentTimeMillis() - startTime;
+            double arrivalRate = (totalTime > 0 ? (pm.getInvocations() / totalTime) : 0d);
+            
+            value = String.format("%.02f txn/sec [total=%d]", arrivalRate, pm.getInvocations());
+            siteInfo.put("Arrival Rate", value);
+            
+            pm = profiler.network_backup_off;
+            siteInfo.put("Back Pressure Off", formatProfileMeasurements(pm, null, true, false));
+            
+            pm = profiler.network_backup_on;
+            siteInfo.put("Back Pressure On", formatProfileMeasurements(pm, null, true, false));
+        }
+
         
         // TransactionQueueManager
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
@@ -392,14 +392,14 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             this.last_finishedTxns.addAll(this.cur_finishedTxns);
         }
         
-        if (hstore_conf.site.network_profiling) {
+        if (hstore_conf.site.profiling) {
             HStoreSiteProfiler profiler = this.hstore_site.getProfiler();
-            pm = profiler.network_idle_time;
+            pm = profiler.network_idle;
             value = this.formatProfileMeasurements(pm, this.lastNetworkIdle, true, true);
             siteInfo.put("Network Idle", value);
             this.lastNetworkIdle = new ProfileMeasurement(pm);
             
-            pm = profiler.network_processing_time;
+            pm = profiler.network_processing;
             value = this.formatProfileMeasurements(pm, this.lastNetworkProcessing, true, true);
             siteInfo.put("Network Processing", value);
             this.lastNetworkProcessing = new ProfileMeasurement(pm);
