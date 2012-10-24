@@ -54,8 +54,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private boolean singlepartition = true;
     private int basePartition = -1;
     private int restartCounter = 0;
-    private boolean speculative = false;
-    private boolean prefetched = false;
     private ClientResponseDebug debug = null;
 
     /** opaque data optionally provided by and returned to the client */
@@ -119,7 +117,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.appStatusString = appStatusString;
         this.restartCounter = ts.getRestartCounter();
         this.singlepartition = ts.isPredictSinglePartition();
-        this.prefetched = ts.hasPrefetchQueries();
         this.setResults(status, results, statusString, e);
     }
     
@@ -275,15 +272,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     // ----------------------------------------------------------------------------
     
     @Override
-    public boolean hadPrefetchedQueries() {
-        return this.prefetched;
-    }
-
-    public void setPrefetchedQueries(boolean val) {
-        this.prefetched = val;
-    }
-    
-    @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//Skip version byte   // 1 byte
         restartCounter = in.readByte();     // 1 byte
@@ -291,8 +279,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         clientHandle = in.readLong();       // 8 bytes
         singlepartition = in.readBoolean(); // 1 byte
         basePartition = in.readInt();       // 4 bytes
-        speculative = in.readBoolean();     // 1 byte
-        prefetched = in.readBoolean();      // 1 byte
         status = Status.valueOf(in.readByte()); // 1 byte
         
         byte presentFields = in.readByte(); // 1 byte
@@ -331,8 +317,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
         out.writeInt(basePartition);
-        out.writeBoolean(speculative);
-        out.writeBoolean(prefetched);
         out.write((byte)status.ordinal());
         
         byte presentFields = 0;
@@ -433,7 +417,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Status status) {
-        b.put(25, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 + 1 + 1 = 25
+        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 = 23
     }
     
     // ----------------------------------------------------------------------------

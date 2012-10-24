@@ -176,12 +176,6 @@ public class MockVoltClient implements Client {
                 return false;
             }
 
-            @Override
-            public boolean hadPrefetchedQueries() {
-                // TODO Auto-generated method stub
-                return false;
-            }
-            
             public ClientResponseDebug getDebug() {
                 // TODO Auto-generated method stub
                 return null;

@@ -79,6 +79,7 @@ public class ClientResponseDebug implements FastSerializable {
     private final PartitionSet predict_touchedPartitions = new PartitionSet();
     
     private boolean speculative = false;
+    private boolean prefetched = false;
     private final PartitionSet exec_touchedPartitions = new PartitionSet();
     
     // ----------------------------------------------------------------------------
@@ -97,6 +98,7 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_readOnly = ts.isPredictReadOnly();
         this.predict_touchedPartitions.addAll(ts.getPredictTouchedPartitions());
         this.speculative = ts.isSpeculative();
+        this.prefetched = ts.hasPrefetchQueries();
         this.exec_touchedPartitions.addAll(ts.getTouchedPartitions().values());
         
         EstimatorState t_state = ts.getEstimatorState();
@@ -166,6 +168,14 @@ public class ClientResponseDebug implements FastSerializable {
         return (this.speculative);
     }
     
+    /**
+     * Returns true if this transaction was executed with prefetched queries.
+     * @return
+     */
+    public boolean hadPrefetchedQueries() {
+        return this.prefetched;
+    }
+    
     // ----------------------------------------------------------------------------
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
@@ -177,6 +187,7 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_abortable = in.readBoolean();
         this.predict_readOnly = in.readBoolean();
         this.predict_touchedPartitions.readExternal(in);
+        this.prefetched = in.readBoolean();
         this.speculative = in.readBoolean();
         this.exec_touchedPartitions.readExternal(in);
         
@@ -200,7 +211,8 @@ public class ClientResponseDebug implements FastSerializable {
         out.writeBoolean(this.predict_abortable);
         out.writeBoolean(this.predict_readOnly);
         this.predict_touchedPartitions.writeExternal(out);
-        out.writeBoolean(speculative);
+        out.writeBoolean(this.prefetched);
+        out.writeBoolean(this.speculative);
         this.exec_touchedPartitions.writeExternal(out);
         
         // QUERY ESTIMATES
@@ -224,6 +236,7 @@ public class ClientResponseDebug implements FastSerializable {
         m.put("Predict Touched Partitions", this.predict_touchedPartitions);
         m.put("Predict Read Only", this.predict_readOnly);
         m.put("Predict Abortable", this.predict_abortable);
+        m.put("Had Prefetched Queries", this.prefetched);
         m.put("Speculatively Executed", this.speculative);
         m.put("Remote Query Estimates", this.remote_estimates);
         maps.add(m);
