@@ -59,7 +59,7 @@
 <arg value="client.output_csv=${client.output_csv}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
 <arg value="client.output_queue_profiling=${client.output_queue_profiling}" />
-<arg value="client.output_network_profiling=${client.output_network_profiling}" />
+<arg value="client.output_site_profiling=${client.output_site_profiling}" />
 <arg value="client.output_txn_profiling=${client.output_txn_profiling}" />
 <arg value="client.output_txn_profiling_combine=${client.output_txn_profiling_combine}" />
 <arg value="client.output_specexec_profiling=${client.output_specexec_profiling}" />
@@ -78,6 +78,7 @@
 <arg value="site.preload=${site.preload}" />
 <arg value="site.cpu_affinity=${site.cpu_affinity}" />
 <arg value="site.cpu_affinity_one_partition_per_core=${site.cpu_affinity_one_partition_per_core}" />
+<arg value="site.profiling=${site.profiling}" />
 <arg value="site.exec_ee_log_level=${site.exec_ee_log_level}" />
 <arg value="site.exec_profiling=${site.exec_profiling}" />
 <arg value="site.exec_speculative_execution=${site.exec_speculative_execution}" />
@@ -123,7 +124,6 @@
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
 <arg value="site.network_startup_wait=${site.network_startup_wait}" />
 <arg value="site.network_startup_retries=${site.network_startup_retries}" />
-<arg value="site.network_profiling=${site.network_profiling}" />
 <arg value="site.network_txn_initialization=${site.network_txn_initialization}" />
 <arg value="site.txn_client_debug=${site.txn_client_debug}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />

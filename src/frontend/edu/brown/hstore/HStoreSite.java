@@ -2601,7 +2601,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Queue it up for deletion! There is no return for the txn from this!
         // int idx = (int)(txn_id.longValue() % this.deletable_txns.length);
         // this.deletable_txns[idx].offer(Pair.of(txn_id, status));
-        this.deletable_txns[status.ordinal()].offer(txn_id);
+        // this.deletable_txns[status.ordinal()].offer(txn_id);
+        
+        
+        AbstractTransaction ts = this.inflight_txns.get(txn_id);
+        if (ts != null) {
+            assert(txn_id.equals(ts.getTransactionId())) :
+                String.format("Mismatched %s - Expected[%d] != Actual[%s]",
+                              ts, txn_id, ts.getTransactionId());
+            if (ts instanceof RemoteTransaction) {
+                this.deleteRemoteTransaction((RemoteTransaction)ts, status);
+            }
+            // We need to check whether a LocalTransaction is ready to be deleted
+            else if (((LocalTransaction)ts).isDeletable()) {
+                this.deleteLocalTransaction((LocalTransaction)ts, status);
+            }
+        }
     }
     
     /**
@@ -2741,7 +2756,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts.isMapReduce()) {
             objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
         } else {
-            objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
+            // XXX objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
         }
                 
     }
@@ -2770,6 +2785,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Delete txn handles
         // Pair<Long, Status> p = null;
+        /*
         Long txn_id = null;
         // for (int i = 0; i < this.deletable_txns.length; i++) {
         
@@ -2819,6 +2835,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         } // FOR
         if (hstore_conf.site.profiling) this.profiler.cleanup.stop();
+        */
 
         return;
     }

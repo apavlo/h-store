@@ -111,12 +111,12 @@ for i in `seq 1 16`; do
     
     # BUILD MARKOVS FILE
     MARKOV_FILE="$MARKOV_DIR/${BASE_PROJECT}-${i}p.markov.gz"
-    if [ ! -f $MARKOV_FILE ]; then
+    if [ $MARKOV_ENABLE = "true" -a ! -f $MARKOV_FILE ]; then
         ant markov-generate -Dproject=$BASE_PROJECT \
             -Dworkload=files/workloads/$BASE_PROJECT.100p-1.trace.gz \
             -Dglobal=false \
             -Doutput=$BASE_PROJECT.markov
-        gzip --best $BASE_PROJECT.markov
+        gzip --force --best $BASE_PROJECT.markov
         mv $BASE_PROJECT.markov.gz $MARKOV_FILE
     fi
     
