@@ -226,8 +226,8 @@ EXPERIMENT_SETTINGS = {
         "client.count":                         1,
         "client.txnrate":                       100000,
         "client.blocking":                      True,
-        "client.output_txn_counters":          "txncounters.csv",
-        "client.output_txn_counters_combine":  True,
+        "client.output_txn_counters":           "txncounters.csv",
+        "client.output_txn_counters_combine":   True,
     },
     "onepartition": {
         "ec2.site_type":                       "c1.xlarge",

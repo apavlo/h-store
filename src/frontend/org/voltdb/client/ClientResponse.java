@@ -123,4 +123,9 @@ public interface ClientResponse extends Poolable {
     public boolean hasDebug();
     public ClientResponseDebug getDebug();
     
+    /**
+     * Returns true if this transaction was executed with prefetched queries.
+     * @return
+     */
+    public boolean hadPrefetchedQueries();
 }

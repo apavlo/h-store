@@ -53,11 +53,6 @@ package org.voltdb.client;
 import java.io.IOException;
 import java.net.UnknownHostException;
 
-import org.voltdb.client.Client;
-import org.voltdb.client.ClientStatusListener;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcedureCallback;
-import org.voltdb.client.ProcCallException;
 import org.voltdb.ClientResponseDebug;
 import org.voltdb.VoltTable;
 
@@ -182,6 +177,11 @@ public class MockVoltClient implements Client {
             }
 
             @Override
+            public boolean hadPrefetchedQueries() {
+                // TODO Auto-generated method stub
+                return false;
+            }
+            
             public ClientResponseDebug getDebug() {
                 // TODO Auto-generated method stub
                 return null;

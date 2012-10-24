@@ -159,13 +159,18 @@ public class TestPrefetchableSuite extends RegressionSuite {
         super(name);
     }
  
-    static public junit.framework.Test suite() {
+    static public junit.framework.Test suite() throws IOException {
+//        File mappings = ParametersUtil.getParameterMappingsFile(ProjectType.TPCC);
+//        File markovs = new File("files/markovs/vldb-august2012/tpcc-2p.markov.gz"); // HACK
+        
         VoltServerConfig config = null;
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPrefetchableSuite.class);
         builder.setGlobalConfParameter("site.exec_prefetch_queries", true);
         builder.setGlobalConfParameter("site.exec_force_singlepartitioned", false);
         builder.setGlobalConfParameter("site.exec_voltdb_procinfo", true);
-        builder.setGlobalConfParameter("client.txn_hints", false);        
+        builder.setGlobalConfParameter("client.txn_hints", false);
+//        builder.setGlobalConfParameter("site.markov_enable", true);
+//        builder.setGlobalConfParameter("site.markov_path", markovs.getAbsolutePath());
         
         VoltProjectBuilder project = new VoltProjectBuilder(PREFIX);
         project.addSchema(SquirrelsDistributed.class.getResource(PREFIX + "-ddl.sql"));
@@ -174,6 +179,13 @@ public class TestPrefetchableSuite extends RegressionSuite {
         project.addProcedures(PROCEDURES);
         project.markStatementPrefetchable(SquirrelsDistributed.class, "getRemote");
         project.mapParameters(SquirrelsDistributed.class, 0, "getRemote", 0);
+        
+        // build up a project builder for the TPC-C app
+//        TPCCProjectBuilder project = new TPCCProjectBuilder();
+//        project.addDefaultSchema();
+//        project.addDefaultProcedures();
+//        project.addDefaultPartitioning();
+//        project.addParameterMappings(mappings);
         
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
