@@ -2519,11 +2519,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Tell the TransactionEstimator that we're about to execute these mofos
         EstimatorState t_state = ts.getEstimatorState();
         if (this.localTxnEstimator != null && t_state != null) {
-            if (needs_profiling) ts.profiler.startExecEstimation();
-            try {
-                this.localTxnEstimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions(), true);
-            } finally {
-                if (needs_profiling) ts.profiler.stopExecEstimation();
+            boolean isSinglePartition = ts.isPredictSinglePartition();
+            if ((isSinglePartition && hstore_conf.site.markov_singlep_updates) ||
+                (isSinglePartition == false && hstore_conf.site.markov_dtxn_updates)) {
+                if (needs_profiling) ts.profiler.startExecEstimation();
+                try {
+                    this.localTxnEstimator.executeQueries(t_state,
+                                                          planner.getStatements(),
+                                                          plan.getStatementPartitions(),
+                                                          true);
+                } finally {
+                    if (needs_profiling) ts.profiler.stopExecEstimation();
+                }
             }
         }
 

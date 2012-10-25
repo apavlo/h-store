@@ -143,6 +143,8 @@
 <arg value="site.queue_dtxn_increase_max=${site.queue_dtxn_increase_max}" />
 <arg value="site.mappings_path=${site.mappings_path}" />
 <arg value="site.markov_enable=${site.markov_enable}" />
+<arg value="site.markov_singlep_updates=${site.markov_singlep_updates}" />
+<arg value="site.markov_dtxn_updates=${site.markov_dtxn_updates}" />
 <arg value="site.markov_mispredict_recompute=${site.markov_mispredict_recompute}" />
 <arg value="site.markov_path=${site.markov_path}" />
 <arg value="site.markov_path_caching=${site.markov_path_caching}" />

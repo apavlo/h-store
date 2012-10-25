@@ -680,6 +680,7 @@ public final class HStoreConf {
             defaultInt=250,
             experimental=false
         )
+        @Deprecated
         public int queue_incoming_max_per_partition;
         
         @ConfigProperty(
@@ -692,6 +693,7 @@ public final class HStoreConf {
             defaultDouble=0.75,
             experimental=false
         )
+        @Deprecated
         public double queue_incoming_release_factor;
         
         @ConfigProperty(
@@ -704,6 +706,7 @@ public final class HStoreConf {
             defaultInt=100,
             experimental=false
         )
+        @Deprecated
         public int queue_incoming_increase;
         
         @ConfigProperty(
@@ -712,6 +715,7 @@ public final class HStoreConf {
             defaultInt=500,
             experimental=false
         )
+        @Deprecated
         public int queue_incoming_increase_max;
         
         @ConfigProperty(
@@ -778,9 +782,26 @@ public final class HStoreConf {
         public boolean markov_enable;
         
         @ConfigProperty(
+            description="If this parameter is set to true, then the PartitionExecutor will use its " +
+                        "TransactionEstimator to calculate updated estimates after a single-partition " +
+                        "transaction submits a new batch of queries for execution.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean markov_singlep_updates;
+        
+        @ConfigProperty(
+            description="If this parameter is set to true, then the PartitionExecutor will use its " +
+            		    "TransactionEstimator to calculate updated estimates after a distributed transaction " +
+            		    "submits a new batch of queries for execution.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean markov_dtxn_updates;
+        
+        @ConfigProperty(
             description="Recompute a Markov model's execution state probabilities every time a transaction " +
-                        "is aborted due to a misprediction. The Markov model is queued in the PartitionExecutorHelper " +
-                        "for processing rather than being executed directly within the PartitionExecutor's thread.",
+                        "is aborted due to a misprediction.",
             defaultBoolean=true,
             experimental=true
         )
