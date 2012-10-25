@@ -218,11 +218,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * 
      */
-    
-//    private final Queue<Pair<Long, Status>> deletable_txns[];
     private final Queue<Long> deletable_txns[];
     
-//    private final List<Pair<Long, Status>> deletable_txns_requeue = new ArrayList<Pair<Long,Status>>();
     private final List<Long> deletable_txns_requeue = new ArrayList<Long>();
     
     /**
@@ -692,49 +689,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
     }
     
-    /**
-     * Initial internal stats sources
-     */
-    private void initStatSources() {
-        StatsSource statsSource = null;
-        
-        // MEMORY
-        statsSource = new MemoryStats();
-        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, statsSource);
-        
-        // TXN COUNTERS
-        statsSource = new TransactionCounterStats(this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
-
-        // TXN PROFILERS
-        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
-
-        // EXECUTOR PROFILERS
-        statsSource = new PartitionExecutorProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.EXECPROFILER, 0, statsSource);
-        
-        // QUEUE PROFILER
-        statsSource = new TransactionQueueManagerProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.QUEUEPROFILER, 0, statsSource);
-        
-        // MARKOV ESTIMATOR PROFILER
-        statsSource = new MarkovEstimatorProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.MARKOVPROFILER, 0, statsSource);
-        
-        // SPECEXEC PROFILER
-        statsSource = new SpecExecProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.SPECEXECPROFILER, 0, statsSource);
-        
-        // CLIENT INTERFACE PROFILER
-        statsSource = new SiteProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.SITEPROFILER, 0, statsSource);
-        
-        // OBJECT POOL COUNTERS
-        statsSource = new PoolCounterStats(this.objectPools);
-        this.statsAgent.registerStatsSource(SysProcSelector.POOL, 0, statsSource);
-    }
-    
     // ----------------------------------------------------------------------------
     // INTERFACE METHODS
     // ----------------------------------------------------------------------------
@@ -1187,31 +1141,54 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this);
     }
     
+    
+    /**
+     * Initial internal stats sources
+     */
+    private void initStatSources() {
+        StatsSource statsSource = null;
+        
+        // MEMORY
+        statsSource = new MemoryStats();
+        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, statsSource);
+        
+        // TXN COUNTERS
+        statsSource = new TransactionCounterStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
+
+        // TXN PROFILERS
+        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
+
+        // EXECUTOR PROFILERS
+        statsSource = new PartitionExecutorProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.EXECPROFILER, 0, statsSource);
+        
+        // QUEUE PROFILER
+        statsSource = new TransactionQueueManagerProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.QUEUEPROFILER, 0, statsSource);
+        
+        // MARKOV ESTIMATOR PROFILER
+        statsSource = new MarkovEstimatorProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.MARKOVPROFILER, 0, statsSource);
+        
+        // SPECEXEC PROFILER
+        statsSource = new SpecExecProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.SPECEXECPROFILER, 0, statsSource);
+        
+        // CLIENT INTERFACE PROFILER
+        statsSource = new SiteProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.SITEPROFILER, 0, statsSource);
+        
+        // OBJECT POOL COUNTERS
+        statsSource = new PoolCounterStats(this.objectPools);
+        this.statsAgent.registerStatsSource(SysProcSelector.POOL, 0, statsSource);
+    }
+    
     /**
      * Schedule all the periodic works
      */
     private void schedulePeriodicWorks() {
-        // Internal Updates
-//        Thread t = new Thread() {
-//            @Override
-//            public void run() {
-//                String name = HStoreThreadManager.getThreadName(HStoreSite.this, HStoreConstants.THREAD_NAME_CLEANUP);
-//                this.setName(name);
-//                threadManager.registerProcessingThread();
-//                while (true) {
-//                    try {
-//                        HStoreSite.this.processPeriodicWork();
-//                    } catch (Throwable ex) {
-//                        ex.printStackTrace();
-//                    } finally {
-//                        ThreadUtil.sleep(50);
-//                    }
-//                }
-//            }
-//        };
-//        t.setDaemon(true);
-//        t.start();
-        
         this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
             @Override
             public void runImpl() {
@@ -2756,7 +2733,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts.isMapReduce()) {
             objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
         } else {
-            // XXX objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
+            objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
         }
                 
     }
