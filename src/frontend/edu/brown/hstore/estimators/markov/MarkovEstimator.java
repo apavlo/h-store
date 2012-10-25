@@ -79,7 +79,7 @@ public class MarkovEstimator extends TransactionEstimator {
     /**
      * We can maintain a cache of the last successful MarkovPathEstimator per MarkovGraph
      */
-    private final Map<MarkovGraph, List<MarkovVertex>> cached_estimators = new HashMap<MarkovGraph, List<MarkovVertex>>();
+    private final Map<MarkovGraph, List<MarkovVertex>> cached_paths = new HashMap<MarkovGraph, List<MarkovVertex>>();
     
     private transient boolean enable_recomputes = false;
     
@@ -364,7 +364,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // If no edge exists to the next vertex, then we need to create one
         MarkovEdge next_e = g.findEdge(current, next_v);
         if (next_e == null) {
-            synchronized (g) {
+            synchronized (next_v) {
                 next_e = g.findEdge(current, next_v);
                 if (next_e == null) {
                     next_e = g.addToEdge(current, next_v);
@@ -384,15 +384,15 @@ public class MarkovEstimator extends TransactionEstimator {
         
         // Store this as the last accurate MarkovPathEstimator for this graph
         if (hstore_conf.site.markov_path_caching &&
-            this.cached_estimators.containsKey(state.getMarkovGraph()) == false &&
+            this.cached_paths.containsKey(state.getMarkovGraph()) == false &&
             state.getInitialEstimate().isValid()) {
             
             MarkovEstimate initialEst = s.getInitialEstimate(); 
-            synchronized (this.cached_estimators) {
-                if (this.cached_estimators.containsKey(state.getMarkovGraph()) == false) {
+            synchronized (this.cached_paths) {
+                if (this.cached_paths.containsKey(state.getMarkovGraph()) == false) {
                     if (d) LOG.debug(String.format("Storing cached MarkovVertex path for %s used by txn #%d",
                                                    state.getMarkovGraph().toString(), txn_id));
-                    this.cached_estimators.put(state.getMarkovGraph(), initialEst.getMarkovPath());
+                    this.cached_paths.put(state.getMarkovGraph(), initialEst.getMarkovPath());
                 }
             } // SYNCH
         }
@@ -401,8 +401,7 @@ public class MarkovEstimator extends TransactionEstimator {
     
     @Override
     public void destroyEstimatorState(EstimatorState s) {
-        MarkovEstimatorState state = (MarkovEstimatorState)s;
-        statesPool.returnObject(state);
+        this.statesPool.returnObject((MarkovEstimatorState)s);
     }
 
     // ----------------------------------------------------------------------------
@@ -458,7 +457,7 @@ public class MarkovEstimator extends TransactionEstimator {
         else if (hstore_conf.site.markov_path_caching) {
             if (d) LOG.debug(String.format("%s - Checking whether we have a cached path for %s",
                              AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
-            List<MarkovVertex> cached = this.cached_estimators.get(markov);
+            List<MarkovVertex> cached = this.cached_paths.get(markov);
             if (cached == null) {
                 if (d) LOG.debug(String.format("%s - No cached path available for %s",
                                  AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
@@ -496,24 +495,22 @@ public class MarkovEstimator extends TransactionEstimator {
                 throw new RuntimeException(msg, ex);
             }
             
-            // synchronized (markov) {
-                if (this.profiler != null) this.profiler.time_full_estimate.start();
+            if (this.profiler != null) this.profiler.time_full_estimate.start();
+            try {
+                pathEstimator.traverse(est.getVertex());
+            } catch (Throwable ex) {
                 try {
-                    pathEstimator.traverse(est.getVertex());
-                } catch (Throwable ex) {
-                    try {
-                        GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(pathEstimator.getVisitPath()));
-                        LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
-                    } catch (Exception ex2) {
-                        throw new RuntimeException(ex2);
-                    }
-                    String msg = "Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
-                    LOG.error(msg, ex);
-                    throw new RuntimeException(msg, ex);
-                } finally {
-                    if (this.profiler != null) this.profiler.time_full_estimate.stop();
+                    GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(pathEstimator.getVisitPath()));
+                    LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
+                } catch (Exception ex2) {
+                    throw new RuntimeException(ex2);
                 }
-            // } // SYNCH
+                String msg = "Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
+                LOG.error(msg, ex);
+                throw new RuntimeException(msg, ex);
+            } finally {
+                if (this.profiler != null) this.profiler.time_full_estimate.stop();
+            }
             
             this.pathEstimatorsPool.returnObject(pathEstimator);
         }
@@ -665,11 +662,7 @@ public class MarkovEstimator extends TransactionEstimator {
     private MarkovEstimator.Debug cachedDebugContext;
     public MarkovEstimator.Debug getDebugContext() {
         if (cachedDebugContext == null) {
-            synchronized (MarkovEstimator.class) {
-                if (cachedDebugContext == null) {
-                    cachedDebugContext = new MarkovEstimator.Debug();
-                }
-            } // SYNCH
+            cachedDebugContext = new MarkovEstimator.Debug();
         }
         return cachedDebugContext;
     }

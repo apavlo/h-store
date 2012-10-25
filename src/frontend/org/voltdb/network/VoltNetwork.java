@@ -162,9 +162,10 @@ import org.voltdb.utils.VoltLoggerFactory;
             threadPoolSize = 1;
         } else if (availableProcessors <= 8) {
             threadPoolSize = 2;
-        } else if (availableProcessors <= 16) {
-            threadPoolSize = 2;
+        } else { // if (availableProcessors <= 16) {
+            threadPoolSize = 3;
         }
+        m_logger.info("Network Thread Pool Size: " + threadPoolSize);
 
         final ThreadFactory tf = new ThreadFactory() {
             private ThreadGroup group = new ThreadGroup(Thread.currentThread().getThreadGroup(), "Network threads");

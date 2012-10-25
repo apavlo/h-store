@@ -12,6 +12,10 @@ import org.apache.log4j.Logger;
 
 import edu.brown.logging.LoggerUtil;
 
+/**
+ * Special container for keeping track of transaction visitation times at MarkovVertexes
+ * @author pavlo
+ */
 public class MarkovGraphTimes {
     private static final Logger LOG = Logger.getLogger(MarkovGraphTimes.class);
     private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());

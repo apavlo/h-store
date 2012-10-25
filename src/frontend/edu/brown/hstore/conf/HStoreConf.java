@@ -815,9 +815,10 @@ public final class HStoreConf {
         public String markov_path;
         
         @ConfigProperty(
-            description="If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators" +
-                        "for transactions running at the same partition.",
-            defaultBoolean=false,
+            description="If this is set to true, TransactionEstimator will try to reuse the last " +
+            		    "successfully estimate path in a MarkovGraph for transactions that use the" +
+            		    "same graph.",
+            defaultBoolean=true,
             experimental=true
         )
         public boolean markov_path_caching;
