@@ -1096,8 +1096,8 @@ TEST CASES
                 <include name='org/hsqldb/**/Test*.class'/>
                 <include name='org/voltdb/**/Test*.class'/>
                 <include name='org/voltdb/network/**/Test*.class'/>
-                <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
+                <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
                 
                 <exclude name='edu/brown/hstore/TestAntiCache*'/>

@@ -2653,7 +2653,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         boolean hasNewDone = false;
         PartitionSet newDone = null;
-        if (hstore_conf.site.specexec_enable) {
+        if (hstore_conf.site.specexec_enable && ts.isSysProc() == false) {
             newDone = ts.calculateDonePartitions(this.thresholds); 
             hasNewDone = (newDone != null && newDone.isEmpty() == false);
         }
@@ -2674,7 +2674,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 need_restart = true;
                 break;
             }
-            // Make sure that this txn isn't trying ot access a partition that we said we were
+            // Make sure that this txn isn't trying to access a partition that we said we were
             // done with earlier
             else if (done_partitions.contains(target_partition)) {
                 if (d) LOG.debug(String.format("%s on partition %d was marked as done on partition %d but now it wants to go back for more!",
@@ -2709,6 +2709,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 requestBuilder = tmp_transactionRequestBuilders[target_site] = new TransactionWorkRequestBuilder();
             }
             TransactionWorkRequest.Builder builder = requestBuilder.getBuilder(ts);
+            if (hasNewDone) {
+                fragmentBuilder.setLastFragment(newDone.contains(target_partition));
+            }
             
             // Also keep track of what Statements they are executing so that we know
             // we need to send over the wire to them.

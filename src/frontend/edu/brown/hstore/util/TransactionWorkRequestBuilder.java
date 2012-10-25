@@ -6,17 +6,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.voltdb.CatalogContext;
-
 import com.google.protobuf.ByteString;
 
-import edu.brown.catalog.special.CountedStatement;
-import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
-import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.utils.PartitionSet;
 
 public class TransactionWorkRequestBuilder {
 
@@ -49,15 +42,6 @@ public class TransactionWorkRequestBuilder {
             }
             this.param_indexes.clear();
             this.inputs.clear();
-            
-            // Populate query estimate
-//            TransactionEstimate t_estimate = ts.getLastEstimate();
-//            if (t_estimate != null && t_estimate.hasQueryEstimate()) {
-//                QueryEstimate.Builder est_builder = QueryEstimate.newBuilder();
-//                for (CountedStatement stmt : t_estimate.getEstimatedQueries(partition)) {
-//                    
-//                }
-//            }
         }
         return (this.builder);
     }

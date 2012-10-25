@@ -4,6 +4,7 @@
 files/
 *.trace
 *.trace.gz
+traces/
 *.jar
 *.jar-ORIG
 *.log
@@ -13,6 +14,7 @@ files/
 *.pyc
 *.png
 *.csv
+*.markov
 junitvmwatcher*
 *.hprof
 buildstring.txt
