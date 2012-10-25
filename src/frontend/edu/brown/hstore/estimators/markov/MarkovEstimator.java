@@ -188,25 +188,12 @@ public class MarkovEstimator extends TransactionEstimator {
             throw new RuntimeException(ex);
         }
         assert(state.isInitialized()) : 
-            "Unexecpted uninitialized MarkovEstimatorState\n" + state;
+            "Unexpectted uninitialized MarkovEstimatorState\n" + state;
         
         MarkovVertex start = markov.getStartVertex();
         assert(start != null) : "The start vertex is null. This should never happen!";
         MarkovEstimate initialEst = state.createNextEstimate(start, true);
         this.estimatePath(state, initialEst, catalog_proc, args);
-        
-//        else {
-//            if (d) LOG.info(String.format("Using cached MarkovPathEstimator for %s [hashCode=%d, ratio=%.02f]",
-//                            AbstractTransaction.formatTxnName(catalog_proc, txn_id),
-//                            pathEstimator.hashCode(), markov.getAccuracyRatio()));
-//            assert(pathEstimator.isCached()) :
-//                String.format("The cached MarkovPathEstimator used by %s does not have its cached flag set [hashCode=%d]",
-//                              AbstractTransaction.formatTxnName(catalog_proc, txn_id), pathEstimator.hashCode());
-//            assert(pathEstimator.getEstimate().isValid()) :
-//                String.format("Invalid MarkovEstimate for cache Estimator used by %s [hashCode=%d]",
-//                              AbstractTransaction.formatTxnName(catalog_proc, txn_id), pathEstimator.hashCode());
-//            pathEstimator.getEstimate().incrementReusedCounter();
-//        }
         assert(initialEst.getMarkovPath().isEmpty() == false);
         if (d) {
             String txnName = AbstractTransaction.formatTxnName(catalog_proc, txn_id);
@@ -217,7 +204,6 @@ public class MarkovEstimator extends TransactionEstimator {
                           txnName, path.size(),
                           StringUtil.join("\n----------------------\n", path)));
             }
-            
         }
         
         // Update EstimatorState.prefetch any time we transition to a MarkovVertex where the

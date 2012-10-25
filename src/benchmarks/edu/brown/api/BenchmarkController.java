@@ -510,6 +510,9 @@ public class BenchmarkController {
         if (hstore_conf.client.output_specexec_profiling != null) {
             m_config.siteParameters.put("site.specexec_profiling", Boolean.TRUE.toString());
         }
+        if (hstore_conf.client.output_markov_profiling != null) {
+            m_config.siteParameters.put("site.markov_profiling", Boolean.TRUE.toString());
+        }
         if (hstore_conf.client.output_txn_profiling != null) {
             m_config.siteParameters.put("site.txn_profiling", Boolean.TRUE.toString());
         }
@@ -1238,6 +1241,7 @@ public class BenchmarkController {
             Pair.of(SysProcSelector.TXNPROFILER, hstore_conf.client.output_txn_profiling),
             Pair.of(SysProcSelector.SITEPROFILER, hstore_conf.client.output_site_profiling),
             Pair.of(SysProcSelector.SPECEXECPROFILER, hstore_conf.client.output_specexec_profiling),
+            Pair.of(SysProcSelector.MARKOVPROFILER, hstore_conf.client.output_markov_profiling),
             Pair.of(SysProcSelector.TXNCOUNTER, hstore_conf.client.output_txn_counters),
         };
         for (Pair<SysProcSelector, String> pair : profilingData) {
