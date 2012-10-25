@@ -347,7 +347,12 @@ public class TPCCSimulation {
             c_d_id = d_id;
         } else {
             // 15%: paying through another warehouse:
-            if (config.payment_multip_remote) {
+            if (config.warehouse_pairing) {
+                c_w_id = (short)(w_id % 2 == 0 ? w_id-1 : w_id+1);
+                if (c_w_id < 0) c_w_id = (short)this.max_w_id;
+                else if (c_w_id > this.max_w_id) c_w_id = (short)parameters.starting_warehouse;
+            }
+            else if (config.payment_multip_remote) {
                 c_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, this.max_w_id, (int)w_id);
             } else {
                 // select in range [1, num_warehouses] excluding w_id
@@ -399,7 +404,16 @@ public class TPCCSimulation {
             // 1% of items are from a remote warehouse
             boolean remote = allow_remote && (generator.number(1, 100) == 1);
             if (parameters.warehouses > 1 && remote) {
-                supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                short remote_w_id;
+                if (config.warehouse_pairing) {
+                    remote_w_id = (short)(warehouse_id % 2 == 0 ? warehouse_id-1 : warehouse_id+1);
+                    if (remote_w_id < 0) remote_w_id = (short)this.max_w_id;
+                    else if (remote_w_id > this.max_w_id) remote_w_id = (short)parameters.starting_warehouse;
+                }
+                else {
+                    remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                }
+                supply_w_id[i] = remote_w_id;
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;
                 else local_warehouses++;
             } else {
@@ -415,12 +429,18 @@ public class TPCCSimulation {
                 if (trace.get()) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
                 // Flip a random one
                 int idx = generator.number(0, ol_cnt-1);
-                if (config.neworder_multip_remote) {
-                	supply_w_id[idx] = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
-                } else {
-                	supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                short remote_w_id;
+                if (config.warehouse_pairing) {
+                    remote_w_id = (short)(warehouse_id % 2 == 0 ? warehouse_id-1 : warehouse_id+1);
+                    if (remote_w_id < 0) remote_w_id = (short)this.max_w_id;
+                    else if (remote_w_id > this.max_w_id) remote_w_id = (short)parameters.starting_warehouse;
                 }
-                
+                if (config.neworder_multip_remote) {
+                	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                } else {
+                	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                }
+                supply_w_id[idx] = remote_w_id;
             }
         }
 
