@@ -1,13 +1,19 @@
 package org.voltdb.regressionsuites;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Random;
 
 import org.junit.Test;
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
+import org.voltdb.benchmark.tpcc.procedures.LoadWarehouse;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -15,14 +21,13 @@ import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
-import org.voltdb.compiler.VoltProjectBuilder;
-import org.voltdb.regressionsuites.prefetchprocs.SquirrelsDistributed;
-import org.voltdb.regressionsuites.prefetchprocs.SquirrelsSingle;
 import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.mappings.ParametersUtil;
+import edu.brown.utils.ProjectType;
 
 /**
  * Special test cases for checking complex operations in the PlanOptimizer
@@ -33,19 +38,40 @@ public class TestPrefetchableSuite extends RegressionSuite {
     /** Procedures used by this suite */
     @SuppressWarnings("unchecked")
     static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        SquirrelsDistributed.class, SquirrelsSingle.class
+        neworder.class, LoadWarehouse.class
     };
     private static final String PREFIX = "prefetch";
     private static final Random rand = new Random(0);
 
     /**
+     * testInitialize
+     */
+    public void testInitialize() throws Exception {
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+        
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        for (String tableName : TPCCConstants.TABLENAMES) {
+            String query = "SELECT COUNT(*) FROM " + tableName;
+            ClientResponse cresponse = client.callProcedure(procName, query);
+            assertEquals(Status.OK, cresponse.getStatus());
+            VoltTable results[] = cresponse.getResults();
+            assertEquals(1, results.length);
+            long count = results[0].asScalarLong();
+            assertTrue(tableName + " -> " + count, count > 0);
+            // System.err.println(tableName + "\n" + VoltTableUtil.format(results[0]));
+        } // FOR
+    }
+    
+    /**
      * testPrefetch
+     * @throws Exception 
      */
     @Test
-    public void testPrefetch() throws IOException, ProcCallException {
-        int num_tuples = 2;
+    public void testPrefetch() throws Exception {
+//        int num_tuples = 2;
         Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
-        Procedure catalog_proc = catalog_db.getProcedures().get(SquirrelsDistributed.class.getSimpleName());
+        Procedure catalog_proc = catalog_db.getProcedures().get(neworder.class.getSimpleName());
         assertNotNull(catalog_proc);
         
         // Check to make sure that we have some prefetch queries
@@ -54,23 +80,37 @@ public class TestPrefetchableSuite extends RegressionSuite {
             assertNotNull(catalog_stmt);
             if (catalog_stmt.getPrefetchable()) prefetch_ctr++;
         } // FOR
-        assertEquals(1, prefetch_ctr);
+        assertTrue(prefetch_ctr > 0);
         
+        CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        this.loadDatabase(client, num_tuples);
+//        this.loadDatabase(client, num_tuples);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
         // XXX this.checkDatabase(client, num_tuples);
+        
+        // Enable the feature on the server
+        RegressionSuiteUtil.setHStoreConf(client, "site.markov_path_caching", "true");
         
         // Execute SquirrelsSingle asynchronously first, which will sleep and block the
         // PartitionExecutor. We will then invoke SquirrelsDistributed, which will get 
         // queued up waiting for the first txn to finish. This will guarantee that our 
         // prefetch query gets executed before the txn's control code is invoked
-        int a_id = 0; // rand.nextInt(num_tuples);
-        int sleep = 5000;
+//        int a_id = 0; // rand.nextInt(num_tuples);
+//        int sleep = 5000;
 //        client.callProcedure(new NullCallback(), SquirrelsSingle.class.getSimpleName(), a_id, sleep);
         
-        ClientResponse cr = client.callProcedure(SquirrelsDistributed.class.getSimpleName(), a_id, sleep);
-        System.err.println(cr.toString());
-        assertEquals(cr.toString(), Status.OK, cr.getStatus());
+        // Fire off a distributed neworder txn
+        String procName = neworder.class.getSimpleName();
+        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, (short)2);
+        
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertFalse(cresponse.toString(), cresponse.isSinglePartition());
+        assertTrue(cresponse.toString(), cresponse.getDebug().hadPrefetchedQueries());
+        
+//        ClientResponse cr = client.callProcedure(neworder.class.getSimpleName(), a_id, sleep);
+        System.err.println(cresponse.toString());
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
         
         // Make sure that the transactions have committed at each partition
 //        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_db)) {
@@ -160,32 +200,33 @@ public class TestPrefetchableSuite extends RegressionSuite {
     }
  
     static public junit.framework.Test suite() throws IOException {
-//        File mappings = ParametersUtil.getParameterMappingsFile(ProjectType.TPCC);
-//        File markovs = new File("files/markovs/vldb-august2012/tpcc-2p.markov.gz"); // HACK
+        File mappings = ParametersUtil.getParameterMappingsFile(ProjectType.TPCC);
+        File markovs = new File("files/markovs/vldb-august2012/tpcc-2p.markov.gz"); // HACK
         
         VoltServerConfig config = null;
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPrefetchableSuite.class);
         builder.setGlobalConfParameter("site.exec_prefetch_queries", true);
         builder.setGlobalConfParameter("site.exec_force_singlepartitioned", false);
-        builder.setGlobalConfParameter("site.exec_voltdb_procinfo", true);
+        builder.setGlobalConfParameter("site.exec_voltdb_procinfo", false);
         builder.setGlobalConfParameter("client.txn_hints", false);
-//        builder.setGlobalConfParameter("site.markov_enable", true);
-//        builder.setGlobalConfParameter("site.markov_path", markovs.getAbsolutePath());
+        builder.setGlobalConfParameter("site.markov_enable", true);
+        builder.setGlobalConfParameter("site.markov_path", markovs.getAbsolutePath());
+        builder.setGlobalConfParameter("site.txn_client_debug", true);
         
-        VoltProjectBuilder project = new VoltProjectBuilder(PREFIX);
-        project.addSchema(SquirrelsDistributed.class.getResource(PREFIX + "-ddl.sql"));
-        project.addTablePartitionInfo("TABLEA", "A_ID");
-        project.addTablePartitionInfo("TABLEB", "B_ID");
-        project.addProcedures(PROCEDURES);
-        project.markStatementPrefetchable(SquirrelsDistributed.class, "getRemote");
-        project.mapParameters(SquirrelsDistributed.class, 0, "getRemote", 0);
+//        VoltProjectBuilder project = new VoltProjectBuilder(PREFIX);
+//        project.addSchema(SquirrelsDistributed.class.getResource(PREFIX + "-ddl.sql"));
+//        project.addTablePartitionInfo("TABLEA", "A_ID");
+//        project.addTablePartitionInfo("TABLEB", "B_ID");
+//        project.addProcedures(PROCEDURES);
+//        project.markStatementPrefetchable(SquirrelsDistributed.class, "getRemote");
+//        project.mapParameters(SquirrelsDistributed.class, 0, "getRemote", 0);
         
         // build up a project builder for the TPC-C app
-//        TPCCProjectBuilder project = new TPCCProjectBuilder();
-//        project.addDefaultSchema();
-//        project.addDefaultProcedures();
-//        project.addDefaultPartitioning();
-//        project.addParameterMappings(mappings);
+        TPCCProjectBuilder project = new TPCCProjectBuilder();
+        project.addDefaultSchema();
+        project.addDefaultProcedures();
+        project.addDefaultPartitioning();
+        project.addParameterMappings(mappings);
         
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM

@@ -11,22 +11,19 @@ import java.util.SortedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
-import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ConflictPair;
-import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
-import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.designer.ColumnSet;
-import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.Estimate;
+import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -311,73 +308,14 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     }
     
     protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0, ParameterSet params1, ParameterMapping pm1) {
-        Object val0 = this.getValue(params0, pm0);
-        Object val1 = this.getValue(params1, pm1);
+        Object val0 = ParametersUtil.getValue(params0, pm0);
+        Object val1 = ParametersUtil.getValue(params1, pm1);
         if (val0 == null) {
             return (val1 != null);
         } else if (val1 == null) {
             return (false);
         }
         return (val0.equals(val1));
-    }
-
-    protected Object getValue(ParameterSet params, ParameterMapping pm) {
-        Object val = null;
-        Object orig = params.toArray()[pm.procedure_parameter.getIndex()];
-        VoltType vtype = VoltType.get(pm.procedure_parameter.getType());
-        if (pm.procedure_parameter.getIsarray()) {
-            assert(pm.procedure_parameter_index != ParametersUtil.NULL_PROC_PARAMETER_OFFSET);
-            switch (vtype) {
-                case TINYINT: {
-                    if (orig instanceof byte[])
-                        val = ((byte[])orig)[pm.procedure_parameter_index];
-                    else
-                        val = ((Byte[])orig)[pm.procedure_parameter_index];
-                    break;
-                }
-                case SMALLINT: {
-                    if (orig instanceof short[])
-                        val = ((short[])orig)[pm.procedure_parameter_index];
-                    else
-                        val = ((Short[])orig)[pm.procedure_parameter_index];
-                    break;
-                }
-                case INTEGER: {
-                    if (orig instanceof int[])
-                        val = ((int[])orig)[pm.procedure_parameter_index];
-                    else
-                        val = ((Integer[])orig)[pm.procedure_parameter_index];
-                    break;
-                }
-                case BIGINT: {
-                    if (orig instanceof long[])
-                        val = ((long[])orig)[pm.procedure_parameter_index];
-                    else
-                        val = ((Long[])orig)[pm.procedure_parameter_index];
-                    break;
-                }
-                case FLOAT: {
-                    if (orig instanceof float[])
-                        val = ((float[])orig)[pm.procedure_parameter_index];
-                    else if (orig instanceof double[])
-                        val = ((double[])orig)[pm.procedure_parameter_index];
-                    else if (orig instanceof Float[])
-                        val = ((Float[])orig)[pm.procedure_parameter_index];
-                    else
-                        val = ((Double[])orig)[pm.procedure_parameter_index];
-                    break;
-                }
-                case TIMESTAMP: {
-                    val = ((TimestampType[])orig)[pm.procedure_parameter_index];
-                    break;
-                }
-                default:
-                    val = ((Object[])orig)[pm.procedure_parameter_index];
-            } // SWITCH
-        } else {
-            val = params.toArray()[pm.procedure_parameter.getIndex()];
-        }
-        return (val);
     }
     
     private static MarkovConflictChecker SINGLETON;

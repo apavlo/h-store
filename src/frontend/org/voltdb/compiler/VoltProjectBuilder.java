@@ -866,18 +866,23 @@ public class VoltProjectBuilder {
 
     private void applyPrefetchableFlags(Database catalog_db) {
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            boolean proc_prefetchable = false;
             for (Statement statement : catalog_proc.getStatements()) {
-                boolean prefetchable = true;
+                boolean stmt_prefetchable = true;
                 for (StmtParameter stmtParam : statement.getParameters()) {
                     if (stmtParam.getProcparameter() == null) {
-                        prefetchable = false;
+                        stmt_prefetchable = false;
                         break;
                     }
                 } // FOR (StmtParameter)
-                if (prefetchable) {
+                if (stmt_prefetchable) {
                     statement.setPrefetchable(true);
+                    proc_prefetchable = true;
                 }
             } // FOR (Statement)
+            if (proc_prefetchable) {
+                catalog_proc.setPrefetchable(true);
+            }
         } // FOR (Procedure)
     }
     

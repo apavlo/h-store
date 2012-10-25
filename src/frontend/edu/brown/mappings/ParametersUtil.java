@@ -10,11 +10,14 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.voltdb.ParameterSet;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.JarReader;
 
 import edu.brown.catalog.CatalogUtil;
@@ -266,5 +269,64 @@ public abstract class ParametersUtil {
             } // FOR
         } // FOR
         return;
+    }
+    
+    public static Object getValue(ParameterSet params, ParameterMapping pm) {
+        Object val = null;
+        Object orig = params.toArray()[pm.procedure_parameter.getIndex()];
+        VoltType vtype = VoltType.get(pm.procedure_parameter.getType());
+        if (pm.procedure_parameter.getIsarray()) {
+            assert(pm.procedure_parameter_index != ParametersUtil.NULL_PROC_PARAMETER_OFFSET);
+            switch (vtype) {
+                case TINYINT: {
+                    if (orig instanceof byte[])
+                        val = ((byte[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Byte[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case SMALLINT: {
+                    if (orig instanceof short[])
+                        val = ((short[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Short[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case INTEGER: {
+                    if (orig instanceof int[])
+                        val = ((int[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Integer[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case BIGINT: {
+                    if (orig instanceof long[])
+                        val = ((long[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Long[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case FLOAT: {
+                    if (orig instanceof float[])
+                        val = ((float[])orig)[pm.procedure_parameter_index];
+                    else if (orig instanceof double[])
+                        val = ((double[])orig)[pm.procedure_parameter_index];
+                    else if (orig instanceof Float[])
+                        val = ((Float[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Double[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case TIMESTAMP: {
+                    val = ((TimestampType[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                default:
+                    val = ((Object[])orig)[pm.procedure_parameter_index];
+            } // SWITCH
+        } else {
+            val = params.toArray()[pm.procedure_parameter.getIndex()];
+        }
+        return (val);
     }
 }
