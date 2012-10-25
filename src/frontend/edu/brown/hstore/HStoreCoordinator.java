@@ -729,7 +729,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         // request for each site that we want to execute different queries on.
         // TODO: We probably don't want to bother prefetching for txns that only touch
         //       partitions that are in its same local HStoreSite
-        if (ts.getProcedure().getPrefetchable() && ts.getEstimatorState() != null) {
+        if (ts.getProcedure().getPrefetchable() && ts.getEstimatorState() != null && hstore_conf.site.exec_prefetch_queries) {
             if (d) LOG.debug(String.format("%s - Generating TransactionInitRequests with prefetchable queries", ts));
             
             // Make sure that we initialize our internal PrefetchState for this txn
