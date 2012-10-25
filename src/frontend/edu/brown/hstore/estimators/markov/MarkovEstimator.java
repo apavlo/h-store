@@ -25,6 +25,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovGraphTimes;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphsContainer;
@@ -70,6 +71,7 @@ public class MarkovEstimator extends TransactionEstimator {
     
     private final CatalogContext catalogContext;
     private final MarkovGraphsContainer markovs;
+    private final MarkovGraphTimes markovTimes = new MarkovGraphTimes();
 
     private final TypedObjectPool<MarkovPathEstimator> pathEstimatorsPool;
     private final TypedObjectPool<MarkovEstimatorState> statesPool;
@@ -145,6 +147,9 @@ public class MarkovEstimator extends TransactionEstimator {
     }
     public MarkovGraphsContainer getMarkovGraphsContainer() {
         return (this.markovs);
+    }
+    public MarkovGraphTimes getMarkovGraphTimes() {
+        return (this.markovTimes);
     }
     
     // ----------------------------------------------------------------------------
@@ -283,7 +288,11 @@ public class MarkovEstimator extends TransactionEstimator {
                 if (d) LOG.debug(String.format("Got cached batch end for %s: %s -> %s", markov, current, next_v));
                 
                 // Update the counters and other info for the next vertex and edge
-                next_v.addInstanceTime(state.getTransactionId(), state.getExecutionTimeOffset());
+                if (this.enable_recomputes) {
+                    this.markovTimes.addInstanceTime(next_v,
+                                                     state.getTransactionId(),
+                                                     state.getExecutionTimeOffset());
+                }
                 
                 // Update the state information
                 state.setCurrent(next_v, next_e);
@@ -383,7 +392,9 @@ public class MarkovEstimator extends TransactionEstimator {
         // nobody gets incomplete numbers if they recompute probabilities
         for (MarkovVertex v : state.actual_path) v.incrementInstanceHits();
         for (MarkovEdge e : state.actual_path_edges) e.incrementInstanceHits();
-        next_v.addInstanceTime(txn_id, state.getExecutionTimeOffset(timestamp));
+        if (this.enable_recomputes) {
+            this.markovTimes.addInstanceTime(next_v, txn_id, state.getExecutionTimeOffset(timestamp));
+        }
         
         // Store this as the last accurate MarkovPathEstimator for this graph
         if (hstore_conf.site.markov_path_caching &&
@@ -429,7 +440,9 @@ public class MarkovEstimator extends TransactionEstimator {
         
         MarkovVertex currentVertex = est.getVertex();
         assert(currentVertex != null);
-        currentVertex.addInstanceTime(state.getTransactionId(), EstTime.currentTimeMillis());
+        if (this.enable_recomputes) {
+            this.markovTimes.addInstanceTime(currentVertex, state.getTransactionId(), EstTime.currentTimeMillis());
+        }
       
         // TODO: If the current vertex is in the initial estimate's list,
         // then we can just use the truncated list as the estimate, since we know
@@ -497,7 +510,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 throw new RuntimeException(msg, ex);
             }
             
-            synchronized (markov) {
+            // synchronized (markov) {
                 if (this.profiler != null) this.profiler.time_full_estimate.start();
                 try {
                     pathEstimator.traverse(est.getVertex());
@@ -514,7 +527,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 } finally {
                     if (this.profiler != null) this.profiler.time_full_estimate.stop();
                 }
-            } // SYNCH
+            // } // SYNCH
             
             this.pathEstimatorsPool.returnObject(pathEstimator);
         }
@@ -580,7 +593,9 @@ public class MarkovEstimator extends TransactionEstimator {
         } // SYNCH
 
         // Update the counters and other info for the next vertex and edge
-        next_v.addInstanceTime(state.getTransactionId(), state.getExecutionTimeOffset());
+        if (this.enable_recomputes) {
+            this.markovTimes.addInstanceTime(next_v, state.getTransactionId(), state.getExecutionTimeOffset());
+        }
         
         // Update the state information
         state.setCurrent(next_v, next_e);

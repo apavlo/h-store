@@ -77,7 +77,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     // INSTANCE DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    protected final Procedure catalog_proc;
+    private final Procedure catalog_proc;
 
     /** Keep track of how many times we have used this graph for transactions */
     private transient int xact_count = 0;
@@ -238,7 +238,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      * @return
      */
     public Procedure getProcedure() {
-        return catalog_proc;
+        return (this.catalog_proc);
     }
 
     /**
@@ -394,20 +394,6 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         return (CatalogUtil.getAllPartitionIds(this.getDatabase()));
     }
     
-    /**
-     * Gives all edges to the set of vertices vs in the MarkovGraph g
-     * @param vs
-     * @param g
-     * @return
-     */
-    public Set<MarkovEdge> getEdgesTo(Set<MarkovVertex> vs) {
-        Set<MarkovEdge> edges = new HashSet<MarkovEdge>();
-        for (MarkovVertex v : vs) {
-            if (v != null) edges.addAll(this.getInEdges(v));
-        }
-        return edges;
-    }
-    
     // ----------------------------------------------------------------------------
     // STATISTICAL MODEL METHODS
     // ----------------------------------------------------------------------------
@@ -417,13 +403,12 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      * First we will reset all of the existing probabilities and then apply the instancehits to 
      * the totalhits for each graph element
      */
-    public synchronized void calculateProbabilities() {
+    public void calculateProbabilities() {
         // Reset all probabilities
         for (MarkovVertex v : this.getVertices()) {
             v.resetAllProbabilities();
         } // FOR
         
-        this.normalizeTimes();
         for (MarkovVertex v : this.getVertices()) {
             v.applyInstanceHitsToTotalHits();
         }
@@ -464,27 +449,6 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
                 }
             }
         }
-    }
-
-    /**
-     * Normalizes the times kept during online tallying of execution times.
-     * TODO (svelagap): What about aborted transactions? Should they be counted in the normalization?
-     */
-    protected void normalizeTimes() {
-        Map<Long, Long> stoptimes = this.getCommitVertex().getInstanceTimes();
-        List<Long> to_remove = new ArrayList<Long>();
-        for (MarkovVertex v : this.getVertices()) {
-            v.normalizeInstanceTimes(stoptimes, to_remove);
-            to_remove.clear();
-        } // FOR
-    }
-    
-    public Set<MarkovVertex> getInvalidVertices() {
-        Set<MarkovVertex> ret = new HashSet<MarkovVertex>();
-        for (MarkovVertex v : this.getVertices()) {
-            if (v.isValid(this) == false) ret.add(v);
-        } // FOR
-        return (ret);
     }
     
     /**
@@ -621,9 +585,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     // ----------------------------------------------------------------------------
     
     /**
-     * For a given TransactionTrace object, process its contents and update our
-     * graph
-     * 
+     * For a given TransactionTrace object, process its contents and update our graph
      * @param txn_trace - The TransactionTrace to process and update the graph with
      * @param pest - The PartitionEstimator to use for estimating where things go
      */

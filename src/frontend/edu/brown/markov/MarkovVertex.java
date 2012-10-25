@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -50,8 +49,13 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-//    private static boolean d = debug.get();
-    private static boolean t = trace.get();
+    
+    /**
+     * This is the partition id that is used for probabilities that are not partition specific
+     * For example, the ABORT probability is global to all partitions, so we only need to store one
+     * value for it
+     */
+    private static final int DEFAULT_PARTITION_ID = 0;
     
     // ----------------------------------------------------------------------------
     // INTERNAL DATA ENUMS
@@ -110,13 +114,6 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     // ----------------------------------------------------------------------------
 
     /**
-     * This is the partition id that is used for probabilities that are not partition specific
-     * For example, the ABORT probability is global to all partitions, so we only need to store one
-     * value for it
-     */
-    private static final int DEFAULT_PARTITION_ID = 0;
-    
-    /**
      * The Query Instance Index is the counter for the number of times this particular Statement
      * was executed in the transaction 
      */
@@ -135,7 +132,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     /**
      * The partitions this query touches
      */
-    public PartitionSet partitions = new PartitionSet();
+    public final PartitionSet partitions = new PartitionSet();
     
     /**
      * The partitions that the txn has touched in the past
@@ -164,12 +161,6 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * The number of times this vertex has been touched in the current on-line run
      */
     public transient int instancehits = 0;
-    
-    /**
-     * The execution times of the transactions in the on-line run
-     * A map of the xact_id to the time it took to get to this vertex
-     */
-    private transient final Map<Long, Long> instancetimes = new ConcurrentHashMap<Long, Long>();
     
     /**
      * The count, used to figure out the average execution time above
@@ -853,46 +844,8 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     public void addExecutionTime(long l) {
         this.execution_time = (this.execution_time * execution_time_count + l) / ++execution_time_count;
     }
-    public void addToExecutionTime(long l){
+    public void addToExecutionTime(long l) {
         this.execution_time += l;
-    }
-
-    /**
-     * @return a map of xact_ids to times
-     */
-    public Map<Long,Long> getInstanceTimes() {
-        return instancetimes;
-    }
-    
-    /**
-     * Add another instance time to the map. We use these times to figure out how long each
-     * transaction takes to execute in the on-line model.
-     */
-    public MarkovVertex addInstanceTime(Long xact_id, long time){
-        this.instancetimes.put(xact_id, time);
-        return (this);
-    }
-    
-    /**
-     * Since we cannot know when a transaction ends in the on-line updates world, we wait until we find out
-     * that we need to recompute, then we normalize all the vertices in every graph with the end times, to
-     * get how long the xact actually lasted
-     * @param end_times
-     */
-    protected void normalizeInstanceTimes(Map<Long, Long> end_times, List<Long> to_remove) {
-        for (Long txn_id : this.instancetimes.keySet()) {
-            Long start = this.instancetimes.get(txn_id);
-            Long stop = end_times.get(txn_id);
-            if (start != null && stop != null) {
-                long time = end_times.get(txn_id) - this.instancetimes.get(txn_id);
-                this.addExecutionTime(time);
-                to_remove.add(txn_id);
-                if (t) LOG.trace(String.format("Updating %s with %d time units from txn #%d", this, time, txn_id)); 
-            }
-        } // FOR
-        for (Long txn_id : to_remove) {
-            end_times.remove(txn_id);
-        } // FOR
     }
 
     
@@ -970,12 +923,12 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         this.partitions.clear();
         JSONArray json_arr = object.getJSONArray(Members.PARTITIONS.name());
         for (int i = 0, cnt = json_arr.length(); i < cnt; i++) {
-            this.partitions.add(Integer.valueOf(json_arr.getInt(i)));
+            this.partitions.add(json_arr.getInt(i));
         }
         this.past_partitions.clear();
         json_arr = object.getJSONArray(Members.PAST_PARTITIONS.name());
         for (int i = 0, cnt = json_arr.length(); i < cnt; i++) {
-            this.past_partitions.add(Integer.valueOf(json_arr.getInt(i)));
+            this.past_partitions.add(json_arr.getInt(i));
         }
 
         // Probabilities Map
