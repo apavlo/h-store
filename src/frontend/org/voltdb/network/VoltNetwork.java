@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -43,7 +43,7 @@
  */
 
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -135,8 +135,6 @@ import org.voltdb.utils.VoltLoggerFactory;
     public VoltNetwork(boolean useExecutorService, boolean blockingSelect, Integer threads) {
         m_thread = new Thread(this, "Volt Network");
         m_thread.setDaemon(true);
-
-        m_useExecutorService = useExecutorService;
         m_useBlockingSelect = blockingSelect;
 
         try {
@@ -147,7 +145,13 @@ import org.voltdb.utils.VoltLoggerFactory;
         }
 
         final int availableProcessors = Runtime.getRuntime().availableProcessors();
-        if (!useExecutorService) {
+        //Single thread is plenty for 4 cores.
+        if (availableProcessors <= 4) {
+            m_useExecutorService = false;
+        } else {
+            m_useExecutorService = useExecutorService;
+        }
+        if (!m_useExecutorService) {
             return;
         }
 
@@ -192,9 +196,9 @@ import org.voltdb.utils.VoltLoggerFactory;
             tf.newThread(new Runnable() {
                 @Override
                 public void run() {
-                    try {
-                        //final ArrayDeque<VoltPortFutureTask> nextTasks = new ArrayDeque<VoltPortFutureTask>(3);0
-                        while (true) {
+                    //final ArrayDeque<VoltPortFutureTask> nextTasks = new ArrayDeque<VoltPortFutureTask>(3);0
+                    while (true) {
+                        try {
                             Runnable nextTask = null;
                             synchronized (m_tasks) {
                                 nextTask = m_tasks.poll();
@@ -208,11 +212,53 @@ import org.voltdb.utils.VoltLoggerFactory;
                             }
 
                             nextTask.run();
+                        } catch (InterruptedException e) {
+                            return;
+                        } catch (Exception e) {
+                            networkLog.error(e);
                         }
-                    } catch (InterruptedException e) {}
+                    }
                 }
             }).start();
         }
+
+        //It is really handy to be able to uncomment this and print bandwidth usage. Hopefully
+        //management tools will replace it.
+//        new Thread() {
+//            @Override
+//            public void run() {
+//                long last = System.currentTimeMillis();
+//                while (true) {
+//                    try {
+//                        Thread.sleep(10000);
+//                    } catch (InterruptedException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                    final long now = System.currentTimeMillis();
+//                    long totalRead = 0;
+//                    long totalMessagesRead = 0;
+//                    long totalWritten = 0;
+//                    long totalMessagesWritten = 0;
+//                    synchronized (m_ports) {
+//                        for (VoltPort p : m_ports) {
+//                            final long read = p.readStream().getBytesRead(true);
+//                            final long writeInfo[] = p.writeStream().getBytesAndMessagesWritten(true);
+//                            final long messagesRead = p.getMessagesRead(true);
+//                            totalRead += read;
+//                            totalMessagesRead += messagesRead;
+//                            totalWritten += writeInfo[0];
+//                            totalMessagesWritten += writeInfo[1];
+//                        }
+//                    }
+//                    double delta = (now - last) / 1000.0;
+//                    double mbRead = totalRead / (1024.0 * 1024.0);
+//                    double mbWritten = totalWritten / (1024.0 * 1024.0);
+//                    System.out.printf("Transferred %.2f/%.2f (IN/OUT)/sec\n", mbRead / delta, mbWritten / delta);
+//                    last = now;
+//                }
+//            }
+//        }.start();
     }
 
 
@@ -246,7 +292,6 @@ import org.voltdb.utils.VoltLoggerFactory;
             synchronized (this) {
                 m_shouldStop = true;
                 m_selector.wakeup();
-                wait();
             }
             m_thread.join();
         } else {
@@ -278,9 +323,6 @@ import org.voltdb.utils.VoltLoggerFactory;
                     handler,
                     handler.getExpectedOutgoingMessageSize(),
                     channel.socket().getInetAddress().getHostName());
-        synchronized (m_ports) {
-            m_ports.add(port);
-        }
         port.registering();
 
         acquireRegistrationLock();
@@ -292,6 +334,9 @@ import org.voltdb.utils.VoltLoggerFactory;
 
             return port;
         } finally {
+            synchronized (m_ports) {
+                m_ports.add(port);
+            }
             releaseRegistrationLock();
         }
     }
@@ -336,25 +381,27 @@ import org.voltdb.utils.VoltLoggerFactory;
 
     @Override
     public void run() {
-        while (m_shouldStop == false) {
-            try {
-                while (m_shouldStop == false) {
-                    waitForRegistrationLock();
-                    if (m_useBlockingSelect) {
-                        m_selector.select(5);
-                    } else {
-                        m_selector.selectNow();
+        try {
+            while (m_shouldStop == false) {
+                try {
+                    while (m_shouldStop == false) {
+                        waitForRegistrationLock();
+                        if (m_useBlockingSelect) {
+                            m_selector.select(5);
+                        } else {
+                            m_selector.selectNow();
+                        }
+                        installInterests();
+                        invokeCallbacks();
+                        EstTimeUpdater.update(System.currentTimeMillis());
                     }
-                    installInterests();
-                    invokeCallbacks();
-                    EstTimeUpdater.update(System.currentTimeMillis());
+                } catch (Exception ex) {
+                    m_logger.error(null, ex);
                 }
-            } catch (Exception ex) {
-                m_logger.error(null, ex);
             }
+        } finally {
+            p_shutdown();
         }
-
-        p_shutdown();
     }
 
     private synchronized void p_shutdown() {
@@ -382,7 +429,11 @@ import org.voltdb.utils.VoltLoggerFactory;
             for (SelectionKey key : keys) {
                 VoltPort port = (VoltPort) key.attachment();
                 if (port != null) {
-                    unregisterChannel (port);
+                    try {
+                        unregisterChannel (port);
+                    } catch (Exception e) {
+                        networkLog.error("Exception unregisering port " + port, e);
+                    }
                 }
             }
 
@@ -422,24 +473,30 @@ import org.voltdb.utils.VoltLoggerFactory;
 
         while (!oldlist.isEmpty()) {
             final VoltPort port = oldlist.poll();
-            if (port.isRunning()) {
-                continue;
-            }
-            if (port.isDead()) {
-                unregisterChannel(port);
-                try {
-                    port.m_selectionKey.channel().close();
-                } catch (IOException e) {}
-            } else if (port.hasQueuedRunnables()) {
-                port.lockForHandlingWork();
-                port.getKey().interestOps(0);
-                m_selector.selectedKeys().remove(port.getKey());
-                synchronized (m_tasks) {
-                    m_tasks.offer(getPortCallRunnable(port));
-                    m_tasks.notify();
+            try {
+                if (port.isRunning()) {
+                    continue;
                 }
-            } else {
-                resumeSelection(port);
+                if (port.isDead()) {
+                    unregisterChannel(port);
+                    try {
+                        port.m_selectionKey.channel().close();
+                    } catch (IOException e) {}
+                } else if (port.hasQueuedRunnables()) {
+                        port.lockForHandlingWork();
+                        port.getKey().interestOps(0);
+                    m_selector.selectedKeys().remove(port.getKey());
+                    synchronized (m_tasks) {
+                        m_tasks.offer(getPortCallRunnable(port));
+                        m_tasks.notify();
+                    }
+                } else {
+                    resumeSelection(port);
+                }
+            } catch (java.nio.channels.CancelledKeyException e) {
+                networkLog.warn(
+                        "Had a cancelled key exception while processing queued runnables for port "
+                        + port.m_remoteHost, e);
             }
         }
     }
@@ -556,5 +613,16 @@ import org.voltdb.utils.VoltLoggerFactory;
                                 totalWritten,
                                 totalMessagesWritten }));
         return retval;
+    }
+
+    public ArrayList<Long> getThreadIds() {
+        ArrayList<Long> ids = new ArrayList<Long>();
+        if (m_thread != null) {
+            ids.add(m_thread.getId());
+        }
+        for (WeakReference<Thread> ref : m_networkThreads) {
+            ids.add(ref.get().getId());
+        }
+        return ids;
     }
 }

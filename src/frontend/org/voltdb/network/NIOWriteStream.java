@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ public class NIOWriteStream implements WriteStream {
 
     private ArrayDeque<DeferredSerialization> m_queuedWrites = m_queuedWrites1;
 
-    private final int m_maxQueuedWrites = 1000;
+    private final int m_maxQueuedWritesBeforeBackpressure = 100;
 
     private final Runnable m_offBackPressureCallback;
     private final Runnable m_onBackPressureCallback;
@@ -226,7 +226,7 @@ public class NIOWriteStream implements WriteStream {
              * Nothing to write
              */
             if (m_queuedBuffers.isEmpty()) {
-                if (m_hadBackPressure && m_queuedWrites.size() <= m_maxQueuedWrites) {
+                if (m_hadBackPressure && m_queuedWrites.size() <= m_maxQueuedWritesBeforeBackpressure) {
                     backpressureEnded();
                 }
                 m_lastPendingWriteTime = -1;
@@ -376,7 +376,7 @@ public class NIOWriteStream implements WriteStream {
         //has to be queued in the above loop resulting in rc == 0. Since rc == 0
         //it won't loop around a last time and see that there are no more queued buffers
         //and thus no backpressure
-        if (m_queuedBuffers.isEmpty() && m_hadBackPressure && m_queuedWrites.size() <= m_maxQueuedWrites) {
+        if (m_queuedBuffers.isEmpty() && m_hadBackPressure && m_queuedWrites.size() <= m_maxQueuedWritesBeforeBackpressure) {
             backpressureEnded();
         }
 
@@ -632,7 +632,7 @@ public class NIOWriteStream implements WriteStream {
         if (m_lastPendingWriteTime == -1) {
             m_lastPendingWriteTime = EstTime.currentTimeMillis();
         }
-        if (m_queuedWrites.size() > m_maxQueuedWrites && !m_hadBackPressure) {
+        if (m_queuedWrites.size() > m_maxQueuedWritesBeforeBackpressure && !m_hadBackPressure) {
             backpressureStarted();
         }
     }
