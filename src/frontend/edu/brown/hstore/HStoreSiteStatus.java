@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -456,7 +457,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
             PartitionExecutor es = e.getValue();
             PartitionExecutor.Debug dbg = es.getDebugContext();
-            ThrottlingQueue<?> es_queue = dbg.getWorkQueue();
+            Queue<?> es_queue = dbg.getWorkQueue();
             ThrottlingQueue<?> dtxn_queue = queueManagerDebug.getInitQueue(partition);
             AbstractTransaction current_dtxn = dbg.getCurrentDtxn();
             
@@ -471,9 +472,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                     dbg.getWaitingQueueSize()), null);
             
             // Execution Info
-            status = String.format("%-5s [limit=%d, release=%d] %s",
-                                   es_queue.size(), es_queue.getQueueMax(), es_queue.getQueueRelease(),
-                                   (es_queue.isThrottled() ? "*THROTTLED* " : ""));
+//            status = String.format("%-5s [limit=%d, release=%d] %s",
+//                                   es_queue.size(), es_queue.getQueueMax(), es_queue.getQueueRelease(),
+//                                   (es_queue.isThrottled() ? "*THROTTLED* " : ""));
             m.put("Exec Queue", status);
             
             txn_id = dbg.getCurrentTxnId();

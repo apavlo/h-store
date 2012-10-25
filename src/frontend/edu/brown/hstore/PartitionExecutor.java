@@ -145,7 +145,6 @@ import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
-import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
@@ -295,7 +294,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * We will use this special wrapper around the PartitionExecutorQueue that can determine
      * whether this partition is overloaded and therefore new requests should be throttled
      */
-    private final ThrottlingQueue<InternalMessage> work_queue;
+    private final PartitionMessageQueue work_queue;
     
     /**
      * This is the queue for utility work that the PartitionExecutor can perform
@@ -577,13 +576,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                              final TransactionEstimator t_estimator) {
         this.hstore_conf = HStoreConf.singleton();
         
-        this.work_queue = new ThrottlingQueue<InternalMessage>(
-                new PartitionMessageQueue(),
-                hstore_conf.site.queue_incoming_max_per_partition,
-                hstore_conf.site.queue_incoming_release_factor,
-                hstore_conf.site.queue_incoming_increase,
-                hstore_conf.site.queue_incoming_increase_max
-        );
+        this.work_queue = new PartitionMessageQueue();
+//        this.work_queue = new ThrottlingQueue<InternalMessage>(
+//                new PartitionMessageQueue(),
+//                hstore_conf.site.queue_incoming_max_per_partition,
+//                hstore_conf.site.queue_incoming_release_factor,
+//                hstore_conf.site.queue_incoming_increase,
+//                hstore_conf.site.queue_incoming_increase_max
+//        );
         this.backend_target = target;
         this.catalogContext = catalogContext;
         this.partition = catalogContext.getPartitionById(partitionId);
@@ -782,11 +782,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     @Override
     public void updateConf(HStoreConf hstore_conf) {
         // ThrottlingQueue
-        this.work_queue.setQueueMax(hstore_conf.site.queue_incoming_max_per_partition);
-        this.work_queue.setQueueReleaseFactor(hstore_conf.site.queue_incoming_release_factor);
-        this.work_queue.setQueueIncrease(hstore_conf.site.queue_incoming_increase);
-        this.work_queue.setQueueIncreaseMax(hstore_conf.site.queue_incoming_increase_max);
-        this.work_queue.checkThrottling(false);
+//        this.work_queue.setQueueMax(hstore_conf.site.queue_incoming_max_per_partition);
+//        this.work_queue.setQueueReleaseFactor(hstore_conf.site.queue_incoming_release_factor);
+//        this.work_queue.setQueueIncrease(hstore_conf.site.queue_incoming_increase);
+//        this.work_queue.setQueueIncreaseMax(hstore_conf.site.queue_incoming_increase_max);
+//        this.work_queue.checkThrottling(false);
         
         // SpecExecScheduler
         this.specExecScheduler.setIgnoreAllLocal(hstore_conf.site.specexec_ignore_all_local);
@@ -1466,7 +1466,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         
         WorkFragmentMessage work = ts.getWorkFragmentMessage(fragment);
-        boolean ret = this.work_queue.offer(work, true);
+        boolean ret = this.work_queue.offer(work); // , true);
         assert(ret);
         ts.markQueuedWork(this.partitionId);
         if (d) LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
@@ -1491,7 +1491,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     public void queueFinish(AbstractTransaction ts, Status status) {
         assert(ts.isInitialized());
         FinishTxnMessage work = ts.getFinishTxnMessage(status);
-        boolean success = this.work_queue.offer(work, true);
+        boolean success = this.work_queue.offer(work); // , true);
         assert(success);
         if (d) LOG.debug(String.format("%s - Added distributed %s to front of partition %d work queue [size=%d]",
                          ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
@@ -1523,7 +1523,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                              catalog_proc,
                                                              procParams,
                                                              clientCallback);
-        return (this.work_queue.offer(work, sysproc));
+        // return (this.work_queue.offer(work, sysproc));
+        return (this.work_queue.offer(work));
     }
     
     /**
@@ -1555,7 +1556,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         
         StartTxnMessage work = new StartTxnMessage(ts);
-        boolean success = this.work_queue.offer(work, force);
+        boolean success = this.work_queue.offer(work); // , force);
         if (d && force && success == false) {
             throw new ServerFaultException("Failed to add " + ts + " even though force flag was true!", ts.getTransactionId());
         }
@@ -3742,7 +3743,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         public Thread getExecutionThread() {
             return (PartitionExecutor.this.self);
         }
-        public ThrottlingQueue<InternalMessage> getWorkQueue() {
+        public Queue<InternalMessage> getWorkQueue() {
             return (PartitionExecutor.this.work_queue);
         }
         public void setExecutionMode(AbstractTransaction ts, ExecutionMode newMode) {
