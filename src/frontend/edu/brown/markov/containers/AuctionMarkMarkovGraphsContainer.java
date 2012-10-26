@@ -8,7 +8,7 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.markov.MarkovGraph;
 
 public class AuctionMarkMarkovGraphsContainer extends MarkovGraphsContainer {
-    private static final Logger LOG = Logger.getLogger(TPCCMarkovGraphsContainer.class);
+    private static final Logger LOG = Logger.getLogger(AuctionMarkMarkovGraphsContainer.class);
     private static final boolean d = LOG.isDebugEnabled();
 
     public AuctionMarkMarkovGraphsContainer(Collection<Procedure> procedures) {
