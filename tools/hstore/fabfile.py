@@ -52,7 +52,7 @@ if not os.path.exists(realpath):
     basename = os.path.basename(realpath)
     if os.path.exists(os.path.join(cwd, basename)):
         basedir = cwd
-sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
+sys.path.append(os.path.realpath(os.path.join(basedir, "../../third_party/python")))
 from fabric.api import *
 from fabric.contrib.files import *
 
@@ -670,6 +670,25 @@ def get_version():
 ## DEF
 
 ## ----------------------------------------------
+## get_running
+## ----------------------------------------------
+@task
+def get_running(exitIfRunning=False):
+    """Print a list of all of the running instances"""
+    __getInstances__()
+    
+    if len(env["ec2.running_instances"]) == 0:
+        return
+        
+    print "Found %d Running Instances:" % len(env["ec2.running_instances"])
+    i = 0
+    for inst in env["ec2.running_instances"]:
+        print "  [%02d] %s (%s)" % (i, inst.public_dns_name, __getInstanceType__(inst))
+        i += 1
+    if exitIfRunning: sys.exit(1)
+## DEF
+
+## ----------------------------------------------
 ## exec_benchmark
 ## ----------------------------------------------
 @task
@@ -842,6 +861,7 @@ def write_conf(project, removals=[ ], revertFirst=False):
 ## ----------------------------------------------
 @task
 def get_file(filePath):
+    """Retrieve and print the file from the cluster for the given path"""
     sio = StringIO()
     if get(filePath, local_path=sio).failed:
         raise Exception("Failed to retrieve remote file '%s'" % filePath)
@@ -933,6 +953,7 @@ def enable_debugging(debug=[], trace=[]):
 ## ----------------------------------------------
 @task
 def stop_cluster(terminate=False):
+    """Stop all instances in the cluster"""
     __getInstances__()
     
     waiting = [ ]
@@ -959,6 +980,7 @@ def stop_cluster(terminate=False):
 ## ----------------------------------------------
 @task
 def clear_logs():
+    """Remove all of the log files on the remote cluster"""
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         if TAG_NFSTYPE in inst.tags and inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
@@ -978,6 +1000,7 @@ def clear_logs():
 ## ----------------------------------------------
 @task
 def sync_time():
+    """Invoke NTP synchronization on each instance"""
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         with settings(host_string=inst.public_dns_name):
