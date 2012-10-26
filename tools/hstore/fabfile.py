@@ -166,7 +166,8 @@ for k, v in ENV_DEFAULT.items():
 ## FOR
 
 ## H-Store Directory
-HSTORE_DIR = os.path.join("/home", env.user, env["hstore.basedir"], "h-store")
+INSTALL_DIR = os.path.join("/vol", env["hstore.basedir"]) 
+HSTORE_DIR = os.path.join(INSTALL_DIR, "h-store")
 
 ## Setup EC2 Connection
 ec2_conn = boto.connect_ec2(env["ec2.access_key_id"], env["ec2.secret_access_key"])
@@ -525,10 +526,11 @@ def setup_env():
     ## WITH
     
     with settings(warn_only=True):
-        # Install the real H-Store directory in /home/
-        if run("test -d %s" % env["hstore.basedir"]).failed:
-            run("mkdir " + env["hstore.basedir"])
-        sudo("chown --quiet -R %s %s" % (env.user, env["hstore.basedir"]))
+        # Install the real H-Store directory in HSTORE_DIR
+        install_dir = os.path.dirname(HSTORE_DIR)
+        if run("test -d %s" % install_dir).failed:
+            run("mkdir " + install_dir)
+        sudo("chown --quiet -R %s %s" % (env.user, install_dir))
     ## WITH
     
     return (first_setup)
@@ -611,7 +613,7 @@ def deploy_hstore(build=True, update=True):
     
     with settings(warn_only=True):
         if run("test -d %s" % HSTORE_DIR).failed:
-            with cd(env["hstore.basedir"]):
+            with cd(INSTALL_DIR):
                 LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
                 run("git clone --branch %s %s %s" % (env["hstore.git_branch"], \
                                                      env["hstore.git_options"], \
@@ -633,9 +635,8 @@ def deploy_hstore(build=True, update=True):
                 
                 # 2012-08-20 - Create a symlink into /mnt/h-store so that we store 
                 #              the larger files out in EBS
-                ebsDir = "/mnt/h-store"
-                sudo("ant junit-getfiles -Dsymlink=%s" % ebsDir)
-                sudo("chown --quiet -R %s %s" % (env.user, ebsDir))
+                sudo("ant junit-getfiles")
+                sudo("chown --quiet -R %s files" % (env.user))
             elif update:
                 LOG.debug("Pulling in latest research files for branch '%s'" % env["hstore.git_branch"])
                 run("ant junit-getfiles-update")
@@ -649,7 +650,7 @@ def deploy_hstore(build=True, update=True):
             run("ant build")
         ## WITH
     ## WITH
-    run("cd %s" % env["hstore.basedir"])
+    run("cd %s" % HSTORE_DIR)
 ## DEF
 
 ## ----------------------------------------------
@@ -988,7 +989,7 @@ def clear_logs():
             ## below 'and' changed from comma by ambell
             with settings(host_string=inst.public_dns_name), settings(warn_only=True):
                 LOG.info("Clearning H-Store log files [%s]" % env["hstore.git_branch"])
-                log_dir = os.path.join(env["hstore.basedir"], "obj/release/logs")
+                log_dir = os.path.join(HSTORE_DIR, "obj/release/logs")
                 run("rm -rf %s/*" % log_dir)
             break
         ## IF

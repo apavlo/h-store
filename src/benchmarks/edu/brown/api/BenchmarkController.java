@@ -1101,7 +1101,7 @@ public class BenchmarkController {
                     if (local_client == null) local_client = this.getClientConnection();
                     LOG.info("Requesting HStoreSites to recalculate Markov models after warm-up");
                     try {
-                        local_client.callProcedure("@" + MarkovUpdate.class.getSimpleName() , false);
+                        this.recomputeMarkovs(local_client, false);
                     } catch (Exception ex) {
                         throw new RuntimeException("Failed to recompute Markov models", ex);
                     }
@@ -1255,7 +1255,7 @@ public class BenchmarkController {
         
         // Recompute MarkovGraphs
         if (m_config.markovRecomputeAfterEnd && this.stop == false) {
-            this.recomputeMarkovs(client);
+            this.recomputeMarkovs(client, true);
         }
     }
     
@@ -1360,9 +1360,7 @@ public class BenchmarkController {
         } // FOR
     }
     
-    private void recomputeMarkovs(Client client) {
-        String output_directory = hstore_conf.global.temp_dir + "/markovs/" + m_projectBuilder.getProjectName();
-        FileUtil.makeDirIfNotExists(output_directory);
+    private void recomputeMarkovs(Client client, boolean retrieveFiles) {
         LOG.info("Requesting HStoreSites to recalculate Markov models");
         ClientResponse cr = null;
         String procName = VoltSystemProcedure.procCallName(MarkovUpdate.class);
@@ -1373,6 +1371,10 @@ public class BenchmarkController {
             return;
         }
         assert(cr != null);
+        if (retrieveFiles == false) return;
+
+        String output_directory = hstore_conf.global.temp_dir + "/markovs/" + m_projectBuilder.getProjectName();
+        FileUtil.makeDirIfNotExists(output_directory);
         
         // The return should be a list of SiteIds->RemotePath
         // We just need to then pull down the files and then combine them into
