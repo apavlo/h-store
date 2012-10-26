@@ -31,6 +31,7 @@ import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
@@ -49,6 +50,7 @@ public class PrefetchQueryPlanner implements Loggable {
 
     // private final Database catalog_db;
     private final Map<Integer, BatchPlanner> planners = new HashMap<Integer, BatchPlanner>();
+    private final PartitionEstimator p_estimator;
     private final int[] partitionSiteXref;
     private final CatalogContext catalogContext;
     private final BitSet touched_sites;
@@ -62,6 +64,7 @@ public class PrefetchQueryPlanner implements Loggable {
     public PrefetchQueryPlanner(CatalogContext catalogContext, PartitionEstimator p_estimator) {
         this.catalogContext = catalogContext;
         this.touched_sites = new BitSet(this.catalogContext.numberOfSites);
+        this.p_estimator = p_estimator;
 
         // Initialize a BatchPlanner for each Procedure if it has the
         // prefetch flag set to true. We generate an array of the SQLStmt
@@ -86,7 +89,7 @@ public class PrefetchQueryPlanner implements Loggable {
                 if (valid) prefetchStmts.add(new SQLStmt(catalog_stmt));
             } // FOR
             if (prefetchStmts.isEmpty() == false) {
-                addPlanner(prefetchStmts.toArray(new SQLStmt[0]), catalog_proc, p_estimator, true);
+//                addPlanner(prefetchStmts.toArray(new SQLStmt[0]), catalog_proc, p_estimator, true);
             } else {
                 LOG.warn("There are no prefetchable Statements available for " + catalog_proc);
                 catalog_proc.setPrefetchable(false);
@@ -102,12 +105,13 @@ public class PrefetchQueryPlanner implements Loggable {
         }
     }
 
-    public void addPlanner(SQLStmt[] prefetchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, boolean prefetch) {
+    public BatchPlanner addPlanner(SQLStmt[] prefetchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, boolean prefetch) {
         BatchPlanner planner = new BatchPlanner(prefetchStmts, prefetchStmts.length, catalog_proc, p_estimator);
         planner.setPrefetchFlag(prefetch);
         // Are the prefetchStmts always going to be sorted the same way? (Does it matter for the hash code?)
         this.planners.put(VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length), planner);
         if (debug.get()) LOG.debug(String.format("%s Prefetch Statements: %s", catalog_proc.getName(), prefetchStmts));
+        return planner;
     }
     
     /**
@@ -137,7 +141,13 @@ public class PrefetchQueryPlanner implements Loggable {
         // want to prefetch and extract the ProcParameters
         // to populate an array of ParameterSets to use as the batchArgs
         int hashcode = VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length);
+        
+        // Check if we've used this planner in the past. If not, then create it.
         BatchPlanner planner = this.planners.get(hashcode);
+        if (planner == null) {
+            planner = addPlanner(prefetchStmts, catalog_proc, p_estimator, true);
+        }
+        
         assert (planner != null) : "Missing BatchPlanner for " + catalog_proc;
         ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
         ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
@@ -160,7 +170,7 @@ public class PrefetchQueryPlanner implements Loggable {
                 ParameterMapping pm = CollectionUtil.first(this.catalogContext.paramMappings.get(
                         counted_stmt.statement, counted_stmt.counter, catalog_param));
                 if (pm.procedure_parameter.getIsarray()) {
-                    stmt_params[catalog_param.getIndex()] = proc_params[pm.procedure_parameter_index];
+                    stmt_params[catalog_param.getIndex()] = ParametersUtil.getValue(ts.getProcedureParameters(), pm);
                 }
                 else {
                     ProcParameter catalog_proc_param = pm.procedure_parameter;
