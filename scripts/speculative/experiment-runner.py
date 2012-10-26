@@ -211,8 +211,9 @@ EXPERIMENT_SETTINGS = {
         "client.count":                         1,
         "client.txnrate":                       100000,
         "client.blocking":                      True,
-        "client.output_txn_profiling":          "txnprofile.csv",
-        "client.output_txn_profiling_combine":  True,
+        "client.output_exec_profiling":         "execprofile.csv",
+        # "client.output_txn_profiling":          "txnprofile.csv",
+        # "client.output_txn_profiling_combine":  True,
     },
     "prefetchquery": {
         "ec2.site_type":                       "c1.xlarge",
@@ -519,9 +520,6 @@ if __name__ == '__main__':
     ## ARGUMENT PROCESSING 
     ## ----------------------------------------------
     
-    if not args['benchmark']:
-        raise Exception("Did not specify benchmarks to execute")
-    
     for key in env.keys():
         if key in args and not args[key] is None:
             env[key] = args[key]
@@ -590,6 +588,9 @@ if __name__ == '__main__':
         LOG.info("Stopping cluster now!")
         hstore.fabfile.stop_cluster()
         sys.exit(0)
+        
+    if not args['benchmark']:
+        raise Exception("Did not specify benchmarks to execute")
     
     needUpdate = (args['no_update'] == False)
     needUpdateLog4j = args['debug_log4j_site'] or args['debug_log4j_client']
