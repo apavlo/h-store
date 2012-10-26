@@ -106,6 +106,12 @@ public class FastIntHistogram extends Histogram<Integer> {
             }
         } // FOR
     }
+    public long remove(int value) {
+        if (value < this.histogram.length) {
+            this.histogram[value] = NULL_COUNT;
+        }
+        return (0);
+    }
     
     public long fastDec(int idx) {
         return this.fastDec(idx, 1);
@@ -197,7 +203,7 @@ public class FastIntHistogram extends Histogram<Integer> {
 
     @Override
     public synchronized long remove(Integer value) {
-        return super.remove(value);
+        return this.remove(value.intValue());
     }
 
     @Override

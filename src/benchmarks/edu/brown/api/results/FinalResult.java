@@ -32,6 +32,7 @@ public class FinalResult implements JSONSerializable {
     
     public long duration;
     public long txnTotalCount;
+    public long specexecTotalCount;
     public long dtxnTotalCount;
     public double txnTotalPerSecond;
     public long txnMinCount;
@@ -62,8 +63,10 @@ public class FinalResult implements JSONSerializable {
         this.dtxnTotalCount = 0;
         
         Histogram<String> clientTxnCounts = new Histogram<String>(true);
+        Histogram<String> clientSpecExecCounts = new Histogram<String>(true);
         Histogram<String> clientDtxnCounts = new Histogram<String>(true);
         Histogram<String> txnCounts = new Histogram<String>(true);
+        Histogram<String> specexecCounts = new Histogram<String>(true);
         Histogram<String> dtxnCounts = new Histogram<String>(true);
         
         double intervalTotals[] = results.computeIntervalTotals();
@@ -83,6 +86,10 @@ public class FinalResult implements JSONSerializable {
                     this.txnTotalCount += r.transactionCount;
                     clientTxnCounts.put(clientName, r.transactionCount);
                     txnCounts.put(txnName, r.transactionCount);
+                    
+                    this.specexecTotalCount += r.specexecCount;
+                    clientSpecExecCounts.put(clientName, r.specexecCount);
+                    specexecCounts.put(txnName, r.specexecCount);
                     
                     this.dtxnTotalCount += r.dtxnCount;
                     clientDtxnCounts.put(clientName, r.dtxnCount);
@@ -139,6 +146,9 @@ public class FinalResult implements JSONSerializable {
     }
     public long getTotalTxnCount() {
         return this.txnTotalCount;
+    }
+    public long getTotalSpecExecCount() {
+        return this.specexecTotalCount;
     }
     public long getTotalDtxnCount() {
         return this.dtxnTotalCount;

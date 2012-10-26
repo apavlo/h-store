@@ -1542,6 +1542,14 @@ public final class HStoreConf {
         public boolean output_response_status;
         
         @ConfigProperty(
+            description="Include the percentage of txns that were speculatively executed. " +
+            		    "This will enable ${site.txn_client_debug}",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_specexec;
+        
+        @ConfigProperty(
             description="Print the benchmark results in a JSON parseable format. This is useful for " +
             		    "running experiments inside of scripts.",
             defaultBoolean=false,

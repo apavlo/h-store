@@ -29,6 +29,11 @@ public class BenchmarkComponentResults implements JSONSerializable {
     public FastIntHistogram transactions;
     
     /**
+     * The number of speculatively executed txns
+     */
+    public FastIntHistogram specexecs;
+    
+    /**
      * The number of distributed txns executed based on ProcedureId
      */
     public FastIntHistogram dtxns;
@@ -57,6 +62,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
         final BenchmarkComponentResults copy = new BenchmarkComponentResults(this.transactions.size());
         copy.transactions.setDebugLabels(this.transactions.getDebugLabels());
         copy.transactions.put(this.transactions);
+        copy.specexecs.setDebugLabels(this.transactions.getDebugLabels());
+        copy.specexecs.put(this.dtxns);
         copy.dtxns.setDebugLabels(this.transactions.getDebugLabels());
         copy.dtxns.put(this.dtxns);
         
@@ -103,6 +110,7 @@ public class BenchmarkComponentResults implements JSONSerializable {
     public void clear(boolean includeTxns) {
         if (includeTxns && this.transactions != null) {
             this.transactions.clearValues();
+            this.specexecs.clearValues();
             this.dtxns.clearValues();
         }
         this.latencies.clear();
@@ -141,6 +149,7 @@ public class BenchmarkComponentResults implements JSONSerializable {
         JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true,
                 JSONUtil.getSerializableFields(this.getClass()));
         assert(this.transactions != null);
+        assert(this.specexecs != null);
         assert(this.dtxns != null);
     }
 } // END CLASS

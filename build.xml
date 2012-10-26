@@ -973,6 +973,7 @@ TEST CASES
         <arg line="--copy=${localcopy}" />
         <arg line="--symlink=${symlink}" />
         <arg line="${files.dir}" />
+        <arg line="${getfiles.options}" />
     </exec>
 </target>
 <target name="junit-getfiles-update"
@@ -980,6 +981,7 @@ TEST CASES
     <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--update" />
         <arg line="${files.dir}" />
+        <arg line="${getfiles.options}" />
     </exec>
 </target>
 

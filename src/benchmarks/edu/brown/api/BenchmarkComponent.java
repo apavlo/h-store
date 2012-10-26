@@ -888,11 +888,13 @@ public abstract class BenchmarkComponent {
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
         Status status = cresponse.getStatus();
         if (status == Status.OK || status == Status.ABORT_USER) {
+            boolean is_specexec = (cresponse.hasDebug() && cresponse.getDebug().isSpeculative()); 
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.put(txn_idx);
                 if (cresponse.isSinglePartition() == false) {
                     m_txnStats.dtxns.put(txn_idx);
                 }
+                if (is_specexec) m_txnStats.specexecs.put(txn_idx);
             } // SYNCH
 
             if (m_txnStats.isLatenciesEnabled()) {
