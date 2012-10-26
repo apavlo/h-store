@@ -54,6 +54,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
     public BenchmarkComponentResults(int numProcedures) {
         this.transactions = new FastIntHistogram(numProcedures);
         this.transactions.setKeepZeroEntries(true);
+        this.specexecs = new FastIntHistogram(numProcedures);
+        this.specexecs.setKeepZeroEntries(true);
         this.dtxns = new FastIntHistogram(numProcedures);
         this.dtxns.setKeepZeroEntries(true);
     }

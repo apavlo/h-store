@@ -249,6 +249,7 @@ EXPERIMENT_SETTINGS = {
         "site.markov_fixed":                    True,
         "site.exec_force_singlepartitioned":    False,
         "client.count":                         1,
+        "client.output_specexec":               True,
         "client.txnrate":                       1300,
         "client.blocking":                      False,
         "client.output_response_status":        True,
