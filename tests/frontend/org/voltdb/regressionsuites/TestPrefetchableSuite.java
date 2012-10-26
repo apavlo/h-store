@@ -205,6 +205,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         
         VoltServerConfig config = null;
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPrefetchableSuite.class);
+        
         builder.setGlobalConfParameter("site.exec_prefetch_queries", true);
         builder.setGlobalConfParameter("site.exec_force_singlepartitioned", false);
         builder.setGlobalConfParameter("site.exec_voltdb_procinfo", false);
@@ -228,17 +229,21 @@ public class TestPrefetchableSuite extends RegressionSuite {
         project.addDefaultPartitioning();
         project.addParameterMappings(mappings);
         
+        boolean success;
+        
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
         config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        config.compile(project);
+        success = config.compile(project);
+        assert(success);
         builder.addServerConfig(config);
  
         // CLUSTER CONFIG #2
         // Two sites, each with two partitions running in separate JVMs
-        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        config.compile(project);
-        builder.addServerConfig(config);
+//        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
  
         return builder;
     }

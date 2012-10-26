@@ -121,8 +121,8 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.Estimate;
+import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
@@ -145,6 +145,7 @@ import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
+import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
@@ -1052,6 +1053,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (fragment.getPrefetch()) {
                 parameters = this.currentTxn.getPrefetchParameterSets();
                 this.currentTxn.markExecPrefetchQuery(this.partitionId);
+                TransactionCounter.PREFETCH_REMOTE.inc(this.currentTxn.getProcedure());
             } else {
                 parameters = this.currentTxn.getAttachedParameterSets();
             }
