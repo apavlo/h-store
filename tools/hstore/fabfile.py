@@ -641,7 +641,7 @@ def deploy_hstore(build=True, update=True):
             run("ant junit-getfiles -Dsymlink=%s" % ebsDir)
         elif update:
             LOG.debug("Pulling in latest research files for branch '%s'" % env["hstore.git_branch"])
-            # run("ant junit-getfiles")
+            run("ant junit-getfiles-update")
         ## IF
             
         if build:
