@@ -627,22 +627,20 @@ def deploy_hstore(build=True, update=True):
             run("git pull %s" % env["hstore.git_options"])
         
         ## Checkout Extra Files
-        if need_files:
-            LOG.debug("Initializing H-Store research files directory for branch '%s'" %  env["hstore.git_branch"])
-            
-            # 2012-08-20 - Create a symlink into /mnt/h-store so that we store 
-            #              the larger files out in EBS
-            ebsDir = "/mnt/h-store"
-            with settings(warn_only=True):
-                if run("test -d %s" % ebsDir).failed:
-                    sudo("mkdir -p " + ebsDir)
+        with settings(warn_only=True):
+            if run("test -d %s" % "files").failed:
+                LOG.debug("Initializing H-Store research files directory for branch '%s'" %  env["hstore.git_branch"])
+                
+                # 2012-08-20 - Create a symlink into /mnt/h-store so that we store 
+                #              the larger files out in EBS
+                ebsDir = "/mnt/h-store"
+                sudo("ant junit-getfiles -Dsymlink=%s" % ebsDir)
                 sudo("chown --quiet -R %s %s" % (env.user, ebsDir))
-            ## WITH
-            run("ant junit-getfiles -Dsymlink=%s" % ebsDir)
-        elif update:
-            LOG.debug("Pulling in latest research files for branch '%s'" % env["hstore.git_branch"])
-            run("ant junit-getfiles-update")
-        ## IF
+            elif update:
+                LOG.debug("Pulling in latest research files for branch '%s'" % env["hstore.git_branch"])
+                run("ant junit-getfiles-update")
+            ## IF
+        ## WITH
             
         if build:
             LOG.debug("Building H-Store from source code")
@@ -737,7 +735,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
-        "client.host":                  ",".join(clients),
+        "client.hosts":                 ",".join(clients),
         "client.count":                 env["client.count"],
         "client.threads_per_host":      env["client.threads_per_host"],
         "project":                      project,
