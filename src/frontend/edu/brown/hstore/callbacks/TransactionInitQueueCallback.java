@@ -20,6 +20,7 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.PartitionExecutorProfiler;
+import edu.brown.utils.PartitionSet;
 
 /**
  * This callback is used for when a transaction is waiting in the TransactionQueueManager at this site 
@@ -37,7 +38,7 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     }
             
     private TransactionInitResponse.Builder builder = null;
-    private Collection<Integer> partitions = null;
+    private PartitionSet partitions = null;
     private final boolean prefetch; 
     private final FastDeserializer fd = new FastDeserializer(new byte[0]);
     
@@ -51,7 +52,7 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     }
     
     public void init(Long txn_id,
-                     Collection<Integer> partitions,
+                     PartitionSet partitions,
                      RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
@@ -63,7 +64,7 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         // Only include local partitions
         int counter = 0;
         for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
-            if (partitions.contains(p)) counter++;
+            if (partitions.contains(p.intValue())) counter++;
         } // FOR
         assert(counter > 0) : String.format("InitPartitions:%s / LocalPartitions:%s", 
                                             partitions, this.hstore_site.getLocalPartitionIds());
@@ -120,16 +121,16 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             this.builder = null;
             
             // start profile idle_waiting_dtxn_time on remote paritions
-            for (Integer p : this.hstore_site.getLocalPartitionIdArray()) {
-                if (this.partitions.contains(p)) {
-                    if (this.hstore_conf.site.exec_profiling) {
+            if (this.hstore_conf.site.exec_profiling) {
+                for (Integer p : this.hstore_site.getLocalPartitionIdArray()) {
+                    if (this.partitions.contains(p.intValue())) {
                         PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
                         assert (pep != null);
                         if (pep.idle_waiting_dtxn_time.isStarted()) pep.idle_waiting_dtxn_time.stop();
                         pep.idle_waiting_dtxn_time.start();
                     }
-                }
-            } // FOR
+                } // FOR
+            }
             
             // Bundle the prefetch queries in the txn so we can queue them up
             // At this point all of the partitions at this HStoreSite are allocated
@@ -205,7 +206,7 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             this.builder.setStatus(status);
             this.builder.clearPartitions();
             for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
-                if (this.partitions.contains(p)) this.builder.addPartitions(p.intValue());
+                if (this.partitions.contains(p.intValue())) this.builder.addPartitions(p.intValue());
             } // FOR
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;

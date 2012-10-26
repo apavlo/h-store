@@ -88,9 +88,10 @@ OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 6
 OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
+OPT_GIT_BRANCH = "strangelove"
 
 DEFAULT_OPTIONS = {
-    "hstore.git_branch": "strangelove"
+    "hstore.git_branch": OPT_GIT_BRANCH
 }
 DEBUG_OPTIONS = {
     "site.status_enable":             True,
@@ -117,7 +118,7 @@ BASE_SETTINGS = {
     #"ec2.client_type":                  "m1.large",
     #"ec2.site_type":                    "m1.xlarge",
     "ec2.change_type":                  True,
-    "ec2.cluster_group":                "strangelove",
+    "ec2.cluster_group":                OPT_GIT_BRANCH,
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
@@ -238,6 +239,26 @@ EXPERIMENT_SETTINGS = {
         "client.blocking":                      True,
         "client.output_txn_profiling":          "txnprofile.csv",
     },
+    "specexec": {
+        "ec2.site_type":                       "c1.xlarge",
+        "site.memory":                          6144,
+        "site.txn_incoming_delay":              2,
+        "site.specexec_enable":                 True,
+        "site.specexec_idle":                   True,
+        "site.specexec_markov":                 True,
+        "site.markov_enable":                   True,
+        "site.markov_fixed":                    False,
+        "site.exec_force_singlepartitioned":    False,
+        "client.count":                         1,
+        "client.output_specexec":               True,
+        "client.txnrate":                       1500,
+        "client.blocking":                      True,
+        "client.blocking_concurrent":           2,
+        "client.output_response_status":        True,
+        "client.output_basepartitions":         True,
+        "benchmark.warehouse_pairing":          True,
+        "benchmark.loadthread_per_warehouse":   False,
+    },
 }
 EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
 
@@ -289,11 +310,22 @@ def updateEnv(args, env, benchmark, partitions):
     ## ----------------------------------------------
     elif args['exp_type'].startswith("onepartition"):
         pass
+
+    ## ----------------------------------------------
+    ## SPECEXEC EXPERIMENTS
+    ## ----------------------------------------------
+    elif args['exp_type'].startswith("specexec"):
+        if benchmark == "tpcc":
+            markov = "%s-%dp.markov.gz" % (benchmark, partitions)
+        else:
+            markov = "%s.markov.gz" % (benchmark)
+        env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
+        env["client.threads_per_host"] = int(partitions/2)
+        env["benchmark.loadthreads"] = min(16, partitions)
         
     pplan = "%s.lns.pplan" % benchmark
     env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
     env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"
-        
 ## DEF
 
 ## ==============================================

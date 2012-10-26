@@ -56,13 +56,15 @@ public class BenchmarkResults {
     }
 
     public static class Result {
-        public Result(long benchmarkTimeDelta, long transactionCount, long dtxnCount) {
+        public Result(long benchmarkTimeDelta, long transactionCount, long specexecCount, long dtxnCount) {
             this.benchmarkTimeDelta = benchmarkTimeDelta;
             this.transactionCount = transactionCount;
+            this.specexecCount = specexecCount;
             this.dtxnCount = dtxnCount;
         }
         public final long benchmarkTimeDelta;
         public final long transactionCount;
+        public final long specexecCount;
         public final long dtxnCount;
         public final Histogram<Integer> latencies = new Histogram<Integer>();
         
@@ -228,12 +230,14 @@ public class BenchmarkResults {
                           txnName, clientName, StringUtil.formatMaps(txnResults));
         
         long txnsTillNow = 0;
+        long specexecsTillNow = 0;
         long dtxnsTillNow = 0;
         Result[] retval = new Result[intervals];
         for (int i = 0; i < intervals; i++) {
             Result r = results.get(i);
             retval[i] = new Result(r.benchmarkTimeDelta,
                                    r.transactionCount - txnsTillNow,
+                                   r.specexecCount - specexecsTillNow,
                                    r.dtxnCount - dtxnsTillNow);
             txnsTillNow = r.transactionCount;
             dtxnsTillNow = r.dtxnCount;
@@ -355,6 +359,7 @@ public class BenchmarkResults {
                 Integer offset = m_transactionNames.get(txnName);
                 Result r = new Result(offsetTime,
                                       cmpResults.transactions.get(offset.intValue()),
+                                      cmpResults.specexecs.get(offset.intValue()),
                                       cmpResults.dtxns.get(offset.intValue()));
                 if (this.enableLatencies && cmpResults.latencies != null) {
                     Histogram<Integer> latencies = cmpResults.latencies.get(offset);

@@ -132,6 +132,11 @@ public abstract class SEATSConstants {
     public static final int PROB_SINGLE_FLIGHT_RESERVATION = 10;
     
     /**
+     * Probability that we need to update customer information when booking a flight (0% - 100%);
+     */
+    public static final int PROB_UPDATE_CUSTOMER_NEW_RESERVATION = 10;
+    
+    /**
      * Probability that a customer will invoke DeleteReservation using the string
      * version of their Customer Id (0% - 100%)
      */

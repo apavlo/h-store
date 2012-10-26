@@ -32,6 +32,7 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 
 import edu.brown.benchmark.seats.SEATSConstants;
 import edu.brown.benchmark.seats.util.CustomerId;
@@ -129,9 +130,8 @@ public class NewReservation extends VoltProcedure {
         voltQueueSQL(GetFlight, f_id);
         voltQueueSQL(CheckSeat, f_id, seatnum);
         voltQueueSQL(CheckCustomer, f_id, c_id);
-        voltQueueSQL(GetCustomer, c_id);
         final VoltTable[] initialResults = voltExecuteSQL();
-        assert(initialResults.length == 4);
+        assert(initialResults.length == 3);
 
         // Flight Information
         if (initialResults[0].advanceRow() == false) {
@@ -155,10 +155,17 @@ public class NewReservation extends VoltProcedure {
             throw new VoltAbortException(ErrorType.CUSTOMER_ALREADY_HAS_SEAT +
                                          String.format(" Customer %d already owns on a reservations on flight #%d", c_id, f_id));
         }
-        // Customer Information
-        else if (initialResults[3].advanceRow() == false) {
-            throw new VoltAbortException(ErrorType.INVALID_CUSTOMER_ID + 
-                                         String.format(" Invalid customer id: %d / %s", c_id, new CustomerId(c_id)));
+        
+        if (c_id != VoltType.NULL_BIGINT) {
+            voltQueueSQL(GetCustomer, c_id);
+            VoltTable[] customerResults = voltExecuteSQL();
+            assert(customerResults.length == 1);
+            
+            // Customer Information
+            if (customerResults[0].advanceRow() == false) {
+                throw new VoltAbortException(ErrorType.INVALID_CUSTOMER_ID + 
+                                             String.format(" Invalid customer id: %d / %s", c_id, new CustomerId(c_id)));
+            }
         }
         
         voltQueueSQL(InsertReservation, r_id, c_id, f_id, seatnum, price,
@@ -166,8 +173,10 @@ public class NewReservation extends VoltProcedure {
                             attrs[4], attrs[5], attrs[6], attrs[7],
                             attrs[8]);
         voltQueueSQL(UpdateFlight, f_id);
-        voltQueueSQL(UpdateCustomer, attrs[0], attrs[1], attrs[2], attrs[3], c_id);
-        voltQueueSQL(UpdateFrequentFlyer, attrs[4], attrs[5], attrs[6], attrs[7], c_id, airline_id);
+        if (c_id != VoltType.NULL_BIGINT) {
+            voltQueueSQL(UpdateCustomer, attrs[0], attrs[1], attrs[2], attrs[3], c_id);
+            voltQueueSQL(UpdateFrequentFlyer, attrs[4], attrs[5], attrs[6], attrs[7], c_id, airline_id);
+        }
         
         // We don't care if we updated FrequentFlyer 
         final VoltTable[] results = voltExecuteSQL(true);

@@ -33,6 +33,7 @@ import edu.brown.markov.containers.AuctionMarkMarkovGraphsContainer;
 import edu.brown.markov.containers.GlobalMarkovGraphsContainer;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.markov.containers.SEATSMarkovGraphsContainer;
 import edu.brown.markov.containers.TPCCMarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.MathUtil;
@@ -748,7 +749,9 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         // TPCCMarkovGraphsContainer
         } else if (args.catalog_type == ProjectType.TPCC) {
             containerClass = TPCCMarkovGraphsContainer.class;
-
+        // SEATSMarkovGraphsContainer
+        } else if (args.catalog_type == ProjectType.SEATS) {
+            containerClass = SEATSMarkovGraphsContainer.class;
         // AuctionMarkMarkovGraphsContainer
         } else if (args.catalog_type == ProjectType.AUCTIONMARK) {
             containerClass = AuctionMarkMarkovGraphsContainer.class;

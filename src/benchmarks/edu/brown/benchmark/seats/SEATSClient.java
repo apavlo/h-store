@@ -867,9 +867,11 @@ public class SEATSClient extends BenchmarkComponent {
             attributes[i] = rng.nextLong();
         } // FOR
         
+        boolean updateCustomer = (rng.nextInt(100) < SEATSConstants.PROB_UPDATE_CUSTOMER_NEW_RESERVATION);
+        
         Object params[] = new Object[] {
             reservation.id,
-            reservation.customer_id.encode(),
+            (updateCustomer ? reservation.customer_id.encode() : VoltType.NULL_BIGINT),
             reservation.flight_id.encode(),
             reservation.seatnum,
             price,

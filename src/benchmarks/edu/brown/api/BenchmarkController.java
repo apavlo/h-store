@@ -498,6 +498,9 @@ public class BenchmarkController {
         
         // If they want to dump profiling information, then we need to make sure
         // that these parameters are turned on 
+        if (hstore_conf.client.output_specexec) {
+            m_config.siteParameters.put("site.txn_client_debug", Boolean.TRUE.toString());
+        }
         if (hstore_conf.client.output_exec_profiling != null) {
             m_config.siteParameters.put("site.exec_profiling", Boolean.TRUE.toString());
         }
