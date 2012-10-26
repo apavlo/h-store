@@ -11,15 +11,21 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=false
-
 SITE_HOST="vise5"
-
 CLIENT_HOSTS=( \
     "saw" \
     "saw" \
     "saw" \
 )
+
+START_PARTITION=1
+STOP_PARTITION=16
+if [ -n "$1" ]; then
+    START_PARTITION="$1"
+fi
+if [ -n "$2" ]; then
+    STOP_PARTITION="$2"
+fi
 
 BASE_CLIENT_THREADS=2
 BASE_SITE_MEMORY=2048
@@ -28,7 +34,7 @@ BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
 
 MARKOV_DIR="files/markovs/vldb-august2012" # tpcc-6p.markov.gz
-MARKOV_ENABLE="false"
+MARKOV_ENABLE="true"
 
 BASE_ARGS=( \
     "-Dsite.status_enable=false" \
@@ -48,19 +54,24 @@ BASE_ARGS=( \
     "-Dsite.exec_preprocessing_threads=false" \
     "-Dsite.exec_preprocessing_threads_count=2" \
     "-Dsite.exec_postprocessing_threads=false" \
-    "-Dsite.queue_incoming_max_per_partition=1000" \
-    "-Dsite.queue_incoming_increase_max=2000" \
+    "-Dsite.queue_incoming_max_per_partition=10000" \
+    "-Dsite.queue_incoming_increase_max=20000" \
     "-Dsite.pool_localtxnstate_idle=1000" \
+    "-Dsite.commandlog_enable=true" \
+    "-Dsite.network_txn_initialization=true" \
     
     # Markov Params
     "-Dsite.markov_enable=$MARKOV_ENABLE" \
+    "-Dsite.markov_singlep_updates=false" \
+    "-Dsite.markov_dtxn_updates=false" \
+    "-Dsite.markov_path_caching=true" \
     
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=4096" \
-    "-Dclient.txnrate=2000" \
+    "-Dclient.txnrate=1300" \
     "-Dclient.warmup=60000" \
-    "-Dclient.duration=300000 "\
+    "-Dclient.duration=120000 "\
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
@@ -68,13 +79,14 @@ BASE_ARGS=( \
     
     # CLIENT DEBUG
     "-Dclient.profiling=false" \
+#     "-Dclient.output_markov_profiling=markovprofile.csv" \
 #     "-Dclient.output_site_profiling=siteprofile.csv" \
     "-Dclient.output_response_status=true" \
 #     "-Dclient.output_basepartitions=true" \
 #     "-Dclient.jvm_args=\"-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:-TraceClassUnloading\"" \
 )
 
-git pull && ant compile
+ssh ${SITE_HOST} "cd ${BASE_DIR} && git pull && ant compile" || exit -1
 
 UPDATED_HOSTS=($SITE_HOST)
 for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
@@ -91,9 +103,7 @@ for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
     fi
 done
 
-# ant compile
-# for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
-for i in `seq 1 16`; do
+for i in `seq $START_PARTITION $STOP_PARTITION`; do
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
 #     if [ $i -gt 1 ]; then
@@ -115,17 +125,25 @@ for i in `seq 1 16`; do
         ant markov-generate -Dproject=$BASE_PROJECT \
             -Dworkload=files/workloads/$BASE_PROJECT.100p-1.trace.gz \
             -Dglobal=false \
+            -Dvolt.client.memory=10000 \
             -Doutput=$BASE_PROJECT.markov
         gzip --force --best $BASE_PROJECT.markov
         mv $BASE_PROJECT.markov.gz $MARKOV_FILE
     fi
     
+    if [ $SITE_HOST != `hostname` ]; then
+        scp ${BASE_PROJECT}.jar ${SITE_HOST}:${BASE_DIR} || exit -1
+        if [ $MARKOV_ENABLE = "true" -a -f $MARKOV_FILE ]; then
+            scp ${MARKOV_FILE} ${SITE_HOST}:${BASE_DIR}/${MARKOV_FILE}
+        fi
+    fi
+
     # UPDATE CLIENTS
     CLIENT_COUNT=0
     CLIENT_HOSTS_STR=""
     for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
-        if [ $CLIENT_HOST != $SITE_HOST ]; then
-            scp -r ${BASE_PROJECT}.jar ${CLIENT_HOST}:${BASE_DIR} || exit -1
+        if [ $CLIENT_HOST != `hostname` ]; then
+            scp ${BASE_PROJECT}.jar ${CLIENT_HOST}:${BASE_DIR} || exit -1
         fi
         CLIENT_COUNT=`expr $CLIENT_COUNT + 1`
         if [ ! -z "$CLIENT_HOSTS_STR" ]; then
