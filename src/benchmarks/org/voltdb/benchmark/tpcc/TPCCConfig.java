@@ -38,7 +38,7 @@ public final class TPCCConfig {
     public boolean payment_multip = true;
     public boolean payment_multip_remote = false;
     /** Percentage of neworder txns that are forced to be multi-partitioned */
-    public int payment_multip_mix = 15;
+    public int payment_multip_mix = -1;
 
     /** If set to true, then we will use temporal skew for generating warehouse ids */
     public boolean temporal_skew = false;

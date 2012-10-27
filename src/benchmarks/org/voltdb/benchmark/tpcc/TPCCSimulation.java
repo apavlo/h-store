@@ -335,13 +335,14 @@ public class TPCCSimulation {
     /** Executes a payment transaction. */
     public void doPayment()  throws IOException {
         boolean allow_remote = (parameters.warehouses > 1 && config.payment_multip != false);
-
+        int remote_prob = (config.payment_multip_mix >= 0 ? config.payment_multip_mix : 15);
+        
         short w_id = generateWarehouseId();
         byte d_id = generateDistrict();
 
         short c_w_id;
         byte c_d_id;
-        if (allow_remote == false || (config.payment_multip_mix >= 0 && generator.number(1, 100) <= (100-config.payment_multip_mix))) {
+        if (allow_remote == false || generator.number(1, 100) <= (100-remote_prob)) {
             // 85%: paying through own warehouse (or there is only 1 warehouse)
             c_w_id = w_id;
             c_d_id = d_id;
