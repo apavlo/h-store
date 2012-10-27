@@ -70,7 +70,7 @@ public abstract class EstimatorUtil {
         } // FOR
         
         // PARAMETERS
-        sb.append(String.format("\n%s PARAMS:\n%s", ts, sb.toString()));
+        sb.append("\nBATCH PARAMETERS\n");
         ParameterMangler pm = new ParameterMangler(ts.getProcedure());
         Object mangled[] = pm.convert(ts.getProcedureParameters().toArray());
         sb.append(pm.toString(mangled));
