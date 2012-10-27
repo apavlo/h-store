@@ -373,7 +373,7 @@ public class TestMarkovEstimator extends BaseTestCase {
             } // FOR
             if (is_last) assertTrue(StringUtil.join("\n", queries), found); 
                 
-            MarkovEstimate est = t_estimator.executeQueries(state, stmts, partitions, true);
+            MarkovEstimate est = t_estimator.executeQueries(state, stmts, partitions);
             assertNotNull(est);
             
             for (Integer partition : catalogContext.getAllPartitionIds()) {
@@ -421,7 +421,7 @@ public class TestMarkovEstimator extends BaseTestCase {
             states[i] = t_estimator.startTransaction(XACT_ID.getAndIncrement(), this.catalog_proc, txn_trace.getParams());
             assertNotNull(states[i]);
             assertNotNull(states[i].getLastEstimate());
-            ests[i] = t_estimator.executeQueries(states[i], stmts, partitions, true);
+            ests[i] = t_estimator.executeQueries(states[i], stmts, partitions);
             assertNotNull(ests[i]);
         } // FOR
 

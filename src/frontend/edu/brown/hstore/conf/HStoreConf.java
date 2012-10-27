@@ -841,6 +841,15 @@ public final class HStoreConf {
         public boolean markov_fast_path;
         
         @ConfigProperty(
+            description="This enables the ability for the MarkovEstimator to cache the end points of " +
+            		    "path segments in a MarkovGraph so that it can just quickly identify the " +
+            		    "last MarkovVertex for a new batch of queries requested by the transaction.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean markov_endpoint_caching;
+        
+        @ConfigProperty(
             description="The minimum number of queries that must be in a batch for the TransactionEstimator " +
                         "to cache the path segment in the procedure's MarkovGraph. Provides a minor speed improvement " +
                         "for large batches with little variability in their execution paths.",

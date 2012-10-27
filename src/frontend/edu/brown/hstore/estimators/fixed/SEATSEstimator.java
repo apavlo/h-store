@@ -73,7 +73,7 @@ public class SEATSEstimator extends FixedEstimator {
     }
 
     @Override
-    public Estimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+    public Estimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions) {
         return (state.getInitialEstimate());
     }
 

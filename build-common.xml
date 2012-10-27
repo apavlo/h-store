@@ -152,6 +152,7 @@
 <arg value="site.markov_path_caching=${site.markov_path_caching}" />
 <arg value="site.markov_path_caching_threshold=${site.markov_path_caching_threshold}" />
 <arg value="site.markov_fast_path=${site.markov_fast_path}" />
+<arg value="site.markov_endpoint_caching=${site.markov_endpoint_caching}" />
 <arg value="site.markov_batch_caching_min=${site.markov_batch_caching_min}" />
 <arg value="site.exec_neworder_cheat=${site.exec_neworder_cheat}" />
 <arg value="site.markov_fixed=${site.markov_fixed}" />

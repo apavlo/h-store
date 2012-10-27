@@ -166,22 +166,26 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      * Cached references to the special marker vertices
      */
     private transient final MarkovVertex cache_specialVertices[] = new MarkovVertex[MarkovVertex.Type.values().length];
-
-    private transient final Map<Statement, Set<MarkovVertex>> cache_stmtVertices = new HashMap<Statement, Set<MarkovVertex>>();
+    private transient final Map<Statement, Collection<MarkovVertex>> cache_stmtVertices = new HashMap<Statement, Collection<MarkovVertex>>();
     private transient final Map<MarkovVertex, Collection<MarkovVertex>> cache_getSuccessors = new ConcurrentHashMap<MarkovVertex, Collection<MarkovVertex>>();
     
     @Override
     public Collection<MarkovVertex> getSuccessors(MarkovVertex vertex) {
         Collection<MarkovVertex> successors = this.cache_getSuccessors.get(vertex);
         if (successors == null) {
-            successors = super.getSuccessors(vertex);
-            this.cache_getSuccessors.put(vertex, successors);
+            synchronized (this) {
+                successors = this.cache_getSuccessors.get(vertex);
+                if (successors == null) {
+                    successors = super.getSuccessors(vertex);
+                    this.cache_getSuccessors.put(vertex, successors);
+                }
+            } // SYNCH
         }
         return (successors);
     }
     
     public void buildCache() {
-        for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
+        for (Statement catalog_stmt : this.catalog_proc.getStatements().values()) {
             if (this.cache_stmtVertices.containsKey(catalog_stmt) == false)
                 this.cache_stmtVertices.put(catalog_stmt, new HashSet<MarkovVertex>());
         } // FOR
@@ -193,42 +197,6 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         } // FOR
     }
     
-    /**
-     * For a given vertex, maintain a map to possible future vertices
-     */
-    private final Map<MarkovVertex, ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>> cache_batchEnd = new HashMap<MarkovVertex, ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>>(); 
-    
-    public Pair<MarkovEdge, MarkovVertex> getCachedBatchEnd(MarkovVertex start, Statement catalog_stmt, int idx, PartitionSet partitions, PartitionSet past_partitions) {
-        Map<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>> m = cache_batchEnd.get(start);
-        Pair<MarkovEdge, MarkovVertex> found = null;
-        if (m != null) {
-            MultiKey<String> cache_key = new MultiKey<String>(CatalogKey.createKey(catalog_stmt),
-                                                              Integer.toString(idx),
-                                                              partitions.toString(),
-                                                              past_partitions.toString());
-            found = m.get(cache_key);
-        }
-        return (found);
-    }
-    
-    public void addCachedBatchEnd(MarkovVertex start, MarkovEdge e, MarkovVertex v, Statement catalog_stmt, int idx, PartitionSet partitions, PartitionSet past_partitions) {
-        ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>> m = cache_batchEnd.get(start);
-        if (m == null) {
-            synchronized (cache_batchEnd) {
-                m = cache_batchEnd.get(start);
-                if (m == null) {
-                    m = new ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>();
-                    cache_batchEnd.put(start, m);
-                }
-            } // SYNCH
-        }
-        MultiKey<String> cache_key = new MultiKey<String>(CatalogKey.createKey(catalog_stmt),
-                                                          Integer.toString(idx),
-                                                          partitions.toString(),
-                                                          past_partitions.toString());
-        m.putIfAbsent(cache_key, Pair.of(e, v));
-    }
-
     
     // ----------------------------------------------------------------------------
     // DATA MEMBER METHODS
@@ -252,16 +220,10 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     public MarkovEdge addToEdge(MarkovVertex source, MarkovVertex dest) {
         assert(source != null);
         assert(dest != null);
-        
         MarkovEdge e = this.findEdge(source, dest);
         if (e == null) {
-            synchronized (source) {
-                e = this.findEdge(source, dest);
-                if (e == null) {
-                    e = new MarkovEdge(this);
-                    this.addEdge(e, source, dest);
-                }
-            } // SYNCH
+            e = new MarkovEdge(this);
+            this.addEdge(e, source, dest);
         }
         return (e);
     }
@@ -274,9 +236,9 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         boolean ret = super.addVertex(v);
         if (ret) {
             if (v.isQueryVertex()) {
-                Set<MarkovVertex> stmt_vertices = this.cache_stmtVertices.get(v.getCatalogItem());
+                Collection<MarkovVertex> stmt_vertices = this.cache_stmtVertices.get(v.getCatalogItem());
                 if (stmt_vertices == null) {
-                    stmt_vertices = new HashSet<MarkovVertex>();
+                    stmt_vertices = new ArrayList<MarkovVertex>();
                     this.cache_stmtVertices.put((Statement)v.getCatalogItem(), stmt_vertices);
                 }
                 stmt_vertices.add(v);
@@ -369,15 +331,10 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      * @return
      */
     protected MarkovVertex getVertex(Statement a, PartitionSet partitions, PartitionSet past_partitions, int queryInstanceIndex) {
-        Set<MarkovVertex> stmt_vertices = this.cache_stmtVertices.get(a);
+        Collection<MarkovVertex> stmt_vertices = this.cache_stmtVertices.get(a);
         if (stmt_vertices == null) {
-            synchronized (this) {
-                stmt_vertices = this.cache_stmtVertices.get(a);
-                if (stmt_vertices == null) {
-                    this.buildCache();
-                    stmt_vertices = this.cache_stmtVertices.get(a);
-                }
-            } // SYNCH
+            this.buildCache();
+            stmt_vertices = this.cache_stmtVertices.get(a);
         }
         for (MarkovVertex v : stmt_vertices) {
             if (v.isEqual(a, partitions, past_partitions, queryInstanceIndex)) {

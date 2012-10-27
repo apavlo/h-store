@@ -2529,8 +2529,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 try {
                     this.localTxnEstimator.executeQueries(t_state,
                                                           planner.getStatements(),
-                                                          plan.getStatementPartitions(),
-                                                          true);
+                                                          plan.getStatementPartitions());
                 } finally {
                     if (needs_profiling) ts.profiler.stopExecEstimation();
                 }
