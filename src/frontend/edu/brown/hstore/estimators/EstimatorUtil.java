@@ -37,19 +37,20 @@ public abstract class EstimatorUtil {
     public static final float NULL_MARKER = -1.0f;
 
     public static String mispredictDebug(LocalTransaction ts,
-                                         SQLStmt batchStmts[],
-                                         ParameterSet params[],
                                          BatchPlanner planner,
-                                         EstimatorState s,
-                                         Exception ex,
-                                         int batchSize) {
+                                         SQLStmt batchStmts[],
+                                         ParameterSet params[]) {
         StringBuilder sb = new StringBuilder();
+        Exception ex = ts.getPendingError();
         sb.append("Caught " + ex.getClass().getSimpleName() + "!\n")
           .append(StringUtil.SINGLE_LINE);
+
+        // TRANSACTION STATE
+        sb.append("\nTRANSACTION STATE\n").append(ts.debug());
         
         // BATCH PLAN
         sb.append("CURRENT BATCH\n");
-        for (int i = 0; i < batchSize; i++) {
+        for (int i = 0; i < planner.getBatchSize(); i++) {
             sb.append(String.format("[%02d] %s <==> %s\n     %s\n     %s\n",
                          i,
                          batchStmts[i].getStatement().fullName(),
@@ -58,24 +59,25 @@ public abstract class EstimatorUtil {
                          Arrays.toString(params[i].toArray())));
         } // FOR
         
+        // BATCH PLANNER
+        sb.append("\nPLANNER\n");
+        for (int i = 0; i < planner.getBatchSize(); i++) {
+            Statement stmt0 = planner.getStatements()[i];
+            Statement stmt1 = batchStmts[i].getStatement();
+            assert(stmt0.fullName().equals(stmt1.fullName())) : 
+                stmt0.fullName() + " != " + stmt1.fullName(); 
+            sb.append(String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName()));
+        } // FOR
+        
         // PARAMETERS
         sb.append(String.format("\n%s PARAMS:\n%s", ts, sb.toString()));
         ParameterMangler pm = new ParameterMangler(ts.getProcedure());
-        Object mangled[] = pm.convert(ts.getProcedureParameters().toArray()); 
-        for (int i = 0; i < mangled.length; i++) {
-            ProcParameter catalog_param = ts.getProcedure().getParameters().get(i);
-            sb.append(String.format("  [%02d] ", i));
-            if (catalog_param.getIsarray()) {
-                sb.append(Arrays.toString((Object[])mangled[i]));
-            } else {
-                sb.append(mangled[i]);
-            }
-            sb.append("\n");
-        } // FOR
+        Object mangled[] = pm.convert(ts.getProcedureParameters().toArray());
+        sb.append(pm.toString(mangled));
         
-        sb.append("\nTRANSACTION STATE\n").append(ts.debug());
-        
+        // ESTIMATOR STATE
         sb.append("\nESTIMATOR STATE:\n");
+        EstimatorState s = ts.getEstimatorState();
         if (s instanceof MarkovEstimatorState) {
             MarkovGraph markov = ((MarkovEstimatorState)s).getMarkovGraph();
             MarkovEstimate initialEst = s.getInitialEstimate();
@@ -94,15 +96,6 @@ public abstract class EstimatorUtil {
         } else {
             sb.append("No TransactionEstimator.State! Can't dump out MarkovGraph!\n");
         }
-        
-        sb.append("\nPLANNER\n");
-        for (int i = 0; i < batchSize; i++) {
-            Statement stmt0 = planner.getStatements()[i];
-            Statement stmt1 = batchStmts[i].getStatement();
-            assert(stmt0.fullName().equals(stmt1.fullName())) : 
-                stmt0.fullName() + " != " + stmt1.fullName(); 
-            sb.append(String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName()));
-        } // FOR
         
         return (sb.toString());
     }

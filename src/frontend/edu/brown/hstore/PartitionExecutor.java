@@ -2544,21 +2544,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             ts.setPendingError(ex, false);
 
             // Print Misprediction Debug
-            if (d || hstore_conf.site.exec_mispredict_crash) {
-                LOG.warn("\n" + EstimatorUtil.mispredictDebug(ts,
-                                                              batchStmts,
-                                                              batchParams,
-                                                              planner,
-                                                              t_state,
-                                                              ex,
-                                                              batchSize));
-            }
-            
-            // Crash on Misprediction!
             if (hstore_conf.site.exec_mispredict_crash) {
-                LOG.fatal(String.format("Crashing because site.exec_mispredict_crash is true [txn=%s]", ts));
-                this.crash(ex);
-            } else if (d) {
+                // Use a lock so that only dump out the first txn that fails
+                synchronized (PartitionExecutor.class) {
+                    LOG.warn("\n" + EstimatorUtil.mispredictDebug(ts, planner, batchStmts, batchParams));
+                    LOG.fatal(String.format("Crashing because site.exec_mispredict_crash is true [txn=%s]", ts));
+                    this.crash(ex);
+                } // SYNCH
+            }
+            else if (d) {
+                LOG.warn("\n" + EstimatorUtil.mispredictDebug(ts, planner, batchStmts, batchParams));
                 LOG.debug(ts + " - Aborting and restarting mispredicted txn.");
             }
             throw ex;
