@@ -11,9 +11,8 @@ import edu.brown.markov.MarkovGraph;
 public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
     private static final Logger LOG = Logger.getLogger(TPCCMarkovGraphsContainer.class);
     private static final boolean d = LOG.isDebugEnabled();
-    private static final boolean t = LOG.isTraceEnabled();
 
-    private boolean neworder_useInt = false;
+    // private boolean neworder_useInt = false;
 
     public TPCCMarkovGraphsContainer(Collection<Procedure> procedures) {
         super(procedures);
@@ -49,52 +48,53 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
     
     public int processNeworder(long txn_id, int base_partition, Object[] params, Procedure catalog_proc, int ctr) {
         // VALUE(D_ID) 
-        int d_id = -1;
-        try {
-            if (this.neworder_useInt) {
-                d_id = ((Integer)params[1]).intValue();
-            } else {
-                d_id = ((Byte)params[1]).intValue();
-            }
-        } catch (ClassCastException e) {
-            if (ctr > 10) {
-                throw e;
-            }
-            this.neworder_useInt = (this.neworder_useInt == false);
-            return (this.processNeworder(txn_id, base_partition, params, catalog_proc, ++ctr));
-        }
+//        int d_id = -1;
+//        try {
+//            if (this.neworder_useInt) {
+//                d_id = ((Integer)params[1]).intValue();
+//            } else {
+//                d_id = ((Byte)params[1]).intValue();
+//            }
+//        } catch (ClassCastException e) {
+//            if (ctr > 10) {
+//                throw e;
+//            }
+//            this.neworder_useInt = (this.neworder_useInt == false);
+//            return (this.processNeworder(txn_id, base_partition, params, catalog_proc, ++ctr));
+//        }
         
         // ARRAYLENGTH(S_W_IDS)
         Short arr[] = (Short[])params[5];
         
         // SAMEVALUE(S_W_IDS)
-        int arr_same = 1;
-        int last_hash = -1;
+        int other_hash_idx = 0;
+//        int other_hash = -1;
         for (int i = 0; i < arr.length; i++) {
             int hash = this.hasher.hash(arr[i]);
-            if (i > 0 && last_hash != hash) {
-                arr_same = 0;
+            if (i > 0 && base_partition != hash) {
+                other_hash_idx = i + 1;
+//                other_hash = hash;
                 break;
             }
-            last_hash = hash;
         } // FOR
 
-        if (t) {
+        if (d) {
             int hashes[] = new int[arr.length];
             for (int i = 0; i < hashes.length; i++) {
                 hashes[i] = this.hasher.hash(arr[i]);
-            }
-            LOG.trace(String.format("NEWORDER Txn #%d\n" +
-                                    "  VALUE(D_ID) = %d\n" +                
+            } // FOR
+            LOG.debug(String.format("NEWORDER Txn #%d\n" +
+                                    // "  VALUE(D_ID) = %d\n" +
                                     "  ARRAYLENGTH(S_W_IDS) = %d / %s\n" +
-            		                "  SAME_VALUE(S_W_IDS) = %d",
+            		                // "  SAME_VALUE(S_W_IDS) = %d\n"
+            		                "  FIRST_DIFF(S_W_IDS) = %d\n",
             		                txn_id,
-            		                d_id,
+            		                // d_id,
             		                arr.length, Arrays.toString(hashes),
-            		                arr_same));
+            		                other_hash_idx));
         }
         
-        return (d_id | arr.length<<8 | arr_same<<16);
+        return (arr.length | other_hash_idx<<8); //  | other_hash<<16);
     }
     
     public int processPayment(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
@@ -104,9 +104,9 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
         // HASH(C_W_ID)
         int hash_c_w_id = this.hasher.hash(params[3]);
         
-        if (t) LOG.info(String.format("PAYMENT Txn #%d HASH[C_W_ID] = %d / %s", txn_id, hash_c_w_id, params[3]));
+        if (d) LOG.debug(String.format("PAYMENT Txn #%d HASH[C_W_ID] = %d / %s", txn_id, hash_c_w_id, params[3]));
         
-        return (hash_c_w_id);
-        // return (hash_w_id | hash_c_w_id<<16);
+        // return (hash_c_w_id);
+        return (base_partition | hash_c_w_id<<16);
     }
 }

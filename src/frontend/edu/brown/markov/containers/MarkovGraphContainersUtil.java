@@ -319,12 +319,12 @@ public abstract class MarkovGraphContainersUtil {
      * @throws Exception
      */
     public static void save(Map<Integer, ? extends MarkovGraphsContainer> markovs, String output_path) {
-        final String className = MarkovGraphsContainer.class.getSimpleName();
-        LOG.info("Writing out graphs of " + className + " to '" + output_path + "'");
+        final String className = CollectionUtil.first(markovs.values()).getClass().getSimpleName();
         
         // Sort the list of partitions so we always iterate over them in the same order
         SortedSet<Integer> sorted = new TreeSet<Integer>(markovs.keySet());
         
+        int graphs_ctr = 0;
         File file = new File(output_path);
         try {
             FileOutputStream out = new FileOutputStream(file);
@@ -341,6 +341,7 @@ public abstract class MarkovGraphContainersUtil {
             for (Integer partition : sorted) {
                 MarkovGraphsContainer markov = markovs.get(partition);
                 assert(markov != null) : "Null MarkovGraphsContainer for partition #" + partition;
+                graphs_ctr += markov.totalSize();
                 
                 stringer = (JSONStringer)new JSONStringer().object();
                 stringer.key(partition.toString()).object();
@@ -353,7 +354,7 @@ public abstract class MarkovGraphContainersUtil {
             LOG.error("Failed to serialize the " + className + " file '" + output_path + "'", ex);
             throw new RuntimeException(ex);
         }
-        if (debug.get()) LOG.debug(className + " objects were written out to '" + output_path + "'");
+        LOG.info(String.format("Wrote out %d graphs in %s to '%s'", graphs_ctr, className, output_path));
     }
     
     // ----------------------------------------------------------------------------

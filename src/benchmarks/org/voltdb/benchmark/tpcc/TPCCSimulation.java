@@ -111,8 +111,7 @@ public class TPCCSimulation {
      */
     public static HashMap <Integer, List<Integer>> remoteWarehouseIds = null;
     
-    private final int max_w_id;
-    static long lastAssignedWarehouseId = 1;
+    protected static long lastAssignedWarehouseId = 1;
     
     private RandomDistribution.Zipf zipf;
     
@@ -131,13 +130,12 @@ public class TPCCSimulation {
         this.affineWarehouse = lastAssignedWarehouseId;
         this.skewFactor = skewFactor;
         this.config = config;
-        this.max_w_id = (parameters.warehouses + parameters.starting_warehouse - 1);
 
         if (config.neworder_skew_warehouse) {
             if (debug.get()) LOG.debug("Enabling W_ID Zipfian Skew: " + skewFactor);
             this.zipf = new RandomDistribution.Zipf(new Random(),
                                                     parameters.starting_warehouse,
-                                                    this.max_w_id+1,
+                                                    parameters.last_warehouse+1,
                                                     Math.max(1.001d, this.skewFactor));
         }
         if (config.warehouse_debug) {
@@ -145,7 +143,7 @@ public class TPCCSimulation {
         }
 
         lastAssignedWarehouseId += 1;
-        if (lastAssignedWarehouseId > max_w_id)
+        if (lastAssignedWarehouseId > parameters.last_warehouse)
             lastAssignedWarehouseId = 1;
         
         if (debug.get()) {
@@ -164,12 +162,12 @@ public class TPCCSimulation {
             				partitionToSite.put(p.getId(), s.getId());
             		} // FOR
                 		
-            		for (int w_id0 = parameters.starting_warehouse; w_id0 <= this.max_w_id; w_id0++) {
+            		for (int w_id0 = parameters.starting_warehouse; w_id0 <= parameters.last_warehouse; w_id0++) {
             		    final int partition0 = hasher.hash(w_id0);
             			final int site0 = partitionToSite.get(partition0);
             			final List<Integer> rList = new ArrayList<Integer>();	
             			
-            			for (int w_id1 = parameters.starting_warehouse; w_id1 <= this.max_w_id; w_id1++) {
+            			for (int w_id1 = parameters.starting_warehouse; w_id1 <= parameters.last_warehouse; w_id1++) {
             			    // Figure out what partition this W_ID maps to
             			    int partition1 = hasher.hash(w_id1);
             			    
@@ -194,7 +192,7 @@ public class TPCCSimulation {
     public String toString() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Warehouses", parameters.warehouses);
-        m.put("W_ID Range", String.format("[%d, %d]", parameters.starting_warehouse, this.max_w_id));
+        m.put("W_ID Range", String.format("[%d, %d]", parameters.starting_warehouse, parameters.last_warehouse));
         m.put("Districts per Warehouse", parameters.districtsPerWarehouse);
         m.put("Custers per District", parameters.customersPerDistrict);
         m.put("Initial Orders per District", parameters.newOrdersPerDistrict);
@@ -252,7 +250,7 @@ public class TPCCSimulation {
                 }
                 this.temporal_counter++;
             } else {
-                w_id = (short)generator.number(parameters.starting_warehouse, this.max_w_id);
+                w_id = (short)generator.number(parameters.starting_warehouse, parameters.last_warehouse);
             }
         }
         // ZIPFIAN SKEWED WAREHOUSE ID
@@ -262,15 +260,15 @@ public class TPCCSimulation {
         }
         // GAUSSIAN SKEWED WAREHOUSE ID
         else if (skewFactor > 0.0d) {
-            w_id = (short)generator.skewedNumber(parameters.starting_warehouse, max_w_id, skewFactor);
+            w_id = (short)generator.skewedNumber(parameters.starting_warehouse, parameters.last_warehouse, skewFactor);
         }
         // UNIFORM DISTRIBUTION
         else {
-            w_id = (short)generator.number(parameters.starting_warehouse, this.max_w_id);
+            w_id = (short)generator.number(parameters.starting_warehouse, parameters.last_warehouse);
         }
         
-        assert(w_id >= parameters.starting_warehouse) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id); 
-        assert(w_id <= this.max_w_id) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id);
+        assert(w_id >= parameters.starting_warehouse) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, parameters.last_warehouse); 
+        assert(w_id <= parameters.last_warehouse) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, parameters.last_warehouse);
         
         this.lastWarehouseHistory.put(w_id);
         this.totalWarehouseHistory.put(w_id);
@@ -278,6 +276,13 @@ public class TPCCSimulation {
         return w_id;
     }
 
+    protected short generatePairedWarehouse(short w_id) {
+        int remote_w_id = (w_id % 2 == 0 ? w_id-1 : w_id+1);
+        if (remote_w_id < 0) remote_w_id = parameters.last_warehouse;
+        else if (remote_w_id > parameters.last_warehouse) remote_w_id = parameters.starting_warehouse;
+        return (short)remote_w_id;
+    }
+    
     private byte generateDistrict() {
         return (byte)generator.number(1, parameters.districtsPerWarehouse);
     }
@@ -349,15 +354,13 @@ public class TPCCSimulation {
         } else {
             // 15%: paying through another warehouse:
             if (config.warehouse_pairing) {
-                c_w_id = (short)(w_id % 2 == 0 ? w_id-1 : w_id+1);
-                if (c_w_id < 0) c_w_id = (short)this.max_w_id;
-                else if (c_w_id > this.max_w_id) c_w_id = (short)parameters.starting_warehouse;
+                c_w_id = this.generatePairedWarehouse(w_id);
             }
             else if (config.payment_multip_remote) {
-                c_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, this.max_w_id, (int)w_id);
+                c_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int)w_id);
             } else {
                 // select in range [1, num_warehouses] excluding w_id
-                c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, w_id);
+                c_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, w_id);
             }
             assert c_w_id != w_id;
             c_d_id = generateDistrict();
@@ -407,12 +410,10 @@ public class TPCCSimulation {
             if (parameters.warehouses > 1 && remote) {
                 short remote_w_id;
                 if (config.warehouse_pairing) {
-                    remote_w_id = (short)(warehouse_id % 2 == 0 ? warehouse_id-1 : warehouse_id+1);
-                    if (remote_w_id < 0) remote_w_id = (short)this.max_w_id;
-                    else if (remote_w_id > this.max_w_id) remote_w_id = (short)parameters.starting_warehouse;
+                    remote_w_id = this.generatePairedWarehouse(warehouse_id);
                 }
                 else {
-                    remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                    remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
                 }
                 supply_w_id[i] = remote_w_id;
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;
@@ -432,14 +433,12 @@ public class TPCCSimulation {
                 int idx = generator.number(0, ol_cnt-1);
                 short remote_w_id;
                 if (config.warehouse_pairing) {
-                    remote_w_id = (short)(warehouse_id % 2 == 0 ? warehouse_id-1 : warehouse_id+1);
-                    if (remote_w_id < 0) remote_w_id = (short)this.max_w_id;
-                    else if (remote_w_id > this.max_w_id) remote_w_id = (short)parameters.starting_warehouse;
+                    remote_w_id = this.generatePairedWarehouse(warehouse_id);
                 }
                 if (config.neworder_multip_remote) {
-                	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
                 } else {
-                	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+                	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
                 }
                 supply_w_id[idx] = remote_w_id;
             }

@@ -745,7 +745,7 @@ public abstract class BenchmarkComponent {
     // CLUSTER CONNECTION SETUP
     // ----------------------------------------------------------------------------
     
-    private void initializeConnection() {
+    protected void initializeConnection() {
         StatsUploaderSettings statsSettings = null;
         if (m_statsDatabaseURL != null && m_statsDatabaseURL.isEmpty() == false) {
             try {

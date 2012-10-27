@@ -262,6 +262,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
         return (this.markovs.size());
     }
     
+    public int totalSize() {
+        int total = 0;
+        for (Integer id : this.markovs.keySet()) {
+            Map<Procedure, MarkovGraph> m = this.markovs.get(id);
+            if (m != null) total += m.size();
+        } // FOR
+        return (total);
+    }
+    
     @Override
     @SuppressWarnings("unchecked")
     public String toString() {

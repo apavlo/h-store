@@ -11,11 +11,11 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-SITE_HOST="vise5"
+SITE_HOST="modis"
 CLIENT_HOSTS=( \
     "saw" \
-    "saw" \
-    "saw" \
+#     "saw" \
+#     "saw" \
 )
 
 START_PARTITION=1
@@ -27,14 +27,15 @@ if [ -n "$2" ]; then
     STOP_PARTITION="$2"
 fi
 
-BASE_CLIENT_THREADS=2
+BASE_CLIENT_THREADS=1
 BASE_SITE_MEMORY=2048
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
 
-MARKOV_DIR="files/markovs/vldb-august2012" # tpcc-6p.markov.gz
-MARKOV_ENABLE="true"
+MARKOV_ENABLE=true
+MARKOV_DIR="files/markovs/vldb-august2012"
+MARKOV_RECOMPUTE=true
 
 BASE_ARGS=( \
     "-Dsite.status_enable=false" \
@@ -59,31 +60,44 @@ BASE_ARGS=( \
     "-Dsite.pool_localtxnstate_idle=1000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.network_txn_initialization=true" \
+    "-Dsite.txn_incoming_delay=2" \
     
     # Markov Params
     "-Dsite.markov_enable=$MARKOV_ENABLE" \
     "-Dsite.markov_singlep_updates=false" \
-    "-Dsite.markov_dtxn_updates=false" \
+    "-Dsite.markov_dtxn_updates=true" \
     "-Dsite.markov_path_caching=true" \
+    "-Dsite.specexec_enable=true" \
+    "-Dsite.specexec_idle=true" \
+    "-Dsite.exec_mispredict_crash=true" \
     
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=4096" \
     "-Dclient.txnrate=1300" \
-    "-Dclient.warmup=60000" \
-    "-Dclient.duration=120000 "\
+    "-Dclient.warmup=0" \
+    "-Dclient.duration=60000 "\
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
-    "-Dclient.blocking_concurrent=100" \
+    "-Dclient.blocking_concurrent=1" \
     "-Dclient.throttle_backoff=100" \
     
     # CLIENT DEBUG
     "-Dclient.profiling=false" \
-#     "-Dclient.output_markov_profiling=markovprofile.csv" \
+    "-Dclient.output_markov_profiling=markovprofile.csv" \
 #     "-Dclient.output_site_profiling=siteprofile.csv" \
+    "-Dclient.output_specexec=true" \
+    "-Dclient.output_txn_counters=txncounters.csv" \
+    "-Dclient.output_txn_counters_combine=true" \
     "-Dclient.output_response_status=true" \
 #     "-Dclient.output_basepartitions=true" \
 #     "-Dclient.jvm_args=\"-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:-TraceClassUnloading\"" \
+)
+
+FILES_TO_COPY=( \
+    "${BASE_PROJECT}.jar" \
+    "properties/default.properties" \
+    "properties/benchmarks/${BASE_PROJECT}.properties" \
 )
 
 ssh ${SITE_HOST} "cd ${BASE_DIR} && git pull && ant compile" || exit -1
@@ -106,6 +120,7 @@ done
 for i in `seq $START_PARTITION $STOP_PARTITION`; do
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
+    NUM_CLIENTS=1
 #     if [ $i -gt 1 ]; then
 #         NUM_CLIENTS=`expr \( $i - 1 \) \* $BASE_CLIENT_THREADS`
 #     else
@@ -116,7 +131,9 @@ for i in `seq $START_PARTITION $STOP_PARTITION`; do
     # BUILD PROJECT JAR
     ant hstore-prepare \
         -Dproject=${BASE_PROJECT} \
-        -Dhosts=${HSTORE_HOSTS}
+        -Dhosts=${HSTORE_HOSTS} \
+        -Dpartitionplan=files/designplans/${BASE_PROJECT}.lns.pplan \
+        -Dpartitionplan.ignore_missing=True 
     test -f ${BASE_PROJECT}.jar || exit -1
     
     # BUILD MARKOVS FILE
@@ -132,7 +149,9 @@ for i in `seq $START_PARTITION $STOP_PARTITION`; do
     fi
     
     if [ $SITE_HOST != `hostname` ]; then
-        scp ${BASE_PROJECT}.jar ${SITE_HOST}:${BASE_DIR} || exit -1
+        for file in ${FILES_TO_COPY[@]}; do
+            scp $file ${SITE_HOST}:${BASE_DIR}/$file || exit -1
+        done
         if [ $MARKOV_ENABLE = "true" -a -f $MARKOV_FILE ]; then
             scp ${MARKOV_FILE} ${SITE_HOST}:${BASE_DIR}/${MARKOV_FILE}
         fi
@@ -143,7 +162,9 @@ for i in `seq $START_PARTITION $STOP_PARTITION`; do
     CLIENT_HOSTS_STR=""
     for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
         if [ $CLIENT_HOST != `hostname` ]; then
-            scp ${BASE_PROJECT}.jar ${CLIENT_HOST}:${BASE_DIR} || exit -1
+            for file in ${FILES_TO_COPY[@]}; do
+                scp $file ${CLIENT_HOST}:${BASE_DIR}/$file || exit -1
+            done
         fi
         CLIENT_COUNT=`expr $CLIENT_COUNT + 1`
         if [ ! -z "$CLIENT_HOSTS_STR" ]; then
@@ -157,6 +178,7 @@ for i in `seq $START_PARTITION $STOP_PARTITION`; do
         -Dproject=${BASE_PROJECT} \
         -Dkillonzero=true \
         -Dmarkov=${MARKOV_FILE} \
+        -Dmarkov.recompute_end=${MARKOV_RECOMPUTE} \
         -Dclient.threads_per_host=${NUM_CLIENTS} \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \

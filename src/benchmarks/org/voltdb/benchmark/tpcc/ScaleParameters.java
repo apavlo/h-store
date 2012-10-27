@@ -64,6 +64,7 @@ public class ScaleParameters {
         assert warehouses > 0;
         this.warehouses = warehouses;
         this.starting_warehouse = firstWarehouse;
+        this.last_warehouse = (this.warehouses + this.starting_warehouse - 1);
         
         // DISTRICTS
         assert(districtsPerWarehouse > 0) : "Invalid # of districtsPerWarehouse: " + districtsPerWarehouse;
@@ -112,6 +113,7 @@ public class ScaleParameters {
     public final int items;
     public final int warehouses;
     public final int starting_warehouse;
+    public final int last_warehouse;
     public final int districtsPerWarehouse;
     public final int customersPerDistrict;
     public final int newOrdersPerDistrict;

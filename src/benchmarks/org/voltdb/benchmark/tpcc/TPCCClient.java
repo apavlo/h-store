@@ -247,11 +247,12 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             Client client,
             RandomGenerator generator,
             Clock clock,
-            ScaleParameters params)
+            ScaleParameters params,
+            TPCCConfig config)
     {
         super(client);
-        m_tpccConfig = TPCCConfig.defaultConfig();
         m_scaleParams = params;
+        m_tpccConfig = config;
         m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0, this.getCatalog());
 //        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
         this.initTransactionWeights();
@@ -317,6 +318,16 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         if (LOG.isDebugEnabled()) LOG.debug("Transaction Weights:\n" + txns);
     }
 
+    protected TPCCConfig getTPCCConfig() {
+        return (m_tpccConfig);
+    }
+    protected ScaleParameters getScaleParameters() {
+        return (m_scaleParams);
+    }
+    protected TPCCSimulation getTPCCSimulation() {
+        return (m_tpccSim);
+    }
+    
     @Override
     protected boolean useHeavyweightClient() {
         return true;

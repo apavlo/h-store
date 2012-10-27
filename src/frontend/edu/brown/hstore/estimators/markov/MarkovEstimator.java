@@ -468,8 +468,6 @@ public class MarkovEstimator extends TransactionEstimator {
         // other previous transactions. This prevents us from having to recompute the path every single time,
         // especially for single-partition transactions where the clustered MarkovGraphs are accurate
         else if (hstore_conf.site.markov_path_caching) {
-            if (d) LOG.debug(String.format("%s - Checking whether we have a cached path for %s",
-                             AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
             List<MarkovVertex> cached = this.cached_paths.get(markov);
             if (cached == null) {
                 if (d) LOG.debug(String.format("%s - No cached path available for %s",
@@ -481,6 +479,8 @@ public class MarkovEstimator extends TransactionEstimator {
                         markov, markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
             }
             else {
+                if (d) LOG.debug(String.format("%s - Using cached path for %s",
+                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
                 if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, cached, currentVertex);

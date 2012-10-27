@@ -27,7 +27,7 @@ public class SEATSMarkovGraphsContainer extends MarkovGraphsContainer {
         // NewReservation
         if (proc_name.equals("NewReservation")) {
             if (d) LOG.debug(String.format("Selecting MarkovGraph using decision tree for %s txn #%d", proc_name, txn_id));
-            id = this.processGetUserInfo(txn_id, base_partition, params, catalog_proc);
+            id = this.processNewReservation(txn_id, base_partition, params, catalog_proc);
             
         // DEFAULT
         } else {
@@ -40,7 +40,24 @@ public class SEATSMarkovGraphsContainer extends MarkovGraphsContainer {
         return (ret);
     }
     
-    public int processGetUserInfo(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
+    public int processDeleteReservation(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
+        int use_c_id_str = 0;
+        int use_ff_c_id_str = 0;
+        
+        // C_ID == NULL
+        long c_id = ((Long)params[1]).longValue();
+        if (c_id == VoltType.NULL_BIGINT) {
+            if (params[2] != null) {
+                use_c_id_str = 1;
+            } else {
+                use_ff_c_id_str = 1;
+            }
+        }
+        
+        return (use_c_id_str | use_ff_c_id_str<<8);
+    }
+    
+    private int processNewReservation(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
         // HASHVALUE(F_ID) 
         int id = base_partition;
         
