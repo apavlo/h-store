@@ -314,6 +314,13 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.appendTime(other, false));
     }
 
+    /**
+     * Append the think time without locking the marker. This is the preferred
+     * way to update the ProfileMeasurement when multiple threads are using it.
+     * @param start
+     * @param stop
+     * @param invocations
+     */
     public synchronized void appendTime(long start, long stop, int invocations) {
         assert(start >= 0);
         assert(stop >= 0);
@@ -321,15 +328,24 @@ public class ProfileMeasurement implements JSONSerializable {
         this.invocations += invocations;
     }
 
+    /**
+     * Append the think time without locking the marker. This is the preferred
+     * way to update the ProfileMeasurement when multiple threads are using it.
+     * @param start
+     * @param stop
+     */
     public void appendTime(long start, long stop) {
         this.appendTime(start, stop, 1);
     }
-    
+
+    /**
+     * Append the think time without locking the marker. This is the preferred
+     * way to update the ProfileMeasurement when multiple threads are using it.
+     * @param start
+     */
     public void appendTime(long start) {
         this.appendTime(start, getTime(), 1);
     }
-
-
     
     /**
      * Return the current time in nano-seconds

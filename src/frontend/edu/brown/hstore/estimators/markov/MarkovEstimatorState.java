@@ -127,6 +127,11 @@ public final class MarkovEstimatorState extends EstimatorState {
         return (this.markov);
     }
 
+    /**
+     * Get the actual path that the txn took through the MarkovGraph
+     * This is only updated if transaction updates are enabled.
+     * @return
+     */
     public List<MarkovVertex> getActualPath() {
         return (this.actual_path);
     }

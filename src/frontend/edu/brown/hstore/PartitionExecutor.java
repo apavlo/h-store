@@ -123,6 +123,7 @@ import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
@@ -2542,13 +2543,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             MispredictionException ex = plan.getMisprediction(); 
             ts.setPendingError(ex, false);
 
-//            if (t_state != null) {
-//                LOG.warn("GRAPH DUMP: " + t_state.dumpMarkovGraph());
-//            }
-            
             // Print Misprediction Debug
             if (d || hstore_conf.site.exec_mispredict_crash) {
-                // FIXME LOG.warn("\n" + mispredictDebug(batchStmts, batchParams, markov, t_state, ex, batchSize));
+                LOG.warn("\n" + EstimatorUtil.mispredictDebug(ts,
+                                                              batchStmts,
+                                                              batchParams,
+                                                              planner,
+                                                              t_state,
+                                                              ex,
+                                                              batchSize));
             }
             
             // Crash on Misprediction!
