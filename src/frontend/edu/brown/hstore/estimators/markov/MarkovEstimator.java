@@ -32,6 +32,7 @@ import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.profilers.MarkovEstimatorProfiler;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
@@ -159,6 +160,9 @@ public class MarkovEstimator extends TransactionEstimator {
     @SuppressWarnings("unchecked")
     @Override
     public MarkovEstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
+        long timestamp = -1l;
+        if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
+        
         ParameterMangler mangler = this.manglers.get(catalog_proc);
         if (mangler != null) args = mangler.convert(args);
         
@@ -174,6 +178,7 @@ public class MarkovEstimator extends TransactionEstimator {
         if (markov == null) {
             if (d) LOG.debug(String.format("%s - No MarkovGraph is available for transaction",
                              AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+            if (this.profiler != null) this.profiler.time_start.appendTime(timestamp);
             return (null);
         }
         
@@ -221,12 +226,16 @@ public class MarkovEstimator extends TransactionEstimator {
         // initialized it properly.
         state.addInitialEstimate(initialEst);
         
+        if (this.profiler != null) this.profiler.time_start.appendTime(timestamp);
         return (state);
     }
     
     @SuppressWarnings("unchecked")
     @Override
     public MarkovEstimate executeQueries(EstimatorState s, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup) {
+        long timestamp = -1l;
+        if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
+        
         MarkovEstimatorState state = (MarkovEstimatorState)s; 
         if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.getTransactionId()));
         int batch_size = catalog_stmts.length;
@@ -334,12 +343,14 @@ public class MarkovEstimator extends TransactionEstimator {
         // everything. This prevents other threads from accessing it before we have
         // initialized it properly.
         state.addEstimate(estimate);
-        
+        if (this.profiler != null) this.profiler.time_update.appendTime(timestamp);
         return (estimate);
     }
 
     @Override
     protected void completeTransaction(EstimatorState s, Status status) {
+        long timestamp = -1l;
+        if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
         MarkovEstimatorState state = (MarkovEstimatorState)s;
 
         // The transaction for the given txn_id is in limbo, so we just want to remove it
@@ -350,7 +361,7 @@ public class MarkovEstimator extends TransactionEstimator {
         }
 
         Long txn_id = state.getTransactionId();
-        long timestamp = EstTime.currentTimeMillis();
+        long end_time = EstTime.currentTimeMillis();
         if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [status=%s]",
                          txn_id, status));
         
@@ -379,7 +390,7 @@ public class MarkovEstimator extends TransactionEstimator {
         for (MarkovVertex v : state.actual_path) v.incrementInstanceHits();
         for (MarkovEdge e : state.actual_path_edges) e.incrementInstanceHits();
         if (this.enable_recomputes) {
-            this.markovTimes.addInstanceTime(next_v, txn_id, state.getExecutionTimeOffset(timestamp));
+            this.markovTimes.addInstanceTime(next_v, txn_id, state.getExecutionTimeOffset(end_time));
         }
         
         // Store this as the last accurate MarkovPathEstimator for this graph
@@ -396,6 +407,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 }
             } // SYNCH
         }
+        if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
         return;
     }
     
@@ -417,6 +429,7 @@ public class MarkovEstimator extends TransactionEstimator {
      * @param args Procedure arguments (mangled)
      */
     private void estimatePath(MarkovEstimatorState state, MarkovEstimate est, Procedure catalog_proc, Object args[]) {
+        long timestamp = -1l;
         assert(state.isInitialized()) : state.hashCode();
         assert(est.isInitialized()) : state.hashCode();
         if (d) LOG.debug(String.format("%s - Estimating execution path (%s)",
@@ -442,12 +455,12 @@ public class MarkovEstimator extends TransactionEstimator {
             if (initialPath.contains(currentVertex)) {
                 if (d) LOG.debug(String.format("%s - Using fast path estimation for %s",
                                  AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
-                if (this.profiler != null) this.profiler.time_fast_estimate.start();
+                if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, initialPath, currentVertex);
                     compute_path = false;
                 } finally {
-                    if (this.profiler != null) this.profiler.time_fast_estimate.stop();
+                    if (this.profiler != null) this.profiler.time_fast_estimate.appendTime(timestamp);
                 }
             }
         }
@@ -468,12 +481,12 @@ public class MarkovEstimator extends TransactionEstimator {
                         markov, markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
             }
             else {
-                if (this.profiler != null) this.profiler.time_cached_estimate.start();
+                if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, cached, currentVertex);
                     compute_path = false;
                 } finally {
-                    if (this.profiler != null) this.profiler.time_cached_estimate.stop();
+                    if (this.profiler != null) this.profiler.time_cached_estimate.appendTime(timestamp);
                 }
             }
         }
@@ -495,7 +508,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 throw new RuntimeException(msg, ex);
             }
             
-            if (this.profiler != null) this.profiler.time_full_estimate.start();
+            if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
             try {
                 pathEstimator.traverse(est.getVertex());
             } catch (Throwable ex) {
@@ -509,7 +522,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 LOG.error(msg, ex);
                 throw new RuntimeException(msg, ex);
             } finally {
-                if (this.profiler != null) this.profiler.time_full_estimate.stop();
+                if (this.profiler != null) this.profiler.time_full_estimate.appendTime(timestamp);
             }
             
             this.pathEstimatorsPool.returnObject(pathEstimator);
@@ -530,7 +543,8 @@ public class MarkovEstimator extends TransactionEstimator {
                          Statement catalog_stmt,
                          PartitionSet partitions,
                          int queryInstanceIndex) {
-        if (this.profiler != null) this.profiler.time_consume.start();
+        long timestamp = -1l;
+        if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
         
         // Update the number of times that we have executed this query in the txn
         if (queryInstanceIndex < 0) queryInstanceIndex = state.updateQueryInstanceCount(catalog_stmt);
@@ -583,7 +597,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // Update the state information
         state.setCurrent(next_v, next_e);
         if (t) LOG.trace("Updated State Information for Txn #" + state.getTransactionId() + ":\n" + state);
-        if (this.profiler != null) this.profiler.time_consume.stop();
+        if (this.profiler != null) this.profiler.time_consume.appendTime(timestamp);
     }
 
     // ----------------------------------------------------------------------------

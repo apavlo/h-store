@@ -194,7 +194,7 @@ final class ClientImpl implements Client {
                 m_expectedOutgoingMessageSize,
                 true,
                 site_id);
-        m_queueTime.addThinkTime(start, ProfileMeasurement.getTime());
+        m_queueTime.appendTime(start, ProfileMeasurement.getTime());
 
         try {
             if (trace.get())
@@ -297,12 +297,12 @@ final class ClientImpl implements Client {
                     throw new java.io.InterruptedIOException("Interrupted while invoking procedure asynchronously");
                 }
             }
-            m_queueTime.addThinkTime(start, ProfileMeasurement.getTime(), 1);
+            m_queueTime.appendTime(start, ProfileMeasurement.getTime(), 1);
             return true;
         } else {
             long start = ProfileMeasurement.getTime();
             boolean ret = m_distributer.queue(invocation, callback, expectedSerializedSize, false, site_id);
-            m_queueTime.addThinkTime(start, ProfileMeasurement.getTime(), 1);
+            m_queueTime.appendTime(start, ProfileMeasurement.getTime(), 1);
             return ret;
         }
     }

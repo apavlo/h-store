@@ -314,14 +314,19 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.appendTime(other, false));
     }
 
-    public void addThinkTime(long start, long stop, int invocations) {
-        assert(this.marker == NULL_MARKER) : this.type;
+    public synchronized void appendTime(long start, long stop, int invocations) {
+        assert(start >= 0);
+        assert(stop >= 0);
         this.total_time += (stop - start);
         this.invocations += invocations;
     }
 
-    public void addThinkTime(long start, long stop) {
-        this.addThinkTime(start, stop, 0);
+    public void appendTime(long start, long stop) {
+        this.appendTime(start, stop, 1);
+    }
+    
+    public void appendTime(long start) {
+        this.appendTime(start, getTime(), 1);
     }
 
 
