@@ -73,7 +73,9 @@ public class ParameterMangler {
         for (int i = 0; i < mangled.length; i++) {
             sb.append(String.format("  [%02d] ", i));
             if (is_array[i]) {
-                sb.append(Arrays.toString((Object[]) mangled[i]));
+                Object inner[] = (Object[]) mangled[i];
+                sb.append(String.format("%s / length=%d",
+                                        Arrays.toString(inner), inner.length));
             } else {
                 sb.append(mangled[i]);
             }
