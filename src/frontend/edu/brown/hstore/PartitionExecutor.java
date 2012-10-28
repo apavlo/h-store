@@ -2203,14 +2203,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private VoltTable[] executeLocalPlan(LocalTransaction ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
         long undoToken = HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN;
         
+        // Force all transactions to use undo logging
+        if (hstore_conf.site.exec_force_undo_logging_all) {
+            undoToken = this.getNextUndoToken();
+        }
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
         // then we can go back and check whether we want to disable undo logging for the rest of the transaction
         // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
-        if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false) {
+        else if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false) {
             Estimate est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
-            if (hstore_conf.site.exec_force_undo_logging_all == true ||
-                hstore_conf.site.exec_no_undo_logging == false ||
+            if (hstore_conf.site.exec_no_undo_logging == false ||
                 est.isValid() == false ||
                 est.isAbortable(this.thresholds) ||
                 est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
@@ -2221,8 +2224,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
         }
         // If the transaction is predicted to be read-only, then we won't bother with an undo buffer
-        else if ((ts.isPredictReadOnly() == false && hstore_conf.site.exec_no_undo_logging_all == false) ||
-                 hstore_conf.site.exec_force_undo_logging_all) {
+        else if (ts.isPredictReadOnly() == false && hstore_conf.site.exec_no_undo_logging_all == false) {
             undoToken = this.getNextUndoToken();
         }
         ts.fastInitRound(this.partitionId, undoToken);

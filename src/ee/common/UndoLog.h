@@ -125,7 +125,12 @@ namespace voltdb
         inline void release(const int64_t undoToken) {
             VOLT_TRACE("Releasing token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
-            
+            #ifdef VOLT_ERROR_ENABLED
+            if (m_lastReleaseToken >= undoToken) {
+                VOLT_ERROR("m_lastReleaseToken[%ld] is greater than undoToken[%ld]",
+                           m_lastReleaseToken, undoToken);
+            }
+            #endif
             assert(m_lastReleaseToken < undoToken);
             m_lastReleaseToken = undoToken;
             while (m_undoQuantums.size() > 0) {
