@@ -83,7 +83,7 @@ def txnCount(path):
     assert result == 0, cmd + "\n" + output
     lines = output.split("\n")
     if len(lines) > 1: assert lines[-1].find("total") != -1
-    # print "\n".join(lines)
+    logging.debug("\n".join(lines))
     total = int(lines[-1].strip().split(" ")[0]) 
     # print "TOTAL:", total
     return total
@@ -136,7 +136,8 @@ if __name__ == '__main__':
             cmd = "ant hstore-benchmark -Dtrace=%s %s" % (trace, hstore_opts_cmd)
             if args['debug']: logging.debug(cmd)
             subprocess.check_call(cmd, shell=True)
-            cnt = txnCount(trace_base)
+            cnt = txnCount(trace)
+            logging.info("Created %d traces in last round", cnt)
 
         assert cnt > 0
         total_cnt += cnt
