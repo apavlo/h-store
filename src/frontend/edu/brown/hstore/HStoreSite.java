@@ -1989,11 +1989,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // More Info: https://github.com/apavlo/h-store/issues/31
             // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
             // for this partition
-            if (ts != null && hstore_conf.site.specexec_enable) {
-                if (d) LOG.debug(String.format("%s - Telling partition %d to enable speculative execution",
-                                 ts, p));
-                boolean ret = this.executors[p].enableSpeculativeExecution(ts);
-                if (d && ret) {
+            if (ts != null) {
+                this.executors[p].queuePrepare(ts);
+                if (d) {
                     spec_cnt++;
                     LOG.trace(String.format("Partition %d - Speculative Execution!", p));
                 }

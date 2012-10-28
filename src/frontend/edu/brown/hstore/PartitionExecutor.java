@@ -131,6 +131,7 @@ import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
+import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
@@ -1109,11 +1110,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                               this.currentTxn, this.currentDtxn);
             this.setExecutionMode(this.currentTxn, newMode);
             this.processWorkFragment(this.currentTxn, fragment, parameters);
-            
+        // -------------------------------
+        // Prepare Transaction
+        // -------------------------------
+        } else if (work instanceof PrepareTxnMessage) {
+            PrepareTxnMessage ftask = (PrepareTxnMessage)work;
+            assert(this.currentDtxn.equals(ftask.getTransaction())) :
+                String.format("The current dtxn %s does not match %s given in the %s",
+                              this.currentTxn, ftask.getTransaction(), ftask.getClass().getSimpleName());
+            this.enableSpeculativeExecution(this.currentDtxn);
+        }
         // -------------------------------
         // Finish Transaction
         // -------------------------------
-        } else if (work instanceof FinishTxnMessage) {
+        else if (work instanceof FinishTxnMessage) {
             FinishTxnMessage ftask = (FinishTxnMessage)work;
             this.finishTransaction(this.currentTxn, (ftask.getStatus() == Status.OK));
         }
@@ -1229,9 +1239,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param txn_id
      * @return true if speculative execution was enabled at this partition
      */
-    public boolean enableSpeculativeExecution(AbstractTransaction ts) {
+    private boolean enableSpeculativeExecution(AbstractTransaction ts) {
         assert(ts != null) : "Null transaction handle???";
         // assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
+        
+        if (hstore_conf.site.specexec_enable == false) {
+            return (false);
+        }
         
         if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
                          ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
@@ -1243,6 +1257,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (ts.isExecReadOnly(this.partitionId)) {
             newMode = ExecutionMode.COMMIT_READONLY;
         }
+        
+        this.setExecutionMode(ts, newMode);
+        
         
 //        if (newMode != null) {
 //            if (d) LOG.debug(String.format("%s - Attempting to enable %s speculative execution at partition %d [currentMode=%s]",
@@ -1502,6 +1519,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (debug.get()) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
                                    this.partitionId, work));
         this.utility_queue.offer(work);
+    }
+    
+    /**
+     * Put the prepare request for the transaction into the queue
+     * @param task
+     * @param status The final status of the transaction
+     */
+    public void queuePrepare(AbstractTransaction ts) {
+        assert(ts.isInitialized());
+        PrepareTxnMessage work = ts.getPrepareTxnMessage();
+        boolean success = this.work_queue.offer(work);
+        assert(success);
+        if (d) LOG.debug(String.format("%s - Added distributed %s to front of partition %d work queue [size=%d]",
+                         ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
     
     /**

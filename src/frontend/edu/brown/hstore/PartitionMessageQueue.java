@@ -10,6 +10,7 @@ import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
+import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 
 public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage> {
@@ -61,11 +62,16 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
             Class<?> class0 = msg0.getClass();
             Class<?> class1 = msg1.getClass();
             
-            // (1) Always let the FinishTaskMessage go first so that we can release locks
+            // (1) Always let the Prepare/Finish TaskMessages go first so that we can release locks
             boolean isFinish0 = class0.equals(FinishTxnMessage.class);
             boolean isFinish1 = class1.equals(FinishTxnMessage.class);
             if (isFinish0 && !isFinish1) return (-1);
             else if (!isFinish0 && isFinish1) return (1);
+            
+            boolean isPrepare0 = class0.equals(PrepareTxnMessage.class);
+            boolean isPrepare1 = class1.equals(PrepareTxnMessage.class);
+            if (isPrepare0 && !isPrepare1) return (-1);
+            else if (!isPrepare0 && isPrepare1) return (1);
             
             // (2) Then let a WorkFragmentMessage go before anything else
             boolean isWork0 = class0.equals(WorkFragmentMessage.class);
