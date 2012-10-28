@@ -26,15 +26,19 @@ public enum TransactionCounter {
     REDIRECTED,
     /** The number of transactions that we executed locally */
     EXECUTED,
+    /** The number of transactions that were completed (committed or aborted) */
+    COMPLETED,
     /** Of the locally executed transactions, how many were single-partitioned */
     SINGLE_PARTITION,
     /** Of the locally executed transactions, how many were multi-partitioned */
     MULTI_PARTITION,
+    /** Speculative Execution **/
+    SPECULATIVE,
     /** The number of sysprocs that we executed */
     SYSPROCS,
-    /** The number of transactions that were completed (committed or aborted) */
-    COMPLETED,
-    /** Of the locally executed transactions, how many were abort */
+    /** The number of transactions that were mispredicted (and thus re-executed) */
+    MISPREDICTED,
+    /** Of the locally executed transactions, how many were aborted by the user */
     ABORTED,
     /** The number of transactions that were unexpectedly aborted (e.g., because of an assert) */
     ABORT_UNEXPECTED,
@@ -42,12 +46,8 @@ public enum TransactionCounter {
     ABORT_GRACEFUL,
     /** The number of transactions that were speculative and had to be restarted */
     RESTARTED,
-    /** The number of transactions that were mispredicted (and thus re-executed) */
-    MISPREDICTED,
     /** The number of transactions that were aborted because they tried to access evicted data */
     EVICTEDACCESS,
-    /** Speculative Execution **/
-    SPECULATIVE,
     /** No undo buffers! Naked transactions! */
     NO_UNDO,
     /** The number of transactions that were blocked due to the local partition's timestamps */
