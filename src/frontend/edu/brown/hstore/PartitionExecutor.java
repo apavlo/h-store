@@ -282,9 +282,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private HStoreConf hstore_conf;
     private TransactionInitializer txnInitializer;
     
-    private final AbstractConflictChecker specExecChecker;
-    private final SpecExecScheduler specExecScheduler;
-    
     // ----------------------------------------------------------------------------
     // Partition-Specific Queues
     // ----------------------------------------------------------------------------
@@ -304,7 +301,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private final ConcurrentLinkedQueue<InternalMessage> utility_queue;
 
-    
     // ----------------------------------------------------------------------------
     // Internal Execution State
     // ----------------------------------------------------------------------------
@@ -335,12 +331,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * must wait until the current_dtxn commits.
      */
     private ExecutionMode currentExecMode = ExecutionMode.COMMIT_ALL;
-    
-    /**
-     * ClientResponses from speculatively executed transactions that are waiting to be committed 
-     */
-    private final LinkedList<Pair<LocalTransaction, ClientResponseImpl>> queued_responses = 
-                        new LinkedList<Pair<LocalTransaction, ClientResponseImpl>>();
 
     /**
      * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
@@ -369,7 +359,30 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     
     
     // ----------------------------------------------------------------------------
-    // Shared VoltProcedure Data Members
+    // SPECULATIVE EXECUTION STATE
+    // ----------------------------------------------------------------------------
+    
+    private final AbstractConflictChecker specExecChecker;
+    private final SpecExecScheduler specExecScheduler;
+    
+    /**
+     * ClientResponses from speculatively executed transactions that were executed 
+     * before the current distributed transaction finished at this partition and are
+     * now waiting to be committed.
+     * These txns must have an undo token that comes <B>before</b> the dtxn.   
+     */
+    private final LinkedList<Pair<LocalTransaction, ClientResponseImpl>> specExecBlocked_Before;
+    
+    /**
+     * ClientResponses from speculatively executed transactions that were executed 
+     * after the current distributed transaction finished at this partition and are
+     * now waiting to be committed.
+     * These txns must have an undo token that comes <B>after</b> the dtxn.   
+     */
+    private final LinkedList<Pair<LocalTransaction, ClientResponseImpl>> specExecBlocked_After;
+    
+    // ----------------------------------------------------------------------------
+    // SHARED VOLTPROCEDURE DATA MEMBERS
     // ----------------------------------------------------------------------------
 
     /**
@@ -551,6 +564,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.hsql = null;
         this.specExecChecker = null;
         this.specExecScheduler = null;
+        this.specExecBlocked_Before = null;
+        this.specExecBlocked_After = null;
         this.p_estimator = null;
         this.localTxnEstimator = null;
         this.m_snapshotter = null;
@@ -599,6 +614,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.localTxnEstimator = t_estimator;
         
         // Speculative Execution
+        this.specExecBlocked_Before = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+        this.specExecBlocked_After = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+        
         if (hstore_conf.site.specexec_markov) {
             // The MarkovConflictChecker is thread-safe, so we all of the partitions
             // at this site can reuse the same one.
@@ -1819,13 +1837,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (d) {
                     if (t && blocked > 0)
                         LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s",
-                                                blocked, this.partitionId, this.currentExecMode));
+                                  blocked, this.partitionId, this.currentExecMode));
                     LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted",
                               this.partitionId, ts));
                 }
             }
             if (t) LOG.trace(String.format("%s - Queuing ClientResponse [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
-                                           ts, cresponse.getStatus(), before_mode, this.currentExecMode, this.currentDtxn));
+                             ts, cresponse.getStatus(), before_mode, this.currentExecMode, this.currentDtxn));
             this.queueClientResponse(ts, cresponse);
         }
         volt_proc.finish();
@@ -3227,11 +3245,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             String.format("Queuing ClientResponse for %s when in non-specutative mode [mode=%s, status=%s]",
                           ts, this.currentExecMode, cresponse.getStatus());
 
-        // The ClientResponse is already going to be in the LocalTransaction handle
-        // ts.setClientResponse(cresponse);
-        this.queued_responses.add(Pair.of(ts, cresponse));
+        this.specExecBlocked_After.add(Pair.of(ts, cresponse));
 
-        if (d) LOG.debug("Total # of Queued Responses: " + this.queued_responses.size());
+        if (d) LOG.debug("Total # of Queued Responses: " + this.specExecBlocked_After.size());
     }
     
     /**
@@ -3478,6 +3494,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                          ts, this.partitionId, commit));
 
         assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
+
+        // TODO: If the dtxn is committing, then we can let anything and
+        // everything out the door. If it is aborting, then we probably could
+        // be more fine-grained about how we decide what needs to get aborted.
+        boolean commitSpecExec = (ts.isExecReadOnly(this.partitionId) ? true : commit);
+        
+        // STEP #1: Finish any transactions that were speculatively executed *before*
+        // this transaction was finished
+        if (hstore_conf.site.specexec_enable) {
+            this.releaseQueuedResponses(this.specExecBlocked_Before, ts, commitSpecExec, true);
+        }
         
         this.finishWork(ts, commit);
         
@@ -3485,8 +3512,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.queryCache.purgeTransaction(ts.getTransactionId());
         
         // TODO: Remove anything in our queue for this txn
-        if (ts.hasQueuedWork(this.partitionId)) {
-        }
+        // if (ts.hasQueuedWork(this.partitionId)) {
+        // }
         
         // Check whether this is the response that the speculatively executed txns have been waiting for
         // We could have turned off speculative execution mode beforehand 
@@ -3500,9 +3527,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // We can always commit our boys no matter what if we know that this multi-partition txn 
             // was read-only at the given partition
             if (hstore_conf.site.specexec_enable) {
-                if (d) LOG.debug(String.format("Turning off speculative execution mode at partition %d because %s is finished",
-                                 this.partitionId, ts));
-                this.releaseQueuedResponses(ts, ts.isExecReadOnly(this.partitionId) ? true : commit);
+                this.releaseQueuedResponses(this.specExecBlocked_After, ts, commitSpecExec, false);
             }
             // Release blocked transactions
             this.releaseBlockedTransactions(ts);
@@ -3559,22 +3584,26 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * their responses to be sent back to the client
      * @param commit
      */
-    private void releaseQueuedResponses(AbstractTransaction parent_ts, boolean commit) {
+    private void releaseQueuedResponses(final LinkedList<Pair<LocalTransaction, ClientResponseImpl>> queue,
+                                        final AbstractTransaction parent_ts,
+                                        final boolean commit,
+                                        final boolean beforeDtxn) {
         // First thing we need to do is get the latch that will be set by any transaction
         // that was in the middle of being executed when we were called
-        if (d) LOG.debug(String.format("%s - Checking waiting/blocked transactions at partition %d [currentMode=%s]",
-                         parent_ts, this.partitionId, this.currentExecMode));
+        if (d) LOG.debug(String.format("%s - Checking waiting/blocked transactions at partition %d " +
+	                     "[beforeDtxn=%s / currentMode=%s]",
+                         parent_ts, this.partitionId, beforeDtxn, this.currentExecMode));
         
-        if (this.queued_responses.isEmpty()) {
-            if (d) LOG.debug(String.format("%s - No speculative transactions to commit at partition %d. Ignoring...",
-                             parent_ts, this.partitionId));
+        if (queue.isEmpty()) {
+            if (d) LOG.debug(String.format("%s - No speculative transactions to commit at partition %d." +
+            		         "Ignoring... [beforeDtxn=%s]",
+                             parent_ts, this.partitionId, beforeDtxn));
             return;
         }
         
         // Ok now at this point we can access our queue send back all of our responses
-        if (d) LOG.debug(String.format("%s - %s %d speculatively executed transactions on partition %d",
-                                       parent_ts, (commit ? "Commiting" : "Aborting"),
-                                       this.queued_responses.size(), this.partitionId));
+        if (d) LOG.debug(String.format("%s - %s %d speculatively executed transactions on partition %d [beforeDtxn=%s]",
+                         parent_ts, (commit ? "Commiting" : "Aborting"), queue.size(), this.partitionId, beforeDtxn));
 
         // Loop backwards through our queued responses and find the latest txn that 
         // we need to tell the EE to commit. All ones that completed before that won't
@@ -3585,10 +3614,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         boolean ee_commit = true;
         int skip_commit = 0;
         int aborted = 0;
+        boolean pollLast = hstore_conf.site.exec_queued_response_ee_bypass; // FIXME
         
-        while ((pair = (hstore_conf.site.exec_queued_response_ee_bypass ?
-                        this.queued_responses.pollLast() : this.queued_responses.pollFirst())) != null) {
-        
+        while ((pair = (pollLast ? queue.pollLast() : queue.pollFirst())) != null) {
             ts = pair.getFirst();
             cr = pair.getSecond();
             
@@ -3625,7 +3653,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     ts.unmarkExecutedWork(this.partitionId);
                     skip_commit++;
                     
-                } else if (ee_commit && cr.getStatus() == Status.OK) {
+                }
+                else if (ee_commit && cr.getStatus() == Status.OK) {
                     if (t) LOG.trace(String.format("%s - Committing %s but will bypass all other successful transactions " +
                     		         "[undoToken=%d]",
                                      parent_ts, ts, ts.getLastUndoToken(this.partitionId)));
@@ -3639,7 +3668,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     		         "[status=%s]",
                                      parent_ts, ts, cr.getStatus()));
                     hstore_site.responseQueue(ts, cr);
-                } else {
+                }
+                else {
                     if (t) LOG.trace(String.format("%s - Sending queued ClientResponse for %s back directly " +
                     		         "[status=%s]",
                                      parent_ts, ts, cr.getStatus()));
@@ -3796,7 +3826,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             return (PartitionExecutor.this.currentBlockedTxns.size());
         }
         public int getWaitingQueueSize() {
-            return (PartitionExecutor.this.queued_responses.size());
+            return (PartitionExecutor.this.specExecBlocked_After.size());
         }
         public int getWorkQueueSize() {
             return (PartitionExecutor.this.work_queue.size());
