@@ -844,7 +844,7 @@ public final class HStoreConf {
             description="This enables the ability for the MarkovEstimator to cache the end points of " +
             		    "path segments in a MarkovGraph so that it can just quickly identify the " +
             		    "last MarkovVertex for a new batch of queries requested by the transaction.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=true
         )
         public boolean markov_endpoint_caching;

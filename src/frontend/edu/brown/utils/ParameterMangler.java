@@ -28,7 +28,9 @@
 package edu.brown.utils;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.voltdb.VoltType;
 import org.voltdb.catalog.ProcParameter;
@@ -49,7 +51,23 @@ public class ParameterMangler {
     private final ProcParameter params[];
     private final boolean param_isarray[];
 
-    public ParameterMangler(Procedure catalog_proc) {
+    private static final Map<Procedure, ParameterMangler> singletons = new HashMap<Procedure, ParameterMangler>();
+    
+    public static ParameterMangler singleton(Procedure catalog_proc) {
+        ParameterMangler mangler = singletons.get(catalog_proc);
+        if (mangler == null) {
+            synchronized (ParameterMangler.class) {
+                mangler = singletons.get(catalog_proc);
+                if (mangler == null) {
+                    mangler = new ParameterMangler(catalog_proc);
+                    singletons.put(catalog_proc, mangler);
+                }
+            } // SYNCH
+        }
+        return (mangler);
+    }
+    
+    private ParameterMangler(Procedure catalog_proc) {
         this.catalog_proc = catalog_proc;
 
         List<ProcParameter> catalog_params = CatalogUtil.getRegularProcParameters(catalog_proc);

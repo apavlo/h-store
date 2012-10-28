@@ -278,7 +278,7 @@ public class TPCCSimulation {
 
     protected short generatePairedWarehouse(short w_id) {
         int remote_w_id = (w_id % 2 == 0 ? w_id-1 : w_id+1);
-        if (remote_w_id < 0) remote_w_id = parameters.last_warehouse;
+        if (remote_w_id < parameters.starting_warehouse) remote_w_id = parameters.last_warehouse;
         else if (remote_w_id > parameters.last_warehouse) remote_w_id = parameters.starting_warehouse;
         return (short)remote_w_id;
     }

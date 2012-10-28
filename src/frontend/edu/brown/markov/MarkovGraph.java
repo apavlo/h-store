@@ -1,8 +1,10 @@
 package edu.brown.markov;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -11,16 +13,13 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections15.keyvalue.MultiKey;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractGraphElement;
@@ -169,21 +168,6 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     private transient final Map<Statement, Collection<MarkovVertex>> cache_stmtVertices = new HashMap<Statement, Collection<MarkovVertex>>();
     private transient final Map<MarkovVertex, Collection<MarkovVertex>> cache_getSuccessors = new ConcurrentHashMap<MarkovVertex, Collection<MarkovVertex>>();
     
-    @Override
-    public Collection<MarkovVertex> getSuccessors(MarkovVertex vertex) {
-        Collection<MarkovVertex> successors = this.cache_getSuccessors.get(vertex);
-        if (successors == null) {
-            synchronized (this) {
-                successors = this.cache_getSuccessors.get(vertex);
-                if (successors == null) {
-                    successors = super.getSuccessors(vertex);
-                    this.cache_getSuccessors.put(vertex, successors);
-                }
-            } // SYNCH
-        }
-        return (successors);
-    }
-    
     public void buildCache() {
         for (Statement catalog_stmt : this.catalog_proc.getStatements().values()) {
             if (this.cache_stmtVertices.containsKey(catalog_stmt) == false)
@@ -224,6 +208,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         if (e == null) {
             e = new MarkovEdge(this);
             this.addEdge(e, source, dest);
+            this.cache_getSuccessors.remove(source);
         }
         return (e);
     }
@@ -283,12 +268,12 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         MarkovVertex v = null;
         switch (status) {
             case OK:
-                v = this.getCommitVertex();
+                v = this.getSpecialVertex(MarkovVertex.Type.COMMIT);
                 break;
             case ABORT_USER:
             case ABORT_GRACEFUL:
             case ABORT_MISPREDICT:
-                v = this.getAbortVertex();
+                v = this.getSpecialVertex(MarkovVertex.Type.ABORT);
                 break;
             default:
                 // Ignore others
@@ -342,6 +327,22 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
             }
         }
         return null;
+    }
+    
+    @Override
+    public Collection<MarkovVertex> getSuccessors(MarkovVertex vertex) {
+        Collection<MarkovVertex> successors = this.cache_getSuccessors.get(vertex);
+        if (successors == null) {
+            synchronized (vertex) {
+                // getSuccessors() can return null, but ConcurrentHashMap
+                // doesn't allow null values.
+                successors = super.getSuccessors(vertex);
+                if (successors != null) {
+                    this.cache_getSuccessors.put(vertex, successors);
+                }
+            } // SYNCH
+        }
+        return (successors);
     }
     
     /**

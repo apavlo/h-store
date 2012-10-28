@@ -1995,7 +1995,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 boolean ret = this.executors[p].enableSpeculativeExecution(ts);
                 if (d && ret) {
                     spec_cnt++;
-                    LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+                    LOG.trace(String.format("Partition %d - Speculative Execution!", p));
                 }
             }
             if (updated != null) updated.add(p);
@@ -2030,7 +2030,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             ts.setStatus(status);
             
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
-                if (d) LOG.debug(ts + " - Initializing the TransactionCleanupCallback");
+                if (t) LOG.trace(ts + " - Initializing the TransactionCleanupCallback");
                 // TODO(xin): We should not be invoking this callback at the basePartition's site
                 if ( !(ts instanceof MapReduceTransaction && this.isLocalPartition(ts.getBasePartition()))) {
                     cleanup_callback = ts.getCleanupCallback();
@@ -2058,7 +2058,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
             if (ts != null && ts.isPredictSinglePartition() == false && ts.needsFinish(p.intValue())) {
-                if (d) LOG.debug(String.format("%s - Calling finishTransaction on partition %d", ts, p));
+                if (t) LOG.trace(String.format("%s - Calling finishTransaction on partition %d", ts, p));
                 try {
                     this.executors[p.intValue()].queueFinish(ts, status);
                 } catch (Throwable ex) {
@@ -2069,14 +2069,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             // If this is a LocalTransaction, then we want to just decrement their TransactionFinishCallback counter
             else if (finish_callback != null) {
-                if (d) LOG.debug(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
                                  ts, finish_callback.getClass().getSimpleName(), p));
                 finish_callback.decrementCounter(1);
             }
             // If we didn't queue the transaction to be finished at this partition, then we need to make sure
             // that we mark the transaction as finished for this callback
             else if (cleanup_callback != null) {
-                if (d) LOG.debug(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
                                  ts, cleanup_callback.getClass().getSimpleName(), p));
                 cleanup_callback.run(p);
             }
@@ -2524,8 +2524,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (d) LOG.debug(String.format("Txn #%d - Sending back ClientResponse [status=%s]",
-                         cresponse.getTransactionId(), status));
+        if (d) LOG.debug(String.format("Txn #%d - Sending back ClientResponse [status=%s%s]",
+                         cresponse.getTransactionId(), status,
+                         (status == Status.ABORT_UNEXPECTED ? "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
         
         long now = System.currentTimeMillis();
         EstTimeUpdater.update(now);
