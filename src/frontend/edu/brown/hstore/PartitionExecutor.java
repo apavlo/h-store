@@ -2612,18 +2612,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         EstimatorState t_state = ts.getEstimatorState();
-        if (this.localTxnEstimator != null && t_state != null) {
-            boolean isSinglePartition = ts.isPredictSinglePartition();
-            if ((isSinglePartition && hstore_conf.site.markov_singlep_updates) ||
-                (isSinglePartition == false && hstore_conf.site.markov_dtxn_updates)) {
-                if (needs_profiling) ts.profiler.startExecEstimation();
-                try {
-                    this.localTxnEstimator.executeQueries(t_state,
-                                                          planner.getStatements(),
-                                                          plan.getStatementPartitions());
-                } finally {
-                    if (needs_profiling) ts.profiler.stopExecEstimation();
-                }
+        if (this.localTxnEstimator != null && t_state != null && t_state.updatesEnabled()) {
+            if (needs_profiling) ts.profiler.startExecEstimation();
+            try {
+                this.localTxnEstimator.executeQueries(t_state,
+                                                      planner.getStatements(),
+                                                      plan.getStatementPartitions());
+            } finally {
+                if (needs_profiling) ts.profiler.stopExecEstimation();
             }
         }
 
@@ -3520,6 +3516,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     		         "[lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                      ts, this.partitionId,
                                      this.lastCommittedTxnId, undoToken, ts.hasExecutedWork(this.partitionId)));
+                    assert(this.lastCommittedUndoToken < undoToken) :
+                        String.format("Trying to release undoToken %d for %s but it is less than the " +
+                        		      "last undoToken %d at partition %d",
+                                      undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
                     this.ee.releaseUndoToken(undoToken);
                     this.lastCommittedUndoToken = undoToken;
                 }

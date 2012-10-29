@@ -2672,8 +2672,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     LOG.warn(String.format("Unexpected status %s for %s", status, ts));
             } // SWITCH
         } catch (Throwable ex) {
-            LOG.error(String.format("Unexpected error when cleaning up %s transaction %s",
-                      status, ts), ex);
+            LOG.error(String.format("Unexpected error when cleaning up %s transaction %s", status, ts), ex);
             // Pass...
         } finally {
             if (t_state != null && t_estimator != null) {

@@ -375,6 +375,14 @@ public class MarkovEstimator extends TransactionEstimator {
         long end_time = EstTime.currentTimeMillis();
         if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [status=%s]",
                          txn_id, status));
+
+        // If there were no updates while the transaction was running, then
+        // we don't want to try to update the model, because we will end up
+        // connecting the START vertex to the COMMIT vertex, which is not correct
+        if (state.updatesEnabled() == false) {
+            if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
+            return;
+        }
         
         // We need to update the counter information in our MarkovGraph so that we know
         // that the procedure may transition to the ABORT vertex from where ever it was before 
@@ -390,10 +398,6 @@ public class MarkovEstimator extends TransactionEstimator {
         if (next_v == null) {
             if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
             return;
-        }
-        
-        if (current.isStartVertex() && next_v.isCommitVertex()) {
-            throw new ServerFaultException("Trying to connect START->COMMIT", state.getTransactionId());
         }
         
         // If no edge exists to the next vertex, then we need to create one

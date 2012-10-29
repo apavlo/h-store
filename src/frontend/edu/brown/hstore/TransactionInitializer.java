@@ -449,7 +449,14 @@ public class TransactionInitializer {
     }
 
     /**
-     * Initialize the execution properties for a new tansaction
+     * Initialize the execution properties for a new transaction.
+     * This is the important part where we try to figure out:
+     * <ol>
+     *   <li> Where should we execute the transaction (base partition).
+     *   <li> What partitions the transaction will touch.
+     *   <li> Whether the transaction could abort.
+     *   <li> Whether the transaction is read-only.
+     * </ol>
      * @param ts
      * @param client_handle
      * @param base_partition
@@ -578,6 +585,13 @@ public class TransactionInitializer {
                         predict_partitions = t_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = t_estimate.isReadOnlyAllPartitions(this.thresholds);
                         predict_abortable = (predict_partitions.size() == 1 || t_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+                        
+                        if (predict_partitions.size() == 1) {
+                            if (hstore_conf.site.markov_singlep_updates == false) t_state.disableUpdates();
+                        }
+                        else if (hstore_conf.site.markov_dtxn_updates == false) {
+                            t_state.disableUpdates();
+                        }
                         
                         if (d && predict_partitions.isEmpty()) {
                             LOG.warn(String.format("%s - Unexpected empty predicted PartitonSet from %s\n%s",
