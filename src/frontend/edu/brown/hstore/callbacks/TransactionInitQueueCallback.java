@@ -132,7 +132,7 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             // HACK
             // This is a big hack to have the PartitionExecutor block executing
             // single-partition transactions because we now have a new distributed transaction
-            if (hstore_conf.site.specexec_pre_query == false && hstore_site.isLocalPartition(this.base_partition) == false) {
+            if (hstore_conf.site.specexec_pre_query == false) { // && hstore_site.isLocalPartition(this.base_partition) == false) {
                 // Create the transaction handle
                 RemoteTransaction ts = hstore_site.getTransaction(this.txn_id);
                 if (ts == null) {
