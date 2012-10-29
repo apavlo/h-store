@@ -58,6 +58,15 @@ public enum TransactionCounter {
     PREFETCH_LOCAL,
     /** The number of transactions with prefetch queries that were received and prefetched before needed by the sender */
     PREFETCH_REMOTE,
+    
+    // --------------------------------------------------------
+    // Speculative Execution Stall Points
+    // --------------------------------------------------------
+    SPECULATIVE_SP1,
+    SPECULATIVE_SP2,
+    SPECULATIVE_SP3_LOCAL,
+    SPECULATIVE_SP3_REMOTE,
+
     ;
     
     private final Histogram<String> h = new Histogram<String>();

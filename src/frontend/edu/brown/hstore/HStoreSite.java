@@ -1132,7 +1132,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t.start();
         } // FOR
         
-        this.schedulePeriodicWorks();
+        this.initPeriodicWorks();
         
         // Add in our shutdown hook
         // Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
@@ -1187,7 +1187,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Schedule all the periodic works
      */
-    private void schedulePeriodicWorks() {
+    private void initPeriodicWorks() {
         this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
             @Override
             public void runImpl() {
@@ -2630,8 +2630,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     }
                     // We always need to keep track of how many txns we process 
                     // in order to check whether we are hung or not
-                    if (hstore_conf.site.txn_counters || hstore_conf.site.status_kill_if_hung) 
+                    if (hstore_conf.site.txn_counters || hstore_conf.site.status_kill_if_hung) {
                         TransactionCounter.COMPLETED.inc(catalog_proc);
+                        
+                    }
                     break;
                 case ABORT_USER:
                     if (t_estimator != null) {
@@ -2684,9 +2686,28 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
-        // Then update transaction profiling counters
+        // Update additional transaction profiling counters
         if (hstore_conf.site.txn_counters) {
-            if (ts.isSpeculative()) TransactionCounter.SPECULATIVE.inc(catalog_proc);
+            
+            // Speculative Execution Counters
+            if (hstore_conf.site.specexec_enable && ts.isSpeculative()) {
+                TransactionCounter.SPECULATIVE.inc(catalog_proc);
+                switch (ts.getSpeculativeType()) {
+                    case SP1_LOCAL:
+                        TransactionCounter.SPECULATIVE_SP1.inc(catalog_proc);
+                        break;
+                    case SP2_REMOTE:
+                        TransactionCounter.SPECULATIVE_SP2.inc(catalog_proc);
+                        break;
+                    case SP3_LOCAL:
+                        TransactionCounter.SPECULATIVE_SP3_LOCAL.inc(catalog_proc);
+                        break;
+                    case SP3_REMOTE:
+                        TransactionCounter.SPECULATIVE_SP3_REMOTE.inc(catalog_proc);
+                        break;
+                } // SWITCH
+            }
+            
             if (ts.isExecNoUndoBuffer(base_partition)) TransactionCounter.NO_UNDO.inc(catalog_proc);
             if (ts.isSysProc()) {
                 TransactionCounter.SYSPROCS.inc(catalog_proc);

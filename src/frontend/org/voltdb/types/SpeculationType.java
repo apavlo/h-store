@@ -10,7 +10,7 @@ import java.util.Map;
 public enum SpeculationType {
     
     /**
-     * Invalid/null Stall Point
+     * Invalid/null stall point
      */
     NULL,
     /**
@@ -32,7 +32,8 @@ public enum SpeculationType {
      * This stall point occurs on the remote partition while the executor is 
      * waiting for the 2PC-PREPARE acknowledgment from the dtxn's base partition.
      */
-    SP3_REMOTE;
+    SP3_REMOTE,
+    ;
 
     protected static final Map<String, SpeculationType> name_lookup = new HashMap<String, SpeculationType>();
     static {
