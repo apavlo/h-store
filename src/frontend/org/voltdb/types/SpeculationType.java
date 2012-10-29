@@ -19,6 +19,11 @@ public enum SpeculationType {
      */
     SP1_LOCAL,
     /**
+     * This stall point occurs on the base partition while the executor is 
+     * waiting for the 2PC-PREPARE responses from all of the dtxn's remote partitions.
+     */
+    SP3_LOCAL,
+    /**
      * This stall point occurs on the remote partition while the executor
      * is waiting for either a WorkRequest to process or a 2PC message
      */
@@ -27,12 +32,7 @@ public enum SpeculationType {
      * This stall point occurs on the remote partition while the executor is 
      * waiting for the 2PC-PREPARE acknowledgment from the dtxn's base partition.
      */
-    SP3_REMOTE,
-    /**
-     * This stall point occurs on the base partition while the executor is 
-     * waiting for the 2PC-PREPARE responses from all of the dtxn's remote partitions.
-     */
-    SP4_LOCAL;
+    SP3_REMOTE;
 
     protected static final Map<String, SpeculationType> name_lookup = new HashMap<String, SpeculationType>();
     static {

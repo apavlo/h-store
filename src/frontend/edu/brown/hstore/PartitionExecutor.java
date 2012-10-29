@@ -1246,7 +1246,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // LOCAL
         if (this.currentDtxn.getBasePartition() == this.partitionId) {
             if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
-                specType = SpeculationType.SP4_LOCAL;
+                specType = SpeculationType.SP3_LOCAL;
             } else {
                 specType = SpeculationType.SP1_LOCAL;
             }
