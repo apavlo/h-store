@@ -239,6 +239,14 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         }
         return (true);
     }
+    public boolean retainAll(PartitionSet partitions) {
+        for (Integer partition : this) {
+            if (partitions.contains(partition.intValue()) == false) {
+                this.remove(partition.intValue());
+            }
+        }
+        return (true);
+    }
     @Override
     public Iterator<Integer> iterator() {
         return new Itr();

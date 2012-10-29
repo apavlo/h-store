@@ -243,6 +243,9 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.markov_profiling", true);
         builder.setGlobalConfParameter("site.markov_path_caching", true);
         builder.setGlobalConfParameter("site.markov_fast_path", true);
+        builder.setGlobalConfParameter("site.markov_singlep_updates", true);
+        builder.setGlobalConfParameter("site.markov_dtxn_updates", true);
+        builder.setGlobalConfParameter("site.markov_endpoint_caching", false);
 
         // build up a project builder for the TPC-C app
         TPCCProjectBuilder project = new TPCCProjectBuilder();

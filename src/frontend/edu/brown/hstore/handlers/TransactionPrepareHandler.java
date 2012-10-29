@@ -57,13 +57,14 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
             RpcCallback<TransactionPrepareResponse> callback) {
         assert(request.hasTransactionId()) :
             "Got " + request.getClass().getSimpleName() + " without a txn id!";
-        long txn_id = request.getTransactionId();
+        Long txn_id = Long.valueOf(request.getTransactionId());
         if (debug.get())
             LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
         
         // XXX: Check whether this thread safe. I think it is
         this.targetPartitions.clear();
         this.targetPartitions.addAll(request.getPartitionsList());
+        this.targetPartitions.retainAll(hstore_site.getLocalPartitionIds());
         
         hstore_site.transactionPrepare(txn_id, this.targetPartitions);
         assert(this.targetPartitions.isEmpty() == false) :
