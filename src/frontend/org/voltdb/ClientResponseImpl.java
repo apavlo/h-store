@@ -370,6 +370,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         if (this.clusterRoundTripTime > 0) {
             m.put("Cluster RoundTrip Time", this.clusterRoundTripTime + " ms");
         }
+        m.put("Debug", this.debug);
         
         Map<String, Object> inner = new LinkedHashMap<String, Object>();
         for (int i = 0; i < results.length; i++) {

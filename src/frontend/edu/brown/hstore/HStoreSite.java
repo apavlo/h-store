@@ -1861,7 +1861,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(String.format("Starting %s %s on partition %d%s",
                          (singlePartitioned ? "single-partition" : "distributed"),
                          ts, base_partition,
-                         (singlePartitioned ? "[partitions=" + ts.getPredictTouchedPartitions() + "]" : "")));
+                         (singlePartitioned ? "" : " [partitions=" + ts.getPredictTouchedPartitions() + "]")));
         assert(ts.getPredictTouchedPartitions().isEmpty() == false) :
             "No predicted partitions for " + ts + "\n" + ts.debug();
         
