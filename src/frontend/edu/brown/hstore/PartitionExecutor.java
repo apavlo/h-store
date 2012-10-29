@@ -1804,17 +1804,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // need to block the transaction and return back to the queue. This is easier than 
                 // having to set all sorts of crazy locks
                 if (this.currentExecMode == ExecutionMode.DISABLED || hstore_conf.site.specexec_enable == false) {
-                    if (d) LOG.debug(String.format("Blocking single-partition %s until dtxn %s finishes [mode=%s]",
-                                     ts, this.currentDtxn, this.currentExecMode));
+                    if (d) LOG.debug(String.format("%s - Blocking single-partition %s until dtxn finishes [mode=%s]",
+                                     this.currentDtxn, ts, this.currentExecMode));
                     this.blockTransaction(ts);
                     return;
                 }
                 
                 SpeculationType specType = this.calculateSpeculationType();
                 ts.setSpeculative(specType);
-                if (d) LOG.debug(String.format("Marking %s with speculation mode %s on partition %d" +
-                		         "[txnMode=% / dtxn=%s]",
-                                 ts, this.partitionId, specType, before_mode, this.currentDtxn));
+                if (d) LOG.debug(String.format("%s - Speculatively executing %s while waiting for dtxn [%s]",
+                                 this.currentDtxn, ts, specType));
             }
         }
         
@@ -3657,8 +3656,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                          parent_ts, this.partitionId, beforeDtxn, this.currentExecMode));
         
         if (queue.isEmpty()) {
-            if (d) LOG.debug(String.format("%s - No speculative transactions to commit at partition %d." +
-            		         "Ignoring... [beforeDtxn=%s]",
+            if (d) LOG.debug(String.format("%s - No speculative transactions to commit at partition %d [beforeDtxn=%s]",
                              parent_ts, this.partitionId, beforeDtxn));
             return;
         }

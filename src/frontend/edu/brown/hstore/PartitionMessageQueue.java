@@ -62,24 +62,25 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
             Class<?> class0 = msg0.getClass();
             Class<?> class1 = msg1.getClass();
             
-            // (1) Always let the Prepare/Finish TaskMessages go first so that we can release locks
-            boolean isFinish0 = class0.equals(FinishTxnMessage.class);
-            boolean isFinish1 = class1.equals(FinishTxnMessage.class);
-            if (isFinish0 && !isFinish1) return (-1);
-            else if (!isFinish0 && isFinish1) return (1);
-            
+            // (1) Always let PrepareTxnMessage go before anything else
             boolean isPrepare0 = class0.equals(PrepareTxnMessage.class);
             boolean isPrepare1 = class1.equals(PrepareTxnMessage.class);
             if (isPrepare0 && !isPrepare1) return (-1);
             else if (!isPrepare0 && isPrepare1) return (1);
             
-            // (2) Then let a WorkFragmentMessage go before anything else
+            // (2) Followed by FinishTxnMessages
+            boolean isFinish0 = class0.equals(FinishTxnMessage.class);
+            boolean isFinish1 = class1.equals(FinishTxnMessage.class);
+            if (isFinish0 && !isFinish1) return (-1);
+            else if (!isFinish0 && isFinish1) return (1);
+            
+            // (3) Then let a WorkFragmentMessage go before anything else
             boolean isWork0 = class0.equals(WorkFragmentMessage.class);
             boolean isWork1 = class1.equals(WorkFragmentMessage.class);
             if (isWork0 && !isWork1) return (-1);
             else if (!isWork0 && isWork1) return (1);
             
-            // (3) Compare Transaction Ids
+            // (4) If all else fails, then we'll compare Transaction Ids
             boolean isTxn0 = (msg0 instanceof InternalTxnMessage);
             boolean isTxn1 = (msg1 instanceof InternalTxnMessage);
             if (isTxn0) {
