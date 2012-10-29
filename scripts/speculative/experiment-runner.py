@@ -88,7 +88,7 @@ OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 6
 OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
-OPT_GIT_BRANCH = "strangelove"
+OPT_GIT_BRANCH = "conflictsets"
 
 DEFAULT_OPTIONS = {
     "hstore.git_branch": OPT_GIT_BRANCH
@@ -118,7 +118,7 @@ BASE_SETTINGS = {
     #"ec2.client_type":                  "m1.large",
     #"ec2.site_type":                    "m1.xlarge",
     "ec2.change_type":                  True,
-    "ec2.cluster_group":                OPT_GIT_BRANCH,
+    "ec2.cluster_group":                "strangelove", # OPT_GIT_BRANCH,
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
@@ -245,18 +245,25 @@ EXPERIMENT_SETTINGS = {
         "site.memory":                          6144,
         "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 True,
-        "site.specexec_idle":                   False,
-        "site.specexec_markov":                 False,
+        "site.specexec_idle":                   True,
+        "site.specexec_markov":                 True,
+        "site.specexec_pre_query":              True,
         "site.markov_enable":                   True,
+        "site.markov_singlep_updates":          False,
+        "site.markov_dtxn_updates":             True,
+        "site.markov_path_caching":             True,
+        "site.markov_endpoint_caching":         False,
         "site.markov_fixed":                    False,
         "site.exec_force_singlepartitioned":    False,
         "client.count":                         1,
         "client.output_specexec":               True,
         "client.txnrate":                       1500,
-        "client.blocking":                      True,
+        "client.blocking":                      False,
         "client.blocking_concurrent":           2,
         "client.output_response_status":        True,
-        "client.output_basepartitions":         True,
+        "client.output_basepartitions":         False,
+        "client.output_txn_counters":           "txncounters.csv",
+        "client.output_txn_counters_combine":   True,
         "benchmark.warehouse_pairing":          True,
         "benchmark.loadthread_per_warehouse":   False,
     },
@@ -321,7 +328,7 @@ def updateEnv(args, env, benchmark, partitions):
         else:
             markov = "%s.markov.gz" % (benchmark)
         env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
-        env["client.threads_per_host"] = int(partitions/2)
+        env["client.threads_per_host"] = int(partitions*1.5)
         env["benchmark.loadthreads"] = min(16, partitions)
         
     pplan = "%s.lns.pplan" % benchmark

@@ -1967,7 +1967,7 @@ public class BenchmarkController {
         siteParams.putAll(loadedArgs);
         config.clientParameters.putAll(clientParams);
         config.siteParameters.putAll(siteParams);
-        if (debug.get()) LOG.debug("Benchmark Configuration\n" + config.toString());
+        if (trace.get()) LOG.trace("Benchmark Configuration\n" + config.toString());
         
         // ACTUALLY RUN THE BENCHMARK
         BenchmarkController controller = new BenchmarkController(config, catalogContext);

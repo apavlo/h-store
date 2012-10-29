@@ -152,7 +152,7 @@ ENV_DEFAULT = {
     "hstore.partitions":            6,
     "hstore.sites_per_host":        1,
     "hstore.partitions_per_site":   7,
-    "hstore.num_hosts_round_robin": 2,
+    # "hstore.num_hosts_round_robin": 2,
 }
 
 has_rcfile = os.path.exists(env.rcfile)

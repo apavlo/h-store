@@ -3660,8 +3660,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                         final boolean commit) {
         // First thing we need to do is get the latch that will be set by any transaction
         // that was in the middle of being executed when we were called
-        if (d) LOG.debug(String.format("%s - Checking waiting/blocked transactions at partition %d " +
-	                     "[beforeDtxn=%s / currentMode=%s]",
+        if (d) LOG.debug(String.format("%s - Checking waiting/blocked transactions at partition %d [currentMode=%s]",
                          parent_ts, this.partitionId, this.currentExecMode));
         
         if (this.specExecBlocked.isEmpty()) {
