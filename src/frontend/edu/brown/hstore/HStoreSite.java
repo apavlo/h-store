@@ -1958,7 +1958,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (this.isLocalPartition(p) == false) continue;
             
             // Skip if we've already invoked prepared for this txn at this partition
-            if (ts != null && ts.markPrepared(p) == false) {
+            if (ts != null && ts.isMarkedPrepared(p)) {
                 // We have to make sure that we decrement the counter here
                 if (callback != null) callback.decrementCounter(1);
                 if (updated != null) updated.add(p);

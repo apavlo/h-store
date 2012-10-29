@@ -99,6 +99,7 @@ import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
@@ -1118,14 +1119,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             assert(this.currentDtxn.equals(ftask.getTransaction())) :
                 String.format("The current dtxn %s does not match %s given in the %s",
                               this.currentTxn, ftask.getTransaction(), ftask.getClass().getSimpleName());
-            this.enableSpeculativeExecution(this.currentDtxn);
+            this.enableSpeculativeExecution(ftask.getTransaction());
+            ftask.getTransaction().markPrepared(this.partitionId);
         }
         // -------------------------------
         // Finish Transaction
         // -------------------------------
         else if (work instanceof FinishTxnMessage) {
             FinishTxnMessage ftask = (FinishTxnMessage)work;
-            this.finishTransaction(this.currentTxn, (ftask.getStatus() == Status.OK));
+            this.finishTransaction(ftask.getTransaction(), (ftask.getStatus() == Status.OK));
         }
     }
     
@@ -1230,6 +1232,35 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // For now we'll set it back so that we can execute new stuff. Clearing out
         // the queue should enough for now
         this.setExecutionMode(this.currentTxn, origMode);
+    }
+    
+    /**
+     * Figure out the current speculative execution mode for this partition 
+     * @return
+     */
+    private SpeculationType calculateSpeculationType() {
+        assert(this.currentDtxn != null);
+        
+        SpeculationType specType = SpeculationType.NULL;
+        
+        // LOCAL
+        if (this.currentDtxn.getBasePartition() == this.partitionId) {
+            if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
+                specType = SpeculationType.SP4_LOCAL;
+            } else {
+                specType = SpeculationType.SP1_LOCAL;
+            }
+        }
+        // REMOTE
+        else {
+            if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
+                specType = SpeculationType.SP3_REMOTE;
+            } else {
+                specType = SpeculationType.SP2_REMOTE;
+            }
+        }
+
+        return (specType);
     }
 
     /**
@@ -1772,18 +1803,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // HACK: If we are currently under DISABLED mode when we get this, then we just 
                 // need to block the transaction and return back to the queue. This is easier than 
                 // having to set all sorts of crazy locks
-                if (this.currentExecMode == ExecutionMode.DISABLED) {
+                if (this.currentExecMode == ExecutionMode.DISABLED || hstore_conf.site.specexec_enable == false) {
                     if (d) LOG.debug(String.format("Blocking single-partition %s until dtxn %s finishes [mode=%s]",
                                      ts, this.currentDtxn, this.currentExecMode));
                     this.blockTransaction(ts);
                     return;
                 }
                 
-                if (hstore_conf.site.specexec_enable) {
-                    ts.setSpeculative(true);
-                    if (d) LOG.debug(String.format("Marking %s as speculatively executed on partition %d [txnMode=%s, dtxn=%s]",
-                                     ts, this.partitionId, before_mode, this.currentDtxn));
-                }
+                SpeculationType specType = this.calculateSpeculationType();
+                ts.setSpeculative(specType);
+                if (d) LOG.debug(String.format("Marking %s with speculation mode %s on partition %d" +
+                		         "[txnMode=% / dtxn=%s]",
+                                 ts, this.partitionId, specType, before_mode, this.currentDtxn));
             }
         }
         
@@ -3503,9 +3534,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
-        ts.markFinished(this.partitionId);
         if (d) LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
                          ts, (commit ? "commit" : "abort"), this.partitionId));
+        ts.markFinished(this.partitionId);
     }
     
     /**

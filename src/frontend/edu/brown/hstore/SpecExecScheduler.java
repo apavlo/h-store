@@ -144,8 +144,6 @@ public class SpecExecScheduler {
         if (next != null) {
             if (this.profiler != null) this.profiler.success++;
             it.remove();
-            LocalTransaction next_ts = next.getTransaction();
-            next_ts.setSpeculative(true);
             if (debug.get()) 
                 LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }

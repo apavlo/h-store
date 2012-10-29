@@ -52,6 +52,7 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
 
@@ -181,14 +182,14 @@ public class LocalTransaction extends AbstractTransaction {
     private ExecutionState state;
     
     /**
-     * The partitions that we told the Dtxn.Coordinator that we were done with
+     * The partitions that we notified that we are done with them
      */
     private final PartitionSet exec_donePartitions = new PartitionSet();
     
     /**
-     * Whether this txn is being executed specutatively
+     * Whether this txn was speculatively executed
      */
-    private boolean exec_speculative = false;
+    private SpeculationType exec_specExecType = SpeculationType.NULL;
     
     /** 
      * What partitions has this txn touched
@@ -368,7 +369,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.cresponse = null;
         
         this.exec_controlCode = false;
-        this.exec_speculative = false;
+        this.exec_specExecType = SpeculationType.NULL;
         this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
         this.exec_donePartitions.clear();
@@ -902,15 +903,21 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Set the flag that indicates whether this transaction was executed speculatively
      */
-    public void setSpeculative(boolean speculative) {
-        this.exec_speculative = speculative;
+    public void setSpeculative(SpeculationType type) {
+        assert(type != SpeculationType.NULL);
+        assert(this.exec_specExecType == SpeculationType.NULL);
+        this.exec_specExecType = type;
     }
 
     /**
      * Returns true if this transaction was executed speculatively
      */
     public boolean isSpeculative() {
-        return (this.exec_speculative);
+        return (this.exec_specExecType != SpeculationType.NULL);
+    }
+    
+    public SpeculationType getSpeculativeType() {
+        return (this.exec_specExecType);
     }
     
     // ----------------------------------------------------------------------------
@@ -1458,6 +1465,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Deletable", this.deletable);
         m.put("Needs Restart", this.needs_restart);
         m.put("Needs CommandLog", this.log_enabled);
+        m.put("Speculative Execution", this.exec_specExecType);
         m.put("Estimator State", this.getEstimatorState());
         maps.add(m);
 
@@ -1468,7 +1476,6 @@ public class LocalTransaction extends AbstractTransaction {
         // Actual Execution
         if (this.state != null) {
             m.put("Exec Single-Partitioned", this.isExecSinglePartition());
-            m.put("Speculative Execution", this.exec_speculative);
             m.put("Dependency Ctr", this.state.dependency_ctr);
             m.put("Received Ctr", this.state.received_ctr);
             m.put("CountdownLatch", this.state.dependency_latch);

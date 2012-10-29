@@ -80,7 +80,6 @@ public class TestSpecExecScheduler extends BaseTestCase {
         System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
-        assertTrue(ts.isSpeculative());
         assertFalse(this.work_queue.contains(next));
     }
     
@@ -115,7 +114,6 @@ public class TestSpecExecScheduler extends BaseTestCase {
         StartTxnMessage next = this.scheduler.next(this.dtxn);
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
-        assertTrue(ts.isSpeculative());
         assertFalse(this.work_queue.contains(next));
         ts.finish();
         
@@ -127,7 +125,6 @@ public class TestSpecExecScheduler extends BaseTestCase {
         this.work_queue.add(new StartTxnMessage(ts));
         next = this.scheduler.next(this.dtxn);
         assertNull(next);
-        assertFalse(ts.isSpeculative());
         ts.finish();
         
         // Reads aren't allowed either
@@ -138,7 +135,6 @@ public class TestSpecExecScheduler extends BaseTestCase {
         this.work_queue.add(new StartTxnMessage(ts));
         next = this.scheduler.next(this.dtxn);
         assertNull(next);
-        assertFalse(ts.isSpeculative());
         ts.finish();
     }
     
@@ -174,7 +170,6 @@ public class TestSpecExecScheduler extends BaseTestCase {
         StartTxnMessage next = this.scheduler.next(this.dtxn);
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
-        assertTrue(ts.isSpeculative());
         assertFalse(this.work_queue.contains(next));
         ts.finish();
         
@@ -187,7 +182,6 @@ public class TestSpecExecScheduler extends BaseTestCase {
         next = this.scheduler.next(this.dtxn);
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
-        assertTrue(ts.isSpeculative());
         assertFalse(this.work_queue.contains(next));
         ts.finish();
         
@@ -199,7 +193,6 @@ public class TestSpecExecScheduler extends BaseTestCase {
         this.work_queue.add(new StartTxnMessage(ts));
         next = this.scheduler.next(this.dtxn);
         assertNull(next);
-        assertFalse(ts.isSpeculative());
     }
 
 }

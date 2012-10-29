@@ -12,12 +12,12 @@ public enum SpeculationType {
     /**
      * Invalid/null Stall Point
      */
-    INVALID,
+    NULL,
     /**
      * This stall point occurs on the base partition when the
      * transaction is waiting for a WorkResponse from a remote partition.
      */
-    S1_LOCAL,
+    SP1_LOCAL,
     /**
      * This stall point occurs on the remote partition while the executor
      * is waiting for either a WorkRequest to process or a 2PC message
@@ -48,14 +48,14 @@ public enum SpeculationType {
     public static SpeculationType get(int idx) {
         SpeculationType values[] = SpeculationType.values();
         if (idx < 0 || idx >= values.length) {
-            return (SpeculationType.INVALID);
+            return (SpeculationType.NULL);
         }
         return (values[idx]);
     }
 
     public static SpeculationType get(String name) {
         SpeculationType ret = SpeculationType.name_lookup.get(name.toLowerCase());
-        return (ret == null ? SpeculationType.INVALID : ret);
+        return (ret == null ? SpeculationType.NULL : ret);
     }
 
 }
