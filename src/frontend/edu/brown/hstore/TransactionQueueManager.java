@@ -423,11 +423,15 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         return (txn_released);
     }
     
-    protected TransactionInitQueueCallback getTransactionInitQueueCallback(Long txn_id, PartitionSet partitions, RpcCallback<TransactionInitResponse> callback) {
+    protected TransactionInitQueueCallback getTransactionInitQueueCallback(Long txn_id,
+                                                                           PartitionSet partitions,
+                                                                           int base_partition,
+                                                                           int procedure_id,
+                                                                           RpcCallback<TransactionInitResponse> callback) {
         TransactionInitQueueCallback wrapper = null;
         try {
             wrapper = hstore_site.getObjectPools().CALLBACKS_TXN_INITQUEUE.borrowObject();
-            wrapper.init(txn_id, partitions, callback);
+            wrapper.init(txn_id, partitions, base_partition, procedure_id, callback);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -447,13 +451,22 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param sysproc TODO
      * @return
      */
-    public boolean lockQueueInsert(Long txn_id, PartitionSet partitions, RpcCallback<TransactionInitResponse> callback, boolean sysproc) {
+    public boolean lockQueueInsert(Long txn_id,
+                                   PartitionSet partitions,
+                                   int base_partition,
+                                   int procedure_id,
+                                   RpcCallback<TransactionInitResponse> callback,
+                                   boolean sysproc) {
         if (d) LOG.debug(String.format("Adding new txn #%d into lockQueue [partitions=%s]",
                          txn_id, partitions));
         
         // Wrap the callback around a TransactionInitWrapperCallback that will wait until
         // our HStoreSite gets an acknowledgment from all the ...
-        final TransactionInitQueueCallback wrapper = this.getTransactionInitQueueCallback(txn_id, partitions, callback);
+        final TransactionInitQueueCallback wrapper = this.getTransactionInitQueueCallback(txn_id,
+                                                                                          partitions, 
+                                                                                          base_partition,
+                                                                                          procedure_id,
+                                                                                          callback);
         
         boolean should_notify = false;
         boolean ret = true;

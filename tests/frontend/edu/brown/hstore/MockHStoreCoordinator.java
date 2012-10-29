@@ -103,7 +103,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         @Override
         public void transactionInit(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
-            txnQueueManager.lockQueueInsert(request.getTransactionId(), new PartitionSet(request.getPartitionsList()), done, false);
+            txnQueueManager.lockQueueInsert(request.getTransactionId(),
+                                            new PartitionSet(request.getPartitionsList()),
+                                            request.getBasePartition(),
+                                            request.getProcedureId(),
+                                            done,
+                                            false);
         }
 
         @Override

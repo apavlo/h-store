@@ -3,6 +3,9 @@ package edu.brown.hstore;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
+import org.voltdb.VoltProcedure;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 
 import com.google.protobuf.RpcCallback;
@@ -19,9 +22,11 @@ import edu.brown.utils.ThreadUtil;
 public class TestTransactionQueueManager extends BaseTestCase {
 
     private static final int NUM_PARTITONS = 4;
+    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     
     HStoreSite hstore_site;
     HStoreConf hstore_conf;
+    Procedure catalog_proc;
     TransactionQueueManager queue;
     TransactionQueueManager.Debug dbg;
     
@@ -50,6 +55,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         this.hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, HStoreConf.singleton());
         this.queue = new TransactionQueueManager(hstore_site);
         this.dbg = this.queue.getDebugContext();
+        this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
     }
     
     /**
@@ -66,7 +72,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         // Insert the txn into our queue and then call check
         // This should immediately release our transaction and invoke the inner_callback
-        assertTrue(this.queue.lockQueueInsert(txn_id, partitions, inner_callback, false));
+        assertTrue(this.queue.lockQueueInsert(txn_id, partitions, 0, catalog_proc.getId(), inner_callback, false));
         
         int tries = 10;
         while (dbg.isLockQueuesEmpty() == false && tries-- > 0) {
@@ -95,8 +101,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         // insert the higher ID first but make sure it comes out second
         assertFalse(queue.checkLockQueues());
-        assertTrue(this.queue.lockQueueInsert(txn_id1, partitions1, inner_callback1, false));
-        assertTrue(this.queue.lockQueueInsert(txn_id0, partitions0, inner_callback0, false));
+        assertTrue(this.queue.lockQueueInsert(txn_id1, partitions1, 0, catalog_proc.getId(), inner_callback1, false));
+        assertTrue(this.queue.lockQueueInsert(txn_id0, partitions0, 0, catalog_proc.getId(), inner_callback0, false));
         
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
         assertTrue(queue.checkLockQueues());
@@ -141,9 +147,9 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final MockCallback inner_callback1 = new MockCallback();
         final MockCallback inner_callback2 = new MockCallback();
         
-        this.queue.lockQueueInsert(txn_id0, partitions0, inner_callback0, false);
-        this.queue.lockQueueInsert(txn_id1, partitions1, inner_callback1, false);
-        this.queue.lockQueueInsert(txn_id2, partitions2, inner_callback2, false);
+        this.queue.lockQueueInsert(txn_id0, partitions0, 0, catalog_proc.getId(), inner_callback0, false);
+        this.queue.lockQueueInsert(txn_id1, partitions1, 0, catalog_proc.getId(), inner_callback1, false);
+        this.queue.lockQueueInsert(txn_id2, partitions2, 0, catalog_proc.getId(), inner_callback2, false);
         
         // Both of the first two disjoint txns should be released on the same call to checkQueues()
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
@@ -187,8 +193,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
         
-        this.queue.lockQueueInsert(txn_id0, partitions0, inner_callback0, false);
-        this.queue.lockQueueInsert(txn_id1, partitions1, inner_callback1, false);
+        this.queue.lockQueueInsert(txn_id0, partitions0, 0, catalog_proc.getId(), inner_callback0, false);
+        this.queue.lockQueueInsert(txn_id1, partitions1, 0, catalog_proc.getId(), inner_callback1, false);
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
         
         // We should get the callback for the first txn right away

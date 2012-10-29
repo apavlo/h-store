@@ -32,6 +32,8 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
+import edu.brown.hstore.internal.PrepareTxnMessage;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
@@ -50,12 +52,14 @@ public class RemoteTransaction extends AbstractTransaction {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    private final SetDistributedTxnMessage dtxn_task;
     private final TransactionWorkCallback work_callback;
     private final TransactionCleanupCallback cleanup_callback;
     private final ProtoRpcController rpc_transactionPrefetch[];
     
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
+        this.dtxn_task = new SetDistributedTxnMessage(this);
         this.work_callback = new TransactionWorkCallback(hstore_site);
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
         
@@ -106,6 +110,10 @@ public class RemoteTransaction extends AbstractTransaction {
         assert(this.work_callback != null) :
             "No FragmentTaskMessage callbacks available for txn #" + this.txn_id;
         super.startRound(partition);
+    }
+    
+    public SetDistributedTxnMessage getSetDistributedTxnMessage() {
+        return (this.dtxn_task);
     }
     
     /**

@@ -1839,11 +1839,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions The list of partitions that this transaction needs to access
      * @param callback
      */
-    public void transactionInit(Long txn_id, int procedureId, PartitionSet partitions, RpcCallback<TransactionInitResponse> callback) {
+    public void transactionInit(Long txn_id,
+                                int procedureId,
+                                PartitionSet partitions,
+                                int base_partition,
+                                RpcCallback<TransactionInitResponse> callback) {
         Procedure catalog_proc = catalogContext.getProcedureById(procedureId);
         
         // We should always force a txn from a remote partition into the queue manager
-        this.txnQueueManager.lockQueueInsert(txn_id, partitions, callback, catalog_proc.getSystemproc());
+        this.txnQueueManager.lockQueueInsert(txn_id, partitions, base_partition, procedureId, callback, catalog_proc.getSystemproc());
     }
 
     /**

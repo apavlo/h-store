@@ -133,6 +133,7 @@ import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
@@ -1111,10 +1112,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                               this.currentTxn, this.currentDtxn);
             this.setExecutionMode(this.currentTxn, newMode);
             this.processWorkFragment(this.currentTxn, fragment, parameters);
+        }
+        // -------------------------------
+        // Set Distributed Transaction Hack
+        // -------------------------------
+        else if (work instanceof SetDistributedTxnMessage) {
+            assert(hstore_conf.site.specexec_pre_query == false);
+            this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
+        }
         // -------------------------------
         // Prepare Transaction
         // -------------------------------
-        } else if (work instanceof PrepareTxnMessage) {
+        else if (work instanceof PrepareTxnMessage) {
             PrepareTxnMessage ftask = (PrepareTxnMessage)work;
 //            assert(this.currentDtxn.equals(ftask.getTransaction())) :
 //                String.format("The current dtxn %s does not match %s given in the %s",
@@ -1546,6 +1555,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (debug.get()) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
                                    this.partitionId, work));
         this.utility_queue.offer(work);
+    }
+    
+    /**
+     * Put a new SetDistributedTxnMessage in for the transaction 
+     * @param work
+     */
+    public void queueInitDtxn(RemoteTransaction ts) {
+        assert(ts.isInitialized());
+        SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
+        boolean success = this.work_queue.offer(work);
+        assert(success);
+        if (d) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
+                         work.getTransaction(), work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
     
     /**

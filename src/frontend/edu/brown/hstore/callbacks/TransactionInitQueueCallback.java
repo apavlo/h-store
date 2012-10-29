@@ -12,11 +12,15 @@ import org.voltdb.messaging.FastDeserializer;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.PartitionExecutorProfiler;
@@ -39,7 +43,9 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             
     private TransactionInitResponse.Builder builder = null;
     private PartitionSet partitions = null;
-    private final boolean prefetch; 
+    private int base_partition;
+    private int procedure_id;
+    private final boolean prefetch;
     private final FastDeserializer fd = new FastDeserializer(new byte[0]);
     
     // ----------------------------------------------------------------------------
@@ -53,6 +59,8 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     
     public void init(Long txn_id,
                      PartitionSet partitions,
+                     int base_partition,
+                     int procedure_id,
                      RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
@@ -63,12 +71,14 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         
         // Only include local partitions
         int counter = 0;
-        for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
-            if (partitions.contains(p.intValue())) counter++;
+        for (int p : this.hstore_site.getLocalPartitionIds().values()) { // One less iterator :-)
+            if (partitions.contains(p)) counter++;
         } // FOR
         assert(counter > 0) : String.format("InitPartitions:%s / LocalPartitions:%s", 
                                             partitions, this.hstore_site.getLocalPartitionIds());
         this.partitions = partitions;
+        this.base_partition = base_partition;
+        this.procedure_id = procedure_id;
         this.builder = TransactionInitResponse.newBuilder()
                              .setTransactionId(txn_id.longValue())
                              .setStatus(Status.OK);
@@ -79,7 +89,7 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
      * All of the partitions that this transaction needs (including remote)
      * @return
      */
-    public Collection<Integer> getPartitions() {
+    public PartitionSet getPartitions() {
         return (this.partitions);
     }
     
@@ -88,6 +98,7 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         if (debug.get()) LOG.debug(String.format("Txn #%d - Clearing out %s",
                                    this.getTransactionId(), this.builder.getClass().getSimpleName()));
         this.builder = null;
+        this.base_partition = HStoreConstants.NULL_PARTITION_ID;
     }
     
     @Override
@@ -117,6 +128,27 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
                               builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
             assert(this.getOrigCallback() != null) :
                 String.format("The original callback for txn #%d is null!", this.getTransactionId());
+            
+            // HACK
+            // This is a big hack to have the PartitionExecutor block executing
+            // single-partition transactions because we now have a new distributed transaction
+            if (hstore_conf.site.specexec_pre_query == false && hstore_site.isLocalPartition(this.base_partition) == false) {
+                // Create the transaction handle
+                RemoteTransaction ts = hstore_site.getTransaction(this.txn_id);
+                if (ts == null) {
+                    ts = hstore_site.getTransactionInitializer()
+                                    .createRemoteTransaction(this.txn_id,
+                                                             this.base_partition,
+                                                             this.procedure_id);
+                }
+                
+            	for (int p: this.hstore_site.getLocalPartitionIds().values()) {
+            		if (this.partitions.contains(p)) {
+            		    this.hstore_site.getPartitionExecutor(p).queueInitDtxn(ts);
+            		}
+            	} // FOR
+            } 
+            
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
             
