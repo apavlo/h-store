@@ -1129,7 +1129,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         else if (work instanceof FinishTxnMessage) {
             FinishTxnMessage ftask = (FinishTxnMessage)work;
-            this.finishTransaction(ftask.getTransaction(), (ftask.getStatus() == Status.OK));
+            this.finishDistributedTransaction(ftask.getTransaction(), (ftask.getStatus() == Status.OK));
         }
     }
     
@@ -3356,7 +3356,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // We don't want to delete the transaction here because whoever is going to requeue it for
             // us will need to know what partitions that the transaction touched when it executed before
             if (ts.isPredictSinglePartition()) {
-                this.finishWork(ts, false);
+                this.finishTransaction(ts, false);
                 this.hstore_site.transactionRequeue(ts, status);
             }
             // Send a message all the partitions involved that the party is over
@@ -3380,7 +3380,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         else if (ts.isPredictSinglePartition()) {
             // Commit or abort the transaction
-            this.finishWork(ts, (status == Status.OK));
+            this.finishTransaction(ts, (status == Status.OK));
             
             // Use the separate post-processor thread to send back the result
             if (hstore_conf.site.exec_postprocessing_threads) {
@@ -3466,11 +3466,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     }
         
     /**
-     * Internal call to abort/commit the transaction
+     * Internal call to abort/commit the transaction down in the execution engine
      * @param ts
      * @param commit
      */
-    private void finishWork(AbstractTransaction ts, boolean commit) {
+    private void finishTransaction(AbstractTransaction ts, boolean commit) {
         assert(ts != null) :
             "Unexpected null transaction handle at partition " + this.partitionId;
         assert(ts.isInitialized()) :
@@ -3512,12 +3512,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
                 // COMMIT!
                 if (commit) {
-                    if (d) LOG.debug(String.format("%s - Committing on partition=%d " +
-                    		         "[lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                     ts, this.partitionId,
-                                     this.lastCommittedTxnId, undoToken, ts.hasExecutedWork(this.partitionId)));
+                    if (d) LOG.debug(String.format("%s - Committing txn on partition %d with undoToken %d " +
+                		             "[lastTxnId=%d / lastUndoToken=%d]",
+                                     ts, this.partitionId, undoToken,
+                                     this.lastCommittedTxnId, this.lastCommittedUndoToken));
+                    
                     assert(this.lastCommittedUndoToken < undoToken) :
-                        String.format("Trying to release undoToken %d for %s but it is less than the " +
+                        String.format("Trying to commit undoToken %d for %s but it is less than the " +
                         		      "last undoToken %d at partition %d",
                                       undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
                     this.ee.releaseUndoToken(undoToken);
@@ -3530,10 +3531,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     // it will automagically rollback all other outstanding txns.
                     // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
                     // we should be able to check whether our undoToken has already been rolled back
-                    if (d) LOG.debug(String.format("%s - Aborting on partition=%d " +
-                    		         "[lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                     ts, this.partitionId,
-                                     this.lastCommittedTxnId, undoToken, ts.hasExecutedWork(this.partitionId)));
+                    if (d) LOG.debug(String.format("%s - Aborting txn on partition %d with undoToken %d " +
+                                     "[lastTxnId=%d / lastUndoToken=%d]",
+                                     ts, this.partitionId, undoToken,
+                                     this.lastCommittedTxnId, this.lastCommittedUndoToken));
                     this.ee.undoUndoToken(undoToken);
                 }
                 if (needs_profiling) ((LocalTransaction)ts).profiler.stopPostEE();
@@ -3561,7 +3562,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param txn_id
      * @param commit If true, the work performed by this txn will be commited. Otherwise it will be aborted
      */
-    private void finishTransaction(AbstractTransaction ts, boolean commit) {
+    private void finishDistributedTransaction(AbstractTransaction ts, boolean commit) {
         if (this.currentDtxn != ts) {  
             if (d) LOG.debug(String.format("%s - Skipping finishWork request at partition %d because it is not the current Dtxn [%s/undoToken=%d]",
                              ts, this.partitionId, this.currentDtxn, ts.getLastUndoToken(partitionId)));
@@ -3577,7 +3578,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // be more fine-grained about how we decide what needs to get aborted.
         boolean commitSpecExec = (ts.isExecReadOnly(this.partitionId) ? true : commit);
         
-        this.finishWork(ts, commit);
+        this.finishTransaction(ts, commit);
         
         // Clear our cached query results that are specific for this transaction
         this.queryCache.purgeTransaction(ts.getTransactionId());
@@ -3724,6 +3725,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (t) LOG.trace(String.format("%s - Bypassing EE commit for %s because its undo token is before " +
                 		         "the last committed token [%d < %d]",
                                  parent_ts, ts, undoToken, this.lastCommittedTxnId));
+                ts.unmarkExecutedWork(this.partitionId);
                 skip_ctr++;
             }
             // OPTIMIZATION

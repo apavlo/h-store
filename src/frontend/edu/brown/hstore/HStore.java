@@ -193,7 +193,8 @@ public abstract class HStore {
                 }
             }
             if (first && t_estimator != null) {
-                LOG.info("All requests will be processed with " + t_estimator.getClass().getSimpleName());
+                LOG.info(String.format("All incoming txn requests will be processed with %s at this site",
+                         t_estimator.getClass().getSimpleName()));
             }
 
             // setup the EE
