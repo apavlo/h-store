@@ -16,6 +16,8 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -117,6 +119,17 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
                               builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
             assert(this.getOrigCallback() != null) :
                 String.format("The original callback for txn #%d is null!", this.getTransactionId());
+            
+            if (hstore_conf.site.specexec_pre_query) {
+            	for (Integer p: this.hstore_site.getLocalPartitionIdArray()) {
+            		if (this.partitions.contains(p)) {
+            			AbstractTransaction atxn = hstore_site.getTransaction(this.txn_id);
+            			SetDistributedTxnMessage dtm = new SetDistributedTxnMessage(atxn);
+            			//this.hstore_site.transactionWork(atxn, dtm);
+            		}
+            	}
+            } 
+            
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
             

@@ -151,6 +151,13 @@ public final class HStoreConf {
         public boolean cpu_affinity;
         
         @ConfigProperty(
+                description= "CPU cores than partitions, then this option will be disabled. ",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean specexec_pre_query;
+        
+        @ConfigProperty(
             description="When used in conjunction with ${site.cpu_affinity}, each PartitionExecutor thread will be " +
                         "assigned to one and only CPU core. No other thread within the HStoreSite (including all " +
                         "other PartitionExecutors) will be allowed to execute on that core. This configuration " +

@@ -131,6 +131,7 @@ import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
@@ -982,6 +983,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         else if (work instanceof PotentialSnapshotWorkMessage) {
             m_snapshotter.doSnapshotWork(ee);
+        }
+        // -------------------------------
+        // SetDistributedTxnMessage work
+        // -------------------------------
+        else if (work instanceof SetDistributedTxnMessage) {
+            this.currentTxn = ((SetDistributedTxnMessage)work).getTransaction();
         }
         // -------------------------------
         // BAD MOJO!
