@@ -171,8 +171,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     public TransactionQueueManager(HStoreSite hstore_site) {
         CatalogContext catalogContext = hstore_site.getCatalogContext();
-        Integer allPartitions[] = catalogContext.getAllPartitionIdArray();
-        int num_partitions = allPartitions.length;
+        PartitionSet allPartitions = catalogContext.getAllPartitionIds();
+        int num_partitions = allPartitions.size();
         
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
@@ -184,7 +184,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         this.updateConf(this.hstore_conf);
         
         // Allocate transaction queues
-        for (int partition : allPartitions) {
+        for (int partition : allPartitions.values()) {
             this.lockQueuesLastTxn[partition] = -1l;
             if (this.hstore_site.isLocalPartition(partition)) {
                 this.lockQueues[partition] = new TransactionInitPriorityQueue(hstore_site, partition, this.wait_time);

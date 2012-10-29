@@ -276,10 +276,10 @@ public class TPCCSimulation {
         return w_id;
     }
 
-    protected short generatePairedWarehouse(short w_id) {
+    public static short generatePairedWarehouse(int w_id, int starting_warehouse, int last_warehouse) {
         int remote_w_id = (w_id % 2 == 0 ? w_id-1 : w_id+1);
-        if (remote_w_id < parameters.starting_warehouse) remote_w_id = parameters.last_warehouse;
-        else if (remote_w_id > parameters.last_warehouse) remote_w_id = parameters.starting_warehouse;
+        if (remote_w_id < starting_warehouse) remote_w_id = last_warehouse;
+        else if (remote_w_id > last_warehouse) remote_w_id = starting_warehouse;
         return (short)remote_w_id;
     }
     
@@ -354,7 +354,7 @@ public class TPCCSimulation {
         } else {
             // 15%: paying through another warehouse:
             if (config.warehouse_pairing) {
-                c_w_id = this.generatePairedWarehouse(w_id);
+                c_w_id = generatePairedWarehouse(w_id, parameters.starting_warehouse, parameters.last_warehouse);
             }
             else if (config.payment_multip_remote) {
                 c_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int)w_id);
@@ -410,7 +410,7 @@ public class TPCCSimulation {
             if (parameters.warehouses > 1 && remote) {
                 short remote_w_id;
                 if (config.warehouse_pairing) {
-                    remote_w_id = this.generatePairedWarehouse(warehouse_id);
+                    remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
                 }
                 else {
                     remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
@@ -433,7 +433,7 @@ public class TPCCSimulation {
                 int idx = generator.number(0, ol_cnt-1);
                 short remote_w_id;
                 if (config.warehouse_pairing) {
-                    remote_w_id = this.generatePairedWarehouse(warehouse_id);
+                    remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
                 }
                 if (config.neworder_multip_remote) {
                 	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);

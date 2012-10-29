@@ -1858,10 +1858,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         
-        if (d) LOG.debug(String.format("Starting %s %s on partition %d " +
-                         "[partitions=%s]",
+        if (d) LOG.debug(String.format("Starting %s %s on partition %d%s",
                          (singlePartitioned ? "single-partition" : "distributed"),
-                         ts, base_partition, ts.getPredictTouchedPartitions()));
+                         ts, base_partition,
+                         (singlePartitioned ? "[partitions=" + ts.getPredictTouchedPartitions() + "]" : "")));
         assert(ts.getPredictTouchedPartitions().isEmpty() == false) :
             "No predicted partitions for " + ts + "\n" + ts.debug();
         
@@ -1940,68 +1940,48 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions
      * @param updated
      */
-    public void transactionPrepare(Long txn_id, PartitionSet partitions, PartitionSet updated) {
+    public void transactionPrepare(Long txn_id, PartitionSet partitions) {
         if (d) LOG.debug(String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
         
-        // We could have been asked to participate in a distributed transaction but
-        // they never actually sent us anything, so we should just tell the queue manager
-        // that the txn is done. There is nothing that we need to do at the PartitionExecutors
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
-        TransactionPrepareCallback callback = null;
         if (ts instanceof LocalTransaction) {
-            callback = ((LocalTransaction)ts).getOrInitTransactionPrepareCallback();
-            if (callback.isInitialized() == false) callback = null;
+            ((LocalTransaction)ts).getOrInitTransactionPrepareCallback();
         }
         
-        int spec_cnt = 0;
-        for (int p : partitions) {
-            if (this.isLocalPartition(p) == false) continue;
-            
-            // Skip if we've already invoked prepared for this txn at this partition
-            if (ts != null && ts.isMarkedPrepared(p)) {
-                // We have to make sure that we decrement the counter here
-                if (callback != null) callback.decrementCounter(1);
-                if (updated != null) updated.add(p);
-                if (d) LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, p));
-                continue;
+        for (int p : this.local_partitions.values()) {
+            if (partitions.contains(p) == false) continue;
+
+            // We could have been asked to participate in a distributed transaction but
+            // they never actually sent us anything, so we should just tell the queue manager
+            // that the txn is done. There is nothing that we need to do at the PartitionExecutors
+            if (ts == null) {
+                if (t) LOG.trace(String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
+                this.txnQueueManager.lockQueueFinished(txn_id, Status.OK, p);
             }
-            
-            if (hstore_conf.site.exec_profiling && ts != null && p != ts.getBasePartition() && ts.needsFinish(p)) {
-                PartitionExecutorProfiler pep = this.executors[p].getProfiler();
-                assert(pep != null);
-                pep.idle_2pc_remote_time.start();
-            }
-            
-            // Always tell the queue stuff that the transaction is finished at this partition
-            if (t) LOG.trace(String.format("Telling queue manager that txn #%d is finished at partition %d",
-                             txn_id, p));
-            this.txnQueueManager.lockQueueFinished(txn_id, Status.OK, p);
-            
-            // TODO: If this txn is read-only, then we should invoke finish right here
-            // Because this txn didn't change anything at this partition, we should
-            // release all of its locks and immediately allow the partition to execute
-            // transactions without speculative execution. We sort of already do that
-            // because we will allow spec exec read-only txns to commit immediately 
-            // but it would reduce the number of messages that the base partition needs
-            // to wait for when it does the 2PC:FINISH
-            // Berstein's book says that most systems don't actually do this because a txn may 
-            // need to execute triggers... but since we don't have any triggers we can do it!
-            // More Info: https://github.com/apavlo/h-store/issues/31
-            // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
-            // for this partition
-            if (ts != null) {
-                this.executors[p].queuePrepare(ts);
-                if (d) {
-                    spec_cnt++;
-                    LOG.trace(String.format("Partition %d - Speculative Execution!", p));
+            // Otherwise we are going queue a PrepareTxnMessage at each of the partitions that 
+            // this txn is using and let them deal with it.
+            else {
+                if (hstore_conf.site.exec_profiling && p != ts.getBasePartition() && ts.needsFinish(p)) {
+                    PartitionExecutorProfiler pep = this.executors[p].getProfiler();
+                    assert(pep != null);
+                    pep.idle_2pc_remote_time.start();
                 }
+                
+                // TODO: If this txn is read-only, then we should invoke finish right here
+                // Because this txn didn't change anything at this partition, we should
+                // release all of its locks and immediately allow the partition to execute
+                // transactions without speculative execution. We sort of already do that
+                // because we will allow spec exec read-only txns to commit immediately 
+                // but it would reduce the number of messages that the base partition needs
+                // to wait for when it does the 2PC:FINISH
+                // Berstein's book says that most systems don't actually do this because a txn may 
+                // need to execute triggers... but since we don't have any triggers we can do it!
+                // More Info: https://github.com/apavlo/h-store/issues/31
+                // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
+                // for this partition
+                this.executors[p].queuePrepare(ts);
             }
-            if (updated != null) updated.add(p);
-            if (callback != null) callback.decrementCounter(1);
         } // FOR
-        if (d && spec_cnt > 0)
-            LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d",
-                      spec_cnt, txn_id));
     }
     
     /**

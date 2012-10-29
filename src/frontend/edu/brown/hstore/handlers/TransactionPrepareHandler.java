@@ -29,7 +29,6 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
      * XXX: I think this is thread safe
      */
     private final PartitionSet targetPartitions = new PartitionSet();
-    private final PartitionSet updatedPartitions = new PartitionSet();
     
     public TransactionPrepareHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
         super(hstore_site, hstore_coord);
@@ -39,7 +38,7 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
     public void sendLocal(Long txn_id, TransactionPrepareRequest request, PartitionSet partitions, RpcCallback<TransactionPrepareResponse> callback) {
         // We don't care whether we actually updated anybody locally, so we don't need to
         // pass in a set to get the partitions that were updated here.
-        hstore_site.transactionPrepare(txn_id, partitions, null);
+        hstore_site.transactionPrepare(txn_id, partitions);
     }
     @Override
     public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionPrepareRequest request, RpcCallback<TransactionPrepareResponse> callback) {
@@ -65,17 +64,16 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         // XXX: Check whether this thread safe. I think it is
         this.targetPartitions.clear();
         this.targetPartitions.addAll(request.getPartitionsList());
-        this.updatedPartitions.clear();
         
-        hstore_site.transactionPrepare(txn_id, this.targetPartitions, this.updatedPartitions);
-        assert(this.updatedPartitions.isEmpty() == false) :
+        hstore_site.transactionPrepare(txn_id, this.targetPartitions);
+        assert(this.targetPartitions.isEmpty() == false) :
             "Unexpected empty list of updated partitions for txn #" + txn_id;
         
-        if (debug.get()) LOG.debug(String.format("Finished PREPARE phase for txn #%d [updatedPartitions=%s]",
-                                   txn_id, this.updatedPartitions));
+        if (debug.get()) LOG.debug(String.format("Finished PREPARE phase for txn #%d [partitions=%s]",
+                                   txn_id, this.targetPartitions));
         TransactionPrepareResponse response = TransactionPrepareResponse.newBuilder()
                                                                .setTransactionId(txn_id)
-                                                               .addAllPartitions(this.updatedPartitions)
+                                                               .addAllPartitions(this.targetPartitions)
                                                                .setStatus(Hstoreservice.Status.OK)
                                                                .build();
         callback.run(response);
