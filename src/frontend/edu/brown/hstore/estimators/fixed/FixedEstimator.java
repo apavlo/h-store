@@ -113,6 +113,11 @@ public abstract class FixedEstimator extends TransactionEstimator {
         public PartitionSet getTouchedPartitions(EstimationThresholds t) {
             return (this.partitions);
         }
+        
+        @Override
+        public long getExecutionTime() {
+            return Long.MAX_VALUE;
+        }
 
         // ----------------------------------------------------------------------------
         // QUERIES

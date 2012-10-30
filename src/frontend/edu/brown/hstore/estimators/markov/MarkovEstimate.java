@@ -437,6 +437,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
+    @Override
     public long getExecutionTime() {
         return time;
     }

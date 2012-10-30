@@ -37,6 +37,14 @@ public interface Estimate extends Poolable {
      */
     public PartitionSet getTouchedPartitions(EstimationThresholds t);
     
+    /**
+     * Return the amount of time (in ms) that this txn will take before
+     * it commits or aborts. If the estimate can't provide this information,
+     * then the returned value will be Long.MAX_VALUE.
+     * @return
+     */
+    public long getExecutionTime();
+    
     // ----------------------------------------------------------------------------
     // QUERIES
     // ----------------------------------------------------------------------------

@@ -107,8 +107,9 @@ DEBUG_SITE_LOGGING = [
     "edu.brown.hstore.TransactionQueueManager"
 ]
 DEBUG_CLIENT_LOGGING = [
-    "edu.brown.api.BenchmarkComponent",
-    "edu.brown.api.BenchmarkController",
+    #"edu.brown.api.BenchmarkComponent",
+    #"edu.brown.api.BenchmarkController",
+    #"org.voltdb.benchmark.tpcc",
 ]
 
 BASE_SETTINGS = {
@@ -241,8 +242,8 @@ EXPERIMENT_SETTINGS = {
         "client.output_txn_profiling":          "txnprofile.csv",
     },
     "specexec": {
-        "ec2.site_type":                       "c1.xlarge",
-        "site.memory":                          6144,
+        "ec2.site_type":                       "m2.4xlarge", # c1.xlarge",
+        "site.memory":                          20480, # 6144,
         "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 True,
         "site.specexec_idle":                   True,
@@ -264,12 +265,17 @@ EXPERIMENT_SETTINGS = {
         "client.output_basepartitions":         False,
         "client.output_txn_counters":           "txncounters.csv",
         "client.output_txn_counters_combine":   True,
-        "benchmark.warehouse_pairing":          True,
+        "benchmark.warehouse_pairing":          False,
         "benchmark.loadthread_per_warehouse":   False,
     },
 }
 EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
 
+EXPERIMENT_SETTINGS['specexec-base'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
+for k, v in EXPERIMENT_SETTINGS['specexec-base'].iteritems():
+    if isinstance(v, bool) and (k.startswith("site.markov_") or k.startswith("site.specexec_")):
+        EXPERIMENT_SETTINGS['specexec-base'][k] = False
+## FOR
 
 ## ==============================================
 ## updateEnv

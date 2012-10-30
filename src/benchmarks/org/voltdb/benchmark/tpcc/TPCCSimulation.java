@@ -275,6 +275,10 @@ public class TPCCSimulation {
             
         return w_id;
     }
+    
+    // ----------------------------------------------------------------------------
+    // REMOTE WAREHOUSE SELECTION METHODS
+    // ----------------------------------------------------------------------------
 
     public static short generatePairedWarehouse(int w_id, int starting_warehouse, int last_warehouse) {
         int remote_w_id = (w_id % 2 == 0 ? w_id-1 : w_id+1);
@@ -282,6 +286,10 @@ public class TPCCSimulation {
         else if (remote_w_id > last_warehouse) remote_w_id = starting_warehouse;
         return (short)remote_w_id;
     }
+    
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
     
     private byte generateDistrict() {
         return (byte)generator.number(1, parameters.districtsPerWarehouse);

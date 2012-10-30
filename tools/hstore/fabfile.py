@@ -530,7 +530,7 @@ def setup_env():
         install_dir = os.path.dirname(HSTORE_DIR)
         if run("test -d %s" % install_dir).failed:
             run("mkdir " + install_dir)
-        sudo("chown --quiet -R %s %s" % (env.user, install_dir))
+        sudo("chown --quiet %s %s" % (env.user, install_dir))
     ## WITH
     
     return (first_setup)
