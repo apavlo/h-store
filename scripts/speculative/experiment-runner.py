@@ -109,7 +109,7 @@ DEBUG_SITE_LOGGING = [
 DEBUG_CLIENT_LOGGING = [
     #"edu.brown.api.BenchmarkComponent",
     #"edu.brown.api.BenchmarkController",
-    #"org.voltdb.benchmark.tpcc",
+    "org.voltdb.benchmark.tpcc.TPCCLoader",
 ]
 
 BASE_SETTINGS = {

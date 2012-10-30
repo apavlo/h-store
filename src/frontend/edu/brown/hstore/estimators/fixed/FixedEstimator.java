@@ -115,7 +115,7 @@ public abstract class FixedEstimator extends TransactionEstimator {
         }
         
         @Override
-        public long getExecutionTime() {
+        public long getRemainingExecutionTime() {
             return Long.MAX_VALUE;
         }
 

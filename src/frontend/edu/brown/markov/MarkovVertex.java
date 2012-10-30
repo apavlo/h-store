@@ -514,7 +514,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         // Basic Information
         m0.put("Statement", this.catalog_item.getName() + (this.isQueryVertex() ? " #" + this.counter : ""));
         m0.put("ElementId", this.getElementId());
-        m0.put("ExecutionTime", this.getExecutionTime());
+        m0.put("ExecutionTime", this.getRemainingExecutionTime());
         m0.put("Total Hits", this.totalhits);
         m0.put("Instance Hits", this.instancehits);
         
@@ -837,7 +837,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * The amount of execution time remaining until a transaction at this vertex commits
      * @return
      */
-    public long getExecutionTime() {
+    public long getRemainingExecutionTime() {
         return this.execution_time;
     }
 

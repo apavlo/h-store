@@ -66,7 +66,7 @@ public class RemoteEstimate implements Estimate {
         return (true);
     }
     @Override
-    public long getExecutionTime() {
+    public long getRemainingExecutionTime() {
         return Long.MAX_VALUE;
     }
     

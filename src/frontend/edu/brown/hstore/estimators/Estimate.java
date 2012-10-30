@@ -43,7 +43,7 @@ public interface Estimate extends Poolable {
      * then the returned value will be Long.MAX_VALUE.
      * @return
      */
-    public long getExecutionTime();
+    public long getRemainingExecutionTime();
     
     // ----------------------------------------------------------------------------
     // QUERIES
