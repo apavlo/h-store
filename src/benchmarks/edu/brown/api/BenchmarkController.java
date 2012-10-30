@@ -1142,11 +1142,17 @@ public class BenchmarkController {
             long sleep = nextIntervalTime - nowTime;
             try {
                 if (this.stop == false && sleep > 0) {
-                    if (debug.get()) LOG.debug("Sleeping for " + sleep + " ms");
+                    if (debug.get()) LOG.debug(String.format("Sleeping for %.1f sec [pollIndex=%d]",
+                                               sleep / 1000d, m_pollIndex));
                     Thread.sleep(sleep);
                 }
             } catch (InterruptedException e) {
                 // Ignore...
+                if (debug.get()) LOG.debug(String.format("Interrupted! [pollIndex=%d / stop=%s]",
+                                           m_pollIndex, this.stop));
+            } finally {
+                if (debug.get()) LOG.debug(String.format("Awake! [pollIndex=%d / stop=%s]",
+                                           m_pollIndex, this.stop));
             }
             nowTime = System.currentTimeMillis();
         } // WHILE
@@ -1215,6 +1221,7 @@ public class BenchmarkController {
         m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
         
         // Then tell the cluster to drain all txns
+        LOG.info("Draining execution queues on cluster");
         ClientResponse cresponse = null;
         String procName = VoltSystemProcedure.procCallName(Quiesce.class);
         try {

@@ -495,7 +495,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             txn_id = queueManagerDebug.getCurrentTransaction(partition);
             if (txn_id != null) {
                 TransactionInitQueueCallback callback = queueManagerDebug.getInitCallback(txn_id);
-                int len = status.length();
+                int len = 6; // status.length();
                 status += "#" + txn_id;
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);
                 if (ts == null) {

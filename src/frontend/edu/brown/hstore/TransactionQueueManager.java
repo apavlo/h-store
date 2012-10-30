@@ -577,8 +577,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     private void processLockFinished(Long txn_id, Status status, int partition) {
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + txn_id + " as finished on remote partition #" + partition;
-        if (d) LOG.debug(String.format("Updating lock queues because txn #%d is finished on partition %d " +
-        		         "[status=%s, basePartition=%d]",
+        if (d) LOG.debug(String.format("Updating lock queues because txn #%s is finished on partition %d " +
+        		         "[status=%s / basePartition=%d]",
         		         txn_id, partition, status,
         		         TransactionIdManager.getInitiatorIdFromTransactionId(txn_id)));
         

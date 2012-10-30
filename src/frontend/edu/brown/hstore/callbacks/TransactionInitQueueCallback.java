@@ -1,7 +1,6 @@
 package edu.brown.hstore.callbacks;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 
 import org.apache.log4j.Logger;
@@ -17,8 +16,6 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -132,21 +129,28 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             // HACK
             // This is a big hack to have the PartitionExecutor block executing
             // single-partition transactions because we now have a new distributed transaction
-            if (hstore_conf.site.specexec_pre_query == false) { // && hstore_site.isLocalPartition(this.base_partition) == false) {
-                // Create the transaction handle
-                RemoteTransaction ts = hstore_site.getTransaction(this.txn_id);
-                if (ts == null) {
-                    ts = hstore_site.getTransactionInitializer()
-                                    .createRemoteTransaction(this.txn_id,
-                                                             this.base_partition,
-                                                             this.procedure_id);
+            // Note that we have to do this before send the message
+            if (hstore_conf.site.specexec_pre_query) { // && hstore_site.isLocalPartition(this.base_partition) == false) {
+                try {
+                    // Create the transaction handle
+                    AbstractTransaction ts = hstore_site.getTransaction(this.txn_id);
+                    if (ts == null) {
+                        ts = hstore_site.getTransactionInitializer()
+                                        .createRemoteTransaction(this.txn_id,
+                                                                 this.base_partition,
+                                                                 this.procedure_id);
+                    }
+                    
+                    if (ts instanceof RemoteTransaction) {
+                    	for (int p: this.hstore_site.getLocalPartitionIds().values()) {
+                    		if (this.partitions.contains(p)) {
+                    		    this.hstore_site.getPartitionExecutor(p).queueInitDtxn((RemoteTransaction)ts);
+                    		}
+                    	} // FOR
+                    }
+                } catch (Throwable ex) {
+                    ex.printStackTrace();
                 }
-                
-            	for (int p: this.hstore_site.getLocalPartitionIds().values()) {
-            		if (this.partitions.contains(p)) {
-            		    this.hstore_site.getPartitionExecutor(p).queueInitDtxn(ts);
-            		}
-            	} // FOR
             } 
             
             this.getOrigCallback().run(this.builder.build());
@@ -237,8 +241,8 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             // transaction is kaput at this HStoreSite.
             this.builder.setStatus(status);
             this.builder.clearPartitions();
-            for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
-                if (this.partitions.contains(p.intValue())) this.builder.addPartitions(p.intValue());
+            for (int p : this.hstore_site.getLocalPartitionIds().values()) { // One less iterator :-)
+                if (this.partitions.contains(p)) this.builder.addPartitions(p);
             } // FOR
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;

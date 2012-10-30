@@ -2024,24 +2024,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
-        for (Integer p : partitions) {
-            if (this.isLocalPartition(p.intValue()) == false) {
-                if (t) LOG.trace(String.format("#%d - Skipping finish at partition %d", txn_id, p));
-                continue;
-            }
+        for (int p : this.local_partitions.values()) {
+            if (partitions.contains(p) == false) continue;
             if (t) LOG.trace(String.format("#%d - Invoking finish at partition %d", txn_id, p));
             
             // We only need to tell the queue stuff that the transaction is finished
             // if it's not a commit because there won't be a 2PC:PREPARE message
-            if (commit == false) this.txnQueueManager.lockQueueFinished(txn_id, status, p.intValue());
+            if (commit == false) this.txnQueueManager.lockQueueFinished(txn_id, status, p);
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
-            if (ts != null && ts.isPredictSinglePartition() == false && ts.needsFinish(p.intValue())) {
+            if (ts != null && ts.isPredictSinglePartition() == false &&
+                (hstore_conf.site.specexec_pre_query || ts.needsFinish(p))) {
                 if (t) LOG.trace(String.format("%s - Calling finishTransaction on partition %d", ts, p));
                 try {
-                    this.executors[p.intValue()].queueFinish(ts, status);
+                    this.executors[p].queueFinish(ts, status);
                 } catch (Throwable ex) {
                     LOG.error(String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
                               ts, ts.hashCode(), status, partitions));

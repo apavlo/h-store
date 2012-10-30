@@ -102,8 +102,8 @@ DEBUG_OPTIONS = {
     #"site.txn_profiling":             True,    
 }
 DEBUG_SITE_LOGGING = [
-    "edu.brown.hstore.HStoreSite",
-    "edu.brown.hstore.PartitionExecutor",
+    #"edu.brown.hstore.HStoreSite",
+    #"edu.brown.hstore.PartitionExecutor",
     "edu.brown.hstore.TransactionQueueManager"
 ]
 DEBUG_CLIENT_LOGGING = [
@@ -139,7 +139,7 @@ BASE_SETTINGS = {
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
     
-    "site.jvm_asserts":                         False,
+    "site.jvm_asserts":                         True,
     "site.log_backup":                          False,
     "site.status_enable":                       False,
     "site.status_show_thread_info":             False,
@@ -248,7 +248,7 @@ EXPERIMENT_SETTINGS = {
         "site.specexec_enable":                 True,
         "site.specexec_idle":                   True,
         "site.specexec_markov":                 True,
-        "site.specexec_pre_query":              True,
+        "site.specexec_pre_query":              False,
         "site.markov_enable":                   True,
         "site.markov_singlep_updates":          False,
         "site.markov_dtxn_updates":             True,
