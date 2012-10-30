@@ -49,6 +49,8 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
+import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.internal.FinishTxnMessage;
@@ -62,7 +64,7 @@ import edu.brown.pools.Poolable;
 /**
  * @author pavlo
  */
-public abstract class AbstractTransaction implements Poolable, Loggable {
+public abstract class AbstractTransaction implements Poolable, Loggable, Comparable<AbstractTransaction> {
     private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -125,7 +127,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected PrefetchState prefetch;
     
     // ----------------------------------------------------------------------------
-    // Internal Message Wrappers
+    // INTERNAL MESSAGE WRAPPERS
     // ----------------------------------------------------------------------------
     
     private final PrepareTxnMessage prepare_task;
@@ -133,6 +135,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     private final FinishTxnMessage finish_task;
     
     private final WorkFragmentMessage work_task[];
+    
+    // ----------------------------------------------------------------------------
+    // CALLBACKS
+    // ----------------------------------------------------------------------------
+    
+    private final TransactionInitQueueCallback init_callback;
+    private final TransactionPrepareWrapperCallback prepare_callback;
     
     // ----------------------------------------------------------------------------
     // GLOBAL PREDICTIONS FLAGS
@@ -246,6 +255,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numLocalPartitions];
         
+        this.init_callback = new TransactionInitQueueCallback(hstore_site);
+        this.prepare_callback = new TransactionPrepareWrapperCallback(hstore_site);
+        
         this.readTables = new BitSet[numLocalPartitions];
         this.writeTables = new BitSet[numLocalPartitions];
         int num_tables = hstore_site.getCatalogContext().database.getTables().size();
@@ -312,6 +324,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.predict_abortable = true;
         this.predict_readOnly = false;
         this.predict_tState = null;
+        
+        this.init_callback.finish();
+        this.prepare_callback.finish();
         
         this.pending_error = null;
         this.status = null;
@@ -553,6 +568,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (false);
     }
     
+    @Override
+    public int compareTo(AbstractTransaction o) {
+        if (this.txn_id == null) return (1);
+        else if (o.txn_id == null) return (-1);
+        return this.txn_id.compareTo(o.txn_id);
+    }
+    
     /**
      * Get this state's transaction id
      */
@@ -598,6 +620,21 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      */
     public final boolean isSysProc() {
         return this.sysproc;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // CALLBACK METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Return this handle's TransactionInitQueueCallback
+     */
+    public final TransactionInitQueueCallback getTransactionInitQueueCallback() {
+        return (this.init_callback);
+    }
+    
+    public final TransactionPrepareWrapperCallback getPrepareWrapperCallback() {
+        return (this.prepare_callback);
     }
     
     /**

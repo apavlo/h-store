@@ -39,6 +39,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.RemoteTransaction;
 
 public class MockHStoreCoordinator extends HStoreCoordinator {
     private static final Logger LOG = Logger.getLogger(MockHStoreCoordinator.class);
@@ -103,12 +104,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         @Override
         public void transactionInit(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
-            txnQueueManager.lockQueueInsert(request.getTransactionId(),
-                                            new PartitionSet(request.getPartitionsList()),
-                                            request.getBasePartition(),
-                                            request.getProcedureId(),
-                                            done,
-                                            false);
+            RemoteTransaction ts = hstore_site.getTransactionInitializer()
+                                             .createRemoteTransaction(request.getTransactionId(),
+                                                                      request.getBasePartition(),
+                                                                      request.getProcedureId());
+            PartitionSet partitions = new PartitionSet(request.getPartitionsList());
+            txnQueueManager.lockQueueInsert(ts, partitions, done);
         }
 
         @Override

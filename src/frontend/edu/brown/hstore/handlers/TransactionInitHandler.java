@@ -59,24 +59,25 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         if (debug.get())
             LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
         
-        AbstractTransaction ts = hstore_site.getTransaction(txn_id); 
+        AbstractTransaction ts = this.hstore_site.getTransaction(txn_id); 
         assert(ts == null || ts instanceof LocalTransaction) :
             String.format("Got init request for remote txn #%d but we already have one [%s]",
                           txn_id, ts);
+
+        // If we don't have a handle, we need to make one so that we can stick in the
+        // things that we need to keep track of at this site. At this point we know that we're on
+        // a remote site from the txn's base partition
+        if (ts == null) {
+            int base_partition = request.getBasePartition();
+            ts = this.hstore_site.getTransactionInitializer()
+                                 .createRemoteTransaction(txn_id, base_partition, request.getProcedureId());
+        }
+        
         
         // If (request.getPrefetchFragmentsCount() > 0), then we need to
         // make a RemoteTransaction handle for ourselves so that we can keep track of 
         // our state when pre-fetching queries.
         if (request.getPrefetchFragmentsCount() > 0) {
-            // If we don't have a handle, we need to make one so that we can stick in the
-            // things that we need to prefetch. At this point we know that we're on
-            // a remote site from the txn's base partition
-            if (ts == null) {
-                int base_partition = request.getBasePartition();
-                ts = hstore_site.getTransactionInitializer()
-                                .createRemoteTransaction(txn_id, base_partition, request.getProcedureId());
-            }
-            
             // Stick the prefetch information into the transaction
             if (debug.get()) LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at %s",
                                        ts, request.getPrefetchFragmentsCount(), hstore_site.getSiteName()));
@@ -92,11 +93,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         } else {
             partitions = new PartitionSet(request.getPartitionsList());
         }
-        hstore_site.transactionInit(txn_id,
-                                    request.getProcedureId(),
-                                    partitions,
-                                    request.getBasePartition(),
-                                    callback);
+        this.hstore_site.transactionInit(ts, partitions, callback);
         
         // We don't need to send back a response right here.
         // TransactionInitWrapperCallback will wait until it has results from all of the partitions 

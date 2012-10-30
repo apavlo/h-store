@@ -31,7 +31,6 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
-import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
@@ -55,7 +54,6 @@ public class RemoteTransaction extends AbstractTransaction {
     
     private final SetDistributedTxnMessage dtxn_task;
     private final TransactionWorkCallback work_callback;
-    private final TransactionPrepareWrapperCallback prepare_callback;
     private final TransactionCleanupCallback cleanup_callback;
     private final ProtoRpcController rpc_transactionPrefetch[];
     
@@ -63,7 +61,6 @@ public class RemoteTransaction extends AbstractTransaction {
         super(hstore_site);
         this.dtxn_task = new SetDistributedTxnMessage(this);
         this.work_callback = new TransactionWorkCallback(hstore_site);
-        this.prepare_callback = new TransactionPrepareWrapperCallback(hstore_site);
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
         
         int num_localPartitions = hstore_site.getLocalPartitionIds().size();
@@ -96,7 +93,6 @@ public class RemoteTransaction extends AbstractTransaction {
     public void finish() {
         super.finish();
         this.work_callback.finish();
-        this.prepare_callback.finish();
         this.cleanup_callback.finish();
         
         for (int i = 0; i < this.rpc_transactionPrefetch.length; i++) {
@@ -123,9 +119,6 @@ public class RemoteTransaction extends AbstractTransaction {
     
     public TransactionWorkCallback getWorkCallback() {
         return (this.work_callback);
-    }
-    public TransactionPrepareWrapperCallback getPrepareWrapperCallback() {
-        return (this.prepare_callback);
     }
     
     public TransactionCleanupCallback getCleanupCallback() {

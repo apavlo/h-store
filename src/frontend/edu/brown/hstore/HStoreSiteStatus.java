@@ -494,21 +494,15 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                    (dtxn_queue.isThrottled() ? "*THROTTLED* " : ""));
             txn_id = queueManagerDebug.getCurrentTransaction(partition);
             if (txn_id != null) {
-                TransactionInitQueueCallback callback = queueManagerDebug.getInitCallback(txn_id);
-                int len = 6; // status.length();
-                status += "#" + txn_id;
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);
-                if (ts == null) {
-                    // This is ok if the txn is remote
-                    // status += " MISSING?";
-                } else {
-                    status += " [hashCode=" + ts.hashCode() + "]";
-                }
-                
-                if (callback != null) {
-                    status += "\n" + StringUtil.repeat(" ", len);
-                    status += String.format("Partitions=%s / Remaining=%d",
-                                            callback.getPartitions(), callback.getCounter());
+                if (ts != null) {
+                    TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
+                    status += ts;
+                    if (callback != null) {
+                        status += "\n" + StringUtil.repeat(" ", 6);
+                        status += String.format("Partitions=%s / Remaining=%d",
+                                                callback.getPartitions(), callback.getCounter());
+                    }
                 }
             }
             // TransactionQueueManager - Blocked

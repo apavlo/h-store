@@ -27,8 +27,6 @@ package edu.brown.hstore;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -96,10 +94,10 @@ import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimatorState;
-import edu.brown.hstore.stats.SiteProfilerStats;
 import edu.brown.hstore.stats.MarkovEstimatorProfilerStats;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
 import edu.brown.hstore.stats.PoolCounterStats;
+import edu.brown.hstore.stats.SiteProfilerStats;
 import edu.brown.hstore.stats.SpecExecProfilerStats;
 import edu.brown.hstore.stats.TransactionCounterStats;
 import edu.brown.hstore.stats.TransactionProfilerStats;
@@ -1794,34 +1792,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // DISTRIBUTED TRANSACTION
         // -------------------------------
         else {
-            final int base_partition = ts.getBasePartition();
-            final Long txn_id = ts.getTransactionId();
-            if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at " +
-                             "partition %d [handle=%d]",
-                             ts, base_partition, ts.getClientHandle()));
-            
-            // Check whether our transaction can't run right now because its id is less than
-            // the last seen txnid from the remote partitions that it wants to touch
-            for (Integer partition : ts.getPredictTouchedPartitions()) {
-                Long last_txn_id = this.txnQueueManager.getLastLockTransaction(partition.intValue()); 
-                if (txn_id.compareTo(last_txn_id) < 0) {
-                    // If we catch it here, then we can just block ourselves until
-                    // we generate a txn_id with a greater value and then re-add ourselves
-                    if (d) {
-                        LOG.warn(String.format("%s - Unable to queue transaction because the last txn " +
-                                 "id at partition %d is %d. Restarting...",
-                                 ts, partition, last_txn_id));
-                        LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
-                                 TransactionIdManager.toString(last_txn_id),
-                                 TransactionIdManager.toString(txn_id)));
-                    }
-                    if (hstore_conf.site.txn_counters && ts.getRestartCounter() == 1) {
-                        TransactionCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
-                    }
-                    this.txnQueueManager.blockTransaction(ts, partition.intValue(), last_txn_id);
-                    return;
-                }
-            } // FOR
+            if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at partition %d " +
+            		         "[handle=%d]",
+                             ts, ts.getBasePartition(), ts.getClientHandle()));
             
             // This callback prevents us from making additional requests to the Dtxn.Coordinator until
             // we get hear back about our our initialization request
@@ -1839,15 +1812,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions The list of partitions that this transaction needs to access
      * @param callback
      */
-    public void transactionInit(Long txn_id,
-                                int procedureId,
+    public void transactionInit(AbstractTransaction ts,
                                 PartitionSet partitions,
-                                int base_partition,
                                 RpcCallback<TransactionInitResponse> callback) {
-        Procedure catalog_proc = catalogContext.getProcedureById(procedureId);
-        
-        // We should always force a txn from a remote partition into the queue manager
-        this.txnQueueManager.lockQueueInsert(txn_id, partitions, base_partition, procedureId, callback, catalog_proc.getSystemproc());
+        this.txnQueueManager.lockQueueInsert(ts, partitions, callback);
     }
 
     /**
@@ -1950,40 +1918,32 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts instanceof LocalTransaction) {
             ((LocalTransaction)ts).getOrInitTransactionPrepareCallback();
         }
+        assert(ts != null);
         
         for (int p : this.local_partitions.values()) {
             if (partitions.contains(p) == false) continue;
 
-            // We could have been asked to participate in a distributed transaction but
-            // they never actually sent us anything, so we should just tell the queue manager
-            // that the txn is done. There is nothing that we need to do at the PartitionExecutors
-            if (ts == null) {
-                if (t) LOG.trace(String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
-                this.txnQueueManager.lockQueueFinished(txn_id, Status.OK, p);
-            }
-            // Otherwise we are going queue a PrepareTxnMessage at each of the partitions that 
+            // We are going queue a PrepareTxnMessage at each of the partitions that 
             // this txn is using and let them deal with it.
-            else {
-                if (hstore_conf.site.exec_profiling && p != ts.getBasePartition() && ts.needsFinish(p)) {
-                    PartitionExecutorProfiler pep = this.executors[p].getProfiler();
-                    assert(pep != null);
-                    if (pep.idle_2pc_remote_time.isStarted() == false) pep.idle_2pc_remote_time.start();
-                }
-                
-                // TODO: If this txn is read-only, then we should invoke finish right here
-                // Because this txn didn't change anything at this partition, we should
-                // release all of its locks and immediately allow the partition to execute
-                // transactions without speculative execution. We sort of already do that
-                // because we will allow spec exec read-only txns to commit immediately 
-                // but it would reduce the number of messages that the base partition needs
-                // to wait for when it does the 2PC:FINISH
-                // Berstein's book says that most systems don't actually do this because a txn may 
-                // need to execute triggers... but since we don't have any triggers we can do it!
-                // More Info: https://github.com/apavlo/h-store/issues/31
-                // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
-                // for this partition
-                this.executors[p].queuePrepare(ts);
+            if (hstore_conf.site.exec_profiling && p != ts.getBasePartition() && ts.needsFinish(p)) {
+                PartitionExecutorProfiler pep = this.executors[p].getProfiler();
+                assert(pep != null);
+                if (pep.idle_2pc_remote_time.isStarted() == false) pep.idle_2pc_remote_time.start();
             }
+            
+            // TODO: If this txn is read-only, then we should invoke finish right here
+            // Because this txn didn't change anything at this partition, we should
+            // release all of its locks and immediately allow the partition to execute
+            // transactions without speculative execution. We sort of already do that
+            // because we will allow spec exec read-only txns to commit immediately 
+            // but it would reduce the number of messages that the base partition needs
+            // to wait for when it does the 2PC:FINISH
+            // Berstein's book says that most systems don't actually do this because a txn may 
+            // need to execute triggers... but since we don't have any triggers we can do it!
+            // More Info: https://github.com/apavlo/h-store/issues/31
+            // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
+            // for this partition
+            this.executors[p].queuePrepare(ts);
         } // FOR
     }
     
@@ -2002,26 +1962,27 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         boolean commit = (status == Status.OK);
         
         // If we don't have a AbstractTransaction handle, then we know that we never did anything
-        // for this transaction and we can just ignore this finish request. We do have to tell
-        // the TransactionQueue manager that we're done though
+        // for this transaction and we can just ignore this finish request.
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
+        if (ts == null) {
+            if (t) LOG.trace(String.format("No transaction information exists for #%d. Ignoring finish request", txn_id));
+            return;
+        }
+        ts.setStatus(status);
+        
         TransactionFinishCallback finish_callback = null;
         TransactionCleanupCallback cleanup_callback = null;
-        if (ts != null) {
-            ts.setStatus(status);
-            
-            if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
-                if (t) LOG.trace(ts + " - Initializing the TransactionCleanupCallback");
-                // TODO(xin): We should not be invoking this callback at the basePartition's site
-                if ( !(ts instanceof MapReduceTransaction && this.isLocalPartition(ts.getBasePartition()))) {
-                    cleanup_callback = ts.getCleanupCallback();
-                    assert(cleanup_callback != null);
-                    cleanup_callback.init(ts, status, partitions);
-                }
-            } else {
-                finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
-                assert(finish_callback != null);
+        if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
+            if (t) LOG.trace(ts + " - Initializing the TransactionCleanupCallback");
+            // TODO(xin): We should not be invoking this callback at the basePartition's site
+            if ( !(ts instanceof MapReduceTransaction && this.isLocalPartition(ts.getBasePartition()))) {
+                cleanup_callback = ts.getCleanupCallback();
+                assert(cleanup_callback != null);
+                cleanup_callback.init(ts, status, partitions);
             }
+        } else {
+            finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
+            assert(finish_callback != null);
         }
         
         for (int p : this.local_partitions.values()) {
@@ -2030,13 +1991,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // We only need to tell the queue stuff that the transaction is finished
             // if it's not a commit because there won't be a 2PC:PREPARE message
-            if (commit == false) this.txnQueueManager.lockQueueFinished(txn_id, status, p);
+            if (commit == false) this.txnQueueManager.lockQueueFinished(ts, status, p);
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
-            if (ts != null && ts.isPredictSinglePartition() == false &&
-                (hstore_conf.site.specexec_pre_query || ts.needsFinish(p))) {
+            if (ts.isPredictSinglePartition() == false && (hstore_conf.site.specexec_pre_query || ts.needsFinish(p))) {
                 if (t) LOG.trace(String.format("%s - Calling finishTransaction on partition %d", ts, p));
                 try {
                     this.executors[p].queueFinish(ts, status);
