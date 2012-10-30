@@ -7,6 +7,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -26,14 +27,14 @@ public class TransactionPrepareWrapperCallback extends BlockingRpcCallback<Trans
     }
     
     private TransactionPrepareResponse.Builder builder = null;
-    private RemoteTransaction ts;
+    private AbstractTransaction ts;
     private PartitionSet partitions;
     
     public TransactionPrepareWrapperCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
     }
     
-    public void init(RemoteTransaction ts, PartitionSet partitions, RpcCallback<TransactionPrepareResponse> orig_callback) {
+    public void init(AbstractTransaction ts, PartitionSet partitions, RpcCallback<TransactionPrepareResponse> orig_callback) {
         assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);

@@ -33,7 +33,14 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
     public void sendLocal(Long txn_id, TransactionPrepareRequest request, PartitionSet partitions, RpcCallback<TransactionPrepareResponse> callback) {
         // We don't care whether we actually updated anybody locally, so we don't need to
         // pass in a set to get the partitions that were updated here.
-        hstore_site.transactionPrepare(txn_id, partitions);
+        LocalTransaction ts = this.hstore_site.getTransaction(txn_id);
+        assert(ts != null) : "Unexpected null transaction handle for txn #" + txn_id;
+        
+        TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
+        if (wrapper.isInitialized()) wrapper.finish();
+        wrapper.init(ts, partitions, callback);
+        
+        hstore_site.transactionPrepare(ts, partitions);
     }
     @Override
     public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionPrepareRequest request, RpcCallback<TransactionPrepareResponse> callback) {
@@ -70,7 +77,7 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
         if (wrapper.isInitialized()) wrapper.finish();
         wrapper.init(ts, partitions, callback);
-        hstore_site.transactionPrepare(txn_id, partitions);
+        hstore_site.transactionPrepare(ts, partitions);
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {

@@ -63,6 +63,7 @@ import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dispatchers.TransactionFinishDispatcher;
@@ -837,7 +838,10 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         // FAST PATH: If all of the partitions that this txn needs are on this
         // HStoreSite, then we don't need to bother with making this request
         if (hstore_site.isLocalPartitions(partitions)) {
-            hstore_site.transactionPrepare(ts.getTransactionId(), partitions);
+            TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
+            if (wrapper.isInitialized()) wrapper.finish();
+            wrapper.init(ts, partitions, callback);
+            hstore_site.transactionPrepare(ts, partitions);
         }
         // SLOW PATH: Since we have to go over the network, we have to use our trusty ol'
         // TransactionPrepareHandler to route the request to proper sites.

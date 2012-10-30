@@ -94,8 +94,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     /**
      * A queue of txnIds that need to be finished and removed from the lock queues
      */
-    private final Queue<Object[]> lockFinishQueue = new 
-            ConcurrentLinkedQueue<Object[]>(); 
+    private final Queue<Object[]> lockFinishQueue = new ConcurrentLinkedQueue<Object[]>(); 
     
     // ----------------------------------------------------------------------------
     // BLOCKED DISTRIBUTED TRANSACTIONS
@@ -142,8 +141,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     /**
      * A queue of transactions that need to be "init-ed" using the HStoreCoordinator
      */
-    private final Queue<LocalTransaction> initQueue = new 
-            ConcurrentLinkedQueue<LocalTransaction>(); 
+    private final Queue<LocalTransaction> initQueue = new ConcurrentLinkedQueue<LocalTransaction>(); 
     
     // ----------------------------------------------------------------------------
     // TRANSACTIONS THAT NEED TO BE REQUEUED
@@ -319,10 +317,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * Returns true if we released a transaction at at least one partition
      */
     protected boolean checkLockQueues() {
-        if (t) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
         EstTimeUpdater.update(System.currentTimeMillis());
         
         // Process anything in our finished queue first
+        if (t) LOG.trace("Checking lockFinishQueue [size=" + this.lockFinishQueue.size() + "]");
         Object triplet[];
         while ((triplet = this.lockFinishQueue.poll()) != null) {
             AbstractTransaction ts = (AbstractTransaction)triplet[0];
@@ -330,7 +328,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             Integer partition = (Integer)triplet[2];
             this.processLockFinished(ts, status, partition.intValue());
         } // WHILE
-        
+
+        if (t) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
         boolean txn_released = false;
         for (int partition : this.localPartitions.values()) {
             TransactionInitQueueCallback callback = null;
@@ -520,7 +519,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 should_notify = true;
             }
             
-            if (d) LOG.debug(String.format("Added %s to initQueue for partition %d locked=%s / queueSize=%d]",
+            if (d) LOG.debug(String.format("Added %s to initQueue for partition %d [locked=%s / queueSize=%d]",
                              ts, partition,
                              this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
         } // FOR
@@ -537,6 +536,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param partition
      */
     public void lockQueueFinished(AbstractTransaction ts, Status status, int partition) {
+        if (d) LOG.debug(String.format("Queueing %s to be marked as finished on partition %d [status=%s]",
+                         ts, partition, status));
         assert(ts != null) :
             String.format("Unexpected null transaction handle [status=%s / partition=%d]", status, partition);
         this.lockFinishQueue.add(new Object[]{ ts, status, Integer.valueOf(partition) });
@@ -553,7 +554,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // If the given txnId is the current transaction at this partition and still holds
         // the lock on the partition, then we will want to release it
         boolean poke = false;
-        if (this.lockQueuesBlocked[partition] && this.lockQueuesLastTxn[partition].equals(ts)) {
+        if (this.lockQueuesBlocked[partition] && this.lockQueuesLastTxn[partition].equals(ts.getTransactionId())) {
             if (d) LOG.debug(String.format("Unlocking partition %d because %s is finished " +
             		         "[status=%s]",
                              partition, ts, status));

@@ -1911,14 +1911,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions
      * @param updated
      */
-    public void transactionPrepare(Long txn_id, PartitionSet partitions) {
-        if (d) LOG.debug(String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
-        
-        AbstractTransaction ts = this.inflight_txns.get(txn_id);
+    public void transactionPrepare(AbstractTransaction ts, PartitionSet partitions) {
+        assert(ts != null);
+        if (d) LOG.debug(String.format("2PC:PREPARE %s [partitions=%s]", ts, partitions));
         if (ts instanceof LocalTransaction) {
             ((LocalTransaction)ts).getOrInitTransactionPrepareCallback();
         }
-        assert(ts != null);
         
         for (int p : this.local_partitions.values()) {
             if (partitions.contains(p) == false) continue;
