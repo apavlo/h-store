@@ -1835,8 +1835,8 @@ public class BenchmarkController {
         // Initialize HStoreConf
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
         HStoreConf hstore_conf = HStoreConf.init(hstore_conf_path, vargs);
-        if (debug.get()) 
-            LOG.debug("HStore Conf '" + hstore_conf_path.getName() + "'\n" + hstore_conf.toString(true));
+        if (trace.get()) 
+            LOG.trace("HStore Conf '" + hstore_conf_path.getName() + "'\n" + hstore_conf.toString(true));
         
         if (hstore_conf.client.duration < 1000) {
             LOG.error("Duration is specified in milliseconds");

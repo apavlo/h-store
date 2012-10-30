@@ -475,7 +475,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
 //            status = String.format("%-5s [limit=%d, release=%d] %s",
 //                                   es_queue.size(), es_queue.getQueueMax(), es_queue.getQueueRelease(),
 //                                   (es_queue.isThrottled() ? "*THROTTLED* " : ""));
-            m.put("Exec Queue", status);
+            // m.put("Exec Queue", status);
             
             txn_id = dbg.getCurrentTxnId();
             m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), dbg.getExecutionMode()));
