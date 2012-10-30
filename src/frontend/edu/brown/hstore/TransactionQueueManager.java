@@ -457,6 +457,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                    int procedure_id,
                                    RpcCallback<TransactionInitResponse> callback,
                                    boolean sysproc) {
+        assert(txn_id != null) : "Unexpected null transaction id";
         if (d) LOG.debug(String.format("Adding new txn #%d into lockQueue [partitions=%s]",
                          txn_id, partitions));
         
@@ -477,7 +478,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // all that we care about is that whatever value is in there now is greater than
             // the what the transaction was trying to use.
             if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
-                if (d) LOG.debug(String.format("The last lockQueue txnId for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
+                if (d) LOG.debug(String.format("The last lockQueue txnId for remote partition is #%d but this " +
+                		         "is greater than our txn #%d. Rejecting...",
                                  partition, this.lockQueuesLastTxn[partition], txn_id));
                 if (wrapper != null) {
                     this.rejectTransaction(txn_id,
@@ -507,7 +509,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // The next txnId that we're going to try to execute is already greater
             // than this new txnId that we were given! Rejection!
             if (next_safe.compareTo(txn_id) > 0) {
-                if (d) LOG.debug(String.format("The next safe lockQueue txnId for partition #%d is txn #%d but this is greater than our new txn #%d. Rejecting...",
+                if (d) LOG.debug(String.format("The next safe lockQueue txnId for partition #%d is txn #%d but this " +
+                		         "is greater than our new txn #%d. Rejecting...",
                                  partition, next_safe, txn_id));
                 if (wrapper != null) {
                     this.rejectTransaction(txn_id,
@@ -527,8 +530,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
             // Our queue is overloaded. We have to reject the txnId!
             else if (queue.offer(txn_id, sysproc) == false) {
-                assert(sysproc == false) :
-                    String.format("Failed to add sysproc txn #%d to partition %d lock queue", txn_id, partition);
                 if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. Throttling txn #%d",
                                  partition, next_safe, txn_id));
                 if (wrapper != null) {
@@ -554,7 +555,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
             
             if (d) LOG.debug(String.format("Added txn #%d to initQueue for partition %d " +
-            		         "[locked=%s, queueSize=%d]",
+            		         "[locked=%s / queueSize=%d]",
                              txn_id, partition,
                              this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
         } // FOR
@@ -571,10 +572,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param partition
      */
     public void lockQueueFinished(Long txn_id, Status status, int partition) {
+        assert(txn_id != null) :
+            String.format("Unexpected null transaction id [status=%s / partition=%d]", status, partition);
         this.lockFinishQueue.add(new Object[]{ txn_id, status, Integer.valueOf(partition) });
     }    
         
     private void processLockFinished(Long txn_id, Status status, int partition) {
+        assert(txn_id != null) :
+            String.format("Unexpected null transaction id [status=%s / partition=%d]", status, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + txn_id + " as finished on remote partition #" + partition;
         if (d) LOG.debug(String.format("Updating lock queues because txn #%s is finished on partition %d " +

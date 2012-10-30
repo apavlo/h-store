@@ -697,7 +697,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         DumpManager.register(m_dumpId, this);
 
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        int queues_total = (hstore_conf.site.queue_dtxn_increase_max + hstore_conf.site.queue_incoming_increase_max); 
+        // int queues_total = (hstore_conf.site.queue_dtxn_increase_max + hstore_conf.site.queue_incoming_increase_max); 
         this.MAX_DESIRED_PENDING_TXNS = (int)(2500 * hstore_site.getLocalPartitionIds().size());
         
         // Backpressure EventObservers
@@ -706,7 +706,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         
         m_acceptor = new ClientAcceptor(port, network);
         
-        if (hstore_site.getHStoreConf().site.profiling) {
+        if (hstore_conf.site.profiling) {
             this.profiler = hstore_site.getProfiler();
         } else {
             this.profiler = null;

@@ -61,8 +61,8 @@ public abstract class LoggerUtil {
         
         @Override
         public void update(EventObservable<Object> o, Object arg) {
-            this.debug.set(this.logger.isDebugEnabled());
-            this.trace.set(this.logger.isTraceEnabled());
+            if (this.debug != null) this.debug.set(this.logger.isDebugEnabled());
+            if (this.trace != null) this.trace.set(this.logger.isTraceEnabled());
         }
     }
     
@@ -185,6 +185,10 @@ public abstract class LoggerUtil {
     
     public static void attachObserver(Logger logger, LoggerBoolean debug, LoggerBoolean trace) {
         LoggerUtil.attachObserver(new LoggerObserver(logger, debug, trace));
+    }
+    
+    public static void attachObserver(Logger logger, LoggerBoolean debug) {
+        LoggerUtil.attachObserver(new LoggerObserver(logger, debug, null));
     }
     
     public static void attachObserver(Logger logger, AtomicBoolean debug, AtomicBoolean trace) {

@@ -121,6 +121,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -1274,26 +1275,37 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private boolean prepareTransaction(AbstractTransaction ts) {
         assert(ts != null) : "Null transaction handle???";
+        LOG.info(String.format("%s - Preparing to commit txn at partition %d", ts, this.partitionId));
+        
         // assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
         
-        TransactionPrepareCallback callback = null;
+        TransactionPrepareCallback localCallback = null;
+        TransactionPrepareWrapperCallback remoteCallback = null;
         if (ts instanceof LocalTransaction) {
-            callback = ((LocalTransaction)ts).getOrInitTransactionPrepareCallback();
-            if (callback.isInitialized() == false) callback = null;
+            localCallback = ((LocalTransaction)ts).getOrInitTransactionPrepareCallback();
+            if (localCallback.isInitialized() == false) localCallback = null;
+        } else {
+            assert(ts instanceof RemoteTransaction);
+            remoteCallback = ((RemoteTransaction)ts).getPrepareWrapperCallback();
+            assert(remoteCallback.isInitialized()) :
+                String.format("The %s for %s is uninitialized", remoteCallback.getClass().getSimpleName(), ts);
         }
         
         // Skip if we've already invoked prepared for this txn at this partition
         if (ts.isMarkedPrepared(this.partitionId)) {
             // We have to make sure that we decrement the counter here
-            if (callback != null) callback.decrementCounter(1);
-            if (d) LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
+            if (localCallback != null) localCallback.decrementCounter(1);
+            if (remoteCallback != null) remoteCallback.run(this.partitionId);
+//            if (d) 
+                LOG.info(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
             return (false);
         }
         ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
         
         // Set the speculative execution commit mode
         if (hstore_conf.site.specexec_enable) {
-            if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
+//            if (d) 
+                LOG.info(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
                              ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
             
             // Check whether the txn that we're waiting for is read-only.
@@ -1304,10 +1316,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
         
-        if (t) LOG.trace(String.format("%s - Telling queue manager that txn is finished at partition %d",
+//        if (t)
+            LOG.info(String.format("%s - Telling queue manager that txn is finished at partition %d",
                          ts, this.partitionId));
         hstore_site.getTransactionQueueManager().lockQueueFinished(ts.getTransactionId(), Status.OK, this.partitionId);
-        if (callback != null) callback.decrementCounter(1);
+        if (localCallback != null) {
+            int newCtr = localCallback.decrementCounter(1);
+            LOG.info(String.format("%s - Decremented %s callback from partition %d [newCounter=%d]",
+                     ts, localCallback.getClass().getSimpleName(), this.partitionId, newCtr));
+        }
+        else {
+            remoteCallback.run(this.partitionId);
+            LOG.info(String.format("%s - Decremented %s callback from partition %d",
+                     ts, remoteCallback.getClass().getSimpleName(), this.partitionId));
+        }
         
         return (true);
     }

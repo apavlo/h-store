@@ -1967,7 +1967,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (hstore_conf.site.exec_profiling && p != ts.getBasePartition() && ts.needsFinish(p)) {
                     PartitionExecutorProfiler pep = this.executors[p].getProfiler();
                     assert(pep != null);
-                    pep.idle_2pc_remote_time.start();
+                    if (pep.idle_2pc_remote_time.isStarted() == false) pep.idle_2pc_remote_time.start();
                 }
                 
                 // TODO: If this txn is read-only, then we should invoke finish right here

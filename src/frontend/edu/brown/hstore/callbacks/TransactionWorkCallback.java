@@ -19,9 +19,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 public class TransactionWorkCallback extends BlockingRpcCallback<TransactionWorkResponse, WorkResult> {
     private static final Logger LOG = Logger.getLogger(TransactionWorkCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
     protected TransactionWorkResponse.Builder builder = null;
