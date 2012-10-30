@@ -50,8 +50,8 @@ public class TransactionPrepareWrapperCallback extends BlockingRpcCallback<Trans
     @Override
     protected void abortCallback(Status status) {
         if (debug.get())
-            LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
-                                    this.getTransactionId(), this.getClass().getSimpleName(), status));
+            LOG.debug(String.format("%s - Aborting %s with status %s",
+                      this.ts, this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
         for (int p : this.hstore_site.getLocalPartitionIds().values()) {
             if (this.builder.getPartitionsList().contains(p) == false) {
@@ -74,6 +74,7 @@ public class TransactionPrepareWrapperCallback extends BlockingRpcCallback<Trans
 
     @Override
     protected synchronized int runImpl(Integer partition) {
+        if (debug.get()) LOG.debug(String.format("%s - Adding partition %d", this.ts, partition));
         assert(this.partitions.contains(partition));
         if (this.isAborted() == false)
             this.builder.addPartitions(partition.intValue());
@@ -83,17 +84,17 @@ public class TransactionPrepareWrapperCallback extends BlockingRpcCallback<Trans
     @Override
     protected void unblockCallback() {
         if (debug.get()) {
-            LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
-                                    this.getTransactionId(),
+            LOG.debug(String.format("%s - Sending %s to %s with status %s",
+                                    this.ts,
                                     TransactionPrepareResponse.class.getSimpleName(),
                                     this.getOrigCallback().getClass().getSimpleName(),
                                     this.builder.getStatus()));
         }
         assert(this.getOrigCounter() == builder.getPartitionsCount()) :
-            String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
-                          builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
+            String.format("The %s for txn %s has results from %d partitions but it was suppose to have %d.",
+                          builder.getClass().getSimpleName(), this.ts, builder.getPartitionsCount(), this.getOrigCounter());
         assert(this.getOrigCallback() != null) :
-            String.format("The original callback for txn #%d is null!", this.getTransactionId());
+            String.format("The original callback for %s is null!", this.ts);
         
         
         this.getOrigCallback().run(this.builder.build());

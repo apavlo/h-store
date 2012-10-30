@@ -1,7 +1,5 @@
 package edu.brown.hstore.callbacks;
 
-import java.util.Collection;
-
 import org.apache.log4j.Logger;
 
 import edu.brown.hstore.HStoreSite;
@@ -10,6 +8,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.PartitionSet;
 
 /**
  * Special callback that keeps track as to whether we have finished up
@@ -20,9 +19,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 public class TransactionCleanupCallback extends BlockingRpcCallback<Integer, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionCleanupCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
  
     private AbstractTransaction ts;
@@ -36,10 +34,7 @@ public class TransactionCleanupCallback extends BlockingRpcCallback<Integer, Int
         super(hstore_site, false);
     }
 
-    public void init(AbstractTransaction ts, Hstoreservice.Status status, Collection<Integer> partitions) {
-        if (debug.get())
-            LOG.debug("Initializing " + this.getClass().getSimpleName() + " for " + ts);
-        
+    public void init(AbstractTransaction ts, Status status, PartitionSet partitions) {
         // Only include local partitions
         int counter = 0;
         for (Integer p : hstore_site.getLocalPartitionIdArray()) {

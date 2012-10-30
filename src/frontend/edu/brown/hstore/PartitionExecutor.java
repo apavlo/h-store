@@ -1111,8 +1111,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Set Distributed Transaction Hack
         // -------------------------------
         else if (work instanceof SetDistributedTxnMessage) {
-            assert(hstore_conf.site.specexec_pre_query == false);
-            this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
+            if (this.currentDtxn != null) {
+                this.blockTransaction(work);
+            } else { 
+                this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
+            }
         }
         // -------------------------------
         // Prepare Transaction
@@ -1327,8 +1330,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         else {
             remoteCallback.run(this.partitionId);
-            LOG.info(String.format("%s - Decremented %s callback from partition %d",
-                     ts, remoteCallback.getClass().getSimpleName(), this.partitionId));
+            LOG.info(String.format("%s - Decremented %s callback from partition %d [newCounter=%d]",
+                     ts, remoteCallback.getClass().getSimpleName(), this.partitionId, remoteCallback.getCounter()));
         }
         
         return (true);

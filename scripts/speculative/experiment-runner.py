@@ -102,9 +102,12 @@ DEBUG_OPTIONS = {
     #"site.txn_profiling":             True,    
 }
 DEBUG_SITE_LOGGING = [
-    #"edu.brown.hstore.HStoreSite",
-    #"edu.brown.hstore.PartitionExecutor",
-    "edu.brown.hstore.TransactionQueueManager"
+    "edu.brown.hstore.HStoreSite",
+    "edu.brown.hstore.PartitionExecutor",
+    "edu.brown.hstore.TransactionQueueManager",
+    "edu.brown.hstore.callbacks.TransactionPrepareCallback",
+    "edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
+    "edu.brown.hstore.callbacks.BlockingRpcCallback",
 ]
 DEBUG_CLIENT_LOGGING = [
     #"edu.brown.api.BenchmarkComponent",
@@ -248,7 +251,7 @@ EXPERIMENT_SETTINGS = {
         "site.specexec_enable":                 True,
         "site.specexec_idle":                   True,
         "site.specexec_markov":                 True,
-        "site.specexec_pre_query":              False,
+        "site.specexec_pre_query":              True,
         "site.markov_enable":                   True,
         "site.markov_singlep_updates":          False,
         "site.markov_dtxn_updates":             True,

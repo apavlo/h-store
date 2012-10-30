@@ -63,8 +63,10 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         PartitionSet partitions = new PartitionSet(request.getPartitionsList());
         assert(partitions.isEmpty() == false) :
             "Unexpected empty list of updated partitions for txn #" + txn_id;
+        partitions.retainAll(hstore_site.getLocalPartitionIds());
         
         RemoteTransaction ts = this.hstore_site.getTransaction(txn_id);
+        assert(ts != null) : "Unexpected null transaction handle for txn #" + txn_id;
         TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
         if (wrapper.isInitialized()) wrapper.finish();
         wrapper.init(ts, partitions, callback);

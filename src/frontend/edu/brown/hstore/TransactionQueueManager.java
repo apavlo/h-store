@@ -35,7 +35,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
@@ -57,7 +56,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     
-    private final int localPartitionsArray[];
+    private final PartitionSet localPartitions;
     
     private boolean stop = false;
     
@@ -180,7 +179,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
         this.lockQueuesBlocked = new boolean[this.lockQueues.length];
         this.lockQueuesLastTxn = new Long[this.lockQueues.length];
-        this.localPartitionsArray = CollectionUtil.toIntArray(hstore_site.getLocalPartitionIds());
+        this.localPartitions = hstore_site.getLocalPartitionIds();
         this.updateConf(this.hstore_conf);
         
         // Allocate transaction queues
@@ -267,7 +266,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // Count the number of unique concurrent dtxns
             if (hstore_conf.site.queue_profiling) {
                 profiler.concurrent_dtxn_ids.clear();
-                for (int partition: this.localPartitionsArray) {
+                for (int partition: this.localPartitions.values()) {
                     if (this.lockQueuesLastTxn[partition] != null) {
                         profiler.concurrent_dtxn_ids.add(this.lockQueuesLastTxn[partition]);   
                     }
@@ -286,7 +285,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         Long txn_id = null;
         
         // LOCK QUEUES
-        for (int partition : this.localPartitionsArray) {
+        for (int partition : this.localPartitions.values()) {
+            if (d) LOG.debug("Clearing out lock queue for partition " + partition);
             synchronized (this.lockQueues[partition]) {
                 while ((txn_id = this.lockQueues[partition].poll()) != null) {
                     this.rejectTransaction(txn_id,
@@ -327,7 +327,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * Returns true if we released a transaction at at least one partition
      */
     protected boolean checkLockQueues() {
-        if (t) LOG.trace("Checking initQueues for " + this.localPartitionsArray.length + " partitions");
+        if (t) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
         EstTimeUpdater.update(System.currentTimeMillis());
         
         // Process anything in our finished queue first
@@ -340,7 +340,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         } // WHILE
         
         boolean txn_released = false;
-        for (int partition : this.localPartitionsArray) {
+        for (int partition : this.localPartitions.values()) {
             TransactionInitQueueCallback callback = null;
             Long next_id = null;
             int counter = -1;
@@ -471,7 +471,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         boolean should_notify = false;
         boolean ret = true;
-        for (int partition : partitions) {
+        for (int partition : partitions.values()) {
             // We can pre-emptively check whether this txnId is greater than
             // the largest one that we know about at a partition
             // We don't need to acquire the lock on last_txns at this partition because 
@@ -530,8 +530,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
             // Our queue is overloaded. We have to reject the txnId!
             else if (queue.offer(txn_id, sysproc) == false) {
-                if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. Throttling txn #%d",
-                                 partition, next_safe, txn_id));
+                if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
+                		        "Throttling txn #%d until id is greater than %d" +
+                		        "[locked=%s / queueSize=%d]",
+                                 partition, txn_id, next_safe,
+                                 this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
                 if (wrapper != null) {
                     this.rejectTransaction(txn_id,
                                            wrapper,
@@ -697,8 +700,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param reject_txnId
      */
     private void rejectTransaction(Long txn_id, TransactionInitQueueCallback callback, Status status, int reject_partition, Long reject_txnId) {
-        if (d) LOG.debug(String.format("Rejecting txn #%d on partition %d. Blocking until a txnId greater than #%d",
-                         txn_id, reject_partition, reject_txnId));
+        if (d) LOG.debug(String.format("Rejecting txn #%d on partition %d. Blocking until a txnId greater than #%d [valid=%s]",
+                         txn_id, reject_partition, reject_txnId, (txn_id > reject_txnId)));
         assert(txn_id.equals(reject_txnId) == false) :
             String.format("Rejected txn %d's blocked-until-id is also %d", txn_id, reject_txnId); 
         assert(callback != null) :
@@ -979,7 +982,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     public class Debug implements DebugContext {
         public int getInitQueueSize() {
             int ctr = 0;
-            for (int p : localPartitionsArray)
+            for (int p : localPartitions.values())
               ctr += lockQueues[p].size();
             return (ctr);
         }

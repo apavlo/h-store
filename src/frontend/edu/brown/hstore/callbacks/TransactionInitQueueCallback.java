@@ -126,11 +126,16 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             assert(this.getOrigCallback() != null) :
                 String.format("The original callback for txn #%d is null!", this.getTransactionId());
             
+            
+            this.getOrigCallback().run(this.builder.build());
+            this.builder = null;
+
             // HACK
             // This is a big hack to have the PartitionExecutor block executing
             // single-partition transactions because we now have a new distributed transaction
             // Note that we have to do this before send the message
-            if (hstore_conf.site.specexec_pre_query) { // && hstore_site.isLocalPartition(this.base_partition) == false) {
+            // if (hstore_conf.site.specexec_pre_query) { // &&
+            if (hstore_site.isLocalPartition(this.base_partition) == false) {
                 try {
                     // Create the transaction handle
                     AbstractTransaction ts = hstore_site.getTransaction(this.txn_id);
@@ -142,19 +147,16 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
                     }
                     
                     if (ts instanceof RemoteTransaction) {
-                    	for (int p: this.hstore_site.getLocalPartitionIds().values()) {
-                    		if (this.partitions.contains(p)) {
-                    		    this.hstore_site.getPartitionExecutor(p).queueInitDtxn((RemoteTransaction)ts);
-                    		}
-                    	} // FOR
+                        for (int p: this.hstore_site.getLocalPartitionIds().values()) {
+                            if (this.partitions.contains(p)) {
+                                this.hstore_site.getPartitionExecutor(p).queueInitDtxn((RemoteTransaction)ts);
+                            }
+                        } // FOR
                     }
                 } catch (Throwable ex) {
                     ex.printStackTrace();
                 }
             } 
-            
-            this.getOrigCallback().run(this.builder.build());
-            this.builder = null;
             
             // start profile idle_waiting_dtxn_time on remote paritions
             if (this.hstore_conf.site.exec_profiling) {

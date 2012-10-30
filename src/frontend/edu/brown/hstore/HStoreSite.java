@@ -2132,18 +2132,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                          ts, status, ts.getClientHandle()));
         
         String msg = this.REJECTION_MESSAGE + " - [0]";
-        if (ts.getProcedure().getSystemproc()) {
-            try {
-                throw new Exception(msg);
-            } catch (Exception ex) {
-                StringWriter writer = new StringWriter();
-                ex.printStackTrace(new PrintWriter(writer));
-                msg = writer.toString();
-                if (d) LOG.warn(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
-                                ts, status, ts.getClientHandle()), ex);
-            }
-        }
-        
+//        if (ts.getProcedure().getSystemproc()) {
+//            try {
+//                throw new Exception(msg);
+//            } catch (Exception ex) {
+//                StringWriter writer = new StringWriter();
+//                ex.printStackTrace(new PrintWriter(writer));
+//                msg = writer.toString();
+//                if (d) LOG.warn(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
+//                                ts, status, ts.getClientHandle()), ex);
+//            }
+//        }
+//        
         ts.setStatus(status);
         ClientResponseImpl cresponse = new ClientResponseImpl();
         cresponse.init(ts, status, HStoreConstants.EMPTY_RESULT, msg);

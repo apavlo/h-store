@@ -95,6 +95,8 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public void finish() {
         super.finish();
+        this.work_callback.finish();
+        this.prepare_callback.finish();
         this.cleanup_callback.finish();
         
         for (int i = 0; i < this.rpc_transactionPrefetch.length; i++) {
