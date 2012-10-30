@@ -162,6 +162,21 @@ public final class HStoreConf {
         public boolean cpu_affinity_one_partition_per_core;
         
         @ConfigProperty(
+                description="Speculative pollicy to pick the transactions to run speculatively. " +
+                		"It should be one of ('FIRST', 'SHORTEST', 'LONGEST')" ,
+                defaultString="FIRST",
+                experimental=false
+            )
+        public String specexec_scheduler_policy;
+        
+        @ConfigProperty(
+                description="The window size to pick up txn to run speculatively. ",
+                defaultInt= 10,
+                experimental=false
+            )
+        public int specexec_scheduler_window;
+        
+        @ConfigProperty(
             description="Enable profiling for the HStoreSite. " +
                         "This data can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
