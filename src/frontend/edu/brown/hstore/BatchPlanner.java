@@ -1044,7 +1044,7 @@ public class BatchPlanner implements Loggable {
                 // }
             } // PARTITION
         } // ROUND
-        assert (builders.size() > 0) : "Failed to generate any WorkFragments in this BatchPlan for txn #" + txn_id;
+//        assert (builders.size() > 0) : "Failed to generate any WorkFragments in this BatchPlan for txn #" + txn_id;
         if (d)
             LOG.debug("Created " + builders.size() + " WorkFragment(s) for txn #" + txn_id);
         if (hstore_conf.site.planner_profiling && profiler != null)
