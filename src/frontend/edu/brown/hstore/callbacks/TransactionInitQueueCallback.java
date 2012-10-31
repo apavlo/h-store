@@ -70,11 +70,11 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             String.format("InitPartitions:%s / LocalPartitions:%s", 
                           partitions, this.hstore_site.getLocalPartitionIds());
         
-        super.init(txn_id, counter, orig_callback);
         this.partitions = partitions;
         this.builder = TransactionInitResponse.newBuilder()
                              .setTransactionId(this.ts.getTransactionId().longValue())
                              .setStatus(Status.OK);
+        super.init(this.ts.getTransactionId(), counter, orig_callback);
     }
     
     /**

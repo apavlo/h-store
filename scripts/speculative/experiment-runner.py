@@ -102,11 +102,11 @@ DEBUG_OPTIONS = {
     #"site.txn_profiling":             True,    
 }
 DEBUG_SITE_LOGGING = [
-    "edu.brown.hstore.HStoreSite",
-    "edu.brown.hstore.PartitionExecutor",
-    "edu.brown.hstore.TransactionQueueManager",
-    "edu.brown.hstore.callbacks.TransactionPrepareCallback",
-    "edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
+    #"edu.brown.hstore.HStoreSite",
+    #"edu.brown.hstore.PartitionExecutor",
+    #"edu.brown.hstore.TransactionQueueManager",
+    #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
+    #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
     "edu.brown.hstore.callbacks.BlockingRpcCallback",
 ]
 DEBUG_CLIENT_LOGGING = [
