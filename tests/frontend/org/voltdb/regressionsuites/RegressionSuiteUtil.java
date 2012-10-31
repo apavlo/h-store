@@ -33,7 +33,7 @@ public abstract class RegressionSuiteUtil {
     static final double SCALEFACTOR = 0.0001;
     private static final DefaultRandomGenerator rng = new DefaultRandomGenerator(0);
     
-    public static void setHStoreConf(Client client, String paramName, Object paramValue) throws Exception {
+    public static ClientResponse setHStoreConf(Client client, String paramName, Object paramValue) throws Exception {
         assert(HStoreConf.isConfParameter(paramName)) :
             "Invalid HStoreConf parameter '" + paramName + "'";
         String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
@@ -41,6 +41,7 @@ public abstract class RegressionSuiteUtil {
         String confValues[] = {paramValue.toString()};
         ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
         assert(cresponse.getStatus() == Status.OK);
+        return (cresponse);
     }
     
     /**

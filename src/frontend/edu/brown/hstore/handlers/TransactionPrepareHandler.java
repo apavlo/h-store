@@ -77,6 +77,9 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
         if (wrapper.isInitialized()) wrapper.finish();
         wrapper.init(ts, partitions, callback);
+        assert(wrapper.isInitialized()) :
+            String.format("Unexepected uninitialized %s for %s", callback.getClass().getSimpleName(), ts);
+        
         hstore_site.transactionPrepare(ts, partitions);
     }
     @Override

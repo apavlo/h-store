@@ -91,11 +91,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     private final boolean[] lockQueuesBlocked;
     
-    /**
-     * A queue of txnIds that need to be finished and removed from the lock queues
-     */
-    private final Queue<Object[]> lockFinishQueue = new ConcurrentLinkedQueue<Object[]>(); 
-    
     // ----------------------------------------------------------------------------
     // BLOCKED DISTRIBUTED TRANSACTIONS
     // ----------------------------------------------------------------------------
@@ -917,7 +912,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         m[++idx] = new LinkedHashMap<String, Object>();
         m[idx].put("Wait Time", this.wait_time + " ms");
         m[idx].put("# of Blocked Txns", this.blockedQueue.size());
-        m[idx].put("# of Finished Queue Entries", this.lockFinishQueue.size());
         
         // Local Partitions
         m[++idx] = new LinkedHashMap<String, Object>();

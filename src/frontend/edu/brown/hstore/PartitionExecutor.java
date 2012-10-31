@@ -863,8 +863,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.tick();
             } // WHILE
         } catch (final Throwable ex) {
+            ex.printStackTrace();
             if (this.isShuttingDown() == false) {
-                ex.printStackTrace();
+                // ex.printStackTrace();
                 LOG.fatal(String.format("Unexpected error for PartitionExecutor at partition #%d [%s]",
                                         this.partitionId, this.currentTxn), ex);
                 if (this.currentTxn != null) LOG.fatal("TransactionState Dump:\n" + this.currentTxn.debug());
@@ -1281,32 +1282,38 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (d) LOG.debug(String.format("%s - Preparing to commit txn at partition %d", ts, this.partitionId));
         
         // Skip if we've already invoked prepared for this txn at this partition
-        if (ts.isMarkedPrepared(this.partitionId)) {
-            if (d) LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
-            return (false);
-        }
-        ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
-        
-        // Set the speculative execution commit mode
-        if (hstore_conf.site.specexec_enable) {
-            if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
-                             ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
+        if (ts.isMarkedPrepared(this.partitionId) == false) {
+            ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
             
-            // Check whether the txn that we're waiting for is read-only.
-            // If it is, then that means all read-only transactions can commit right away
-            if (ts.isExecReadOnly(this.partitionId)) {
-                newMode = ExecutionMode.COMMIT_READONLY;
+            // Set the speculative execution commit mode
+            if (hstore_conf.site.specexec_enable) {
+                if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
+                                 ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
+                
+                // Check whether the txn that we're waiting for is read-only.
+                // If it is, then that means all read-only transactions can commit right away
+                if (ts.isExecReadOnly(this.partitionId)) {
+                    newMode = ExecutionMode.COMMIT_READONLY;
+                }
             }
+            if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
+        
+            if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
+                             ts, this.partitionId));
+            hstore_site.getTransactionQueueManager().lockQueueFinished(ts, Status.OK, this.partitionId);
         }
-        if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
-        
-        if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
-                         ts, this.partitionId));
-        hstore_site.getTransactionQueueManager().lockQueueFinished(ts, Status.OK, this.partitionId);
-        
+        else if (d) {
+            LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
+        }
+
+        // IMPORTANT
+        // When we do an early 2PC-PREPARE, we won't have this callback ready
+        // because we don't know what callback to use to send the acknowledgements
+        // back over the network
         TransactionPrepareWrapperCallback callback = ts.getPrepareWrapperCallback();
-        assert(callback.isInitialized());
-        callback.run(Integer.valueOf(this.partitionId));
+        if (callback.isInitialized()) {
+            callback.run(Integer.valueOf(this.partitionId));
+        }
 
         return (true);
     }
@@ -2176,7 +2183,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // from this transaction. If it is, then we can go ahead and prepare the txn
         if (is_local == false && fragment.getLastFragment()) {
             if (d) LOG.debug(String.format("%s - Invoking early 2PC:PREPARE", ts));
-            hstore_site.transactionPrepare(ts, this.catalogContext.getPartitionSetSingleton(this.partitionId));
+            this.queuePrepare(ts);
         }
     }
     

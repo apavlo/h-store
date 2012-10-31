@@ -412,6 +412,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param coordinators
      * @param p_estimator
      */
+    @SuppressWarnings("unchecked")
     protected HStoreSite(int site_id, CatalogContext catalogContext, HStoreConf hstore_conf) {
         assert(hstore_conf != null);
         assert(catalogContext != null);
@@ -1419,6 +1420,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int p : this.local_partitions_arr) {
             this.executors[p].shutdown();
         } // FOR
+
+        this.hstore_coordinator.shutdown();
         
         if (this.voltNetwork != null) {
             try {
@@ -1428,8 +1431,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             this.clientInterface.shutdown();
         }
-        
-        this.hstore_coordinator.shutdown();
         
         LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]",
                                this.getSiteName(), this.hashCode()));
