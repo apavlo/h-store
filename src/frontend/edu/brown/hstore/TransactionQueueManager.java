@@ -320,14 +320,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         EstTimeUpdater.update(System.currentTimeMillis());
         
         // Process anything in our finished queue first
-        if (t) LOG.trace("Checking lockFinishQueue [size=" + this.lockFinishQueue.size() + "]");
-        Object triplet[];
-        while ((triplet = this.lockFinishQueue.poll()) != null) {
-            AbstractTransaction ts = (AbstractTransaction)triplet[0];
-            Status status = (Status)triplet[1];
-            Integer partition = (Integer)triplet[2];
-            this.processLockFinished(ts, status, partition.intValue());
-        } // WHILE
+//        if (t) LOG.trace("Checking lockFinishQueue [size=" + this.lockFinishQueue.size() + "]");
+//        Object triplet[];
+//        while ((triplet = this.lockFinishQueue.poll()) != null) {
+//            AbstractTransaction ts = (AbstractTransaction)triplet[0];
+//            Status status = (Status)triplet[1];
+//            Integer partition = (Integer)triplet[2];
+//            this.processLockFinished(ts, status, partition.intValue());
+//        } // WHILE
 
         if (t) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
         boolean txn_released = false;
@@ -536,16 +536,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param partition
      */
     public void lockQueueFinished(AbstractTransaction ts, Status status, int partition) {
-        if (d) LOG.debug(String.format("Queueing %s to be marked as finished on partition %d [status=%s]",
-                         ts, partition, status));
-        assert(ts != null) :
-            String.format("Unexpected null transaction handle [status=%s / partition=%d]", status, partition);
-        this.lockFinishQueue.add(new Object[]{ ts, status, Integer.valueOf(partition) });
-    }    
-        
-    private void processLockFinished(AbstractTransaction ts, Status status, int partition) {
-        assert(ts != null) :
-            String.format("Unexpected null transaction handle [status=%s / partition=%d]", status, partition);
+        assert(ts.isInitialized()) :
+            String.format("Unexpected uninitialized transaction %s [status=%s / partition=%d]", ts, status, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + ts + " as finished on remote partition #" + partition;
         if (d) LOG.debug(String.format("Updating lock queues because %s is finished on partition %d [status=%s]",
@@ -553,13 +545,15 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         // If the given txnId is the current transaction at this partition and still holds
         // the lock on the partition, then we will want to release it
-        boolean poke = false;
+        // Note that this is always thread-safe because we will release the lock
+        // only if we are the current transaction at this partition
+        boolean checkQueue = true;
         if (this.lockQueuesBlocked[partition] && this.lockQueuesLastTxn[partition].equals(ts.getTransactionId())) {
             if (d) LOG.debug(String.format("Unlocking partition %d because %s is finished " +
             		         "[status=%s]",
                              partition, ts, status));
             this.lockQueuesBlocked[partition] = false;
-            poke = true;
+            checkQueue = false;
         } else if (d) {
             LOG.debug(String.format("Not unlocking partition %d for txn %s " +
             		  "[current=%d, locked=%s, status=%s]",
@@ -571,9 +565,13 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // If this remove() returns false, then we know that our transaction wasn't
         // sitting in the queue for that partition.
         boolean removed = false;
-        synchronized (this.lockQueues[partition]) {
-            removed = this.lockQueues[partition].remove(ts);
-        } // SYNCH
+        if (checkQueue) {
+            synchronized (this.lockQueues[partition]) {
+                removed = this.lockQueues[partition].remove(ts);
+            } // SYNCH
+        }
+        assert(this.lockQueues[partition].contains(ts) == false);
+        
         // This is a local transaction that is still waiting for this partition (i.e., it hasn't
         // been rejected yet). That means we will want to decrement the counter its Transaction
         if (removed) {
@@ -590,8 +588,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 }
             }
         }
-        if (poke && this.checkFlag.availablePermits() == 0)
-            this.checkFlag.release();
+        this.checkFlag.release();
     }
 
     /**

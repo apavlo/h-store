@@ -52,6 +52,7 @@ import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.DumpManager;
 
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -66,7 +67,7 @@ import edu.brown.utils.EventObserver;
  * <code>ClientConnection</code> instances.
  *
  */
-public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
+public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Configurable {
     private static final Logger LOG = Logger.getLogger(ClientInterface.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -86,10 +87,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     
     
     // TODO: Move this into HStoreConf
-    private final int MAX_DESIRED_PENDING_BYTES = 67108864;
+    private int MAX_DESIRED_PENDING_BYTES = 67108864;
     private final double MAX_DESIRED_PENDING_BYTES_RELEASE = 0.8;
     
-    private final int MAX_DESIRED_PENDING_TXNS; //  = 15000;
+    private int MAX_DESIRED_PENDING_TXNS; //  = 15000;
     private final double MAX_DESIRED_PENDING_TXNS_RELEASE = 0.8;
     
     // ----------------------------------------------------------------------------
@@ -697,8 +698,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         DumpManager.register(m_dumpId, this);
 
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        // int queues_total = (hstore_conf.site.queue_dtxn_increase_max + hstore_conf.site.queue_incoming_increase_max); 
-        this.MAX_DESIRED_PENDING_TXNS = (int)(2500 * hstore_site.getLocalPartitionIds().size());
+        int num_partitions = hstore_site.getLocalPartitionIds().size();
+        this.MAX_DESIRED_PENDING_TXNS = (int)(hstore_conf.site.network_incoming_max_per_partition * num_partitions);
         
         // Backpressure EventObservers
         this.onBackPressure.addObserver(this.onBackPressureObserver);
@@ -711,6 +712,13 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         } else {
             this.profiler = null;
         }
+    }
+    
+
+    @Override
+    public void updateConf(HStoreConf hstore_conf) {
+        int num_partitions = hstore_site.getLocalPartitionIds().size();
+        this.MAX_DESIRED_PENDING_TXNS = (int)(hstore_conf.site.network_incoming_max_per_partition * num_partitions);
     }
     
     public void startAcceptingConnections() throws IOException {

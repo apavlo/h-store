@@ -141,7 +141,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     // ----------------------------------------------------------------------------
     
     private final TransactionInitQueueCallback init_callback;
-    private final TransactionPrepareWrapperCallback prepare_callback;
+    protected final TransactionPrepareWrapperCallback prepare_callback;
     
     // ----------------------------------------------------------------------------
     // GLOBAL PREDICTIONS FLAGS

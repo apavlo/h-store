@@ -42,10 +42,17 @@ public class TransactionPrepareWrapperCallback extends BlockingRpcCallback<Trans
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         this.partitions = partitions;
+
+        // HACK: Don't wait for non-local partitions
+        int expected = 0;
+        for (int p : this.partitions.values()) {
+            if (this.hstore_site.isLocalPartition(p)) expected++;
+        } // FOR
+        
         this.builder = TransactionPrepareResponse.newBuilder()
                              .setTransactionId(ts.getTransactionId())
                              .setStatus(Status.OK);
-        super.init(ts.getTransactionId(), partitions.size(), orig_callback);
+        super.init(ts.getTransactionId(), expected, orig_callback);
     }
     
     @Override

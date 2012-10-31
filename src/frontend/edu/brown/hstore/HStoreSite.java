@@ -709,6 +709,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR
         
         // Update all our other boys
+        this.clientInterface.updateConf(hstore_conf);
         this.objectPools.updateConf(hstore_conf);
         this.txnQueueManager.updateConf(hstore_conf);
     }
@@ -1957,16 +1958,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionFinish(Long txn_id, Status status, PartitionSet partitions) {
         if (d) LOG.debug(String.format("2PC:FINISH Txn #%d [status=%s, partitions=%s]",
                          txn_id, status, partitions));
-        boolean commit = (status == Status.OK);
         
         // If we don't have a AbstractTransaction handle, then we know that we never did anything
         // for this transaction and we can just ignore this finish request.
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
         if (ts == null) {
-            if (t) LOG.trace(String.format("No transaction information exists for #%d. Ignoring finish request", txn_id));
+            if (d) LOG.warn(String.format("No transaction information exists for #%d. Ignoring finish request", txn_id));
             return;
         }
-        ts.setStatus(status);
         
         TransactionFinishCallback finish_callback = null;
         TransactionCleanupCallback cleanup_callback = null;
@@ -1981,16 +1980,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
             assert(finish_callback != null);
+            if (t) LOG.trace(ts + " - Retrieved " + finish_callback);
         }
-        
+
+        ts.setStatus(status);
         for (int p : this.local_partitions.values()) {
             if (partitions.contains(p) == false) continue;
             if (t) LOG.trace(String.format("#%d - Invoking finish at partition %d", txn_id, p));
             
-            // We only need to tell the queue stuff that the transaction is finished
-            // if it's not a commit because there won't be a 2PC:PREPARE message
-            if (commit == false) this.txnQueueManager.lockQueueFinished(ts, status, p);
-
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
@@ -2352,7 +2349,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                           new_ts.getRestartCounter(),
                           predict_touchedPartitions));
                 if (t && status == Status.ABORT_MISPREDICT)
-                    LOG.trace(String.format("%s Mispredicted partitions\n%s",
+                    LOG.trace(String.format("%s Mispredicted partitions: %s",
                               new_ts, orig_ts.getTouchedPartitions().values()));
             }
             
@@ -2687,7 +2684,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (t) LOG.trace(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + ts.getTransactionId();
-        if (d) LOG.debug(String.format("%s - Returning to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
+        if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+                         ts, ts.getClass().getSimpleName(), ts.hashCode()));
         if (ts.isMapReduce()) {
             objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
         } else {
@@ -2705,7 +2703,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
     private void processPeriodicWork() {
-        if (t) LOG.trace("Checking for PeriodicWork...");
+        // if (t) LOG.trace("Checking for PeriodicWork...");
 
         EstTimeUpdater.update(System.currentTimeMillis());
         
@@ -2778,7 +2776,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
     private void checkForFinishedCompilerWork() {
-        if (t) LOG.trace("HStoreSite - Checking for finished compiled work.");
+        // if (t) LOG.trace("Checking for finished compiled work.");
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {

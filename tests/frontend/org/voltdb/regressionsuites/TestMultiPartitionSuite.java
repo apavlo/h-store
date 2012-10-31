@@ -42,11 +42,15 @@ import java.io.IOException;
  */
 public class TestMultiPartitionSuite extends RegressionSuite {
 
+    private static final String PREFIX = "multip";
+    
     // procedures used by these tests
     @SuppressWarnings("unchecked")
     static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        MultiSiteSelect.class, MultiSiteIndexSelect.class,
-        MultiSiteDelete.class, UpdateNewOrder.class
+        MultiSiteSelect.class,
+        MultiSiteIndexSelect.class,
+        MultiSiteDelete.class,
+        UpdateNewOrder.class
     };
 
     /**
@@ -181,15 +185,9 @@ public class TestMultiPartitionSuite extends RegressionSuite {
      * @return The TestSuite containing all the tests to be run.
      */
     static public Test suite() {
+        VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestMultiPartitionSuite.class);
-
-        /////////////////////////////////////////////////////////////
-        // CONFIG #1: 1 Local Site/Partitions running on JNI backend
-        /////////////////////////////////////////////////////////////
-
-        // get a server config for the native backend with one sites/partitions
-        VoltServerConfig config = new LocalSingleProcessServer("distregression-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
 
         // build up a project builder for the workload
         TPCCProjectBuilder project = new TPCCProjectBuilder();
@@ -197,41 +195,33 @@ public class TestMultiPartitionSuite extends RegressionSuite {
         project.addDefaultPartitioning();
         project.addProcedures(PROCEDURES);
         project.addStmtProcedure("InsertNewOrder", "INSERT INTO NEW_ORDER VALUES (?, ?, ?);", "NEW_ORDER.NO_W_ID: 2");
-        // build the jarfile
-        config.compile(project);
 
-        // add this config to the set of tests to run
+        boolean success;
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #1: 1 Local Site/Partition running on JNI backend
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
         builder.addServerConfig(config);
 
-        /////////////////////////////////////////////////////////////
-        // CONFIG #2: 2 Local Site/Partitions running on JNI backend
-        /////////////////////////////////////////////////////////////
-
-        // get a server config for the native backend with two sites/partitions
-        config = new LocalSingleProcessServer("distregression-twosites.jar", 2, BackendTarget.NATIVE_EE_JNI);
-
-        // build the jarfile (note the reuse of the TPCC project)
-        config.compile(project);
-
-        // add this config to the set of tests to run
+        ////////////////////////////////////////////////////////////
+        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
         builder.addServerConfig(config);
 
-        /////////////////////////////////////////////////////////////
-        // CONFIG #3: 1 Local Site/Partition running on HSQL backend
-        /////////////////////////////////////////////////////////////
-
-        // get a server config that similar, but doesn't use the same backend
-//        config = new LocalSingleProcessServer("distregression-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-        // build the jarfile (note the reuse of the TPCC project)
-//        config.compile(project);
-        // add this config to the set of tests to run
-//        builder.addServerConfig(config);
-
-        // Cluster
-        config = new LocalCluster("distregression-cluster.jar", 2, 2,
-                                  1, BackendTarget.NATIVE_EE_JNI);
-        config.compile(project);
-        builder.addServerConfig(config);
 
         return builder;
     }

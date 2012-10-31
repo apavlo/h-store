@@ -603,6 +603,14 @@ public final class HStoreConf {
         )
         public boolean network_txn_initialization;
         
+        @ConfigProperty(
+            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+                        "from clients and will block the network connections.",
+            defaultInt=2500,
+            experimental=false
+        )
+        public int network_incoming_max_per_partition;
+        
         // ----------------------------------------------------------------------------
         // Transaction Execution Options
         // ----------------------------------------------------------------------------
