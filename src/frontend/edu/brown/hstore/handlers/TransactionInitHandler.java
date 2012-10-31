@@ -64,13 +64,24 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             String.format("Got init request for remote txn #%d but we already have one [%s]",
                           txn_id, ts);
 
+        // This allocation is unnecessary if we're on the same site
+        PartitionSet partitions = null;
+        if (ts instanceof LocalTransaction) {
+            partitions = ((LocalTransaction)ts).getPredictTouchedPartitions();
+        } else {
+            partitions = new PartitionSet(request.getPartitionsList());
+        }
+        
         // If we don't have a handle, we need to make one so that we can stick in the
         // things that we need to keep track of at this site. At this point we know that we're on
         // a remote site from the txn's base partition
         if (ts == null) {
             int base_partition = request.getBasePartition();
             ts = this.hstore_site.getTransactionInitializer()
-                                 .createRemoteTransaction(txn_id, base_partition, request.getProcedureId());
+                                 .createRemoteTransaction(txn_id,
+                                                          partitions,
+                                                          base_partition,
+                                                          request.getProcedureId());
         }
         
         
@@ -86,13 +97,6 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
                                      request.getPrefetchParamsList());
         }
         
-        // This allocation is unnecessary if we're on the same site
-        PartitionSet partitions = null;
-        if (ts instanceof LocalTransaction) {
-            partitions = ((LocalTransaction)ts).getPredictTouchedPartitions();
-        } else {
-            partitions = new PartitionSet(request.getPartitionsList());
-        }
         this.hstore_site.transactionInit(ts, partitions, callback);
         
         // We don't need to send back a response right here.

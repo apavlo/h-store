@@ -161,15 +161,6 @@ public class LocalTransaction extends AbstractTransaction {
     public TransactionProfiler profiler;
     
     // ----------------------------------------------------------------------------
-    // INITIAL PREDICTION DATA MEMBERS
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * The set of partitions that we expected this partition to touch.
-     */
-    private PartitionSet predict_touchedPartitions;
-  
-    // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
     // ----------------------------------------------------------------------------
     
@@ -243,8 +234,7 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc,
                                  ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
-        assert(predict_touchedPartitions != null);
-        assert(predict_touchedPartitions.isEmpty() == false);
+
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
         this.initiateTime = initiateTime;
@@ -252,20 +242,16 @@ public class LocalTransaction extends AbstractTransaction {
         this.client_callback = client_callback;
         this.mapreduce = catalog_proc.getMapreduce();
         
-        // Initialize the predicted execution properties for this transaction
-        this.predict_touchedPartitions = predict_touchedPartitions;
-        this.predict_readOnly = predict_readOnly;
-        this.predict_abortable = predict_abortable;
-        
         super.init(txn_id,
                    clientHandle,
                    base_partition,
                    params,
                    catalog_proc.getId(),
                    catalog_proc.getSystemproc(),
-                   (this.predict_touchedPartitions.size() == 1),
+                   predict_touchedPartitions,
                    predict_readOnly,
-                   predict_abortable, true);
+                   predict_abortable,
+                   true);
         
         
         // Grab a DistributedState that will have all the goodies that we need
@@ -298,26 +284,25 @@ public class LocalTransaction extends AbstractTransaction {
                                      ParameterSet params,
                                      PartitionSet predict_touchedPartitions,
                                      Procedure catalog_proc) {
-        this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
         this.initiateTime = EstTime.currentTimeMillis();
-        boolean predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
-        if (predict_singlePartition == false) {
+        
+        super.init(txn_id,                       // TxnId
+                   Integer.MAX_VALUE,            // ClientHandle
+                   base_partition,               // BasePartition
+                   params,                       // Procedure Parameters
+                   catalog_proc.getId(),         // ProcedureId
+                   catalog_proc.getSystemproc(), // SysProc
+                   predict_touchedPartitions,    // Partitions
+                   catalog_proc.getReadonly(),   // ReadOnly
+                   true,                         // Abortable
+                   true                          // ExecLocal
+        );
+        if (this.predict_singlePartition == false) {
             this.dtxnState = new DistributedState(hstore_site).init(this);
         }
+        return (this);
         
-        return (LocalTransaction)super.init(
-                          txn_id,                       // TxnId
-                          Integer.MAX_VALUE,            // ClientHandle
-                          base_partition,               // BasePartition
-                          params,                       // Procedure Parameters
-                          catalog_proc.getId(),         // ProcedureId
-                          catalog_proc.getSystemproc(), // SysProc
-                          predict_singlePartition,      // SinglePartition
-                          catalog_proc.getReadonly(),   // ReadOnly
-                          true,                         // Abortable
-                          true                          // ExecLocal
-        );
     }
     
     /**

@@ -314,16 +314,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     protected boolean checkLockQueues() {
         EstTimeUpdater.update(System.currentTimeMillis());
         
-        // Process anything in our finished queue first
-//        if (t) LOG.trace("Checking lockFinishQueue [size=" + this.lockFinishQueue.size() + "]");
-//        Object triplet[];
-//        while ((triplet = this.lockFinishQueue.poll()) != null) {
-//            AbstractTransaction ts = (AbstractTransaction)triplet[0];
-//            Status status = (Status)triplet[1];
-//            Integer partition = (Integer)triplet[2];
-//            this.processLockFinished(ts, status, partition.intValue());
-//        } // WHILE
-
         if (t) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
         boolean txn_released = false;
         for (int partition : this.localPartitions.values()) {
@@ -352,7 +342,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
             
             callback = next.getTransactionInitQueueCallback();
-            assert(callback.isInitialized()) : "Uninitialized callback for " + next;
+            assert(callback.isInitialized()) :
+                String.format("Uninitialized %s callback for %s", callback.getClass().getSimpleName(), next);
             
             // If this callback has already been aborted, then there is nothing we need to
             // do. Somebody else will make sure that this txn is removed from the queue
@@ -424,9 +415,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         // Wrap the callback around a TransactionInitWrapperCallback that will wait until
         // our HStoreSite gets an acknowledgment from all the ...
-        final TransactionInitQueueCallback wrapper = ts.getTransactionInitQueueCallback();
-        assert(wrapper.isInitialized() == false);
-        wrapper.init(ts.getTransactionId(), partitions, ts.getBasePartition(), ts.getProcedureId(), callback);
+        final TransactionInitQueueCallback wrapper = ts.initTransactionInitQueueCallback(callback);
+        assert(wrapper.isInitialized());
         
         boolean should_notify = false;
         boolean ret = true;

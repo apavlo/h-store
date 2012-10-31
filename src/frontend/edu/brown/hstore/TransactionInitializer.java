@@ -251,15 +251,18 @@ public class TransactionInitializer {
      * @param request
      * @return
      */
-    public RemoteTransaction createRemoteTransaction(Long txn_id, int base_partition, int proc_id) {
+    public RemoteTransaction createRemoteTransaction(Long txn_id,
+                                                     PartitionSet partitions,
+                                                     int base_partition,
+                                                     int proc_id) {
         RemoteTransaction ts = null;
         Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
         try {
             // Remote Transaction
             ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();
-            ts.init(txn_id, base_partition, null, catalog_proc, true);
-            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [singlePartitioned=%s, hashCode=%d]",
-                                           ts, base_partition, false, ts.hashCode()));
+            ts.init(txn_id, base_partition, null, catalog_proc, partitions, true);
+            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [partitions=%s, hashCode=%d]",
+                             ts, base_partition, partitions, ts.hashCode()));
         } catch (Exception ex) {
             LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);

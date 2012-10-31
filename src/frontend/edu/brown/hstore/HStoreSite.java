@@ -213,7 +213,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         new ConcurrentHashMap<Long, AbstractTransaction>();
     
     /**
-     * 
+     * Queues for transactions that are ready to be cleaned up and deleted
+     * There is one queue for each Status type
      */
     private final Queue<Long> deletable_txns[];
     
@@ -433,11 +434,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
          this.deletable_txns = new Queue[Status.values().length];
          for (Status s : Status.values()) {
              this.deletable_txns[s.ordinal()] = new ConcurrentLinkedQueue<Long>();
-         }
-//        this.deletable_txns = new Queue[num_local_partitions];
-//        for (int i = 0; i < this.deletable_txns.length; i++) {
-//            this.deletable_txns[i] = new ConcurrentLinkedQueue<Pair<Long, Status>>();
-//        }
+         } // FOR
         
         // **IMPORTANT**
         // We have to setup the partition offsets before we do anything else here
@@ -2718,20 +2715,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Delete txn handles
-        // Pair<Long, Status> p = null;
         Long txn_id = null;
-        // for (int i = 0; i < this.deletable_txns.length; i++) {
-        
         if (hstore_conf.site.profiling) this.profiler.cleanup.start();
         for (Status status : Status.values()) {
-            // Queue<Pair<Long, Status>> queue = this.deletable_txns[i]; 
             Queue<Long> queue = this.deletable_txns[status.ordinal()];
             this.deletable_txns_requeue.clear();
-            // while ((p = queue.poll()) != null) {
             while ((txn_id = queue.poll()) != null) {
-                // txn_id = p.getFirst();
-                // Status status = p.getSecond();
-                
                 // It's ok for us to not have a transaction handle, because it could be
                 // for a remote transaction that told us that they were going to need one
                 // of our partitions but then they never actually sent work to us
@@ -2754,7 +2743,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         if (t) LOG.trace(String.format("%s - Cannot delete txn at this point [status=%s]\n%s",
                                          ts, status, ts.debug()));
                         this.deletable_txns_requeue.add(txn_id);
-                        // this.deletable_txns_requeue.add(p);
                     }
                 } else if (d) {
                     LOG.warn(String.format("Ignoring clean-up request for txn #%d because we do not have a handle " +

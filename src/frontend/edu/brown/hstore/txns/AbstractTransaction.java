@@ -43,10 +43,12 @@ import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
@@ -60,6 +62,7 @@ import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
+import edu.brown.utils.PartitionSet;
 
 /**
  * @author pavlo
@@ -167,6 +170,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      */
     private EstimatorState predict_tState;
     
+    /**
+     * The set of partitions that we expected this partition to touch.
+     */
+    protected PartitionSet predict_touchedPartitions;
+    
     // ----------------------------------------------------------------------------
     // PER PARTITION EXECUTION FLAGS
     // ----------------------------------------------------------------------------
@@ -255,7 +263,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numLocalPartitions];
         
-        this.init_callback = new TransactionInitQueueCallback(hstore_site);
+        this.init_callback = new TransactionInitQueueCallback(hstore_site, this);
         this.prepare_callback = new TransactionPrepareWrapperCallback(hstore_site);
         
         this.readTables = new BitSet[numLocalPartitions];
@@ -292,17 +300,23 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
                                              ParameterSet parameters,
                                              int proc_id,
                                              boolean sysproc,
-                                             boolean predict_singlePartition,
+                                             PartitionSet predict_touchedPartitions,
                                              boolean predict_readOnly,
                                              boolean predict_abortable,
                                              boolean exec_local) {
+        assert(predict_touchedPartitions != null);
+        assert(predict_touchedPartitions.isEmpty() == false);
+        
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
         this.parameters = parameters;
         this.proc_id = proc_id;
         this.sysproc = sysproc;
-        this.predict_singlePartition = predict_singlePartition;
+        
+        // Initialize the predicted execution properties for this transaction
+        this.predict_touchedPartitions = predict_touchedPartitions;
+        this.predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
         this.predict_readOnly = predict_readOnly;
         this.predict_abortable = predict_abortable;
         
@@ -629,9 +643,19 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     /**
      * Return this handle's TransactionInitQueueCallback
      */
+    public final TransactionInitQueueCallback initTransactionInitQueueCallback(RpcCallback<TransactionInitResponse> callback) {
+        assert(this.init_callback.isInitialized() == false);
+        this.init_callback.init(this.predict_touchedPartitions, callback);
+        return (this.init_callback);
+    }
+    
+    /**
+     * Return this handle's TransactionInitQueueCallback
+     */
     public final TransactionInitQueueCallback getTransactionInitQueueCallback() {
         return (this.init_callback);
     }
+    
     
     public final TransactionPrepareWrapperCallback getPrepareWrapperCallback() {
         return (this.prepare_callback);

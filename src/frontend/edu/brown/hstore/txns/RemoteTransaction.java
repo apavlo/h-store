@@ -32,11 +32,11 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
-import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -71,6 +71,7 @@ public class RemoteTransaction extends AbstractTransaction {
                                   int base_partition,
                                   ParameterSet parameters,
                                   Procedure catalog_proc,
+                                  PartitionSet partitions,
                                   boolean predict_abortable) {
         int proc_id = catalog_proc.getId();
         boolean sysproc = catalog_proc.getSystemproc();
@@ -82,7 +83,7 @@ public class RemoteTransaction extends AbstractTransaction {
                             parameters,         // Procedure Parameters
                             proc_id,            // ProcedureId
                             sysproc,            // SysProc
-                            false,              // SinglePartition 
+                            partitions,         // Partitions
                             true,               // ReadOnly (???)
                             predict_abortable,  // Abortable
                             false               // ExecLocal

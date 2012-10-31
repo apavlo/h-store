@@ -104,11 +104,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         @Override
         public void transactionInit(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
+            PartitionSet partitions = new PartitionSet(request.getPartitionsList());
             RemoteTransaction ts = hstore_site.getTransactionInitializer()
                                              .createRemoteTransaction(request.getTransactionId(),
+                                                                      partitions,
                                                                       request.getBasePartition(),
                                                                       request.getProcedureId());
-            PartitionSet partitions = new PartitionSet(request.getPartitionsList());
             txnQueueManager.lockQueueInsert(ts, partitions, done);
         }
 
