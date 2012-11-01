@@ -70,12 +70,10 @@ import edu.brown.utils.PartitionSet;
 public abstract class AbstractTransaction implements Poolable, Loggable, Comparable<AbstractTransaction> {
     private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     private static boolean d = debug.get();
-//    private static boolean t = trace.get();
     
     /**
      * Internal state for the transaction
@@ -475,6 +473,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     // ----------------------------------------------------------------------------
     // PREDICTIONS
     // ----------------------------------------------------------------------------
+    
+    /**
+     * Return the collection of the partitions that this transaction is expected
+     * to need during its execution. The transaction may choose to not use all of
+     * these but it is not allowed to use more.
+     */
+    public PartitionSet getPredictTouchedPartitions() {
+        return (this.predict_touchedPartitions);
+    }
     
     /**
      * Returns true if this Transaction was originally predicted as being able to abort

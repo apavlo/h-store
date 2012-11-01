@@ -3677,7 +3677,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                          parent_ts, this.partitionId, this.currentExecMode));
         
         if (this.specExecBlocked.isEmpty()) {
-            if (d) LOG.debug(String.format("%s - No speculative transactions to commit at partition %d",
+            if (t) LOG.trace(String.format("%s - No speculative transactions to commit at partition %d",
                              parent_ts, this.partitionId));
             return;
         }

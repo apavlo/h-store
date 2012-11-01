@@ -2546,6 +2546,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.remoteTxnEstimator.destroyEstimatorState(t_state);
         }
         
+        // HACK: Make sure that we remove it completely the TransactionQueueManager
+        if (status != Status.OK) {
+            for (int partition : ts.getPredictTouchedPartitions().values()) {
+                if (this.local_partitions.contains(partition)) {
+                    this.txnQueueManager.lockQueueFinished(ts, status, partition);
+                }
+            } // FOR
+        }
+        
         this.objectPools.getRemoteTransactionPool(ts.getBasePartition())
                         .returnObject(ts);
         return;
@@ -2560,10 +2569,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
+//        if (d) 
+            LOG.info(String.format("About to delete %s [%s]", ts, status));
        
         if (t) LOG.trace(ts + " - State before delete:\n" + ts.debug());
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
+        
+        // HACK: Make sure that we remove it completely the TransactionQueueManager
+        if (status != Status.OK) {
+            for (int partition : ts.getPredictTouchedPartitions().values()) {
+                if (this.local_partitions.contains(partition)) {
+                    this.txnQueueManager.lockQueueFinished(ts, status, partition);
+                }
+            } // FOR
+        }
         
         // Clean-up any extra information that we may have for the txn
         TransactionEstimator t_estimator = null;

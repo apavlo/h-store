@@ -480,7 +480,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // Our queue is overloaded. We have to reject the txnId!
             else if (queue.offer(ts, ts.isSysProc()) == false) {
                 if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
-                		        "Throttling %s until id is greater than %s" +
+                		        "Throttling %s until id is greater than %s " +
                 		        "[locked=%s / queueSize=%d]",
                                  partition, ts, next_safe,
                                  this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
@@ -560,7 +560,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         // This is a local transaction that is still waiting for this partition (i.e., it hasn't
         // been rejected yet). That means we will want to decrement the counter its Transaction
-        if (removed) {
+        if (removed && status != Status.OK) {
             if (d) LOG.debug(String.format("Removed %s from partition %d queue", ts, partition));
             TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
             try {
@@ -596,7 +596,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param reject_partition
      * @param reject_txnId
      */
-    private void rejectLocalTransaction(AbstractTransaction ts, PartitionSet partitions, TransactionInitCallback callback, Status status, int reject_partition) {
+    private void rejectLocalTransaction(AbstractTransaction ts,
+                                        PartitionSet partitions,
+                                        TransactionInitCallback callback,
+                                        Status status,
+                                        int reject_partition) {
+        assert(ts.isInitialized()) :
+            String.format("Unexpected uninitalized transaction handle %s in %s [status=%s / rejectPartition]",
+                          ts, status, reject_partition);
         if (d) LOG.debug(String.format("Rejecting txn %s on partition %d [status=%s]", ts, status));
 
         // First send back an ABORT message to the initiating HStoreSite (if we haven't already)
@@ -622,9 +629,12 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                    Status status,
                                    int reject_partition,
                                    Long reject_txnId) {
+        assert(ts.isInitialized()) :
+            String.format("Unexpected uninitalized transaction handle %s in %s [status=%s / rejectPartition]",
+                          ts, status, reject_partition);
         if (d) LOG.debug(String.format("Rejecting txn %s on partition %d. Blocking until a txnId greater than #%d [valid=%s]",
                          ts, reject_partition, reject_txnId, (ts.getTransactionId().compareTo(reject_txnId) > 0)));
-        assert(ts.equals(reject_txnId) == false) :
+        assert(ts.getTransactionId().equals(reject_txnId) == false) :
             String.format("Rejected txn %d's blocked-until-id is also %d", ts, reject_txnId); 
         
         TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();

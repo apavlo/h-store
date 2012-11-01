@@ -107,6 +107,8 @@ DEBUG_SITE_LOGGING = [
     "edu.brown.hstore.TransactionQueueManager",
     #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
     #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
+    "edu.brown.hstore.callbacks.TransactionInitCallback",
+    "edu.brown.hstore.callbacks.TransactionInitQueueCallback",
     "edu.brown.hstore.callbacks.BlockingRpcCallback",
 ]
 DEBUG_CLIENT_LOGGING = [

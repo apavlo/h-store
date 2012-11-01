@@ -872,15 +872,6 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.state.blocked_tasks.contains(ftask));
     }
     
-    /**
-     * Return the collection of the partitions that this transaction is expected
-     * to need during its execution. The transaction may choose to not use all of
-     * these but it is not allowed to use more.
-     */
-    public PartitionSet getPredictTouchedPartitions() {
-        return (this.predict_touchedPartitions);
-    }
-    
     // ----------------------------------------------------------------------------
     // SPECULATIVE EXECUTION
     // ----------------------------------------------------------------------------

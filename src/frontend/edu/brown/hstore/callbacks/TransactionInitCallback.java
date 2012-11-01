@@ -110,11 +110,13 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
             String.format("No partitions returned in %s for %s",
                           response.getClass().getSimpleName(), this.ts);
         // Otherwise, make sure it's legit
-        assert(this.ts.getTransactionId() == response.getTransactionId()) :
+        // HACK HACK HACK
+        if (this.ts == null || this.ts.isInitialized() == false || this.ts.getTransactionId() != response.getTransactionId()) {
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d, partitions=%s]",
-                          response.getClass().getSimpleName(),
-                          this.ts, response.getTransactionId(),
-                          this.getTransactionId(), response.getPartitionsList());
+                    response.getClass().getSimpleName(),
+                    this.ts, response.getTransactionId(),
+                    this.getTransactionId(), response.getPartitionsList());
+        }
         
         this.partitions.addAll(response.getPartitionsList());
         if (response.getStatus() != Status.OK || this.isAborted()) {
