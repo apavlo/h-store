@@ -28,12 +28,10 @@ import edu.brown.utils.StringUtil;
 public class ClientStatusThread extends Thread {
     private static final Logger LOG = Logger.getLogger(ClientStatusThread.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.setupLogging();
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
-    
 
 //    private final int thread_id;
     
@@ -125,8 +123,8 @@ public class ClientStatusThread extends Thread {
             final ControlState status = ControlState.get(parts[2]);
             assert(status != null) : "Unexpected ControlStatus '" + parts[2] + "'";
             
-            if (trace.get()) 
-                LOG.trace(String.format("Client %s -> %s", clientName, status));
+            if (debug.get()) 
+                LOG.debug(String.format("Client %s -> %s", clientName, status));
             
             // Make sure that we never go back in time!
             Long lastTimestamp = this.lastTimestamps.get(clientName);
@@ -172,7 +170,7 @@ public class ClientStatusThread extends Thread {
                         throw new RuntimeException(ex);
                     }
                     assert(json_object != null);
-                    if (trace.get()) LOG.trace("Base Partitions:\n " + tc.basePartitions); 
+                    if (debug.get()) LOG.debug("Base Partitions:\n " + tc.basePartitions); 
                     
 //                    this.results.clear();
 //                    for (String txnName : tc.transactions.values()) {
@@ -180,7 +178,7 @@ public class ClientStatusThread extends Thread {
 //                    } // FOR
                     
                     try {
-                        if (trace.get()) LOG.trace("UPDATE: " + line);
+                        if (debug.get()) LOG.debug("UPDATE: " + line);
                         this.addPollResponseInfo(clientName, time, tc, null);
                     } catch (Throwable ex) {
                         List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);

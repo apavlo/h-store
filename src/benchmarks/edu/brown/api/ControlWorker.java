@@ -16,10 +16,9 @@ import edu.brown.profilers.ProfileMeasurement;
 class ControlWorker extends Thread {
     private static final Logger LOG = Logger.getLogger(ControlWorker.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.setupLogging();
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
     /**
@@ -85,12 +84,14 @@ class ControlWorker extends Thread {
                 // Check whether we are currently being paused
                 // We will block until we're allowed to go again
                 if (cmp.m_controlState == ControlState.PAUSED) {
+                    if (debug.get()) LOG.debug("Pausing until control lock is released");
                     cmp.m_pauseLock.acquire();
+                    if (debug.get()) LOG.debug("Control lock is released! Resuming execution! Tiger style!");
                 }
                 assert(cmp.m_controlState != ControlState.PAUSED) : "Unexpected " + cmp.m_controlState;
                 
-            } catch (InterruptedException e1) {
-                throw new RuntimeException();
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
             }
 
             final long now = System.currentTimeMillis();
@@ -105,7 +106,7 @@ class ControlWorker extends Thread {
                 if (transactionsToCreate < 1) {
                     // Thread.yield();
                     try {
-                        Thread.sleep(100);
+                        Thread.sleep(50);
                     } catch (InterruptedException ex) {
                         ex.printStackTrace();
                         System.exit(1);
@@ -113,25 +114,26 @@ class ControlWorker extends Thread {
                     continue;
                 }
 
-                for (int ii = 0; ii < transactionsToCreate; ii++) {
-                    try {
-                        if (profile) execute_time.start();
+                if (debug.get())
+                    LOG.debug("Submitting " + transactionsToCreate + " transaction requests from client #" + cmp.getClientId());
+                if (profile) execute_time.start();
+                try {
+                    for (int ii = 0; ii < transactionsToCreate; ii++) {
                         bp = !cmp.runOnce();
-                        if (profile) execute_time.stop();
-                        if (bp) {
-                            m_lastRequestTime = now;
+                        if (bp || cmp.m_controlState != ControlState.RUNNING) {
                             break;
                         }
-                    }
-                    catch (final IOException e) {
-                        return;
-                    }
+                    } // FOR
+                } catch (final IOException e) {
+                    return;
+                } finally {
+                    if (profile) execute_time.stop();
                 }
             }
             else {
                 // Thread.yield();
                 try {
-                    Thread.sleep(100);
+                    Thread.sleep(50);
                 } catch (InterruptedException ex) {
                     ex.printStackTrace();
                     System.exit(1);

@@ -212,24 +212,19 @@ public class BenchmarkController {
     
     // ProcessSetManager Failure Callback
     final EventObserver<String> failure_observer = new EventObserver<String>() {
-        final ReentrantLock lock = new ReentrantLock();
+        final AtomicBoolean lock = new AtomicBoolean(false);
         
         @Override
         public void update(EventObservable<String> o, String msg) {
-            lock.lock();
-            try {
-                if (BenchmarkController.this.stop == false) {
-                    LOG.fatal(msg);
-                    BenchmarkController.this.stop = true;
-                    BenchmarkController.this.failed = true;
-                    m_clientPSM.prepareShutdown(false);
-                    m_sitePSM.prepareShutdown(false);
-                    
-                    if (self != null) BenchmarkController.this.self.interrupt();
-                }
-            } finally {
-                lock.unlock();
-            } // SYNCH
+            if (lock.compareAndSet(false, true)) {
+                LOG.fatal(msg);
+                BenchmarkController.this.stop = true;
+                BenchmarkController.this.failed = true;
+                ThreadUtil.sleep(1500);
+                m_clientPSM.prepareShutdown(false);
+                m_sitePSM.prepareShutdown(false);
+                if (self != null) BenchmarkController.this.self.interrupt();
+            }
         }
     };
     

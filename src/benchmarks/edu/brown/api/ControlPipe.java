@@ -20,10 +20,9 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 public class ControlPipe implements Runnable {
     private static final Logger LOG = Logger.getLogger(ControlPipe.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.setupLogging();
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
     final InputStream in;

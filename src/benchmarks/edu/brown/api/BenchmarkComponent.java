@@ -864,6 +864,7 @@ public abstract class BenchmarkComponent {
      * Implemented by derived classes. Loops indefinitely invoking stored
      * procedures. Method never returns and never receives any updates.
      */
+    @Deprecated
     abstract protected void runLoop() throws IOException;
     
     /**
