@@ -989,7 +989,7 @@ def clear_logs():
             ## below 'and' changed from comma by ambell
             with settings(host_string=inst.public_dns_name), settings(warn_only=True):
                 LOG.info("Clearning H-Store log files [%s]" % env["hstore.git_branch"])
-                log_dir = os.path.join(HSTORE_DIR, "obj/release/logs")
+                log_dir = env.get("site.log_dir", os.path.join(HSTORE_DIR, "obj/logs/sites"))
                 run("rm -rf %s/*" % log_dir)
             break
         ## IF

@@ -103,8 +103,8 @@ DEBUG_OPTIONS = {
 }
 DEBUG_SITE_LOGGING = [
     #"edu.brown.hstore.HStoreSite",
-    #"edu.brown.hstore.PartitionExecutor",
-    #"edu.brown.hstore.TransactionQueueManager",
+    "edu.brown.hstore.PartitionExecutor",
+    "edu.brown.hstore.TransactionQueueManager",
     #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
     #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
     "edu.brown.hstore.callbacks.BlockingRpcCallback",
@@ -613,7 +613,7 @@ if __name__ == '__main__':
     needResetLog4j = not (args['no_update'] or needUpdateLog4j)
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
-    needClearLogs = (args['clear_logs'] == False)
+    needClearLogs = (args['clear_logs'] == True)
     origScaleFactor = BASE_SETTINGS['client.scalefactor']
     for benchmark in args['benchmark']:
         final_results = { }

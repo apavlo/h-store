@@ -605,10 +605,13 @@ public class BenchmarkController {
      */
     public void startLoader() {
         LOG.info(makeHeader("BENCHMARK LOAD"));
-        LOG.info(String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
-                               m_projectBuilder.getProjectName().toUpperCase(),
-                               m_loaderClass.getSimpleName(),
-                               hstore_conf.client.scalefactor)); 
+        String title = String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
+                                     m_projectBuilder.getProjectName().toUpperCase(),
+                                     m_loaderClass.getSimpleName(),
+                                     hstore_conf.client.scalefactor);
+        if (hstore_conf.client.blocking_loader) title += " / Blocking";
+        LOG.info(title);
+        
         final List<String> allLoaderArgs = new ArrayList<String>();
         final List<String> loaderCommand = new ArrayList<String>();
 

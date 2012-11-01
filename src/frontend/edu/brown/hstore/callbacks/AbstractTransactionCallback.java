@@ -75,9 +75,11 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
     protected final void unblockCallback() {
         assert(this.isUnblocked());
         assert(this.ts != null) :
-            "Unexpected null transaction handle for txn #" + this.getTransactionId();
+            String.format("Unexpected null transaction handle for txn #%s in %s",
+                          this.getTransactionId(), this.getClass().getSimpleName());
         assert(this.ts.isInitialized()) :
-            "Unexpected uninitalized transaction handle for txn #" + this.getTransactionId();
+            String.format("Unexpected uninitalized transaction handle for txn #%s in %s",
+                          this.getTransactionId(), this.getClass().getSimpleName());
         
         boolean delete = true;
         if (this.isAborted() == false) {

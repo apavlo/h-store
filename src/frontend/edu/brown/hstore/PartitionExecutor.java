@@ -2645,7 +2645,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 } // SYNCH
             }
             else if (d) {
-                LOG.warn("\n" + EstimatorUtil.mispredictDebug(ts, planner, batchStmts, batchParams));
+                if (t) LOG.warn("\n" + EstimatorUtil.mispredictDebug(ts, planner, batchStmts, batchParams));
                 LOG.debug(ts + " - Aborting and restarting mispredicted txn.");
             }
             throw ex;
