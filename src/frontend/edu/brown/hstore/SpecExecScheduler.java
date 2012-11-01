@@ -161,6 +161,7 @@ public class SpecExecScheduler {
                         	best_next = txn_msg;
                     	if (this.policy == SchedulerPolicy.FIRST) {
                         	next = txn_msg;
+                        	//LOG.info("[FIRST schedule]");
                         } else if (this.policy == SchedulerPolicy.SHORTEST) {
                         	EstimatorState es = ts.getEstimatorState();
                         	if (es != null) {
@@ -169,12 +170,14 @@ public class SpecExecScheduler {
                              		best_time = tmp;
                              		best_next = txn_msg;
                              	}
-                             	LOG.debug(String.format("[SHORTEST schedule %d] time for current txn: %ld, SHORTESTS time up to now: %ld", size_ctr, tmp, best_time));
+                             	LOG.info(String.format("[SHORTEST schedule %d] time for current txn: %d, SHORTESTS time up to now: %ld", size_ctr, tmp, best_time));
                             }
                         	if (es != null && ++size_ctr < this.window_size)
                             	continue;
-                        	else
+                        	else {
                         		next = best_next;
+                        		LOG.info(String.format("[SHORTEST schedule ] SHORTESTS time %d", best_time));
+                        	}
                         } else if (this.policy == SchedulerPolicy.LONGEST) {
                         	EstimatorState es = ts.getEstimatorState();
                         	if (es != null) {
@@ -183,12 +186,14 @@ public class SpecExecScheduler {
                              		best_time = tmp;
                              		best_next = txn_msg;
                              	}
-                             	LOG.debug(String.format("[LONGEST schedule %d] time for current txn: %ld, LONGEST time up to now: %ld", size_ctr, tmp, best_time));
+                             	LOG.info(String.format("[LONGEST schedule %d] time for current txn: %d, LONGEST time up to now: %d", size_ctr, tmp, best_time));
                             }
                         	if (es != null && ++size_ctr < this.window_size)
                             	continue;
-                        	else
+                        	else {
                         		next = best_next;
+                        		LOG.info(String.format("[LONGEST schedule ] LONGEST time %d", best_time));
+                        	}
                         }
                         
                         break;

@@ -620,10 +620,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         } else {
             this.specExecChecker = new TableConflictChecker(this.catalogContext);
         }
-        this.specExecScheduler = new SpecExecScheduler(this.catalogContext, this.specExecChecker,
-                                                       this.partitionId, this.currentBlockedTxns,
-                                                       SpecExecScheduler.policyMap.get(hstore_conf.site.specexec_scheduler_policy),
-                                                       hstore_conf.site.specexec_scheduler_window);
+        this.specExecScheduler = new SpecExecScheduler(
+        		this.catalogContext, this.specExecChecker, this.partitionId, this.currentBlockedTxns,
+                SpecExecScheduler.policyMap.get(hstore_conf.site.specexec_scheduler_policy.toUpperCase()),
+                hstore_conf.site.specexec_scheduler_window);
         if (hstore_conf.site.specexec_ignore_all_local) {
             this.specExecScheduler.setIgnoreAllLocal(true);
         }
