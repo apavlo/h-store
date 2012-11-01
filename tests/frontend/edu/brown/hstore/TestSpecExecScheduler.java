@@ -18,6 +18,7 @@ import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.SpecExecScheduler;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -42,7 +43,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         this.checker = new TableConflictChecker(catalogContext);
         this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
-        this.scheduler = new SpecExecScheduler(catalogContext, this.checker, BASE_PARTITION, this.work_queue);
+        this.scheduler = new SpecExecScheduler(catalogContext, this.checker, BASE_PARTITION, this.work_queue,SpecExecScheduler.SchedulerPolicy.FIRST ,1);
         
         // Create our current distributed transaction
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);

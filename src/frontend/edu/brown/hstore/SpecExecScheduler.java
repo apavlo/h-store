@@ -65,6 +65,7 @@ public class SpecExecScheduler {
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;
         this.checker = checker;
+        assert (schedule_policy != null) : "Unsupported schedule policy parameter passed in";
         this.policy = schedule_policy;
         this.window_size = windown;
         
@@ -168,6 +169,7 @@ public class SpecExecScheduler {
                              		best_time = tmp;
                              		best_next = txn_msg;
                              	}
+                             	LOG.debug(String.format("[SHORTEST schedule %d] time for current txn: %ld, SHORTESTS time up to now: %ld", size_ctr, tmp, best_time));
                             }
                         	if (es != null && ++size_ctr < this.window_size)
                             	continue;
@@ -181,13 +183,12 @@ public class SpecExecScheduler {
                              		best_time = tmp;
                              		best_next = txn_msg;
                              	}
+                             	LOG.debug(String.format("[LONGEST schedule %d] time for current txn: %ld, LONGEST time up to now: %ld", size_ctr, tmp, best_time));
                             }
                         	if (es != null && ++size_ctr < this.window_size)
                             	continue;
                         	else
                         		next = best_next;
-                        } else {
-                        	assert (true) : "Unsupported Schedule Pollicy: " + this.policy;
                         }
                         
                         break;
