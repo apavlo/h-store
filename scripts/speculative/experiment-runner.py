@@ -85,7 +85,7 @@ OPT_BASE_TXNRATE = 1000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_THREADS_PER_HOST = 100
 OPT_BASE_SCALE_FACTOR = float(1.0)
-OPT_BASE_PARTITIONS_PER_SITE = 6
+OPT_BASE_PARTITIONS_PER_SITE = 2
 OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
 OPT_GIT_BRANCH = "conflictsets"
@@ -102,19 +102,21 @@ DEBUG_OPTIONS = {
     #"site.txn_profiling":             True,    
 }
 DEBUG_SITE_LOGGING = [
-    #"edu.brown.hstore.HStoreSite",
+    "edu.brown.hstore.HStoreSite",
     "edu.brown.hstore.PartitionExecutor",
     "edu.brown.hstore.TransactionQueueManager",
     #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
     #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
-    "edu.brown.hstore.callbacks.TransactionInitCallback",
-    "edu.brown.hstore.callbacks.TransactionInitQueueCallback",
-    "edu.brown.hstore.callbacks.BlockingRpcCallback",
+    #"edu.brown.hstore.callbacks.TransactionInitCallback",
+    #"edu.brown.hstore.callbacks.TransactionInitQueueCallback",
+    #"edu.brown.hstore.callbacks.BlockingRpcCallback",
 ]
 DEBUG_CLIENT_LOGGING = [
     #"edu.brown.api.BenchmarkComponent",
-    "edu.brown.api.BenchmarkController",
-    "org.voltdb.benchmark.tpcc.TPCCLoader",
+    #"edu.brown.api.BenchmarkController",
+    "edu.brown.api.ControlPipe",
+    "edu.brown.api.ControlWorker",
+    #"org.voltdb.benchmark.tpcc.TPCCLoader",
 ]
 
 BASE_SETTINGS = {
@@ -248,6 +250,7 @@ EXPERIMENT_SETTINGS = {
     },
     "specexec": {
         "ec2.site_type":                       "m2.4xlarge", # c1.xlarge",
+        "hstore.num_hosts_round_robin":         2,
         "site.memory":                          20480, # 6144,
         "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 True,
@@ -263,9 +266,9 @@ EXPERIMENT_SETTINGS = {
         "site.exec_force_singlepartitioned":    False,
         "client.count":                         1,
         "client.output_specexec":               True,
-        "client.txnrate":                       1500,
+        "client.txnrate":                       1000, # 1500,
         "client.blocking":                      False,
-        "client.blocking_concurrent":           2,
+        "client.blocking_concurrent":           1,
         "client.output_response_status":        True,
         "client.output_basepartitions":         False,
         "client.output_txn_counters":           "txncounters.csv",
@@ -339,7 +342,7 @@ def updateEnv(args, env, benchmark, partitions):
         else:
             markov = "%s.markov.gz" % (benchmark)
         env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
-        env["client.threads_per_host"] = int(partitions*1.5)
+        env["client.threads_per_host"] = 2 # int(partitions*1.5)
         env["benchmark.loadthreads"] = min(16, partitions)
         
     pplan = "%s.lns.pplan" % benchmark
@@ -467,6 +470,7 @@ if __name__ == '__main__':
     agroup.add_argument("--no-conf", action='store_true', help='Disable updating HStoreConf properties file')
     agroup.add_argument("--no-sync", action='store_true', help='Disable synching time between nodes')
     agroup.add_argument("--no-json", action='store_true', help='Disable JSON output results')
+    agroup.add_argument("--no-shutdown", action='store_true', help='Disable shutting down cluster after a trial run')
     
     ## Experiment Parameters
     agroup = aparser.add_argument_group('Experiment Parameters')
@@ -569,6 +573,8 @@ if __name__ == '__main__':
     # If we get two consecutive intervals with zero results, then stop the benchmark
     if args['retry_on_zero']:
         env["hstore.exec_prefix"] += " -Dkillonzero=true"
+    if args['no_shutdown']:
+        env["hstore.exec_prefix"] += " -Dnoshutdown=true"
     
     # Update Fabric env
     conf_remove = set()

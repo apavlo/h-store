@@ -29,7 +29,7 @@ import edu.brown.utils.PartitionSet;
  * the RpcCallback created by the ProtoRPC framework.
  * @author pavlo
  */
-public class TransactionInitQueueCallback extends BlockingRpcCallback<TransactionInitResponse, Integer> {
+public class TransactionInitQueueCallback extends AbstractTransactionCallback<AbstractTransaction, TransactionInitResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionInitQueueCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -37,7 +37,6 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
             
-    private final AbstractTransaction ts;
     private final boolean prefetch;
     private TransactionInitResponse.Builder builder = null;
     private PartitionSet partitions = null;
@@ -47,19 +46,18 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     // INTIALIZATION
     // ----------------------------------------------------------------------------
     
-    public TransactionInitQueueCallback(HStoreSite hstore_site, AbstractTransaction ts) {
-        super(hstore_site, false);
-        this.ts = ts;
+    public TransactionInitQueueCallback(HStoreSite hstore_site) {
+        super(hstore_site);
         this.prefetch = hstore_site.getHStoreConf().site.exec_prefetch_queries;
     }
     
-    public void init(PartitionSet partitions, RpcCallback<TransactionInitResponse> orig_callback) {
+    public void init(AbstractTransaction ts, PartitionSet partitions, RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
-            LOG.debug(String.format("%s - Starting new %s", this.ts, this.getClass().getSimpleName()));
+            LOG.debug(String.format("%s - Starting new %s", ts, this.getClass().getSimpleName()));
         assert(orig_callback != null) :
-            String.format("Tried to initialize %s with a null callback for %s", this.getClass().getSimpleName(), this.ts);
+            String.format("Tried to initialize %s with a null callback for %s", this.getClass().getSimpleName(), ts);
         assert(partitions != null) :
-            String.format("Tried to initialize %s with a null partitions for %s", this.getClass().getSimpleName(), this.ts);
+            String.format("Tried to initialize %s with a null partitions for %s", this.getClass().getSimpleName(), ts);
         
         // Only include local partitions
         int counter = 0;
@@ -72,9 +70,9 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         
         this.partitions = partitions;
         this.builder = TransactionInitResponse.newBuilder()
-                             .setTransactionId(this.ts.getTransactionId().longValue())
+                             .setTransactionId(ts.getTransactionId().longValue())
                              .setStatus(Status.OK);
-        super.init(this.ts.getTransactionId(), counter, orig_callback);
+        super.init(ts, counter, orig_callback);
     }
     
     /**
@@ -90,15 +88,11 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         if (debug.get()) LOG.debug(String.format("%s - Clearing out %s",
                                    this.ts, this.builder.getClass().getSimpleName()));
         this.builder = null;
+        super.finishImpl();
     }
     
     @Override
-    public boolean isInitialized() {
-        return (this.builder != null && super.isInitialized());
-    }
-    
-    @Override
-    public void unblockCallback() {
+    protected boolean unblockTransactionCallback() {
         if (debug.get()) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
                                    this.ts, TransactionInitResponse.class.getSimpleName(),
                                    (this.builder != null ? this.builder.getStatus() : "???")));
@@ -183,6 +177,7 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             LOG.debug(String.format("%s - No builder is available? Unable to send back %s",
                       this.ts, TransactionInitResponse.class.getSimpleName()));
         }
+        return (false);
     }
     
     /**
@@ -204,9 +199,9 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             this.abort(status);
         }
     }
-    
+
     @Override
-    protected void abortCallback(Status status) {
+    protected boolean abortTransactionCallback(Status status) {
         // Uh... this might have already been sent out?
         if (this.builder != null) {
             if (debug.get()) LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
@@ -224,6 +219,7 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
         }
+        return (false);
     }
     
     @Override

@@ -1702,6 +1702,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // -------------------------------
+        // EXECUTOR STATUS
+        // -------------------------------
+        else if (catalog_proc.getName().equals("@ExecutorStatus")) {
+            this.updateLogging(); // HACK
+            if (this.status_monitor != null) {
+                this.status_monitor.printStatus();
+            }
+            ClientResponseImpl cresponse = new ClientResponseImpl(
+                    -1,
+                    client_handle,
+                    -1,
+                    Status.OK,
+                    HStoreConstants.EMPTY_RESULT,
+                    "");
+            this.responseSend(cresponse, clientCallback, EstTime.currentTimeMillis(), 0);
+            return (true);
+        }
+        
+        // -------------------------------
         // ADHOC
         // -------------------------------
         else if (catalog_proc.getName().equals("@AdHoc")) {
@@ -2510,24 +2529,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Queue it up for deletion! There is no return for the txn from this!
-        // int idx = (int)(txn_id.longValue() % this.deletable_txns.length);
-        // this.deletable_txns[idx].offer(Pair.of(txn_id, status));
-        this.deletable_txns[status.ordinal()].offer(txn_id);
-        
-        
-//        AbstractTransaction ts = this.inflight_txns.get(txn_id);
-//        if (ts != null) {
-//            assert(txn_id.equals(ts.getTransactionId())) :
-//                String.format("Mismatched %s - Expected[%d] != Actual[%s]",
-//                              ts, txn_id, ts.getTransactionId());
-//            if (ts instanceof RemoteTransaction) {
-//                this.deleteRemoteTransaction((RemoteTransaction)ts, status);
-//            }
-//            // We need to check whether a LocalTransaction is ready to be deleted
-//            else if (((LocalTransaction)ts).isDeletable()) {
-//                this.deleteLocalTransaction((LocalTransaction)ts, status);
-//            }
-//        }
+        try {
+            this.deletable_txns[status.ordinal()].offer(txn_id);
+        } catch (NullPointerException ex) {
+            LOG.warn("STATUS = " + status);
+            LOG.warn("TXN_ID = " + txn_id);
+            throw new RuntimeException(ex);
+        }
     }
     
     /**
@@ -2749,19 +2757,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     assert(txn_id.equals(ts.getTransactionId())) :
                         String.format("Mismatched %s - Expected[%d] != Actual[%s]",
                                       ts, txn_id, ts.getTransactionId());
-                
-                    // We will delete any RemoteTransaction right away
-                    if (ts instanceof RemoteTransaction) {
-                        this.deleteRemoteTransaction((RemoteTransaction)ts, status);
-                    }
-                    // We need to check whether a LocalTransaction is ready to be deleted
-                    else if (((LocalTransaction)ts).isDeletable()) {
-                        this.deleteLocalTransaction((LocalTransaction)ts, status);
+                    // We need to check whether a txn is ready to be deleted
+                    if (ts.isDeletable()) {
+                        if (ts instanceof RemoteTransaction) {
+                            this.deleteRemoteTransaction((RemoteTransaction)ts, status);    
+                        }
+                        else {
+                            this.deleteLocalTransaction((LocalTransaction)ts, status);
+                        }
                     }
                     // We can't delete this yet, so we'll just stop checking
                     else {
-                        if (t) LOG.trace(String.format("%s - Cannot delete txn at this point [status=%s]\n%s",
-                                         ts, status, ts.debug()));
+                        if (t) LOG.trace(String.format("%s - Cannot delete %s at this point [status=%s]\n%s",
+                                         ts, ts.getClass().getSimpleName(), status, ts.debug()));
                         this.deletable_txns_requeue.add(txn_id);
                     }
                 } else if (d) {

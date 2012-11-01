@@ -16,7 +16,7 @@ import edu.brown.hstore.txns.MapReduceTransaction;
  * it at the local HStoreSite
  * @author pavlo
  */
-public class TransactionMapCallback extends AbstractTransactionCallback<TransactionMapResponse, TransactionMapResponse> {
+public class TransactionMapCallback extends AbstractTransactionCallback<MapReduceTransaction, TransactionMapResponse, TransactionMapResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionMapCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

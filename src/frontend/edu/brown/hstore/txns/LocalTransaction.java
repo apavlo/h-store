@@ -734,14 +734,12 @@ public class LocalTransaction extends AbstractTransaction {
         this.needs_restart = false;
     }
     
+
     /**
-     * Returns true if we believe that this transaction can be deleted
      * Note that this will only return true once and only once for each transaction invocation.
-     * <B>Note:</B> This is not thread safe!
-     * @return
      */
     public boolean isDeletable() {
-        if (this.isInitialized() == false) {
+        if (super.isDeletable() == false) {
             return (false);
         }
         if (this.dtxnState != null) {
@@ -1466,7 +1464,13 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Client Callback", this.client_callback);
         if (this.dtxnState != null) {
             m.put("Init Callback", this.dtxnState.init_callback);
+        }
+        m.put("InitQueue Callback", this.init_callback);
+        if (this.dtxnState != null) {
             m.put("Prepare Callback", this.dtxnState.prepare_callback);
+        }
+        m.put("PrepareWrapper Callback", this.prepare_callback);
+        if (this.dtxnState != null) {
             m.put("Finish Callback", this.dtxnState.finish_callback);
         }
         maps.add(m);

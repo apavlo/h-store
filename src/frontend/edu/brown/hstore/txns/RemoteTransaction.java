@@ -25,6 +25,11 @@
  ***************************************************************************/
 package edu.brown.hstore.txns;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
@@ -150,7 +155,21 @@ public class RemoteTransaction extends AbstractTransaction {
     
     @Override
     public String debug() {
-        return (StringUtil.formatMaps(this.getDebugMap()));
+        List<Map<String, Object>> maps = new ArrayList<Map<String,Object>>();
+        Map<String, Object> m;
+        
+        // Base Class Info
+        maps.add(super.getDebugMap());
+        
+        // Additional Info
+        m = new LinkedHashMap<String, Object>();
+        m.put("InitQueue Callback", this.init_callback);
+        m.put("PrepareWrapper Callback", this.prepare_callback);
+        m.put("Work Callback", this.work_callback);
+        m.put("CleanUp Callback", this.cleanup_callback);
+        maps.add(m);
+        
+        return (StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()])));
     }
 }
 

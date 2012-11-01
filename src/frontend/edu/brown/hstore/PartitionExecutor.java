@@ -1566,11 +1566,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     public void queueInitDtxn(RemoteTransaction ts) {
         assert(ts.isInitialized());
-        SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
-        boolean success = this.work_queue.offer(work);
-        assert(success);
-        if (d) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
-                         work.getTransaction(), work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+//        SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
+//        boolean success = this.work_queue.offer(work);
+//        assert(success);
+//        if (d) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
+//                         work.getTransaction(), work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
     
     /**

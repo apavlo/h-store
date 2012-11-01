@@ -47,6 +47,8 @@ public class ExecutorStatus extends VoltSystemProcedure {
                                              int fragmentId,
                                              ParameterSet params,
                                              PartitionExecutor.SystemProcedureExecutionContext context) {
+        // System.exit(0); // Love, Jon
+        
         assert(fragmentId == SysProcFragmentId.PF_execStatus);
         
         // Hit up all of the PartitionExecutors at this HStore and figure out what

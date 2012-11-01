@@ -21,7 +21,7 @@ import edu.brown.utils.StringUtil;
  * back from all other partitions in the cluster.
  * @author pavlo
  */
-public class TransactionReduceCallback extends AbstractTransactionCallback<TransactionReduceResponse, TransactionReduceResponse> {
+public class TransactionReduceCallback extends AbstractTransactionCallback<MapReduceTransaction, TransactionReduceResponse, TransactionReduceResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionReduceCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

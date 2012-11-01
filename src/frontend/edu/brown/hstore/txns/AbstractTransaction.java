@@ -141,7 +141,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     // CALLBACKS
     // ----------------------------------------------------------------------------
     
-    private TransactionInitQueueCallback init_callback;
+    protected final TransactionInitQueueCallback init_callback;
     protected final TransactionPrepareWrapperCallback prepare_callback;
     
     // ----------------------------------------------------------------------------
@@ -261,7 +261,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numLocalPartitions];
         
-        // this.init_callback = new TransactionInitQueueCallback(hstore_site, this);
+        this.init_callback = new TransactionInitQueueCallback(hstore_site);
         this.prepare_callback = new TransactionPrepareWrapperCallback(hstore_site);
         
         this.readTables = new BitSet[numLocalPartitions];
@@ -312,9 +312,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.proc_id = proc_id;
         this.sysproc = sysproc;
         
-        // HACK
-        this.init_callback = new TransactionInitQueueCallback(hstore_site, this);
-        
         // Initialize the predicted execution properties for this transaction
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
@@ -340,7 +337,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.predict_readOnly = false;
         this.predict_tState = null;
         
-        // this.init_callback.finish();
+        this.init_callback.finish();
         this.prepare_callback.finish();
         
         this.pending_error = null;
@@ -663,7 +660,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     public final TransactionInitQueueCallback initTransactionInitQueueCallback(RpcCallback<TransactionInitResponse> callback) {
         assert(this.isInitialized());
         assert(this.init_callback.isInitialized() == false);
-        this.init_callback.init(this.predict_touchedPartitions, callback);
+        this.init_callback.init(this, this.predict_touchedPartitions, callback);
         return (this.init_callback);
     }
     
@@ -685,6 +682,29 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      */
     public TransactionCleanupCallback getCleanupCallback() {
         return (null);
+    }
+    
+    /**
+     * Returns true if we believe that this transaction can be deleted
+     * <B>Note:</B> This is not thread safe!
+     * @return
+     */
+    public boolean isDeletable() {
+        if (this.isInitialized() == false) {
+            return (false);
+        }
+        if (this.init_callback.allCallbacksFinished() == false) {
+            if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                            this.init_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        if (this.prepare_callback.allCallbacksFinished() == false) {
+            if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                            this.prepare_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        
+        return (true);
     }
     
     // ----------------------------------------------------------------------------

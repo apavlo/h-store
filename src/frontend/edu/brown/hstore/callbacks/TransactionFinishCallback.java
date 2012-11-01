@@ -9,7 +9,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-public class TransactionFinishCallback extends AbstractTransactionCallback<TransactionFinishResponse, TransactionFinishResponse> {
+public class TransactionFinishCallback extends AbstractTransactionCallback<LocalTransaction, TransactionFinishResponse, TransactionFinishResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionFinishCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -29,9 +29,9 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Trans
     }
 
     public void init(LocalTransaction ts, Status status) {
-        super.init(ts, ts.getPredictTouchedPartitions().size(), null);
         this.status = status;
         this.needs_requeue = false;
+        super.init(ts, ts.getPredictTouchedPartitions().size(), null);
     }
     
     /**

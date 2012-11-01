@@ -6,6 +6,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -17,7 +18,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * @param <T> The message type of the original RpcCallback
  * @param <U> The message type that we will accumulate before invoking the original RpcCallback
  */
-public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallback<T, U> {
+public abstract class AbstractTransactionCallback<X extends AbstractTransaction, T, U> extends BlockingRpcCallback<T, U> {
     private static final Logger LOG = Logger.getLogger(AbstractTransactionCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -25,9 +26,8 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    protected LocalTransaction ts;
+    protected X ts;
     private Status finishStatus;
-    
     
     /**
      * This flag is set to true after the unblockCallback() invocation is finished
@@ -51,11 +51,11 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         super(hstore_site, false);
     }
     
-    protected void init(LocalTransaction ts, int counter_val, RpcCallback<T> orig_callback) {
-        assert(ts != null) : "Unexpected null LocalTransaction handle";
-        if (debug.get()) LOG.debug(ts + " - Initializing new " + this.getClass().getSimpleName());
-        super.init(ts.getTransactionId(), counter_val, orig_callback);
+    protected void init(X ts, int counter_val, RpcCallback<T> orig_callback) {
+        assert(ts != null);
         this.ts = ts;
+        if (debug.get()) LOG.debug(this.ts + " - Initializing new " + this.getClass().getSimpleName());
+        super.init(this.ts.getTransactionId(), counter_val, orig_callback);
     }
 
     @Override
@@ -74,9 +74,6 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
     @Override
     protected final void unblockCallback() {
         assert(this.isUnblocked());
-        assert(this.ts != null) :
-            String.format("Unexpected null transaction handle for txn #%s in %s [lastTxn=%s]",
-                          this.getTransactionId(), this.getClass().getSimpleName(), this.lastTxnId);
         assert(this.ts.isInitialized()) :
             String.format("Unexpected uninitalized transaction handle for txn #%s in %s [lastTxn=%s]",
                           this.getTransactionId(), this.getClass().getSimpleName(), this.lastTxnId);
@@ -86,7 +83,13 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
             delete = this.unblockTransactionCallback();
         }
         this.unblockFinished = true;
-        if (delete) this.hstore_site.queueDeleteTransaction(this.txn_id, this.finishStatus);
+        try {
+            if (delete) this.hstore_site.queueDeleteTransaction(this.txn_id, this.finishStatus);
+        } catch (Throwable ex) {
+            String msg = String.format("Failed to queue %s for deletion from %s",
+                                       ts, this.getClass().getSimpleName());
+            throw new RuntimeException(msg, ex);
+        }
     }
     
     @Override
@@ -105,7 +108,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         // Note that we do this *even* if we haven't heard back from the remote
         // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
-        if (finish) {
+        if (finish && this.ts instanceof LocalTransaction) {
             this.finishTransaction(status);
         }
         this.abortFinished = true;
@@ -179,37 +182,11 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
                                                  this.ts, this.getClass().getSimpleName(), status));
         
         // Let everybody know that the party is over!
-        TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
-    }
-    
-    @Deprecated
-    protected boolean sameTransaction(Object msg, long msg_txn_id) {
-        // Race condition
-        Long ts_txn_id = null;
-        try {
-            if (this.ts != null) ts_txn_id = this.ts.getTransactionId();
-        } catch (NullPointerException ex) {
-            // Ignore
-        } finally {
-            // IMPORTANT: If the LocalTransaction handle is null, then that means we are getting
-            // this message well after we have already cleaned up the transaction. Since these objects
-            // are pooled, it could be reused. So that means we will just ignore it.
-            // This may make it difficult to debug, but hopefully we'll be ok.
-            if (ts_txn_id == null) {
-                if (debug.get()) LOG.warn(String.format("Ignoring old %s for defunct txn #%d",
-                                                         msg.getClass().getSimpleName(), msg_txn_id));
-                return (false);
-            }
+        if (ts instanceof LocalTransaction) {
+            LocalTransaction local_ts = (LocalTransaction)this.ts;
+            TransactionFinishCallback finish_callback = local_ts.initTransactionFinishCallback(status);
+            this.hstore_site.getCoordinator().transactionFinish(local_ts, status, finish_callback);
         }
-        // If we get a response that matches our original txn but the LocalTransaction handle
-        // has changed, then we need to will just ignore it
-        if (msg_txn_id != ts_txn_id.longValue()) {
-            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
-                                                     msg.getClass().getSimpleName(), msg_txn_id, this.getTransactionId()));
-            return (false);
-        }
-        return (true);
     }
     
     @Override

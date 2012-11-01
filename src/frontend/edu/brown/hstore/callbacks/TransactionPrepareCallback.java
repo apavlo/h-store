@@ -16,7 +16,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * to send the ClientResponse back to the client.
  * @author pavlo
  */
-public class TransactionPrepareCallback extends AbstractTransactionCallback<ClientResponseImpl, TransactionPrepareResponse> {
+public class TransactionPrepareCallback extends AbstractTransactionCallback<LocalTransaction, ClientResponseImpl, TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {

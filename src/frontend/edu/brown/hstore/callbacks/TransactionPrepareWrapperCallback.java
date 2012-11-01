@@ -18,7 +18,7 @@ import edu.brown.utils.PartitionSet;
  * at this HStoreSite are finished preparing the transaction. 
  * @author pavlo
  */
-public class TransactionPrepareWrapperCallback extends BlockingRpcCallback<TransactionPrepareResponse, Integer> {
+public class TransactionPrepareWrapperCallback extends AbstractTransactionCallback<AbstractTransaction, TransactionPrepareResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareWrapperCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {
@@ -30,7 +30,7 @@ public class TransactionPrepareWrapperCallback extends BlockingRpcCallback<Trans
     private PartitionSet partitions;
     
     public TransactionPrepareWrapperCallback(HStoreSite hstore_site) {
-        super(hstore_site, false);
+        super(hstore_site);
     }
     
     public void init(AbstractTransaction ts, PartitionSet partitions, RpcCallback<TransactionPrepareResponse> orig_callback) {
@@ -51,45 +51,11 @@ public class TransactionPrepareWrapperCallback extends BlockingRpcCallback<Trans
         this.builder = TransactionPrepareResponse.newBuilder()
                              .setTransactionId(ts.getTransactionId())
                              .setStatus(Status.OK);
-        super.init(ts.getTransactionId(), expected, orig_callback);
+        super.init(ts, expected, orig_callback);
     }
     
     @Override
-    protected void abortCallback(Status status) {
-        if (debug.get())
-            LOG.debug(String.format("%s - Aborting %s with status %s",
-                      this.ts, this.getClass().getSimpleName(), status));
-        this.builder.setStatus(status);
-        for (int p : this.hstore_site.getLocalPartitionIds().values()) {
-            if (this.builder.getPartitionsList().contains(p) == false) {
-                this.builder.addPartitions(p);
-            }
-        } // FOR
-        this.unblockCallback();
-    }
-
-    @Override
-    protected void finishImpl() {
-        this.builder = null;
-        this.ts = null;
-    }
-    
-    @Override
-    public boolean isInitialized() {
-        return (this.ts != null && this.builder != null && super.isInitialized());
-    }
-
-    @Override
-    protected synchronized int runImpl(Integer partition) {
-        if (debug.get()) LOG.debug(String.format("%s - Adding partition %d", this.ts, partition));
-        assert(this.partitions.contains(partition));
-        if (this.isAborted() == false)
-            this.builder.addPartitions(partition.intValue());
-        return 1;
-    }
-
-    @Override
-    protected void unblockCallback() {
+    protected boolean unblockTransactionCallback() {
         if (debug.get()) {
             LOG.debug(String.format("%s - Sending %s to %s with status %s",
                                     this.ts,
@@ -103,8 +69,38 @@ public class TransactionPrepareWrapperCallback extends BlockingRpcCallback<Trans
         assert(this.getOrigCallback() != null) :
             String.format("The original callback for %s is null!", this.ts);
         
-        
         this.getOrigCallback().run(this.builder.build());
         this.builder = null;
+        return (false);
+    }
+    
+    @Override
+    protected boolean abortTransactionCallback(Status status) {
+        if (debug.get())
+            LOG.debug(String.format("%s - Aborting %s with status %s",
+                      this.ts, this.getClass().getSimpleName(), status));
+        this.builder.setStatus(status);
+        for (int p : this.hstore_site.getLocalPartitionIds().values()) {
+            if (this.builder.getPartitionsList().contains(p) == false) {
+                this.builder.addPartitions(p);
+            }
+        } // FOR
+        this.unblockCallback();
+        return (false);
+    }
+
+    @Override
+    protected void finishImpl() {
+        super.finishImpl();
+        this.builder = null;
+    }
+    
+    @Override
+    protected synchronized int runImpl(Integer partition) {
+        if (debug.get()) LOG.debug(String.format("%s - Adding partition %d", this.ts, partition));
+        assert(this.partitions.contains(partition));
+        if (this.isAborted() == false)
+            this.builder.addPartitions(partition.intValue());
+        return 1;
     }
 }
