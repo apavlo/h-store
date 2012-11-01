@@ -1025,14 +1025,14 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             }
         } // FOR n sites in this catalog
                 
-        for (Integer partition : hstore_site.getLocalPartitionIdArray()) {
-            VoltTable vt = data.get(partition);
+        for (int partition : hstore_site.getLocalPartitionIds().values()) {
+            VoltTable vt = data.get(Integer.valueOf(partition));
             if (vt == null) {
                 LOG.warn("No data in " + ts + " for partition " + partition);
                 continue;
             }
             if (d) LOG.debug(String.format("Storing VoltTable directly at local partition %d for %s", partition, ts));
-            ts.storeData(partition.intValue(), vt);
+            ts.storeData(partition, vt);
         } // FOR
         
         if (fake_responses != null) {

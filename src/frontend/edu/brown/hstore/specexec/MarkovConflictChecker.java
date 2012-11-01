@@ -161,7 +161,10 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         // We need to make sure that both estimates have the list of 
         // queries that the transaction is going to execute
         Estimate dtxnEst = dtxnState.getLastEstimate();
-        assert(dtxnEst != null);
+        if (dtxnEst == null) {
+            LOG.warn("Unexpected null Estimate for " + dtxn);
+            return (false);
+        }
         if (dtxnEst.hasQueryEstimate(partitionId) == false) {
             if (debug.get())
                 LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));

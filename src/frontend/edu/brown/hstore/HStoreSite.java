@@ -787,8 +787,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Return an immutable array of the local partition ids managed by this HStoreSite
      * Use this array is prefable to the PartitionSet if you must iterate of over them.
      * This avoids having to create a new Iterator instance each time.
-     * TODO: Moved to CatalogContext
      */
+    @Deprecated
     public Integer[] getLocalPartitionIdArray() {
         return (this.local_partitions_arr);
     }
@@ -1698,10 +1698,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         else if (catalog_proc.getName().equals("@Quiesce")) {
             // Tell the queue manager ahead of time to wipe out everything!
             this.txnQueueManager.clearQueues();
-            // HACK
-            for (int partition : this.local_partitions.values()) {
-                this.executors[partition].haltProcessing();
-            }
             return (false);
         }
         
@@ -2462,7 +2458,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // since that doesn't do anything that we haven't already done!
         if (d) LOG.debug(String.format("Txn #%d - Sending back ClientResponse [status=%s%s]",
                          cresponse.getTransactionId(), status,
-                         (status == Status.ABORT_UNEXPECTED ? "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
+                         (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null ?
+                                 "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
         
         long now = System.currentTimeMillis();
         EstTimeUpdater.update(now);

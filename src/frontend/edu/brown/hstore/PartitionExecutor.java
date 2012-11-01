@@ -1815,10 +1815,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // execution was enabled, but now the transaction that was ahead of this one is finished,
             // so now we're just executing them regularly
             if (this.currentExecMode != ExecutionMode.COMMIT_ALL) {
-                assert(this.currentDtxn != null) :
-                    String.format("Invalid execution mode %s without a dtxn at partition %d",
-                                  this.currentExecMode, this.partitionId);
-                
                 // HACK: If we are currently under DISABLED mode when we get this, then we just 
                 // need to block the transaction and return back to the queue. This is easier than 
                 // having to set all sorts of crazy locks
