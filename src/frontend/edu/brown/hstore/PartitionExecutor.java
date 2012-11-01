@@ -1202,6 +1202,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     public void haltProcessing() {
+//        if (d)
+            LOG.warn("Halting transaction processing at partition " + this.partitionId);
+        
         ExecutionMode origMode = this.currentExecMode;
         this.setExecutionMode(this.currentTxn, ExecutionMode.DISABLED_REJECT);
         List<InternalMessage> toKeep = new ArrayList<InternalMessage>(); 
@@ -1614,17 +1617,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         boolean sysproc = catalog_proc.getSystemproc();
         if (this.currentExecMode == ExecutionMode.DISABLED_REJECT && sysproc == false) return (false);
         
-        if (d) LOG.debug(String.format("Queuing new %s transaction execution request on partition %d " +
-                                       "[currentDtxn=%s, mode=%s]",
-                                       catalog_proc.getName(), this.partitionId,
-                                       this.currentDtxn, this.currentExecMode));
-        
         InitializeTxnMessage work = new InitializeTxnMessage(serializedRequest,
                                                              initiateTime,
                                                              catalog_proc,
                                                              procParams,
                                                              clientCallback);
-        // return (this.work_queue.offer(work, sysproc));
+        if (d) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
+                         "[currentDtxn=%s / queueSize=%d / mode=%s]",
+                         work.getClass().getSimpleName(), catalog_proc.getName(), this.partitionId,
+                         this.currentDtxn, this.work_queue.size(), this.currentExecMode));
         return (this.work_queue.offer(work));
     }
     
@@ -1646,10 +1647,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // the request into the work_queue. Now we'll just throw it right in
         // the queue (checking for throttling of course) and let the main
         // thread sort out the mess of whether the txn should get blocked or not
-        if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d " +
-                                       "[curDtxn=%s, mode=%s, force=%s, queueSize=%d]",
-                                       ts, this.partitionId,
-                                       this.currentDtxn, this.currentExecMode, force, this.work_queue.size()));
         if (this.currentExecMode == ExecutionMode.DISABLED_REJECT) {
             if (d) LOG.warn(String.format("%s - Not queuing txn at partition %d because current mode is %s",
                             ts, this.partitionId, this.currentExecMode));
@@ -1657,6 +1654,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         
         StartTxnMessage work = new StartTxnMessage(ts);
+        if (d) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
+                         "[currentDtxn=%s / queueSize=%d / mode=%s]",
+                         work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
+                         this.currentDtxn, this.work_queue.size(), this.currentExecMode));
         boolean success = this.work_queue.offer(work); // , force);
         if (d && force && success == false) {
             throw new ServerFaultException("Failed to add " + ts + " even though force flag was true!", ts.getTransactionId());
@@ -3325,7 +3326,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         this.specExecBlocked.add(Pair.of(ts, cresponse));
 
-        if (d) LOG.debug("Total # of Queued Responses: " + this.specExecBlocked.size());
+        if (t) LOG.trace("Total # of Blocked Responses: " + this.specExecBlocked.size());
     }
     
     /**

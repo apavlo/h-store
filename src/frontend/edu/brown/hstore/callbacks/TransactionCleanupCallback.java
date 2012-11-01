@@ -37,7 +37,7 @@ public class TransactionCleanupCallback extends BlockingRpcCallback<Integer, Int
     public void init(AbstractTransaction ts, Status status, PartitionSet partitions) {
         // Only include local partitions
         int counter = 0;
-        for (Integer p : hstore_site.getLocalPartitionIdArray()) {
+        for (int p : hstore_site.getLocalPartitionIds().values()) {
             if (partitions.contains(p)) counter++;
         } // FOR
         assert(counter > 0);

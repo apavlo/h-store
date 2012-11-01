@@ -88,6 +88,7 @@ public class TransactionInitializer {
     private final HStoreObjectPools objectPools;
     private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
+    private final PartitionSet local_partitions;
     private final TransactionEstimator t_estimators[];
     private EstimationThresholds thresholds;
     
@@ -113,6 +114,7 @@ public class TransactionInitializer {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.objectPools = hstore_site.getObjectPools();
+        this.local_partitions = hstore_site.getLocalPartitionIds();
         this.catalogContext = hstore_site.getCatalogContext();
         this.inflight_txns = hstore_site.getInflightTxns();
         
@@ -141,7 +143,7 @@ public class TransactionInitializer {
                                       int base_partition) {
         
         // Simple sanity check to make sure that we're not being told a bad partition
-        if (base_partition < 0 || base_partition >= hstore_site.local_partitions_arr.length) {
+        if (base_partition < 0 || base_partition >= this.local_partitions.size()) {
             base_partition = HStoreConstants.NULL_PARTITION_ID;
         }
         
@@ -184,8 +186,8 @@ public class TransactionInitializer {
         if (base_partition == HStoreConstants.NULL_PARTITION_ID) {
             if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
                                            catalog_proc.getName(), hstore_conf.site.exec_force_localexecution));
-            int idx = (int)(Math.abs(client_handle) % hstore_site.local_partitions_arr.length);
-            base_partition = hstore_site.local_partitions_arr[idx].intValue();
+            int idx = (int)(Math.abs(client_handle) % this.local_partitions.size());
+            base_partition = this.local_partitions.values()[idx];
         }
         
         return (base_partition);

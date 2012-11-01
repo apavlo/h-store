@@ -364,7 +364,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Integer list of all local partitions managed at this HStoreSite
      */
-    protected final Integer local_partitions_arr[];
+    private final Integer local_partitions_arr[];
     
     /**
      * PartitionId -> Internal Offset
@@ -1116,8 +1116,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Then we need to start all of the PartitionExecutor in threads
         if (d) LOG.debug(String.format("Starting PartitionExecutor threads for %s partitions on %s",
-                         this.local_partitions_arr.length, this.getSiteName()));
-        for (int partition : this.local_partitions_arr) {
+                         this.local_partitions.size(), this.getSiteName()));
+        for (int partition : this.local_partitions.values()) {
             PartitionExecutor executor = this.getPartitionExecutor(partition);
             executor.initHStoreSite(this);
             
@@ -1274,7 +1274,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                    this.getSiteName(),
                                    this.catalog_site.getHost().getIpaddr(),
                                    CollectionUtil.first(CatalogUtil.getExecutionSitePorts(this.catalog_site)),
-                                   Arrays.toString(this.local_partitions_arr));
+                                   this.local_partitions);
         System.out.println(msg);
         System.out.flush();
         
@@ -1353,7 +1353,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.asyncCompilerWork_thread.prepareShutdown(error);
         }
         
-        for (int p : this.local_partitions_arr) {
+        for (int p : this.local_partitions.values()) {
             if (this.executors[p] != null) 
                 this.executors[p].prepareShutdown(error);
         } // FOR
@@ -1414,7 +1414,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.shutdown_observable.notifyObservers();
         
         // Tell our local boys to go down too
-        for (int p : this.local_partitions_arr) {
+        for (int p : this.local_partitions.values()) {
             this.executors[p].shutdown();
         } // FOR
 
@@ -1698,6 +1698,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         else if (catalog_proc.getName().equals("@Quiesce")) {
             // Tell the queue manager ahead of time to wipe out everything!
             this.txnQueueManager.clearQueues();
+            // HACK
+            for (int partition : this.local_partitions.values()) {
+                this.executors[partition].haltProcessing();
+            }
             return (false);
         }
         
@@ -1735,8 +1739,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Create a LocalTransaction handle that will carry into the
             // the adhoc compiler. Since we don't know what this thing will do, we have
             // to assume that it needs to touch all partitions.
-            int idx = (int)(Math.abs(client_handle) % this.local_partitions_arr.length);
-            int base_partition = this.local_partitions_arr[idx].intValue();
+            int idx = (int)(Math.abs(client_handle) % this.local_partitions.size());
+            int base_partition = this.local_partitions.values()[idx];
             
             LocalTransaction ts = this.txnInitializer.createLocalTransaction(null,
                                                                              EstTime.currentTimeMillis(),
@@ -2184,7 +2188,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             assert(redirect_partition != null) : "Redirect partition is null!\n" + orig_ts.debug();
             if (t) {
                 LOG.trace("Redirect Partition: " + redirect_partition + " -> " + (this.isLocalPartition(redirect_partition) == false));
-                LOG.trace("Local Partitions: " + Arrays.toString(this.local_partitions_arr));
+                LOG.trace("Local Partitions: " + this.local_partitions);
             }
             
             // If the txn wants to execute on another node, then we'll send them off *only* if this txn wasn't
@@ -2569,8 +2573,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
-//        if (d) 
-            LOG.info(String.format("About to delete %s [%s]", ts, status));
+        if (d) LOG.debug(String.format("About to delete %s [%s]", ts, status));
        
         if (t) LOG.trace(ts + " - State before delete:\n" + ts.debug());
         assert(ts.checkDeletableFlag()) :
@@ -2691,8 +2694,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // SANITY CHECK
         if (hstore_conf.site.exec_validate_work) {
-            for (Integer p : this.local_partitions_arr) {
-                assert(ts.equals(this.executors[p.intValue()].getDebugContext().getCurrentDtxn()) == false) :
+            for (int p : this.local_partitions.values()) {
+                assert(ts.equals(this.executors[p].getDebugContext().getCurrentDtxn()) == false) :
                     String.format("About to finish %s but it is still the current DTXN at partition %d", ts, p);
             } // FOR
         }

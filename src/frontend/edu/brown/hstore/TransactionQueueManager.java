@@ -342,6 +342,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
             
             callback = next.getTransactionInitQueueCallback();
+            
+            // HACK
+            if (callback.isInitialized() == false) continue;
+            
             assert(callback.isInitialized()) :
                 String.format("Uninitialized %s callback for %s [hashCode=%d]",
                               callback.getClass().getSimpleName(), next, callback.hashCode());
@@ -365,7 +369,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 		         "[queueSize=%d]",
                                  partition, next, this.lockQueuesLastTxn[partition],
                                  this.lockQueues[partition].size()));
-                this.rejectTransaction(next, Status.ABORT_RESTART, partition, this.lockQueuesLastTxn[partition]);
+                this.rejectTransaction(next,
+                                       Status.ABORT_RESTART,
+                                       partition,
+                                       this.lockQueuesLastTxn[partition]);
                 continue;
             }
 
@@ -634,15 +641,20 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                           ts, status, reject_partition);
         if (d) LOG.debug(String.format("Rejecting txn %s on partition %d. Blocking until a txnId greater than #%d [valid=%s]",
                          ts, reject_partition, reject_txnId, (ts.getTransactionId().compareTo(reject_txnId) > 0)));
-        assert(ts.getTransactionId().equals(reject_txnId) == false) :
-            String.format("Rejected txn %d's blocked-until-id is also %d", ts, reject_txnId); 
         
         TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
         
         // First send back an ABORT message to the initiating HStoreSite (if we haven't already)
         if (callback.isAborted() == false && callback.isUnblocked() == false) {
             try {
-                callback.abort(status, reject_partition, reject_txnId);
+                if (status == Status.ABORT_RESTART) {
+                    reject_txnId = Long.valueOf(reject_txnId.longValue() + 5);
+                    assert(ts.getTransactionId().equals(reject_txnId) == false) :
+                        String.format("Rejected txn %s's blocked-until-id is also %d", ts, reject_txnId); 
+                    callback.abort(status, reject_partition, reject_txnId);    
+                } else {
+                    callback.abort(status);
+                }
             } catch (Throwable ex) {
                 // XXX
                 if (d) {

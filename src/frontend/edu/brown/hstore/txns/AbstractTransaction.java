@@ -141,7 +141,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     // CALLBACKS
     // ----------------------------------------------------------------------------
     
-    private final TransactionInitQueueCallback init_callback;
+    private TransactionInitQueueCallback init_callback;
     protected final TransactionPrepareWrapperCallback prepare_callback;
     
     // ----------------------------------------------------------------------------
@@ -244,7 +244,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     public AbstractTransaction(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         
-        int numLocalPartitions = hstore_site.getLocalPartitionIdArray().length;
+        int numLocalPartitions = hstore_site.getLocalPartitionIds().size();
         this.prepared = new boolean[numLocalPartitions];
         this.finished = new boolean[numLocalPartitions];
         this.round_state = new RoundState[numLocalPartitions];
@@ -261,7 +261,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numLocalPartitions];
         
-        this.init_callback = new TransactionInitQueueCallback(hstore_site, this);
+        // this.init_callback = new TransactionInitQueueCallback(hstore_site, this);
         this.prepare_callback = new TransactionPrepareWrapperCallback(hstore_site);
         
         this.readTables = new BitSet[numLocalPartitions];
@@ -312,6 +312,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.proc_id = proc_id;
         this.sysproc = sysproc;
         
+        // HACK
+        this.init_callback = new TransactionInitQueueCallback(hstore_site, this);
+        
         // Initialize the predicted execution properties for this transaction
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
@@ -337,7 +340,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.predict_readOnly = false;
         this.predict_tState = null;
         
-        this.init_callback.finish();
+        // this.init_callback.finish();
         this.prepare_callback.finish();
         
         this.pending_error = null;

@@ -138,8 +138,8 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             
             // start profile idle_waiting_dtxn_time on remote paritions
             if (this.hstore_conf.site.exec_profiling) {
-                for (Integer p : this.hstore_site.getLocalPartitionIdArray()) {
-                    if (this.partitions.contains(p.intValue())) {
+                for (int p : this.hstore_site.getLocalPartitionIds().values()) {
+                    if (this.partitions.contains(p)) {
                         PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
                         assert (pep != null);
                         if (pep.idle_waiting_dtxn_time.isStarted()) pep.idle_waiting_dtxn_time.stop();
