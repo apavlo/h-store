@@ -267,7 +267,7 @@ EXPERIMENT_SETTINGS = {
         "client.count":                         1,
         "client.output_specexec":               True,
         "client.txnrate":                       1000, # 1500,
-        "client.blocking":                      False,
+        "client.blocking":                      True,
         "client.blocking_concurrent":           1,
         "client.output_response_status":        True,
         "client.output_basepartitions":         False,
@@ -342,7 +342,7 @@ def updateEnv(args, env, benchmark, partitions):
         else:
             markov = "%s.markov.gz" % (benchmark)
         env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
-        env["client.threads_per_host"] = 2 # int(partitions*1.5)
+        env["client.threads_per_host"] = int(partitions*1.5)
         env["benchmark.loadthreads"] = min(16, partitions)
         
     pplan = "%s.lns.pplan" % benchmark
