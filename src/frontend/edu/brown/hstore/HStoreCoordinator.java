@@ -664,6 +664,8 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             // Tell the HStoreSite to prepare to shutdown
             HStoreCoordinator.this.hstore_site.prepareShutdown(request.hasError());
             
+            ThreadUtil.sleep(5000);
+            
             // Then send back the acknowledgment that we're good to go
             ShutdownPrepareResponse response = ShutdownPrepareResponse.newBuilder()
                                                    .setSenderSite(HStoreCoordinator.this.local_site_id)
@@ -1207,6 +1209,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             
             // Now send the final shutdown request
             if (this.num_sites > 1) {
+                ThreadUtil.sleep(5000); // XXX
                 LOG.info(String.format("Sending final shutdown message to %d remote sites", this.num_sites-1));
                 RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
                     @Override

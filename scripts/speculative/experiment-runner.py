@@ -268,7 +268,7 @@ EXPERIMENT_SETTINGS = {
         "client.count":                         1,
         "client.output_specexec":               True,
         "client.txnrate":                       1000, # 1500,
-        "client.blocking":                      True,
+        "client.blocking":                      False,
         "client.blocking_concurrent":           1,
         "client.output_response_status":        True,
         "client.output_basepartitions":         False,

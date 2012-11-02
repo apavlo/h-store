@@ -1266,7 +1266,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
                 specType = SpeculationType.SP3_REMOTE;
             } else {
-                specType = SpeculationType.SP2_REMOTE;
+                specType = SpeculationType.SP2_REMOTE_BEFORE;
             }
         }
 
@@ -3515,10 +3515,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
                 // COMMIT!
                 if (commit) {
-                    if (d) LOG.debug(String.format("%s - Committing txn on partition %d with undoToken %d " +
-                		             "[lastTxnId=%d / lastUndoToken=%d]",
+//                    if (d)
+                        LOG.info(String.format("%s - Committing txn on partition %d with undoToken %d " +
+                		             "[lastTxnId=%d / lastUndoToken=%d]%s",
                                      ts, this.partitionId, undoToken,
-                                     this.lastCommittedTxnId, this.lastCommittedUndoToken));
+                                     this.lastCommittedTxnId, this.lastCommittedUndoToken,
+                                     (ts instanceof LocalTransaction ? " - " + ((LocalTransaction)ts).getSpeculativeType() : "")));
                     
                     assert(this.lastCommittedUndoToken < undoToken) :
                         String.format("Trying to commit undoToken %d for %s but it is less than the " +

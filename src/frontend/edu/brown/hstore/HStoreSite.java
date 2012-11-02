@@ -2675,7 +2675,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     case SP1_LOCAL:
                         TransactionCounter.SPECULATIVE_SP1.inc(catalog_proc);
                         break;
-                    case SP2_REMOTE:
+                    case SP2_REMOTE_BEFORE:
                         TransactionCounter.SPECULATIVE_SP2.inc(catalog_proc);
                         break;
                     case SP3_LOCAL:

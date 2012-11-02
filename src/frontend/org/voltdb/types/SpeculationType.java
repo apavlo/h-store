@@ -25,9 +25,14 @@ public enum SpeculationType {
     SP3_LOCAL,
     /**
      * This stall point occurs on the remote partition while the executor
-     * is waiting for either a WorkRequest to process or a 2PC message
+     * is waiting <b>before</b> the first query request for the distributed transaction
      */
-    SP2_REMOTE,
+    SP2_REMOTE_BEFORE,
+    /**
+     * This stall point occurs on the remote partition while the executor
+     * is waiting <b>after</b> the first query request for the distributed transaction
+     */
+    SP2_REMOTE_AFTER,
     /**
      * This stall point occurs on the remote partition while the executor is 
      * waiting for the 2PC-PREPARE acknowledgment from the dtxn's base partition.
