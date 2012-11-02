@@ -743,6 +743,10 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             TransactionCounter.PREFETCH_LOCAL.inc(ts.getProcedure());
             
             TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
+            if (requests == null) {
+                sendDefaultTransactionInitRequests(ts, callback);
+                return;
+            }
             int sent_ctr = 0;
             int prefetch_ctr = 0;
             assert(requests.length == this.num_sites) :
@@ -773,17 +777,21 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         }
         // Otherwise we will send the same TransactionInitRequest to all of the remote sites 
         else {
-            TransactionInitRequest request = TransactionInitRequest.newBuilder()
-                                                .setTransactionId(ts.getTransactionId())
-                                                .setProcedureId(ts.getProcedure().getId())
-                                                .setBasePartition(ts.getBasePartition())
-                                                .addAllPartitions(ts.getPredictTouchedPartitions())
-                                                .build();
-            this.transactionInit_handler.sendMessages(ts, request, callback, ts.getPredictTouchedPartitions());
+            sendDefaultTransactionInitRequests(ts, callback);
         }
         
         // TODO(pavlo): Add the ability to allow a partition that rejects a InitRequest to send notifications
         //              about the rejection to the other partitions that are included in the InitRequest.
+    }
+    
+    private void sendDefaultTransactionInitRequests(LocalTransaction ts, RpcCallback<TransactionInitResponse> callback) {
+        TransactionInitRequest request = TransactionInitRequest.newBuilder()
+                .setTransactionId(ts.getTransactionId())
+                .setProcedureId(ts.getProcedure().getId())
+                .setBasePartition(ts.getBasePartition())
+                .addAllPartitions(ts.getPredictTouchedPartitions())
+                .build();
+        this.transactionInit_handler.sendMessages(ts, request, callback, ts.getPredictTouchedPartitions());
     }
     
     /**
