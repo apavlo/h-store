@@ -39,6 +39,7 @@ import getopt
 import string
 import math
 import types
+import subprocess
 from datetime import datetime
 from pprint import pprint, pformat
 from types import *
@@ -88,7 +89,7 @@ OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 2
 OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
-OPT_GIT_BRANCH = "conflictsets"
+OPT_GIT_BRANCH = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True).strip()
 
 DEFAULT_OPTIONS = {
     "hstore.git_branch": OPT_GIT_BRANCH
