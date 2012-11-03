@@ -1123,19 +1123,6 @@ public class BenchmarkController {
         nextIntervalTime += startTime;
         long nowTime = startTime;
         while (m_pollIndex < m_pollCount && this.stop == false) {
-            // check if the next interval time has arrived
-            if (nowTime >= nextIntervalTime) {
-                m_pollIndex++;
-
-                // make all the clients poll
-                if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", ControlCommand.POLL, m_clients.size()));
-                for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, ControlCommand.POLL.name());
-
-                // get ready for the next interval
-                nextIntervalTime = hstore_conf.client.interval * (m_pollIndex + 1) + startTime;
-            }
-
             // wait some time
             long sleep = nextIntervalTime - nowTime;
             try {
@@ -1153,6 +1140,19 @@ public class BenchmarkController {
                                            m_pollIndex, this.stop));
             }
             nowTime = System.currentTimeMillis();
+            
+            // check if the next interval time has arrived
+            if (nowTime >= nextIntervalTime) {
+                m_pollIndex++;
+
+                // make all the clients poll
+                if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", ControlCommand.POLL, m_clients.size()));
+                for (String clientName : m_clients)
+                    m_clientPSM.writeToProcess(clientName, ControlCommand.POLL.name() + " " + m_pollIndex);
+
+                // get ready for the next interval
+                nextIntervalTime = hstore_conf.client.interval * (m_pollIndex + 1) + startTime;
+            }
         } // WHILE
         
         if (local_client == null) local_client = this.getClientConnection();
@@ -1171,16 +1171,16 @@ public class BenchmarkController {
             } else {
                 m_clientPSM.writeToProcess(clientName, ControlCommand.STOP.name());
             }
-        }
+        } // FOR
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         m_clientPSM.joinAll();
 
         if (this.failed == false) {
-            if (resultsToRead.getCount() > 0) {
+            if (this.resultsToRead.getCount() > 0) {
                 LOG.info(String.format("Waiting for %d status threads to finish [remaining=%d]",
-                         m_statusThreads.size(), resultsToRead.getCount()));
+                         m_statusThreads.size(), this.resultsToRead.getCount()));
                 try {
-                    resultsToRead.await();
+                    this.resultsToRead.await();
                     for (ClientStatusThread t : m_statusThreads) {
                         if (t.isFinished() == false) {
     //                        if (debug.get()) 
@@ -1426,12 +1426,14 @@ public class BenchmarkController {
         // if (this.cleaned) return;
         
         if (m_config.noExecute == false) {
-            if (debug.get()) LOG.debug("Killing clients");
+            if (debug.get()) 
+                LOG.warn("Killing clients");
             m_clientPSM.shutdown();
         }
         
         if (m_config.noShutdown == false && this.failed == false) {
-            if (debug.get()) LOG.debug("Killing HStoreSites");
+            if (debug.get()) 
+                LOG.warn("Killing HStoreSites");
             m_sitePSM.shutdown();
         }
         
