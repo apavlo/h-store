@@ -2,15 +2,16 @@ package edu.brown.logging;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.log4j.Appender;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+import org.apache.log4j.spi.LoggerRepository;
 
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
@@ -20,6 +21,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Hack to hook in log4j.properties
@@ -189,36 +191,45 @@ public abstract class LoggerUtil {
     }
     
     /**
+     * Flush the appenders for all of the active loggers
+     */
+    public static void flushAllLogs() {
+        LoggerRepository loggerRepo = LogManager.getLoggerRepository();
+        for (Logger logger : CollectionUtil.iterable(loggerRepo.getCurrentLoggers(), Logger.class)) {
+            LoggerUtil.flushLogs(logger);
+        } // FOR
+    }
+    
+    /**
      * From http://stackoverflow.com/a/3187802/42171
      */
-    @SuppressWarnings("unchecked")
-    public static void flushAllLogs() {
+    public static void flushLogs(Logger logger) {
+        Logger root = Logger.getRootLogger();
+        Set<FileAppender> flushed = new HashSet<FileAppender>();
         try {
-            Set<FileAppender> flushedFileAppenders = new HashSet<FileAppender>();
-            for (Object nextLogger : CollectionUtil.iterable(LogManager.getLoggerRepository().getCurrentLoggers())) {
-                if (nextLogger instanceof Logger) {
-                    Logger currentLogger = (Logger) nextLogger;
-                    Enumeration allAppenders = currentLogger.getAllAppenders();
-                    while (allAppenders.hasMoreElements()) {
-                        Object nextElement = allAppenders.nextElement();
-                        if (nextElement instanceof FileAppender) {
-                            FileAppender fileAppender = (FileAppender) nextElement;
-                            if (!flushedFileAppenders.contains(fileAppender) && !fileAppender.getImmediateFlush()) {
-                                flushedFileAppenders.add(fileAppender);
-                                // log.info("Appender "+fileAppender.getName()+" is not doing immediateFlush ");
-                                fileAppender.setImmediateFlush(true);
-                                currentLogger.info("FLUSH");
-                                fileAppender.setImmediateFlush(false);
-                            } else {
-                                // log.info("fileAppender"+fileAppender.getName()+" is doing immediateFlush");
-                            }
+            for (Appender appender : CollectionUtil.iterable(logger.getAllAppenders(), Appender.class)) {
+                if (appender instanceof FileAppender) {
+                    FileAppender fileAppender = (FileAppender)appender;
+                    synchronized (fileAppender) {
+                        if (!flushed.contains(fileAppender) && !fileAppender.getImmediateFlush()) {
+                            root.info(String.format("Appender %s.%s is not doing an immediateFlush",
+                                      logger.getName(), appender.getName()));
+                            fileAppender.setImmediateFlush(true);
+                            logger.info("FLUSH");
+                            fileAppender.setImmediateFlush(false);
+                            flushed.add(fileAppender);
+                        } else {
+                            root.info(String.format("Appender %s.%s is doing an immediateFlush",
+                                      logger.getName(), appender.getName()));
                         }
-                    }
+                    } // SYNCH
+                } else {
+                    root.debug(String.format("Unable to flush non-file appender %s.%s",
+                               logger.getName(), appender.getName()));
                 }
-            }
-        } catch (RuntimeException e) {
-            Logger root = Logger.getRootLogger();
-            root.error("Failed flushing logs", e);
+            } // FOR (appender)
+        } catch (Throwable ex) {
+            root.error("Failed flushing logs for " + logger, ex);
         }
     }
     
