@@ -1124,8 +1124,8 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
      * @param blocking
      */
     public void shutdownCluster(final Throwable error) {
-        if (d)
-            LOG.debug(String.format("Invoking non-blocking shutdown protocol [hasError=%s]", error!=null));
+        if (d) 
+            LOG.debug(String.format("Invoking non-blocking shutdown protocol [hasError=%s]", error!=null), error);
         
         // Make this a thread so that we don't block and can continue cleaning up other things
         Runnable shutdownRunnable = new Runnable() {

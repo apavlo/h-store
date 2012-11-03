@@ -147,7 +147,7 @@ BASE_SETTINGS = {
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
     
-    "site.jvm_asserts":                         True,
+    "site.jvm_asserts":                         False,
     "site.log_backup":                          False,
     "site.status_enable":                       False,
     "site.status_show_thread_info":             False,
@@ -268,8 +268,6 @@ EXPERIMENT_SETTINGS = {
         "client.count":                         1,
         "client.output_specexec":               True,
         "client.txnrate":                       1000, # 1500,
-        "client.blocking":                      False,
-        "client.blocking_concurrent":           1,
         "client.output_response_status":        True,
         "client.output_basepartitions":         False,
         "client.output_txn_counters":           "txncounters.csv",

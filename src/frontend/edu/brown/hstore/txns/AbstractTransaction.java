@@ -90,12 +90,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
     
+    /**
+     * Catalog object of the Procedure that this transaction is currently executing
+     */
+    protected Procedure catalog_proc;
+    
     protected Long txn_id = null;
     protected long client_handle;
-    protected int proc_id;
     protected int base_partition;
     protected Status status;
-    protected boolean sysproc;
     protected SerializableException pending_error;
 
     /**
@@ -296,8 +299,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
                                              long client_handle,
                                              int base_partition,
                                              ParameterSet parameters,
-                                             int proc_id,
-                                             boolean sysproc,
+                                             Procedure catalog_proc,
                                              PartitionSet predict_touchedPartitions,
                                              boolean predict_readOnly,
                                              boolean predict_abortable,
@@ -309,8 +311,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.client_handle = client_handle;
         this.base_partition = base_partition;
         this.parameters = parameters;
-        this.proc_id = proc_id;
-        this.sysproc = sysproc;
+        this.catalog_proc = catalog_proc;
         
         // Initialize the predicted execution properties for this transaction
         this.predict_touchedPartitions = predict_touchedPartitions;
@@ -342,7 +343,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         
         this.pending_error = null;
         this.status = null;
-        this.sysproc = false;
         this.parameters = null;
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
@@ -375,7 +375,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         
-        this.proc_id = -1;
+        this.catalog_proc = null;
         this.base_partition = HStoreConstants.NULL_PARTITION_ID;
         this.txn_id = null;
     }
@@ -619,20 +619,14 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * Get the base PartitionId where this txn's Java code is executing on
      */
     public final int getBasePartition() {
-        return base_partition;
-    }
-    /**
-     * Get the Procedure catalog id for this txn
-     */
-    public final int getProcedureId() {
-        return this.proc_id;
+        return this.base_partition;
     }
     /**
      * Return the underlying procedure catalog object
      * @return
      */
     public Procedure getProcedure() {
-        return (this.hstore_site.getCatalogContext().getProcedureById(this.proc_id));
+        return (this.catalog_proc);
     }
     /**
      * Return the ParameterSet that contains the procedure input
@@ -647,7 +641,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * Returns true if this transaction is for a system procedure
      */
     public final boolean isSysProc() {
-        return this.sysproc;
+        return this.catalog_proc.getSystemproc();
     }
     
     // ----------------------------------------------------------------------------
@@ -1084,9 +1078,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     protected Map<String, Object> getDebugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
-        m.put("Procedure", hstore_site.getCatalogContext().getProcedureById(this.proc_id));
+        m.put("Procedure", this.catalog_proc);
         m.put("Hash Code", this.hashCode());
-        m.put("SysProc", this.sysproc);
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
         m.put("First UndoToken", Arrays.toString(this.exec_firstUndoToken));

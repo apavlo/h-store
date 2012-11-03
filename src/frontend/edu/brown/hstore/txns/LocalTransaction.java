@@ -100,11 +100,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     /**
-     * Catalog object of the Procedure that this transaction is currently executing
-     */
-    protected Procedure catalog_proc;
-    
-    /**
      * Final RpcCallback to the client
      */
     private RpcCallback<ClientResponseImpl> client_callback;
@@ -246,8 +241,7 @@ public class LocalTransaction extends AbstractTransaction {
                    clientHandle,
                    base_partition,
                    params,
-                   catalog_proc.getId(),
-                   catalog_proc.getSystemproc(),
+                   catalog_proc,
                    predict_touchedPartitions,
                    predict_readOnly,
                    predict_abortable,
@@ -284,15 +278,13 @@ public class LocalTransaction extends AbstractTransaction {
                                      ParameterSet params,
                                      PartitionSet predict_touchedPartitions,
                                      Procedure catalog_proc) {
-        this.catalog_proc = catalog_proc;
         this.initiateTime = EstTime.currentTimeMillis();
         
         super.init(txn_id,                       // TxnId
                    Integer.MAX_VALUE,            // ClientHandle
                    base_partition,               // BasePartition
                    params,                       // Procedure Parameters
-                   catalog_proc.getId(),         // ProcedureId
-                   catalog_proc.getSystemproc(), // SysProc
+                   catalog_proc,                 // Procedure
                    predict_touchedPartitions,    // Partitions
                    catalog_proc.getReadonly(),   // ReadOnly
                    true,                         // Abortable
@@ -1014,7 +1006,7 @@ public class LocalTransaction extends AbstractTransaction {
                          this, results.length));
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        boolean nonblocking = (hstore_conf.site.specexec_nonblocking && this.sysproc == false && this.profiler != null);
+        boolean nonblocking = (hstore_conf.site.specexec_nonblocking && this.catalog_proc.getSystemproc() == false && this.profiler != null);
         for (int stmt_index = 0; stmt_index < results.length; stmt_index++) {
             Integer dependency_id = this.state.output_order.get(stmt_index);
             assert(dependency_id != null) :

@@ -2,15 +2,21 @@ package edu.brown.logging;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
@@ -182,6 +188,39 @@ public abstract class LoggerUtil {
         }
     }
     
+    /**
+     * From http://stackoverflow.com/a/3187802/42171
+     */
+    @SuppressWarnings("unchecked")
+    public static void flushAllLogs() {
+        try {
+            Set<FileAppender> flushedFileAppenders = new HashSet<FileAppender>();
+            for (Object nextLogger : CollectionUtil.iterable(LogManager.getLoggerRepository().getCurrentLoggers())) {
+                if (nextLogger instanceof Logger) {
+                    Logger currentLogger = (Logger) nextLogger;
+                    Enumeration allAppenders = currentLogger.getAllAppenders();
+                    while (allAppenders.hasMoreElements()) {
+                        Object nextElement = allAppenders.nextElement();
+                        if (nextElement instanceof FileAppender) {
+                            FileAppender fileAppender = (FileAppender) nextElement;
+                            if (!flushedFileAppenders.contains(fileAppender) && !fileAppender.getImmediateFlush()) {
+                                flushedFileAppenders.add(fileAppender);
+                                // log.info("Appender "+fileAppender.getName()+" is not doing immediateFlush ");
+                                fileAppender.setImmediateFlush(true);
+                                currentLogger.info("FLUSH");
+                                fileAppender.setImmediateFlush(false);
+                            } else {
+                                // log.info("fileAppender"+fileAppender.getName()+" is doing immediateFlush");
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (RuntimeException e) {
+            Logger root = Logger.getRootLogger();
+            root.error("Failed flushing logs", e);
+        }
+    }
     
     public static void attachObserver(Logger logger, LoggerBoolean debug, LoggerBoolean trace) {
         LoggerUtil.attachObserver(new LoggerObserver(logger, debug, trace));

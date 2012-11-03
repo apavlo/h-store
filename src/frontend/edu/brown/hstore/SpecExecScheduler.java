@@ -76,7 +76,7 @@ public class SpecExecScheduler {
         if (trace.get()) LOG.trace(String.format("%s - Checking queue for transaction to speculatively execute [queueSize=%d]",
                                    dtxn, this.work_queue.size()));
         
-        Procedure dtxnProc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
+        Procedure dtxnProc = dtxn.getProcedure();
         if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
             if (debug.get())
                 LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists", dtxn));

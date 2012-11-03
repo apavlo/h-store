@@ -78,16 +78,12 @@ public class RemoteTransaction extends AbstractTransaction {
                                   Procedure catalog_proc,
                                   PartitionSet partitions,
                                   boolean predict_abortable) {
-        int proc_id = catalog_proc.getId();
-        boolean sysproc = catalog_proc.getSystemproc();
-        
         return ((RemoteTransaction)super.init(
                             txnId,              // TxnId
                             -1,                 // ClientHandle
                             base_partition,     // BasePartition
                             parameters,         // Procedure Parameters
-                            proc_id,            // ProcedureId
-                            sysproc,            // SysProc
+                            catalog_proc,       // Procedure
                             partitions,         // Partitions
                             true,               // ReadOnly (???)
                             predict_abortable,  // Abortable
@@ -147,10 +143,12 @@ public class RemoteTransaction extends AbstractTransaction {
         }
         return (this.rpc_transactionPrefetch[offset]);
     }
-    
+
     @Override
     public String toStringImpl() {
-        return String.format("REMOTE #%d/%d", this.txn_id, this.base_partition);
+        return String.format("%s-REMOTE #%d/%d", this.catalog_proc.getName(),
+                                          this.txn_id,
+                                          this.base_partition);
     }
     
     @Override

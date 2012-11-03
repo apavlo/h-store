@@ -1265,8 +1265,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         else {
             if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
                 specType = SpeculationType.SP3_REMOTE;
-            } else {
+            } else if (this.currentDtxn.hasExecutedWork(this.partitionId) == false) {
                 specType = SpeculationType.SP2_REMOTE_BEFORE;
+            } else {
+                specType = SpeculationType.SP2_REMOTE_AFTER;
             }
         }
 
@@ -1566,11 +1568,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     public void queueInitDtxn(RemoteTransaction ts) {
         assert(ts.isInitialized());
-//        SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
-//        boolean success = this.work_queue.offer(work);
-//        assert(success);
-//        if (d) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
-//                         work.getTransaction(), work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+        SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
+        boolean success = this.work_queue.offer(work);
+        assert(success);
+        if (d) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
+                         work.getTransaction(), work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
     
     /**
@@ -3515,8 +3517,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
                 // COMMIT!
                 if (commit) {
-//                    if (d)
-                        LOG.info(String.format("%s - Committing txn on partition %d with undoToken %d " +
+                    if (d) LOG.debug(String.format("%s - Committing txn on partition %d with undoToken %d " +
                 		             "[lastTxnId=%d / lastUndoToken=%d]%s",
                                      ts, this.partitionId, undoToken,
                                      this.lastCommittedTxnId, this.lastCommittedUndoToken,

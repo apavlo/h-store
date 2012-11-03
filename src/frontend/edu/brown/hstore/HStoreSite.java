@@ -1314,12 +1314,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void prepareShutdown(boolean error) {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
 
+        Logger root = Logger.getRootLogger();
         if (error && RingBufferAppender.getRingBufferAppender(LOG) != null) {
-            Logger root = Logger.getRootLogger();
+            root.info("Flushing RingBufferAppender logs");
             for (Appender appender : CollectionUtil.iterable(root.getAllAppenders(), Appender.class)) {
                 LOG.addAppender(appender);    
             } // FOR
         }
+        LOG.info("Flusing all logs");
+        LoggerUtil.flushAllLogs();
         
         if (this.hstore_coordinator != null)
             this.hstore_coordinator.prepareShutdown(false);
@@ -2676,7 +2679,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         TransactionCounter.SPECULATIVE_SP1.inc(catalog_proc);
                         break;
                     case SP2_REMOTE_BEFORE:
-                        TransactionCounter.SPECULATIVE_SP2.inc(catalog_proc);
+                        TransactionCounter.SPECULATIVE_SP2_BEFORE.inc(catalog_proc);
+                        break;
+                    case SP2_REMOTE_AFTER:
+                        TransactionCounter.SPECULATIVE_SP2_AFTER.inc(catalog_proc);
                         break;
                     case SP3_LOCAL:
                         TransactionCounter.SPECULATIVE_SP3_LOCAL.inc(catalog_proc);
