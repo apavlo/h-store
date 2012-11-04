@@ -178,7 +178,7 @@ public class TPCCSimulation {
             			remoteWarehouseIds.put(w_id0, rList);
                 	} // FOR
             		
-            		LOG.info("NewOrder Remote W_ID Mapping\n" + StringUtil.formatMaps(remoteWarehouseIds));
+            		LOG.debug("NewOrder Remote W_ID Mapping\n" + StringUtil.formatMaps(remoteWarehouseIds));
                 }
             } // SYNCH
         }
