@@ -277,9 +277,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private final SnapshotSiteProcessor m_snapshotter;
 
     /**
-     * Procedure Name -> VoltProcedure
+     * Procedure Name -> Queue<VoltProcedure>
      */
-    private final Map<String, VoltProcedure> procedures = new HashMap<String, VoltProcedure>(16, (float) .1);
+    private final Map<String, Queue<VoltProcedure>> procedures = new HashMap<String, Queue<VoltProcedure>>(16, (float) .1);
     
     // ----------------------------------------------------------------------------
     // H-Store Transaction Stuff
@@ -722,33 +722,40 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.utility_queue = new ConcurrentLinkedQueue<InternalMessage>();
     }
     
-    @SuppressWarnings("unchecked")
     protected void initializeVoltProcedures() {
         // load up all the stored procedures
         for (final Procedure catalog_proc : catalogContext.database.getProcedures()) {
-            VoltProcedure volt_proc = null;
-            
-            if (catalog_proc.getHasjava()) {
-                // Only try to load the Java class file for the SP if it has one
-                Class<? extends VoltProcedure> p_class = null;
-                final String className = catalog_proc.getClassname();
-                try {
-                    p_class = (Class<? extends VoltProcedure>)Class.forName(className);
-                    volt_proc = (VoltProcedure)p_class.newInstance();
-                } catch (Exception e) {
-                    throw new ServerFaultException("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
-                }
-                
-            } else {
-                volt_proc = new VoltProcedure.StmtProcedure();
-            }
-            volt_proc.globalInit(PartitionExecutor.this,
-                                 catalog_proc,
-                                 this.backend_target,
-                                 this.hsql,
-                                 this.p_estimator);
-            this.procedures.put(catalog_proc.getName(), volt_proc);
+            VoltProcedure volt_proc = this.initializeVoltProcedure(catalog_proc);
+            Queue<VoltProcedure> queue = new LinkedList<VoltProcedure>();
+            queue.add(volt_proc);
+            this.procedures.put(catalog_proc.getName(), queue);
         } // FOR
+    }
+
+    @SuppressWarnings("unchecked")
+    protected VoltProcedure initializeVoltProcedure(Procedure catalog_proc) {
+        VoltProcedure volt_proc = null;
+        
+        if (catalog_proc.getHasjava()) {
+            // Only try to load the Java class file for the SP if it has one
+            Class<? extends VoltProcedure> p_class = null;
+            final String className = catalog_proc.getClassname();
+            try {
+                p_class = (Class<? extends VoltProcedure>)Class.forName(className);
+                volt_proc = (VoltProcedure)p_class.newInstance();
+            } catch (Exception e) {
+                throw new ServerFaultException("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
+            }
+            
+        } else {
+            volt_proc = new VoltProcedure.StmtProcedure();
+        }
+        volt_proc.globalInit(PartitionExecutor.this,
+                             catalog_proc,
+                             this.backend_target,
+                             this.hsql,
+                             this.p_estimator);
+        return (volt_proc);
     }
 
     /**
@@ -1415,7 +1422,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @return
      */
     public VoltProcedure getVoltProcedure(String proc_name) {
-        return (this.procedures.get(proc_name));
+        VoltProcedure voltProc = this.procedures.get(proc_name).poll();
+        if (voltProc == null) {
+            Procedure catalog_proc = catalogContext.procedures.getIgnoreCase(proc_name);
+            voltProc = this.initializeVoltProcedure(catalog_proc);
+        }
+        return (voltProc);
     }
     
     private ParameterSet[] getFragmentParameters(AbstractTransaction ts, WorkFragment fragment, ParameterSet allParams[]) {
@@ -1858,7 +1870,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Grab a new ExecutionState for this txn
         ExecutionState execState = this.initExecutionState(); 
         ts.setExecutionState(execState);
-        VoltProcedure volt_proc = this.procedures.get(ts.getProcedure().getName());
+        VoltProcedure volt_proc = this.getVoltProcedure(ts.getProcedure().getName());
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
         if (d) {
@@ -1886,6 +1898,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             ts.resetExecutionState();
             execState.finish();
             this.execStates.add(execState);
+            volt_proc.finish();
+            this.procedures.get(ts.getProcedure().getName()).offer(volt_proc);
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPost();
         }
         
@@ -1941,7 +1955,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                              ts, cresponse.getStatus(), before_mode, this.currentExecMode, this.currentDtxn));
             this.blockClientResponse(ts, cresponse);
         }
-        volt_proc.finish();
     }
     
     /**
