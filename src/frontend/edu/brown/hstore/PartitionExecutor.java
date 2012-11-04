@@ -1779,7 +1779,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             //       the PartitionExecutor then we know that we got this partition's locks 
             //       from the TransactionQueueManager.
             if (this.currentDtxn != null) {
-                assert(this.currentDtxn.equals(ts) == false); // Sanity Check
+                assert(this.currentDtxn.equals(ts) == false) :
+                    String.format("New DTXN %s != Current DTXN %s", ts, this.currentDtxn);
                 
                 // If this is a local txn, then we can finagle things a bit.
                 if (this.currentDtxn.isExecLocal(this.partitionId)) {
