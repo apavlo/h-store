@@ -8,6 +8,7 @@ import org.voltdb.client.Client;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.utils.ThreadUtil;
 
 /**
  * Thread that executes the derives classes run loop which invokes stored
@@ -72,6 +73,7 @@ class ControlWorker extends Thread {
         final Client client = cmp.getClientHandle();
         m_lastRequestTime = System.currentTimeMillis();
         
+        boolean hadErrors = false;
         while (true) {
             boolean bp = false;
             try {
@@ -125,7 +127,12 @@ class ControlWorker extends Thread {
                         }
                     } // FOR
                 } catch (final IOException e) {
-                    return;
+                    if (hadErrors) return;
+                    hadErrors = true;
+                    
+                    // HACK: Sleep for a little bit to give time for the site logs to flush
+                    LOG.warn("Failed to execution transaction: " + e.getMessage());
+                    ThreadUtil.sleep(10000);
                 } finally {
                     if (profile) execute_time.stop();
                 }

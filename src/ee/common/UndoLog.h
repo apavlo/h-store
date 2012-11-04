@@ -43,7 +43,7 @@ namespace voltdb
 
         inline UndoQuantum* generateUndoQuantum(int64_t nextUndoToken)
         {
-            VOLT_INFO("Generating token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
+            VOLT_DEBUG("Generating token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
                        nextUndoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
             // Since ExecutionSite is using monotonically increasing
@@ -87,7 +87,7 @@ namespace voltdb
          * until the undo quantum with the specified undo token.
          */
         inline void undo(const int64_t undoToken) {
-            VOLT_INFO("Attempting to undo token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
+            VOLT_DEBUG("Attempting to undo token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
             // This ensures that undo is only ever called after
@@ -126,12 +126,12 @@ namespace voltdb
                 UndoQuantum *undoQuantum = m_undoQuantums.back();
                 const int64_t undoQuantumToken = undoQuantum->getUndoToken();
                 if (undoQuantumToken < undoToken) {
-                    VOLT_INFO("Skipping UndoQuantum %ld because it is before token %ld",
+                    VOLT_DEBUG("Skipping UndoQuantum %ld because it is before token %ld",
                                undoQuantumToken, undoToken);
                     return;
                 }
 
-                VOLT_INFO("START Undoing UndoQuantum %ld", undoQuantumToken);
+                VOLT_DEBUG("START Aborting UndoQuantum %ld", undoQuantumToken);
                 m_undoQuantums.pop_back();
                 Pool *pool = undoQuantum->getDataPool();
                 undoQuantum->undo();
@@ -139,10 +139,12 @@ namespace voltdb
                 m_undoDataPools.push_back(pool);
 
                 if(undoQuantumToken == undoToken) {
-                    VOLT_INFO("FINISH Undoing UndoQuantum %ld", undoQuantumToken);
+                    VOLT_DEBUG("FINISH Aborting UndoQuantum %ld", undoQuantumToken);
                     return;
                 }
             }
+            VOLT_WARN("Unable to find token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
+                       undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
         }
 
         /*
@@ -151,7 +153,7 @@ namespace voltdb
          * impossible to undo these actions in the future.
          */
         inline void release(const int64_t undoToken) {
-            VOLT_INFO("Attempting to release token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
+            VOLT_DEBUG("Attempting to release token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             #ifdef VOLT_ERROR_ENABLED
             if (m_lastReleaseToken >= undoToken) {
@@ -165,22 +167,24 @@ namespace voltdb
                 UndoQuantum *undoQuantum = m_undoQuantums.front();
                 const int64_t undoQuantumToken = undoQuantum->getUndoToken();
                 if (undoQuantumToken > undoToken) {
-                    VOLT_INFO("Skipping UndoQuantum %ld because it is after token %ld",
+                    VOLT_DEBUG("Skipping UndoQuantum %ld because it is after token %ld",
                                undoQuantumToken, undoToken);
                     return;
                 }
 
-                VOLT_TRACE("START Releasing UndoQuantum %ld", undoQuantumToken);
+                VOLT_DEBUG("START Releasing UndoQuantum %ld", undoQuantumToken);
                 m_undoQuantums.pop_front();
                 Pool *pool = undoQuantum->getDataPool();
                 undoQuantum->release();
                 pool->purge();
                 m_undoDataPools.push_back(pool);
                 if(undoQuantumToken == undoToken) {
-                    VOLT_INFO("FINISH Releasing UndoQuantum %ld", undoQuantumToken);
+                    VOLT_DEBUG("FINISH Releasing UndoQuantum %ld", undoQuantumToken);
                     return;
                 }
             }
+            VOLT_WARN("Unable to find token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
+                       undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
         }
 
     private:

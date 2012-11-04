@@ -315,6 +315,12 @@ class __attribute__((visibility("default"))) VoltDBEngine {
                 m_currentUndoQuantum = NULL;
             }
             if (m_currentUndoQuantum != NULL) {
+                #ifdef VOLT_INFO_ENABLED
+                if (nextUndoToken < m_currentUndoQuantum->getUndoToken()) {
+                    VOLT_ERROR("nextUndoToken[%ld] is greater than m_currentUndoQuantum[%ld]",
+                               nextUndoToken, m_currentUndoQuantum->getUndoToken());
+                }
+                #endif
                 assert(nextUndoToken >= m_currentUndoQuantum->getUndoToken());
                 if (m_currentUndoQuantum->getUndoToken() == nextUndoToken) {
                     return;

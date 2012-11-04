@@ -261,8 +261,8 @@ public class TransactionInitializer {
         Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
         try {
             // Remote Transaction
-            ts = new RemoteTransaction(hstore_site);
-            // ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();
+            // XXX ts = new RemoteTransaction(hstore_site);
+            ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();
             ts.init(txn_id, base_partition, null, catalog_proc, partitions, true);
             if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [partitions=%s, hashCode=%d]",
                              ts, base_partition, partitions, ts.hashCode()));
@@ -312,8 +312,8 @@ public class TransactionInitializer {
                 ts = this.objectPools.getMapReduceTransactionPool(base_partition)
                                 .borrowObject();
             } else {
-                ts = new LocalTransaction(hstore_site);
-                // ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
+                // XXX ts = new LocalTransaction(hstore_site);
+                ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
             }
         } catch (Throwable ex) {
             LOG.fatal("Failed to instantiate new LocalTransactionState for " + catalog_proc.getName());
@@ -367,8 +367,8 @@ public class TransactionInitializer {
         
         LocalTransaction new_ts = null;
         try {
-            new_ts = new LocalTransaction(hstore_site);
-            // new_ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
+            // XXX new_ts = new LocalTransaction(hstore_site);
+            new_ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
         } catch (Exception ex) {
             LOG.fatal(String.format("Failed to instantiate new %s for mispredicted %s",
                       orig_ts.getClass().getSimpleName(), orig_ts));

@@ -394,7 +394,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Status Monitor
      */
-    private HStoreSiteStatus status_monitor = null;
+    private HStoreSiteStatus status_monitor;
     
     private HStoreSiteProfiler profiler = new HStoreSiteProfiler();
     
@@ -1090,10 +1090,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.start();
         
         // Initialize Status Monitor
-        if (hstore_conf.site.status_enable) {
-            assert(hstore_conf.site.status_interval >= 0);
-            this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
-        }
+        assert(hstore_conf.site.status_interval >= 0);
+        this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
         
         // TransactionPreProcessors
         if (this.preProcessors != null) {
@@ -1197,7 +1195,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }, 0, 50, TimeUnit.MILLISECONDS);
         
         // HStoreStatus
-        if (this.status_monitor != null) {
+        if (hstore_conf.site.status_enable) {
             this.threadManager.schedulePeriodicWork(
                 this.status_monitor,
                 hstore_conf.site.status_interval,
@@ -1711,6 +1709,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.updateLogging(); // HACK
             if (this.status_monitor != null) {
                 this.status_monitor.printStatus();
+                RingBufferAppender appender = RingBufferAppender.getRingBufferAppender(LOG);
+                if (appender != null) appender.dump(System.err);
             }
             ClientResponseImpl cresponse = new ClientResponseImpl(
                     -1,
@@ -1793,7 +1793,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "Unexpected uninitialized LocalTranaction for " + ts;
         
         // Make sure that we start the MapReduceHelperThread
-        if (ts.isMapReduce() && this.mr_helper_started == false) {
+        if (this.mr_helper_started == false && ts.isMapReduce()) {
             assert(this.mr_helper != null);
             this.startMapReduceHelper();
         }
@@ -2567,8 +2567,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         
-//        this.objectPools.getRemoteTransactionPool(ts.getBasePartition())
-//                        .returnObject(ts);
+        this.objectPools.getRemoteTransactionPool(ts.getBasePartition())
+                        .returnObject(ts);
         return;
     }
 
@@ -2721,7 +2721,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts.isMapReduce()) {
             objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
         } else {
-            // objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
+            objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
         }
                 
     }

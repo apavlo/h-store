@@ -131,10 +131,10 @@ public class TestCommandLogger extends BaseTestCase {
         int ctr = 0;
         for (LogEntry entry : reader) {
             assertNotNull(entry);
-            assertEquals(txnId[ctr], entry.txnId.longValue());
-            assertEquals(catalog_procs[ctr % 2].getId(), entry.procId);
+            assertEquals(txnId[ctr], entry.getTransactionId().longValue());
+            assertEquals(catalog_procs[ctr % 2].getId(), entry.getProcedureId());
             
-            Object[] entryParams = entry.procParams.toArray();
+            Object[] entryParams = entry.getProcedureParams().toArray();
             assertEquals(TARGET_PARAMS[ctr % 2].length, entryParams.length);
             for (int i = 0; i < TARGET_PARAMS[ctr % 2].length; i++)
                 assertEquals(TARGET_PARAMS[ctr % 2][i], entryParams[i]);

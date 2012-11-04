@@ -84,12 +84,14 @@ public class ProcessSetManager implements Shutdownable {
 
     private static class ProcessData {
         final Process process;
+        final OutputStreamWriter out;
         ProcessPoller poller;
-        StreamWatcher out;
-        StreamWatcher err;
+        StreamWatcher stdout;
+        StreamWatcher stderr;
         
         ProcessData(Process process) {
             this.process = process;
+            this.out = new OutputStreamWriter(this.process.getOutputStream());
         }
     }
 
@@ -175,6 +177,7 @@ public class ProcessSetManager implements Shutdownable {
                     if (isAlive == false && reported_error == false && isShuttingDown() == false) {
                         String msg = String.format("Failed to poll '%s'", e.getKey());
                         LOG.error(msg);
+                        ThreadUtil.sleep(10000);
                         
                         msg = String.format("Process '%s' failed. Halting benchmark!", e.getKey());
                         failure_observable.notifyObservers(msg);
@@ -327,8 +330,8 @@ public class ProcessSetManager implements Shutdownable {
         for (String name : this.m_processes.keySet()) {
             ProcessData pd = this.m_processes.get(name);
             assert(pd!= null) : "Invalid process name '" + name + "'";
-            pd.out.m_expectDeath.set(true);
-            pd.err.m_expectDeath.set(true);
+            pd.stdout.m_expectDeath.set(true);
+            pd.stderr.m_expectDeath.set(true);
         } // FOR
     }
     
@@ -393,23 +396,27 @@ public class ProcessSetManager implements Shutdownable {
     }
 
     public void writeToAll(String cmd) {
-        LOG.debug(String.format("Sending %s to all processes", cmd));
+        if (debug.get()) LOG.debug(String.format("Sending %s to all processes", cmd));
         for (String processName : m_processes.keySet()) {
             this.writeToProcess(processName, cmd + "\n");
         }
     }
     
     public void writeToProcess(String processName, String data) {
+        if (debug.get()) LOG.debug(String.format("Writing '%s' to process %s", data.trim(), processName));
+        
         // You always need a newline at the end of it to ensure that 
         // it flushes properly
         if (data.endsWith("\n") == false) data += "\n";
         
         ProcessData pd = m_processes.get(processName);
-        assert(pd != null);
-        OutputStreamWriter out = new OutputStreamWriter(pd.process.getOutputStream());
+        assert(pd != null) :
+            "Missing ProcessData for '" + processName + "'";
+        assert(pd.out != null) :
+            "Missing OutputStreamWriter for '" + processName + "'";
         try {
-            out.write(data);
-            out.flush();
+            pd.out.write(data);
+            pd.out.flush();
         } catch (IOException e) {
             if (processName.contains("client-")) return;
             synchronized (this) {
@@ -421,7 +428,7 @@ public class ProcessSetManager implements Shutdownable {
                         msg = String.format("Failed to write '%s' command to '%s'", data.trim(), processName);
                     }
                     if (LOG.isDebugEnabled()) LOG.fatal(msg, e);
-                    else LOG.fatal(msg);
+                    else LOG.fatal(msg, e);
                 }
             } // SYNCH
             this.failure_observable.notifyObservers(processName);
@@ -494,11 +501,11 @@ public class ProcessSetManager implements Shutdownable {
                 LOG.debug(String.format("Logging %s output to '%s'", processName, path));
         }
         
-        pd.out = new StreamWatcher(out, fw, processName, StreamType.STDOUT);
-        pd.err = new StreamWatcher(err, fw, processName, StreamType.STDERR);
+        pd.stdout = new StreamWatcher(out, fw, processName, StreamType.STDOUT);
+        pd.stderr = new StreamWatcher(err, fw, processName, StreamType.STDERR);
         
-        pd.out.start();
-        pd.err.start();
+        pd.stdout.start();
+        pd.stderr.start();
     }
 
     // ============================================================================
@@ -532,8 +539,8 @@ public class ProcessSetManager implements Shutdownable {
     public Pair<Integer, Boolean> joinProcess(String processName, Long millis) {
         final ProcessData pd = m_processes.get(processName);
         assert(pd != null);
-        pd.out.m_expectDeath.set(true);
-        pd.err.m_expectDeath.set(true);
+        pd.stdout.m_expectDeath.set(true);
+        pd.stderr.m_expectDeath.set(true);
 
         final CountDownLatch latch = new CountDownLatch(1);
         Thread t = new Thread() {
@@ -568,8 +575,8 @@ public class ProcessSetManager implements Shutdownable {
     public int killProcess(String processName) {
         ProcessData pd = m_processes.get(processName);
         if (pd != null) {
-            if (pd.out != null) pd.out.m_expectDeath.set(true);
-            if (pd.err != null) pd.err.m_expectDeath.set(true);
+            if (pd.stdout != null) pd.stdout.m_expectDeath.set(true);
+            if (pd.stderr != null) pd.stderr.m_expectDeath.set(true);
         }
         int retval = -255;
 

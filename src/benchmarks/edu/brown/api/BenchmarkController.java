@@ -73,7 +73,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -1219,7 +1218,7 @@ public class BenchmarkController {
         m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
         
         // Then tell the cluster to drain all txns
-        LOG.info("Draining execution queues on cluster");
+        if (debug.get()) LOG.debug("Draining execution queues on cluster");
         ClientResponse cresponse = null;
         String procName = VoltSystemProcedure.procCallName(Quiesce.class);
         try {
