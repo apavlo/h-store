@@ -1175,6 +1175,9 @@ def __getInstanceTypeCounts__():
     partitionCount = env["hstore.partitions"]
     clientCount = env["client.count"] 
     
+    LOG.debug("Partitions Needed: %d" % env["hstore.partitions"])
+    LOG.debug("Partitions Per Site: %d" % env["hstore.partitions_per_site"])
+    
     if "hstore.num_hosts_round_robin" in env and env["hstore.num_hosts_round_robin"] != None:
         hostCount = int(env["hstore.num_hosts_round_robin"])
         siteCount = hostCount

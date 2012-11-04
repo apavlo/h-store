@@ -86,7 +86,7 @@ OPT_BASE_TXNRATE = 1000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_THREADS_PER_HOST = 100
 OPT_BASE_SCALE_FACTOR = float(1.0)
-OPT_BASE_PARTITIONS_PER_SITE = 2
+OPT_BASE_PARTITIONS_PER_SITE = 6
 OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
 OPT_GIT_BRANCH = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True).strip()
@@ -131,7 +131,7 @@ BASE_SETTINGS = {
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
-    "hstore.num_hosts_round_robin":     None,
+    "hstore.num_hosts_round_robin":     4,
 
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
@@ -251,7 +251,7 @@ EXPERIMENT_SETTINGS = {
     },
     "specexec": {
         "ec2.site_type":                       "m2.4xlarge", # c1.xlarge",
-        "hstore.num_hosts_round_robin":         2,
+        "hstore.num_hosts_round_robin":         4,
         "site.memory":                          20480, # 6144,
         "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 True,
@@ -341,7 +341,7 @@ def updateEnv(args, env, benchmark, partitions):
         else:
             markov = "%s.markov.gz" % (benchmark)
         env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
-        env["client.threads_per_host"] = int(partitions*1.5)
+        env["client.threads_per_host"] = int(partitions*2)
         env["benchmark.loadthreads"] = min(16, partitions)
         
     pplan = "%s.lns.pplan" % benchmark
