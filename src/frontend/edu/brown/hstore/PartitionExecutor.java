@@ -1121,12 +1121,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         else if (work instanceof SetDistributedTxnMessage) {
             AbstractTransaction ts = work.getTransaction();
             if (ts.isInitialized()) {
-                if (this.currentDtxn != null) {
-                    //if (this.currentDtxn.compareTo(ts) < 0) this.blockTransaction(work);
-                	this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
-                } else { 
-                    this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
-                }
+            	this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
+//                if (this.currentDtxn != null) {
+//                    //if (this.currentDtxn.compareTo(ts) < 0) this.blockTransaction(work);
+//                } else { 
+//                    this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
+//                }
                 
             }
         }
