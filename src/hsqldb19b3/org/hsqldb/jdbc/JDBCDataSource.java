@@ -35,20 +35,17 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.sql.Wrapper;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.naming.Referenceable;
 import javax.naming.StringRefAddr;
-import javax.sql.DataSource;
-
-import org.hsqldb.jdbc.JDBCDriver;
-
-//#ifdef JAVA6
-import java.sql.Wrapper;
-
 import javax.sql.CommonDataSource;
+import javax.sql.DataSource;
 
 //#endif JAVA6
 
@@ -447,5 +444,9 @@ public class JDBCDataSource implements Serializable, Referenceable, DataSource
      */
     public void setUser(String user) {
         this.user = user;
+    }
+
+    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        throw new SQLFeatureNotSupportedException();
     }
 }
