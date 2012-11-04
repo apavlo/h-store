@@ -203,6 +203,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
          */
         DISABLED,
         /**
+         * TODO:
+         */
+        DISABLED_SINGLE_PARTITION,
+        /**
          * Reject any transaction that tries to get added
          */
         DISABLED_REJECT,
@@ -1118,10 +1122,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             AbstractTransaction ts = work.getTransaction();
             if (ts.isInitialized()) {
                 if (this.currentDtxn != null) {
-                    if (this.currentDtxn.compareTo(ts) < 0) this.blockTransaction(work);
+                    //if (this.currentDtxn.compareTo(ts) < 0) this.blockTransaction(work);
+                	this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
                 } else { 
                     this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
                 }
+                
             }
         }
         // -------------------------------
@@ -1828,7 +1834,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // HACK: If we are currently under DISABLED mode when we get this, then we just 
                 // need to block the transaction and return back to the queue. This is easier than 
                 // having to set all sorts of crazy locks
-                if (this.currentExecMode == ExecutionMode.DISABLED || hstore_conf.site.specexec_enable == false) {
+                if (this.currentExecMode == ExecutionMode.DISABLED 
+                		|| this.currentExecMode == ExecutionMode.DISABLED_SINGLE_PARTITION 
+                		|| hstore_conf.site.specexec_enable == false) {
                     if (d) LOG.debug(String.format("%s - Blocking single-partition %s until dtxn finishes [mode=%s]",
                                      this.currentDtxn, ts, this.currentExecMode));
                     this.blockTransaction(ts);
