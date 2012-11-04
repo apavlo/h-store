@@ -265,7 +265,7 @@ public class CommandLogWriter implements Shutdownable {
         this.numWritingLocks = num_partitions;
         
         // hack, set arbitrarily high to avoid contention for log buffer
-        this.group_commit_size = 10000; 
+        this.group_commit_size = (10000 * num_partitions); 
         
         LOG.debug("group_commit_size: " + this.group_commit_size); 
         LOG.debug("group_commit_timeout: " + hstore_conf.site.commandlog_timeout); 
@@ -414,13 +414,15 @@ public class CommandLogWriter implements Shutdownable {
                 int position = buffer.startPos;
                 while (position != buffer.nextPos) {
                     WriterLogEntry entry = buffer.buffer[position++];
-                    this.singletonSerializer.writeObject(entry);
-                    txnCounter++;
-                    
+                    try {
+                        this.singletonSerializer.writeObject(entry);
+                        txnCounter++;
+                    } catch (Throwable ex) {
+                        LOG.warn("Failed to write log entry", ex);
+                    }
                     if (debug.get())
                         LOG.debug(String.format("Prepared txn #%d for group commit batch #%d",
-                                                entry.txnId, this.commitBatchCounter));
-                    
+                                                entry.getTransactionId(), this.commitBatchCounter));
                     if (position >= size) position = 0;
                 } // WHILE
             } catch (Exception e) {
@@ -459,12 +461,15 @@ public class CommandLogWriter implements Shutdownable {
                 int start = buffer.getStart();
                 for (int j = 0, size = buffer.getSize(); j < size; j++) {
                     WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
-                    hstore_site.responseSend(entry.cresponse,
-                                                   entry.clientCallback,
-                                                   entry.initiateTime,
-                                                   entry.restartCounter);
-                                    
-                }
+                    if (entry.isInitialized()) {
+                        hstore_site.responseSend(entry.cresponse,
+                                                 entry.clientCallback,
+                                                 entry.initiateTime,
+                                                 entry.restartCounter);
+                    } else {
+                        LOG.warn("Unexpected unintialized " + entry.getClass().getSimpleName());
+                    }
+                } // FOR
                 buffer.flushCleanup();
             } // FOR
         } finally {

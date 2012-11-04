@@ -313,7 +313,7 @@ public class Statistics extends VoltSystemProcedure {
             }
             case SysProcFragmentId.PF_partitionCount: {
                 VoltTable result = new VoltTable(new VoltTable.ColumnInfo("PARTITION_COUNT", VoltType.INTEGER));
-                result.addRow(executor.getHStoreSite().getLocalPartitionIdArray().length);
+                result.addRow(executor.getHStoreSite().getLocalPartitionIds().size());
                 return new DependencySet(DEP_partitionCount, result);
             }
         } // SWITCH

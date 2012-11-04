@@ -11,6 +11,7 @@ import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 
 public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage> {
@@ -54,6 +55,14 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
     }
     
     private static final Comparator<InternalMessage> WORK_COMPARATOR = new Comparator<InternalMessage>() {
+        @SuppressWarnings("unchecked")
+        private final Class<? extends InternalMessage> compareOrder[] = (Class<? extends InternalMessage>[])new Class<?>[]{
+            SetDistributedTxnMessage.class, 
+            PrepareTxnMessage.class,
+            FinishTxnMessage.class,
+            WorkFragmentMessage.class,
+        };
+        
         @Override
         public int compare(InternalMessage msg0, InternalMessage msg1) {
             assert(msg0 != null);
@@ -62,25 +71,17 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
             Class<?> class0 = msg0.getClass();
             Class<?> class1 = msg1.getClass();
             
-            // (1) Always let PrepareTxnMessage go before anything else
-            boolean isPrepare0 = class0.equals(PrepareTxnMessage.class);
-            boolean isPrepare1 = class1.equals(PrepareTxnMessage.class);
-            if (isPrepare0 && !isPrepare1) return (-1);
-            else if (!isPrepare0 && isPrepare1) return (1);
+            // Rank them based on their message type
+            if (class0.equals(class1) == false) {
+                for (Class<? extends InternalMessage> clazz : compareOrder) {
+                    boolean isMatch0 = class0.equals(clazz);
+                    boolean isMatch1 = class1.equals(clazz);
+                    if (isMatch0 && !isMatch1) return (-1);
+                    else if (!isMatch0 && isMatch1) return (1);                    
+                } // FOR
+            }
             
-            // (2) Followed by FinishTxnMessages
-            boolean isFinish0 = class0.equals(FinishTxnMessage.class);
-            boolean isFinish1 = class1.equals(FinishTxnMessage.class);
-            if (isFinish0 && !isFinish1) return (-1);
-            else if (!isFinish0 && isFinish1) return (1);
-            
-            // (3) Then let a WorkFragmentMessage go before anything else
-            boolean isWork0 = class0.equals(WorkFragmentMessage.class);
-            boolean isWork1 = class1.equals(WorkFragmentMessage.class);
-            if (isWork0 && !isWork1) return (-1);
-            else if (!isWork0 && isWork1) return (1);
-            
-            // (4) If all else fails, then we'll compare Transaction Ids
+            // If all else fails, then we'll compare Transaction Ids
             boolean isTxn0 = (msg0 instanceof InternalTxnMessage);
             boolean isTxn1 = (msg1 instanceof InternalTxnMessage);
             if (isTxn0) {

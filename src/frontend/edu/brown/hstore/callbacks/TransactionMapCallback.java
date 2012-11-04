@@ -16,7 +16,7 @@ import edu.brown.hstore.txns.MapReduceTransaction;
  * it at the local HStoreSite
  * @author pavlo
  */
-public class TransactionMapCallback extends AbstractTransactionCallback<TransactionMapResponse, TransactionMapResponse> {
+public class TransactionMapCallback extends AbstractTransactionCallback<MapReduceTransaction, TransactionMapResponse, TransactionMapResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionMapCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -44,7 +44,7 @@ public class TransactionMapCallback extends AbstractTransactionCallback<Transact
      * executing the map phase for this txn
      */
     @Override
-    protected boolean unblockTransactionCallback() {
+    protected void unblockTransactionCallback() {
         if (debug.get())
             LOG.debug(ts + " is ready to execute. Passing to HStoreSite " +
                     "<Switching to the 'reduce' phase>.......");
@@ -64,7 +64,6 @@ public class TransactionMapCallback extends AbstractTransactionCallback<Transact
                 LOG.debug(ts + ": $$$ non-blocking reduce execution by MapReduceHelperThread");
             hstore_site.getMapReduceHelper().queue(mr_ts);
         }
-        return (false);
     }
 
     @Override

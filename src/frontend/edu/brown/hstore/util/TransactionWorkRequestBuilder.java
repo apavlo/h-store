@@ -36,7 +36,7 @@ public class TransactionWorkRequestBuilder {
             this.builder = TransactionWorkRequest.newBuilder()
                                         .setTransactionId(ts.getTransactionId().longValue())
                                         .setSourcePartition(ts.getBasePartition())
-                                        .setProcedureId(ts.getProcedureId());
+                                        .setProcedureId(ts.getProcedure().getId());
             if (ts.hasDonePartitions()) {
                 this.builder.addAllDonePartition(ts.getDonePartitions());
             }

@@ -2,18 +2,26 @@ package edu.brown.logging;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.log4j.Appender;
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+import org.apache.log4j.spi.LoggerRepository;
 
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Hack to hook in log4j.properties
@@ -61,8 +69,8 @@ public abstract class LoggerUtil {
         
         @Override
         public void update(EventObservable<Object> o, Object arg) {
-            this.debug.set(this.logger.isDebugEnabled());
-            this.trace.set(this.logger.isTraceEnabled());
+            if (this.debug != null) this.debug.set(this.logger.isDebugEnabled());
+            if (this.trace != null) this.trace.set(this.logger.isTraceEnabled());
         }
     }
     
@@ -182,9 +190,55 @@ public abstract class LoggerUtil {
         }
     }
     
+    /**
+     * Flush the appenders for all of the active loggers
+     */
+    public static void flushAllLogs() {
+        LoggerRepository loggerRepo = LogManager.getLoggerRepository();
+        for (Logger logger : CollectionUtil.iterable(loggerRepo.getCurrentLoggers(), Logger.class)) {
+            LoggerUtil.flushLogs(logger);
+        } // FOR
+    }
+    
+    /**
+     * From http://stackoverflow.com/a/3187802/42171
+     */
+    public static void flushLogs(Logger logger) {
+        Logger root = Logger.getRootLogger();
+        Set<FileAppender> flushed = new HashSet<FileAppender>();
+        try {
+            for (Appender appender : CollectionUtil.iterable(logger.getAllAppenders(), Appender.class)) {
+                if (appender instanceof FileAppender) {
+                    FileAppender fileAppender = (FileAppender)appender;
+                    synchronized (fileAppender) {
+                        if (!flushed.contains(fileAppender) && !fileAppender.getImmediateFlush()) {
+                            root.info(String.format("Appender %s.%s is not doing an immediateFlush",
+                                      logger.getName(), appender.getName()));
+                            fileAppender.setImmediateFlush(true);
+                            logger.info("FLUSH");
+                            fileAppender.setImmediateFlush(false);
+                            flushed.add(fileAppender);
+                        } else {
+                            root.info(String.format("Appender %s.%s is doing an immediateFlush",
+                                      logger.getName(), appender.getName()));
+                        }
+                    } // SYNCH
+                } else {
+                    root.debug(String.format("Unable to flush non-file appender %s.%s",
+                               logger.getName(), appender.getName()));
+                }
+            } // FOR (appender)
+        } catch (Throwable ex) {
+            root.error("Failed flushing logs for " + logger, ex);
+        }
+    }
     
     public static void attachObserver(Logger logger, LoggerBoolean debug, LoggerBoolean trace) {
         LoggerUtil.attachObserver(new LoggerObserver(logger, debug, trace));
+    }
+    
+    public static void attachObserver(Logger logger, LoggerBoolean debug) {
+        LoggerUtil.attachObserver(new LoggerObserver(logger, debug, null));
     }
     
     public static void attachObserver(Logger logger, AtomicBoolean debug, AtomicBoolean trace) {

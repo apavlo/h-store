@@ -69,8 +69,10 @@ public class TableConflictChecker extends AbstractConflictChecker {
 
     @Override
     public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
-        final int dtxn_procId = dtxn.getProcedureId();
-        final int ts_procId = ts.getProcedureId();
+        final Procedure dtxn_proc = dtxn.getProcedure();
+        final Procedure ts_proc = ts.getProcedure();
+        final int dtxn_procId = dtxn_proc.getId();
+        final int ts_procId = ts_proc.getId();
         
         // DTXN->TS
         boolean dtxn_hasRWConflict = this.rwConflicts[dtxn_procId].get(ts_procId);
@@ -94,8 +96,6 @@ public class TableConflictChecker extends AbstractConflictChecker {
             return (true);
         }
 
-        final Procedure dtxn_proc = this.catalogContext.getProcedureById(dtxn_procId);
-        final Procedure ts_proc = ts.getProcedure();
         final ConflictSet dtxn_conflicts = dtxn_proc.getConflicts().get(ts_proc.getName());
         final ConflictSet ts_conflicts = ts_proc.getConflicts().get(dtxn_proc.getName());
         

@@ -97,6 +97,9 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     protected final int getOrigCounter() {
         return (this.orig_counter);
     }
+    protected final void clearCounter() {
+        this.counter.set(0);
+    }
     protected final RpcCallback<T> getOrigCallback() {
         return this.orig_callback;
     }

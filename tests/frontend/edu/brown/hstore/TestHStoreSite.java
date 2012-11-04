@@ -38,6 +38,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -80,6 +81,7 @@ public class TestHStoreSite extends BaseTestCase {
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.pool_profiling = true;
         this.hstore_conf.site.status_enable = false;
+        this.hstore_conf.site.status_interval = 4000;
         this.hstore_conf.site.anticache_enable = false;
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
@@ -251,10 +253,8 @@ public class TestHStoreSite extends BaseTestCase {
         // Check to make sure that we reject a bunch of txns that all of our
         // handles end up back in the object pool. To do this, we first need
         // to set the PartitionExecutor's to reject all incoming txns
-        hstore_conf.site.queue_incoming_max_per_partition = 1;
-        hstore_conf.site.queue_incoming_release_factor = 0;
-        hstore_conf.site.queue_incoming_increase = 0;
-        hstore_conf.site.queue_incoming_increase_max = 0;
+        hstore_conf.site.network_incoming_max_per_partition = 1;
+        hstore_conf.site.txn_restart_limit = 1;
         hstore_site.updateConf(hstore_conf);
 
         final Set<LocalTransaction> expectedHandles = new HashSet<LocalTransaction>(); 
@@ -274,11 +274,13 @@ public class TestHStoreSite extends BaseTestCase {
         final int num_txns = 500;
         final CountDownLatch latch = new CountDownLatch(num_txns);
         final AtomicInteger numAborts = new AtomicInteger(0);
+        final Histogram<Status> statusHistogram = new Histogram<Status>();
         final List<Long> actualIds = new ArrayList<Long>();
-        
+         
         ProcedureCallback callback = new ProcedureCallback() {
             @Override
             public void clientCallback(ClientResponse cr) {
+                statusHistogram.put(cr.getStatus());
                 if (cr.getStatus() == Status.ABORT_REJECT) {
                     numAborts.incrementAndGet();
                 }
@@ -291,7 +293,9 @@ public class TestHStoreSite extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
         Object params[] = { 1234l, "XXXX" };
         for (int i = 0; i < num_txns; i++) {
-            this.client.callProcedure(callback, catalog_proc.getName(), params);
+            boolean queued = this.client.callProcedure(callback, catalog_proc.getName(), params);
+            assertTrue(queued);
+            if (queued == false) latch.countDown();
         } // FOR
         
         boolean result = latch.await(20, TimeUnit.SECONDS);
@@ -305,18 +309,19 @@ public class TestHStoreSite extends BaseTestCase {
 //        System.err.println(StringUtil.join("\n", CollectionUtil.sort(actualIds)));
 //        System.err.println("--------------------------------------------");
         
+        System.err.println(statusHistogram);
         assertTrue("Timed out [latch="+latch.getCount() + "]", result);
-        assertNotSame(0, numAborts.get());
         assertNotSame(0, expectedHandles.size());
         assertNotSame(0, expectedIds.size());
         assertNotSame(0, actualIds.size());
+        assertNotSame(0, numAborts.get());
         
         // HACK: Wait a little to know that the periodic thread has attempted
         // to clean-up our deletable txn handles
-        ThreadUtil.sleep(2500);
+        ThreadUtil.sleep(5000);
 
-        assertEquals(0, hstore_debug.getInflightTxnCount());
         assertEquals(0, hstore_debug.getDeletableTxnCount());
+        assertEquals(0, hstore_debug.getInflightTxnCount());
         
         // Make sure that there is nothing sitting around in our queues
         assertEquals("INIT", 0, queue_debug.getInitQueueSize());
@@ -387,34 +392,5 @@ public class TestHStoreSite extends BaseTestCase {
         assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
         assertEquals(cresponse.getClientHandle(), clone.getClientHandle());
     }
-    
-//    @Test
-//    public void testSinglePartitionPassThrough() {
-        // FIXME This won't work because the HStoreCoordinatorNode is now the thing that
-        // actually fires off the txn in the ExecutionSite
-        
-//        StoreResultCallback<byte[]> done = new StoreResultCallback<byte[]>();
-//        coordinator.procedureInvocation(invocation_bytes, done);
-//
-//        // Passed through to the mock coordinator
-//        assertTrue(dtxnCoordinator.request.getLastFragment());
-//        assertEquals(1, dtxnCoordinator.request.getTransactionId());
-//        assertEquals(1, dtxnCoordinator.request.getFragmentCount());
-//        assertEquals(0, dtxnCoordinator.request.getFragment(0).getPartitionId());
-//        InitiateTaskMessage task = (InitiateTaskMessage) VoltMessage.createMessageFromBuffer(
-//                dtxnCoordinator.request.getFragment(0).getWork().asReadOnlyByteBuffer(), true);
-//        assertEquals(TARGET_PROCEDURE, task.getStoredProcedureName());
-//        assertArrayEquals(PARAMS, task.getParameters());
-//        assertEquals(null, done.getResult());
-//
-//        // Return results
-//        Dtxn.CoordinatorResponse.Builder response = CoordinatorResponse.newBuilder();
-//        response.setTransactionId(0);
-//        response.setStatus(Dtxn.FragmentResponse.Status.OK);
-//        byte[] output = { 0x3, 0x2, 0x1 };
-//        response.addResponse(CoordinatorResponse.PartitionResponse.newBuilder()
-//                .setPartitionId(0).setOutput(ByteString.copyFrom(output)));
-//        dtxnCoordinator.done.run(response.build());
-//        assertArrayEquals(output, done.getResult());
-//    }
+
 }

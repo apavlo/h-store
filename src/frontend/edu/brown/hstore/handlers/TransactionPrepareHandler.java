@@ -7,11 +7,12 @@ import com.google.protobuf.RpcController;
 
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareRequest;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
+import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
@@ -20,15 +21,9 @@ import edu.brown.utils.PartitionSet;
 public class TransactionPrepareHandler extends AbstractTransactionHandler<TransactionPrepareRequest, TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareHandler.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
-    
-    /**
-     * XXX: I think this is thread safe
-     */
-    private final PartitionSet targetPartitions = new PartitionSet();
     
     public TransactionPrepareHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
         super(hstore_site, hstore_coord);
@@ -38,7 +33,14 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
     public void sendLocal(Long txn_id, TransactionPrepareRequest request, PartitionSet partitions, RpcCallback<TransactionPrepareResponse> callback) {
         // We don't care whether we actually updated anybody locally, so we don't need to
         // pass in a set to get the partitions that were updated here.
-        hstore_site.transactionPrepare(txn_id, partitions);
+        LocalTransaction ts = this.hstore_site.getTransaction(txn_id);
+        assert(ts != null) : "Unexpected null transaction handle for txn #" + txn_id;
+        
+        TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
+        if (wrapper.isInitialized()) wrapper.finish();
+        wrapper.init(ts, partitions, callback);
+        
+        hstore_site.transactionPrepare(ts, partitions);
     }
     @Override
     public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionPrepareRequest request, RpcCallback<TransactionPrepareResponse> callback) {
@@ -61,23 +63,24 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         if (debug.get())
             LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
         
-        // XXX: Check whether this thread safe. I think it is
-        this.targetPartitions.clear();
-        this.targetPartitions.addAll(request.getPartitionsList());
-        this.targetPartitions.retainAll(hstore_site.getLocalPartitionIds());
-        
-        hstore_site.transactionPrepare(txn_id, this.targetPartitions);
-        assert(this.targetPartitions.isEmpty() == false) :
+        // HACK
+        // Use a TransactionPrepareWrapperCallback to ensure that we only send back
+        // the prepare response once all of the PartitionExecutors have successfully
+        // acknowledged that we're ready to commit
+        PartitionSet partitions = new PartitionSet(request.getPartitionsList());
+        assert(partitions.isEmpty() == false) :
             "Unexpected empty list of updated partitions for txn #" + txn_id;
+        partitions.retainAll(hstore_site.getLocalPartitionIds());
         
-        if (debug.get()) LOG.debug(String.format("Finished PREPARE phase for txn #%d [partitions=%s]",
-                                   txn_id, this.targetPartitions));
-        TransactionPrepareResponse response = TransactionPrepareResponse.newBuilder()
-                                                               .setTransactionId(txn_id)
-                                                               .addAllPartitions(this.targetPartitions)
-                                                               .setStatus(Hstoreservice.Status.OK)
-                                                               .build();
-        callback.run(response);
+        RemoteTransaction ts = this.hstore_site.getTransaction(txn_id);
+        assert(ts != null) : "Unexpected null transaction handle for txn #" + txn_id;
+        TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
+        if (wrapper.isInitialized()) wrapper.finish();
+        wrapper.init(ts, partitions, callback);
+        assert(wrapper.isInitialized()) :
+            String.format("Unexepected uninitialized %s for %s", callback.getClass().getSimpleName(), ts);
+        
+        hstore_site.transactionPrepare(ts, partitions);
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {

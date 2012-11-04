@@ -43,12 +43,16 @@ import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
+import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.internal.FinishTxnMessage;
@@ -58,19 +62,18 @@ import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
+import edu.brown.utils.PartitionSet;
 
 /**
  * @author pavlo
  */
-public abstract class AbstractTransaction implements Poolable, Loggable {
+public abstract class AbstractTransaction implements Poolable, Loggable, Comparable<AbstractTransaction> {
     private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     private static boolean d = debug.get();
-//    private static boolean t = trace.get();
     
     /**
      * Internal state for the transaction
@@ -87,12 +90,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
     
+    /**
+     * Catalog object of the Procedure that this transaction is currently executing
+     */
+    protected Procedure catalog_proc;
+    
     protected Long txn_id = null;
     protected long client_handle;
-    protected int proc_id;
     protected int base_partition;
     protected Status status;
-    protected boolean sysproc;
     protected SerializableException pending_error;
 
     /**
@@ -125,7 +131,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected PrefetchState prefetch;
     
     // ----------------------------------------------------------------------------
-    // Internal Message Wrappers
+    // INTERNAL MESSAGE WRAPPERS
     // ----------------------------------------------------------------------------
     
     private final PrepareTxnMessage prepare_task;
@@ -133,6 +139,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     private final FinishTxnMessage finish_task;
     
     private final WorkFragmentMessage work_task[];
+    
+    // ----------------------------------------------------------------------------
+    // CALLBACKS
+    // ----------------------------------------------------------------------------
+    
+    protected final TransactionInitQueueCallback init_callback;
+    protected final TransactionPrepareWrapperCallback prepare_callback;
     
     // ----------------------------------------------------------------------------
     // GLOBAL PREDICTIONS FLAGS
@@ -157,6 +170,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * EstimationState Handle
      */
     private EstimatorState predict_tState;
+    
+    /**
+     * The set of partitions that we expected this partition to touch.
+     */
+    protected PartitionSet predict_touchedPartitions;
     
     // ----------------------------------------------------------------------------
     // PER PARTITION EXECUTION FLAGS
@@ -229,7 +247,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public AbstractTransaction(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         
-        int numLocalPartitions = hstore_site.getLocalPartitionIdArray().length;
+        int numLocalPartitions = hstore_site.getLocalPartitionIds().size();
         this.prepared = new boolean[numLocalPartitions];
         this.finished = new boolean[numLocalPartitions];
         this.round_state = new RoundState[numLocalPartitions];
@@ -245,6 +263,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.prepare_task = new PrepareTxnMessage(this);
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numLocalPartitions];
+        
+        this.init_callback = new TransactionInitQueueCallback(hstore_site);
+        this.prepare_callback = new TransactionPrepareWrapperCallback(hstore_site);
         
         this.readTables = new BitSet[numLocalPartitions];
         this.writeTables = new BitSet[numLocalPartitions];
@@ -278,19 +299,23 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
                                              long client_handle,
                                              int base_partition,
                                              ParameterSet parameters,
-                                             int proc_id,
-                                             boolean sysproc,
-                                             boolean predict_singlePartition,
+                                             Procedure catalog_proc,
+                                             PartitionSet predict_touchedPartitions,
                                              boolean predict_readOnly,
                                              boolean predict_abortable,
                                              boolean exec_local) {
+        assert(predict_touchedPartitions != null);
+        assert(predict_touchedPartitions.isEmpty() == false);
+        
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
         this.parameters = parameters;
-        this.proc_id = proc_id;
-        this.sysproc = sysproc;
-        this.predict_singlePartition = predict_singlePartition;
+        this.catalog_proc = catalog_proc;
+        
+        // Initialize the predicted execution properties for this transaction
+        this.predict_touchedPartitions = predict_touchedPartitions;
+        this.predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
         this.predict_readOnly = predict_readOnly;
         this.predict_abortable = predict_abortable;
         
@@ -313,9 +338,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.predict_readOnly = false;
         this.predict_tState = null;
         
+        this.init_callback.finish();
+        this.prepare_callback.finish();
+        
         this.pending_error = null;
         this.status = null;
-        this.sysproc = false;
         this.parameters = null;
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
@@ -348,7 +375,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         
-        this.proc_id = -1;
+        this.catalog_proc = null;
         this.base_partition = HStoreConstants.NULL_PARTITION_ID;
         this.txn_id = null;
     }
@@ -446,6 +473,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // ----------------------------------------------------------------------------
     // PREDICTIONS
     // ----------------------------------------------------------------------------
+    
+    /**
+     * Return the collection of the partitions that this transaction is expected
+     * to need during its execution. The transaction may choose to not use all of
+     * these but it is not allowed to use more.
+     */
+    public PartitionSet getPredictTouchedPartitions() {
+        return (this.predict_touchedPartitions);
+    }
     
     /**
      * Returns true if this Transaction was originally predicted as being able to abort
@@ -547,10 +583,24 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public boolean equals(Object obj) {
         if (obj instanceof AbstractTransaction) {
             AbstractTransaction other = (AbstractTransaction)obj;
-            if ((other.txn_id == null) && (this.txn_id == null)) return (this.hashCode() != other.hashCode());
+            if (other.txn_id == null) {
+                if (this.txn_id == null) return (this.hashCode() != other.hashCode());
+                return (false);
+            }
+            else if (this.txn_id == null) {
+                if (other.txn_id == null) return (this.hashCode() != other.hashCode());
+                return (false);
+            }
             return (this.txn_id.equals(other.txn_id) && this.base_partition == other.base_partition);
         }
         return (false);
+    }
+    
+    @Override
+    public int compareTo(AbstractTransaction o) {
+        if (this.txn_id == null) return (1);
+        else if (o.txn_id == null) return (-1);
+        return this.txn_id.compareTo(o.txn_id);
     }
     
     /**
@@ -569,20 +619,14 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Get the base PartitionId where this txn's Java code is executing on
      */
     public final int getBasePartition() {
-        return base_partition;
-    }
-    /**
-     * Get the Procedure catalog id for this txn
-     */
-    public final int getProcedureId() {
-        return this.proc_id;
+        return this.base_partition;
     }
     /**
      * Return the underlying procedure catalog object
      * @return
      */
     public Procedure getProcedure() {
-        return (this.hstore_site.getCatalogContext().getProcedureById(this.proc_id));
+        return (this.catalog_proc);
     }
     /**
      * Return the ParameterSet that contains the procedure input
@@ -597,7 +641,33 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Returns true if this transaction is for a system procedure
      */
     public final boolean isSysProc() {
-        return this.sysproc;
+        return this.catalog_proc.getSystemproc();
+    }
+    
+    // ----------------------------------------------------------------------------
+    // CALLBACK METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Return this handle's TransactionInitQueueCallback
+     */
+    public final TransactionInitQueueCallback initTransactionInitQueueCallback(RpcCallback<TransactionInitResponse> callback) {
+        assert(this.isInitialized());
+        assert(this.init_callback.isInitialized() == false);
+        this.init_callback.init(this, this.predict_touchedPartitions, callback);
+        return (this.init_callback);
+    }
+    
+    /**
+     * Return this handle's TransactionInitQueueCallback
+     */
+    public final TransactionInitQueueCallback getTransactionInitQueueCallback() {
+        return (this.init_callback);
+    }
+    
+    
+    public final TransactionPrepareWrapperCallback getPrepareWrapperCallback() {
+        return (this.prepare_callback);
     }
     
     /**
@@ -606,6 +676,29 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      */
     public TransactionCleanupCallback getCleanupCallback() {
         return (null);
+    }
+    
+    /**
+     * Returns true if we believe that this transaction can be deleted
+     * <B>Note:</B> This is not thread safe!
+     * @return
+     */
+    public boolean isDeletable() {
+        if (this.isInitialized() == false) {
+            return (false);
+        }
+        if (this.init_callback.allCallbacksFinished() == false) {
+            if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                            this.init_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        if (this.prepare_callback.allCallbacksFinished() == false) {
+            if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                            this.prepare_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        
+        return (true);
     }
     
     // ----------------------------------------------------------------------------
@@ -985,9 +1078,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected Map<String, Object> getDebugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
-        m.put("Procedure", hstore_site.getCatalogContext().getProcedureById(this.proc_id));
+        m.put("Procedure", this.catalog_proc);
         m.put("Hash Code", this.hashCode());
-        m.put("SysProc", this.sysproc);
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
         m.put("First UndoToken", Arrays.toString(this.exec_firstUndoToken));

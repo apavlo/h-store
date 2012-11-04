@@ -910,20 +910,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                               String tableName, VoltTable data, int allowELT) throws VoltAbortException {
         if (data == null || data.getRowCount() == 0) return;
         assert(m_currentTxnState != null);
-        voltLoadTable(m_currentTxnState, clusterName, databaseName, tableName, data, allowELT);
-    }
-    
-    public void voltLoadTable(AbstractTransaction ts, String clusterName, String databaseName,
-                              String tableName, VoltTable data, int allowELT) throws VoltAbortException {
-        if (data == null || data.getRowCount() == 0) return;
         try {
             assert(executor != null);
-            executor.loadTable(ts, clusterName, databaseName, tableName, data, allowELT);
+            executor.loadTable(m_currentTxnState, clusterName, databaseName, tableName, data, allowELT);
         } catch (EEException e) {
             throw new VoltAbortException("Failed to load table: " + tableName);
         }
     }
-
+    
     /**
      * Get the time that this procedure was accepted into the VoltDB cluster. This is the
      * effective, but not always actual, moment in time this procedure executes. Use this

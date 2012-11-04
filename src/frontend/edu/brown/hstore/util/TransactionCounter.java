@@ -63,7 +63,8 @@ public enum TransactionCounter {
     // Speculative Execution Stall Points
     // --------------------------------------------------------
     SPECULATIVE_SP1,
-    SPECULATIVE_SP2,
+    SPECULATIVE_SP2_BEFORE,
+    SPECULATIVE_SP2_AFTER,
     SPECULATIVE_SP3_LOCAL,
     SPECULATIVE_SP3_REMOTE,
 

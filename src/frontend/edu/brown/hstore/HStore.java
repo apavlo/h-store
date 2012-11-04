@@ -167,7 +167,7 @@ public abstract class HStore {
         // PartitionExecutor Initialization
         // ----------------------------------------------------------------------------
         boolean first = true;
-        for (int local_partition : singleton.getLocalPartitionIdArray()) {
+        for (int local_partition : singleton.getLocalPartitionIds().values()) {
             MarkovGraphsContainer local_markovs = null;
             if (markovs != null) {
                 if (markovs.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) {

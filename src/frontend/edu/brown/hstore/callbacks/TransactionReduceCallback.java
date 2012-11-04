@@ -21,7 +21,7 @@ import edu.brown.utils.StringUtil;
  * back from all other partitions in the cluster.
  * @author pavlo
  */
-public class TransactionReduceCallback extends AbstractTransactionCallback<TransactionReduceResponse, TransactionReduceResponse> {
+public class TransactionReduceCallback extends AbstractTransactionCallback<MapReduceTransaction, TransactionReduceResponse, TransactionReduceResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionReduceCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -56,7 +56,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
      * executing the map phase for this txn
      */
     @Override
-    protected boolean unblockTransactionCallback() {
+    protected void unblockTransactionCallback() {
         if (debug.get())
             LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
         
@@ -75,8 +75,6 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
             // to clean up this transaction because we're done with it!
             this.finishTransaction(Status.OK);
         }
-        
-        return (false);
     }
     
     @Override

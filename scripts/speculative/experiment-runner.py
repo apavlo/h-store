@@ -39,6 +39,7 @@ import getopt
 import string
 import math
 import types
+import subprocess
 from datetime import datetime
 from pprint import pprint, pformat
 from types import *
@@ -88,7 +89,7 @@ OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 6
 OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
-OPT_GIT_BRANCH = "conflictsets"
+OPT_GIT_BRANCH = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True).strip()
 
 DEFAULT_OPTIONS = {
     "hstore.git_branch": OPT_GIT_BRANCH
@@ -104,12 +105,19 @@ DEBUG_OPTIONS = {
 DEBUG_SITE_LOGGING = [
     "edu.brown.hstore.HStoreSite",
     "edu.brown.hstore.PartitionExecutor",
-    "edu.brown.hstore.TransactionQueueManager"
+    "edu.brown.hstore.TransactionQueueManager",
+    #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
+    #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
+    #"edu.brown.hstore.callbacks.TransactionInitCallback",
+    #"edu.brown.hstore.callbacks.TransactionInitQueueCallback",
+    #"edu.brown.hstore.callbacks.BlockingRpcCallback",
 ]
 DEBUG_CLIENT_LOGGING = [
     #"edu.brown.api.BenchmarkComponent",
     #"edu.brown.api.BenchmarkController",
-    "org.voltdb.benchmark.tpcc.TPCCLoader",
+    "edu.brown.api.ControlPipe",
+    "edu.brown.api.ControlWorker",
+    #"org.voltdb.benchmark.tpcc.TPCCLoader",
 ]
 
 BASE_SETTINGS = {
@@ -123,7 +131,7 @@ BASE_SETTINGS = {
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
-    "hstore.num_hosts_round_robin":     None,
+    "hstore.num_hosts_round_robin":     4,
 
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
@@ -132,14 +140,14 @@ BASE_SETTINGS = {
     "client.threads_per_host":          OPT_BASE_CLIENT_THREADS_PER_HOST,
     "client.interval":                  10000,
     "client.skewfactor":                -1,
-    "client.duration":                  120000,
+    "client.duration":                  300000,
     "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
     
-    "site.jvm_asserts":                         False,
+    "site.jvm_asserts":                         True,
     "site.log_backup":                          False,
     "site.status_enable":                       False,
     "site.status_show_thread_info":             False,
@@ -243,6 +251,7 @@ EXPERIMENT_SETTINGS = {
     },
     "specexec": {
         "ec2.site_type":                       "m2.4xlarge", # c1.xlarge",
+        "hstore.num_hosts_round_robin":         4,
         "site.memory":                          20480, # 6144,
         "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 True,
@@ -258,9 +267,7 @@ EXPERIMENT_SETTINGS = {
         "site.exec_force_singlepartitioned":    False,
         "client.count":                         1,
         "client.output_specexec":               True,
-        "client.txnrate":                       1500,
-        "client.blocking":                      False,
-        "client.blocking_concurrent":           2,
+        "client.txnrate":                       1000, # 1500,
         "client.output_response_status":        True,
         "client.output_basepartitions":         False,
         "client.output_txn_counters":           "txncounters.csv",
@@ -276,6 +283,8 @@ for k, v in EXPERIMENT_SETTINGS['specexec-base'].iteritems():
     if isinstance(v, bool) and (k.startswith("site.markov_") or k.startswith("site.specexec_")):
         EXPERIMENT_SETTINGS['specexec-base'][k] = False
 ## FOR
+EXPERIMENT_SETTINGS['specexec-base']["site.exec_force_singlepartitioned"] = True
+EXPERIMENT_SETTINGS['specexec-base']["site.specexec_pre_query"] = True
 
 ## ==============================================
 ## updateEnv
@@ -334,7 +343,7 @@ def updateEnv(args, env, benchmark, partitions):
         else:
             markov = "%s.markov.gz" % (benchmark)
         env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
-        env["client.threads_per_host"] = int(partitions*1.5)
+        env["client.threads_per_host"] = int(partitions*2)
         env["benchmark.loadthreads"] = min(16, partitions)
         
     pplan = "%s.lns.pplan" % benchmark
@@ -462,6 +471,8 @@ if __name__ == '__main__':
     agroup.add_argument("--no-conf", action='store_true', help='Disable updating HStoreConf properties file')
     agroup.add_argument("--no-sync", action='store_true', help='Disable synching time between nodes')
     agroup.add_argument("--no-json", action='store_true', help='Disable JSON output results')
+    agroup.add_argument("--no-profiling", action='store_true', help='Disable all profiling stats output files')
+    agroup.add_argument("--no-shutdown", action='store_true', help='Disable shutting down cluster after a trial run')
     
     ## Experiment Parameters
     agroup = aparser.add_argument_group('Experiment Parameters')
@@ -564,6 +575,8 @@ if __name__ == '__main__':
     # If we get two consecutive intervals with zero results, then stop the benchmark
     if args['retry_on_zero']:
         env["hstore.exec_prefix"] += " -Dkillonzero=true"
+    if args['no_shutdown']:
+        env["hstore.exec_prefix"] += " -Dnoshutdown=true"
     
     # Update Fabric env
     conf_remove = set()
@@ -610,7 +623,7 @@ if __name__ == '__main__':
     needResetLog4j = not (args['no_update'] or needUpdateLog4j)
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
-    needClearLogs = (args['clear_logs'] == False)
+    needClearLogs = (args['clear_logs'] == True)
     origScaleFactor = BASE_SETTINGS['client.scalefactor']
     for benchmark in args['benchmark']:
         final_results = { }
@@ -632,6 +645,13 @@ if __name__ == '__main__':
                 hstore.fabfile.start_cluster(updateSync=needSync)
                 if args['no_execute']: sys.exit(0)
             ## IF
+            
+            # Disable all profiling
+            if args['no_profiling']:
+                for k,v in env.iteritems():
+                    if re.match("^(client|site)\.[\w\_]*profiling[\w\_]*", k):
+                        env[k] = False if isinstance(v, bool) else ""
+                ## FOR
             
             client_inst = hstore.fabfile.__getRunningClientInstances__()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)

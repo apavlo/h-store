@@ -128,6 +128,7 @@
 <arg value="site.network_startup_wait=${site.network_startup_wait}" />
 <arg value="site.network_startup_retries=${site.network_startup_retries}" />
 <arg value="site.network_txn_initialization=${site.network_txn_initialization}" />
+<arg value="site.network_incoming_max_per_partition=${site.network_incoming_max_per_partition}" />
 <arg value="site.txn_client_debug=${site.txn_client_debug}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_counters=${site.txn_counters}" />

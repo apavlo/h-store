@@ -88,6 +88,7 @@ public class TransactionInitializer {
     private final HStoreObjectPools objectPools;
     private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
+    private final PartitionSet local_partitions;
     private final TransactionEstimator t_estimators[];
     private EstimationThresholds thresholds;
     
@@ -113,6 +114,7 @@ public class TransactionInitializer {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.objectPools = hstore_site.getObjectPools();
+        this.local_partitions = hstore_site.getLocalPartitionIds();
         this.catalogContext = hstore_site.getCatalogContext();
         this.inflight_txns = hstore_site.getInflightTxns();
         
@@ -141,7 +143,7 @@ public class TransactionInitializer {
                                       int base_partition) {
         
         // Simple sanity check to make sure that we're not being told a bad partition
-        if (base_partition < 0 || base_partition >= hstore_site.local_partitions_arr.length) {
+        if (base_partition < 0 || base_partition >= this.local_partitions.size()) {
             base_partition = HStoreConstants.NULL_PARTITION_ID;
         }
         
@@ -184,8 +186,8 @@ public class TransactionInitializer {
         if (base_partition == HStoreConstants.NULL_PARTITION_ID) {
             if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
                                            catalog_proc.getName(), hstore_conf.site.exec_force_localexecution));
-            int idx = (int)(Math.abs(client_handle) % hstore_site.local_partitions_arr.length);
-            base_partition = hstore_site.local_partitions_arr[idx].intValue();
+            int idx = (int)(Math.abs(client_handle) % this.local_partitions.size());
+            base_partition = this.local_partitions.values()[idx];
         }
         
         return (base_partition);
@@ -251,15 +253,19 @@ public class TransactionInitializer {
      * @param request
      * @return
      */
-    public RemoteTransaction createRemoteTransaction(Long txn_id, int base_partition, int proc_id) {
+    public RemoteTransaction createRemoteTransaction(Long txn_id,
+                                                     PartitionSet partitions,
+                                                     int base_partition,
+                                                     int proc_id) {
         RemoteTransaction ts = null;
         Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
         try {
             // Remote Transaction
-            ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();
-            ts.init(txn_id, base_partition, null, catalog_proc, true);
-            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [singlePartitioned=%s, hashCode=%d]",
-                                           ts, base_partition, false, ts.hashCode()));
+            ts = new RemoteTransaction(hstore_site);
+            // XXX ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();
+            ts.init(txn_id, base_partition, null, catalog_proc, partitions, true);
+            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [partitions=%s, hashCode=%d]",
+                             ts, base_partition, partitions, ts.hashCode()));
         } catch (Exception ex) {
             LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);
@@ -306,8 +312,8 @@ public class TransactionInitializer {
                 ts = this.objectPools.getMapReduceTransactionPool(base_partition)
                                 .borrowObject();
             } else {
-                // ts = new LocalTransaction(hstore_site);
-                ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
+                ts = new LocalTransaction(hstore_site);
+                // XXX ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
             }
         } catch (Throwable ex) {
             LOG.fatal("Failed to instantiate new LocalTransactionState for " + catalog_proc.getName());
@@ -361,8 +367,8 @@ public class TransactionInitializer {
         
         LocalTransaction new_ts = null;
         try {
-            // new_ts = new LocalTransaction(hstore_site);
-            new_ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
+            new_ts = new LocalTransaction(hstore_site);
+            // XXX new_ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
         } catch (Exception ex) {
             LOG.fatal(String.format("Failed to instantiate new %s for mispredicted %s",
                       orig_ts.getClass().getSimpleName(), orig_ts));

@@ -73,7 +73,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -212,24 +211,19 @@ public class BenchmarkController {
     
     // ProcessSetManager Failure Callback
     final EventObserver<String> failure_observer = new EventObserver<String>() {
-        final ReentrantLock lock = new ReentrantLock();
+        final AtomicBoolean lock = new AtomicBoolean(false);
         
         @Override
         public void update(EventObservable<String> o, String msg) {
-            lock.lock();
-            try {
-                if (BenchmarkController.this.stop == false) {
-                    LOG.fatal(msg);
-                    BenchmarkController.this.stop = true;
-                    BenchmarkController.this.failed = true;
-                    m_clientPSM.prepareShutdown(false);
-                    m_sitePSM.prepareShutdown(false);
-                    
-                    if (self != null) BenchmarkController.this.self.interrupt();
-                }
-            } finally {
-                lock.unlock();
-            } // SYNCH
+            if (lock.compareAndSet(false, true)) {
+                LOG.fatal(msg);
+                BenchmarkController.this.stop = true;
+                BenchmarkController.this.failed = true;
+                ThreadUtil.sleep(1500);
+                m_clientPSM.prepareShutdown(false);
+                m_sitePSM.prepareShutdown(false);
+                if (self != null) BenchmarkController.this.self.interrupt();
+            }
         }
     };
     
@@ -605,10 +599,13 @@ public class BenchmarkController {
      */
     public void startLoader() {
         LOG.info(makeHeader("BENCHMARK LOAD"));
-        LOG.info(String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
-                               m_projectBuilder.getProjectName().toUpperCase(),
-                               m_loaderClass.getSimpleName(),
-                               hstore_conf.client.scalefactor)); 
+        String title = String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
+                                     m_projectBuilder.getProjectName().toUpperCase(),
+                                     m_loaderClass.getSimpleName(),
+                                     hstore_conf.client.scalefactor);
+        if (hstore_conf.client.blocking_loader) title += " / Blocking";
+        LOG.info(title);
+        
         final List<String> allLoaderArgs = new ArrayList<String>();
         final List<String> loaderCommand = new ArrayList<String>();
 
@@ -1125,6 +1122,24 @@ public class BenchmarkController {
         nextIntervalTime += startTime;
         long nowTime = startTime;
         while (m_pollIndex < m_pollCount && this.stop == false) {
+            // wait some time
+            long sleep = nextIntervalTime - nowTime;
+            try {
+                if (this.stop == false && sleep > 0) {
+                    if (debug.get()) LOG.debug(String.format("Sleeping for %.1f sec [pollIndex=%d]",
+                                               sleep / 1000d, m_pollIndex));
+                    Thread.sleep(sleep);
+                }
+            } catch (InterruptedException e) {
+                // Ignore...
+                if (debug.get()) LOG.debug(String.format("Interrupted! [pollIndex=%d / stop=%s]",
+                                           m_pollIndex, this.stop));
+            } finally {
+                if (debug.get()) LOG.debug(String.format("Awake! [pollIndex=%d / stop=%s]",
+                                           m_pollIndex, this.stop));
+            }
+            nowTime = System.currentTimeMillis();
+            
             // check if the next interval time has arrived
             if (nowTime >= nextIntervalTime) {
                 m_pollIndex++;
@@ -1132,23 +1147,11 @@ public class BenchmarkController {
                 // make all the clients poll
                 if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", ControlCommand.POLL, m_clients.size()));
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, ControlCommand.POLL.name());
+                    m_clientPSM.writeToProcess(clientName, ControlCommand.POLL.name() + " " + m_pollIndex);
 
                 // get ready for the next interval
                 nextIntervalTime = hstore_conf.client.interval * (m_pollIndex + 1) + startTime;
             }
-
-            // wait some time
-            long sleep = nextIntervalTime - nowTime;
-            try {
-                if (this.stop == false && sleep > 0) {
-                    if (debug.get()) LOG.debug("Sleeping for " + sleep + " ms");
-                    Thread.sleep(sleep);
-                }
-            } catch (InterruptedException e) {
-                // Ignore...
-            }
-            nowTime = System.currentTimeMillis();
         } // WHILE
         
         if (local_client == null) local_client = this.getClientConnection();
@@ -1167,16 +1170,16 @@ public class BenchmarkController {
             } else {
                 m_clientPSM.writeToProcess(clientName, ControlCommand.STOP.name());
             }
-        }
+        } // FOR
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         m_clientPSM.joinAll();
 
         if (this.failed == false) {
-            if (resultsToRead.getCount() > 0) {
+            if (this.resultsToRead.getCount() > 0) {
                 LOG.info(String.format("Waiting for %d status threads to finish [remaining=%d]",
-                         m_statusThreads.size(), resultsToRead.getCount()));
+                         m_statusThreads.size(), this.resultsToRead.getCount()));
                 try {
-                    resultsToRead.await();
+                    this.resultsToRead.await();
                     for (ClientStatusThread t : m_statusThreads) {
                         if (t.isFinished() == false) {
     //                        if (debug.get()) 
@@ -1215,6 +1218,7 @@ public class BenchmarkController {
         m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
         
         // Then tell the cluster to drain all txns
+        if (debug.get()) LOG.debug("Draining execution queues on cluster");
         ClientResponse cresponse = null;
         String procName = VoltSystemProcedure.procCallName(Quiesce.class);
         try {
@@ -1421,12 +1425,14 @@ public class BenchmarkController {
         // if (this.cleaned) return;
         
         if (m_config.noExecute == false) {
-            if (debug.get()) LOG.debug("Killing clients");
+            if (debug.get()) 
+                LOG.warn("Killing clients");
             m_clientPSM.shutdown();
         }
         
         if (m_config.noShutdown == false && this.failed == false) {
-            if (debug.get()) LOG.debug("Killing HStoreSites");
+            if (debug.get()) 
+                LOG.warn("Killing HStoreSites");
             m_sitePSM.shutdown();
         }
         
@@ -1835,8 +1841,8 @@ public class BenchmarkController {
         // Initialize HStoreConf
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
         HStoreConf hstore_conf = HStoreConf.init(hstore_conf_path, vargs);
-        if (debug.get()) 
-            LOG.debug("HStore Conf '" + hstore_conf_path.getName() + "'\n" + hstore_conf.toString(true));
+        if (trace.get()) 
+            LOG.trace("HStore Conf '" + hstore_conf_path.getName() + "'\n" + hstore_conf.toString(true));
         
         if (hstore_conf.client.duration < 1000) {
             LOG.error("Duration is specified in milliseconds");

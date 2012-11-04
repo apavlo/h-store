@@ -100,11 +100,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     /**
-     * Catalog object of the Procedure that this transaction is currently executing
-     */
-    protected Procedure catalog_proc;
-    
-    /**
      * Final RpcCallback to the client
      */
     private RpcCallback<ClientResponseImpl> client_callback;
@@ -160,15 +155,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public TransactionProfiler profiler;
     
-    // ----------------------------------------------------------------------------
-    // INITIAL PREDICTION DATA MEMBERS
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * The set of partitions that we expected this partition to touch.
-     */
-    private PartitionSet predict_touchedPartitions;
-  
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -243,8 +229,7 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc,
                                  ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
-        assert(predict_touchedPartitions != null);
-        assert(predict_touchedPartitions.isEmpty() == false);
+
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
         this.initiateTime = initiateTime;
@@ -252,20 +237,15 @@ public class LocalTransaction extends AbstractTransaction {
         this.client_callback = client_callback;
         this.mapreduce = catalog_proc.getMapreduce();
         
-        // Initialize the predicted execution properties for this transaction
-        this.predict_touchedPartitions = predict_touchedPartitions;
-        this.predict_readOnly = predict_readOnly;
-        this.predict_abortable = predict_abortable;
-        
         super.init(txn_id,
                    clientHandle,
                    base_partition,
                    params,
-                   catalog_proc.getId(),
-                   catalog_proc.getSystemproc(),
-                   (this.predict_touchedPartitions.size() == 1),
+                   catalog_proc,
+                   predict_touchedPartitions,
                    predict_readOnly,
-                   predict_abortable, true);
+                   predict_abortable,
+                   true);
         
         
         // Grab a DistributedState that will have all the goodies that we need
@@ -298,26 +278,23 @@ public class LocalTransaction extends AbstractTransaction {
                                      ParameterSet params,
                                      PartitionSet predict_touchedPartitions,
                                      Procedure catalog_proc) {
-        this.predict_touchedPartitions = predict_touchedPartitions;
-        this.catalog_proc = catalog_proc;
         this.initiateTime = EstTime.currentTimeMillis();
-        boolean predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
-        if (predict_singlePartition == false) {
+        
+        super.init(txn_id,                       // TxnId
+                   Integer.MAX_VALUE,            // ClientHandle
+                   base_partition,               // BasePartition
+                   params,                       // Procedure Parameters
+                   catalog_proc,                 // Procedure
+                   predict_touchedPartitions,    // Partitions
+                   catalog_proc.getReadonly(),   // ReadOnly
+                   true,                         // Abortable
+                   true                          // ExecLocal
+        );
+        if (this.predict_singlePartition == false) {
             this.dtxnState = new DistributedState(hstore_site).init(this);
         }
+        return (this);
         
-        return (LocalTransaction)super.init(
-                          txn_id,                       // TxnId
-                          Integer.MAX_VALUE,            // ClientHandle
-                          base_partition,               // BasePartition
-                          params,                       // Procedure Parameters
-                          catalog_proc.getId(),         // ProcedureId
-                          catalog_proc.getSystemproc(), // SysProc
-                          predict_singlePartition,      // SinglePartition
-                          catalog_proc.getReadonly(),   // ReadOnly
-                          true,                         // Abortable
-                          true                          // ExecLocal
-        );
     }
     
     /**
@@ -749,14 +726,12 @@ public class LocalTransaction extends AbstractTransaction {
         this.needs_restart = false;
     }
     
+
     /**
-     * Returns true if we believe that this transaction can be deleted
      * Note that this will only return true once and only once for each transaction invocation.
-     * <B>Note:</B> This is not thread safe!
-     * @return
      */
     public boolean isDeletable() {
-        if (this.isInitialized() == false) {
+        if (super.isDeletable() == false) {
             return (false);
         }
         if (this.dtxnState != null) {
@@ -885,15 +860,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public boolean isBlocked(WorkFragment.Builder ftask) {
         return (this.state.blocked_tasks.contains(ftask));
-    }
-    
-    /**
-     * Return the collection of the partitions that this transaction is expected
-     * to need during its execution. The transaction may choose to not use all of
-     * these but it is not allowed to use more.
-     */
-    public PartitionSet getPredictTouchedPartitions() {
-        return (this.predict_touchedPartitions);
     }
     
     // ----------------------------------------------------------------------------
@@ -1040,7 +1006,7 @@ public class LocalTransaction extends AbstractTransaction {
                          this, results.length));
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        boolean nonblocking = (hstore_conf.site.specexec_nonblocking && this.sysproc == false && this.profiler != null);
+        boolean nonblocking = (hstore_conf.site.specexec_nonblocking && this.catalog_proc.getSystemproc() == false && this.profiler != null);
         for (int stmt_index = 0; stmt_index < results.length; stmt_index++) {
             Integer dependency_id = this.state.output_order.get(stmt_index);
             assert(dependency_id != null) :
@@ -1490,7 +1456,13 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Client Callback", this.client_callback);
         if (this.dtxnState != null) {
             m.put("Init Callback", this.dtxnState.init_callback);
+        }
+        m.put("InitQueue Callback", this.init_callback);
+        if (this.dtxnState != null) {
             m.put("Prepare Callback", this.dtxnState.prepare_callback);
+        }
+        m.put("PrepareWrapper Callback", this.prepare_callback);
+        if (this.dtxnState != null) {
             m.put("Finish Callback", this.dtxnState.finish_callback);
         }
         maps.add(m);
