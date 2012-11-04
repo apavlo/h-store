@@ -17,7 +17,7 @@
     </sequential>
 </macrodef>
 
-<property name="javac.version" value="1.6" />
+<property name="javac.version" value="1.7" />
 
 <!-- PATHS AND PROPERTIES -->
 
@@ -581,6 +581,7 @@ JAVA COMPILATION
 
     <!-- compile the individual source directories -->
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.protorpc.dir}"
         destdir='${build.prod.dir}'
@@ -589,6 +590,7 @@ JAVA COMPILATION
     </javac>
 
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.hsqldb.dir}"
         destdir='${build.prod.dir}'
@@ -597,6 +599,7 @@ JAVA COMPILATION
     </javac>
 
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${thirdpartysrc.dir}"
         destdir='${build.prod.dir}'
@@ -605,6 +608,7 @@ JAVA COMPILATION
     </javac>
 
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.frontend.dir}"
         destdir='${build.prod.dir}'
@@ -613,6 +617,7 @@ JAVA COMPILATION
     </javac>
     
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.benchmarks.dir}"
         destdir='${build.benchmarks.dir}'
@@ -622,6 +627,7 @@ JAVA COMPILATION
 
     <!-- compile the individual test directories -->
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.hsqldb.test.dir}"
         destdir='${build.test.dir}'
@@ -630,6 +636,7 @@ JAVA COMPILATION
     </javac>
 
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.test.dir}"
         destdir='${build.test.dir}'
