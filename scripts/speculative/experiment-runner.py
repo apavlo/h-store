@@ -278,7 +278,7 @@ EXPERIMENT_SETTINGS = {
 }
 EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
 
-EXPERIMENT_SETTINGS['specexec-base'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
+EXPERIMENT_SETTINGS['specexec-base'] = dict(EXPERIMENT_SETTINGS['specexec'].items())
 for k, v in EXPERIMENT_SETTINGS['specexec-base'].iteritems():
     if isinstance(v, bool) and (k.startswith("site.markov_") or k.startswith("site.specexec_")):
         EXPERIMENT_SETTINGS['specexec-base'][k] = False
