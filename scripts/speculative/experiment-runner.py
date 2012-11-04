@@ -131,7 +131,7 @@ BASE_SETTINGS = {
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
-    "hstore.num_hosts_round_robin":     4,
+    #"hstore.num_hosts_round_robin":     4,
 
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
@@ -250,8 +250,8 @@ EXPERIMENT_SETTINGS = {
         "client.output_txn_profiling":          "txnprofile.csv",
     },
     "specexec": {
-        "ec2.site_type":                       "m2.4xlarge", # c1.xlarge",
-        "hstore.num_hosts_round_robin":         4,
+        "ec2.site_type":                       "m3.2xlarge", # c1.xlarge",
+        "hstore.num_hosts_round_robin":         1,
         "site.memory":                          20480, # 6144,
         "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 True,
