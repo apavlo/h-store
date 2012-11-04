@@ -1560,8 +1560,13 @@ TEST CASES
         <mkdir dir="@{destdir}"/>
         <!-- avoids needing ant clean when changing interfaces -->
         <depend srcdir="@{srcdir}" destdir="@{destdir}" cache="${depcache}"/>
-        <javac includeantruntime="false" srcdir="@{srcdir}" destdir="@{destdir}" includeAntRuntime="no"
-                debug="${compile.debug}" source="${javac.version}">
+        <javac includeantruntime="false"
+            source="${javac.version}"
+            target="${javac.version}"
+            srcdir="@{srcdir}"
+            destdir="@{destdir}"
+            includeAntRuntime="no"
+            debug="${compile.debug}">
             <compilerarg value="-Xlint:unchecked" />
             <!--<compilerarg value="-Xlint:deprecation" />-->
             <compileoptions/>
@@ -2377,6 +2382,7 @@ UTILITIES
 
 <target name="oltpgen.compile" depends="oltpgen.clean, compile">
         <javac includeantruntime="false"
+                source="${javac.version}"
                 target="${javac.version}"
                 srcdir="${src.test.dir}"
                 destdir="${build.test.dir}"

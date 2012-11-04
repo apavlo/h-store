@@ -89,7 +89,7 @@ ALL_PACKAGES = [
     'subversion',
     'gcc',
     'g++',
-    'openjdk-6-jdk',
+    'openjdk-7-jdk',
     'valgrind',
     'ant',
     'make',
@@ -462,8 +462,11 @@ def setup_env():
                  "deb-src http://archive.canonical.com/ubuntu %s partner" % releaseName ], use_sudo=True)
         sudo("apt-get update")
     ## WITH
-    sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
+    
+    # Make sure that we pick openjdk-7-jdk
+    sudo("update-alternatives --set java /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java")
+    
     __syncTime__()
     
     # Upgrade and clean up packages
