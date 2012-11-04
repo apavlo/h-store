@@ -1502,9 +1502,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private void setCurrentDtxn(AbstractTransaction ts) {
         // There can never be another current dtxn still unfinished at this partition!
-        assert(this.currentBlockedTxns.isEmpty()) :
-            String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
-                          this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
+//        assert(this.currentBlockedTxns.isEmpty()) :
+//            String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
+//                          this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
         assert(this.currentDtxn == null) :
             String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
