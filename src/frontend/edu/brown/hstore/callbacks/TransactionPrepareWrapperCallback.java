@@ -55,7 +55,7 @@ public class TransactionPrepareWrapperCallback extends AbstractTransactionCallba
     }
     
     @Override
-    protected boolean unblockTransactionCallback() {
+    protected void unblockTransactionCallback() {
         if (debug.get()) {
             LOG.debug(String.format("%s - Sending %s to %s with status %s",
                                     this.ts,
@@ -71,7 +71,6 @@ public class TransactionPrepareWrapperCallback extends AbstractTransactionCallba
         
         this.getOrigCallback().run(this.builder.build());
         this.builder = null;
-        return (false);
     }
     
     @Override

@@ -131,8 +131,8 @@ class ControlWorker extends Thread {
                     hadErrors = true;
                     
                     // HACK: Sleep for a little bit to give time for the site logs to flush
-                    LOG.warn("Failed to execution transaction: " + e.getMessage());
-                    ThreadUtil.sleep(10000);
+                    if (debug.get()) LOG.error("Failed to execution transaction: " + e.getMessage());
+                    ThreadUtil.sleep(5000);
                 } finally {
                     if (profile) execute_time.stop();
                 }

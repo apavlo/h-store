@@ -45,12 +45,17 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Local
     }
     
     @Override
-    protected boolean unblockTransactionCallback() {
-        this.setFinishStatus(this.status);
+    protected void unblockTransactionCallback() {
         if (this.needs_requeue) {
             this.hstore_site.transactionRequeue(this.ts, this.status);
         }
-        return (true);
+        try {
+            this.hstore_site.queueDeleteTransaction(this.txn_id, this.status);
+        } catch (Throwable ex) {
+            String msg = String.format("Failed to queue %s for deletion from %s",
+                                       ts, this.getClass().getSimpleName());
+            throw new RuntimeException(msg, ex);
+        }
     }
     
     @Override

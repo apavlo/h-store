@@ -50,13 +50,12 @@ public class TransactionInitCallback extends AbstractTransactionCallback<LocalTr
     }
     
     @Override
-    protected boolean unblockTransactionCallback() {
+    protected void unblockTransactionCallback() {
         assert(this.isAborted() == false);
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) this.ts.profiler.stopInitDtxn();
         if (debug.get())
             LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
         hstore_site.transactionStart((LocalTransaction)this.ts, this.ts.getBasePartition());
-        return (false);
     }
     
     @Override

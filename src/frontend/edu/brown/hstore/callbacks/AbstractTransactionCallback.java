@@ -27,7 +27,6 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
     }
     
     protected X ts;
-    private Status finishStatus;
     
     /**
      * This flag is set to true after the unblockCallback() invocation is finished
@@ -61,7 +60,6 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
     @Override
     protected void finishImpl() {
         this.ts = null;
-        this.finishStatus = null;
         this.unblockFinished = false;
         this.abortFinished = false;
     }
@@ -78,24 +76,15 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
             String.format("Unexpected uninitalized transaction handle for txn #%s in %s [lastTxn=%s]",
                           this.getTransactionId(), this.getClass().getSimpleName(), this.lastTxnId);
         
-        boolean delete = true;
         if (this.isAborted() == false) {
-            delete = this.unblockTransactionCallback();
+            this.unblockTransactionCallback();
         }
         this.unblockFinished = true;
-        try {
-            if (delete) this.hstore_site.queueDeleteTransaction(this.txn_id, this.finishStatus);
-        } catch (Throwable ex) {
-            String msg = String.format("Failed to queue %s for deletion from %s",
-                                       ts, this.getClass().getSimpleName());
-            throw new RuntimeException(msg, ex);
-        }
     }
     
     @Override
     protected final void abortCallback(Status status) {
         assert(this.isAborted());
-        this.finishStatus = status;
         
         // We can't abort if we've already invoked the regular callback
         boolean finish = false;
@@ -117,10 +106,9 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
 
     /**
      * Transaction unblocking callback implementation
-     * If this returns true, then we will invoke deleteTransaction()
      * @return
      */
-    protected abstract boolean unblockTransactionCallback();
+    protected abstract void unblockTransactionCallback();
     
     /**
      * Transaction abort callback implementation
@@ -148,28 +136,6 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
     // ----------------------------------------------------------------------------
     // INTERNAL UTILITY METHODS
     // ----------------------------------------------------------------------------
-    
-    protected void setFinishStatus(Status status) {
-        this.finishStatus = status;
-    }
-    
-    /**
-     * Checks whether a transaction is ready to be deleted
-     * This is thread-safe
-     * @param status
-     */
-//    private final void deleteTransaction(Status status) {
-//        if (this.ts.isDeletable()) {
-//            if (this.txn_profiling) ts.profiler.stopPostFinish();
-////            if (debug.get()) 
-//                LOG.info(String.format("%s - Deleting from %s [status=%s]",
-//                                                     this.ts, this.getClass().getSimpleName(), status));
-//            this.hstore_site.deleteTransaction(this.getTransactionId(), status);
-//        } else { // if (debug.get()) {
-//            LOG.warn(String.format("%s - Not deleting from %s [status=%s]\n%s",
-//                                   this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
-//        }
-//    }
     
     /**
      * Tell the HStoreCoordinator to invoke the TransactionFinish process

@@ -37,7 +37,7 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Loca
     }
     
     @Override
-    public boolean unblockTransactionCallback() {
+    public void unblockTransactionCallback() {
         if (debug.get()) LOG.debug(String.format("%s - Unblocking callback and sending back ClientResponse", this.ts));
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
             if (debug.get()) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + Status.OK);
@@ -58,7 +58,6 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Loca
         assert(cresponse.isInitialized()) :
             "Trying to send back ClientResponse for " + ts + " before it was set!";
         this.hstore_site.responseSend(this.ts, cresponse);
-        return (false);
     }
     
     @Override

@@ -3,7 +3,6 @@ package edu.brown.hstore.callbacks;
 import org.apache.log4j.Logger;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -16,14 +15,13 @@ import edu.brown.utils.PartitionSet;
  * If we have, then we know it is safe to go ahead and call HStoreSite.deleteTransaction()
  * @author pavlo
  */
-public class TransactionCleanupCallback extends BlockingRpcCallback<Integer, Integer> {
+public class TransactionCleanupCallback extends AbstractTransactionCallback<AbstractTransaction, Integer, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionCleanupCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
  
-    private AbstractTransaction ts;
     private Status status;
     
     /**
@@ -31,7 +29,7 @@ public class TransactionCleanupCallback extends BlockingRpcCallback<Integer, Int
      * @param hstore_site
      */
     public TransactionCleanupCallback(HStoreSite hstore_site) {
-        super(hstore_site, false);
+        super(hstore_site);
     }
 
     public void init(AbstractTransaction ts, Status status, PartitionSet partitions) {
@@ -41,29 +39,18 @@ public class TransactionCleanupCallback extends BlockingRpcCallback<Integer, Int
             if (partitions.contains(p)) counter++;
         } // FOR
         assert(counter > 0);
-        super.init(ts.getTransactionId(), counter, null);
-        
-        this.ts = ts;
+        super.init(ts, counter, null);
         this.status = status;
     }
     
-    @Override
-    protected void finishImpl() {
-        this.ts = null;
-    }
     
     @Override
-    public boolean isInitialized() {
-        return (this.ts != null && super.isInitialized());
-    }
-    
-    @Override
-    protected void unblockCallback() {
+    protected void unblockTransactionCallback() {
         hstore_site.queueDeleteTransaction(this.getTransactionId(), this.status);
     }
     
     @Override
-    protected void abortCallback(Hstoreservice.Status status) {
+    protected boolean abortTransactionCallback(Status status) {
         String msg = String.format("Unexpected %s abort for %s", this.getClass().getSimpleName(), this.ts);
         throw new RuntimeException(msg); 
     }

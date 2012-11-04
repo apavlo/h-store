@@ -2567,8 +2567,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         
-        this.objectPools.getRemoteTransactionPool(ts.getBasePartition())
-                        .returnObject(ts);
+        // XXX this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         return;
     }
 
@@ -2721,7 +2720,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts.isMapReduce()) {
             objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
         } else {
-            objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
+            // XXX objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
         }
                 
     }

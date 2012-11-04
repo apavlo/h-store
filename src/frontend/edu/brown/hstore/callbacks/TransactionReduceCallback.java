@@ -56,7 +56,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<MapRe
      * executing the map phase for this txn
      */
     @Override
-    protected boolean unblockTransactionCallback() {
+    protected void unblockTransactionCallback() {
         if (debug.get())
             LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
         
@@ -75,8 +75,6 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<MapRe
             // to clean up this transaction because we're done with it!
             this.finishTransaction(Status.OK);
         }
-        
-        return (false);
     }
     
     @Override

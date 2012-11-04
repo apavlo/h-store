@@ -147,7 +147,7 @@ BASE_SETTINGS = {
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
     
-    "site.jvm_asserts":                         False,
+    "site.jvm_asserts":                         True,
     "site.log_backup":                          False,
     "site.status_enable":                       False,
     "site.status_show_thread_info":             False,

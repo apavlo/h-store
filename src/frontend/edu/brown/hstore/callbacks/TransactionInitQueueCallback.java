@@ -92,7 +92,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
     }
     
     @Override
-    protected boolean unblockTransactionCallback() {
+    protected void unblockTransactionCallback() {
         if (debug.get()) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
                                    this.ts, TransactionInitResponse.class.getSimpleName(),
                                    (this.builder != null ? this.builder.getStatus() : "???")));
@@ -177,7 +177,6 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
             LOG.debug(String.format("%s - No builder is available? Unable to send back %s",
                       this.ts, TransactionInitResponse.class.getSimpleName()));
         }
-        return (false);
     }
     
     /**
