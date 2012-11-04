@@ -586,6 +586,7 @@ JAVA COMPILATION
         srcdir="${src.protorpc.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
@@ -595,6 +596,7 @@ JAVA COMPILATION
         srcdir="${src.hsqldb.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
@@ -604,6 +606,7 @@ JAVA COMPILATION
         srcdir="${thirdpartysrc.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
@@ -613,6 +616,7 @@ JAVA COMPILATION
         srcdir="${src.frontend.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
     
@@ -622,6 +626,7 @@ JAVA COMPILATION
         srcdir="${src.benchmarks.dir}"
         destdir='${build.benchmarks.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
@@ -632,6 +637,7 @@ JAVA COMPILATION
         srcdir="${src.hsqldb.test.dir}"
         destdir='${build.test.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
@@ -642,6 +648,7 @@ JAVA COMPILATION
         destdir='${build.test.dir}'
         excludes="org/voltdb/benchmark/tpcc/JDBCClient.java,edu/mit/elt/ELTTester**"
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
