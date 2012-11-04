@@ -186,7 +186,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         t = trace.get();
     }
 
-    private static final int WORK_QUEUE_POLL_TIME = 5; // milliseconds
+    private static final int WORK_QUEUE_POLL_TIME = 1; // milliseconds
     
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
@@ -1571,13 +1571,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * Put a new SetDistributedTxnMessage in for the transaction 
      * @param work
      */
-    public void queueInitDtxn(RemoteTransaction ts) {
+    public void queueInitDtxn(AbstractTransaction ts) {
         assert(ts.isInitialized());
-//        SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
-//        boolean success = this.work_queue.offer(work);
-//        assert(success);
-//        if (d) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
-//                         work.getTransaction(), work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+        // SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
+        SetDistributedTxnMessage work = new SetDistributedTxnMessage(ts);
+        boolean success = this.work_queue.offer(work);
+        assert(success);
+        if (d) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
+                         work.getTransaction(), work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
     
     /**

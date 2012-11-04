@@ -119,10 +119,10 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
             // single-partition transactions because we now have a new distributed transaction
             // Note that we have to do this before send the message because the callback
             // might end up destroying this transaction
-            if (this.ts instanceof RemoteTransaction) {
+            if (hstore_conf.site.specexec_pre_query) {
                 for (int p: this.hstore_site.getLocalPartitionIds().values()) {
                     if (this.partitions.contains(p)) {
-                        this.hstore_site.getPartitionExecutor(p).queueInitDtxn((RemoteTransaction)ts);
+                        this.hstore_site.getPartitionExecutor(p).queueInitDtxn(this.ts);
                     }
                 } // FOR
             }

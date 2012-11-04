@@ -459,7 +459,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="", // TODO
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=true
         )
         public boolean specexec_pre_query;

@@ -140,7 +140,7 @@ BASE_SETTINGS = {
     "client.threads_per_host":          OPT_BASE_CLIENT_THREADS_PER_HOST,
     "client.interval":                  10000,
     "client.skewfactor":                -1,
-    "client.duration":                  120000,
+    "client.duration":                  300000,
     "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
@@ -283,6 +283,8 @@ for k, v in EXPERIMENT_SETTINGS['specexec-base'].iteritems():
     if isinstance(v, bool) and (k.startswith("site.markov_") or k.startswith("site.specexec_")):
         EXPERIMENT_SETTINGS['specexec-base'][k] = False
 ## FOR
+EXPERIMENT_SETTINGS['specexec-base']["site.exec_force_singlepartitioned"] = True
+EXPERIMENT_SETTINGS['specexec-base']["site.specexec_pre_query"] = True
 
 ## ==============================================
 ## updateEnv
@@ -469,6 +471,7 @@ if __name__ == '__main__':
     agroup.add_argument("--no-conf", action='store_true', help='Disable updating HStoreConf properties file')
     agroup.add_argument("--no-sync", action='store_true', help='Disable synching time between nodes')
     agroup.add_argument("--no-json", action='store_true', help='Disable JSON output results')
+    agroup.add_argument("--no-profiling", action='store_true', help='Disable all profiling stats output files')
     agroup.add_argument("--no-shutdown", action='store_true', help='Disable shutting down cluster after a trial run')
     
     ## Experiment Parameters
@@ -642,6 +645,13 @@ if __name__ == '__main__':
                 hstore.fabfile.start_cluster(updateSync=needSync)
                 if args['no_execute']: sys.exit(0)
             ## IF
+            
+            # Disable all profiling
+            if args['no_profiling']:
+                for k,v in env.iteritems():
+                    if re.match("^(client|site)\.[\w\_]*profiling[\w\_]*", k):
+                        env[k] = False if isinstance(v, bool) else ""
+                ## FOR
             
             client_inst = hstore.fabfile.__getRunningClientInstances__()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
