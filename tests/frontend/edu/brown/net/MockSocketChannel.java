@@ -116,4 +116,14 @@ public class MockSocketChannel extends SocketChannel {
     protected void implConfigureBlocking(boolean block) throws IOException {
         // do nothing
     }
+    
+    public SocketAddress getRemoteAddress() throws IOException {
+        return (null);
+    }
+    public SocketChannel shutdownInput() throws IOException {
+        return (null);
+    }
+    public SocketChannel shutdownOutput() throws IOException {
+        return (null);
+    }
 }

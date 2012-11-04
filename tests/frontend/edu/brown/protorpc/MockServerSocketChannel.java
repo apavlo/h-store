@@ -2,6 +2,7 @@ package edu.brown.protorpc;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.SocketOptions;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 
@@ -9,7 +10,7 @@ public final class MockServerSocketChannel extends ServerSocketChannel {
     public MockServerSocketChannel() {
         super(null);
     }
-
+    
     @Override
     public SocketChannel accept() throws IOException {
         if (nextAccept == null) {
@@ -36,4 +37,8 @@ public final class MockServerSocketChannel extends ServerSocketChannel {
     }
 
     public SocketChannel nextAccept;
+    
+    public <T> ServerSocketChannel setOption(SocketOption<T> name, T value) throws IOException {
+        return (null);
+    }
 }

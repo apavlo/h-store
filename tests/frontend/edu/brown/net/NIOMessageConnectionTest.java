@@ -130,7 +130,7 @@ public class NIOMessageConnectionTest {
             public CountWritesSocketChannel() {
                 super(SelectorProvider.provider());
             }
-
+            
             public int write(ByteBuffer src) {
                 writes += 1;
                 byte[] discard = new byte[src.remaining()];
@@ -161,6 +161,16 @@ public class NIOMessageConnectionTest {
             protected void implCloseSelectableChannel() { assert false; }
 
             public int writes = 0;
+            
+            public SocketAddress getRemoteAddress() throws IOException {
+                return (null);
+            }
+            public SocketChannel shutdownInput() throws IOException {
+                return (null);
+            }
+            public SocketChannel shutdownOutput() throws IOException {
+                return (null);
+            }
         }
 
         CountWritesSocketChannel channel = new CountWritesSocketChannel();
