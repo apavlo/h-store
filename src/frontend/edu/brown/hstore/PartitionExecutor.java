@@ -3556,12 +3556,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                         }
                     }
                         
-                    assert(this.lastCommittedUndoToken < undoToken) :
-                        String.format("Trying to commit undoToken %d for %s but it is less than the " +
+                    if (this.lastCommittedUndoToken < undoToken) 
+                    	if (d) LOG.error( String.format("Trying to commit undoToken %d for %s but it is less than the " +
                         		      "last committed undoToken %d at partition %d",
-                                      undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
-                    this.ee.releaseUndoToken(undoToken);
-                    this.lastCommittedUndoToken = undoToken;
+                                      undoToken, ts, this.lastCommittedUndoToken, this.partitionId));
+                    //this.ee.releaseUndoToken(undoToken);
+                    //this.lastCommittedUndoToken = undoToken;
                 }
                 // ABORT!
                 else {
