@@ -162,6 +162,21 @@ public final class HStoreConf {
         public boolean cpu_affinity_one_partition_per_core;
         
         @ConfigProperty(
+                description="Speculative pollicy to pick the transactions to run speculatively. " +
+                		"It should be one of ('FIRST', 'SHORTEST', 'LONGEST')" ,
+                defaultString="FIRST",
+                experimental=false
+            )
+        public String specexec_scheduler_policy;
+        
+        @ConfigProperty(
+                description="The window size to pick up txn to run speculatively. ",
+                defaultInt= 10,
+                experimental=false
+            )
+        public int specexec_scheduler_window;
+        
+        @ConfigProperty(
             description="Enable profiling for the HStoreSite. " +
                         "This data can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
@@ -458,6 +473,13 @@ public final class HStoreConf {
         public boolean specexec_markov;
         
         @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean specexec_pre_query;
+        
+        @ConfigProperty(
             description="If enabled, then the SpecExecScheduler will keep track of various internal " +
                         "profile statistics.",
             defaultBoolean=false,
@@ -595,6 +617,14 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean network_txn_initialization;
+        
+        @ConfigProperty(
+            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+                        "from clients and will block the network connections.",
+            defaultInt=2500,
+            experimental=false
+        )
+        public int network_incoming_max_per_partition;
         
         // ----------------------------------------------------------------------------
         // Transaction Execution Options
@@ -839,6 +869,15 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean markov_fast_path;
+        
+        @ConfigProperty(
+            description="This enables the ability for the MarkovEstimator to cache the end points of " +
+            		    "path segments in a MarkovGraph so that it can just quickly identify the " +
+            		    "last MarkovVertex for a new batch of queries requested by the transaction.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean markov_endpoint_caching;
         
         @ConfigProperty(
             description="The minimum number of queries that must be in a batch for the TransactionEstimator " +

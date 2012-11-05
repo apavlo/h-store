@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 import org.voltdb.client.Client;
@@ -20,10 +21,9 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 public class ControlPipe implements Runnable {
     private static final Logger LOG = Logger.getLogger(ControlPipe.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.setupLogging();
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
     final InputStream in;
@@ -61,13 +61,14 @@ public class ControlPipe implements Runnable {
         
         final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
         ControlCommand command = null;
+        final Pattern p = Pattern.compile(" ");
         while (true) {
             if (this.autoStart) {
                 command = ControlCommand.START;
                 this.autoStart = false;
             } else {
                 try {
-                    command = ControlCommand.get(in.readLine());
+                    command = ControlCommand.get(p.split(in.readLine())[0]);
                     if (debug.get()) 
                         LOG.debug(String.format("Recieved Message: '%s'", command));
                 } catch (final IOException e) {

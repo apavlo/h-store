@@ -1,13 +1,13 @@
 package edu.brown.hstore;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.PriorityBlockingQueue;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.EstTime;
 
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -25,7 +25,7 @@ import edu.brown.utils.StringUtil;
  *
  * <p>This class manages all that state.</p>
  */
-public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
+public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransaction> {
     private static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -46,14 +46,15 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
     final int m_partitionId;
     final long m_waitTime;
     
-    Long m_lastSeenTxnId = null;
-    Long m_newestCandidateTransaction = -1l;
     long m_txnsPopped = 0;
-    Long m_lastTxnPopped = 0l;
     long m_blockTime = 0;
-    Long m_nextTxn = null;
     QueueState m_state = QueueState.BLOCKED_EMPTY;
-
+    
+    AbstractTransaction m_lastSeenTxn = null;
+    AbstractTransaction m_newestCandidateTransaction = null;
+    AbstractTransaction m_lastTxnPopped = null;
+    AbstractTransaction m_nextTxn = null;
+    
     /**
      * Tell this queue about all initiators. If any initiators
      * are later referenced that aren't in this list, trip
@@ -61,7 +62,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * @param partitionId TODO
      */
     public TransactionInitPriorityQueue(HStoreSite hstore_site, int partitionId, long wait) {
-        super(new PriorityBlockingQueue<Long>(),
+        super(new PriorityBlockingQueue<AbstractTransaction>(),
               hstore_site.getHStoreConf().site.queue_dtxn_max_per_partition,
               hstore_site.getHStoreConf().site.queue_dtxn_release_factor,
               hstore_site.getHStoreConf().site.queue_dtxn_increase,
@@ -76,8 +77,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * Only return transaction state objects that are ready to run.
      */
     @Override
-    public synchronized Long poll() {
-        Long retval = null;
+    public AbstractTransaction poll() {
+        AbstractTransaction retval = null;
         if (m_state == QueueState.BLOCKED_SAFETY) {
             if (System.currentTimeMillis() >= m_blockTime) {
                 retval = super.poll();
@@ -89,15 +90,11 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
             assert(retval != null);
         }
         if (d) LOG.debug(String.format("Partition %d poll() -> %s",
-                         m_partitionId, 
-                         (retval != null ? String.format("#%d/%d", retval, TransactionIdManager.getInitiatorIdFromTransactionId(retval)) : retval)));
+                         m_partitionId, retval));
         if (retval != null) {
             assert(m_nextTxn.equals(retval)) : 
-                String.format("Partition %d - Next txn is #%d/%d but our poll returned txn #%d/%d\n%s",
-                              m_partitionId,
-                              m_nextTxn, TransactionIdManager.getInitiatorIdFromTransactionId(m_nextTxn),
-                              retval, TransactionIdManager.getInitiatorIdFromTransactionId(retval),
-                              this.toString());
+                String.format("Partition %d - Next txn is %s but our poll returned %s\n%s",
+                              m_partitionId, m_nextTxn, retval, this.toString());
             m_nextTxn = null;
             
             // call this again to check
@@ -113,16 +110,14 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * Only return transaction state objects that are ready to run.
      */
     @Override
-    public synchronized Long peek() {
-        Long retval = null;
+    public synchronized AbstractTransaction peek() {
+        AbstractTransaction retval = null;
         if (m_state == QueueState.UNBLOCKED) {
             assert(checkQueueState() == QueueState.UNBLOCKED);
             retval = super.peek();
             assert(retval != null);
         }
-        if (d) LOG.debug(String.format("Partition %d peek() -> %s",
-                         m_partitionId, 
-                         (retval != null ? String.format("#%d/%d", retval, TransactionIdManager.getInitiatorIdFromTransactionId(retval)) : retval)));
+        if (d) LOG.debug(String.format("Partition %d peek() -> %s", m_partitionId, retval));
         return retval;
     }
 
@@ -130,7 +125,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * Drop data for unknown initiators. This is the only valid add interface.
      */
     @Override
-    public synchronized boolean offer(Long txnId, boolean force) {
+    public synchronized boolean offer(AbstractTransaction txnId, boolean force) {
         assert(txnId != null);
         
         // Check whether this new txn is less than the current m_nextTxn
@@ -139,16 +134,12 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         if (m_nextTxn != null && txnId.compareTo(m_nextTxn) < 0) {
             checkQueueState();
             if (m_state != QueueState.UNBLOCKED) {
-                if (d) LOG.debug(String.format("Partition %d Switching #%d/%d as new next txn [old=#%d/%d]",
-                                 m_partitionId,
-                                 txnId, TransactionIdManager.getInitiatorIdFromTransactionId(txnId),
-                                 m_nextTxn, TransactionIdManager.getInitiatorIdFromTransactionId(m_nextTxn)));
+                if (d) LOG.debug(String.format("Partition %d Switching %s as new next txn [old=%s]",
+                                 m_partitionId, txnId, m_nextTxn));
                 m_nextTxn = txnId;
             } else {
-                if (d) LOG.debug(String.format("Partition %d offer(#%d/%d) -> %s",
-                                 m_partitionId, 
-                                 txnId, TransactionIdManager.getInitiatorIdFromTransactionId(txnId),
-                                 "REJECTED"));
+                if (d) LOG.debug(String.format("Partition %d offer(%s) -> %s",
+                                 m_partitionId, txnId, "REJECTED"));
                 return (false);
             }
         }
@@ -156,19 +147,17 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         boolean retval = super.offer(txnId, force);
         // update the queue state
         if (retval) checkQueueState();
-        if (d) LOG.debug(String.format("Partition %d offer(#%d/%d) -> %s",
-                         m_partitionId, 
-                         txnId, TransactionIdManager.getInitiatorIdFromTransactionId(txnId), retval));
+        if (d) LOG.debug(String.format("Partition %d offer(%s) -> %s",
+                         m_partitionId, txnId, retval));
         return retval;
     }
 
     @Override
-    public synchronized boolean remove(Object txnID) {
-        boolean retval = super.remove(txnID);
+    public synchronized boolean remove(Object ts) {
+        boolean retval = super.remove(ts);
         if (retval) checkQueueState();
-        if (d) LOG.debug(String.format("Partition %d remove(#%d/%d) -> %s",
-                         m_partitionId, 
-                         txnID, TransactionIdManager.getInitiatorIdFromTransactionId((Long)txnID), retval));
+        if (d) LOG.debug(String.format("Partition %d remove(%s) -> %s",
+                         m_partitionId, ts, retval));
         return retval;
     }
 
@@ -176,38 +165,38 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public synchronized long noteTransactionRecievedAndReturnLastSeen(Long txnId) {
+    public synchronized AbstractTransaction noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txnId) {
         // this doesn't exclude dummy txnid but is also a sanity check
         assert(txnId != null);
 
         // we've decided that this can happen, and it's fine... just ignore it
-        if (m_lastTxnPopped.compareTo(txnId) > 0) {
+        if (m_lastTxnPopped != null && m_lastTxnPopped.compareTo(txnId) > 0) {
             if (d) {
                 LOG.warn(String.format("Txn ordering deadlock at partition %d -> LastTxn: %d / NewTxn: %d",
                                        m_partitionId, m_lastTxnPopped, txnId));
-                LOG.warn("LAST: " + TransactionIdManager.toString(m_lastTxnPopped));
-                LOG.warn("NEW:  " + TransactionIdManager.toString(txnId));
+                LOG.warn("LAST: " + m_lastTxnPopped);
+                LOG.warn("NEW:  " + txnId);
             }
         }
 
         // update the latest transaction for the specified initiator
-        if (m_lastSeenTxnId == null || txnId.compareTo(m_lastSeenTxnId) < 0) {
+        if (m_lastSeenTxn == null || txnId.compareTo(m_lastSeenTxn) < 0) {
             if (t) LOG.trace("SET lastSeenTxnId = " + txnId);
-            m_lastSeenTxnId = txnId;
+            m_lastSeenTxn = txnId;
         }
 
         // this minimum is the newest safe transaction to run
         // but you still need to check if a transaction has been confirmed
         //  by its initiator
         //  (note: this check is done when peeking/polling from the queue)
-        if (t) LOG.trace("SET m_newestCandidateTransaction = " + m_lastSeenTxnId);
-        m_newestCandidateTransaction = m_lastSeenTxnId;
+        if (t) LOG.trace("SET m_newestCandidateTransaction = " + m_lastSeenTxn);
+        m_newestCandidateTransaction = m_lastSeenTxn;
 
         // this will update the state of the queue if needed
         checkQueueState();
 
         // return the last seen id for the originating initiator
-        return m_lastSeenTxnId;
+        return m_lastSeenTxn;
     }
 
     /**
@@ -217,7 +206,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      */
     public void gotFaultForInitiator(int initiatorId) {
         // calculate the next minimum transaction w/o our dead friend
-        noteTransactionRecievedAndReturnLastSeen(Long.MAX_VALUE);
+        // XXX noteTransactionRecievedAndReturnLastSeen(Long.MAX_VALUE);
     }
 
     public void faultTransaction(Long txnID) {
@@ -227,7 +216,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
     /**
      * @return The id of the newest safe transaction to run.
      */
-    Long getNewestSafeTransaction() {
+    AbstractTransaction getNewestSafeTransaction() {
         return m_newestCandidateTransaction;
     }
 
@@ -240,7 +229,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
 
     private QueueState checkQueueState() {
         QueueState newState = QueueState.UNBLOCKED;
-        Long ts = super.peek();
+        AbstractTransaction ts = super.peek();
         if (ts == null) {
             if (d) LOG.debug(String.format("Partition %d - Queue is empty.", m_partitionId));
             newState = QueueState.BLOCKED_EMPTY;
@@ -272,24 +261,13 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
     }
     
     @Override
-    public String toString() {
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+    public synchronized String toString() {
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("PartitionId", m_partitionId);
-        
-        String labels[] = { "Next", "Last Popped", "Last Seen" };
-        long txnids[] = null;
-        synchronized (this) {
-            txnids = new long[]{ m_nextTxn, m_lastTxnPopped, m_lastSeenTxnId };
-        } // SYNCH
-        for (int i = 0; i < labels.length; i++) {
-            m.put(String.format("%s TxnId", labels[i]),
-                  String.format("#%d/%d", txnids[i], TransactionIdManager.getInitiatorIdFromTransactionId(txnids[i])));
-            
-            if (i == 0) {
-                m.put("Next Time Remaining", Math.max(0, System.currentTimeMillis() - m_blockTime));
-            }
-        } // FOR
-        
+        m.put("Next Time Remaining", Math.max(0, System.currentTimeMillis() - m_blockTime));
+        m.put("Next Txn", m_nextTxn.toString());
+        m.put("Last Popped Txn", m_lastTxnPopped.toString());
+        m.put("Last Seen Txn", m_lastSeenTxn.toString());
         return (StringUtil.formatMaps(m));
     }
 }

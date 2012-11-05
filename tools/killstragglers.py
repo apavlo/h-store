@@ -133,12 +133,15 @@ if __name__ == '__main__':
     ## FOR
     
     ## Kill, pussy cat! Kill!
-    logging.debug("Killing %d PIDs!" % len(to_kill))
-    for pid in to_kill:
-        cmd = "kill -9 %d" % pid
-        if OPT_DRYRUN:
-            print cmd
-        else:
-            commands.getstatusoutput(cmd)
-    ##
+    if len(to_kill) > 0:
+        logging.debug("Killing %d PIDs!" % len(to_kill))
+        for pid in to_kill:
+            cmd = "kill -9 %d" % pid
+            if OPT_DRYRUN:
+                print cmd
+            else:
+                commands.getstatusoutput(cmd)
+        ## FOR
+    else:
+        logging.debug("We didn't find any straggler processes to kill!")
 ## IF

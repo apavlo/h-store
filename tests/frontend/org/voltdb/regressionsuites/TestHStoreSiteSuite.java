@@ -3,10 +3,8 @@ package org.voltdb.regressionsuites;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
-import org.voltdb.VoltSystemProcedure;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.sysprocs.SetConfiguration;
 
 import edu.brown.benchmark.tm1.TM1Client;
 import edu.brown.benchmark.tm1.TM1Client.Transaction;
@@ -39,17 +37,12 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         Client client = this.getClient();
         
         // Enable the feature on the server
-        String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
-        String confParams[] = {"site.network_txn_initialization"};
-        String confValues[] = {"true"};
-        ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
-        assertNotNull(cresponse);
-        assertEquals(Status.OK, cresponse.getStatus());
+        RegressionSuiteUtil.setHStoreConf(client, "site.network_txn_initialization", true);
         
         RegressionSuiteUtil.initializeTM1Database(this.getCatalog(), client);
         TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        cresponse = client.callProcedure(txn.callName, params);
+        ClientResponse cresponse = client.callProcedure(txn.callName, params);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
     }

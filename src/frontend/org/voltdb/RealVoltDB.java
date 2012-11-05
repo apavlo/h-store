@@ -149,8 +149,6 @@ public class RealVoltDB implements VoltDBInterface
     private String m_versionString = "1.0.01";
     // fields accessed via the singleton
     private HostMessenger m_messenger = null;
-    private final ArrayList<ClientInterface> m_clientInterfaces =
-        new ArrayList<ClientInterface>();
     private Hashtable<Integer, PartitionExecutor> m_localSites;
     private VoltNetwork m_network = null;
     private HTTPAdminListener m_adminListener;
@@ -540,9 +538,6 @@ public class RealVoltDB implements VoltDBInterface
             //Also for test code that expects a fresh stats agent
             m_statsAgent = new StatsAgent();
 
-            // The network iterates this list. Clear it after network's done.
-            m_clientInterfaces.clear();
-
             // probably unnecessary
             System.gc();
             m_isRunning = false;
@@ -598,8 +593,6 @@ public class RealVoltDB implements VoltDBInterface
             System.out.println("Updating RealVoltDB catalog context from txnid: " + lastCatalogUpdate_txnId + " to " + currentTxnId);
             lastCatalogUpdate_txnId = currentTxnId;
             m_catalogContext = m_catalogContext.update(newCatalogURL, diffCommands);
-            for (ClientInterface ci : m_clientInterfaces)
-                ci.notifyOfCatalogUpdate();
         }
     }
 
@@ -612,10 +605,6 @@ public class RealVoltDB implements VoltDBInterface
 //                                                       diffCommands);
 //        }
 
-        for (ClientInterface ci : m_clientInterfaces)
-        {
-            ci.notifyOfCatalogUpdate();
-        }
     }
 
     public VoltDB.Configuration getConfig()

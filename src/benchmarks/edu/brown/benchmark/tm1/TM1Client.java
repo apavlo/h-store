@@ -108,7 +108,8 @@ public class TM1Client extends BenchmarkComponent {
         INSERT_CALL_FORWARDING("Insert Call Forwarding", TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
-                return new Object[] { TM1Util.padWithZero(s_id), // sub_nbr
+                return new Object[] {
+                        TM1Util.padWithZero(s_id), // sub_nbr
                         TM1Util.number(1, 4), // sf_type
                         8 * TM1Util.number(0, 2), // start_time
                         TM1Util.number(1, 24), // end_time

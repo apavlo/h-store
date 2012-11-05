@@ -18,7 +18,7 @@ import edu.brown.utils.PartitionSet;
  * This is created at the base partition's site.
  * @author pavlo
  */
-public class TransactionInitCallback extends AbstractTransactionCallback<TransactionInitResponse, TransactionInitResponse> {
+public class TransactionInitCallback extends AbstractTransactionCallback<LocalTransaction, TransactionInitResponse, TransactionInitResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionInitCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -43,25 +43,24 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
     }
 
     public void init(LocalTransaction ts) {
-        super.init(ts, ts.getPredictTouchedPartitions().size(), null);
         this.reject_partition = HStoreConstants.NULL_PARTITION_ID;
         this.reject_txnId = null;
         this.partitions.clear();
+        super.init(ts, ts.getPredictTouchedPartitions().size(), null);
     }
     
     @Override
-    protected boolean unblockTransactionCallback() {
+    protected void unblockTransactionCallback() {
         assert(this.isAborted() == false);
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopInitDtxn();
+        if (hstore_conf.site.txn_profiling && this.ts.profiler != null) this.ts.profiler.stopInitDtxn();
         if (debug.get())
             LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
-        hstore_site.transactionStart(this.ts, this.ts.getBasePartition());
-        return (false);
+        hstore_site.transactionStart((LocalTransaction)this.ts, this.ts.getBasePartition());
     }
     
     @Override
     protected boolean abortTransactionCallback(Status status) {
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopInitDtxn();
+        if (hstore_conf.site.txn_profiling && this.ts.profiler != null) this.ts.profiler.stopInitDtxn();
         if (debug.get())
             LOG.debug(this.ts + " - Transaction was aborted with status " + status);
         
@@ -110,11 +109,13 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
             String.format("No partitions returned in %s for %s",
                           response.getClass().getSimpleName(), this.ts);
         // Otherwise, make sure it's legit
-        assert(this.ts.getTransactionId() == response.getTransactionId()) :
+        // HACK HACK HACK
+        if (this.ts == null || this.ts.isInitialized() == false || this.ts.getTransactionId() != response.getTransactionId()) {
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d, partitions=%s]",
-                          response.getClass().getSimpleName(),
-                          this.ts, response.getTransactionId(),
-                          this.getTransactionId(), response.getPartitionsList());
+                    response.getClass().getSimpleName(),
+                    this.ts, response.getTransactionId(),
+                    this.getTransactionId(), response.getPartitionsList());
+        }
         
         this.partitions.addAll(response.getPartitionsList());
         if (response.getStatus() != Status.OK || this.isAborted()) {

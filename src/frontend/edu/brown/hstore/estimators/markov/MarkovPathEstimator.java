@@ -247,11 +247,12 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         // At our current vertex we need to gather all of our neighbors
         // and get unique Statements that we could be executing next
         Collection<MarkovVertex> next_vertices = markov.getSuccessors(element);
-        if (t) LOG.trace("Successors: " + next_vertices);
-        if (next_vertices == null) {
+        if (next_vertices == null || next_vertices.isEmpty()) {
+            if (t) LOG.trace("No succesors were found for " + element + ". Halting traversal");
             this.stop();
             return;
         }
+        if (t) LOG.trace("Successors: " + next_vertices);
         
         // Step #1
         // Get all of the unique Statement+StatementInstanceIndex pairs for the vertices
@@ -472,6 +473,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         if (t) LOG.trace("Candidate Edges: " + this.candidate_edges);
         if (num_candidates > 0) {
             MarkovEdge next_edge = CollectionUtil.first(this.candidate_edges);
+            assert(next_edge != null) : "Unexpected null edge " + this.candidate_edges;
             MarkovVertex next_vertex = markov.getOpposite(element, next_edge);
             children.addAfter(next_vertex);
             if (was_forced) this.forced_vertices.add(next_vertex);

@@ -550,6 +550,17 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
      */
     private boolean m_blockOnBackpressure = true;
 
+    /**
+     * Hint used when constructing the Client to control the size of buffers allocated for message
+     * serialization
+     * Set to 512 because neworder tops out around that size
+     * @return
+     */
+    @Override
+    protected int getExpectedOutgoingMessageSize() {
+        return 256;
+    }
+
     @Override
     protected boolean runOnce() throws NoConnectionsException {
         m_blockOnBackpressure = false;
@@ -564,18 +575,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             throw (NoConnectionsException)e;
         }
     }
-
-    /**
-     * Hint used when constructing the Client to control the size of buffers allocated for message
-     * serialization
-     * Set to 512 because neworder tops out around that size
-     * @return
-     */
-    @Override
-    protected int getExpectedOutgoingMessageSize() {
-        return 256;
-    }
-
+    
     @Override
     public void runLoop() throws NoConnectionsException {
         m_blockOnBackpressure = true;
@@ -604,6 +604,8 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             throw (NoConnectionsException)e;
         }
     }
+    
+    
 
     // Delivery
     class DeliveryCallback implements ProcedureCallback {

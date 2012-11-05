@@ -110,7 +110,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         this.confidence = 1.0f;
         this.batch = batch;
         this.vertex = v;
-        this.time = v.getExecutionTime();
+        this.time = v.getRemainingExecutionTime();
         
         return (this);
     }
@@ -437,7 +437,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
-    public long getExecutionTime() {
+    @Override
+    public long getRemainingExecutionTime() {
         return time;
     }
     

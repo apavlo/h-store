@@ -85,25 +85,20 @@ public class Statistics extends VoltSystemProcedure {
      * DataSysProcFragmentId -> <SysProcSelector, AggSysProcFragmentId>
      */
     private static final Map<Integer, Pair<SysProcSelector, Integer>> STATS_DATA = new HashMap<Integer, Pair<SysProcSelector,Integer>>();
+    private static final void addStatsFragments(SysProcSelector selector, int dataFragmentId, int aggFragmentId) {
+        STATS_DATA.put(dataFragmentId, Pair.of(selector, aggFragmentId));
+    }
+    
     static {
-        STATS_DATA.put(SysProcFragmentId.PF_nodeMemory,
-                       Pair.of(SysProcSelector.MEMORY, SysProcFragmentId.PF_nodeMemoryAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_txnCounterData,
-                       Pair.of(SysProcSelector.TXNCOUNTER, SysProcFragmentId.PF_txnCounterDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_txnProfilerData,
-                       Pair.of(SysProcSelector.TXNPROFILER, SysProcFragmentId.PF_txnProfilerDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_execProfilerData,
-                       Pair.of(SysProcSelector.EXECPROFILER, SysProcFragmentId.PF_execProfilerDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_queueProfilerData,
-                       Pair.of(SysProcSelector.QUEUEPROFILER, SysProcFragmentId.PF_queueProfilerDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_markovProfilerData,
-                       Pair.of(SysProcSelector.MARKOVPROFILER, SysProcFragmentId.PF_markovProfilerDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_specexecProfilerData,
-                       Pair.of(SysProcSelector.SPECEXECPROFILER, SysProcFragmentId.PF_specexecProfilerDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_siteProfilerData,
-                       Pair.of(SysProcSelector.SITEPROFILER, SysProcFragmentId.PF_siteProfilerDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_poolData,
-                       Pair.of(SysProcSelector.POOL, SysProcFragmentId.PF_poolDataAggregator));
+        addStatsFragments(SysProcSelector.MEMORY, SysProcFragmentId.PF_nodeMemory, SysProcFragmentId.PF_nodeMemoryAggregator);
+        addStatsFragments(SysProcSelector.TXNCOUNTER, SysProcFragmentId.PF_txnCounterData, SysProcFragmentId.PF_txnCounterDataAggregator);
+        addStatsFragments(SysProcSelector.TXNPROFILER, SysProcFragmentId.PF_txnProfilerData, SysProcFragmentId.PF_txnProfilerDataAggregator);
+        addStatsFragments(SysProcSelector.EXECPROFILER, SysProcFragmentId.PF_execProfilerData, SysProcFragmentId.PF_execProfilerDataAggregator);
+        addStatsFragments(SysProcSelector.QUEUEPROFILER, SysProcFragmentId.PF_queueProfilerData, SysProcFragmentId.PF_queueProfilerDataAggregator);
+        addStatsFragments(SysProcSelector.MARKOVPROFILER, SysProcFragmentId.PF_markovProfilerData, SysProcFragmentId.PF_markovProfilerDataAggregator);
+        addStatsFragments(SysProcSelector.SPECEXECPROFILER, SysProcFragmentId.PF_specexecProfilerData, SysProcFragmentId.PF_specexecProfilerDataAggregator);
+        addStatsFragments(SysProcSelector.SITEPROFILER, SysProcFragmentId.PF_siteProfilerData, SysProcFragmentId.PF_siteProfilerDataAggregator);
+        addStatsFragments(SysProcSelector.POOL, SysProcFragmentId.PF_poolData, SysProcFragmentId.PF_poolDataAggregator);
     } // STATIC
     
     @Override
@@ -318,7 +313,7 @@ public class Statistics extends VoltSystemProcedure {
             }
             case SysProcFragmentId.PF_partitionCount: {
                 VoltTable result = new VoltTable(new VoltTable.ColumnInfo("PARTITION_COUNT", VoltType.INTEGER));
-                result.addRow(executor.getHStoreSite().getLocalPartitionIdArray().length);
+                result.addRow(executor.getHStoreSite().getLocalPartitionIds().size());
                 return new DependencySet(DEP_partitionCount, result);
             }
         } // SWITCH

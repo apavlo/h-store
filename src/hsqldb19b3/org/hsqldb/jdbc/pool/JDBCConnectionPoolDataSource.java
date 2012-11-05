@@ -31,17 +31,17 @@
 
 package org.hsqldb.jdbc.pool;
 
-import org.hsqldb.jdbc.JDBCConnection;
-
-import javax.sql.ConnectionPoolDataSource;
-import javax.sql.PooledConnection;
 
 import java.io.PrintWriter;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
+import java.util.logging.Logger;
 
-// boucherb@users 20051207 - patch 1.8.0.x initial JDBC 4.0 support work
+import javax.sql.ConnectionPoolDataSource;
+import javax.sql.PooledConnection;
+
 import org.hsqldb.jdbc.JDBCConnection;
 
 /**
@@ -298,5 +298,9 @@ public class JDBCConnectionPoolDataSource implements ConnectionPoolDataSource {
         connectionWrapper.setPooledConnection(pooledConnection);
 
         return pooledConnection;
+    }
+
+    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        throw new SQLFeatureNotSupportedException();
     }
 }

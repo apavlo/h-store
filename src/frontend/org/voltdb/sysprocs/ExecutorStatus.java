@@ -47,13 +47,15 @@ public class ExecutorStatus extends VoltSystemProcedure {
                                              int fragmentId,
                                              ParameterSet params,
                                              PartitionExecutor.SystemProcedureExecutionContext context) {
+        // System.exit(0); // Love, Jon
+        
         assert(fragmentId == SysProcFragmentId.PF_execStatus);
         
         // Hit up all of the PartitionExecutors at this HStore and figure out what
         // they got going on
         VoltTable vt = new VoltTable(nodeResultsColumns);
-        for (Integer p : hstore_site.getLocalPartitionIdArray()) {
-            PartitionExecutor es = hstore_site.getPartitionExecutor(p.intValue());
+        for (int p : hstore_site.getLocalPartitionIds().values()) {
+            PartitionExecutor es = hstore_site.getPartitionExecutor(p);
             PartitionExecutor.Debug dbg = es.getDebugContext();
             Queue<?> es_queue = dbg.getWorkQueue();
                 

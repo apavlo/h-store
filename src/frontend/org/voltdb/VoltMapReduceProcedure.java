@@ -127,7 +127,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             // is true. If it is, then we have to tell the queue manager that we're done.
             // MapReduceTransaction should finish forever...
             if (this.hstore_conf.site.mr_map_blocking) {
-                hstore_site.getTransactionQueueManager().lockQueueFinished(txn_id, Status.OK, this.partitionId);
+                hstore_site.getTransactionQueueManager().lockQueueFinished(this.mr_ts, Status.OK, this.partitionId);
             }
             
             if (debug.get())

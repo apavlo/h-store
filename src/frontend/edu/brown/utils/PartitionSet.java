@@ -53,6 +53,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     // private final Set<Integer> inner = new HashSet<Integer>();
     private final BitSet inner = new BitSet();
     private boolean contains_null = false;
+    private int[] values = null;
 
     public PartitionSet() {
         // Nothing...
@@ -69,6 +70,18 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     public PartitionSet(Integer...partitions) {
         for (Integer partition : partitions)
             this.add(partition);
+    }
+    
+    public int[] values() {
+        if (this.values == null) {
+            int size = this.inner.cardinality() + (this.contains_null ? 1 : 0);
+            this.values = new int[size];
+            int idx = 0;
+            for (Integer partition : this) {
+                this.values[idx++] = partition.intValue();
+            } // FOR
+        }
+        return (this.values);
     }
     
     @Override
@@ -106,6 +119,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     public void clear() {
         this.contains_null = false;
         this.inner.clear();
+        this.values = null;
     }
     @Override
     public boolean isEmpty() {
@@ -114,8 +128,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     @Override
     public boolean contains(Object o) {
         if (o instanceof Integer) {
-            Integer partition = (Integer)o;
-            return this.contains(partition.intValue());
+            return this.contains(((Integer)o).intValue());
         }
         return (false);
     }
@@ -127,10 +140,6 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
             return (this.contains_null);
         }
         return (this.inner.get(partition));
-    }
-    @Override
-    public Iterator<Integer> iterator() {
-        return new Itr();
     }
     @Override
     public Object[] toArray() {
@@ -165,6 +174,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         } else {
             this.inner.set(partition);
         }
+        this.values = null;
         return (true);
     }
     @Override
@@ -181,6 +191,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         } else {
             this.inner.set(partition, false);            
         }
+        this.values = null;
         return (true);
     }
     @Override
@@ -211,8 +222,8 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     public boolean removeAll(Collection<?> c) {
         boolean ret = true;
         for (Object o : c) {
-            if (o instanceof Integer) {
-                ret = this.remove((Integer)o) && ret;
+            if (o instanceof Number) {
+                ret = this.remove(((Number)o).intValue()) && ret;
             } else {
                 ret = false;
             }
@@ -227,6 +238,18 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
             }
         }
         return (true);
+    }
+    public boolean retainAll(PartitionSet partitions) {
+        for (Integer partition : this) {
+            if (partitions.contains(partition.intValue()) == false) {
+                this.remove(partition.intValue());
+            }
+        }
+        return (true);
+    }
+    @Override
+    public Iterator<Integer> iterator() {
+        return new Itr();
     }
     
     // ----------------------------------------------------------------------------

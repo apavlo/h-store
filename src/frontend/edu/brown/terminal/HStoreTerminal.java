@@ -99,12 +99,11 @@ public class HStoreTerminal implements Runnable {
     
     @Override
     public void run() {
-        if (this.enable_csv == false) this.printHeader();
-        
         Pair<Client, Site> p = this.getClientConnection();
         Client client = p.getFirst();
         Site catalog_site = p.getSecond();
         if (this.enable_csv == false) {
+            this.printHeader();
             System.out.printf("Connected to %s:%d / Server Version: %s\n",
                               catalog_site.getHost().getIpaddr(),
                               catalog_site.getProc_port(),

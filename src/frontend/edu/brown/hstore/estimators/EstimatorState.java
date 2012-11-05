@@ -29,6 +29,7 @@ public abstract class EstimatorState implements Poolable {
     
     private Estimate initialEstimate;
     private final List<Estimate> estimates = new ArrayList<Estimate>();
+    private boolean disableUpdates = false;
     
     /**
      * Constructor
@@ -53,6 +54,7 @@ public abstract class EstimatorState implements Poolable {
     @Override
     public void finish() {
         this.initialEstimate = null;
+        this.disableUpdates = false;
         for (Estimate estimate : this.estimates) {
             if (estimate != null) estimate.finish();
         } // FOR
@@ -64,13 +66,13 @@ public abstract class EstimatorState implements Poolable {
         this.txn_id = null;
     }
     
-    public Long getTransactionId() {
+    public final Long getTransactionId() {
         return (this.txn_id);
     }
-    public int getBasePartition() {
+    public final int getBasePartition() {
         return (this.base_partition);
     }
-    public long getStartTime() {
+    public final long getStartTime() {
         return (this.start_time);
     }
     public PartitionSet getTouchedPartitions() {
@@ -83,6 +85,14 @@ public abstract class EstimatorState implements Poolable {
     // ----------------------------------------------------------------------------
     // TRANSACTION ESTIMATES
     // ----------------------------------------------------------------------------
+    
+    public final void disableUpdates() {
+        this.disableUpdates = true;
+    }
+    
+    public final boolean updatesEnabled() {
+        return (this.disableUpdates == false);
+    }
     
     protected void addInitialEstimate(Estimate estimate) {
         assert(this.initialEstimate == null);

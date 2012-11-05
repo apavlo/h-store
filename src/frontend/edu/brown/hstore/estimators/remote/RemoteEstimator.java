@@ -69,7 +69,7 @@ public class RemoteEstimator extends TransactionEstimator {
     }
 
     @Override
-    public <T extends Estimate> T executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions, boolean allow_cache_lookup) {
+    public <T extends Estimate> T executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions) {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 

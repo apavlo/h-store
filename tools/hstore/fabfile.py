@@ -89,7 +89,7 @@ ALL_PACKAGES = [
     'subversion',
     'gcc',
     'g++',
-    'openjdk-6-jdk',
+    'openjdk-7-jdk',
     'valgrind',
     'ant',
     'make',
@@ -152,7 +152,7 @@ ENV_DEFAULT = {
     "hstore.partitions":            6,
     "hstore.sites_per_host":        1,
     "hstore.partitions_per_site":   7,
-    "hstore.num_hosts_round_robin": 2,
+    # "hstore.num_hosts_round_robin": 2,
 }
 
 has_rcfile = os.path.exists(env.rcfile)
@@ -462,8 +462,11 @@ def setup_env():
                  "deb-src http://archive.canonical.com/ubuntu %s partner" % releaseName ], use_sudo=True)
         sudo("apt-get update")
     ## WITH
-    sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
+    
+    # Make sure that we pick openjdk-7-jdk
+    sudo("update-alternatives --set java /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java")
+    
     __syncTime__()
     
     # Upgrade and clean up packages
@@ -530,7 +533,7 @@ def setup_env():
         install_dir = os.path.dirname(HSTORE_DIR)
         if run("test -d %s" % install_dir).failed:
             run("mkdir " + install_dir)
-        sudo("chown --quiet -R %s %s" % (env.user, install_dir))
+        sudo("chown --quiet %s %s" % (env.user, install_dir))
     ## WITH
     
     return (first_setup)
@@ -989,7 +992,7 @@ def clear_logs():
             ## below 'and' changed from comma by ambell
             with settings(host_string=inst.public_dns_name), settings(warn_only=True):
                 LOG.info("Clearning H-Store log files [%s]" % env["hstore.git_branch"])
-                log_dir = os.path.join(HSTORE_DIR, "obj/release/logs")
+                log_dir = env.get("site.log_dir", os.path.join(HSTORE_DIR, "obj/logs/sites"))
                 run("rm -rf %s/*" % log_dir)
             break
         ## IF
@@ -1171,6 +1174,9 @@ def __getInstanceTypeCounts__():
     """Return a tuple of the number hosts/sites/partitions/clients that we need"""
     partitionCount = env["hstore.partitions"]
     clientCount = env["client.count"] 
+    
+    LOG.debug("Partitions Needed: %d" % env["hstore.partitions"])
+    LOG.debug("Partitions Per Site: %d" % env["hstore.partitions_per_site"])
     
     if "hstore.num_hosts_round_robin" in env and env["hstore.num_hosts_round_robin"] != None:
         hostCount = int(env["hstore.num_hosts_round_robin"])

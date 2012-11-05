@@ -13,11 +13,15 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.voltdb.utils.Pair;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObservableExceptionHandler;
+import edu.brown.utils.EventObserver;
 
 public class BenchmarkComponentSet implements Runnable {
     private static final Logger LOG = Logger.getLogger(BenchmarkComponentSet.class);
@@ -27,6 +31,11 @@ public class BenchmarkComponentSet implements Runnable {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+
+    // ----------------------------------------------------------------------------
+    // SHUTDOWN NOTIFICATION
+    // ----------------------------------------------------------------------------
+
     
     // ----------------------------------------------------------------------------
     // INTERNAL DATA MEMBERS
@@ -37,8 +46,25 @@ public class BenchmarkComponentSet implements Runnable {
     private final Map<BenchmarkComponent, PrintWriter> components = new HashMap<BenchmarkComponent, PrintWriter>();
     private final Map<BenchmarkComponent, Thread> threads = new HashMap<BenchmarkComponent, Thread>();
     
+    private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
+    private final EventObserver<Pair<Thread, Throwable>> exceptionObserver = new EventObserver<Pair<Thread,Throwable>>() {
+        @Override
+        public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
+            arg.getSecond().printStackTrace();
+        }
+    };
     
+    /**
+     * Constructor
+     * @param componentClass
+     * @param clientIds
+     * @param args
+     * @throws Exception
+     */
     public BenchmarkComponentSet(Class<? extends BenchmarkComponent> componentClass, int clientIds[], String args[]) throws Exception {
+        Thread.setDefaultUncaughtExceptionHandler(this.exceptionHandler);
+        this.exceptionHandler.addObserver(this.exceptionObserver);
+        
         this.clientIds = clientIds;
         List<String> clientArgs = (List<String>)CollectionUtil.addAll(new ArrayList<String>(), args);
         for (int i = 0; i < this.clientIds.length; i++) {
@@ -67,11 +93,11 @@ public class BenchmarkComponentSet implements Runnable {
         while (true) {
             if (debug.get()) LOG.debug("Blocking on input stream for commands from BenchmarkController");
             try {
-                line = in.readLine();
+                line = in.readLine().trim();
             } catch (final IOException e) {
                 throw new RuntimeException("Error on standard input", e);
             }
-            
+
             if (debug.get()) LOG.debug("New Command: " + line);
             for (PrintWriter out : this.components.values()) {
                 out.println(line);

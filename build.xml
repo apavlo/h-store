@@ -17,7 +17,7 @@
     </sequential>
 </macrodef>
 
-<property name="javac.version" value="1.6" />
+<property name="javac.version" value="1.7" />
 
 <!-- PATHS AND PROPERTIES -->
 
@@ -581,60 +581,74 @@ JAVA COMPILATION
 
     <!-- compile the individual source directories -->
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.protorpc.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.hsqldb.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${thirdpartysrc.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.frontend.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
     
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.benchmarks.dir}"
         destdir='${build.benchmarks.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
     <!-- compile the individual test directories -->
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.hsqldb.test.dir}"
         destdir='${build.test.dir}'
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
     <javac includeantruntime="false"
+        source="${javac.version}"
         target="${javac.version}"
         srcdir="${src.test.dir}"
         destdir='${build.test.dir}'
         excludes="org/voltdb/benchmark/tpcc/JDBCClient.java,edu/mit/elt/ELTTester**"
         debug='true'>
+        <compilerarg line="-encoding utf-8"/>
         <classpath refid="project.classpath" />
     </javac>
 
@@ -1553,8 +1567,13 @@ TEST CASES
         <mkdir dir="@{destdir}"/>
         <!-- avoids needing ant clean when changing interfaces -->
         <depend srcdir="@{srcdir}" destdir="@{destdir}" cache="${depcache}"/>
-        <javac includeantruntime="false" srcdir="@{srcdir}" destdir="@{destdir}" includeAntRuntime="no"
-                debug="${compile.debug}" source="${javac.version}">
+        <javac includeantruntime="false"
+            source="${javac.version}"
+            target="${javac.version}"
+            srcdir="@{srcdir}"
+            destdir="@{destdir}"
+            includeAntRuntime="no"
+            debug="${compile.debug}">
             <compilerarg value="-Xlint:unchecked" />
             <!--<compilerarg value="-Xlint:deprecation" />-->
             <compileoptions/>
@@ -2370,6 +2389,7 @@ UTILITIES
 
 <target name="oltpgen.compile" depends="oltpgen.clean, compile">
         <javac includeantruntime="false"
+                source="${javac.version}"
                 target="${javac.version}"
                 srcdir="${src.test.dir}"
                 destdir="${build.test.dir}"

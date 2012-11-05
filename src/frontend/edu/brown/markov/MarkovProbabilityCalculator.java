@@ -148,9 +148,24 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                     // This vertex doesn't access the partition, but successor vertices might so
                     // the probability is based on the edge probabilities 
                     } else {
-                        est.addFinishProbability(partition, (e.getProbability() * successor.getFinishProbability(partition)));
-                        est.addWriteProbability(partition, (e.getProbability() * successor.getWriteProbability(partition)));
-                        est.addReadOnlyProbability(partition, (e.getProbability() * successor.getReadOnlyProbability(partition)));
+                        try {
+                            est.addFinishProbability(partition, (e.getProbability() * successor.getFinishProbability(partition)));
+                        } catch (Throwable ex) {
+                            LOG.warn(String.format("Failed to set FINISH probability for %s [partition=%d / edge=%s / successor=%s]",
+                                                   est, partition, e, successor), ex);
+                        }
+                        try {
+                            est.addWriteProbability(partition, (e.getProbability() * successor.getWriteProbability(partition)));
+                        } catch (Throwable ex) {
+                            LOG.warn(String.format("Failed to set WRITE probability for %s [partition=%d / edge=%s / successor=%s]",
+                                                   est, partition, e, successor), ex);
+                        }
+                        try {
+                            est.addReadOnlyProbability(partition, (e.getProbability() * successor.getReadOnlyProbability(partition)));
+                        } catch (Throwable ex) {
+                            LOG.warn(String.format("Failed to set READ-ONLY probability for %s [partition=%d / edge=%s / successor=%s]",
+                                                   est, partition, e, successor), ex);
+                        }
                     }
                 } // FOR (PartitionId)
             } // FOR (Edge)

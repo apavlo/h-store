@@ -7,14 +7,18 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.collections15.keyvalue.MultiKey;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
 
+import edu.brown.catalog.CatalogKey;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -82,6 +86,11 @@ public class MarkovEstimator extends TransactionEstimator {
      */
     private final Map<MarkovGraph, List<MarkovVertex>> cached_paths = new HashMap<MarkovGraph, List<MarkovVertex>>();
     
+    /**
+     * For a given vertex, maintain a map to possible future vertices
+     */
+    private final Map<MarkovVertex, ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>> cache_batchEnd;
+    
     private transient boolean enable_recomputes = false;
     
     /**
@@ -106,6 +115,8 @@ public class MarkovEstimator extends TransactionEstimator {
         super(p_estimator);
         this.catalogContext = catalogContext;
         this.markovs = markovs;
+        this.cache_batchEnd = new HashMap<MarkovVertex, ConcurrentHashMap<MultiKey<String>,Pair<MarkovEdge,MarkovVertex>>>();
+        
         if (this.markovs != null && this.markovs.getHasher() == null) 
             this.markovs.setHasher(this.hasher);
         
@@ -113,7 +124,7 @@ public class MarkovEstimator extends TransactionEstimator {
         this.manglers = new IdentityHashMap<Procedure, ParameterMangler>();
         for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
             if (catalog_proc.getSystemproc()) continue;
-            this.manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
+            this.manglers.put(catalog_proc, ParameterMangler.singleton(catalog_proc));
         } // FOR
         if (debug.get()) LOG.debug(String.format("Created ParameterManglers for %d procedures",
                                    this.manglers.size()));
@@ -124,7 +135,7 @@ public class MarkovEstimator extends TransactionEstimator {
         
         if (d) LOG.debug("Creating MarkovEstimatorState Object Pool");
         TypedPoolableObjectFactory<MarkovEstimatorState> s_factory = new MarkovEstimatorState.Factory(this.catalogContext); 
-        statesPool = new TypedObjectPool<MarkovEstimatorState>(s_factory, hstore_conf.site.pool_estimatorstates_idle);
+        this.statesPool = new TypedObjectPool<MarkovEstimatorState>(s_factory, hstore_conf.site.pool_estimatorstates_idle);
         
         if (hstore_conf.site.markov_profiling) {
             this.profiler = new MarkovEstimatorProfiler();
@@ -199,12 +210,14 @@ public class MarkovEstimator extends TransactionEstimator {
         assert(start != null) : "The start vertex is null. This should never happen!";
         MarkovEstimate initialEst = state.createNextEstimate(start, true);
         this.estimatePath(state, initialEst, catalog_proc, args);
-        assert(initialEst.getMarkovPath().isEmpty() == false);
+        
         if (d) {
             String txnName = AbstractTransaction.formatTxnName(catalog_proc, txn_id);
             LOG.debug(String.format("%s - Initial MarkovEstimate\n%s", txnName, initialEst));
-            if (t) {
-                List<MarkovVertex> path = initialEst.getMarkovPath();
+            List<MarkovVertex> path = initialEst.getMarkovPath();
+            if (path.isEmpty()) {
+                LOG.debug(String.format("%s - Initial empty path for txn is empty because the graph is new", txnName));
+            } else {
                 LOG.trace(String.format("%s - Estimated Path [length=%d]\n%s",
                           txnName, path.size(),
                           StringUtil.join("\n----------------------\n", path)));
@@ -232,7 +245,7 @@ public class MarkovEstimator extends TransactionEstimator {
     
     @SuppressWarnings("unchecked")
     @Override
-    public MarkovEstimate executeQueries(EstimatorState s, Statement catalog_stmts[], PartitionSet partitions[], boolean allow_cache_lookup) {
+    public MarkovEstimate executeQueries(EstimatorState s, Statement catalog_stmts[], PartitionSet partitions[]) {
         long timestamp = -1l;
         if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
         
@@ -250,12 +263,10 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovEdge next_e = null;
         Statement last_stmt = null;
         int stmt_idxs[] = null;
-        boolean attempt_cache_lookup = false;
 
-        if (attempt_cache_lookup && batch_size >= hstore_conf.site.markov_batch_caching_min) {
+        if (hstore_conf.site.markov_endpoint_caching && batch_size >= hstore_conf.site.markov_batch_caching_min) {
             assert(current != null);
             if (d) LOG.debug("Attempting cache look-up for last statement in batch: " + Arrays.toString(catalog_stmts));
-            attempt_cache_lookup = true;
             
             state.cache_last_partitions.clear();
             state.cache_past_partitions.clear();
@@ -270,11 +281,11 @@ public class MarkovEstimator extends TransactionEstimator {
                 else state.cache_last_partitions.addAll(last_partitions);
             } // FOR
             
-            Pair<MarkovEdge, MarkovVertex> pair = markov.getCachedBatchEnd(current,
-                                                                           last_stmt,
-                                                                           stmt_idxs[batch_size-1],
-                                                                           state.cache_last_partitions,
-                                                                           state.cache_past_partitions);
+            Pair<MarkovEdge, MarkovVertex> pair = this.getCachedBatchEnd(current,
+                                                                         last_stmt,
+                                                                         stmt_idxs[batch_size-1],
+                                                                         state.cache_last_partitions,
+                                                                         state.cache_past_partitions);
             if (pair != null) {
                 next_e = pair.getFirst();
                 assert(next_e != null);
@@ -300,21 +311,21 @@ public class MarkovEstimator extends TransactionEstimator {
         // for the txn's State handle along the path in the MarkovGraph
         if (next_v == null) {
             for (int i = 0; i < batch_size; i++) {
-                int idx = (attempt_cache_lookup ? stmt_idxs[i] : -1);
-                this.consume(state, markov, catalog_stmts[i], partitions[i], idx);
-                if (attempt_cache_lookup == false) touchedPartitions.addAll(partitions[i]);
+                int queryCount = (stmt_idxs != null ? stmt_idxs[i] : -1);
+                this.consume(state, markov, catalog_stmts[i], partitions[i], queryCount);
+                if (stmt_idxs == null) touchedPartitions.addAll(partitions[i]);
             } // FOR
             
             // Update our cache if we tried and failed before
-            if (attempt_cache_lookup) {
+            if (stmt_idxs != null) {
                 if (d) LOG.debug(String.format("Updating cache batch end for %s: %s -> %s", markov, current, state.getCurrent()));
-                markov.addCachedBatchEnd(current,
-                                         CollectionUtil.last(state.actual_path_edges),
-                                         state.getCurrent(),
-                                         last_stmt,
-                                         stmt_idxs[batch_size-1],
-                                         state.cache_past_partitions,
-                                         state.cache_last_partitions);
+                this.addCachedBatchEnd(current,
+                                       CollectionUtil.last(state.actual_path_edges),
+                                       state.getCurrent(),
+                                       last_stmt,
+                                       stmt_idxs[batch_size-1],
+                                       state.cache_past_partitions,
+                                       state.cache_last_partitions);
             }
         }
 
@@ -354,9 +365,9 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovEstimatorState state = (MarkovEstimatorState)s;
 
         // The transaction for the given txn_id is in limbo, so we just want to remove it
-        if (status != Status.OK && status != Status.ABORT_USER) {
-            if (state != null && status == Status.ABORT_MISPREDICT) 
-                state.getMarkovGraph().incrementMispredictionCount();
+        if (status != Status.OK && status == Status.ABORT_MISPREDICT) {
+            state.getMarkovGraph().incrementMispredictionCount();
+            if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
             return;
         }
 
@@ -364,24 +375,36 @@ public class MarkovEstimator extends TransactionEstimator {
         long end_time = EstTime.currentTimeMillis();
         if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [status=%s]",
                          txn_id, status));
+
+        // If there were no updates while the transaction was running, then
+        // we don't want to try to update the model, because we will end up
+        // connecting the START vertex to the COMMIT vertex, which is not correct
+        if (state.updatesEnabled() == false) {
+            if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
+            return;
+        }
         
         // We need to update the counter information in our MarkovGraph so that we know
         // that the procedure may transition to the ABORT vertex from where ever it was before 
-        MarkovGraph g = state.getMarkovGraph();
+        MarkovGraph markov = state.getMarkovGraph();
         MarkovVertex current = state.getCurrent();
-        MarkovVertex next_v = g.getFinishVertex(status);
-        assert(next_v != null) : "Missing " + status;
+        assert(current != null) : 
+            String.format("Missing current vertex for %s\n%s",
+                          AbstractTransaction.formatTxnName(markov.getProcedure(), txn_id), state);
+        
+        // If we don't have the terminal vertex, then we know that we don't care about
+        // what this transaction actually did
+        MarkovVertex next_v = markov.getFinishVertex(status);
+        if (next_v == null) {
+            if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
+            return;
+        }
         
         // If no edge exists to the next vertex, then we need to create one
-        MarkovEdge next_e = g.findEdge(current, next_v);
-        if (next_e == null) {
-            synchronized (next_v) {
-                next_e = g.findEdge(current, next_v);
-                if (next_e == null) {
-                    next_e = g.addToEdge(current, next_v);
-                }
-            } // SYNCH
-        }
+        MarkovEdge next_e = null;
+        synchronized (next_v) {
+            next_e = markov.addToEdge(current, next_v);
+        } // SYNCH
         state.setCurrent(next_v, next_e); // For post-txn processing...
 
         // Update counters
@@ -422,7 +445,8 @@ public class MarkovEstimator extends TransactionEstimator {
     
     /**
      * Estimate the execution path of the txn based on its current vertex in the graph
-     * The estimate will be stored in the given MarkovEstimate
+     * The estimate will be stored in the given MarkovEstimate.
+     * Note that the path could be empty.
      * @param state The txn's TransactionEstimator state
      * @param est The current TransactionEstimate for the txn
      * @param catalog_proc The Procedure being executed by the txn 
@@ -538,16 +562,16 @@ public class MarkovEstimator extends TransactionEstimator {
      * @param catalog_stmt
      * @param partitions
      */
-    private void consume(MarkovEstimatorState state,
-                         MarkovGraph markov,
-                         Statement catalog_stmt,
-                         PartitionSet partitions,
-                         int queryInstanceIndex) {
+    private MarkovVertex consume(MarkovEstimatorState state,
+                                 MarkovGraph markov,
+                                 Statement catalog_stmt,
+                                 PartitionSet partitions,
+                                 int queryCounter) {
         long timestamp = -1l;
         if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
         
         // Update the number of times that we have executed this query in the txn
-        if (queryInstanceIndex < 0) queryInstanceIndex = state.updateQueryInstanceCount(catalog_stmt);
+        if (queryCounter < 0) queryCounter = state.updateQueryInstanceCount(catalog_stmt);
         assert(markov != null);
         
         // Examine all of the vertices that are adjacent to our current vertex
@@ -560,17 +584,19 @@ public class MarkovEstimator extends TransactionEstimator {
         
         // Synchronize on the single vertex so that it's more fine-grained than the entire graph
         synchronized (current) {
-            Collection<MarkovEdge> edges = markov.getOutEdges(current); 
-            if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.getTransactionId());
-            for (MarkovEdge e : edges) {
-                MarkovVertex v = markov.getDest(e);
-                if (v.isEqual(catalog_stmt, partitions, touchedPartitions, queryInstanceIndex)) {
-                    if (t) LOG.trace("Found next vertex " + v + " for Txn #" + state.getTransactionId());
-                    next_v = v;
-                    next_e = e;
-                    break;
-                }
-            } // FOR
+            Collection<MarkovEdge> edges = markov.getOutEdges(current);
+            if (edges != null) {
+                if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.getTransactionId());
+                for (MarkovEdge e : edges) {
+                    MarkovVertex v = markov.getDest(e);
+                    if (v.isEqual(catalog_stmt, partitions, touchedPartitions, queryCounter)) {
+                        if (t) LOG.trace("Found next vertex " + v + " for Txn #" + state.getTransactionId());
+                        next_v = v;
+                        next_e = e;
+                        break;
+                    }
+                } // FOR
+            }
         
             // If we fail to find the next vertex, that means we have to dynamically create a new 
             // one. The graph is self-managed, so we don't need to worry about whether 
@@ -578,16 +604,24 @@ public class MarkovEstimator extends TransactionEstimator {
             if (next_v == null) {
                 next_v = new MarkovVertex(catalog_stmt,
                                           MarkovVertex.Type.QUERY,
-                                          queryInstanceIndex,
+                                          queryCounter,
                                           partitions,
                                           touchedPartitions);
+                assert(markov.containsVertex(current)) :
+                    String.format("%s does not have current vertex %s for %s",
+                                  markov, current,
+                                  AbstractTransaction.formatTxnName(markov.getProcedure(), state.getTransactionId())); 
                 markov.addVertex(next_v);
                 next_e = markov.addToEdge(current, next_v);
                 if (t) LOG.trace(String.format("Created new edge from %s to new vertex %s for txn #%d", 
                                  state.getCurrent(), next_v, state.getTransactionId()));
-                assert(state.getCurrent().getPartitions().size() <= touchedPartitions.size());
+                // assert(state.getCurrent().getPartitions().size() <= touchedPartitions.size());
             }
         } // SYNCH
+        
+        if (current.isStartVertex() && next_v.isCommitVertex()) {
+            throw new ServerFaultException("Trying to connect START->COMMIT", state.getTransactionId());
+        }
 
         // Update the counters and other info for the next vertex and edge
         if (this.enable_recomputes) {
@@ -598,6 +632,7 @@ public class MarkovEstimator extends TransactionEstimator {
         state.setCurrent(next_v, next_e);
         if (t) LOG.trace("Updated State Information for Txn #" + state.getTransactionId() + ":\n" + state);
         if (this.profiler != null) this.profiler.time_consume.appendTime(timestamp);
+        return (next_v);
     }
 
     // ----------------------------------------------------------------------------
@@ -625,7 +660,7 @@ public class MarkovEstimator extends TransactionEstimator {
             this.populateQueryBatch(e.getValue(), s.getBasePartition(), catalog_stmts, partitions);
         
             synchronized (s.getMarkovGraph()) {
-                this.executeQueries(s, catalog_stmts, partitions, false);
+                this.executeQueries(s, catalog_stmts, partitions);
             } // SYNCH
         } // FOR (batches)
         if (txn_trace.isAborted()) {
@@ -656,6 +691,38 @@ public class MarkovEstimator extends TransactionEstimator {
             i++;
         } // FOR
         return (readOnly);
+    }
+    
+    protected Pair<MarkovEdge, MarkovVertex> getCachedBatchEnd(MarkovVertex start, Statement catalog_stmt, int idx, PartitionSet partitions, PartitionSet past_partitions) {
+        Map<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>> m = this.cache_batchEnd.get(start);
+        Pair<MarkovEdge, MarkovVertex> found = null;
+        if (m != null) {
+            MultiKey<String> cache_key = new MultiKey<String>(CatalogKey.createKey(catalog_stmt),
+                                                              Integer.toString(idx),
+                                                              partitions.toString(),
+                                                              past_partitions.toString());
+            found = m.get(cache_key);
+        }
+        return (found);
+    }
+    
+    protected void addCachedBatchEnd(MarkovVertex start, MarkovEdge e, MarkovVertex v,
+                                     Statement catalog_stmt, int idx, PartitionSet partitions, PartitionSet past_partitions) {
+        ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>> m = cache_batchEnd.get(start);
+        if (m == null) {
+            synchronized (this.cache_batchEnd) {
+                m = this.cache_batchEnd.get(start);
+                if (m == null) {
+                    m = new ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>();
+                    this.cache_batchEnd.put(start, m);
+                }
+            } // SYNCH
+        }
+        MultiKey<String> cache_key = new MultiKey<String>(CatalogKey.createKey(catalog_stmt),
+                                                          Integer.toString(idx),
+                                                          partitions.toString(),
+                                                          past_partitions.toString());
+        m.putIfAbsent(cache_key, Pair.of(e, v));
     }
     
     // ----------------------------------------------------------------------------

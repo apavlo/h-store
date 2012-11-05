@@ -166,6 +166,7 @@ public class TestSpecExecSuite extends RegressionSuite {
             assert(elapsed <= sleepTime*1.25);
             if (elapsed < sleepTime/2) {
                 assertEquals(cresponse.toString(), latch.get(), cresponse.getDebug().isSpeculative());
+                System.err.println(cresponse.getDebug());
             }
             if (cresponse.getDebug().isSpeculative()) specexec_ctr++;
         } // WHILE 

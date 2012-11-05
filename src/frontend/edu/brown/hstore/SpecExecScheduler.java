@@ -1,5 +1,6 @@
 package edu.brown.hstore;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
@@ -8,6 +9,7 @@ import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
@@ -37,7 +39,19 @@ public class SpecExecScheduler {
     private final AbstractConflictChecker checker;
     private boolean ignore_all_local = false;
     private final SpecExecProfiler profiler;
-    
+    private SchedulerPolicy policy;
+    private int window_size = 1;
+    public static enum SchedulerPolicy {
+    	  FIRST,
+    	  SHORTEST,
+    	  LONGEST;
+    }
+    public static HashMap <String,SchedulerPolicy> policyMap = new HashMap<String, SchedulerPolicy>();
+    static {
+    	policyMap.put("FIRST", SchedulerPolicy.FIRST);
+    	policyMap.put("SHORTEST", SchedulerPolicy.SHORTEST);
+    	policyMap.put("LONGEST", SchedulerPolicy.LONGEST);
+    }
     /**
      * Constructor
      * @param catalogContext
@@ -45,11 +59,15 @@ public class SpecExecScheduler {
      * @param partitionId
      * @param work_queue
      */
-    public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, List<InternalMessage> work_queue) {
+    public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, 
+    		List<InternalMessage> work_queue, SchedulerPolicy schedule_policy, int windown) {
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;
         this.checker = checker;
+        assert (schedule_policy != null) : "Unsupported schedule policy parameter passed in";
+        this.policy = schedule_policy;
+        this.window_size = windown;
         
         if (HStoreConf.singleton().site.specexec_profiling) {
             this.profiler = new SpecExecProfiler();
@@ -60,6 +78,10 @@ public class SpecExecScheduler {
     
     public void setIgnoreAllLocal(boolean ignore_all_local) {
         this.ignore_all_local = ignore_all_local;
+    }
+    
+    public void setWindowSize(int window) {
+    	this.window_size = window;
     }
 
     /**
@@ -76,7 +98,7 @@ public class SpecExecScheduler {
         if (trace.get()) LOG.trace(String.format("%s - Checking queue for transaction to speculatively execute [queueSize=%d]",
                                    dtxn, this.work_queue.size()));
         
-        Procedure dtxnProc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
+        Procedure dtxnProc = dtxn.getProcedure();
         if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
             if (debug.get())
                 LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists", dtxn));
@@ -100,6 +122,12 @@ public class SpecExecScheduler {
         StartTxnMessage next = null;
         Iterator<InternalMessage> it = this.work_queue.iterator();
         int msg_ctr = 0;
+        int size_ctr = 0;
+        StartTxnMessage best_next = null;
+        long best_time = Long.MAX_VALUE;
+        if (policy == SchedulerPolicy.LONGEST)
+        	best_time = Long.MIN_VALUE;
+        
         if (this.profiler != null) this.profiler.queue_size.put(this.work_queue.size());
         while (it.hasNext()) {
             InternalMessage msg = it.next();
@@ -129,7 +157,45 @@ public class SpecExecScheduler {
                 if (this.profiler != null) this.profiler.compute_time.start();
                 try {
                     if (this.checker.canExecute(dtxn, ts, this.partitionId)) {
-                        next = txn_msg;
+                        if (best_next == null)
+                        	best_next = txn_msg;
+                    	if (this.policy == SchedulerPolicy.FIRST) {
+                        	next = txn_msg;
+                        	//LOG.info("[FIRST schedule]");
+                        } else if (this.policy == SchedulerPolicy.SHORTEST) {
+                        	EstimatorState es = ts.getEstimatorState();
+                        	if (es != null) {
+                        		long tmp = es.getLastEstimate().getRemainingExecutionTime();
+                             	if (best_time > tmp) {
+                             		best_time = tmp;
+                             		best_next = txn_msg;
+                             	}
+                             	LOG.info(String.format("[SHORTEST schedule %d] time for current txn: %d, SHORTESTS time up to now: %ld", size_ctr, tmp, best_time));
+                            }
+                        	if (es != null && ++size_ctr < this.window_size)
+                            	continue;
+                        	else {
+                        		next = best_next;
+                        		LOG.info(String.format("[SHORTEST schedule ] SHORTESTS time %d", best_time));
+                        	}
+                        } else if (this.policy == SchedulerPolicy.LONGEST) {
+                        	EstimatorState es = ts.getEstimatorState();
+                        	if (es != null) {
+                        		long tmp = es.getLastEstimate().getRemainingExecutionTime();
+                             	if (best_time < tmp) {
+                             		best_time = tmp;
+                             		best_next = txn_msg;
+                             	}
+                             	LOG.info(String.format("[LONGEST schedule %d] time for current txn: %d, LONGEST time up to now: %d", size_ctr, tmp, best_time));
+                            }
+                        	if (es != null && ++size_ctr < this.window_size)
+                            	continue;
+                        	else {
+                        		next = best_next;
+                        		LOG.info(String.format("[LONGEST schedule ] LONGEST time %d", best_time));
+                        	}
+                        }
+                        
                         break;
                     }
                 } finally {
@@ -144,8 +210,6 @@ public class SpecExecScheduler {
         if (next != null) {
             if (this.profiler != null) this.profiler.success++;
             it.remove();
-            LocalTransaction next_ts = next.getTransaction();
-            next_ts.setSpeculative(true);
             if (debug.get()) 
                 LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }

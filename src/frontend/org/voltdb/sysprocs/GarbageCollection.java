@@ -52,7 +52,7 @@ public class GarbageCollection extends VoltSystemProcedure {
                 LOG.debug("Invoking garbage collector");
                 this.gcTime.clear();
                 this.gcTime.start();
-                System.gc();
+                // System.gc();
                 this.gcTime.stop();
                 
                 if (LOG.isDebugEnabled())

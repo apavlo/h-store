@@ -12,6 +12,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.special.CountedStatement;
@@ -78,7 +79,7 @@ public class ClientResponseDebug implements FastSerializable {
     private boolean predict_readOnly;
     private final PartitionSet predict_touchedPartitions = new PartitionSet();
     
-    private boolean speculative = false;
+    private SpeculationType speculative = SpeculationType.NULL;
     private boolean prefetched = false;
     private final PartitionSet exec_touchedPartitions = new PartitionSet();
     
@@ -97,7 +98,7 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_abortable = ts.isPredictAbortable();
         this.predict_readOnly = ts.isPredictReadOnly();
         this.predict_touchedPartitions.addAll(ts.getPredictTouchedPartitions());
-        this.speculative = ts.isSpeculative();
+        this.speculative = ts.getSpeculativeType();
         this.prefetched = ts.hasPrefetchQueries();
         this.exec_touchedPartitions.addAll(ts.getTouchedPartitions().values());
         
@@ -165,7 +166,7 @@ public class ClientResponseDebug implements FastSerializable {
     }
     
     public boolean isSpeculative() {
-        return (this.speculative);
+        return (this.speculative != SpeculationType.NULL);
     }
     
     /**
@@ -188,7 +189,7 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_readOnly = in.readBoolean();
         this.predict_touchedPartitions.readExternal(in);
         this.prefetched = in.readBoolean();
-        this.speculative = in.readBoolean();
+        this.speculative = SpeculationType.get(in.readShort());
         this.exec_touchedPartitions.readExternal(in);
         
         // QUERY ESTIMATES
@@ -212,7 +213,7 @@ public class ClientResponseDebug implements FastSerializable {
         out.writeBoolean(this.predict_readOnly);
         this.predict_touchedPartitions.writeExternal(out);
         out.writeBoolean(this.prefetched);
-        out.writeBoolean(this.speculative);
+        out.writeShort(this.speculative.ordinal());
         this.exec_touchedPartitions.writeExternal(out);
         
         // QUERY ESTIMATES
@@ -237,7 +238,7 @@ public class ClientResponseDebug implements FastSerializable {
         m.put("Predict Read Only", this.predict_readOnly);
         m.put("Predict Abortable", this.predict_abortable);
         m.put("Had Prefetched Queries", this.prefetched);
-        m.put("Speculatively Executed", this.speculative);
+        m.put("Speculative Execution", this.speculative);
         m.put("Remote Query Estimates", this.remote_estimates);
         maps.add(m);
         

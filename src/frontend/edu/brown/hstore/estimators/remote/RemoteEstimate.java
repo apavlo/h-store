@@ -65,6 +65,10 @@ public class RemoteEstimate implements Estimate {
     public boolean isValid() {
         return (true);
     }
+    @Override
+    public long getRemainingExecutionTime() {
+        return Long.MAX_VALUE;
+    }
     
     @Override
     public boolean hasQueryEstimate(int partition) {

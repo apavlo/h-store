@@ -115,7 +115,7 @@ public abstract class StringUtil {
         // Microseconds
         } else if (nanoseconds > 1000) {
             time /= 1000d;
-            unit = "µs";
+            unit = "\u00B5s";
         }
         return String.format(f, time) + unit;
     }

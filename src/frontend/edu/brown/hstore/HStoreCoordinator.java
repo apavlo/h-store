@@ -63,6 +63,7 @@ import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dispatchers.TransactionFinishDispatcher;
@@ -663,6 +664,8 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             // Tell the HStoreSite to prepare to shutdown
             HStoreCoordinator.this.hstore_site.prepareShutdown(request.hasError());
             
+            ThreadUtil.sleep(5000);
+            
             // Then send back the acknowledgment that we're good to go
             ShutdownPrepareResponse response = ShutdownPrepareResponse.newBuilder()
                                                    .setSenderSite(HStoreCoordinator.this.local_site_id)
@@ -845,7 +848,10 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         // FAST PATH: If all of the partitions that this txn needs are on this
         // HStoreSite, then we don't need to bother with making this request
         if (hstore_site.isLocalPartitions(partitions)) {
-            hstore_site.transactionPrepare(ts.getTransactionId(), partitions, null);
+            TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
+            if (wrapper.isInitialized()) wrapper.finish();
+            wrapper.init(ts, partitions, callback);
+            hstore_site.transactionPrepare(ts, partitions);
         }
         // SLOW PATH: Since we have to go over the network, we have to use our trusty ol'
         // TransactionPrepareHandler to route the request to proper sites.
@@ -1029,14 +1035,14 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             }
         } // FOR n sites in this catalog
                 
-        for (Integer partition : hstore_site.getLocalPartitionIdArray()) {
-            VoltTable vt = data.get(partition);
+        for (int partition : hstore_site.getLocalPartitionIds().values()) {
+            VoltTable vt = data.get(Integer.valueOf(partition));
             if (vt == null) {
                 LOG.warn("No data in " + ts + " for partition " + partition);
                 continue;
             }
             if (d) LOG.debug(String.format("Storing VoltTable directly at local partition %d for %s", partition, ts));
-            ts.storeData(partition.intValue(), vt);
+            ts.storeData(partition, vt);
         } // FOR
         
         if (fake_responses != null) {
@@ -1126,8 +1132,8 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
      * @param blocking
      */
     public void shutdownCluster(final Throwable error) {
-        if (d)
-            LOG.debug(String.format("Invoking non-blocking shutdown protocol [hasError=%s]", error!=null));
+        if (d) 
+            LOG.debug(String.format("Invoking non-blocking shutdown protocol [hasError=%s]", error!=null), error);
         
         // Make this a thread so that we don't block and can continue cleaning up other things
         Runnable shutdownRunnable = new Runnable() {
@@ -1211,6 +1217,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             
             // Now send the final shutdown request
             if (this.num_sites > 1) {
+                ThreadUtil.sleep(5000); // XXX
                 LOG.info(String.format("Sending final shutdown message to %d remote sites", this.num_sites-1));
                 RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
                     @Override

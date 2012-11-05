@@ -83,7 +83,10 @@ def txnCount(path):
     assert result == 0, cmd + "\n" + output
     lines = output.split("\n")
     if len(lines) > 1: assert lines[-1].find("total") != -1
-    return int(lines[-1].strip().split(" ")[0])
+    logging.debug("\n".join(lines))
+    total = int(lines[-1].strip().split(" ")[0]) 
+    # print "TOTAL:", total
+    return total
 ## DEF
     
 ## ==============================================
@@ -98,7 +101,9 @@ if __name__ == '__main__':
     aparser.add_argument('--config', type=file, metavar='FILE',
                          help='Path to H-Store configuration file to use')
     aparser.add_argument('--txn-count', type=int, default=100000, metavar='T',
-                         help='The minimum number of transaction records needed')
+                        help='The minimum number of transaction records needed')
+    aparser.add_argument('--memory', type=int, default=10240, metavar='MB',
+                         help='The amount of memory (in MB) to provide the JVM when combining the transaction records')
     aparser.add_argument('--output-path', type=str, default="traces", metavar='DIR',
                          help='The output directory to store the traces')
     aparser.add_argument('--overwrite', action='store_true',
@@ -131,7 +136,8 @@ if __name__ == '__main__':
             cmd = "ant hstore-benchmark -Dtrace=%s %s" % (trace, hstore_opts_cmd)
             if args['debug']: logging.debug(cmd)
             subprocess.check_call(cmd, shell=True)
-            cnt = txnCount(trace_base)
+            cnt = txnCount(trace)
+            logging.info("Created %d traces in last round", cnt)
 
         assert cnt > 0
         total_cnt += cnt
@@ -155,7 +161,7 @@ if __name__ == '__main__':
     
     HSTORE_OPTS = {
         "project":              args['benchmark'],
-        "volt.server.memory":   6144, # 6GB
+        "volt.server.memory":   args['memory'],
         "output":               output,
         "workload":             trace_base + "*",
     }

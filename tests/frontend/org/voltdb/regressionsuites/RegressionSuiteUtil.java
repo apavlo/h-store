@@ -10,6 +10,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCLoader;
+import org.voltdb.benchmark.tpcc.TPCCSimulation;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
@@ -32,7 +33,7 @@ public abstract class RegressionSuiteUtil {
     static final double SCALEFACTOR = 0.0001;
     private static final DefaultRandomGenerator rng = new DefaultRandomGenerator(0);
     
-    public static void setHStoreConf(Client client, String paramName, Object paramValue) throws Exception {
+    public static ClientResponse setHStoreConf(Client client, String paramName, Object paramValue) throws Exception {
         assert(HStoreConf.isConfParameter(paramName)) :
             "Invalid HStoreConf parameter '" + paramName + "'";
         String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
@@ -40,6 +41,7 @@ public abstract class RegressionSuiteUtil {
         String confValues[] = {paramValue.toString()};
         ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
         assert(cresponse.getStatus() == Status.OK);
+        return (cresponse);
     }
     
     /**
@@ -119,7 +121,9 @@ public abstract class RegressionSuiteUtil {
     protected static Object[] generateNewOrder(int num_warehouses, boolean dtxn, int w_id, int d_id) throws Exception {
         short supply_w_id;
         if (dtxn) {
-            supply_w_id = (short)rng.numberExcluding(TPCCConstants.STARTING_WAREHOUSE, num_warehouses, w_id);
+            int start = TPCCConstants.STARTING_WAREHOUSE;
+            int stop = TPCCConstants.STARTING_WAREHOUSE + num_warehouses;
+            supply_w_id = TPCCSimulation.generatePairedWarehouse(w_id, start, stop);
             assert(supply_w_id != w_id);
         } else {
             supply_w_id = (short)w_id;
@@ -132,7 +136,7 @@ public abstract class RegressionSuiteUtil {
         int quantities[] = new int[num_items];
         for (int i = 0; i < num_items; i++) { 
             item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS));
-            supwares[i] = (i % 2 == 0 ? supply_w_id : (short)w_id);
+            supwares[i] = (i == 1 && dtxn ? supply_w_id : (short)w_id);
             quantities[i] = 1;
         } // FOR
         

@@ -345,7 +345,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
         // send back the number of tuples modified
         if (executor->forceTupleCount()) {
             send_tuple_count = true;
-            VOLT_DEBUG("[PlanFragment %jd] Forcing tuple count at PlanNode #%02d for txn $%jd [OutputDep=%d]",
+            VOLT_DEBUG("[PlanFragment %jd] Forcing tuple count at PlanNode #%02d for txn #%jd [OutputDep=%d]",
                        (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
                        (intmax_t)txnId, m_currentOutputDepId);
         } else {

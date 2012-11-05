@@ -51,30 +51,20 @@ import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.graphs.GraphvizExport;
-import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.markov.MarkovEstimate;
-import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.MarkovEdge;
-import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovUtil;
-import edu.brown.markov.MarkovVertex;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.StringUtil;
 
 /**
  * Wraps the stored procedure object created by the user
@@ -191,8 +181,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      */
     private byte m_statusCode = Byte.MIN_VALUE;
     private String m_statusString = null;
-    
-    private BatchPlanner planner = null; // TODO: Remove!
     
     /**
      * End users should not instantiate VoltProcedure instances.
@@ -922,20 +910,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                               String tableName, VoltTable data, int allowELT) throws VoltAbortException {
         if (data == null || data.getRowCount() == 0) return;
         assert(m_currentTxnState != null);
-        voltLoadTable(m_currentTxnState, clusterName, databaseName, tableName, data, allowELT);
-    }
-    
-    public void voltLoadTable(AbstractTransaction ts, String clusterName, String databaseName,
-                              String tableName, VoltTable data, int allowELT) throws VoltAbortException {
-        if (data == null || data.getRowCount() == 0) return;
         try {
             assert(executor != null);
-            executor.loadTable(ts, clusterName, databaseName, tableName, data, allowELT);
+            executor.loadTable(m_currentTxnState, clusterName, databaseName, tableName, data, allowELT);
         } catch (EEException e) {
             throw new VoltAbortException("Failed to load table: " + tableName);
         }
     }
-
+    
     /**
      * Get the time that this procedure was accepted into the VoltDB cluster. This is the
      * effective, but not always actual, moment in time this procedure executes. Use this
@@ -1138,6 +1120,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         } catch (SerializableException ex) {
             throw ex;
         } catch (Throwable ex) {
+            ex.printStackTrace();
             throw new ServerFaultException("Unexpected error", ex, m_localTxnState.getTransactionId());
         } finally {
             this.batchId++;

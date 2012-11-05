@@ -1,7 +1,6 @@
 package edu.brown.hstore.callbacks;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 
 import org.apache.log4j.Logger;
@@ -17,6 +16,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.PartitionExecutorProfiler;
@@ -29,7 +29,7 @@ import edu.brown.utils.PartitionSet;
  * the RpcCallback created by the ProtoRPC framework.
  * @author pavlo
  */
-public class TransactionInitQueueCallback extends BlockingRpcCallback<TransactionInitResponse, Integer> {
+public class TransactionInitQueueCallback extends AbstractTransactionCallback<AbstractTransaction, TransactionInitResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionInitQueueCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -37,9 +37,9 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
             
+    private final boolean prefetch;
     private TransactionInitResponse.Builder builder = null;
     private PartitionSet partitions = null;
-    private final boolean prefetch; 
     private final FastDeserializer fd = new FastDeserializer(new byte[0]);
     
     // ----------------------------------------------------------------------------
@@ -47,64 +47,59 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     // ----------------------------------------------------------------------------
     
     public TransactionInitQueueCallback(HStoreSite hstore_site) {
-        super(hstore_site, false);
+        super(hstore_site);
         this.prefetch = hstore_site.getHStoreConf().site.exec_prefetch_queries;
     }
     
-    public void init(Long txn_id,
-                     PartitionSet partitions,
-                     RpcCallback<TransactionInitResponse> orig_callback) {
+    public void init(AbstractTransaction ts, PartitionSet partitions, RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
-            LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
+            LOG.debug(String.format("%s - Starting new %s", ts, this.getClass().getSimpleName()));
         assert(orig_callback != null) :
-            String.format("Tried to initialize %s with a null callback for txn #%d", this.getClass().getSimpleName(), txn_id);
+            String.format("Tried to initialize %s with a null callback for %s", this.getClass().getSimpleName(), ts);
         assert(partitions != null) :
-            String.format("Tried to initialize %s with a null partitions for txn #%d", this.getClass().getSimpleName(), txn_id);
+            String.format("Tried to initialize %s with a null partitions for %s", this.getClass().getSimpleName(), ts);
         
         // Only include local partitions
         int counter = 0;
-        for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
-            if (partitions.contains(p.intValue())) counter++;
+        for (int p : this.hstore_site.getLocalPartitionIds().values()) { // One less iterator :-)
+            if (partitions.contains(p)) counter++;
         } // FOR
-        assert(counter > 0) : String.format("InitPartitions:%s / LocalPartitions:%s", 
-                                            partitions, this.hstore_site.getLocalPartitionIds());
+        assert(counter > 0) :
+            String.format("InitPartitions:%s / LocalPartitions:%s", 
+                          partitions, this.hstore_site.getLocalPartitionIds());
+        
         this.partitions = partitions;
         this.builder = TransactionInitResponse.newBuilder()
-                             .setTransactionId(txn_id.longValue())
+                             .setTransactionId(ts.getTransactionId().longValue())
                              .setStatus(Status.OK);
-        super.init(txn_id, counter, orig_callback);
+        super.init(ts, counter, orig_callback);
     }
     
     /**
      * All of the partitions that this transaction needs (including remote)
      * @return
      */
-    public Collection<Integer> getPartitions() {
+    public PartitionSet getPartitions() {
         return (this.partitions);
     }
     
     @Override
     protected void finishImpl() {
-        if (debug.get()) LOG.debug(String.format("Txn #%d - Clearing out %s",
-                                   this.getTransactionId(), this.builder.getClass().getSimpleName()));
+        if (debug.get()) LOG.debug(String.format("%s - Clearing out %s",
+                                   this.ts, this.builder.getClass().getSimpleName()));
         this.builder = null;
+        super.finishImpl();
     }
     
     @Override
-    public boolean isInitialized() {
-        return (this.builder != null && super.isInitialized());
-    }
-    
-    @Override
-    public void unblockCallback() {
-        if (debug.get()) LOG.debug(String.format("Txn #%d - Checking whether we can send back %s with status %s",
-                                   this.getTransactionId(),
-                                   TransactionInitResponse.class.getSimpleName(),
+    protected void unblockTransactionCallback() {
+        if (debug.get()) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
+                                   this.ts, TransactionInitResponse.class.getSimpleName(),
                                    (this.builder != null ? this.builder.getStatus() : "???")));
         if (this.builder != null) {
             if (debug.get()) {
-                LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
-                                        this.getTransactionId(),
+                LOG.debug(String.format("%s - Sending %s to %s with status %s",
+                                        this.ts,
                                         TransactionInitResponse.class.getSimpleName(),
                                         this.getOrigCallback().getClass().getSimpleName(),
                                         this.builder.getStatus()));
@@ -117,13 +112,28 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
                               builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
             assert(this.getOrigCallback() != null) :
                 String.format("The original callback for txn #%d is null!", this.getTransactionId());
+            
+            
+            // HACK
+            // This is a big hack to have the PartitionExecutor block executing
+            // single-partition transactions because we now have a new distributed transaction
+            // Note that we have to do this before send the message because the callback
+            // might end up destroying this transaction
+            if (hstore_conf.site.specexec_pre_query) {
+                for (int p: this.hstore_site.getLocalPartitionIds().values()) {
+                    if (this.partitions.contains(p)) {
+                        this.hstore_site.getPartitionExecutor(p).queueInitDtxn(this.ts);
+                    }
+                } // FOR
+            }
+
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
             
             // start profile idle_waiting_dtxn_time on remote paritions
             if (this.hstore_conf.site.exec_profiling) {
-                for (Integer p : this.hstore_site.getLocalPartitionIdArray()) {
-                    if (this.partitions.contains(p.intValue())) {
+                for (int p : this.hstore_site.getLocalPartitionIds().values()) {
+                    if (this.partitions.contains(p)) {
                         PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
                         assert (pep != null);
                         if (pep.idle_waiting_dtxn_time.isStarted()) pep.idle_waiting_dtxn_time.stop();
@@ -138,37 +148,34 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             // queries that need to be queued up for pre-fetching. If so, blast them
             // off to the HStoreSite so that they can be executed in the PartitionExecutor
             // Use txn_id to get the AbstractTransaction handle from the HStoreSite
-            if (this.prefetch) {
-                AbstractTransaction ts = hstore_site.getTransaction(this.txn_id);
-                if (ts != null && ts.hasPrefetchQueries()) {
-                    // We need to convert our raw ByteString ParameterSets into the actual objects
-                    List<ByteString> rawParams = ts.getPrefetchRawParameterSets(); 
-                    int num_parameters = rawParams.size();
-                    ParameterSet params[] = new ParameterSet[num_parameters]; 
-                    for (int i = 0; i < params.length; i++) {
-                        this.fd.setBuffer(rawParams.get(i).asReadOnlyByteBuffer());
-                        try {
-                            params[i] = this.fd.readObject(ParameterSet.class);
-                        } catch (IOException ex) {
-                            String msg = "Failed to deserialize pre-fetch ParameterSet at offset #" + i;
-                            throw new ServerFaultException(msg, ex, this.txn_id);
-                        }
-                    } // FOR
-                    ts.attachPrefetchParameters(params);
-                    
-                    // Go through all the prefetch WorkFragments and send them off to 
-                    // the right PartitionExecutor at this HStoreSite.
-                    for (WorkFragment frag : ts.getPrefetchFragments()) {
-                        // XXX: We want to skip any WorkFragments for this txn's base partition.
-                        if (frag.getPartitionId() != ts.getBasePartition())
-                            hstore_site.transactionWork(ts, frag);
-                    } // FOR
-                }
+            if (this.prefetch && ts.hasPrefetchQueries()) {
+                // We need to convert our raw ByteString ParameterSets into the actual objects
+                List<ByteString> rawParams = ts.getPrefetchRawParameterSets(); 
+                int num_parameters = rawParams.size();
+                ParameterSet params[] = new ParameterSet[num_parameters]; 
+                for (int i = 0; i < params.length; i++) {
+                    this.fd.setBuffer(rawParams.get(i).asReadOnlyByteBuffer());
+                    try {
+                        params[i] = this.fd.readObject(ParameterSet.class);
+                    } catch (IOException ex) {
+                        String msg = "Failed to deserialize pre-fetch ParameterSet at offset #" + i;
+                        throw new ServerFaultException(msg, ex, this.txn_id);
+                    }
+                } // FOR
+                ts.attachPrefetchParameters(params);
+                
+                // Go through all the prefetch WorkFragments and send them off to 
+                // the right PartitionExecutor at this HStoreSite.
+                for (WorkFragment frag : ts.getPrefetchFragments()) {
+                    // XXX: We want to skip any WorkFragments for this txn's base partition.
+                    if (frag.getPartitionId() != ts.getBasePartition())
+                        hstore_site.transactionWork(ts, frag);
+                } // FOR
             }
         }
         else if (debug.get()) {
-            LOG.debug(String.format("Txn #%d - No builder is available? Unable to send back %s",
-                      this.getTransactionId(), TransactionInitResponse.class.getSimpleName()));
+            LOG.debug(String.format("%s - No builder is available? Unable to send back %s",
+                      this.ts, TransactionInitResponse.class.getSimpleName()));
         }
     }
     
@@ -191,9 +198,9 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             this.abort(status);
         }
     }
-    
+
     @Override
-    protected void abortCallback(Status status) {
+    protected boolean abortTransactionCallback(Status status) {
         // Uh... this might have already been sent out?
         if (this.builder != null) {
             if (debug.get()) LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
@@ -205,12 +212,14 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
             // transaction is kaput at this HStoreSite.
             this.builder.setStatus(status);
             this.builder.clearPartitions();
-            for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
-                if (this.partitions.contains(p.intValue())) this.builder.addPartitions(p.intValue());
+            for (int p : this.hstore_site.getLocalPartitionIds().values()) { // One less iterator :-)
+                if (this.partitions.contains(p)) this.builder.addPartitions(p);
             } // FOR
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
+            this.clearCounter();
         }
+        return (false);
     }
     
     @Override
