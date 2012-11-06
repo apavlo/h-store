@@ -1879,6 +1879,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (t) LOG.trace("Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
         }
         
+        if (hstore_conf.site.txn_counters) TransactionCounter.EXECUTED.inc(ts.getProcedure());
         ClientResponseImpl cresponse = null;
         try {
             cresponse = volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...

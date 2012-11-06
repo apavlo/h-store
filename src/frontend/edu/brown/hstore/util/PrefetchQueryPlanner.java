@@ -132,6 +132,11 @@ public class PrefetchQueryPlanner implements Loggable {
         Object proc_params[] = ts.getProcedureParameters().toArray();
         
         CountedStatement[] countedStmts = ts.getEstimatorState().getPrefetchableStatements().toArray(new CountedStatement[0]);
+        
+        if (countedStmts.length < 1) {
+            return (null);
+        }
+        
         SQLStmt[] prefetchStmts = new SQLStmt[countedStmts.length];
         for (int i = 0; i < prefetchStmts.length; ++i) {
             prefetchStmts[i] = new SQLStmt(countedStmts[i].statement);
