@@ -1282,8 +1282,16 @@ public class BenchmarkController {
         boolean needCombine = false;
         if (sps == SysProcSelector.TXNPROFILER) needCombine = hstore_conf.client.output_txn_profiling_combine;
         if (sps == SysProcSelector.TXNCOUNTER) needCombine = hstore_conf.client.output_txn_counters_combine;
+        if (sps == SysProcSelector.SPECEXECPROFILER) needCombine = hstore_conf.client.output_specexec_profiling_combine;
         if (needCombine) {
-            int offset = vt.getColumnIndex("PROCEDURE");
+            String combineColumn;
+            if (sps == SysProcSelector.SPECEXECPROFILER) {
+                combineColumn = "SPECULATE_TYPE";
+            } else {
+                combineColumn = "PROCEDURE";
+            }
+            int offset = vt.getColumnIndex(combineColumn);
+            
             VoltTable.ColumnInfo cols[] = Arrays.copyOfRange(VoltTableUtil.extractColumnInfo(vt), offset, vt.getColumnCount());
             Map<String, Object[]> totalRows = new TreeMap<String, Object[]>();
             Map<String, List<Double>[]> stdevRows = new HashMap<String, List<Double>[]>();

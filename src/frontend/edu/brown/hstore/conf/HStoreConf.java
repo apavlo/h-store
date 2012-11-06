@@ -1657,6 +1657,14 @@ public final class HStoreConf {
         public String output_specexec_profiling;
         
         @ConfigProperty(
+            description="If set to true, then the data generated for ${client.output_specexec_profiling} will " +
+                        "be aggregated based on the SpeculateType handle.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean output_specexec_profiling_combine;
+        
+        @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
                         "the MarkovEstimator profiling stats. Note that this will automatically enable " +
                         "${site.markov_profiling}, which will affect the runtime performance.",
