@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.SpeculationType;
 
@@ -40,9 +41,7 @@ public class SpecExecScheduler {
     private final List<InternalMessage> work_queue;
     private final AbstractConflictChecker checker;
     private boolean ignore_all_local = false;
-    private final SpecExecProfiler profiler;
     private final Map<SpeculationType, SpecExecProfiler> profilerMap = new HashMap<SpeculationType, SpecExecProfiler>();
-    private SpecExecProfiler profilerValue = null;
     private SchedulerPolicy policy;
     private int window_size = 1;
     private boolean isProfiling = false;
@@ -76,10 +75,11 @@ public class SpecExecScheduler {
         this.window_size = windown;
         
         if (HStoreConf.singleton().site.specexec_profiling) {
-            this.profiler = new SpecExecProfiler();
             this.isProfiling = true;
+            for (SpeculationType type: SpeculationType.getNameMap().values()) {
+            	this.profilerMap.put(type, new SpecExecProfiler());
+            }
         } else {
-            this.profiler = null;
             this.isProfiling = false; // do not need, but for explicit reason
         }
     }
@@ -102,15 +102,10 @@ public class SpecExecScheduler {
      * @return
      */
     public StartTxnMessage next(AbstractTransaction dtxn, SpeculationType specType) {
-        if (this.isProfiling) {
-        	this.profiler.total_time.start();
-        	if (this.profilerValue == null) {
-        		this.profilerValue = new SpecExecProfiler();
-        		profilerMap.put(specType, profilerValue);
-        	} else {
-        		this.profilerValue = profilerMap.get(specType);
-        	}
-        	this.profilerValue.total_time.start();
+    	SpecExecProfiler profiler = null;
+    	if (this.isProfiling) {
+        	profiler = profilerMap.get(specType);
+        	profiler.total_time.start();
         }
         
         if (trace.get()) LOG.trace(String.format("%s - Checking queue for transaction to speculatively execute [queueSize=%d]",
@@ -121,8 +116,7 @@ public class SpecExecScheduler {
             if (debug.get())
                 LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists", dtxn));
             if (this.isProfiling) {
-            	this.profiler.total_time.stop();
-            	this.profilerValue.total_time.stop();
+            	profiler.total_time.stop();
             }
             return (null);
         }
@@ -135,8 +129,7 @@ public class SpecExecScheduler {
                 LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
                 		  "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
             if (this.isProfiling) {
-            	this.profiler.total_time.stop();
-            	this.profilerValue.total_time.stop();
+            	profiler.total_time.stop();
             }
             return (null);
         }
@@ -153,8 +146,7 @@ public class SpecExecScheduler {
         	best_time = Long.MIN_VALUE;
         
         if (this.isProfiling) {
-        	this.profiler.queue_size.put(this.work_queue.size());
-        	this.profilerValue.queue_size.put(this.work_queue.size());
+        	profiler.queue_size.put(this.work_queue.size());
         }
         while (it.hasNext()) {
             InternalMessage msg = it.next();
@@ -182,8 +174,7 @@ public class SpecExecScheduler {
                     continue;
                 }
                 if (this.isProfiling) {
-                	this.profiler.compute_time.start();
-                	this.profilerValue.compute_time.start();
+                	profiler.compute_time.start();
                 }
                 try {
                     if (this.checker.canExecute(dtxn, ts, this.partitionId)) {
@@ -230,23 +221,20 @@ public class SpecExecScheduler {
                     }
                 } finally {
                     if (this.isProfiling) {
-                    	this.profiler.compute_time.stop();
-                    	this.profilerValue.compute_time.stop();
+                    	profiler.compute_time.stop();
                     }
                 }
             }
         } // WHILE
         if (this.isProfiling) {
-        	this.profiler.num_comparisons.put(msg_ctr);
-        	this.profilerValue.num_comparisons.put(msg_ctr);
+        	profiler.num_comparisons.put(msg_ctr);
         }
         
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
         if (next != null) {
             if (this.isProfiling) {
-            	this.profiler.success++;
-            	this.profilerValue.success++;
+            	profiler.success++;
             }
             it.remove();
             if (debug.get()) 
@@ -254,14 +242,13 @@ public class SpecExecScheduler {
         }
         
         if (this.isProfiling) { 
-        	this.profiler.total_time.stop();
-        	this.profilerValue.total_time.stop();
+        	profiler.total_time.stop();
         }
         return (next);
     }
     
-    public SpecExecProfiler getProfiler() {
+    public Map<SpeculationType,SpecExecProfiler> getProfilers() {
         //return (this.profiler);
-    	return (this.profilerValue);
+    	return (this.profilerMap);
     }
 }
