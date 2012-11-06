@@ -121,7 +121,9 @@ public abstract class MarkovGraphContainersUtil {
                 queued_all.set(true);
                 
                 // Poke all our threads just in case they finished
-                for (Thread t : processing_threads) t.interrupt();
+                for (Thread t : processing_threads) {
+                    if (t != null) t.interrupt();
+                } // FOR
             }
         });
         
