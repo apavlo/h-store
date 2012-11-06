@@ -2,6 +2,8 @@ package edu.brown.hstore.stats;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
 import org.voltdb.StatsSource;
@@ -9,6 +11,8 @@ import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
+import org.voltdb.types.SpeculationType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.PartitionExecutor;
@@ -27,15 +31,24 @@ public class SpecExecProfilerStats extends StatsSource {
     }
 
     private final HStoreSite hstore_site;
+    private Set<Pair<Integer, SpeculationType>> sortedPair = new TreeSet<Pair<Integer,SpeculationType>>();
 
     public SpecExecProfilerStats(HStoreSite hstore_site) {
         super(SysProcSelector.SPECEXECPROFILER.name(), false);
         this.hstore_site = hstore_site;
+        
+        for (int partition: hstore_site.getLocalPartitionIds().values()) {
+        	for (SpeculationType type: SpeculationType.getNameMap().values()) {
+        		Pair<Integer, SpeculationType> pair = new Pair<Integer, SpeculationType>(partition, type);
+        		this.sortedPair.add(pair);
+        	}
+        }
     }
     
     @Override
     protected Iterator<Object> getStatsRowKeyIterator(boolean interval) {
         final Iterator<Integer> it = hstore_site.getLocalPartitionIds().iterator();
+
         return new Iterator<Object>() {
             @Override
             public boolean hasNext() {
@@ -78,12 +91,15 @@ public class SpecExecProfilerStats extends StatsSource {
 
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
-        Integer partition = (Integer)rowKey;
+        Pair<Integer, SpeculationType> rowKeyPair = (Pair<Integer, SpeculationType>) rowKey;
+        Integer partition = rowKeyPair.getFirst();
+        SpeculationType rowValue = rowKeyPair.getSecond();
         PartitionExecutor.Debug dbg = hstore_site.getPartitionExecutor(partition).getDebugContext();
-        SpecExecProfiler profiler = dbg.getSpecExecScheduler().getProfiler();
+        SpecExecProfiler profiler = dbg.getSpecExecScheduler().getProfilers().get(rowValue);
         assert(profiler != null);
         
         int offset = columnNameToIndex.get("PARTITION");
+        columns.add(new VoltTable.ColumnInfo("SPECULATE_TYPE", VoltType.STRING));
         rowValues[offset++] = partition;
         rowValues[offset++] = profiler.success;
         rowValues[offset++] = profiler.success / (double)profiler.total_time.getInvocations();

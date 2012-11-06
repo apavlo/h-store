@@ -7,7 +7,6 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.SpeculationType;
 
@@ -104,7 +103,7 @@ public class SpecExecScheduler {
     public StartTxnMessage next(AbstractTransaction dtxn, SpeculationType specType) {
     	SpecExecProfiler profiler = null;
     	if (this.isProfiling) {
-        	profiler = profilerMap.get(specType);
+    		profiler = profilerMap.get(specType);
         	profiler.total_time.start();
         }
         
