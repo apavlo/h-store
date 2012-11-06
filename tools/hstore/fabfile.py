@@ -121,9 +121,9 @@ env.port = 22
 ENV_DEFAULT = {
     ## EC2 Options
     "ec2.site_type":               "m2.4xlarge",
-    "ec2.site_ami":                "ami-39a81d50",
+    "ec2.site_ami":                "ami-9a873ff3",
     "ec2.client_type":             "m1.xlarge",
-    "ec2.client_ami":              "ami-39a81d50",
+    "ec2.client_ami":              "ami-9a873ff3",
     "ec2.placement_group":         None,
     "ec2.security_group":          "hstore",
     "ec2.keypair":                 "hstore",
