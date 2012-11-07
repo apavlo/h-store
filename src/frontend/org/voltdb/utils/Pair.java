@@ -109,6 +109,6 @@ public class Pair<T, U> implements Comparable<Pair<T, U>> {
      * inference.
      */
     public static <T, U> Pair<T, U> of(T x, U y) {
-        return new Pair<T, U>(x, y);
+        return new Pair<T, U>(x, y, true);
     }
 }

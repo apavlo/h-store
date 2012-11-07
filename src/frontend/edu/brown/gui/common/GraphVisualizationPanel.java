@@ -11,6 +11,7 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.geom.Point2D;
 import java.lang.reflect.Method;
+import java.util.concurrent.CountDownLatch;
 
 import javax.swing.JFrame;
 
@@ -116,6 +117,23 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         }
     }
     
+    public static <V, E> void show(final Graph<V, E> graph) throws InterruptedException {
+        final CountDownLatch latch = new CountDownLatch(1);
+        Thread t = new Thread() {
+            @SuppressWarnings("unchecked")
+            public void run() {
+                try {
+                    GraphVisualizationPanel.createFrame(graph).setVisible(true);
+                } finally {
+                    latch.countDown();
+                }
+            }
+        };
+        t.setDaemon(true);
+        t.start();
+        latch.await();
+    }
+        
     /**
      * Convenience method for creating a JFrame that displays the graph
      * @param <V>

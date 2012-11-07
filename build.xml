@@ -2006,7 +2006,7 @@ UTILITIES
 </target>
 
 <target name='conflicts-dump' description="Export table-based ConflictGraphs as GraphViz File">
-    <java fork="yes" classname="edu.brown.catalog.conflicts.ConflictSetDump">
+    <java fork="yes" classname="edu.brown.catalog.conflicts.ConflictSetTableDumper">
         <jvmarg value="-Xmx512m" />
         <arg value="catalog.jar=${jar}" />
         <arg value="conflicts.exclude_procedures=${excludeProcedures}" />
