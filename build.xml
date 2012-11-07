@@ -2005,6 +2005,21 @@ UTILITIES
 </exec>-->
 </target>
 
+<target name='conflicts-dump' description="Export table-based ConflictGraphs as GraphViz File">
+    <java fork="yes" classname="edu.brown.catalog.conflicts.ConflictSetDump">
+        <jvmarg value="-Xmx512m" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="conflicts.exclude_procedures=${excludeProcedures}" />
+        <arg value="conflicts.exclude_statements=${excludeStatements}" />
+        <arg value="conflicts.focus=${focus}" />
+        <arg line="${output}" />
+        <classpath refid='project.classpath' />
+        <assertions>
+            <enable />
+        </assertions>
+    </java>
+</target>
+
 <!--
 ******************************************************************************
 * WORKLOAD OPERATIONS

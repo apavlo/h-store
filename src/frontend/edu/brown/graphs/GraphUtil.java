@@ -48,11 +48,13 @@ public abstract class GraphUtil {
      */
     public static <V extends AbstractVertex, E extends AbstractEdge> Collection<E> removeEdgesWithoutVertex(IGraph<V, E> graph, V v) {
         Set<E> toRemove = new HashSet<E>();
-        for (E e : graph.getEdges()) {
-            if (graph.isIncident(v, e) == false) {
-                toRemove.add(e);
-            }
-        } // FOR
+        if (v != null) {
+            for (E e : graph.getEdges()) {
+                if (graph.isIncident(v, e) == false) {
+                    toRemove.add(e);
+                }
+            } // FOR
+        }
         for (E e : toRemove) {
             graph.removeEdge(e);
         } // FOR
