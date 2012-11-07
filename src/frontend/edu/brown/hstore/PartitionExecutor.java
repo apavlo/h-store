@@ -1177,7 +1177,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (t) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
             try {
-                work = this.specExecScheduler.next(this.currentDtxn);
+                work = this.specExecScheduler.next(this.currentDtxn, this.calculateSpeculationType());
             } finally {
                 if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.stop();
             }
@@ -1879,6 +1879,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (t) LOG.trace("Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
         }
         
+        if (hstore_conf.site.txn_counters) TransactionCounter.EXECUTED.inc(ts.getProcedure());
         ClientResponseImpl cresponse = null;
         try {
             cresponse = volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...

@@ -1846,8 +1846,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts, base_partition
      */
     public void transactionStart(LocalTransaction ts, int base_partition) {
-        final Long txn_id = ts.getTransactionId();
-        final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         
         if (d) LOG.debug(String.format("Starting %s %s on partition %d%s",
@@ -1862,12 +1860,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
         final boolean success = this.executors[base_partition].queueNewTransaction(ts);
-        
-        if (hstore_conf.site.txn_counters && success) {
-            assert(catalog_proc != null) :
-                String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
-            TransactionCounter.EXECUTED.inc(catalog_proc);
-        }
         
         if (success == false) {
             // Depending on what we need to do for this type txn, we will send

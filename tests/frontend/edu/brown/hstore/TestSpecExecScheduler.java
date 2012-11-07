@@ -8,6 +8,7 @@ import java.util.List;
 import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
+import org.voltdb.types.SpeculationType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
@@ -99,7 +100,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
               this.work_queue.add(new StartTxnMessage(ts));
           }
           
-          StartTxnMessage next = this.scheduler.next(this.dtxn);
+          StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
           System.err.println(this.dtxn.debug());
           assertNotNull(next);
           assertEquals(tsWithoutEstimatorState, next.getTransaction());
@@ -149,7 +150,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
             this.work_queue.add(new StartTxnMessage(ts));
         }
         
-        StartTxnMessage next = this.scheduler.next(this.dtxn);
+        StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(tsWithoutEstimatorState, next.getTransaction());
@@ -178,7 +179,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
         
-        StartTxnMessage next = this.scheduler.next(this.dtxn);
+        StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         //System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
@@ -213,7 +214,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
-        StartTxnMessage next = this.scheduler.next(this.dtxn);
+        StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
         assertFalse(this.work_queue.contains(next));
@@ -225,7 +226,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
-        next = this.scheduler.next(this.dtxn);
+        next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNull(next);
         ts.finish();
         
@@ -235,7 +236,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
-        next = this.scheduler.next(this.dtxn);
+        next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNull(next);
         ts.finish();
     }
@@ -269,7 +270,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
-        StartTxnMessage next = this.scheduler.next(this.dtxn);
+        StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
         assertFalse(this.work_queue.contains(next));
@@ -281,7 +282,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
-        next = this.scheduler.next(this.dtxn);
+        next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
         assertFalse(this.work_queue.contains(next));
@@ -293,7 +294,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.work_queue.add(new StartTxnMessage(ts));
-        next = this.scheduler.next(this.dtxn);
+        next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNull(next);
     }
 

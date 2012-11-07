@@ -46,7 +46,7 @@ public abstract class StatsSource {
     /**
      * Column schema for statistical result rows
      */
-    private final ArrayList<ColumnInfo> columns = new ArrayList<ColumnInfo>();
+    protected final ArrayList<ColumnInfo> columns = new ArrayList<ColumnInfo>();
 
     /**
      * Map from the name of a column to its index in the a result row. In order to decouple the contributions of each class
