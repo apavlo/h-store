@@ -80,6 +80,7 @@ import org.voltdb.CatalogContext;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Site;
@@ -1317,6 +1318,8 @@ public class BenchmarkController {
                         if (stdevs[i] == null) stdevs[i] = new ArrayList<Double>();
                         stdevs[i].add(vt.getDouble(offset + i));
                         // stdevs[i].put(vt.getDouble(offset + i), vt.getLong(offset + 1));
+                    } else if (vt.getColumnType(offset + i) == VoltType.STRING) {
+                        row[i] = vt.getString(offset + i);
                     } else {
                         row[i] = ((Long)row[i]) + vt.getLong(offset + i);
                     }
