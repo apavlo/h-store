@@ -300,6 +300,7 @@ public class ConflictSetCalculator {
                 // If both queries are INSERTs, then this is always a conflict since
                 // there might be a global constraint... 
                 if (type0 == QueryType.INSERT && type1 == QueryType.INSERT) {
+                    assert(intersectTables.size() == 1);
                     alwaysConflicting1 = true;
                 }
                     

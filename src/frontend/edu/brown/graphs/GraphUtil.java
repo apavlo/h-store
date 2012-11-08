@@ -2,6 +2,7 @@ package edu.brown.graphs;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -18,6 +19,7 @@ import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
@@ -42,14 +44,43 @@ public abstract class GraphUtil {
 
     /**
      * Remove all of the edges that are not incident to the given vertex
-     * Returns the set of edges that were removed
      * @param graph
      * @param v
+     * @return Returns the set of edges that were removed
      */
-    public static <V extends AbstractVertex, E extends AbstractEdge> Collection<E> removeEdgesWithoutVertex(IGraph<V, E> graph, V v) {
+    public static <V extends AbstractVertex, E extends AbstractEdge> Collection<E> removeEdgesWithoutVertex(IGraph<V, E> graph, V...vertices) {
+        if (debug.get()) LOG.debug("Removing edges that are not incident to " + Arrays.toString(vertices));
         Set<E> toRemove = new HashSet<E>();
         for (E e : graph.getEdges()) {
-            if (graph.isIncident(v, e) == false) {
+            boolean found = false;
+            for (V v : vertices) {
+                if (graph.isIncident(v, e)) {
+                    found = true;
+                    break;
+                }
+            } // FOR
+            if (found == false) toRemove.add(e);
+        } // FOR
+        for (E e : toRemove) {
+            graph.removeEdge(e);
+        } // FOR
+        return (toRemove);
+    }
+    
+    /**
+     * Remove any edges where the source and destination are the same vertex
+     * @param graph
+     * @return Returns the set of edges that were removed
+     */
+    public static <V extends AbstractVertex, E extends AbstractEdge> Collection<E> removeLoopEdges(IGraph<V, E> graph) {
+        Set<E> toRemove = new HashSet<E>();
+        for (E e : graph.getEdges()) {
+            Collection<V> vertices = graph.getIncidentVertices(e);
+            if (vertices == null) continue;
+            if (vertices.size() == 1) {
+                toRemove.add(e);
+            }
+            else if (CollectionUtil.first(vertices) == CollectionUtil.get(vertices, 1)) {
                 toRemove.add(e);
             }
         } // FOR
@@ -59,6 +90,11 @@ public abstract class GraphUtil {
         return (toRemove);
     }
     
+    /**
+     * 
+     * @param graph
+     * @return Returns the set of vertices that were removed
+     */
     public static <V extends AbstractVertex, E extends AbstractEdge> Collection<V> removeDisconnectedVertices(IGraph<V, E> graph) {
         Set<V> toRemove = new HashSet<V>();
         for (V v : graph.getVertices()) {
