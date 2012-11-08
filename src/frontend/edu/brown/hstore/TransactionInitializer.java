@@ -57,6 +57,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
 
 /**
  * This class is responsible for figuring out everything about a txn before it 
@@ -539,6 +540,7 @@ public class TransactionInitializer {
         // TRANSACTION ESTIMATORS
         // -------------------------------
         else if (hstore_conf.site.markov_enable || hstore_conf.site.markov_fixed) {
+            if (d) LOG.debug("Setting EstimatorState@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
             if (d) LOG.debug(String.format("%s - Using TransactionEstimator to check whether txn is single-partitioned " +
             		         "[clientHandle=%d]",
             		         AbstractTransaction.formatTxnName(catalog_proc, txn_id), ts.getClientHandle()));
@@ -551,16 +553,23 @@ public class TransactionInitializer {
                 t_estimator = this.hstore_site.getPartitionExecutor(base_partition).getTransactionEstimator();
                 this.t_estimators[base_partition] = t_estimator;
             }
+            if (d && t_estimator instanceof MarkovEstimator) {
+                LOG.debug("We are in fact using a MarkovEstimator@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            }
             
             try {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitEstimation();
                 if (t_estimator != null) {
                     t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
                 }
+                else if (d) {
+                    LOG.debug("t_estimator is null@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                }
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
+                    if (d) LOG.debug("No EstimationState was returned. Using default estimate@@@@@@@@@@");
                     if (d) LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
                 }
@@ -656,6 +665,7 @@ public class TransactionInitializer {
                 params,
                 client_callback);
         if (t_state != null) ts.setEstimatorState(t_state);
+        else if (d) LOG.debug("EstimatorState was not set on the transaction@@@@@@@@@@@@@@@@@@@@@@@@@@@");
         if (hstore_conf.site.txn_profiling && ts.profiler != null) 
             ts.profiler.setSingledPartitioned(ts.isPredictSinglePartition());
         

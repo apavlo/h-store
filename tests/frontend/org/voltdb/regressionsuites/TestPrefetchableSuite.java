@@ -201,7 +201,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
  
     static public junit.framework.Test suite() throws IOException {
         File mappings = ParametersUtil.getParameterMappingsFile(ProjectType.TPCC);
-        File markovs = new File("files/markovs/vldb-august2012/tpcc-2p.markov.gz"); // HACK
+        File markovs = new File("files/markovs/vldb-august2012/tpcc-4p.markov.gz"); // HACK
         
         VoltServerConfig config = null;
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPrefetchableSuite.class);
@@ -213,6 +213,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.markov_enable", true);
         builder.setGlobalConfParameter("site.markov_path", markovs.getAbsolutePath());
         builder.setGlobalConfParameter("site.txn_client_debug", true);
+        builder.setGlobalConfParameter("site.network_startup_wait", 60000);
         
 //        VoltProjectBuilder project = new VoltProjectBuilder(PREFIX);
 //        project.addSchema(SquirrelsDistributed.class.getResource(PREFIX + "-ddl.sql"));
@@ -233,7 +234,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
-        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 4, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
