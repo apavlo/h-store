@@ -232,6 +232,14 @@ public abstract class ConflictSetTableDumper {
         // Export!
         GraphvizExport<Vertex, Edge> gvx = new GraphvizExport<Vertex, Edge>(graph);
         gvx.setEdgeLabels(true);
+        
+        for (Vertex v : graph.getVertices()) {
+            // Generate subgraphs based on procedure
+            ProcedureTable procTbl = v.getCatalogItem();
+            Procedure proc = procTbl.pair.getFirst();
+            gvx.addSubgraph(proc.getName(), v);
+        } // FOR
+        
         String graphviz = gvx.export(args.catalog_type.name());
         if (!graphviz.isEmpty()) {
             String output = args.getOptParam(0);

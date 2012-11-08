@@ -122,7 +122,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     
     private final Map<V, AttributeValues> vertex_attrs = new HashMap<V, AttributeValues>(); 
     private final Map<E, AttributeValues> edge_attrs = new HashMap<E, AttributeValues>();
-    
+    private final Map<String, Set<V>> subgraphs = new HashMap<String, Set<V>>();
     
     /**
      * Constructor
@@ -130,6 +130,15 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      */
     public GraphvizExport(IGraph<V, E> graph) {
         this.graph = graph;
+    }
+    
+    public void addSubgraph(String subgraph, V...vertices) {
+        Set<V> subVertices = this.subgraphs.get(subgraph);
+        if (subVertices == null) {
+            subVertices = new HashSet<V>();
+            this.subgraphs.put(subgraph, subVertices);
+        }
+        for (V v : vertices) subVertices.add(v);
     }
     
     public void setGlobalLabel(String contents) {
@@ -219,6 +228,17 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         String edge_type = " " + (digraph ? "->" : "--") + " ";
         b.append(graph_type + " " + graphName + " {\n");
 
+        // Subgraphs
+        Set<V> subgraph_vertices = new HashSet<V>();
+        for (String subgraph : this.subgraphs.keySet()) {
+            b.append(StringUtil.SPACER).append("subgraph ").append(subgraph).append(" {\n");
+            for (V v : this.subgraphs.get(subgraph)) {
+                AttributeValues av = this.getAttributes(v, false);
+                this.writeVertex(b, v.toString(), av, StringUtil.SPACER + StringUtil.SPACER);
+            } // FOR
+            b.append(StringUtil.SPACER).append("}\n");
+        } // FOR
+        
         // Global Graph Attributes
         b.append(StringUtil.SPACER).append("graph [\n");
         b.append(StringUtil.addSpacers(this.getGlobalGraphAttributes().toString("\n")));
@@ -286,15 +306,17 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
             if (!all_vertices.contains(v) && !this.allow_isolated) continue;
             // If this vertex was a part of an edge but it doesn't have any custom attributes, then skip
             if (all_vertices.contains(v) && !this.hasAttributes(v)) continue;
+            // If it's already in a subgraph, then skip it
+            if (subgraph_vertices.contains(v)) continue;
             
             AttributeValues av = this.getAttributes(v, false);
-            this.writeVertex(b, v.toString(), av);
+            this.writeVertex(b, v.toString(), av, StringUtil.SPACER);
         } // FOR
         
         // Global Graph Label
         if (this.graph_label != null) {
             this.graph_label_attrs.put(Attribute.LABEL, this.graph_label);
-            this.writeVertex(b, "__global__", this.graph_label_attrs);
+            this.writeVertex(b, "__global__", this.graph_label_attrs, StringUtil.SPACER);
         }
         
         // Close graph
@@ -303,8 +325,8 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         return (b.toString());
     }
 
-    private void writeVertex(StringBuilder b, String id, AttributeValues av) {
-        b.append(String.format("%s\"%s\"", StringUtil.SPACER, id));
+    private void writeVertex(StringBuilder b, String id, AttributeValues av, String spacer) {
+        b.append(String.format("%s\"%s\"", spacer, id));
         
         // Vertex Attributes
         if (av != null) {
