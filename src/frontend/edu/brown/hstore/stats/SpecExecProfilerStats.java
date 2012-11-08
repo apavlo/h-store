@@ -47,8 +47,9 @@ public class SpecExecProfilerStats extends StatsSource {
     
     @Override
     protected Iterator<Object> getStatsRowKeyIterator(boolean interval) {
-        final Iterator<Integer> it = hstore_site.getLocalPartitionIds().iterator();
-
+        //final Iterator<Integer> it = hstore_site.getLocalPartitionIds().iterator();
+        final Iterator<Pair<Integer,SpeculationType>> it = sortedPair.iterator();
+        
         return new Iterator<Object>() {
             @Override
             public boolean hasNext() {
