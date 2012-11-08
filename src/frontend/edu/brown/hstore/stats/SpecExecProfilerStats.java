@@ -71,13 +71,14 @@ public class SpecExecProfilerStats extends StatsSource {
         super.populateColumnSchema(columns);
         
         columns.add(new VoltTable.ColumnInfo("PARTITION", VoltType.INTEGER));
+        columns.add(new VoltTable.ColumnInfo("SPECULATE_TYPE", VoltType.STRING));
         columns.add(new VoltTable.ColumnInfo("SUCCESS_CNT", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("SUCCESS_RATE", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("QUEUE_SIZE_AVG", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("QUEUE_SIZE_STDEV", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("COMPARISONS_AVG", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("COMPARISONS_STDEV", VoltType.FLOAT));
-
+        
         // Make a dummy profiler just so that we can get the fields from it
         SpecExecProfiler profiler = new SpecExecProfiler();
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
@@ -100,14 +101,15 @@ public class SpecExecProfilerStats extends StatsSource {
         assert(profiler != null);
         
         int offset = columnNameToIndex.get("PARTITION");
-        columns.add(new VoltTable.ColumnInfo("SPECULATE_TYPE", VoltType.STRING));
         rowValues[offset++] = partition;
+        rowValues[offset++] = rowValue.toString();
         rowValues[offset++] = profiler.success;
         rowValues[offset++] = profiler.success / (double)profiler.total_time.getInvocations();
         rowValues[offset++] = MathUtil.weightedMean(profiler.queue_size);
         rowValues[offset++] = MathUtil.stdev(profiler.queue_size);
         rowValues[offset++] = MathUtil.weightedMean(profiler.num_comparisons);
         rowValues[offset++] = MathUtil.stdev(profiler.num_comparisons);
+        
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();
             rowValues[offset++] = pm.getInvocations();
