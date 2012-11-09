@@ -1321,6 +1321,8 @@ public class BenchmarkController {
                     } else if (vt.getColumnType(offset + i) == VoltType.STRING) {
                         row[i] = vt.getString(offset + i);
                     } else {
+                    	LOG.info(String.format("offset: %d, i: %d, VoltTable: %s,",offset,i, vt));
+                    	System.err.println(String.format("offset: %d, i: %d, VoltTable: %s,",offset,i, vt));
                         row[i] = ((Long)row[i]) + vt.getLong(offset + i);
                     }
                 } // FOR
