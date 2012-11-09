@@ -1320,9 +1320,11 @@ public class BenchmarkController {
                         // stdevs[i].put(vt.getDouble(offset + i), vt.getLong(offset + 1));
                     } else if (vt.getColumnType(offset + i) == VoltType.STRING) {
                         row[i] = vt.getString(offset + i);
+                    } else if (vt.getColumnType(offset + i) == VoltType.FLOAT) {
+                        row[i] = vt.getDouble(offset + i);
                     } else {
-                    	LOG.info(String.format("offset: %d, i: %d, VoltTable: %s,",offset,i, vt));
-                    	System.err.println(String.format("offset: %d, i: %d, VoltTable: %s,",offset,i, vt));
+                    	//LOG.info(String.format("offset: %d, i: %d, VoltTable: %s,",offset,i, vt));
+                    	//System.err.println(String.format("offset: %d, i: %d, VoltTable: %s,",offset,i, vt));
                         row[i] = ((Long)row[i]) + vt.getLong(offset + i);
                     }
                 } // FOR
