@@ -476,7 +476,7 @@ public class MarkovEstimator extends TransactionEstimator {
             List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
             if (initialPath.contains(currentVertex)) {
                 if (d) LOG.debug(String.format("%s - Using fast path estimation for %s[#%d]",
-                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
+                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
                 if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, initialPath, currentVertex);

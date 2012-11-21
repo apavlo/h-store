@@ -44,25 +44,25 @@ public class TestMarkovSuite extends RegressionSuite {
         super(name);
     }
     
-//    /**
-//     * testInitialize
-//     */
-//    public void testInitialize() throws Exception {
-//        Client client = this.getClient();
-//        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
-//        
-//        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-//        for (String tableName : TPCCConstants.TABLENAMES) {
-//            String query = "SELECT COUNT(*) FROM " + tableName;
-//            ClientResponse cresponse = client.callProcedure(procName, query);
-//            assertEquals(Status.OK, cresponse.getStatus());
-//            VoltTable results[] = cresponse.getResults();
-//            assertEquals(1, results.length);
-//            long count = results[0].asScalarLong();
-//            assertTrue(tableName + " -> " + count, count > 0);
-//            // System.err.println(tableName + "\n" + VoltTableUtil.format(results[0]));
-//        } // FOR
-//    }
+    /**
+     * testInitialize
+     */
+    public void testInitialize() throws Exception {
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+        
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        for (String tableName : TPCCConstants.TABLENAMES) {
+            String query = "SELECT COUNT(*) FROM " + tableName;
+            ClientResponse cresponse = client.callProcedure(procName, query);
+            assertEquals(Status.OK, cresponse.getStatus());
+            VoltTable results[] = cresponse.getResults();
+            assertEquals(1, results.length);
+            long count = results[0].asScalarLong();
+            assertTrue(tableName + " -> " + count, count > 0);
+            // System.err.println(tableName + "\n" + VoltTableUtil.format(results[0]));
+        } // FOR
+    }
     
     /**
      * testSinglePartitionCaching
@@ -136,32 +136,29 @@ public class TestMarkovSuite extends RegressionSuite {
         assertEquals(targetCol, num_invocations, cached_cnt);
     }
     
-//    /**
-//     * testDistributedTxn
-//     */
-//    public void testDistributedTxn() throws Exception {
-//        CatalogContext catalogContext = this.getCatalogContext();
-//        Client client = this.getClient();
-//        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
-//
-//        // Fire off a distributed neworder txn
-//        // It should always come back with zero restarts
-//        String procName = neworder.class.getSimpleName();
-//        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, (short)2);
-//        
-//        ClientResponse cresponse = client.callProcedure(procName, params);
-//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-//        assertFalse(cresponse.toString(), cresponse.isSinglePartition());
-//        assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
-////        System.err.println(cresponse);
-//        
-//        // Get the MarkovEstimatorProfiler stats
-//        procName = VoltSystemProcedure.procCallName(Statistics.class);
-//        params = new Object[]{ SysProcSelector.MARKOVPROFILER.name(), 0 };
-//        cresponse = client.callProcedure(procName, params);
-//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-//        System.err.println(VoltTableUtil.format(cresponse.getResults()[0]));
-//    }
+    /**
+     * testDistributedTxn
+     */
+    public void testDistributedTxn() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
+
+        // Fire off a distributed neworder txn
+        // It should always come back with zero restarts
+        String procName = neworder.class.getSimpleName();
+        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, (short)2);
+        
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertFalse(cresponse.toString(), cresponse.isSinglePartition());
+        assertEquals(cresponse.toString(), 0, cresponse.getRestartCounter());
+//        System.err.println(cresponse);
+        
+        // Get the MarkovEstimatorProfiler stats
+        cresponse = RegressionSuiteUtil.getStats(client, SysProcSelector.MARKOVPROFILER);
+        System.err.println(VoltTableUtil.format(cresponse.getResults()[0]));
+    }
     
     public static Test suite() throws Exception {
         File mappings = ParametersUtil.getParameterMappingsFile(ProjectType.TPCC);
@@ -200,10 +197,10 @@ public class TestMarkovSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #2: Cluster of 2 sites each with 1 partition
         ////////////////////////////////////////////////////////////
-//        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }
