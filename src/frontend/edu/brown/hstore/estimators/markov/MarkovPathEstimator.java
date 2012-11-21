@@ -239,7 +239,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         Collection<MarkovVertex> next_vertices = markov.getSuccessors(element);
         if (next_vertices == null || next_vertices.isEmpty()) {
             if (t) LOG.trace("No succesors were found for " + element + ". Halting traversal");
-            this.stop();
             return;
         }
         if (t) LOG.trace("Successors: " + next_vertices);
@@ -500,6 +499,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     @Override
     protected void callback(MarkovVertex v) {
+        this.estimate.path.add(v);
         if (v.isQueryVertex() == false) {
             if (v.isCommitVertex()) {
                 if (t) LOG.trace("Reached COMMIT. Stopping...");
@@ -509,7 +509,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 this.stop();
             }
         }
-        this.estimate.path.add(v);
     }
     
     
