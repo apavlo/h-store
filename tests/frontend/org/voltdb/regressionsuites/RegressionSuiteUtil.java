@@ -5,6 +5,7 @@ import java.util.Random;
 
 import junit.framework.TestCase;
 
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
@@ -19,6 +20,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.SetConfiguration;
+import org.voltdb.sysprocs.Statistics;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTypeUtil;
 
@@ -40,7 +42,15 @@ public abstract class RegressionSuiteUtil {
         String confParams[] = {paramName};
         String confValues[] = {paramValue.toString()};
         ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
-        assert(cresponse.getStatus() == Status.OK);
+        assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+        return (cresponse);
+    }
+    
+    public static ClientResponse getStats(Client client, SysProcSelector statsType) throws Exception {
+        String procName = VoltSystemProcedure.procCallName(Statistics.class);
+        Object params[] = { statsType.name(), 0 };
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
         return (cresponse);
     }
     

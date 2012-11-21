@@ -365,7 +365,7 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovEstimatorState state = (MarkovEstimatorState)s;
 
         // The transaction for the given txn_id is in limbo, so we just want to remove it
-        if (status != Status.OK && status == Status.ABORT_MISPREDICT) {
+        if (status == Status.ABORT_MISPREDICT) {
             state.getMarkovGraph().incrementMispredictionCount();
             if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
             return;
@@ -373,62 +373,60 @@ public class MarkovEstimator extends TransactionEstimator {
 
         Long txn_id = state.getTransactionId();
         long end_time = EstTime.currentTimeMillis();
-        if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [status=%s]",
-                         txn_id, status));
+        MarkovGraph markov = state.getMarkovGraph();
+        if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [status=%s]", txn_id, status));
 
         // If there were no updates while the transaction was running, then
         // we don't want to try to update the model, because we will end up
         // connecting the START vertex to the COMMIT vertex, which is not correct
-        if (state.updatesEnabled() == false) {
-            if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
-            return;
-        }
-        
-        // We need to update the counter information in our MarkovGraph so that we know
-        // that the procedure may transition to the ABORT vertex from where ever it was before 
-        MarkovGraph markov = state.getMarkovGraph();
-        MarkovVertex current = state.getCurrent();
-        assert(current != null) : 
-            String.format("Missing current vertex for %s\n%s",
-                          AbstractTransaction.formatTxnName(markov.getProcedure(), txn_id), state);
-        
-        // If we don't have the terminal vertex, then we know that we don't care about
-        // what this transaction actually did
-        MarkovVertex next_v = markov.getFinishVertex(status);
-        if (next_v == null) {
-            if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
-            return;
-        }
-        
-        // If no edge exists to the next vertex, then we need to create one
-        MarkovEdge next_e = null;
-        synchronized (next_v) {
-            next_e = markov.addToEdge(current, next_v);
-        } // SYNCH
-        state.setCurrent(next_v, next_e); // For post-txn processing...
-
-        // Update counters
-        // We want to update the counters for the entire path right here so that
-        // nobody gets incomplete numbers if they recompute probabilities
-        for (MarkovVertex v : state.actual_path) v.incrementInstanceHits();
-        for (MarkovEdge e : state.actual_path_edges) e.incrementInstanceHits();
-        if (this.enable_recomputes) {
-            this.markovTimes.addInstanceTime(next_v, txn_id, state.getExecutionTimeOffset(end_time));
-        }
-        
-        // Store this as the last accurate MarkovPathEstimator for this graph
-        if (hstore_conf.site.markov_path_caching &&
-            this.cached_paths.containsKey(state.getMarkovGraph()) == false &&
-            state.getInitialEstimate().isValid()) {
+        if (state.updatesEnabled()) {
+            // We need to update the counter information in our MarkovGraph so that we know
+            // that the procedure may transition to the ABORT vertex from where ever it was before 
+            MarkovVertex current = state.getCurrent();
+            assert(current != null) : 
+                String.format("Missing current vertex for %s\n%s",
+                              AbstractTransaction.formatTxnName(markov.getProcedure(), txn_id), state);
             
-            MarkovEstimate initialEst = s.getInitialEstimate(); 
+            // If we don't have the terminal vertex, then we know that we don't care about
+            // what this transaction actually did
+            MarkovVertex next_v = markov.getFinishVertex(status);
+            if (next_v == null) {
+                if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
+                return;
+            }
+            
+            // If no edge exists to the next vertex, then we need to create one
+            MarkovEdge next_e = null;
+            synchronized (next_v) {
+                next_e = markov.addToEdge(current, next_v);
+            } // SYNCH
+            state.setCurrent(next_v, next_e); // For post-txn processing...
+    
+            // Update counters
+            // We want to update the counters for the entire path right here so that
+            // nobody gets incomplete numbers if they recompute probabilities
+            for (MarkovVertex v : state.actual_path) v.incrementInstanceHits();
+            for (MarkovEdge e : state.actual_path_edges) e.incrementInstanceHits();
+            if (this.enable_recomputes) {
+                this.markovTimes.addInstanceTime(next_v, txn_id, state.getExecutionTimeOffset(end_time));
+            }
+        }
+        
+        // Cache the path for the MarkovGraph if the path was correct for the txn
+        if (hstore_conf.site.markov_path_caching && 
+            this.cached_paths.containsKey(markov) == false && state.getInitialEstimate().isValid()) {
+            MarkovEstimate initialEst = s.getInitialEstimate();
             synchronized (this.cached_paths) {
-                if (this.cached_paths.containsKey(state.getMarkovGraph()) == false) {
-                    if (d) LOG.debug(String.format("Storing cached MarkovVertex path for %s used by txn #%d",
-                                                   state.getMarkovGraph().toString(), txn_id));
-                    this.cached_paths.put(state.getMarkovGraph(), initialEst.getMarkovPath());
+                if (this.cached_paths.containsKey(markov) == false) {
+                    if (d) LOG.debug(String.format("Storing cached path through %s[#%d] that was used by txn #%d",
+                                     markov, markov.getGraphId(), txn_id));
+                    this.cached_paths.put(markov, initialEst.getMarkovPath());
                 }
             } // SYNCH
+        } else if (t && hstore_conf.site.markov_path_caching) {
+            LOG.trace(String.format("Not caching path through %s[#%d] used by txn #%d [alreadyCached=%s / isValid=%s]",
+                      markov, markov.getGraphId(), txn_id,
+                      this.cached_paths.containsKey(markov), state.getInitialEstimate().isValid()));
         }
         if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
         return;
@@ -477,7 +475,7 @@ public class MarkovEstimator extends TransactionEstimator {
         if (hstore_conf.site.markov_fast_path && currentVertex.isStartVertex() == false) {
             List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
             if (initialPath.contains(currentVertex)) {
-                if (d) LOG.debug(String.format("%s - Using fast path estimation for %s",
+                if (d) LOG.debug(String.format("%s - Using fast path estimation for %s[#%d]",
                                  AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
                 if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
@@ -494,17 +492,17 @@ public class MarkovEstimator extends TransactionEstimator {
         else if (hstore_conf.site.markov_path_caching) {
             List<MarkovVertex> cached = this.cached_paths.get(markov);
             if (cached == null) {
-                if (d) LOG.debug(String.format("%s - No cached path available for %s",
-                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
+                if (d) LOG.debug(String.format("%s - No cached path available for %s[#%d]",
+                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
             }
             else if (markov.getAccuracyRatio() < hstore_conf.site.markov_path_caching_threshold) {
-                if (d) LOG.debug(String.format("%s - MarkovGraph %s accuracy is below caching threshold [%.02f < %.02f]",
+                if (d) LOG.debug(String.format("%s - MarkovGraph %s[#%d] accuracy is below caching threshold [%.02f < %.02f]",
                         AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()),
-                        markov, markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
+                        markov, markov.getGraphId(), markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
             }
             else {
-                if (d) LOG.debug(String.format("%s - Using cached path for %s",
-                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
+                if (d) LOG.debug(String.format("%s - Using cached path for %s[#%d]",
+                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
                 if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, cached, currentVertex);
@@ -517,8 +515,8 @@ public class MarkovEstimator extends TransactionEstimator {
         
         // Use the MarkovPathEstimator to estimate a new path for this txn
         if (compute_path) {
-            if (d) LOG.debug(String.format("%s - Need to compute new path in %s using MarkovPathEstimator",
-                             AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov));
+            if (d) LOG.debug(String.format("%s - Need to compute new path in %s[#%d] using MarkovPathEstimator",
+                             AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
             MarkovPathEstimator pathEstimator = null;
             try {
                 pathEstimator = (MarkovPathEstimator)this.pathEstimatorsPool.borrowObject();
@@ -586,7 +584,7 @@ public class MarkovEstimator extends TransactionEstimator {
         synchronized (current) {
             Collection<MarkovEdge> edges = markov.getOutEdges(current);
             if (edges != null) {
-                if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.getTransactionId());
+                if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for txn #" + state.getTransactionId());
                 for (MarkovEdge e : edges) {
                     MarkovVertex v = markov.getDest(e);
                     if (v.isEqual(catalog_stmt, partitions, touchedPartitions, queryCounter)) {
