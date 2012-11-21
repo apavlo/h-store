@@ -43,6 +43,16 @@ public final class HStoreConf {
     public final class GlobalConf extends Conf {
         
         @ConfigProperty(
+            description="What version of the Java JDK should be used in this H-Store installation. " +
+                        "Accepted values are '1.6' or '1.7'. This will only be used when compiling " +
+                        "the system source code. It is up to you to configure your environment " +
+                        "appropriately to match whatever this is used for this option.",
+            defaultString="1.7",
+            experimental=false
+        )
+        public String jvm_version;
+        
+        @ConfigProperty(
             description="Temporary directory used to store various artifacts related to H-Store.",
             defaultString="obj",
             experimental=false

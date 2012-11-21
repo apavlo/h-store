@@ -3,6 +3,7 @@
 <!-- http://hstore.cs.brown.edu/documentation/development/configuration-properties -->
 
 <!-- GLOBAL -->
+<arg value="global.jvm_version=${global.jvm_version}" />
 <arg value="global.temp_dir=${global.temp_dir}" />
 <arg value="global.log_dir=${global.log_dir}" />
 <arg value="global.sshoptions=${global.sshoptions}" />
