@@ -3624,49 +3624,43 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param status - The final status of the transaction
      */
     private void finishDistributedTransaction(AbstractTransaction ts, Status status) {
+        assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
         boolean commit = (status == Status.OK);
-        if (this.currentDtxn == ts) {  
-            if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d [status=%s]",
-                             ts, this.partitionId, status));
-            assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
-    
-            // If the dtxn is committing, then we can let anything and
-            // everything out the door. If it is aborting, then we probably could
-            // be more fine-grained about how we decide what needs to get aborted.
-            boolean commitSpecExec = (ts.isExecReadOnly(this.partitionId) ? true : commit);
-            this.finishTransaction(ts, commit);
+        if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d [status=%s]",
+                         ts, this.partitionId, status));
+
+        // If the dtxn is committing, then we can let anything and
+        // everything out the door. If it is aborting, then we probably could
+        // be more fine-grained about how we decide what needs to get aborted.
+        boolean commitSpecExec = (ts.isExecReadOnly(this.partitionId) ? true : commit);
+        this.finishTransaction(ts, commit);
+        
+        // Clear our cached query results that are specific for this transaction
+        this.queryCache.purgeTransaction(ts.getTransactionId());
+        
+        // TODO: Remove anything in our queue for this txn
+        // if (ts.hasQueuedWork(this.partitionId)) {
+        // }
+        
+        // Check whether this is the response that the speculatively executed txns have been waiting for
+        // We could have turned off speculative execution mode beforehand 
+        if (d) LOG.debug(String.format("%s - Attempting to unmark as the current DTXN at partition %d and setting execution mode to %s",
+                         ts, this.partitionId, ExecutionMode.COMMIT_ALL));
+        try {
+            // Resetting the current_dtxn variable has to come *before* we change the execution mode
+            this.resetCurrentDtxn();
+            this.setExecutionMode(ts, ExecutionMode.COMMIT_ALL);
             
-            // Clear our cached query results that are specific for this transaction
-            this.queryCache.purgeTransaction(ts.getTransactionId());
-            
-            // TODO: Remove anything in our queue for this txn
-            // if (ts.hasQueuedWork(this.partitionId)) {
-            // }
-            
-            // Check whether this is the response that the speculatively executed txns have been waiting for
-            // We could have turned off speculative execution mode beforehand 
-            if (d) LOG.debug(String.format("%s - Attempting to unmark as the current DTXN at partition %d and setting execution mode to %s",
-                             ts, this.partitionId, ExecutionMode.COMMIT_ALL));
-            try {
-                // Resetting the current_dtxn variable has to come *before* we change the execution mode
-                this.resetCurrentDtxn();
-                this.setExecutionMode(ts, ExecutionMode.COMMIT_ALL);
-                
-                // We can always commit our boys no matter what if we know that this multi-partition txn 
-                // was read-only at the given partition
-                if (hstore_conf.site.specexec_enable) {
-                    this.releaseQueuedResponses(ts, commitSpecExec);
-                }
-                // Release blocked transactions
-                this.releaseBlockedTransactions(ts);
-            } catch (Throwable ex) {
-                String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
-                throw new ServerFaultException(msg, ex, ts.getTransactionId());
+            // We can always commit our boys no matter what if we know that this multi-partition txn 
+            // was read-only at the given partition
+            if (hstore_conf.site.specexec_enable) {
+                this.releaseQueuedResponses(ts, commitSpecExec);
             }
-        }
-        else if (d) {
-            LOG.debug(String.format("%s - Skipping finishWork request at partition %d because it is not the current Dtxn [%s/undoToken=%d]",
-                     ts, this.partitionId, this.currentDtxn, ts.getLastUndoToken(partitionId)));
+            // Release blocked transactions
+            this.releaseBlockedTransactions(ts);
+        } catch (Throwable ex) {
+            String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
+            throw new ServerFaultException(msg, ex, ts.getTransactionId());
         }
         
         // We only need to tell the queue stuff that the transaction is finished
