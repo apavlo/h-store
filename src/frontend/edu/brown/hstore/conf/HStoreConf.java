@@ -1110,6 +1110,14 @@ public final class HStoreConf {
         public boolean pool_profiling;
         
         @ConfigProperty(
+            description="Whether to enable object pooling for AbstractTransaction handles. This includes" +
+            		    "all local transactions, remote transactions, and MapReduce transactions.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean pool_txn_enable;
+        
+        @ConfigProperty(
             description="The max number of LocalTransaction handles to keep in the pool per partition.",
             defaultInt=150,
             experimental=false

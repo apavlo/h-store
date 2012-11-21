@@ -1319,7 +1319,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.addAppender(appender);    
             } // FOR
         }
-        LOG.info("Flusing all logs");
+        LOG.info("Preparing to shutdown. Flushing all logs");
         LoggerUtil.flushAllLogs();
         
         if (this.hstore_coordinator != null)
@@ -2558,8 +2558,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
             } // FOR
         }
-        
-        // XXX this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
+        if (hstore_conf.site.pool_txn_enable) {
+            this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
+        }
         return;
     }
 
@@ -2709,12 +2710,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + ts.getTransactionId();
         if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                          ts, ts.getClass().getSimpleName(), ts.hashCode()));
-        if (ts.isMapReduce()) {
-            objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
-        } else {
-            // XXX objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
+        if (hstore_conf.site.pool_txn_enable) {
+            if (ts.isMapReduce()) {
+                this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
+            } else {
+                this.objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
+            }
         }
-                
     }
 
     // ----------------------------------------------------------------------------

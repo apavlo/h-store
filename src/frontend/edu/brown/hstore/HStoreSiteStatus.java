@@ -1080,7 +1080,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         } // FOR
         
 //        hstore_conf.site.status_show_thread_info = true;
-        this.printStatus();
+        //this.printStatus();
         
         // Quick Sanity Check!
 //        for (int i = 0; i < 2; i++) {

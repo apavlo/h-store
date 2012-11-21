@@ -183,6 +183,7 @@
 <arg value="site.status_show_thread_info=${site.status_show_thread_info}" />
 <arg value="site.pool_scale_factor=${site.pool_scale_factor}" />
 <arg value="site.pool_profiling=${site.pool_profiling}" />
+<arg value="site.pool_txn_enable=${site.pool_txn_enable}" />
 <arg value="site.pool_localtxnstate_idle=${site.pool_localtxnstate_idle}" />
 <arg value="site.pool_mapreducetxnstate_idle=${site.pool_mapreducetxnstate_idle}" />
 <arg value="site.pool_remotetxnstate_idle=${site.pool_remotetxnstate_idle}" />

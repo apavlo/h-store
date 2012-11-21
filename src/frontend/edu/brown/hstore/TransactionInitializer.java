@@ -198,86 +198,6 @@ public class TransactionInitializer {
     // ----------------------------------------------------------------------------
     
     /**
-     * Create a MapReduceTransaction handle. This should only be invoked on a remote site.
-     * @param txn_id
-     * @param invocation
-     * @param base_partition
-     * @return
-     */
-    public MapReduceTransaction createMapReduceTransaction(Long txn_id,
-                                                           long initiateTime,
-                                                           long client_handle,
-                                                           int base_partition,
-                                                           int procId,
-                                                           ByteBuffer paramsBuffer) {
-        Procedure catalog_proc = this.catalogContext.getProcedureById(procId);
-        if (catalog_proc == null) {
-            throw new RuntimeException("Unknown procedure id '" + procId + "'");
-        }
-        
-        // Initialize the ParameterSet
-        FastDeserializer incomingDeserializer = new FastDeserializer();
-        ParameterSet procParams = new ParameterSet();
-        try {
-            incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(paramsBuffer));
-            procParams.readExternal(incomingDeserializer);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        } 
-        assert(procParams != null) :
-            "The parameters object is null for new txn from client #" + client_handle;
-        
-        MapReduceTransaction ts = null;
-        try {
-            ts = objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
-            assert(ts.isInitialized() == false);
-        } catch (Throwable ex) {
-            LOG.fatal(String.format("Failed to instantiate new MapReduceTransaction state for %s txn #%s",
-                                    catalog_proc.getName(), txn_id));
-            throw new RuntimeException(ex);
-        }
-        // We should never already have a transaction handle for this txnId
-        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
-        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
-
-        ts.init(txn_id, initiateTime, client_handle, base_partition, catalog_proc, procParams);
-        if (d) LOG.debug(String.format("Created new MapReduceTransaction state %s from remote partition %d",
-                                       ts, base_partition));
-        return (ts);
-    }
-    
-    
-    /**
-     * Create a RemoteTransaction handle. This obviously only for a remote site.
-     * @param txn_id
-     * @param request
-     * @return
-     */
-    public RemoteTransaction createRemoteTransaction(Long txn_id,
-                                                     PartitionSet partitions,
-                                                     int base_partition,
-                                                     int proc_id) {
-        RemoteTransaction ts = null;
-        Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
-        try {
-            // Remote Transaction
-            ts = new RemoteTransaction(hstore_site);
-            // XXX ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();
-            ts.init(txn_id, base_partition, null, catalog_proc, partitions, true);
-            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [partitions=%s, hashCode=%d]",
-                             ts, base_partition, partitions, ts.hashCode()));
-        } catch (Exception ex) {
-            LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
-            throw new RuntimeException(ex);
-        }
-        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
-        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
-        
-        if (t) LOG.trace(String.format("Stored new transaction state for %s", ts));
-        return (ts);
-    }
-    
-    /**
      * Create and initialize a LocalTransaction from a serialized StoredProcedureInvocation
      * request sent in from the client.  
      * @param serializedRequest
@@ -309,15 +229,22 @@ public class TransactionInitializer {
         LocalTransaction ts = null;
         try {
             if (catalog_proc.getMapreduce()) {
-                ts = this.objectPools.getMapReduceTransactionPool(base_partition)
-                                .borrowObject();
+                if (hstore_conf.site.pool_txn_enable) {
+                    ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
+                } else {
+                    ts = new MapReduceTransaction(hstore_site);
+                }
             } else {
-                ts = new LocalTransaction(hstore_site);
-                // XXX ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
+                if (hstore_conf.site.pool_txn_enable) {
+                    ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
+                } else {
+                    ts = new LocalTransaction(hstore_site);
+                }
             }
+            assert(ts.isInitialized() == false);
         } catch (Throwable ex) {
-            LOG.fatal("Failed to instantiate new LocalTransactionState for " + catalog_proc.getName());
-            throw new RuntimeException(ex);
+            String msg = "Failed to instantiate new local transaction handle for " + catalog_proc.getName();
+            throw new RuntimeException(msg, ex);
         }
         
         // Initialize our LocalTransaction handle
@@ -367,12 +294,15 @@ public class TransactionInitializer {
         
         LocalTransaction new_ts = null;
         try {
-            new_ts = new LocalTransaction(hstore_site);
-            // XXX new_ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
-        } catch (Exception ex) {
-            LOG.fatal(String.format("Failed to instantiate new %s for mispredicted %s",
-                      orig_ts.getClass().getSimpleName(), orig_ts));
-            throw new RuntimeException(ex);
+            if (hstore_conf.site.pool_txn_enable) {
+                new_ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
+            } else {
+                new_ts = new LocalTransaction(hstore_site);
+            }
+            assert(new_ts.isInitialized() == false);
+        } catch (Throwable ex) {
+            String msg = String.format("Failed to instantiate new %s for mispredicted %s", orig_ts.getClass().getSimpleName(), orig_ts);
+            throw new RuntimeException(msg, ex);
         }
         
         // Setup TransactionProfiler
@@ -419,7 +349,97 @@ public class TransactionInitializer {
         
         return (new_ts);
     }
-                                
+    
+    
+    /**
+     * Create a RemoteTransaction handle. This obviously only for a remote site.
+     * @param txn_id
+     * @param request
+     * @return
+     */
+    public RemoteTransaction createRemoteTransaction(Long txn_id,
+                                                     PartitionSet partitions,
+                                                     int base_partition,
+                                                     int proc_id) {
+        RemoteTransaction ts = null;
+        Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
+        try {
+            if (hstore_conf.site.pool_txn_enable) {
+                ts = this.objectPools.getRemoteTransactionPool(base_partition).borrowObject();
+            } else {
+                ts = new RemoteTransaction(hstore_site);
+            }
+            assert(ts.isInitialized() == false);
+            ts.init(txn_id, base_partition, null, catalog_proc, partitions, true);
+            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [partitions=%s, hashCode=%d]",
+                             ts, base_partition, partitions, ts.hashCode()));
+        } catch (Throwable ex) {
+            String msg = "Failed to instantiate new remote transaction handle for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+            throw new RuntimeException(msg, ex);
+        }
+        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
+        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
+        
+        if (t) LOG.trace(String.format("Stored new transaction state for %s", ts));
+        return (ts);
+    }
+    
+    /**
+     * Create a MapReduceTransaction handle. This should only be invoked on a remote site.
+     * @param txn_id
+     * @param invocation
+     * @param base_partition
+     * @return
+     */
+    public MapReduceTransaction createMapReduceTransaction(Long txn_id,
+                                                           long initiateTime,
+                                                           long client_handle,
+                                                           int base_partition,
+                                                           int procId,
+                                                           ByteBuffer paramsBuffer) {
+        Procedure catalog_proc = this.catalogContext.getProcedureById(procId);
+        if (catalog_proc == null) {
+            throw new RuntimeException("Unknown procedure id '" + procId + "'");
+        }
+        
+        // Initialize the ParameterSet
+        FastDeserializer incomingDeserializer = new FastDeserializer();
+        ParameterSet procParams = new ParameterSet();
+        try {
+            incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(paramsBuffer));
+            procParams.readExternal(incomingDeserializer);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        } 
+        assert(procParams != null) :
+            "The parameters object is null for new txn from client #" + client_handle;
+        
+        MapReduceTransaction ts = null;
+        try {
+            if (hstore_conf.site.pool_txn_enable) {
+                ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
+            } else {
+                ts = new MapReduceTransaction(hstore_site);
+            }
+            assert(ts.isInitialized() == false);
+        } catch (Throwable ex) {
+            String msg = "Failed to instantiate new MapReduce transaction handle for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+            throw new RuntimeException(msg, ex);
+        }
+        // We should never already have a transaction handle for this txnId
+        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
+        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
+
+        ts.init(txn_id, initiateTime, client_handle, base_partition, catalog_proc, procParams);
+        if (d) LOG.debug(String.format("Created new MapReduceTransaction state %s from remote partition %d",
+                                       ts, base_partition));
+        return (ts);
+    }
+   
+    // ----------------------------------------------------------------------------
+    // TRANSACTION HANDLE INITIALIZATION METHODS
+    // These don't normally need to be invoked from outside of this class
+    // ----------------------------------------------------------------------------
     
     /**
      * Register a new LocalTransaction handle with this HStoreSite
@@ -470,13 +490,13 @@ public class TransactionInitializer {
      * @param params
      * @param client_callback
      */
-    protected void populateProperties(LocalTransaction ts,
-                                      long initiateTime,
-                                      long client_handle,
-                                      int base_partition,
-                                      Procedure catalog_proc,
-                                      ParameterSet params,
-                                      RpcCallback<ClientResponseImpl> client_callback) {
+    private void populateProperties(LocalTransaction ts,
+                                    long initiateTime,
+                                    long client_handle,
+                                    int base_partition,
+                                    Procedure catalog_proc,
+                                    ParameterSet params,
+                                    RpcCallback<ClientResponseImpl> client_callback) {
         
         Long txn_id = this.registerTransaction(ts, base_partition);
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
