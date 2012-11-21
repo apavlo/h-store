@@ -40,10 +40,10 @@ public abstract class YCSBConstants {
 	public static final int MAX_SCAN = 1000; 
 	
 	// Transaction frequencies as specified in YCSB
-	public static final int FREQUENCY_INSERT_RECORD = 0; 
+	public static final int FREQUENCY_INSERT_RECORD = 50; 
 	public static final int FREQUENCY_DELETE_RECORD = 0;
 	//public static final int FREQUENCY_READ_MODIFY_WRITE_RECORD = 0;
-	public static final int FREQUENCY_READ_RECORD = 100;
+	public static final int FREQUENCY_READ_RECORD = 50;
 	public static final int FREQUENCY_SCAN_RECORD = 0;
 	public static final int FREQUENCY_UPDATE_RECORD = 0;
 }

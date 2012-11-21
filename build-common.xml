@@ -82,8 +82,6 @@
 <arg value="site.preload=${site.preload}" />
 <arg value="site.cpu_affinity=${site.cpu_affinity}" />
 <arg value="site.cpu_affinity_one_partition_per_core=${site.cpu_affinity_one_partition_per_core}" />
-<arg value="site.specexec_scheduler_policy=${site.specexec_scheduler_policy}" />
-<arg value="site.specexec_scheduler_window=${site.specexec_scheduler_window}" />
 <arg value="site.profiling=${site.profiling}" />
 <arg value="site.exec_ee_log_level=${site.exec_ee_log_level}" />
 <arg value="site.exec_profiling=${site.exec_profiling}" />
@@ -118,6 +116,8 @@
 <arg value="site.specexec_markov=${site.specexec_markov}" />
 <arg value="site.specexec_pre_query=${site.specexec_pre_query}" />
 <arg value="site.specexec_profiling=${site.specexec_profiling}" />
+<arg value="site.specexec_scheduler_policy=${site.specexec_scheduler_policy}" />
+<arg value="site.specexec_scheduler_window=${site.specexec_scheduler_window}" />
 <arg value="site.commandlog_enable=${site.commandlog_enable}" />
 <arg value="site.commandlog_dir=${site.commandlog_dir}" />
 <arg value="site.commandlog_timeout=${site.commandlog_timeout}" />

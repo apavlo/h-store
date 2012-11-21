@@ -877,7 +877,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.tick();
             } // WHILE
         } catch (final Throwable ex) {
-            ex.printStackTrace();
+            // ex.printStackTrace();
             if (this.isShuttingDown() == false) {
                 // ex.printStackTrace();
                 LOG.fatal(String.format("Unexpected error for PartitionExecutor at partition #%d [%s]",
@@ -3570,14 +3570,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                         }
                     }
                         
-                    if (this.lastCommittedUndoToken > undoToken) {
-                    	LOG.warn( String.format("Trying to commit undoToken %d for %s but it is less than the " +
-                    			"last committed undoToken %d at partition %d",
-                    			undoToken, ts, this.lastCommittedUndoToken, this.partitionId));
-                    } else {
-                    	this.ee.releaseUndoToken(undoToken);
-                    	this.lastCommittedUndoToken = undoToken;
-                    }
+                    assert(this.lastCommittedUndoToken < undoToken) :
+                    	String.format("Trying to commit undoToken %d for %s but it is less than the " +
+                    			      "last committed undoToken %d at partition %d",
+                    			      undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
+                	this.ee.releaseUndoToken(undoToken);
+                	this.lastCommittedUndoToken = undoToken;
                 }
                 // ABORT!
                 else {
@@ -3596,8 +3594,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     }
                     assert(this.lastCommittedUndoToken < undoToken) :
                         String.format("Trying to abort undoToken %d for %s but it is less than the " +
-                                  "last committed undoToken %d at partition %d",
-                                  undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
+                                      "last committed undoToken %d at partition %d",
+                                      undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
                     this.ee.undoUndoToken(undoToken);
                 }
                 if (needs_profiling) ((LocalTransaction)ts).profiler.stopPostEE();
@@ -3622,18 +3620,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * Somebody told us that our partition needs to abort/commit the given transaction id.
      * This method should only be used for distributed transactions, because
      * it will do some extra work for speculative execution
-     * @param txn_id
-     * @param commit If true, the work performed by this txn will be commited. Otherwise it will be aborted
+     * @param ts - The transaction to finish up.
+     * @param status - The final status of the transaction
      */
     private void finishDistributedTransaction(AbstractTransaction ts, Status status) {
         boolean commit = (status == Status.OK);
         if (this.currentDtxn == ts) {  
             if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d [status=%s]",
                              ts, this.partitionId, status));
-    
             assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
     
-            // TODO: If the dtxn is committing, then we can let anything and
+            // If the dtxn is committing, then we can let anything and
             // everything out the door. If it is aborting, then we probably could
             // be more fine-grained about how we decide what needs to get aborted.
             boolean commitSpecExec = (ts.isExecReadOnly(this.partitionId) ? true : commit);
@@ -3761,8 +3758,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             undoToken = ts.getLastUndoToken(this.partitionId);
             txn_ctr++;
             assert(cr.getStatus() == Status.OK) :
-                String.format("Speculatively executed txn %s did not succeed [status=%s]",
-                              ts, cr.getStatus());
+                String.format("Speculatively executed txn %s did not succeed [status=%s]\n",
+                              ts, cr.getStatus(), cr.getException());
             
             // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
             // I am getting a random error.

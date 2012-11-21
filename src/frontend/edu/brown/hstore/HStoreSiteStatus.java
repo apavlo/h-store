@@ -1116,10 +1116,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
 //            break;
 //        } // FOR
         
-        if (hstore_conf.site.txn_profiling) {
-            String csv = this.txnProfileCSV();
-            if (csv != null) System.out.println(csv);
-        }
+//        if (hstore_conf.site.txn_profiling) {
+//            String csv = this.txnProfileCSV();
+//            if (csv != null) System.out.println(csv);
+//        }
         
 //        for (ExecutionSite es : this.executors.values()) {
 //            TransactionEstimator te = es.getTransactionEstimator();
