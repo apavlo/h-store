@@ -49,6 +49,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -3406,7 +3407,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 //            case S
 //        }
         
-        this.specExecBlocked.add(Pair.of(ts, cresponse));
+        this.specExecBlocked.push(Pair.of(ts, cresponse));
 
         if (t) LOG.trace("Total # of Blocked Responses: " + this.specExecBlocked.size());
     }
@@ -3669,7 +3670,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param ts - The transaction to finish up.
      * @param status - The final status of the transaction
      */
-    private void finishDistributedTransaction(AbstractTransaction ts, Status status) {
+    private void finishDistributedTransaction(final AbstractTransaction ts, final Status status) {
         assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
         boolean commit = (status == Status.OK);
         if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d [status=%s]",
@@ -3694,13 +3695,81 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         //  Note that none of the speculative txns in the blocked queue will need to be
         //  aborted at this point, because we will have rolled back their changes immediately 
         //  when they aborted, so that our dtxn doesn't read dirty data.  
+        if (this.specExecBlocked.isEmpty() == false) {
+            // First thing we need to do is get the latch that will be set by any transaction
+            // that was in the middle of being executed when we were called
+            if (d) LOG.debug(String.format("%s - Checking waiting/blocked transactions at partition %d [currentMode=%s]",
+                             ts, this.partitionId, this.currentExecMode));
+            
+            // We need to get the last undo tokens for our distributed transaction and the last
+            // transaction that was speculatively executed (if any)
+            long dtxnUndoToken = ts.getLastUndoToken(this.partitionId);
+            
+            // Loop backwards through our queued responses and find the latest txn that 
+            // we need to tell the EE to commit. All ones that completed before that won't
+            // have to hit up the EE.
+            
+            LocalTransaction spec_ts = null;
+            ClientResponseImpl spec_cr = null;
+            long undoToken;
+            int skip_ctr = 0;
+            int abort_ctr = 0;
+            long greatestUndoToken = dtxnUndoToken;
+            AbstractTransaction greatest_ts = ts;
+            
+            // Iterate through the queue until we find a txn that has an undoToken that
+            // isn't null. If this undoToken is greater than our dtxn's, then that's
+            // the one txn that we need to commit that will cause all the other ones to commit
+            for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
+                spec_ts = pair.getFirst(); 
+                undoToken = spec_ts.getLastUndoToken(this.partitionId);
+                if (undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+                    if (undoToken > dtxnUndoToken) { 
+                        greatestUndoToken = undoToken;
+                        greatest_ts = spec_ts;
+                    }
+                    break;
+                }
+            } // FOR
+            assert(greatest_ts != null);
+            this.finishTransaction(spec_ts, commit);
+            
+            
+            
+            Pair<LocalTransaction, ClientResponseImpl> pair = null;
+            while ((pair = this.specExecBlocked.pollFirst()) != null) {
+            
+            
+            while ((pair = this.specExecBlocked.pollFirst()) != null) {
+                spec_ts = pair.getFirst();
+                spec_cr = pair.getSecond();
+                undoToken = ts.getLastUndoToken(this.partitionId);
+                txn_ctr++;
+                assert(spec_cr.getStatus() == Status.OK) :
+                    String.format("Speculatively executed txn %s did not succeed [status=%s]",
+                                  ts, spec_cr.getStatus());
+                
+                
+                
+            } // WHILE
+            
+            
+        }
+        // There are no speculative txns waiting for this dtxn, so we can just commit it right away 
+        else {
+            this.finishTransaction(ts, commit);    
+        }
+            
+        long specUndoToken = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
+        
+            specUndoToken = this.specExecBlocked.peekLast().getFirst().getLastUndoToken(this.partitionId);
         
         
         // If the dtxn is committing, then we can let anything and
         // everything out the door. If it is aborting, then we probably could
         // be more fine-grained about how we decide what needs to get aborted.
         boolean commitSpecExec = (ts.isExecReadOnly(this.partitionId) ? true : commit);
-        this.finishTransaction(ts, commit);
+        
         
         // Clear our cached query results that are specific for this transaction
         this.queryCache.purgeTransaction(ts.getTransactionId());
@@ -3721,7 +3790,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             // We can always commit our boys no matter what if we know that this multi-partition txn 
             // was read-only at the given partition
-            if (hstore_conf.site.specexec_enable) {
+            if (hstore_conf.site.specexec_enable && this.specExecBlocked.isEmpty() == false) {
                 this.releaseQueuedResponses(ts, commitSpecExec);
             }
             // Release blocked transactions
@@ -3787,41 +3856,29 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private void releaseQueuedResponses(final AbstractTransaction parent_ts,
                                         final boolean commit) {
-        // First thing we need to do is get the latch that will be set by any transaction
-        // that was in the middle of being executed when we were called
-        if (d) LOG.debug(String.format("%s - Checking waiting/blocked transactions at partition %d [currentMode=%s]",
-                         parent_ts, this.partitionId, this.currentExecMode));
-        
-        if (this.specExecBlocked.isEmpty()) {
-            if (t) LOG.trace(String.format("%s - No speculative transactions to commit at partition %d",
-                             parent_ts, this.partitionId));
-            return;
-        }
         
         // Ok now at this point we can access our queue send back all of our responses
         if (d) LOG.debug(String.format("%s - %s %d speculatively executed transactions on partition %d",
                          parent_ts, (commit ? "Commiting" : "Aborting"), this.specExecBlocked.size(), this.partitionId));
 
-        // Loop backwards through our queued responses and find the latest txn that 
-        // we need to tell the EE to commit. All ones that completed before that won't
-        // have to hit up the EE.
-        Pair<LocalTransaction, ClientResponseImpl> pair = null;
         LocalTransaction ts = null;
         ClientResponseImpl cr = null;
-        long undoToken;
-//        boolean ee_commit = true;
         int txn_ctr = 0;
-        int skip_ctr = 0;
-        int abort_ctr = 0;
+        Pair<LocalTransaction, ClientResponseImpl> pair = null;
         
         while ((pair = this.specExecBlocked.pollFirst()) != null) {
             ts = pair.getFirst();
             cr = pair.getSecond();
-            undoToken = ts.getLastUndoToken(this.partitionId);
             txn_ctr++;
             assert(cr.getStatus() == Status.OK) :
-                String.format("Speculatively executed txn %s did not succeed [status=%s]\n",
-                              ts, cr.getStatus(), cr.getException());
+                String.format("Speculatively executed txn %s did not succeed [status=%s]",
+                              ts, cr.getStatus());
+        
+            
+            if (t) LOG.trace(String.format("%s - Bypassing EE commit for %s because its undo token is before " +
+                             "the last committed token [XXX < %d]",
+                             parent_ts, ts, this.lastCommittedUndoToken));
+            ts.unmarkExecutedWork(this.partitionId);
             
             // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
             // I am getting a random error.
@@ -3845,40 +3902,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
                 abort_ctr++;
             }
-            // OPTIMIZATION
-            // If we're committing and this txn's last undo token comes before the 
-            // last undo token for this partition, then we don't need to do anything
-            else if (commit && 
-                     undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN && 
-                     undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN &&
-                     undoToken < this.lastCommittedUndoToken) {
-                
-                if (t) LOG.trace(String.format("%s - Bypassing EE commit for %s because its undo token is before " +
-                		         "the last committed token [%d < %d]",
-                                 parent_ts, ts, undoToken, this.lastCommittedUndoToken));
-                ts.unmarkExecutedWork(this.partitionId);
-                skip_ctr++;
-            }
-            // OPTIMIZATION
-            // Check whether the last element in the list is a commit. 
-            // If it is, then we know that we don't need to tell the EE about all the ones that executed before it
-//            else if (hstore_conf.site.exec_queued_response_ee_bypass) {
-//                // Don't tell the EE that we committed
-//                if (ee_commit == false) {
-//                    if (t) LOG.trace(String.format("%s - Bypassing EE commit for %s undoToken=%d]",
-//                                     parent_ts, ts, ts.getLastUndoToken(this.partitionId)));
-//                    ts.unmarkExecutedWork(this.partitionId);
-//                    skip_ctr++;
-//                    
-//                }
-//                else if (ee_commit && cr.getStatus() == Status.OK) {
-//                    if (t) LOG.trace(String.format("%s - Committing %s but will bypass all other successful transactions " +
-//                    		         "[undoToken=%d]",
-//                                     parent_ts, ts, ts.getLastUndoToken(this.partitionId)));
-//                    ee_commit = false;
-//                }
-//            }
-            
+
             try {
                 if (hstore_conf.site.exec_postprocessing_threads) {
                     if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
