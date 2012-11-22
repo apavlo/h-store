@@ -1951,9 +1951,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             this.procedures.get(ts.getProcedure().getName()).offer(volt_proc);
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPost();
             
-            if (cresponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                cresponse.getException().printStackTrace();
-            }
+//            if (cresponse.getStatus() == Status.ABORT_UNEXPECTED) {
+//                cresponse.getException().printStackTrace();
+//            }
         }
         
         // If this is a MapReduce job, then we can just ignore the ClientResponse
