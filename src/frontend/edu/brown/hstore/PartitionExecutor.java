@@ -2946,25 +2946,25 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * for batches that need to access non-local Partitions
      * @param ts
      * @param parameters
-     * @param fragmentBuilders
+     * @param allFragmentBuilders
      * @return
      */
     public VoltTable[] dispatchWorkFragments(final LocalTransaction ts,
                                              final ParameterSet parameters[],
                                              final int batchSize,
-                                             Collection<WorkFragment.Builder> fragmentBuilders) {
-        assert(fragmentBuilders.isEmpty() == false) :
+                                             final Collection<WorkFragment.Builder> allFragmentBuilders) {
+        assert(allFragmentBuilders.isEmpty() == false) :
             "Unexpected empty WorkFragment list for " + ts;
         final boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
         
         // *********************************** DEBUG ***********************************
         if (d) {
             LOG.debug(String.format("%s - Preparing to dispatch %d messages and wait for the results",
-                      ts, fragmentBuilders.size()));
+                      ts, allFragmentBuilders.size()));
             if (t) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(ts + " - WorkFragments:\n");
-                for (WorkFragment.Builder fragment : fragmentBuilders) {
+                for (WorkFragment.Builder fragment : allFragmentBuilders) {
                     sb.append(StringBoxUtil.box(fragment.toString()) + "\n");
                 } // FOR
                 sb.append(ts + " - ParameterSets:\n");
@@ -2982,7 +2982,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (hstore_conf.site.exec_validate_work && ts.isSysProc() == false) {
             LOG.warn(String.format("%s - Checking whether all of the WorkFragments are valid", ts));
             boolean has_remote = false; 
-            for (WorkFragment.Builder frag : fragmentBuilders) {
+            for (WorkFragment.Builder frag : allFragmentBuilders) {
                 if (frag.getPartitionId() != this.partitionId) {
                     has_remote = true;
                 }
@@ -2992,39 +2992,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     assert(catalog_stmt != null);
                     Procedure catalog_proc = catalog_stmt.getParent();
                     if (catalog_proc.equals(ts.getProcedure()) == false) {
-                        LOG.warn(ts.debug() + "\n" + fragmentBuilders + "\n---- INVALID ----\n" + frag);
+                        LOG.warn(ts.debug() + "\n" + allFragmentBuilders + "\n---- INVALID ----\n" + frag);
                         String msg = String.format("%s - Unexpected %s", ts, catalog_frag.fullName());
                         throw new ServerFaultException(msg, ts.getTransactionId());
                     }
                 }
             } // FOR
             if (has_remote == false) {
-                LOG.warn(ts.debug() + "\n" + fragmentBuilders);
+                LOG.warn(ts.debug() + "\n" + allFragmentBuilders);
                 String msg = ts + "Trying to execute all local single-partition queries using the slow-path!";
                 throw new ServerFaultException(msg, ts.getTransactionId());
             }
         }
-
-        final ExecutionState execState = ts.getExecutionState();
-        final boolean prefetch = ts.hasPrefetchQueries();
-        final boolean predict_singlePartition = ts.isPredictSinglePartition();
-        
-        // We have to store all of the tasks in the TransactionState before we start executing, otherwise
-        // there is a race condition that a task with input dependencies will start running as soon as we
-        // get one response back from another executor
-        // Reset these guys here so that we don't waste time in the last round
-        if (ts.getLastUndoToken(this.partitionId) != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-            execState.clearRound();
-        }
-        execState.initRound(batchSize);
-        
-        // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
-        // can access them directly without needing to deserialize them from the WorkFragments
-        ts.attachParameterSets(parameters);
-        
-        // Now if we have some work sent out to other partitions, we need to wait until they come back
-        // In the first part, we wait until all of our blocked WorkFragments become unblocked
-        final LinkedBlockingDeque<Collection<WorkFragment.Builder>> queue = execState.getUnblockedWorkFragmentsQueue();
 
         boolean first = true;
         boolean serializedParams = false;
@@ -3038,7 +3017,31 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         int num_remote = 0;
         int num_skipped = 0;
         int total = 0;
+        Collection<WorkFragment.Builder> fragmentBuilders = allFragmentBuilders;
         
+        // Figure out whether the txn will always be read-only at this partition
+        for (WorkFragment.Builder fragmentBuilder : allFragmentBuilders) {
+            if (this.partitionId == fragmentBuilder.getPartitionId() && fragmentBuilder.getReadOnly() == false) {
+                is_localReadOnly = false;
+                break;
+            }
+        } // FOR
+        long undoToken = this.calculateNextUndoToken(ts, is_localReadOnly);
+        ts.initRound(this.partitionId, undoToken);
+        
+        final ExecutionState execState = ts.getExecutionState();
+        execState.initRound(batchSize);
+        final boolean prefetch = ts.hasPrefetchQueries();
+        final boolean predict_singlePartition = ts.isPredictSinglePartition();
+        
+        // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
+        // can access them directly without needing to deserialize them from the WorkFragments
+        ts.attachParameterSets(parameters);
+        
+        // Now if we have some work sent out to other partitions, we need to wait until they come back
+        // In the first part, we wait until all of our blocked WorkFragments become unblocked
+        final LinkedBlockingDeque<Collection<WorkFragment.Builder>> queue = execState.getUnblockedWorkFragmentsQueue();
+
         // Run through this loop if:
         //  (1) We have no pending errors
         //  (2) This is our first time in the loop (first == true)
@@ -3115,7 +3118,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // -------------------------------
             if (predict_singlePartition) {
                 for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
-                    is_localReadOnly = (is_localReadOnly && fragmentBuilder.getReadOnly());
                     if (first == false || ts.addWorkFragment(fragmentBuilder) == false) {
                         this.tmp_localWorkFragmentBuilders.add(fragmentBuilder);
                         total++;
@@ -3126,8 +3128,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // We have to tell the transaction handle to start the round before we send off the
                 // WorkFragments for execution, since they might start executing locally!
                 if (first) {
-                    long undoToken = this.calculateNextUndoToken(ts, is_localReadOnly);
-                    ts.initRound(this.partitionId, undoToken);
                     ts.startRound(this.partitionId);
                     latch = execState.getDependencyLatch();
                 }
@@ -3218,8 +3218,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // We have to tell the TransactinState to start the round before we send off the
                 // FragmentTasks for execution, since they might start executing locally!
                 if (first) {
-                    long undoToken = this.calculateNextUndoToken(ts, is_localReadOnly);
-                    ts.initRound(this.partitionId, undoToken);
                     ts.startRound(this.partitionId);
                     latch = execState.getDependencyLatch();
                 }
