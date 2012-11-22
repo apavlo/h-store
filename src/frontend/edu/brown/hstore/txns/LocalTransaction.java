@@ -448,16 +448,16 @@ public class LocalTransaction extends AbstractTransaction {
 //        super.initRound(partition, undoToken);
 //    }
     
-    /**
-     * Fast-path round initialization. This should be called when the next
-     * batch contains only local, single-partition queries
-     * @param partition
-     * @param undoToken
-     * @param batchSize TODO
-     */
-    public void fastInitRound(int partition, long undoToken) {
-        super.initRound(partition, undoToken);
-    }
+//    /**
+//     * Fast-path round initialization. This should be called when the next
+//     * batch contains only local, single-partition queries. It will not reset
+//     * the ExecutionState information (since it's not needed) 
+//     * @param partition
+//     * @param undoToken
+//     */
+//    public void fastInitRound(int partition, long undoToken) {
+//        super.initRound(partition, undoToken);
+//    }
     
     @Override
     public void startRound(int partition) {
@@ -522,30 +522,25 @@ public class LocalTransaction extends AbstractTransaction {
         if (d) LOG.debug(String.format("%s - Finishing ROUND #%d on partition %d", 
                                        this, this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)], partition));
         
-        if (this.base_partition == partition) {
-            // Same site, same partition
-            assert(this.state.dependency_ctr == this.state.received_ctr) :
-                String.format("Trying to finish ROUND #%d on partition %d for %s before it was started",
-                              this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
-                              partition, this);
-            assert(this.state.queued_results.isEmpty()) :
-                String.format("Trying to finish ROUND #%d on partition %d for %s but there are %d queued results",
-                              this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
-                              partition, this, this.state.queued_results.size());
+        // SAME SITE, DIFFERENT PARTITION
+        if (this.base_partition != partition) {
+            // This doesn't need to be synchronized because we know that only our
+            // thread should be calling this
+            super.finishRound(partition);
+            return;
         }
         
-        // This doesn't need to be synchronized because we know that only our
-        // thread should be calling this
+        // SAME SITE, SAME PARTITION
+        assert(this.state.dependency_ctr == this.state.received_ctr) :
+            String.format("Trying to finish ROUND #%d on partition %d for %s before it was started",
+                          this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                          partition, this);
+        assert(this.state.queued_results.isEmpty()) :
+            String.format("Trying to finish ROUND #%d on partition %d for %s but there are %d queued results",
+                          this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                          partition, this, this.state.queued_results.size());
+        
         super.finishRound(partition);
-        
-        // Same site, different partition
-        if (this.base_partition != partition) return;
-        
-//        if (this.predict_singlePartition == false) {
-//            for (int i = 0; i < this.state.batch_size; i++) {
-//                this.state.dinfo_lastRound[i] = -1;
-//            } // FOR
-//        }
         
         if (this.predict_singlePartition == false) this.state.lock.lock();
         try {

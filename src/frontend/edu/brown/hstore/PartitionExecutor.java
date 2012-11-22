@@ -2375,13 +2375,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private VoltTable[] executeLocalPlan(LocalTransaction ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
 
         // Start the new execution round
-        final ExecutionState execState = ts.getExecutionState();
         long undoToken = this.calculateNextUndoToken(ts, plan.isReadOnly());
-        if (ts.getLastUndoToken(this.partitionId) != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-            execState.clearRound();
-        }
-        execState.initRound(plan.getBatchSize());
-        ts.fastInitRound(this.partitionId, undoToken);
+        ts.initRound(this.partitionId, undoToken);
       
         int fragmentCount = plan.getFragmentCount();
         long fragmentIds[] = plan.getFragmentIds();
