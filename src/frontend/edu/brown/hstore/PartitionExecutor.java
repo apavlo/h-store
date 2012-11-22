@@ -2022,12 +2022,34 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @return
      */
     private boolean canProcessClientResponseNow(LocalTransaction ts, Status status, ExecutionMode before_mode) {
-        if (d) LOG.debug(String.format("%s - Checking whether to process response now [status=%s, singlePartition=%s, readOnly=%s, before=%s, current=%s]",
-                                       ts, status, ts.isPredictSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.currentExecMode));
+        if (d) LOG.debug(String.format("%s - Checking whether to process %s response now at partition %d " +
+	                     "[singlePartition=%s / readOnly=%s / beore=%s / current=%s]",
+                         ts, this.partitionId, status,
+                         ts.isPredictSinglePartition(),
+                         ts.isExecReadOnly(this.partitionId),
+                         before_mode, this.currentExecMode));
         // Commit All
         if (this.currentExecMode == ExecutionMode.COMMIT_ALL) {
             return (true);
         }
+        // SPECIAL CASE
+        // Any user-aborted, speculative single-partition transaction should be processed immediately.
+        else if (status == Status.ABORT_USER && ts.isSpeculative()) {
+            return (true);
+        }
+//        // SPECIAL CASE
+//        // If this txn threw a user abort, and the current outstanding dtxn is read-only
+//        // then it's safe for us to rollback
+//        else if (status == Status.ABORT_USER &&
+//                  this.currentDtxn != null &&
+//                  this.currentDtxn.isExecReadOnly(this.partitionId)) {
+//            return (true);
+//        }
+        // SPECIAL CASE
+        // Anything mispredicted should be processed right away
+        else if (status == Status.ABORT_MISPREDICT) {
+            return (true);
+        }    
         // Process successful txns based on the mode that it was executed under
         else if (status == Status.OK) {
             switch (before_mode) {
@@ -2045,22 +2067,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     throw new ServerFaultException("Unexpected execution mode: " + before_mode, ts.getTransactionId()); 
             } // SWITCH
         }
-        // Anything mispredicted should be processed right away
-        else if (status == Status.ABORT_MISPREDICT) {
-            return (true);
-        }    
-        // If the transaction aborted and it was read-only thus far, then we want to process it immediately
-        else if (status != Status.OK && ts.isExecReadOnly(this.partitionId)) {
-            return (true);
-        }
-        // If this txn threw a user abort, and the current outstanding dtxn is read-only
-        // then it's safe for us to rollback
-        else if (status == Status.ABORT_USER &&
-                  this.currentDtxn != null &&
-                  this.currentDtxn.isExecReadOnly(this.partitionId)) {
-            return (true);
-        }
-        
+//        // If the transaction aborted and it was read-only thus far, then we want to process it immediately
+//        else if (status != Status.OK && ts.isExecReadOnly(this.partitionId)) {
+//            return (true);
+//        }
+
         assert(this.currentExecMode != ExecutionMode.COMMIT_ALL) :
             String.format("Queuing ClientResponse for %s when in non-specutative mode [mode=%s, status=%s]",
                           ts, this.currentExecMode, status);
