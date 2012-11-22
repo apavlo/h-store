@@ -424,42 +424,36 @@ public class LocalTransaction extends AbstractTransaction {
     // EXECUTION ROUNDS
     // ----------------------------------------------------------------------------
     
-    @Override
-    public void initRound(int partition, long undoToken) {
-        // They are allowed to not have the ExecutionState handle if this partition is
-        // executing a prefetchable query, which may be queued up before the
-        // transaction's control code starts executing
-        // Of course if this is the base partition, then we *definitely* need
-        // to have the ExecutionState.
-        if (partition == this.base_partition) {
-            assert(this.state != null) :
-                String.format("Trying to initalize new round for %s on partition %d but the ExecutionState is null",
-                              this, partition);
-            assert(this.state.queued_results.isEmpty()) : 
-                String.format("Trying to initialize ROUND #%d for %s but there are %d queued results",
-                               this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
-                               this, this.state.queued_results.size());
-        }
-
-        if (d) LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
-                                       this, this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
-                                       partition, undoToken));
-        
-        super.initRound(partition, undoToken);
-        
-        if (this.base_partition == partition) {
-            // Reset these guys here so that we don't waste time in the last round
-            if (this.getLastUndoToken(partition) != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-                this.state.clearRound();
-            }
-        }
-    }
+//    @Override
+//    public void initRound(int partition, long undoToken) {
+//        // They are allowed to not have the ExecutionState handle if this partition is
+//        // executing a prefetchable query, which may be queued up before the
+//        // transaction's control code starts executing
+//        // Of course if this is the base partition, then we *definitely* need
+//        // to have the ExecutionState.
+//        if (partition == this.base_partition) {
+//            assert(this.state != null) :
+//                String.format("Trying to initalize new round for %s on partition %d but the ExecutionState is null",
+//                              this, partition);
+//            assert(this.state.queued_results.isEmpty()) : 
+//                String.format("Trying to initialize ROUND #%d for %s but there are %d queued results",
+//                               this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+//                               this, this.state.queued_results.size());
+//        }
+//
+//        if (d) LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
+//                                       this, this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+//                                       partition, undoToken));
+//        
+//        super.initRound(partition, undoToken);
+//    }
     
     /**
      * Fast-path round initialization. This should be called when the next
      * batch contains only local, single-partition queries
      * @param partition
      * @param undoToken
+     * @param batchSize TODO
      */
     public void fastInitRound(int partition, long undoToken) {
         super.initRound(partition, undoToken);
@@ -878,6 +872,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Returns true if this transaction was executed speculatively
      */
+    @Override
     public boolean isSpeculative() {
         return (this.exec_specExecType != SpeculationType.NULL);
     }

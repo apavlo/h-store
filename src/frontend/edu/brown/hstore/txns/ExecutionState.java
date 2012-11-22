@@ -221,6 +221,10 @@ public class ExecutionState implements Poolable {
     // EXECUTION ROUNDS
     // ----------------------------------------------------------------------------
     
+    public void initRound(int batchSize) {
+        this.batch_size = batchSize;
+    }
+    
     public void clearRound() {
         this.dependencies.clear();
         this.output_order.clear();

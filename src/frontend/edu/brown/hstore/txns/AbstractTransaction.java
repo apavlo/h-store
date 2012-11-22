@@ -40,6 +40,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
@@ -519,6 +520,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
             return (this.predict_tState.getLastEstimate());
         }
         return (null);
+    }
+    
+    /**
+     * Returns true if this transaction was executed speculatively
+     */
+    public boolean isSpeculative() {
+        return (false);
     }
     
     // ----------------------------------------------------------------------------
