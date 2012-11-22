@@ -1428,6 +1428,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // If this plan is read-only, then we don't need a new undo token
         if (readOnly) {
+            if (lastUndoToken == HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+                lastUndoToken = HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN;
+            }
             undoToken = lastUndoToken;
         }
         // Otherwise, we need to figure out whether we want to be a brave soul and 
@@ -1947,6 +1950,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             volt_proc.finish();
             this.procedures.get(ts.getProcedure().getName()).offer(volt_proc);
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPost();
+            
+            if (cresponse.getStatus() == Status.ABORT_UNEXPECTED) {
+                cresponse.getException().printStackTrace();
+            }
         }
         
         // If this is a MapReduce job, then we can just ignore the ClientResponse
