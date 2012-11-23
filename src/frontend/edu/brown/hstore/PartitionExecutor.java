@@ -1431,10 +1431,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         long lastUndoToken = ts.getLastUndoToken(this.partitionId);
         boolean singlePartition = ts.isPredictSinglePartition();
         
-        // If this plan is read-only, then we don't need a new undo token
-        if (readOnly) {
+        // Speculative txns always need an undo token
+        // It's just easier this way...
+        if (ts.isSpeculative()) {
+            undoToken = this.getNextUndoToken();
+        }
+        // If this plan is read-only, then we don't need a new undo token (unless
+        // we don't have one already)
+        else if (readOnly) {
             if (lastUndoToken == HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
                 lastUndoToken = HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN;
+//                lastUndoToken = this.getNextUndoToken();
             }
             undoToken = lastUndoToken;
         }
@@ -3429,7 +3436,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         Status status = cresponse.getStatus();
 
         if (d) {
-            LOG.debug(String.format("%s - Processing ClientResponse at partition %d" +
+            LOG.debug(String.format("%s - Processing ClientResponse at partition %d " +
             		  "[status=%s / singlePartition=%s / local=%s / clientHandle=%d]",
                       ts, this.partitionId, status, ts.isPredictSinglePartition(),
                       ts.isExecLocal(this.partitionId), cresponse.getClientHandle()));
@@ -3710,8 +3717,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             ClientResponseImpl spec_cr = null;
             long spec_token;
             
-            List<Pair<LocalTransaction, ClientResponseImpl>> to_commit = new ArrayList<Pair<LocalTransaction,ClientResponseImpl>>();
-            List<Pair<LocalTransaction, ClientResponseImpl>> to_restart = new ArrayList<Pair<LocalTransaction,ClientResponseImpl>>();
+            LinkedList<Pair<LocalTransaction, ClientResponseImpl>> to_commit = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+            LinkedList<Pair<LocalTransaction, ClientResponseImpl>> to_restart = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
             
             // DTXN ABORT
             // Commit anything that was executed before the dtxn started
@@ -3720,20 +3727,42 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 long dtxnUndoToken = ts.getFirstUndoToken(this.partitionId);
                 for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
                     spec_ts = pair.getFirst(); 
-                    spec_token = spec_ts.getLastUndoToken(this.partitionId);
+                    spec_token = spec_ts.getFirstUndoToken(this.partitionId);
+                    if (d) LOG.debug(String.format("Speculative Txn %s [undoToken=%d]", spec_ts, spec_token));
                     
-                    if (spec_token < dtxnUndoToken) {
+                    // Speculative txns should never be executed without an undo token
+                    assert(spec_token != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN);
+                    
+                    // If the speculative undoToken is null, then this txn didn't execute
+                    // any queries. That means we can always commit it
+                    // We need to keep track of what the last undoToken was when this txn started.
+                    // That will tell us what version of the database this txn read from. 
+                    if (spec_token == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || spec_token < dtxnUndoToken) {
                         to_commit.add(pair);
                     }
                     else {
-                        to_restart.add(pair);
+                        to_restart.push(pair);
                     }
                 } // FOR
+                if (d) LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be committed " +
+                                 "*before* we abort this txn",
+                                 ts, to_commit.size(), this.partitionId));
 
                 // (1) Commit all of our boys first
+                boolean first = true;
                 for (Pair<LocalTransaction, ClientResponseImpl> pair : to_commit) {
                     spec_ts = pair.getFirst(); 
                     spec_cr = pair.getSecond();
+                    spec_token = spec_ts.getFirstUndoToken(this.partitionId);
+
+                    // Commit the first one that we get
+                    // This will automatically commit everyone else
+                    if (first && spec_token < dtxnUndoToken) {
+                        first = false;
+                    } else {
+                        spec_ts.unmarkExecutedWork(this.partitionId);
+                    }
+                    
                     try {
                         if (hstore_conf.site.exec_postprocessing_threads) {
                             if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
@@ -3755,7 +3784,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.finishTransaction(ts, false);
                 
                 // (3) Restart all the other txns
-                for (Pair<LocalTransaction, ClientResponseImpl> pair : to_commit) {
+                for (Pair<LocalTransaction, ClientResponseImpl> pair : to_restart) {
                     spec_ts = pair.getFirst(); 
                     spec_cr = pair.getSecond();
                     
@@ -4125,6 +4154,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         public int getBlockedSpecExecCount() {
             return (PartitionExecutor.this.specExecBlocked.size());
         }
+//        public Collection<Pair<LocalTransaction, ClientResponseImpl>> getBlockedSpecExecTxns() {
+//            Collection<Pair<LocalTransaction, ClientResponseImpl>> ret = new ArrayList<Pair<LocalTransaction,ClientResponseImpl>>(PartitionExecutor.this.specExecBlocked);
+//            return (ret);
+//        }
         public int getWorkQueueSize() {
             return (PartitionExecutor.this.work_queue.size());
         }

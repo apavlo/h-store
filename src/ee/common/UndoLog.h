@@ -51,7 +51,7 @@ namespace voltdb
             // larger than any token value we've seen before
             #ifdef VOLT_ERROR_ENABLED
             if (nextUndoToken <= m_lastUndoToken) {
-                VOLT_ERROR("nextUndoToken[%ld] is less than m_lastUndoToken[%ld]",
+                VOLT_ERROR("nextUndoToken[%ld] is less than or equal to m_lastUndoToken[%ld]",
                            nextUndoToken, m_lastUndoToken);
             }
             #endif
@@ -59,7 +59,7 @@ namespace voltdb
             
             #ifdef VOLT_ERROR_ENABLED
             if (nextUndoToken <= m_lastReleaseToken) {
-                VOLT_ERROR("nextUndoToken[%ld] is less than m_lastReleaseToken[%ld]",
+                VOLT_ERROR("nextUndoToken[%ld] is less than or equal to m_lastReleaseToken[%ld]",
                            nextUndoToken, m_lastReleaseToken);
             }
             #endif
@@ -94,7 +94,7 @@ namespace voltdb
             // generateUndoToken has been called
             #ifdef VOLT_ERROR_ENABLED
             if (m_lastReleaseToken >= m_lastUndoToken) {
-                VOLT_ERROR("m_lastReleaseToken[%ld] is greater than m_lastUndoToken[%ld]",
+                VOLT_ERROR("m_lastReleaseToken[%ld] is greater or equal to than m_lastUndoToken[%ld]",
                            m_lastReleaseToken, m_lastUndoToken);
             }
             #endif
@@ -106,7 +106,7 @@ namespace voltdb
             // exist; this will just result in all undo quanta being undone.
             #ifdef VOLT_ERROR_ENABLED
             if (undoToken < m_lastReleaseToken) {
-                VOLT_ERROR("undoToken[%ld] is greater than m_lastReleaseToken[%ld]",
+                VOLT_ERROR("undoToken[%ld] is less than m_lastReleaseToken[%ld]",
                            undoToken, m_lastReleaseToken);
             }
             #endif
@@ -157,7 +157,7 @@ namespace voltdb
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             #ifdef VOLT_ERROR_ENABLED
             if (m_lastReleaseToken >= undoToken) {
-                VOLT_ERROR("m_lastReleaseToken[%ld] is greater than undoToken[%ld]",
+                VOLT_ERROR("m_lastReleaseToken[%ld] is greater than or equal to undoToken[%ld]",
                            m_lastReleaseToken, undoToken);
             }
             #endif

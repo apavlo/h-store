@@ -26,6 +26,7 @@ public class DistributedBlockable extends VoltProcedure {
     public static final Semaphore LOCK_BEFORE = new Semaphore(0);
     public static final Semaphore NOTIFY_BEFORE = new Semaphore(0);
     public static final Semaphore LOCK_AFTER = new Semaphore(0);
+    public static final Semaphore NOTIFY_AFTER = new Semaphore(0);
     
     /**
      * Changing this flag to true will cause the txn to abort
@@ -64,13 +65,16 @@ public class DistributedBlockable extends VoltProcedure {
         // -------------------- LOCK AFTER QUERY --------------------
         ProfileMeasurement pm_after = new ProfileMeasurement("AFTER");
         LOG.info("Blocking until LOCK_AFTER is released");
+        pm_after.start();
         try {
-            pm_after.start();
+            // Notify others before we lock
+            NOTIFY_AFTER.release();
             LOCK_AFTER.acquire();
             LOCK_AFTER.release();
         } catch (InterruptedException ex) {
             throw new VoltAbortException(ex.getMessage());
         } finally {
+            NOTIFY_AFTER.drainPermits();
             pm_after.stop();
             LOG.info("AWAKE - " + pm_after.debug(true));
         }
