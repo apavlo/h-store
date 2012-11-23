@@ -21,6 +21,9 @@ import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.specexec.AbstractConflictChecker;
+import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ThreadUtil;
 
@@ -28,7 +31,8 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 2;
     private static final int BASE_PARTITION = 0;
-    private static final int NOTIFY_TIMEOUT = 5000; // ms
+    private static final int NOTIFY_TIMEOUT = 2500; // ms
+    private static final int NUM_SPECEXEC_TXNS = 5;
     
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
@@ -37,6 +41,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     private Procedure dtxnProc;
     private Procedure spProc;
     
+    private PartitionExecutor executors[];
     private PartitionExecutor baseExecutor;
     private PartitionExecutor remoteExecutor;
 
@@ -47,7 +52,22 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     
     private final TM1ProjectBuilder builder = new TM1ProjectBuilder() {
         {
+            this.addAllDefaults();
             this.addProcedure(DistributedBlockable.class);
+        }
+    };
+    
+    /**
+     * Simple conflict checker that allows anything to be executed
+     */
+    private final AbstractConflictChecker checker = new AbstractConflictChecker(null) {
+        @Override
+        public boolean ignoreProcedure(Procedure proc) {
+            return (false);
+        }
+        @Override
+        public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
+            return (true);
         }
     };
     
@@ -90,7 +110,10 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.specexec_enable = true;
+        this.hstore_conf.site.specexec_idle = true;
+        this.hstore_conf.site.specexec_pre_query = true;
         this.hstore_conf.site.txn_client_debug = true;
+        this.hstore_conf.site.exec_voltdb_procinfo = true;
         
         this.hstore_site = this.createHStoreSite(catalog_site, hstore_conf);
         this.client = createClient();
@@ -104,6 +127,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         this.remoteExecutor = this.hstore_site.getPartitionExecutor(BASE_PARTITION+1);
         assertNotNull(this.remoteExecutor);
         assertNotSame(this.baseExecutor.getPartitionId(), this.remoteExecutor.getPartitionId());
+        this.executors = new PartitionExecutor[]{ this.baseExecutor, this.remoteExecutor };
         
         this.dtxnProc = this.getProcedure(DistributedBlockable.class);
         this.spProc = this.getProcedure(GetSubscriberData.class);
@@ -136,27 +160,51 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // All of these txns should get speculatively executed but then never released
         // until we release our distributed txn.
         // All of the txns are going to commit successfully in the right order
-        Object params[] = new Object[]{ BASE_PARTITION+1 };
+        
+        // Make sure that we replace the conflict checker on the remote partition
+        // so that it can schedule our speculative txns
+        PartitionExecutor.Debug remoteDebug = this.remoteExecutor.getDebugContext();
+        remoteDebug.getSpecExecScheduler().setConflictChecker(this.checker);
+        
+        Object params[] = new Object[]{ BASE_PARTITION };
         this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
         
         // Block until we know that the txn has started running
         boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         
+        // Make sure that this txn is the current dtxn at each of the partitions
+        AbstractTransaction dtxn = null;
+        for (PartitionExecutor executor : this.executors) {
+            AbstractTransaction ts = null;
+            int tries = 3;
+            while (tries-- > 0) {
+                ts = executor.getDebugContext().getCurrentDtxn();
+                if (ts != null) break;
+                ThreadUtil.sleep(NOTIFY_TIMEOUT);
+            } // WHILE
+            assertNotNull("No dtxn at " + executor.getPartition(), ts);
+            if (dtxn == null) {
+                dtxn = ts;
+            } else {
+                assertEquals(dtxn, ts);
+            }
+        } // FOR
+        assertNotNull(dtxn);
+        
         // Now fire off a bunch of single-partition txns
-        int num_txns = 50;
-        params = new Object[]{ 2 }; // S_ID
-        for (int i = 0; i < num_txns; i++) {
+        params = new Object[]{ BASE_PARTITION+1 }; // S_ID
+        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
             this.client.callProcedure(this.spCallback, this.spProc.getName(), params);
         } // FOR
-        this.spLatch = new CountDownLatch(num_txns);
+        this.spLatch = new CountDownLatch(NUM_SPECEXEC_TXNS);
         
         // Wait a few seconds, then make sure that nobody actually returned yet
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
         
         // Check that the txns actually got executed but are blocked
-        PartitionExecutor.Debug remoteDebug = this.remoteExecutor.getDebugContext();
-        assert(remoteDebug.getBlockedQueueSize() > 0);
+        assert(remoteDebug.getBlockedSpecExecCount() > 0) :
+            "No blocked spec exec txns at " + this.remoteExecutor.getPartition();
         
         // Now release the locks and then wait until the dtxn returns and all 
         // of the single-partition txns return
@@ -182,7 +230,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
             assertNotNull(crDebug);
             assertTrue(cr.toString(), crDebug.isSpeculative());
         } // FOR
-        assertEquals(num_txns, this.spResponses.size());
+        assertEquals(NUM_SPECEXEC_TXNS, this.spResponses.size());
     }
  
 

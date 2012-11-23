@@ -119,6 +119,7 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.SpecExecScheduler.SchedulerPolicy;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
@@ -626,15 +627,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         } else {
             this.specExecChecker = new TableConflictChecker(this.catalogContext);
         }
-        this.specExecScheduler = new SpecExecScheduler(
-        		this.catalogContext, this.specExecChecker, this.partitionId, this.currentBlockedTxns,
-                SpecExecScheduler.policyMap.get(hstore_conf.site.specexec_scheduler_policy.toUpperCase()),
-                hstore_conf.site.specexec_scheduler_window);
+        
+        SchedulerPolicy policy = SchedulerPolicy.get(hstore_conf.site.specexec_scheduler_policy);
+        assert(policy != null) : String.format("Invalid %s '%s'",
+                                               SchedulerPolicy.class.getSimpleName(),
+                                               hstore_conf.site.specexec_scheduler_policy);
+        this.specExecScheduler = new SpecExecScheduler(this.catalogContext,
+                                                       this.specExecChecker,
+                                                       this.partitionId,
+                                                       this.currentBlockedTxns,
+                                                       policy,
+                                                       hstore_conf.site.specexec_scheduler_window);
         if (hstore_conf.site.specexec_ignore_all_local) {
             this.specExecScheduler.setIgnoreAllLocal(true);
         }
-        
-
         
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
@@ -862,7 +868,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // -------------------------------
                 work = this.getNext();
                 if (work == null) continue;
-                if (t) LOG.trace("Next Work: " + work);
+                if (d) LOG.debug("Next Work: " + work);
                 
                 if (hstore_conf.site.exec_profiling) this.profiler.exec_time.start();
                 try {
@@ -1129,12 +1135,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             AbstractTransaction ts = work.getTransaction();
             if (ts.isInitialized()) {
             	this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
-//                if (this.currentDtxn != null) {
+                if (this.currentDtxn != null) {
 //                    //if (this.currentDtxn.compareTo(ts) < 0) this.blockTransaction(work);
-//                } else { 
-//                    this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
-//                }
-                
+                } else { 
+                    this.setCurrentDtxn(ts);
+                }
             }
         }
         // -------------------------------
@@ -1846,7 +1851,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             //       speculatively executing this dtxn. After all, if we're at this point in 
             //       the PartitionExecutor then we know that we got this partition's locks 
             //       from the TransactionQueueManager.
-            if (this.currentDtxn != null) {
+            if (this.currentDtxn != null && this.currentDtxn.equals(ts) == false) {
                 assert(this.currentDtxn.equals(ts) == false) :
                     String.format("New DTXN %s != Current DTXN %s", ts, this.currentDtxn);
                 
@@ -1874,7 +1879,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
             }
             // If there is no other DTXN right now, then we're it!
-            else {
+            else if (this.currentDtxn.equals(ts) == false) {
                 this.setCurrentDtxn(ts);
             }
             // 2011-11-14: We don't want to set the execution mode here, because we know that we
@@ -2024,7 +2029,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private boolean canProcessClientResponseNow(LocalTransaction ts, Status status, ExecutionMode before_mode) {
         if (d) LOG.debug(String.format("%s - Checking whether to process %s response now at partition %d " +
 	                     "[singlePartition=%s / readOnly=%s / beore=%s / current=%s]",
-                         ts, this.partitionId, status,
+                         ts, status, this.partitionId,
                          ts.isPredictSinglePartition(),
                          ts.isExecReadOnly(this.partitionId),
                          before_mode, this.currentExecMode));
@@ -4108,10 +4113,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         public Long getCurrentTxnId() {
             return (PartitionExecutor.this.currentTxnId);
         }
-        public int getBlockedQueueSize() {
+        public int getBlockedWorkCount() {
             return (PartitionExecutor.this.currentBlockedTxns.size());
         }
-        public int getWaitingQueueSize() {
+        /**
+         * Return the number of spec exec txns have completed but are waiting
+         * for the distributed txn to finish at this partition
+         */
+        public int getBlockedSpecExecCount() {
             return (PartitionExecutor.this.specExecBlocked.size());
         }
         public int getWorkQueueSize() {

@@ -1,5 +1,6 @@
 package edu.brown.hstore;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -38,24 +39,30 @@ public class SpecExecScheduler {
     private final CatalogContext catalogContext;
     private final int partitionId;
     private final List<InternalMessage> work_queue;
-    private final AbstractConflictChecker checker;
+    private AbstractConflictChecker checker;
     private boolean ignore_all_local = false;
     private final Map<SpeculationType, SpecExecProfiler> profilerMap = new HashMap<SpeculationType, SpecExecProfiler>();
     private SchedulerPolicy policy;
     private int window_size = 1;
     private boolean isProfiling = false;
     
-    public static enum SchedulerPolicy {
-    	  FIRST,
+    public enum SchedulerPolicy {
+    	  FIRST, // DEFAULT
     	  SHORTEST,
     	  LONGEST;
-    }
-    public static HashMap <String,SchedulerPolicy> policyMap = new HashMap<String, SchedulerPolicy>();
-    static {
-    	policyMap.put("FIRST", SchedulerPolicy.FIRST);
-    	policyMap.put("SHORTEST", SchedulerPolicy.SHORTEST);
-    	policyMap.put("LONGEST", SchedulerPolicy.LONGEST);
-    }
+    	  
+    	  private static final Map<String, SchedulerPolicy> name_lookup = new HashMap<String, SchedulerPolicy>();
+    	  static {
+    	      for (SchedulerPolicy e : EnumSet.allOf(SchedulerPolicy.class)) {
+    	          SchedulerPolicy.name_lookup.put(e.name().toLowerCase(), e);
+    	      } // FOR
+    	  } // STATIC
+    	  
+    	  public static SchedulerPolicy get(String name) {
+    	      return SchedulerPolicy.name_lookup.get(name.toLowerCase());
+    	  }
+    } // ENUM
+    
     /**
      * Constructor
      * @param catalogContext
@@ -64,7 +71,7 @@ public class SpecExecScheduler {
      * @param work_queue
      */
     public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, 
-    		List<InternalMessage> work_queue, SchedulerPolicy schedule_policy, int windown) {
+    		                 List<InternalMessage> work_queue, SchedulerPolicy schedule_policy, int windown) {
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;
@@ -244,6 +251,17 @@ public class SpecExecScheduler {
         	profiler.total_time.stop();
         }
         return (next);
+    }
+    
+    /**
+     * Replace the ConflictChecker. This should only be used for testing
+     * @param checker
+     */
+    protected void setConflictChecker(AbstractConflictChecker checker) {
+        LOG.warn(String.format("Replacing original checker %s with %s",
+                 this.checker.getClass().getSimpleName(),
+                 checker.getClass().getCanonicalName()));
+        this.checker = checker;
     }
     
     public Map<SpeculationType,SpecExecProfiler> getProfilers() {

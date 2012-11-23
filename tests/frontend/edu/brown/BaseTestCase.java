@@ -154,7 +154,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             String catalogJar = new File(projectBuilder.getJarName(true)).getAbsolutePath();
             try {
                 boolean status = projectBuilder.compile(catalogJar);
-                assert (status);
+                assert(status) : "Failed to compile " + catalogJar;
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to create " + projectBuilder.getProjectName() + " catalog [" + catalogJar + "]", ex);
             }

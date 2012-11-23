@@ -470,8 +470,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             m.put(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
                                     es_queue.size(),
                                     dbg.getWorkQueueSize(),
-                                    dbg.getBlockedQueueSize(),
-                                    dbg.getWaitingQueueSize()), null);
+                                    dbg.getBlockedWorkCount(),
+                                    dbg.getBlockedSpecExecCount()), null);
             
             // Execution Info
 //            status = String.format("%-5s [limit=%d, release=%d] %s",

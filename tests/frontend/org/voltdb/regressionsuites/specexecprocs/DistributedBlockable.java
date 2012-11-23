@@ -34,7 +34,7 @@ public class DistributedBlockable extends VoltProcedure {
     
     public final SQLStmt updateAll = new SQLStmt(
         "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER +
-        "  SET MSC_LOCATION += 1 "
+        "  SET MSC_LOCATION = MSC_LOCATION + 1 "
     );
     
     public VoltTable[] run(int partition) {
