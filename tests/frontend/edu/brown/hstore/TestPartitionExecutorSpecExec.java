@@ -94,7 +94,9 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     private final ProcedureCallback spCallback = new ProcedureCallback() {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
+            assert(spLatch != null);
             spResponses.add(clientResponse);
+            spLatch.countDown();
         }
     };
     
@@ -199,12 +201,14 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         } // FOR
         this.spLatch = new CountDownLatch(NUM_SPECEXEC_TXNS);
         
-        // Wait a few seconds, then make sure that nobody actually returned yet
-        ThreadUtil.sleep(NOTIFY_TIMEOUT);
-        
-        // Check that the txns actually got executed but are blocked
-        assert(remoteDebug.getBlockedSpecExecCount() > 0) :
-            "No blocked spec exec txns at " + this.remoteExecutor.getPartition();
+        // Wait until they have all been executed but make sure that nobody actually returned yet
+        int tries = 3;
+        while (tries-- > 0) {
+            int blocked = remoteDebug.getBlockedSpecExecCount();
+            if (blocked == NUM_SPECEXEC_TXNS) break;
+            ThreadUtil.sleep(NOTIFY_TIMEOUT);    
+        } // WHILE
+        assertEquals(NUM_SPECEXEC_TXNS, remoteDebug.getBlockedSpecExecCount());
         
         // Now release the locks and then wait until the dtxn returns and all 
         // of the single-partition txns return
@@ -212,17 +216,17 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         this.lockBefore.release();
         
         result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("DTXN LATCH", result);
+        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
         result = this.spLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("SINGLE-P LATCH", result);
+        assertTrue("SINGLE-P LATCH: "+this.spLatch, result);
         
         // Check to make sure that the dtxn succeeded
-        assertEquals(Status.OK, this.dtxnResponse);
+        assertEquals(Status.OK, this.dtxnResponse.getStatus());
         
         // And that all of our single-partition txns succeeded and were speculatively executed
         for (ClientResponse cr : this.spResponses) {
             assertNotNull(cr);
-            assertEquals(cr.toString(), Status.OK, cr);
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());
             assertTrue(cr.toString(), cr.isSinglePartition());
             assertTrue(cr.toString(), cr.hasDebug());
             

@@ -3429,9 +3429,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         Status status = cresponse.getStatus();
 
         if (d) {
-            LOG.debug(String.format("%s - Processing ClientResponse at partition %d [status=%s, singlePartition=%s, local=%s, clientHandle=%d]",
-                                    ts, this.partitionId, status, ts.isPredictSinglePartition(),
-                                    ts.isExecLocal(this.partitionId), cresponse.getClientHandle()));
+            LOG.debug(String.format("%s - Processing ClientResponse at partition %d" +
+            		  "[status=%s / singlePartition=%s / local=%s / clientHandle=%d]",
+                      ts, this.partitionId, status, ts.isPredictSinglePartition(),
+                      ts.isExecLocal(this.partitionId), cresponse.getClientHandle()));
             if (t) {
                 LOG.trace(ts + " Touched Partitions: " + ts.getTouchedPartitions().values());
                 LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
@@ -3702,8 +3703,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (this.specExecBlocked.isEmpty() == false) {
             // First thing we need to do is get the latch that will be set by any transaction
             // that was in the middle of being executed when we were called
-            if (d) LOG.debug(String.format("%s - Checking waiting/blocked transactions at partition %d [currentMode=%s]",
-                             ts, this.partitionId, this.currentExecMode));
+            if (d) LOG.debug(String.format("%s - Checking %d blocked speculative transactions at partition %d [currentMode=%s]",
+                             ts, this.specExecBlocked.size(), this.partitionId, this.currentExecMode));
             
             LocalTransaction spec_ts = null;
             ClientResponseImpl spec_cr = null;
@@ -3771,20 +3772,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             else {
                 // We need to get the last undo tokens for our distributed transaction and the last
                 // transaction that was speculatively executed (if any)
-                long dtxnUndoToken = ts.getLastUndoToken(this.partitionId);                
-            
-                // Loop backwards through our queued responses and find the latest txn that 
-                // we need to tell the EE to commit. All ones that completed before that won't
-                // have to hit up the EE.
-                AbstractTransaction greatest_ts = ts;
+                long dtxnUndoToken = ts.getLastUndoToken(this.partitionId);
+                if (d) LOG.debug(String.format("%s - Last undoToken at partition %d => %d",
+                                 ts, this.partitionId, dtxnUndoToken));
             
                 // Iterate through the queue until we find a txn that has an undoToken that
                 // isn't null. If this undoToken is greater than our dtxn's, then that's
                 // the one txn that we need to commit that will cause all the other ones to commit
+                AbstractTransaction greatest_ts = ts;
                 for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
                     spec_ts = pair.getFirst(); 
                     spec_token = spec_ts.getLastUndoToken(this.partitionId);
-                    if (spec_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+                    if (spec_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN &&
+                        spec_token != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
                         if (spec_token > dtxnUndoToken) { 
                             greatest_ts = spec_ts;
                         }
@@ -3792,6 +3792,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     }
                 } // FOR
                 assert(greatest_ts != null);
+                if (d) LOG.debug(String.format("%s - Txn with the largest undoToken at partition %d is %s => %d",
+                                 ts, this.partitionId, greatest_ts, greatest_ts.getLastUndoToken(this.partitionId)));
                 
                 // Commit the greatest transaction
                 this.finishTransaction(greatest_ts, commit);
