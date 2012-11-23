@@ -1886,7 +1886,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
             }
             // If there is no other DTXN right now, then we're it!
-            else if (this.currentDtxn.equals(ts) == false) {
+            else { // if (this.currentDtxn this.currentDtxn.equals(ts) == false) {
                 this.setCurrentDtxn(ts);
             }
             // 2011-11-14: We don't want to set the execution mode here, because we know that we
