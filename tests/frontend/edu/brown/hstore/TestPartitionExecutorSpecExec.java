@@ -37,7 +37,6 @@ import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
@@ -100,7 +99,8 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         public void clientCallback(ClientResponse clientResponse) {
             assertNull(dtxnResponse);
             dtxnResponse = clientResponse;
-            System.err.printf("DTXN ClientResponse: %d / %s\n", clientResponse.getTransactionId(), clientResponse.getStatus());
+            LOG.info(String.format("DTXN ClientResponse: %d / %s\n",
+                                   clientResponse.getTransactionId(), clientResponse.getStatus()));
             dtxnLatch.countDown();
         }
     };
@@ -192,7 +192,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         if (this.hstore_site != null) this.hstore_site.shutdown();
         // HACK: Delete JAR
         if (catalogContext.jarPath != null && catalogContext.jarPath.exists()) {
-            System.err.println("DELETE: " + catalogContext.jarPath);
+            // System.err.println("DELETE: " + catalogContext.jarPath);
             catalogContext.jarPath.delete();
         }
     }
@@ -289,8 +289,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
             // Third txn should only see the first txn's marker value
             params = new Object[]{ BASE_PARTITION+1, MARKER, 1 }; // SHOULD BE EQUAL!
             this.client.callProcedure(spCallback2, spProc1.getName(), params);
-            
-            MARKER += 1;
         } // FOR
         
         // We should get back all of the aborting txns' responses, but none from

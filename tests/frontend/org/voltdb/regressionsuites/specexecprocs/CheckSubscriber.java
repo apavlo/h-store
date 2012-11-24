@@ -31,7 +31,7 @@ public class CheckSubscriber extends VoltProcedure {
         voltQueueSQL(getSubscriber, s_id);
         final VoltTable results[] = voltExecuteSQL();
         assert(results.length == 1);
-        LOG.info("RESULTS:\n" + results[0]);
+        LOG.debug("RESULTS:\n" + results[0]);
         
         boolean adv = results[0].advanceRow();
         assert(adv);
