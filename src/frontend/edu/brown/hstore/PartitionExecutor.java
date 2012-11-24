@@ -3698,14 +3698,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param status - The final status of the transaction
      */
     private void finishDistributedTransaction(final AbstractTransaction ts, final Status status) {
-        if (this.currentDtxn == null) {
+        if (this.currentDtxn != ts) {
             if (d) LOG.debug(String.format("%s - Hackishly skipping finishWork request at partition %d [status=%s]",
                              ts, this.partitionId, status));
             assert(this.specExecBlocked.isEmpty());
             hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId); // XXX
             return;
         }
-        assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
+        // assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
         boolean commit = (status == Status.OK);
         if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d [status=%s]",
                          ts, this.partitionId, status));

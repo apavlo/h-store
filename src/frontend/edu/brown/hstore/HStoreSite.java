@@ -1319,7 +1319,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.addAppender(appender);    
             } // FOR
         }
-        LOG.info("Preparing to shutdown. Flushing all logs");
+        if (d) LOG.debug("Preparing to shutdown. Flushing all logs");
         LoggerUtil.flushAllLogs();
         
         if (this.hstore_coordinator != null)
@@ -2003,7 +2003,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
-            if (ts.isPredictSinglePartition() == false) { //  && (hstore_conf.site.specexec_pre_query || ts.needsFinish(p))) {
+            if (ts.isPredictSinglePartition() == false && (hstore_conf.site.specexec_pre_query || ts.needsFinish(p))) {
                 if (t) LOG.trace(String.format("%s - Calling finishTransaction on partition %d", ts, p));
                 try {
                     this.executors[p].queueFinish(ts, status);

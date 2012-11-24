@@ -637,7 +637,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                    int reject_partition,
                                    Long reject_txnId) {
         assert(ts.isInitialized()) :
-            String.format("Unexpected uninitalized transaction handle %s in %s [status=%s / rejectPartition]",
+            String.format("Unexpected uninitialized transaction handle %s in %s [status=%s / rejectPartition]",
                           ts, status, reject_partition);
         if (d) LOG.debug(String.format("Rejecting txn %s on partition %d. Blocking until a txnId greater than #%d [valid=%s]",
                          ts, reject_partition, reject_txnId, (ts.getTransactionId().compareTo(reject_txnId) > 0)));
