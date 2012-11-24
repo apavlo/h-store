@@ -92,13 +92,13 @@ namespace voltdb
             
             // This ensures that undo is only ever called after
             // generateUndoToken has been called
-            #ifdef VOLT_ERROR_ENABLED
-            if (m_lastReleaseToken >= m_lastUndoToken) {
-                VOLT_ERROR("m_lastReleaseToken[%ld] is greater or equal to than m_lastUndoToken[%ld]",
-                           m_lastReleaseToken, m_lastUndoToken);
-            }
-            #endif
-            assert(m_lastReleaseToken < m_lastUndoToken);
+//             #ifdef VOLT_ERROR_ENABLED
+//             if (m_lastReleaseToken >= m_lastUndoToken) {
+//                 VOLT_ERROR("m_lastReleaseToken[%ld] is greater or equal to than m_lastUndoToken[%ld] -- [undoToken=%ld]",
+//                            m_lastReleaseToken, m_lastUndoToken, undoToken);
+//             }
+//             #endif
+//             assert(m_lastReleaseToken < m_lastUndoToken);
             
             // This ensures that we don't attempt to undo something in
             // the distant past.  In some cases ExecutionSite may hand
@@ -106,8 +106,8 @@ namespace voltdb
             // exist; this will just result in all undo quanta being undone.
             #ifdef VOLT_ERROR_ENABLED
             if (undoToken < m_lastReleaseToken) {
-                VOLT_ERROR("undoToken[%ld] is less than m_lastReleaseToken[%ld]",
-                           undoToken, m_lastReleaseToken);
+                VOLT_ERROR("undoToken[%ld] is less than m_lastReleaseToken[%ld] -- [undoToken=%ld]",
+                           undoToken, m_lastReleaseToken, undoToken);
             }
             #endif
             assert(undoToken >= m_lastReleaseToken);

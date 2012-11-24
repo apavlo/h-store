@@ -3643,13 +3643,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     // it will automagically rollback all other outstanding txns.
                     // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
                     // we should be able to check whether our undoToken has already been rolled back
-                    if (d) LOG.debug(String.format("%s - Aborting txn on partition %d with undoToken %d " +
-                                     "[lastCommittedTxnId=%d / lastCommittedUndoToken=%d]%s",
-                                     ts, this.partitionId, undoToken,
-                                     this.lastCommittedTxnId, this.lastCommittedUndoToken,
-                                     (ts instanceof LocalTransaction ? " - " + ((LocalTransaction)ts).getSpeculativeType() : "")));
-                    if (this.specExecBlocked.isEmpty() == false && ts.isPredictSinglePartition() == false) {
-                        LOG.info(String.format("%s - # of Speculatively Executed Txns: %d ", ts, this.specExecBlocked.size()));
+                    if (d) {
+                        LOG.debug(String.format("%s - Aborting txn on partition %d with undoToken %d " +
+                                  "[lastCommittedTxnId=%d / lastCommittedUndoToken=%d]%s",
+                                  ts, this.partitionId, undoToken,
+                                  this.lastCommittedTxnId, this.lastCommittedUndoToken,
+                                  (ts instanceof LocalTransaction ? " - " + ((LocalTransaction)ts).getSpeculativeType() : "")));
+                        if (this.specExecBlocked.isEmpty() == false && ts.isPredictSinglePartition() == false) {
+                            LOG.debug(String.format("%s - # of Speculatively Executed Txns: %d ", ts, this.specExecBlocked.size()));
+                        }
                     }
                     assert(this.lastCommittedUndoToken < undoToken) :
                         String.format("Trying to abort undoToken %d for %s but it is less than the " +
