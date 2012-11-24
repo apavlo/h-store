@@ -489,7 +489,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             txn_id = dbg.getLastCommittedTxnId();
             m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
             
-            
             // TransactionQueueManager Info
             status = String.format("%-5s [limit=%d, release=%d] %s",
                                    dtxn_queue.size(), dtxn_queue.getQueueMax(), dtxn_queue.getQueueRelease(),
@@ -506,6 +505,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                                 callback.getPartitions(), callback.getCounter());
                     }
                 }
+            }
+            else if (queueManagerDebug.isLocked(partition)) {
+                status += "\nWARNING: Queue is locked but without a txn!";
             }
             // TransactionQueueManager - Blocked
             if (queueManagerDebug.getBlockedQueueSize() > 0) {

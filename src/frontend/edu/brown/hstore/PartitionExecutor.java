@@ -1332,13 +1332,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // If it is, then that means all read-only transactions can commit right away
                 if (ts.isExecReadOnly(this.partitionId)) {
                     newMode = ExecutionMode.COMMIT_READONLY;
+//                    if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
+//                                     ts, this.partitionId));
+//                    hstore_site.getTransactionQueueManager().lockQueueFinished(ts, Status.OK, this.partitionId);
                 }
             }
             if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
-        
-            if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
-                             ts, this.partitionId));
-            hstore_site.getTransactionQueueManager().lockQueueFinished(ts, Status.OK, this.partitionId);
         }
         else if (d) {
             LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
@@ -2165,7 +2164,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
         } finally {
             if (error != null) {
-                error.printStackTrace();
+                // error.printStackTrace();
                 LOG.error(String.format("%s - Unexpected %s on partition %d",
                           ts, error.getClass().getSimpleName(), this.partitionId), error);
             }
@@ -3699,6 +3698,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param status - The final status of the transaction
      */
     private void finishDistributedTransaction(final AbstractTransaction ts, final Status status) {
+        if (this.currentDtxn == null) {
+            if (d) LOG.debug(String.format("%s - Hackishly skipping finishWork request at partition %d [status=%s]",
+                             ts, this.partitionId, status));
+            assert(this.specExecBlocked.isEmpty());
+            hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId); // XXX
+            return;
+        }
         assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
         boolean commit = (status == Status.OK);
         if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d [status=%s]",
@@ -3898,9 +3904,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // We only need to tell the queue stuff that the transaction is finished
         // if it's not a commit because there won't be a 2PC:PREPARE message
-        if (commit == false) {
-            this.hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId);
-        }
+        if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
+                         ts, this.partitionId));
+        hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId);
         
         // If we have a cleanup callback, then invoke that
         if (ts.getCleanupCallback() != null) {
