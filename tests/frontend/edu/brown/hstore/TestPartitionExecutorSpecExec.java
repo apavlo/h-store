@@ -11,16 +11,26 @@ import org.apache.log4j.Logger;
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.ClientResponseDebug;
+import org.voltdb.VoltSystemProcedure;
+import org.voltdb.VoltTable;
+import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
+import org.voltdb.regressionsuites.specexecprocs.CheckSubscriber;
 import org.voltdb.regressionsuites.specexecprocs.DistributedBlockable;
+import org.voltdb.regressionsuites.specexecprocs.SinglePartitionAbortable;
+import org.voltdb.sysprocs.LoadMultipartitionTable;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
@@ -37,6 +47,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     private static final int BASE_PARTITION = 0;
     private static final int NOTIFY_TIMEOUT = 2500; // ms
     private static final int NUM_SPECEXEC_TXNS = 5;
+    private static final int MARKER = 9999;
     
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
@@ -59,6 +70,8 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         {
             this.addAllDefaults();
             this.addProcedure(DistributedBlockable.class);
+            this.addProcedure(SinglePartitionAbortable.class);
+            this.addProcedure(CheckSubscriber.class);
         }
     };
     
@@ -96,10 +109,10 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     // SINGLE-PARTITION TXN CALLBACK
     // --------------------------------------------------------------------------------------------
     
-    private class SinglePartitionProcedureCallback implements ProcedureCallback {
+    private class LatchableProcedureCallback implements ProcedureCallback {
         private final List<ClientResponse> responses = new ArrayList<ClientResponse>();
         private final CountDownLatch latch;
-        SinglePartitionProcedureCallback(int expected) {
+        LatchableProcedureCallback(int expected) {
             this.latch = new CountDownLatch(expected);
         }
         @Override
@@ -155,6 +168,22 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         this.lockAfter.drainPermits();
         this.notifyBefore.drainPermits();
         this.notifyAfter.drainPermits();
+        
+        // We want to always insert one SUBSCRIBER record per partition so 
+        // that we can play with them. Set VLR_LOCATION to zero so that 
+        // can check whether it has been modified
+        Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
+        Column catalog_col = this.getColumn(catalog_tbl, "VLR_LOCATION");
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        for (int i = 0; i < NUM_PARTITIONS; i++) {
+            Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
+            row[0] = new Long(i);
+            row[catalog_col.getIndex()] = 0l;
+            vt.addRow(row);
+        } // FOR
+        String procName = VoltSystemProcedure.procCallName(LoadMultipartitionTable.class);
+        ClientResponse cr = this.client.callProcedure(procName, catalog_tbl.getName(), vt);
+        assertEquals(cr.toString(), Status.OK, cr.getStatus());
     }
     
     @Override
@@ -199,10 +228,10 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertEquals(expected, executor.getDebugContext().getBlockedSpecExecCount());
     }
     
-    private void checkClientResponses(Collection<ClientResponse> responses, boolean speculative, Integer restarts) {
+    private void checkClientResponses(Collection<ClientResponse> responses, Status status, boolean speculative, Integer restarts) {
         for (ClientResponse cr : responses) {
             assertNotNull(cr);
-            assertEquals(cr.toString(), Status.OK, cr.getStatus());
+            assertEquals(cr.toString(), status, cr.getStatus());
             assertTrue(cr.toString(), cr.isSinglePartition());
             assertTrue(cr.toString(), cr.hasDebug());
             
@@ -218,6 +247,62 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testSpeculativeAbort
+     */
+    @Test
+    public void testSpeculativeAbort() throws Exception {
+        // We're going to execute a dtxn that will block on the remote partition
+        // We will then execute a single-partition transaction that will throw a user
+        // abort. We will then execute a bunch of speculative txns that should *not*
+        // see the changes made by the aborted txn
+        Object params[] = new Object[]{ BASE_PARTITION };
+        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
+        
+        // Block until we know that the txn has started running
+        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+        this.checkCurrentDtxn();
+        
+        // Now submit our aborting single-partition txn
+        // This should be allowed to be speculatively executed right away
+        Procedure spProc0 = this.getProcedure(SinglePartitionAbortable.class);
+        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
+        params = new Object[]{ BASE_PARTITION+1, MARKER };
+        this.client.callProcedure(spCallback0, spProc0.getName(), params);
+
+        // Now execute the second batch of single-partition txns
+        // These should never see the changes made by our first single-partition txn
+        Procedure spProc1 = this.getProcedure(CheckSubscriber.class);
+        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
+            this.client.callProcedure(spCallback1, spProc1.getName(), params);
+        } // FOR
+        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
+        
+        // Release all of the dtxn's locks
+        this.lockBefore.release();
+        this.lockAfter.release();
+        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
+        assertEquals(this.dtxnResponse.toString(), Status.OK, this.dtxnResponse.getStatus());
+        
+        // All of our single-partition txns should now come back to us too
+        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SINGLE-P LATCH0: "+spCallback0.latch, result);
+        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SINGLE-P LATCH1: "+spCallback1.latch, result);
+        
+        // We should only have one response in the first batch that should have aborted
+        this.checkClientResponses(spCallback0.responses, Status.ABORT_USER, true, 0);
+        assertEquals(1, spCallback0.responses.size());
+
+        // The second wave should have all succeeded with being marked as speculative
+        // with no restarts
+        this.checkClientResponses(spCallback1.responses, Status.OK, true, 0);
+        assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
+    }
     
     /**
      * testAllCommitsBefore
@@ -241,7 +326,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         this.checkCurrentDtxn();
         
         // Now fire off a bunch of single-partition txns
-        SinglePartitionProcedureCallback spCallback = new SinglePartitionProcedureCallback(NUM_SPECEXEC_TXNS);
+        LatchableProcedureCallback spCallback = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
         params = new Object[]{ BASE_PARTITION+1 }; // S_ID
         for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
             this.client.callProcedure(spCallback, this.spProc.getName(), params);
@@ -262,15 +347,15 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertEquals(Status.OK, this.dtxnResponse.getStatus());
         
         // And that all of our single-partition txns succeeded and were speculatively executed
-        this.checkClientResponses(spCallback.responses, true, null);
+        this.checkClientResponses(spCallback.responses, Status.OK, true, null);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback.responses.size());
     }
     
     /**
-     * testDtxnAbortBefore
+     * testDtxnAbort
      */
     @Test
-    public void testDtxnAbortBefore() throws Exception {
+    public void testDtxnAbort() throws Exception {
         // Execute a dtxn that will abort *after* it executes a query
         // We will also issue two batches of single-p txns. The first batch
         // will get executed before the dtxn executes a query at the remote partition
@@ -288,7 +373,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         
         // Now fire off our first batch of single-partition txns
         // This should be allowed to be speculatively executed right away
-        SinglePartitionProcedureCallback spCallback0 = new SinglePartitionProcedureCallback(NUM_SPECEXEC_TXNS);
+        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
         params = new Object[]{ BASE_PARTITION+1 }; // S_ID
         for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
             this.client.callProcedure(spCallback0, this.spProc.getName(), params);
@@ -303,7 +388,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         
         // Now execute the second batch of single-partition txns
         // All of these will get restarted when the dtxn gets aborted
-        SinglePartitionProcedureCallback spCallback1 = new SinglePartitionProcedureCallback(NUM_SPECEXEC_TXNS);
+        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
         for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
             this.client.callProcedure(spCallback1, this.spProc.getName(), params);
         } // FOR
@@ -324,10 +409,10 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertTrue("SINGLE-P LATCH1: "+spCallback1.latch, result);
         
         // The first wave should have succeeded with zero restarts and marked as speculative
-        this.checkClientResponses(spCallback0.responses, true, 0);
+        this.checkClientResponses(spCallback0.responses, Status.OK, true, 0);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback0.responses.size());
         // The second wave should have succeeded but with one restart and not marked as speculative
-        this.checkClientResponses(spCallback1.responses, false, 1);
+        this.checkClientResponses(spCallback1.responses, Status.OK, false, 1);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
         
     }
