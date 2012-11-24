@@ -37,6 +37,7 @@ import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
@@ -189,6 +190,11 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     protected void tearDown() throws Exception {
         if (this.client != null) this.client.close();
         if (this.hstore_site != null) this.hstore_site.shutdown();
+        // HACK: Delete JAR
+        if (catalogContext.jarPath != null && catalogContext.jarPath.exists()) {
+            System.err.println("DELETE: " + catalogContext.jarPath);
+            catalogContext.jarPath.delete();
+        }
     }
 
     // --------------------------------------------------------------------------------------------
