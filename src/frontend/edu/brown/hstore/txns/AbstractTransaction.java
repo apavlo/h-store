@@ -40,7 +40,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.ServerFaultException;
-import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;

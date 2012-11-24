@@ -47,7 +47,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     private static final int BASE_PARTITION = 0;
     private static final int NOTIFY_TIMEOUT = 2500; // ms
     private static final int NUM_SPECEXEC_TXNS = 5;
-    private static final int MARKER = 9999;
     
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
@@ -237,9 +236,9 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
             
             ClientResponseDebug crDebug = cr.getDebug();
             assertNotNull(crDebug);
-            assertEquals("SPECULATIVE", speculative, crDebug.isSpeculative());
+            assertEquals(cr.getTransactionId() + " - SPECULATIVE", speculative, crDebug.isSpeculative());
             if (restarts != null) {
-                assertEquals("RESTARTS", restarts.intValue(), cr.getRestartCounter());
+                assertEquals(cr.getTransactionId() + " - RESTARTS", restarts.intValue(), cr.getRestartCounter());
             }
         } // FOR
     }
@@ -247,6 +246,77 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testSpeculativeInterleavedAborts
+     */
+    @Test
+    public void testSpeculativeInterleavedAborts() throws Exception {
+        // This one is a bit more complicated. We're going to execute 
+        // transactions where we interleave speculative txns that abort
+        // We want to make sure that the final value is what we expect it to be
+        Object params[] = new Object[]{ BASE_PARTITION };
+        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
+        
+        // Block until we know that the txn has started running
+        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+        this.checkCurrentDtxn();
+        
+        // Now submit our aborting single-partition txn
+        // This should be allowed to be speculatively executed right away
+        Procedure spProc0 = this.getProcedure(SinglePartitionAbortable.class);
+        Procedure spProc1 = this.getProcedure(CheckSubscriber.class);
+        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+        LatchableProcedureCallback spCallback2 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+        int MARKER = 1000;
+        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
+            // First txn will not abort
+            params = new Object[]{ BASE_PARTITION+1, MARKER, 0 };
+            this.client.callProcedure(spCallback0, spProc0.getName(), params);
+            
+            // Second txn will abort
+            params = new Object[]{ BASE_PARTITION+1, MARKER+1, 1 };
+            this.client.callProcedure(spCallback1, spProc0.getName(), params);
+            
+            // Third txn should only see the first txn's marker value
+            params = new Object[]{ BASE_PARTITION+1, MARKER, 1 }; // SHOULD BE EQUAL!
+            this.client.callProcedure(spCallback2, spProc1.getName(), params);
+            
+            MARKER += 1;
+        } // FOR
+        
+        // We should get back all of the aborting txns' responses, but none from
+        // the other txns
+        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SINGLE-P LATCH1: "+spCallback1.latch, result);
+        assertTrue(spCallback0.responses.isEmpty());
+        assertTrue(spCallback2.responses.isEmpty());
+        
+        // Release all of the dtxn's locks
+        this.lockBefore.release();
+        this.lockAfter.release();
+        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
+        assertEquals(this.dtxnResponse.toString(), Status.OK, this.dtxnResponse.getStatus());
+        
+        // Now all of our single-partition txns should now come back to us too
+        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SINGLE-P LATCH0: "+spCallback0.latch, result);
+        result = spCallback2.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SINGLE-P LATCH2: "+spCallback2.latch, result);
+        
+        // The first + third batch should be all successful
+        this.checkClientResponses(spCallback0.responses, Status.OK, true, 0);
+        assertEquals(NUM_SPECEXEC_TXNS, spCallback0.responses.size());
+        this.checkClientResponses(spCallback2.responses, Status.OK, true, 0);
+        assertEquals(NUM_SPECEXEC_TXNS, spCallback2.responses.size());
+
+        // The second batch should all have been aborted
+        this.checkClientResponses(spCallback1.responses, Status.ABORT_USER, true, 0);
+        assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
+    }
     
     /**
      * testSpeculativeAbort
@@ -269,13 +339,15 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // This should be allowed to be speculatively executed right away
         Procedure spProc0 = this.getProcedure(SinglePartitionAbortable.class);
         LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
-        params = new Object[]{ BASE_PARTITION+1, MARKER };
+        int MARKER = 9999;
+        params = new Object[]{ BASE_PARTITION+1, MARKER, 1 };
         this.client.callProcedure(spCallback0, spProc0.getName(), params);
 
         // Now execute the second batch of single-partition txns
         // These should never see the changes made by our first single-partition txn
         Procedure spProc1 = this.getProcedure(CheckSubscriber.class);
         LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+        params = new Object[]{ BASE_PARTITION+1, MARKER, 0 }; // Should not be equal!
         for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
             this.client.callProcedure(spCallback1, spProc1.getName(), params);
         } // FOR
@@ -416,6 +488,5 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
         
     }
- 
 
 }

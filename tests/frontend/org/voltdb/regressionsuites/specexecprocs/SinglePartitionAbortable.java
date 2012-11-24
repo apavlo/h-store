@@ -25,15 +25,20 @@ public class SinglePartitionAbortable extends VoltProcedure {
         " WHERE S_ID = ? "
     );
     
-    public VoltTable[] run(long s_id, int marker) {
+    public VoltTable[] run(long s_id, int marker, long abort) {
         // Let 'er rip!
-        voltQueueSQL(updateSubscriber, s_id, marker);
+        voltQueueSQL(updateSubscriber, marker, s_id);
         final VoltTable results[] = voltExecuteSQL();
         assert(results.length == 1);
         LOG.info("RESULTS:\n" + results[0]);
 
-        String msg = String.format("Aborting transaction [S_ID=%d / MARKER=%d]", s_id, marker);
-        throw new VoltAbortException(msg);
+        if (abort == 1) {
+            String msg = String.format("Aborting [S_ID=%d / MARKER=%d]", s_id, marker);
+            LOG.warn(msg);
+            throw new VoltAbortException(msg);
+        }
+        LOG.warn(String.format("Updated %s [S_ID=%d / MARKER=%d]",
+                 TM1Constants.TABLENAME_SUBSCRIBER, s_id, marker));
+        return (results);
     }
-
 }

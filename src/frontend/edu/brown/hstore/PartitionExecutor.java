@@ -381,6 +381,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private final LinkedList<Pair<LocalTransaction, ClientResponseImpl>> specExecBlocked;
     
     /**
+     * If this flag is set to true, that means some txn has modified the database
+     * in the current batch of speculatively executed txns. Any read-only specexec txn that 
+     * is executed when this flag is set to false can be returned to the client immediately.
+     * TODO: This should really be a bitmap of table ids so that we have finer grain control
+     */
+    private boolean specExecModified;
+    
+    /**
      * 
      */
     private final QueryCache queryCache = new QueryCache(10, 10); // FIXME
@@ -619,6 +627,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // Speculative Execution
         this.specExecBlocked = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+        this.specExecModified = false;
         
         if (hstore_conf.site.specexec_markov) {
             // The MarkovConflictChecker is thread-safe, so we all of the partitions
@@ -2069,7 +2078,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     return (true);
                 case COMMIT_READONLY:
                     // Read-only speculative txns can be committed right now
-                    return (ts.isExecReadOnly(this.partitionId));
+                    // TODO: Right now we're going to use the specExecModified flag to disable
+                    // sending out any results from spec execed txns that may have read from 
+                    // a modified database. We should switch to a bitmap of table ids so that we
+                    // have can be more selective.
+                    return (this.specExecModified == false && ts.isExecReadOnly(this.partitionId));
                 case COMMIT_NONE: {
                     // If this txn does not conflict with the current dtxn, then we should be able
                     // to let it commit but we can't because of the way our undo tokens work
@@ -3419,6 +3432,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 //        }
         
         this.specExecBlocked.push(Pair.of(ts, cresponse));
+        this.specExecModified = this.specExecModified && ts.isExecReadOnly(this.partitionId);
 
         if (t) LOG.trace("Total # of Blocked Responses: " + this.specExecBlocked.size());
     }
@@ -3795,9 +3809,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     spec_cr.setStatus(Status.ABORT_MISPREDICT);
                     this.processClientResponse(spec_ts, spec_cr);
                 } // FOR
-                
-                this.specExecBlocked.clear();
-                
             }
             // DTXN COMMIT
             else {
@@ -3853,6 +3864,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     }
                 } // WHILE
             }
+            this.specExecBlocked.clear();
+            this.specExecModified = false;
         }
         // There are no speculative txns waiting for this dtxn, so we can just commit it right away 
         else {
