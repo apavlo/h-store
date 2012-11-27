@@ -915,7 +915,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * Mark this txn as finished (and thus ready for clean-up)
      */
     public void markFinished(int partition) {
-        if (d) LOG.debug(String.format("%s - Marking as finished on partition %d %s [hashCode=%d, offset=%d]",
+        if (d) LOG.debug(String.format("%s - Marking as finished on partition %d " +
+        		                       "[finished=%s / hashCode=%d / offset=%d]",
                                        this, partition, Arrays.toString(this.finished),
                                        this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
         this.finished[hstore_site.getLocalPartitionOffset(partition)] = true;
