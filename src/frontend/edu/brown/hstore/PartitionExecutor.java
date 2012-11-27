@@ -462,6 +462,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private final IntArrayCache tmp_inputDepIds = new IntArrayCache(10);
     
+    LinkedList<Pair<LocalTransaction, ClientResponseImpl>> tmp_toCommit = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+    LinkedList<Pair<LocalTransaction, ClientResponseImpl>> tmp_toRestart = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+
+    
     /**
      * The following three arrays are used by utilityWork() to create transactions
      * for deferred queries
@@ -2081,8 +2085,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     // sending out any results from spec execed txns that may have read from 
                     // a modified database. We should switch to a bitmap of table ids so that we
                     // have can be more selective.
-                    return (false);
-                    // return (this.specExecModified == false && ts.isExecReadOnly(this.partitionId));
+                    // return (false);
+                    return (this.specExecModified == false && ts.isExecReadOnly(this.partitionId));
                 case COMMIT_NONE: {
                     // If this txn does not conflict with the current dtxn, then we should be able
                     // to let it commit but we can't because of the way our undo tokens work
@@ -3763,9 +3767,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             ClientResponseImpl spec_cr = null;
             long spec_token;
             
-            LinkedList<Pair<LocalTransaction, ClientResponseImpl>> to_commit = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
-            LinkedList<Pair<LocalTransaction, ClientResponseImpl>> to_restart = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
-            
             // DTXN ABORT
             // Commit anything that was executed before the dtxn started
             if (commit == false) {
@@ -3784,19 +3785,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     // We need to keep track of what the last undoToken was when this txn started.
                     // That will tell us what version of the database this txn read from. 
                     if (spec_token == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || spec_token < dtxnUndoToken) {
-                        to_commit.add(pair);
+                        tmp_toCommit.add(pair);
                     }
                     else {
-                        to_restart.push(pair);
+                        tmp_toRestart.push(pair);
                     }
                 } // FOR
                 if (d) LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be committed " +
                                  "*before* we abort this txn",
-                                 ts, to_commit.size(), this.partitionId));
+                                 ts, tmp_toCommit.size(), this.partitionId));
 
                 // (1) Commit all of our boys first
                 boolean first = true;
-                for (Pair<LocalTransaction, ClientResponseImpl> pair : to_commit) {
+                Pair<LocalTransaction, ClientResponseImpl> pair = null;
+                while ((pair = tmp_toCommit.pollFirst()) != null) {
                     spec_ts = pair.getFirst(); 
                     spec_cr = pair.getSecond();
                     spec_token = spec_ts.getFirstUndoToken(this.partitionId);
@@ -3832,7 +3834,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.finishTransaction(ts, false);
                 
                 // (3) Restart all the other txns
-                for (Pair<LocalTransaction, ClientResponseImpl> pair : to_restart) {
+                while ((pair = tmp_toRestart.pollFirst()) != null) {
                     spec_ts = pair.getFirst(); 
                     spec_cr = pair.getSecond();
                     
@@ -3852,7 +3854,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (d) LOG.debug(String.format("%s - Last undoToken at partition %d => %d",
                                  ts, this.partitionId, undoToken));
                 // Bombs away!
-                this.finishWorkEE(ts, undoToken, true);
+                if (undoToken != this.lastCommittedUndoToken) {
+                    this.finishWorkEE(ts, undoToken, true);
+                }
                 ts.markFinished(this.partitionId);
             
                 // Then make sure that everybody is processed without committing
