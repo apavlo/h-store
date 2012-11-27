@@ -1212,13 +1212,7 @@ public final class HStoreConf {
         )
         @Deprecated
         public int pool_txnprepare_idle;
-        
-        @ConfigProperty(
-            description="The max number of ParameterSets to keep idle in the pool.",
-            defaultInt=1000,
-            experimental=false
-        )
-        public int pool_parametersets_idle;
+
     }
     
     // ============================================================================

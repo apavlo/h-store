@@ -197,5 +197,4 @@
 <arg value="site.pool_txninitwrapper_idle=${site.pool_txninitwrapper_idle}" />
 <arg value="site.pool_txninitqueue_idle=${site.pool_txninitqueue_idle}" />
 <arg value="site.pool_txnprepare_idle=${site.pool_txnprepare_idle}" />
-<arg value="site.pool_parametersets_idle=${site.pool_parametersets_idle}" />
 
