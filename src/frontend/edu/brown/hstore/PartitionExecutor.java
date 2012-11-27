@@ -3665,8 +3665,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             // COMMIT!
             if (commit) {
-//                if (d) {
-                    LOG.info(String.format("%s - COMMITING txn on partition %d with undoToken %d " +
+                if (d) {
+                    LOG.debug(String.format("%s - COMMITING txn on partition %d with undoToken %d " +
                               "[lastTxnId=%d / lastUndoToken=%d / dtxn=%s]%s",
                               ts, this.partitionId, undoToken,
                               this.lastCommittedTxnId, this.lastCommittedUndoToken, this.currentDtxn,
@@ -3674,7 +3674,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (this.specExecBlocked.isEmpty() == false && ts.isPredictSinglePartition() == false) {
                         LOG.info(String.format("%s - # of Speculatively Executed Txns: %d ", ts, this.specExecBlocked.size()));
                     }
-//                }
+                }
                     
                 assert(this.lastCommittedUndoToken < undoToken) :
                     String.format("Trying to commit undoToken %d for %s but it is less than the " +
@@ -3690,8 +3690,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // it will automagically rollback all other outstanding txns.
                 // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
                 // we should be able to check whether our undoToken has already been rolled back
-//                if (d) {
-                    LOG.info(String.format("%s - ABORTING txn on partition %d with undoToken %d " +
+                if (d) {
+                    LOG.debug(String.format("%s - ABORTING txn on partition %d with undoToken %d " +
                               "[lastTxnId=%d / lastUndoToken=%d / dtxn=%s]%s",
                               ts, this.partitionId, undoToken,
                               this.lastCommittedTxnId, this.lastCommittedUndoToken, this.currentDtxn,
@@ -3699,7 +3699,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     if (this.specExecBlocked.isEmpty() == false && ts.isPredictSinglePartition() == false) {
                         LOG.info(String.format("%s - # of Speculatively Executed Txns: %d ", ts, this.specExecBlocked.size()));
                     }
-//                }
+                }
                 assert(this.lastCommittedUndoToken < undoToken) :
                     String.format("Trying to abort undoToken %d for %s but it is less than the " +
                                   "last committed undoToken %d at partition %d",
@@ -3756,8 +3756,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (this.specExecBlocked.isEmpty() == false) {
             // First thing we need to do is get the latch that will be set by any transaction
             // that was in the middle of being executed when we were called
-//            if (d)
-                LOG.info(String.format("Checking %d blocked speculative transactions at partition %d [%s / currentMode=%s]",
+            if (d) LOG.debug(String.format("Checking %d blocked speculative transactions at partition %d [%s / currentMode=%s]",
                              this.specExecBlocked.size(), this.partitionId, ts, this.currentExecMode));
             
             LocalTransaction spec_ts = null;
@@ -3881,7 +3880,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
             this.specExecBlocked.clear();
             this.specExecModified = false;
-            LOG.info(String.format("Finished processing all queued speculative txns for dtxn %s", ts));
+            if (t) LOG.trace(String.format("Finished processing all queued speculative txns for dtxn %s", ts));
         }
         // There are no speculative txns waiting for this dtxn, so we can just commit it right away 
         else {
