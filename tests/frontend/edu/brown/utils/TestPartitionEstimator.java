@@ -379,7 +379,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         Object params[] = new Object[] { new Long(BASE_PARTITION) };
         p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
         assertNotNull(partitions);
-        assertEquals(1, partitions.size());
+        assertEquals(partitions.toString(), 1, partitions.size());
         assertEquals(BASE_PARTITION, CollectionUtil.first(partitions).intValue());
         assertFalse(partitions.contains(HStoreConstants.NULL_PARTITION_ID));
         
