@@ -377,11 +377,14 @@ public class TestPartitionEstimator extends BaseTestCase {
         // First calculate the partitions for the query using the original catalog
         // We should get back exactly one partition id (base_partition)
         Object params[] = new Object[] { new Long(BASE_PARTITION) };
-        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
-        assertNotNull(partitions);
-        assertEquals(partitions.toString(), 1, partitions.size());
-        assertEquals(BASE_PARTITION, CollectionUtil.first(partitions).intValue());
-        assertFalse(partitions.contains(HStoreConstants.NULL_PARTITION_ID));
+        for (int i = 0; i < 10000; i++) {
+            String debug = String.format("Attempt #%05d", i); 
+            partitions.clear();
+            p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
+            assertEquals(debug + " -> " + partitions.toString(), 1, partitions.size());
+            assertEquals(debug, BASE_PARTITION, CollectionUtil.first(partitions).intValue());
+            assertFalse(debug, partitions.contains(HStoreConstants.NULL_PARTITION_ID));
+        } // FOR
         
         // Then reset the catalog in p_estimator and run the estimation again
         // The new catalog has a different partition column for WAREHOUSE, so we should get
