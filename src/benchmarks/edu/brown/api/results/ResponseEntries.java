@@ -21,7 +21,8 @@ import edu.brown.utils.JSONUtil;
 public class ResponseEntries implements JSONSerializable {
     
     public static class Entry implements Comparable<Entry> {
-        public long timestamp;
+        private long timestamp;
+        private int txnNameId; 
         public int clientId;
         public boolean singlePartition;
         public int basePartition;
@@ -35,7 +36,8 @@ public class ResponseEntries implements JSONSerializable {
         private Entry() {
          // Needed for deserialization
         }
-        public Entry(ClientResponse cr, int clientId, long timestamp) {
+        public Entry(ClientResponse cr, int txnNameId, int clientId, long timestamp) {
+            this.txnNameId = txnNameId;
             this.clientId = clientId;
             this.timestamp = timestamp;
             this.singlePartition = cr.isSinglePartition();
@@ -67,6 +69,9 @@ public class ResponseEntries implements JSONSerializable {
             if (this.resultSize != other.resultSize) {
                 return (int)(this.resultSize - other.resultSize);
             }
+            if (this.txnNameId != other.txnNameId) {
+                return (int)(this.txnNameId - other.txnNameId);
+            }
             if (this.clientId != other.clientId) {
                 return (int)(this.clientId - other.clientId);
             }
@@ -97,8 +102,8 @@ public class ResponseEntries implements JSONSerializable {
         this.entries.addAll(other.entries);
     }
     
-    public void add(ClientResponse cr, int clientId, long timestamp) {
-        this.entries.add(new Entry(cr, clientId, timestamp));
+    public void add(ClientResponse cr, int txnNameId, int clientId, long timestamp) {
+        this.entries.add(new Entry(cr, txnNameId, clientId, timestamp));
     }
 
     public void addAll(ResponseEntries other) {
@@ -109,15 +114,19 @@ public class ResponseEntries implements JSONSerializable {
         this.entries.clear();
     }
     
+    public boolean isEmpty() {
+        return (this.entries.isEmpty());
+    }
+    
     public int size() {
         return (this.entries.size());
     }
     
-    public VoltTable toVoltTable() {
+    public VoltTable toVoltTable(String txnNames[]) {
         VoltTable.ColumnInfo[] RESULT_COLS = {
             new VoltTable.ColumnInfo("TIMESTAMP", VoltType.BIGINT),
-            new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING),
             new VoltTable.ColumnInfo("CLIENT ID", VoltType.INTEGER),
+            new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING),
             new VoltTable.ColumnInfo("SINGLE-PARTITION?", VoltType.STRING),
             new VoltTable.ColumnInfo("BASE PARTITION", VoltType.INTEGER),
             new VoltTable.ColumnInfo("STATUS", VoltType.STRING),
@@ -132,6 +141,7 @@ public class ResponseEntries implements JSONSerializable {
             Object row[] = {
                 e.timestamp,
                 e.clientId,
+                txnNames[e.txnNameId],
                 Boolean.toString(e.singlePartition),
                 e.basePartition,
                 e.status.name(),
@@ -175,6 +185,12 @@ public class ResponseEntries implements JSONSerializable {
         stringer.key("CLIENT").array();
         for (Entry e : this.entries)
             stringer.value(e.clientId);
+        stringer.endArray();
+        
+        // TXN NAME IDS
+        stringer.key("TXN").array();
+        for (Entry e : this.entries)
+            stringer.value(e.txnNameId);
         stringer.endArray();
         
         // SINGLE-PARTITION
@@ -230,6 +246,7 @@ public class ResponseEntries implements JSONSerializable {
         JSONArray jsonArrays[] = {
             json_object.getJSONArray("TIMESTAMPS"),
             json_object.getJSONArray("CLIENT"),
+            json_object.getJSONArray("TXN"),
             json_object.getJSONArray("SINGLEP"),
             json_object.getJSONArray("BASEP"),
             json_object.getJSONArray("STATUS"),
@@ -255,6 +272,7 @@ public class ResponseEntries implements JSONSerializable {
             int col = 0;
             e.timestamp = jsonArrays[col++].getLong(i);
             e.clientId = jsonArrays[col++].getInt(i);
+            e.txnNameId = jsonArrays[col++].getInt(i);
             e.singlePartition = jsonArrays[col++].getBoolean(i);
             e.basePartition = jsonArrays[col++].getInt(i);
             e.status = statuses[jsonArrays[col++].getInt(i)];

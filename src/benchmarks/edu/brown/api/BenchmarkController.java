@@ -102,8 +102,6 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
-import au.com.bytecode.opencsv.CSVWriter;
-
 import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
@@ -1279,26 +1277,32 @@ public class BenchmarkController {
             t.addResponseEntriesLatch(latch);
         } // FOR
         
-        // Now tell everybody that part is over and we want them to dump their results
-        // back to us
+        // Now tell everybody that part is over and we want them to dump their 
+        // results back to us
         m_clientPSM.writeToAll(ControlCommand.DUMP_TXNS.name());
         
         // Wait until we get all of the responses that we need
         boolean result = latch.await(10, TimeUnit.SECONDS);
         if (result == false) {
             LOG.warn(String.format("Only got %d out of %d response dumps from clients",
-                     latch.getCount(), this.totalNumClients));
+                    this.totalNumClients-latch.getCount(), this.totalNumClients));
         }
         
         // Merge sort them
+        LOG.info(String.format("Merging %s ClientResponse lists together and sorting...", m_statusThreads.size()));
         ResponseEntries fullDump = new ResponseEntries();
         for (ClientStatusThread t : m_statusThreads) {
             fullDump.addAll(t.getResponseEntries());
         } // FOR
+        if (fullDump.isEmpty()) {
+            LOG.warn("No ClientResponse results were returned!");
+            return;
+        }
         
         // Convert to a VoltTable and then write out to a CSV file
+        String txnNames[] = m_currentResults.getTransactionNames().toArray(new String[0]);
         FileWriter out = new FileWriter(outputPath);
-        VoltTableUtil.csv(out, fullDump.toVoltTable(), true);
+        VoltTableUtil.csv(out, fullDump.toVoltTable(txnNames), true);
         out.close();
         LOG.info(String.format("Wrote %d response entries information to '%s'", fullDump.size(), outputPath));
     }

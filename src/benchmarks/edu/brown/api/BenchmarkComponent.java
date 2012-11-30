@@ -334,9 +334,9 @@ public abstract class BenchmarkComponent {
     protected final BenchmarkComponentResults m_txnStats;
     
     /**
-     * Transaction Name Index -> Latencies List of ClientResponse Entries
+     * ClientResponse Entries
      */
-    protected final ResponseEntries m_responseEntries[];
+    protected final ResponseEntries m_responseEntries;
     private boolean m_enableResponseEntries = false;
 
     private final Map<String, ProfileMeasurement> computeTime = new HashMap<String, ProfileMeasurement>();
@@ -661,16 +661,12 @@ public abstract class BenchmarkComponent {
             Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
             
             m_enableResponseEntries = (m_hstoreConf.client.output_full_csv != null);
-            m_responseEntries = new ResponseEntries[m_countDisplayNames.length];
+            m_responseEntries = new ResponseEntries();
             
             for (int i = 0; i < m_countDisplayNames.length; i++) {
                 m_txnStats.transactions.put(i, 0);
                 m_txnStats.dtxns.put(i, 0);
                 debugLabels.put(i, m_countDisplayNames[i]);
-                
-                if (m_enableResponseEntries) {
-                    m_responseEntries[i] = new ResponseEntries();
-                }
             } // FOR
             m_txnStats.transactions.setDebugLabels(debugLabels);
             m_txnStats.dtxns.setDebugLabels(debugLabels);
@@ -874,7 +870,9 @@ public abstract class BenchmarkComponent {
     }
     
     protected void answerDumpTxns() {
-        
+        ResponseEntries copy = new ResponseEntries(this.m_responseEntries);
+        this.m_responseEntries.clear();
+        this.printControlMessage(ControlState.DUMPING, copy.toJSONString());
     }
     
     protected void answerOk() {
@@ -938,10 +936,8 @@ public abstract class BenchmarkComponent {
             
             // RESPONSE ENTRIES
             if (m_enableResponseEntries) {
-                ResponseEntries responses = m_responseEntries[txn_idx];
-                assert(responses != null);
                 long timestamp = System.currentTimeMillis();
-                responses.add(cresponse, m_id, timestamp);
+                m_responseEntries.add(cresponse, txn_idx, m_id, timestamp);
             }
             
             // BASE PARTITIONS
@@ -1236,9 +1232,7 @@ public abstract class BenchmarkComponent {
     
     protected final void invokeClearCallback() {
         m_txnStats.clear(true);
-        for (int i = 0; i < m_responseEntries.length; i++) {
-            if (m_responseEntries[i] != null) m_responseEntries[i].clear();
-        } // FOR
+        m_responseEntries.clear();
         this.clearCallback();
     }
     
