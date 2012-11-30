@@ -102,9 +102,12 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
+import au.com.bytecode.opencsv.CSVWriter;
+
 import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
+import edu.brown.api.results.ResponseEntries;
 import edu.brown.api.results.ResultsChecker;
 import edu.brown.api.results.ResultsPrinter;
 import edu.brown.api.results.ResultsUploader;
@@ -1196,7 +1199,7 @@ public class BenchmarkController {
             
             // Print out the final results
 //            if (debug.get())
-            if (hstore_conf.client.output_basepartitions || hstore_conf.client.output_response_status) {
+            if (hstore_conf.client.output_basepartitions || hstore_conf.client.output_status) {
                 LOG.info("Computing final benchmark results...");
             }
             for (BenchmarkInterest interest : m_interested) {
@@ -1229,7 +1232,13 @@ public class BenchmarkController {
         assert(cresponse.getStatus() == Status.OK) :
             String.format("Failed to quiesce cluster!\n%s", cresponse);
         
-        // Dump database
+        // DUMP RESPONSE ENTRIES
+        if (hstore_conf.client.output_full_csv != null) {
+            File outputPath = new File(hstore_conf.client.output_full_csv);
+            this.writeResponseEntries(client, outputPath);
+        }
+        
+        // DUMP DATABASE
         if (m_config.dumpDatabase && this.stop == false) {
             assert(m_config.dumpDatabaseDir != null);
             try {
@@ -1240,7 +1249,7 @@ public class BenchmarkController {
             }
         }
 
-        // Dump Profiling Information
+        // DUMP PROFILING INFORMATION
         @SuppressWarnings("unchecked")
         Pair<SysProcSelector, String> profilingData[] = (Pair<SysProcSelector, String>[])new Pair<?,?>[]{
             Pair.of(SysProcSelector.EXECPROFILER, hstore_conf.client.output_exec_profiling),
@@ -1253,7 +1262,7 @@ public class BenchmarkController {
         };
         for (Pair<SysProcSelector, String> pair : profilingData) {
             if (pair.getSecond() != null) {
-                this.writeStats(client, pair.getFirst(), pair.getSecond());
+                this.writeStats(client, pair.getFirst(), new File(pair.getSecond()));
             }
         } // FOR
         
@@ -1263,7 +1272,38 @@ public class BenchmarkController {
         }
     }
     
-    private void writeStats(Client client, SysProcSelector sps, String outputPath) throws Exception {
+    private void writeResponseEntries(Client client, File outputPath) throws Exception {
+        // We know how many clients that we need to get results back from
+        CountDownLatch latch = new CountDownLatch(this.totalNumClients);
+        for (ClientStatusThread t : m_statusThreads) {
+            t.addResponseEntriesLatch(latch);
+        } // FOR
+        
+        // Now tell everybody that part is over and we want them to dump their results
+        // back to us
+        m_clientPSM.writeToAll(ControlCommand.DUMP_TXNS.name());
+        
+        // Wait until we get all of the responses that we need
+        boolean result = latch.await(10, TimeUnit.SECONDS);
+        if (result == false) {
+            LOG.warn(String.format("Only got %d out of %d response dumps from clients",
+                     latch.getCount(), this.totalNumClients));
+        }
+        
+        // Merge sort them
+        ResponseEntries fullDump = new ResponseEntries();
+        for (ClientStatusThread t : m_statusThreads) {
+            fullDump.addAll(t.getResponseEntries());
+        } // FOR
+        
+        // Convert to a VoltTable and then write out to a CSV file
+        FileWriter out = new FileWriter(outputPath);
+        VoltTableUtil.csv(out, fullDump.toVoltTable(), true);
+        out.close();
+        LOG.info(String.format("Wrote %d response entries information to '%s'", fullDump.size(), outputPath));
+    }
+    
+    private void writeStats(Client client, SysProcSelector sps, File outputPath) throws Exception {
         Object params[] = { sps.name(), 0 };
         ClientResponse cresponse = null;
         String sysproc = VoltSystemProcedure.procCallName(Statistics.class);
@@ -1353,8 +1393,7 @@ public class BenchmarkController {
         FileWriter out = new FileWriter(outputPath);
         VoltTableUtil.csv(out, vt, true);
         out.close();
-        LOG.info(String.format("Wrote %s information to '%s'",
-                               sps, FileUtil.realpath(outputPath)));
+        LOG.info(String.format("Wrote %s information to '%s'", sps, outputPath));
         return;
     }
     

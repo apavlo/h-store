@@ -332,6 +332,12 @@ public abstract class BenchmarkComponent {
     private final Histogram<String> m_tableBytes = new Histogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
     protected final BenchmarkComponentResults m_txnStats;
+    
+    /**
+     * Transaction Name Index -> Latencies List of ClientResponse Entries
+     */
+    protected final ResponseEntries m_responseEntries[];
+    private boolean m_enableResponseEntries = false;
 
     private final Map<String, ProfileMeasurement> computeTime = new HashMap<String, ProfileMeasurement>();
     
@@ -376,6 +382,7 @@ public abstract class BenchmarkComponent {
         m_tickInterval = -1;
         m_tickThread = null;
         m_txnStats = null;
+        m_responseEntries = null;
         m_tableStats = false;
         m_tableStatsDir = null;
         m_noUploading = false;
@@ -652,19 +659,27 @@ public abstract class BenchmarkComponent {
         if (m_countDisplayNames != null) {
             m_txnStats = new BenchmarkComponentResults(m_countDisplayNames.length);
             Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
+            
+            m_enableResponseEntries = (m_hstoreConf.client.output_full_csv != null);
+            m_responseEntries = new ResponseEntries[m_countDisplayNames.length];
+            
             for (int i = 0; i < m_countDisplayNames.length; i++) {
                 m_txnStats.transactions.put(i, 0);
                 m_txnStats.dtxns.put(i, 0);
                 debugLabels.put(i, m_countDisplayNames[i]);
+                
+                if (m_enableResponseEntries) {
+                    m_responseEntries[i] = new ResponseEntries();
+                }
             } // FOR
             m_txnStats.transactions.setDebugLabels(debugLabels);
             m_txnStats.dtxns.setDebugLabels(debugLabels);
-            
-            m_txnStats.setEnableResponseEntries(m_hstoreConf.client.output_full_csv != null);
             m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
             m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_status);
+            
         } else {
             m_txnStats = null;
+            m_responseEntries = null;
         }
         
         // If we need to call tick more frequently than when POLL is called,
@@ -832,11 +847,11 @@ public abstract class BenchmarkComponent {
     // CONTROLLER COMMUNICATION METHODS
     // ----------------------------------------------------------------------------
     
-    public void printControlMessage(ControlState state) {
+    protected void printControlMessage(ControlState state) {
         printControlMessage(state, null);
     }
     
-    public void printControlMessage(ControlState state, String message) {
+    private void printControlMessage(ControlState state, String message) {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("%s %d,%d,%s", CONTROL_MESSAGE_PREFIX,
                                                this.getClientId(),
@@ -848,17 +863,21 @@ public abstract class BenchmarkComponent {
         System.out.println(sb);
     }
     
-    public void answerWithError() {
+    protected void answerWithError() {
         this.printControlMessage(m_controlState, m_reason);
     }
 
-    public void answerPoll() {
+    protected void answerPoll() {
         BenchmarkComponentResults copy = this.m_txnStats.copy();
         this.m_txnStats.clear(false);
         this.printControlMessage(m_controlState, copy.toJSONString());
     }
     
-    public void answerOk() {
+    protected void answerDumpTxns() {
+        
+    }
+    
+    protected void answerOk() {
         this.printControlMessage(m_controlState, "OK");
     }
 
@@ -918,22 +937,12 @@ public abstract class BenchmarkComponent {
             } // SYNCH
             
             // RESPONSE ENTRIES
-            if (m_txnStats.isResponseEntriesEnabled()) {
-                ResponseEntries responses = m_txnStats.responseEntries.get(txn_idx);
-                if (responses == null) {
-                    synchronized (m_txnStats.responseEntries) {
-                        responses = m_txnStats.responseEntries.get(txn_idx);
-                        if (responses == null) {
-                            responses = new ResponseEntries();
-                            m_txnStats.responseEntries.put(txn_idx, responses);
-                        }
-                    } // SYNCH
-                }
+            if (m_enableResponseEntries) {
+                ResponseEntries responses = m_responseEntries[txn_idx];
                 assert(responses != null);
                 long timestamp = System.currentTimeMillis();
                 responses.add(cresponse, m_id, timestamp);
             }
-            
             
             // BASE PARTITIONS
             if (m_txnStats.isBasePartitionsEnabled()) {
@@ -1226,6 +1235,10 @@ public abstract class BenchmarkComponent {
     }
     
     protected final void invokeClearCallback() {
+        m_txnStats.clear(true);
+        for (int i = 0; i < m_responseEntries.length; i++) {
+            if (m_responseEntries[i] != null) m_responseEntries[i].clear();
+        } // FOR
         this.clearCallback();
     }
     

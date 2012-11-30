@@ -17,6 +17,8 @@ public enum ControlCommand {
     PAUSE,
     /** Get the execution stats since the last poll */
     POLL,
+    /** Get the complete list of transaction response entries */
+    DUMP_TXNS,
     /** Stop this BenchmarkComponent instance */
     STOP,
     /**

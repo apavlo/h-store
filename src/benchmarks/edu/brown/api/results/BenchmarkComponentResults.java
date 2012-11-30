@@ -43,12 +43,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
      */
     public final Map<Integer, Histogram<Integer>> latencies = new HashMap<Integer, Histogram<Integer>>();
     
-    /**
-     * Transaction Name Index -> Latencies List of ClientResponse Entries
-     */
-    public final Map<Integer, ResponseEntries> responseEntries = new HashMap<Integer, ResponseEntries>();
-    private boolean enableResponseEntries = false;
-    
     public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
     private boolean enableBasePartitions = false;
     
@@ -86,12 +80,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
             copy.latencies.put(e.getKey(), h);
         } // FOR
         
-        copy.enableResponseEntries = this.enableResponseEntries;
-        for (Entry<Integer, ResponseEntries> e: this.responseEntries.entrySet()) {
-            ResponseEntries copyEntries = new ResponseEntries(e.getValue());
-            copy.responseEntries.put(e.getKey(), copyEntries);
-        } // FOR
-        
         copy.enableBasePartitions = this.enableBasePartitions;
         copy.basePartitions.put(this.basePartitions);
         
@@ -99,13 +87,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.responseStatuses.put(this.responseStatuses);
         
         return (copy);
-    }
-    
-    public boolean isResponseEntriesEnabled() {
-        return (this.enableResponseEntries);
-    }
-    public void setEnableResponseEntries(boolean val) {
-        this.enableResponseEntries = val;
     }
     
     public boolean isBasePartitionsEnabled() {
@@ -129,7 +110,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
             this.dtxns.clearValues();
         }
         this.latencies.clear();
-        this.responseEntries.clear();
         this.basePartitions.clearValues();
         this.responseStatuses.clearValues();
     }
@@ -152,7 +132,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
         String exclude[] = {
-            (this.enableResponseEntries == false ? "responseEntries" : ""),
             (this.enableBasePartitions == false ? "basePartitions" : ""),
             (this.enableResponseStatuses == false ? "responseStatuses" : ""),
         };

@@ -117,8 +117,16 @@ public class ControlPipe implements Runnable {
                                                 client.getQueueTime().getAverageThinkTimeMS()));
                     break;
                 }
+                case DUMP_TXNS: {
+                    if (cmp.m_controlState != ControlState.PAUSED) {
+                        cmp.setState(ControlState.ERROR, command + " when not " + ControlState.PAUSED);
+                        cmp.answerWithError();
+                        continue;
+                    }
+                    cmp.answerDumpTxns();
+                    break;
+                }
                 case CLEAR: {
-                    cmp.m_txnStats.clear(true);
                     cmp.invokeClearCallback();
                     cmp.answerOk();
                     break;
@@ -181,8 +189,7 @@ public class ControlPipe implements Runnable {
                     break;
                 }
                 default: {
-                    LOG.fatal("Error on standard input: unknown command " + command);
-                    System.exit(-1);
+                    throw new RuntimeException("Error on standard input: unknown command " + command);
                 }
             } // SWITCH
         }

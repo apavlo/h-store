@@ -2,13 +2,15 @@ package edu.brown.api.results;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.TreeSet;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Database;
 import org.voltdb.client.ClientResponse;
 
@@ -81,7 +83,7 @@ public class ResponseEntries implements JSONSerializable {
         }
     }
     
-    private final List<Entry> entries = new ArrayList<Entry>(); 
+    private final Collection<Entry> entries = new TreeSet<Entry>(); 
     
     
     public ResponseEntries() {
@@ -99,6 +101,51 @@ public class ResponseEntries implements JSONSerializable {
         this.entries.add(new Entry(cr, clientId, timestamp));
     }
 
+    public void addAll(ResponseEntries other) {
+        this.entries.addAll(other.entries);
+    }
+    
+    public void clear() {
+        this.entries.clear();
+    }
+    
+    public int size() {
+        return (this.entries.size());
+    }
+    
+    public VoltTable toVoltTable() {
+        VoltTable.ColumnInfo[] RESULT_COLS = {
+            new VoltTable.ColumnInfo("TIMESTAMP", VoltType.BIGINT),
+            new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING),
+            new VoltTable.ColumnInfo("CLIENT ID", VoltType.INTEGER),
+            new VoltTable.ColumnInfo("SINGLE-PARTITION?", VoltType.STRING),
+            new VoltTable.ColumnInfo("BASE PARTITION", VoltType.INTEGER),
+            new VoltTable.ColumnInfo("STATUS", VoltType.STRING),
+            new VoltTable.ColumnInfo("RESULT SIZE", VoltType.INTEGER),
+            new VoltTable.ColumnInfo("EXCEPTION?", VoltType.STRING),
+            new VoltTable.ColumnInfo("CLUSTER ROUNDTRIP", VoltType.BIGINT),
+            new VoltTable.ColumnInfo("CLIENT ROUNDTRIP", VoltType.BIGINT),
+            new VoltTable.ColumnInfo("RESTARTS", VoltType.INTEGER),
+        };
+        VoltTable vt = new VoltTable(RESULT_COLS);
+        for (Entry e : this.entries) {
+            Object row[] = {
+                e.timestamp,
+                e.clientId,
+                Boolean.toString(e.singlePartition),
+                e.basePartition,
+                e.status.name(),
+                e.resultSize,
+                Boolean.toString(e.exception),
+                e.clusterRoundTrip,
+                e.clientRoundTrip,
+                e.restartCounter,
+            };
+            vt.addRow(row);
+        } // FOR
+        return (vt);
+    }
+    
     // ----------------------------------------------------------------------------
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
@@ -181,18 +228,19 @@ public class ResponseEntries implements JSONSerializable {
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
         JSONArray jsonArrays[] = {
-                json_object.getJSONArray("TIMESTAMPS"),
-                json_object.getJSONArray("SINGLEP"),
-                json_object.getJSONArray("BASEP"),
-                json_object.getJSONArray("STATUS"),
-                json_object.getJSONArray("SIZE"),
-                json_object.getJSONArray("EXCEPTION"),
-                json_object.getJSONArray("CLUSTERRT"),
-                json_object.getJSONArray("CLIENTRT"),
-                json_object.getJSONArray("RESTARTS")
+            json_object.getJSONArray("TIMESTAMPS"),
+            json_object.getJSONArray("CLIENT"),
+            json_object.getJSONArray("SINGLEP"),
+            json_object.getJSONArray("BASEP"),
+            json_object.getJSONArray("STATUS"),
+            json_object.getJSONArray("SIZE"),
+            json_object.getJSONArray("EXCEPTION"),
+            json_object.getJSONArray("CLUSTERRT"),
+            json_object.getJSONArray("CLIENTRT"),
+            json_object.getJSONArray("RESTARTS")
         };
         assert(jsonArrays.length == json_object.names().length()) :
-                String.format("%d != %d", jsonArrays, json_object.names().length());
+                String.format("%d != %d", jsonArrays.length, json_object.names().length());
         int expected = -1;
         for (JSONArray arr : jsonArrays) {
             if (expected != -1)
