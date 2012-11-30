@@ -36,9 +36,12 @@ public class TestPartitionEstimator extends BaseTestCase {
     
     private final PartitionSet partitions = new PartitionSet();
     
+    {
+        super.reset(ProjectType.TPCC);        
+    }
+    
     @Override
     protected void setUp() throws Exception {
-        BaseTestCase.ENABLE_JAR_REUSE = false;
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
         if (hasher == null) {
