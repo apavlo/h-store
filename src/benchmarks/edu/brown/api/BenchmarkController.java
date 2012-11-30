@@ -1021,7 +1021,6 @@ public class BenchmarkController {
         m_currentResults = new BenchmarkResults(hstore_conf.client.interval,
                                                 hstore_conf.client.duration,
                                                 m_clientThreads.size());
-        m_currentResults.setEnableLatencies(hstore_conf.client.output_latencies);
         m_currentResults.setEnableBasePartitions(hstore_conf.client.output_basepartitions);
         
         EventObservableExceptionHandler eh = new EventObservableExceptionHandler();

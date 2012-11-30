@@ -88,7 +88,7 @@ public class ControlPipe implements Runnable {
             switch (command) {
                 case START: {
                     if (cmp.m_controlState != ControlState.READY) {
-                        cmp.setState(ControlState.ERROR, "START when not READY.");
+                        cmp.setState(ControlState.ERROR, command + " when not " + ControlState.READY);
                         cmp.answerWithError();
                         continue;
                     }
@@ -100,7 +100,7 @@ public class ControlPipe implements Runnable {
                 }
                 case POLL: {
                     if (cmp.m_controlState != ControlState.RUNNING) {
-                        cmp.setState(ControlState.ERROR, "POLL when not RUNNING.");
+                        cmp.setState(ControlState.ERROR, command + " when not " + ControlState.RUNNING);
                         cmp.answerWithError();
                         continue;
                     }

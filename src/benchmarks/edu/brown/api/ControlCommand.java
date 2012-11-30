@@ -9,13 +9,15 @@ import java.util.Map;
  * BenchmarkComponent in order to coordinate the benchmark's execution
  */
 public enum ControlCommand {
+    /** Start executing transactions and recording stats */
     START,
-    POLL,
+    /** Clear internal counters and stats */
     CLEAR,
+    /** Pause invoking new txn requests */
     PAUSE,
-    /**
-     * Stop this BenchmarkComponent instance
-     */
+    /** Get the execution stats since the last poll */
+    POLL,
+    /** Stop this BenchmarkComponent instance */
     STOP,
     /**
      * This is the same as STOP except that the BenchmarkComponent will

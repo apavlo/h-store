@@ -89,6 +89,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
 import edu.brown.api.results.BenchmarkComponentResults;
+import edu.brown.api.results.ResponseEntries;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hstore.HStoreConstants;
@@ -659,9 +660,9 @@ public abstract class BenchmarkComponent {
             m_txnStats.transactions.setDebugLabels(debugLabels);
             m_txnStats.dtxns.setDebugLabels(debugLabels);
             
-            m_txnStats.setEnableLatencies(m_hstoreConf.client.output_latencies);
+            m_txnStats.setEnableResponseEntries(m_hstoreConf.client.output_full_csv != null);
             m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
-            m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_response_status);
+            m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_status);
         } else {
             m_txnStats = null;
         }
@@ -856,7 +857,7 @@ public abstract class BenchmarkComponent {
         this.m_txnStats.clear(false);
         this.printControlMessage(m_controlState, copy.toJSONString());
     }
-
+    
     public void answerOk() {
         this.printControlMessage(m_controlState, "OK");
     }
@@ -890,6 +891,8 @@ public abstract class BenchmarkComponent {
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
         Status status = cresponse.getStatus();
         if (status == Status.OK || status == Status.ABORT_USER) {
+            
+            // TRANSACTION COUNTERS
             boolean is_specexec = (cresponse.hasDebug() && cresponse.getDebug().isSpeculative()); 
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.put(txn_idx);
@@ -899,21 +902,40 @@ public abstract class BenchmarkComponent {
                 if (is_specexec) m_txnStats.specexecs.put(txn_idx);
             } // SYNCH
 
-            if (m_txnStats.isLatenciesEnabled()) {
-                Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
-                if (latencies == null) {
-                    synchronized (m_txnStats.latencies) {
-                        latencies = m_txnStats.latencies.get(txn_idx);
-                        if (latencies == null) {
-                            latencies = new Histogram<Integer>();
-                            m_txnStats.latencies.put(txn_idx, latencies);
+            // LATENCIES COUNTERS
+            Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
+            if (latencies == null) {
+                synchronized (m_txnStats.latencies) {
+                    latencies = m_txnStats.latencies.get(txn_idx);
+                    if (latencies == null) {
+                        latencies = new Histogram<Integer>();
+                        m_txnStats.latencies.put(txn_idx, latencies);
+                    }
+                } // SYNCH
+            }
+            synchronized (latencies) {
+                latencies.put(cresponse.getClusterRoundtrip());
+            } // SYNCH
+            
+            // RESPONSE ENTRIES
+            if (m_txnStats.isResponseEntriesEnabled()) {
+                ResponseEntries responses = m_txnStats.responseEntries.get(txn_idx);
+                if (responses == null) {
+                    synchronized (m_txnStats.responseEntries) {
+                        responses = m_txnStats.responseEntries.get(txn_idx);
+                        if (responses == null) {
+                            responses = new ResponseEntries();
+                            m_txnStats.responseEntries.put(txn_idx, responses);
                         }
                     } // SYNCH
                 }
-                synchronized (latencies) {
-                    latencies.put(cresponse.getClusterRoundtrip());
-                } // SYNCH
+                assert(responses != null);
+                long timestamp = System.currentTimeMillis();
+                responses.add(cresponse, m_id, timestamp);
             }
+            
+            
+            // BASE PARTITIONS
             if (m_txnStats.isBasePartitionsEnabled()) {
                 synchronized (m_txnStats.basePartitions) {
                     m_txnStats.basePartitions.put(cresponse.getBasePartition());

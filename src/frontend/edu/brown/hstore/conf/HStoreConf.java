@@ -1578,13 +1578,6 @@ public final class HStoreConf {
         public boolean output_clients;
         
         @ConfigProperty(
-            description="Include latency measurements in output.",
-            defaultBoolean=true,
-            experimental=false
-        )
-        public boolean output_latencies;
-        
-        @ConfigProperty(
             description="Output a histogram at the end of a benchmark run of the number of transactions " +
             		    "that each partition executed.",
             defaultBoolean=false,

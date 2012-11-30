@@ -54,7 +54,6 @@
 <arg value="client.codespeed_branch=${client.codespeed_branch}" />
 <arg value="client.output_interval=${client.output_interval}" />
 <arg value="client.output_clients=${client.output_clients}" />
-<arg value="client.output_latencies=${client.output_latencies}" />
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
 <arg value="client.output_response_status=${client.output_response_status}" />
 <arg value="client.output_status=${client.output_status}" />

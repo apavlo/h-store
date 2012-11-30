@@ -81,11 +81,10 @@ public class BenchmarkResults {
     private final SortedMap<String, SortedMap<String, List<Result>>> m_data = new TreeMap<String, SortedMap<String, List<Result>>>();
     private final Set<Error> m_errors = new HashSet<Error>();
 
-    private final long m_durationInMillis;
-    final long m_pollIntervalInMillis;
-    private final int m_clientCount;
-    
-    private boolean enableLatencies = false;
+    protected final long m_durationInMillis;
+    protected final long m_pollIntervalInMillis;
+    protected final int m_clientCount;
+    protected boolean enableNanoseconds = false;
     
     private boolean enableBasePartitions = false;
     private final Histogram<Integer> basePartitions = new Histogram<Integer>();
@@ -108,10 +107,15 @@ public class BenchmarkResults {
         m_pollIntervalInMillis = pollIntervalInMillis;
         m_clientCount = clientCount;
     }
-    
-    public void setEnableLatencies(boolean val) {
-        this.enableLatencies = val;
+
+    /**
+     * Process latency results as nanoseconds instead of milliseconds  
+     * @param val
+     */
+    public void setEnableNanoseconds(boolean val) {
+        this.enableNanoseconds = val;
     }
+    
     public void setEnableBasePartitions(boolean val) {
         this.enableBasePartitions = val;
     }
@@ -361,7 +365,7 @@ public class BenchmarkResults {
                                       cmpResults.transactions.get(offset.intValue()),
                                       cmpResults.specexecs.get(offset.intValue()),
                                       cmpResults.dtxns.get(offset.intValue()));
-                if (this.enableLatencies && cmpResults.latencies != null) {
+                if (cmpResults.latencies != null) {
                     Histogram<Integer> latencies = cmpResults.latencies.get(offset);
                     if (latencies != null) {
                         synchronized (latencies) {
