@@ -38,6 +38,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     
     @Override
     protected void setUp() throws Exception {
+        BaseTestCase.ENABLE_JAR_REUSE = false;
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
         if (hasher == null) {
