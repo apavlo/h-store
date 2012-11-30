@@ -5,6 +5,7 @@ import java.util.Random;
 
 import junit.framework.TestCase;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
@@ -94,7 +95,7 @@ public abstract class RegressionSuiteUtil {
         TestCase.assertEquals(Status.OK, cr.getStatus());
     }
 
-    public static final void initializeTPCCDatabase(final Catalog catalog, final Client client) throws Exception {
+    public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client) throws Exception {
         String args[] = {
             "NOCONNECTIONS=true",
             "BENCHMARK.WAREHOUSE_PER_PARTITION=true",
@@ -102,27 +103,27 @@ public abstract class RegressionSuiteUtil {
         };
         TPCCLoader loader = new TPCCLoader(args) {
             {
-                this.setCatalog(catalog);
+                this.setCatalogContext(catalogContext);
                 this.setClientHandle(client);
             }
             @Override
             public Catalog getCatalog() {
-                return (catalog);
+                return (catalogContext.catalog);
             }
         };
         loader.load();
     }
 
-    public static final void initializeTM1Database(final Catalog catalog, final Client client) throws Exception {
+    public static final void initializeTM1Database(final CatalogContext catalogContext, final Client client) throws Exception {
         String args[] = { "NOCONNECTIONS=true", };
         TM1Loader loader = new TM1Loader(args) {
             {
-                this.setCatalog(catalog);
+                this.setCatalogContext(catalogContext);
                 this.setClientHandle(client);
             }
             @Override
             public Catalog getCatalog() {
-                return (catalog);
+                return (catalogContext.catalog);
             }
         };
         loader.load();

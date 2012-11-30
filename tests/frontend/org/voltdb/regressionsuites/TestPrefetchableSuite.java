@@ -48,7 +48,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
      */
     public void testInitialize() throws Exception {
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalogContext(), client);
         
         String procName = VoltSystemProcedure.procCallName(AdHoc.class);
         for (String tableName : TPCCConstants.TABLENAMES) {
@@ -85,7 +85,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
 //        this.loadDatabase(client, num_tuples);
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
         // XXX this.checkDatabase(client, num_tuples);
         
         // Enable the feature on the server

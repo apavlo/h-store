@@ -46,7 +46,7 @@ public class TestSpecExecSuite extends RegressionSuite {
      */
     public void testConflictingTxns() throws Exception {
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTM1Database(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         
         // Submit a distributed txn and make sure that our conflicting
         // txn is not speculatively executed
@@ -117,7 +117,7 @@ public class TestSpecExecSuite extends RegressionSuite {
      */
     public void testRemoteIdle() throws Exception {
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTM1Database(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         
         final int sleepTime = 10000; // ms
         final ClientResponse dtxnResponse[] = new ClientResponse[1];

@@ -39,7 +39,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         // Enable the feature on the server
         RegressionSuiteUtil.setHStoreConf(client, "site.network_txn_initialization", true);
         
-        RegressionSuiteUtil.initializeTM1Database(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = client.callProcedure(txn.callName, params);

@@ -67,6 +67,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
@@ -126,7 +127,7 @@ public abstract class BenchmarkComponent {
     private static Client globalClient;
     private static final ReentrantLock globalClientLock = new ReentrantLock();
     
-    private static Catalog globalCatalog;
+    private static CatalogContext globalCatalog;
     private static final ReentrantLock globalCatalogLock = new ReentrantLock();
     
     private static PartitionPlan globalPartitionPlan;
@@ -169,13 +170,13 @@ public abstract class BenchmarkComponent {
         return (client);
     }
     
-    private static Catalog getCatalog(File catalogPath) {
+    private static CatalogContext getCatalog(File catalogPath) {
         // Read back the catalog and populate catalog object
         if (globalCatalog == null) {
             globalCatalogLock.lock();
             try {
                 if (globalCatalog == null) {
-                    globalCatalog = CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
+                    globalCatalog = CatalogUtil.loadCatalogContextFromJar(catalogPath);
                 }
             } finally {
                 globalCatalogLock.unlock();
@@ -293,7 +294,7 @@ public abstract class BenchmarkComponent {
      * Path to catalog jar
      */
     private final File m_catalogPath;
-    private Catalog m_catalog;
+    private CatalogContext m_catalog;
     private final String m_projectName;
     
     final boolean m_exitOnCompletion;
@@ -757,7 +758,7 @@ public abstract class BenchmarkComponent {
                         this.getProjectName(),
                         (m_isLoader ? "LOADER" : "CLIENT"),
                         m_statsPollerInterval,
-                        m_catalog);
+                        m_catalog.catalog);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to initialize StatsUploader", ex);
             }
@@ -1387,10 +1388,10 @@ public abstract class BenchmarkComponent {
         if (m_catalog == null) {
             m_catalog = getCatalog(m_catalogPath);
         }
-        return (m_catalog);
+        return (m_catalog.catalog);
     }
-    public void setCatalog(Catalog catalog) {
-        m_catalog = catalog;
+    public void setCatalogContext(CatalogContext catalogContext) {
+        m_catalog = catalogContext;
     }
     public void applyPartitionPlan(File partitionPlanPath) {
         Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());

@@ -20,7 +20,6 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.sysprocs.AdHoc;
-import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.Hstoreservice.Status;
@@ -49,7 +48,7 @@ public class TestMarkovSuite extends RegressionSuite {
      */
     public void testInitialize() throws Exception {
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalog(), client);
+        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalogContext(), client);
         
         String procName = VoltSystemProcedure.procCallName(AdHoc.class);
         for (String tableName : TPCCConstants.TABLENAMES) {
@@ -70,7 +69,7 @@ public class TestMarkovSuite extends RegressionSuite {
     public void testSinglePartitionCaching() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
 
         // Enable the feature on the server
         RegressionSuiteUtil.setHStoreConf(client, "site.markov_path_caching", true);
@@ -142,7 +141,7 @@ public class TestMarkovSuite extends RegressionSuite {
     public void testDistributedTxn() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
 
         // Fire off a distributed neworder txn
         // It should always come back with zero restarts

@@ -722,49 +722,49 @@ public final class HStoreConf {
         )
         public boolean queue_profiling;
         
-        @ConfigProperty(
-            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
-                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
-            defaultInt=250,
-            experimental=false
-        )
-        @Deprecated
-        public int queue_incoming_max_per_partition;
-        
-        @ConfigProperty(
-            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
-                        "will not accept new requests until the number of queued transactions is less than " +
-                        "this percentage. This includes all transactions that are waiting to be executed, " +
-                        "executing, and those that have already executed and are waiting for their results " +
-                        "to be sent back to the client. The incoming queue release is calculated as " +
-                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
-            defaultDouble=0.75,
-            experimental=false
-        )
-        @Deprecated
-        public double queue_incoming_release_factor;
-        
-        @ConfigProperty(
-            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
-                        "for that transaction's base partition is empty (i.e., the PartitionExecutor is idle). " +
-                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
-                        "value by this amount. The release limit will also be recalculated using the new value " +
-                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
-                        "the first non-data loading transaction has been issued from the clients.",
-            defaultInt=100,
-            experimental=false
-        )
-        @Deprecated
-        public int queue_incoming_increase;
-        
-        @ConfigProperty(
-            description="The maximum amount that the ${site.queue_incoming_max_per_partition} parameter " +
-                        "can be increased by per partition.",
-            defaultInt=500,
-            experimental=false
-        )
-        @Deprecated
-        public int queue_incoming_increase_max;
+//        @ConfigProperty(
+//            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+//                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
+//            defaultInt=250,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int queue_incoming_max_per_partition;
+//        
+//        @ConfigProperty(
+//            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
+//                        "will not accept new requests until the number of queued transactions is less than " +
+//                        "this percentage. This includes all transactions that are waiting to be executed, " +
+//                        "executing, and those that have already executed and are waiting for their results " +
+//                        "to be sent back to the client. The incoming queue release is calculated as " +
+//                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
+//            defaultDouble=0.75,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public double queue_incoming_release_factor;
+//        
+//        @ConfigProperty(
+//            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
+//                        "for that transaction's base partition is empty (i.e., the PartitionExecutor is idle). " +
+//                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
+//                        "value by this amount. The release limit will also be recalculated using the new value " +
+//                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
+//                        "the first non-data loading transaction has been issued from the clients.",
+//            defaultInt=100,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int queue_incoming_increase;
+//        
+//        @ConfigProperty(
+//            description="The maximum amount that the ${site.queue_incoming_max_per_partition} parameter " +
+//                        "can be increased by per partition.",
+//            defaultInt=500,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int queue_incoming_increase_max;
         
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
@@ -1189,22 +1189,22 @@ public final class HStoreConf {
         )
         public int pool_txnredirectresponses_idle;
         
-        @ConfigProperty(
-            description="The max number of TransactionInitCallbacks to keep idle in the pool.",
-            defaultInt=1000,
-            experimental=false
-        )
-        @Deprecated
-        public int pool_txninit_idle;
-        
-        @ConfigProperty(
-            description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
-            defaultInt=1000,
-            experimental=false,
-            replacedBy="site.pool_txninitqueue_idle"
-        )
-        @Deprecated
-        public int pool_txninitwrapper_idle;
+//        @ConfigProperty(
+//            description="The max number of TransactionInitCallbacks to keep idle in the pool.",
+//            defaultInt=1000,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int pool_txninit_idle;
+//        
+//        @ConfigProperty(
+//            description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
+//            defaultInt=1000,
+//            experimental=false,
+//            replacedBy="site.pool_txninitqueue_idle"
+//        )
+//        @Deprecated
+//        public int pool_txninitwrapper_idle;
         
         @ConfigProperty(
             description="The max number of TransactionInitQueueCallbacks to keep idle in the pool.",
@@ -1213,13 +1213,13 @@ public final class HStoreConf {
         )
         public int pool_txninitqueue_idle;
         
-        @ConfigProperty(
-            description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
-            defaultInt=1000,
-            experimental=false
-        )
-        @Deprecated
-        public int pool_txnprepare_idle;
+//        @ConfigProperty(
+//            description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
+//            defaultInt=1000,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int pool_txnprepare_idle;
 
     }
     
@@ -1596,9 +1596,19 @@ public final class HStoreConf {
             description="Output a histogram at the end of a benchmark run of the different transaction " +
             		    "response status codes that the database returned to the clients.",
             defaultBoolean=false,
+            replacedBy="client.output_status",
             experimental=false
         )
+        @Deprecated
         public boolean output_response_status;
+        
+        @ConfigProperty(
+            description="Output a histogram at the end of a benchmark run of the different transaction " +
+                        "response status codes that the database returned to the clients.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_status;
         
         @ConfigProperty(
             description="Include the percentage of txns that were speculatively executed. " +
@@ -1622,6 +1632,14 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean output_csv;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+            		    "the complete listing of all transactions executed by the clients.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public String output_full_csv;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +

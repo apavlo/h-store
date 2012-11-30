@@ -57,9 +57,11 @@
 <arg value="client.output_latencies=${client.output_latencies}" />
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
 <arg value="client.output_response_status=${client.output_response_status}" />
+<arg value="client.output_status=${client.output_status}" />
 <arg value="client.output_specexec=${client.output_specexec}" />
 <arg value="client.output_json=${client.output_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
+<arg value="client.output_full_csv=${client.output_full_csv}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
 <arg value="client.output_queue_profiling=${client.output_queue_profiling}" />
 <arg value="client.output_site_profiling=${client.output_site_profiling}" />
@@ -142,10 +144,6 @@
 <arg value="site.txn_restart_limit_sysproc=${site.txn_restart_limit_sysproc}" />
 <arg value="site.txn_partition_id_managers=${site.txn_partition_id_managers}" />
 <arg value="site.queue_profiling=${site.queue_profiling}" />
-<arg value="site.queue_incoming_max_per_partition=${site.queue_incoming_max_per_partition}" />
-<arg value="site.queue_incoming_release_factor=${site.queue_incoming_release_factor}" />
-<arg value="site.queue_incoming_increase=${site.queue_incoming_increase}" />
-<arg value="site.queue_incoming_increase_max=${site.queue_incoming_increase_max}" />
 <arg value="site.queue_dtxn_max_per_partition=${site.queue_dtxn_max_per_partition}" />
 <arg value="site.queue_dtxn_release_factor=${site.queue_dtxn_release_factor}" />
 <arg value="site.queue_dtxn_increase=${site.queue_dtxn_increase}" />
@@ -194,8 +192,5 @@
 <arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
 <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
 <arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />
-<arg value="site.pool_txninit_idle=${site.pool_txninit_idle}" />
-<arg value="site.pool_txninitwrapper_idle=${site.pool_txninitwrapper_idle}" />
 <arg value="site.pool_txninitqueue_idle=${site.pool_txninitqueue_idle}" />
-<arg value="site.pool_txnprepare_idle=${site.pool_txnprepare_idle}" />
 
