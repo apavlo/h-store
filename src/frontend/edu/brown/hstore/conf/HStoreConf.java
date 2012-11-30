@@ -106,6 +106,14 @@ public final class HStoreConf {
             experimental=false
         )
         public int log_refresh;
+        
+        @ConfigProperty(
+            description="Measure all latencies using nanoseconds instead of milliseconds.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean nanosecond_latencies;
+
     }
     
     // ============================================================================

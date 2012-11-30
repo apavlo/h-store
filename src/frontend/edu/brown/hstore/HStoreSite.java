@@ -1459,7 +1459,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
     
+    /**
+     * This is legacy method needed for using Evan's VoltProcedureListener.
+     */
     @Override
+    @Deprecated
     public void invocationQueue(ByteBuffer buffer, final RpcCallback<byte[]> clientCallback) {
         // XXX: This is a big hack. We should just deal with the ClientResponseImpl directly
         RpcCallback<ClientResponseImpl> wrapperCallback = new RpcCallback<ClientResponseImpl>() {
@@ -1500,7 +1504,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                ProfileMeasurement.swap(timestamp, this.profiler.network_idle_time, this.profiler.network_processing_time);
 //            }
 //        }
-        long timestamp = EstTime.currentTimeMillis();
+        
+        long timestamp = -1;
+        if (hstore_conf.global.nanosecond_latencies) {
+            timestamp = System.nanoTime();
+        } else {
+            timestamp = EstTime.currentTimeMillis();
+        }
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
@@ -2475,8 +2485,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                          (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null ?
                                  "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
         
-        long now = System.currentTimeMillis();
-        EstTimeUpdater.update(now);
+        long now = -1;
+        if (hstore_conf.global.nanosecond_latencies) {
+            now = System.nanoTime();
+        } else {
+            now = System.currentTimeMillis();
+            EstTimeUpdater.update(now);
+        }
         cresponse.setClusterRoundtrip((int)(now - initiateTime));
         cresponse.setRestartCounter(restartCounter);
         try {

@@ -11,6 +11,7 @@
 <arg value="global.defaulthost=${global.defaulthost}" />
 <arg value="global.hasherClass=${global.hasherClass}" />
 <arg value="global.log_refresh=${global.log_refresh}" />
+<arg value="global.nanosecond_latencies=${global.nanosecond_latencies}" />
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />
