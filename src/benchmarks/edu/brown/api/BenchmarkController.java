@@ -1219,7 +1219,7 @@ public class BenchmarkController {
      * @throws Exception
      */
     private void postProcessBenchmark(Client client) throws Exception {
-        LOG.info("Performing post-processing on benchmark");
+        if (debug.get()) LOG.debug("Performing post-processing on benchmark");
         
         // We have to tell all our clients to pause first
         m_clientPSM.writeToAll(ControlCommand.PAUSE.name());

@@ -48,7 +48,6 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -489,21 +488,23 @@ class Distributer {
     }
 
     Distributer() {
-        this( 128, null, false, null);
+        this( 128, null, false, false, null);
     }
     
     Distributer(
             int expectedOutgoingMessageSize,
             int arenaSizes[],
             boolean useMultipleThreads,
+            boolean nanoseconds,
             StatsUploaderSettings statsSettings) {
-        this(expectedOutgoingMessageSize, arenaSizes, useMultipleThreads, statsSettings, 100);
+        this(expectedOutgoingMessageSize, arenaSizes, useMultipleThreads, nanoseconds, statsSettings, 100);
     }
 
     Distributer(
             int expectedOutgoingMessageSize,
             int arenaSizes[],
             boolean useMultipleThreads,
+            boolean nanoseconds,
             StatsUploaderSettings statsSettings,
             int backpressureWait) {
         if (statsSettings != null) {
@@ -523,7 +524,7 @@ class Distributer {
         } catch (java.net.UnknownHostException uhe) {
         }
         m_hostname = hostname;
-        m_nanoseconds = HStoreConf.singleton().global.nanosecond_latencies;
+        m_nanoseconds = nanoseconds;
         
         if (debug.get())
             LOG.debug(String.format("Created new Distributer for %s [multiThread=%s]",

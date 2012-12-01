@@ -1629,7 +1629,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
             		    "the complete listing of all transactions executed by the clients.",
-            defaultBoolean=false,
+            defaultNull=true,
             experimental=false
         )
         public String output_full_csv;
