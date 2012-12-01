@@ -162,8 +162,13 @@ public class BenchmarkResults {
     }
 
 
-    public Set<String> getTransactionNames() {
-        return (m_transactionNames.keySet());
+    public String[] getTransactionNames() {
+        String txnNames[] = new String[m_transactionNames.size()];
+        for (String txnName : m_transactionNames.keySet()) {
+            int offset = m_transactionNames.get(txnName).intValue();
+            txnNames[offset] = txnName;
+        }
+        return (txnNames);
     }
 
     public Set<String> getClientNames() {

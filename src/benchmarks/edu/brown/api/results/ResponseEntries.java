@@ -2,8 +2,11 @@ package edu.brown.api.results;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.TreeSet;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -28,7 +31,6 @@ public class ResponseEntries implements JSONSerializable {
         public int basePartition;
         public Status status;
         public int resultSize;
-        public boolean exception;
         public long clusterRoundTrip;
         public long clientRoundTrip;
         public int restartCounter;
@@ -36,7 +38,7 @@ public class ResponseEntries implements JSONSerializable {
         private Entry() {
          // Needed for deserialization
         }
-        public Entry(ClientResponse cr, int txnNameId, int clientId, long timestamp) {
+        public Entry(ClientResponse cr, int clientId, int txnNameId, long timestamp) {
             this.txnNameId = txnNameId;
             this.clientId = clientId;
             this.timestamp = timestamp;
@@ -44,7 +46,6 @@ public class ResponseEntries implements JSONSerializable {
             this.basePartition = cr.getBasePartition();
             this.status = cr.getStatus();
             this.resultSize = cr.getResultsSize();
-            this.exception = (cr.getException() != null);
             this.clusterRoundTrip = cr.getClusterRoundtrip();
             this.clientRoundTrip = cr.getClientRoundtrip();
             this.restartCounter = cr.getRestartCounter();
@@ -81,14 +82,11 @@ public class ResponseEntries implements JSONSerializable {
             if (this.singlePartition != other.singlePartition) {
                 return (this.singlePartition ? 1 : -1);
             }
-            if (this.exception != other.exception) {
-                return (this.exception ? 1 : -1);
-            }
             return (0);
         }
     }
     
-    private final Collection<Entry> entries = new TreeSet<Entry>(); 
+    private final Collection<Entry> entries = new ConcurrentLinkedQueue<Entry>(); 
     
     
     public ResponseEntries() {
@@ -102,8 +100,8 @@ public class ResponseEntries implements JSONSerializable {
         this.entries.addAll(other.entries);
     }
     
-    public void add(ClientResponse cr, int txnNameId, int clientId, long timestamp) {
-        this.entries.add(new Entry(cr, txnNameId, clientId, timestamp));
+    public void add(ClientResponse cr, int clientId, int txnNameId, long timestamp) {
+        this.entries.add(new Entry(cr, clientId, txnNameId, timestamp));
     }
 
     public void addAll(ResponseEntries other) {
@@ -122,7 +120,7 @@ public class ResponseEntries implements JSONSerializable {
         return (this.entries.size());
     }
     
-    public VoltTable toVoltTable(String txnNames[]) {
+    public static VoltTable toVoltTable(ResponseEntries re, String txnNames[]) {
         VoltTable.ColumnInfo[] RESULT_COLS = {
             new VoltTable.ColumnInfo("TIMESTAMP", VoltType.BIGINT),
             new VoltTable.ColumnInfo("CLIENT ID", VoltType.INTEGER),
@@ -131,13 +129,15 @@ public class ResponseEntries implements JSONSerializable {
             new VoltTable.ColumnInfo("BASE PARTITION", VoltType.INTEGER),
             new VoltTable.ColumnInfo("STATUS", VoltType.STRING),
             new VoltTable.ColumnInfo("RESULT SIZE", VoltType.INTEGER),
-            new VoltTable.ColumnInfo("EXCEPTION?", VoltType.STRING),
             new VoltTable.ColumnInfo("CLUSTER ROUNDTRIP", VoltType.BIGINT),
             new VoltTable.ColumnInfo("CLIENT ROUNDTRIP", VoltType.BIGINT),
             new VoltTable.ColumnInfo("RESTARTS", VoltType.INTEGER),
         };
         VoltTable vt = new VoltTable(RESULT_COLS);
-        for (Entry e : this.entries) {
+        
+        List<Entry> list = new ArrayList<Entry>(re.entries);
+        Collections.sort(list);
+        for (Entry e : list) {
             Object row[] = {
                 e.timestamp,
                 e.clientId,
@@ -146,7 +146,6 @@ public class ResponseEntries implements JSONSerializable {
                 e.basePartition,
                 e.status.name(),
                 e.resultSize,
-                Boolean.toString(e.exception),
                 e.clusterRoundTrip,
                 e.clientRoundTrip,
                 e.restartCounter,
@@ -217,12 +216,6 @@ public class ResponseEntries implements JSONSerializable {
             stringer.value(e.resultSize);
         stringer.endArray();
         
-        // EXCEPTION
-        stringer.key("EXCEPTION").array();
-        for (Entry e : this.entries)
-            stringer.value(e.exception);
-        stringer.endArray();
-        
         // CLUSTER ROUND-TRIP
         stringer.key("CLUSTERRT").array();
         for (Entry e : this.entries)
@@ -251,7 +244,6 @@ public class ResponseEntries implements JSONSerializable {
             json_object.getJSONArray("BASEP"),
             json_object.getJSONArray("STATUS"),
             json_object.getJSONArray("SIZE"),
-            json_object.getJSONArray("EXCEPTION"),
             json_object.getJSONArray("CLUSTERRT"),
             json_object.getJSONArray("CLIENTRT"),
             json_object.getJSONArray("RESTARTS")
@@ -277,7 +269,6 @@ public class ResponseEntries implements JSONSerializable {
             e.basePartition = jsonArrays[col++].getInt(i);
             e.status = statuses[jsonArrays[col++].getInt(i)];
             e.resultSize = jsonArrays[col++].getInt(i);
-            e.exception = jsonArrays[col++].getBoolean(i);
             e.clusterRoundTrip = jsonArrays[col++].getLong(i);
             e.clientRoundTrip = jsonArrays[col++].getLong(i);
             e.restartCounter = jsonArrays[col++].getInt(i);

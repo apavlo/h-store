@@ -158,6 +158,7 @@ public class ClientStatusThread extends Thread {
                     ResponseEntries newEntries = new ResponseEntries();
                     String json_line = getPayload(control_line, parts);
                     JSONObject json_object;
+                    if (debug.get()) LOG.debug("Processing response dump");
                     try {
                         json_object = new JSONObject(json_line);
                         newEntries.fromJSON(json_object, catalog_db);
@@ -167,6 +168,7 @@ public class ClientStatusThread extends Thread {
                     }
                     this.responseEntries.addAll(newEntries);
                     if (this.responseEntriesLatch != null) this.responseEntriesLatch.countDown();
+                    resultsToRead.countDown();
                     break;
                 }
                 // ----------------------------------------------------------------------------

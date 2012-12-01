@@ -328,7 +328,9 @@ public class BenchmarkController {
             total_num_clients *= catalogContext.numberOfPartitions;
         }
         this.totalNumClients = total_num_clients;
-        this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
+        int num_results = (int)(m_pollCount * this.totalNumClients);
+        if (hstore_conf.client.output_full_csv != null) num_results += this.totalNumClients;
+        this.resultsToRead = new CountDownLatch(num_results);
     }
     
     private String makeHeader(String label) {
@@ -1156,7 +1158,9 @@ public class BenchmarkController {
         } // WHILE
         
         if (local_client == null) local_client = this.getClientConnection();
-        if (this.stop == false) this.postProcessBenchmark(local_client);
+        if (this.stop == false) {
+            this.postProcessBenchmark(local_client);
+        }
         
         this.stop = true;
         if (m_config.noShutdown == false && this.failed == false) m_sitePSM.prepareShutdown(false);
@@ -1215,6 +1219,8 @@ public class BenchmarkController {
      * @throws Exception
      */
     private void postProcessBenchmark(Client client) throws Exception {
+        LOG.info("Performing post-processing on benchmark");
+        
         // We have to tell all our clients to pause first
         m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
         
@@ -1300,9 +1306,10 @@ public class BenchmarkController {
         }
         
         // Convert to a VoltTable and then write out to a CSV file
-        String txnNames[] = m_currentResults.getTransactionNames().toArray(new String[0]);
+        String txnNames[] = m_currentResults.getTransactionNames();
         FileWriter out = new FileWriter(outputPath);
-        VoltTableUtil.csv(out, fullDump.toVoltTable(txnNames), true);
+        VoltTable vt = ResponseEntries.toVoltTable(fullDump, txnNames);
+        VoltTableUtil.csv(out, vt, true);
         out.close();
         LOG.info(String.format("Wrote %d response entries information to '%s'", fullDump.size(), outputPath));
     }

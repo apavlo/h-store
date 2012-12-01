@@ -903,7 +903,7 @@ public abstract class BenchmarkComponent {
      * @param cresponse - The ClientResponse returned from the server
      * @param txn_idx
      */
-    protected final void incrementTransactionCounter(ClientResponse cresponse, int txn_idx) {
+    protected final void incrementTransactionCounter(final ClientResponse cresponse, final int txn_idx) {
         // Only include it if it wasn't rejected
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
         Status status = cresponse.getStatus();
@@ -937,7 +937,7 @@ public abstract class BenchmarkComponent {
             // RESPONSE ENTRIES
             if (m_enableResponseEntries) {
                 long timestamp = System.currentTimeMillis();
-                m_responseEntries.add(cresponse, txn_idx, m_id, timestamp);
+                m_responseEntries.add(cresponse, m_id, txn_idx, timestamp);
             }
             
             // BASE PARTITIONS

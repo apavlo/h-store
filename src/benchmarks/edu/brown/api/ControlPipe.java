@@ -123,7 +123,7 @@ public class ControlPipe implements Runnable {
                         cmp.answerWithError();
                         continue;
                     }
-                    LOG.info("DUMP TRANSACTIONS!");
+                    if (debug.get()) LOG.debug("DUMP TRANSACTIONS!");
                     cmp.answerDumpTxns();
                     break;
                 }
