@@ -16,6 +16,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.PartitionExecutorProfiler;
@@ -118,7 +119,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
             // single-partition transactions because we now have a new distributed transaction
             // Note that we have to do this before send the message because the callback
             // might end up destroying this transaction
-            if (hstore_conf.site.specexec_pre_query) {
+            if (hstore_conf.site.specexec_pre_query && (this.ts instanceof MapReduceTransaction) == false) {
                 for (int p: this.hstore_site.getLocalPartitionIds().values()) {
                     if (this.partitions.contains(p)) {
                         this.hstore_site.getPartitionExecutor(p).queueInitDtxn(this.ts);
