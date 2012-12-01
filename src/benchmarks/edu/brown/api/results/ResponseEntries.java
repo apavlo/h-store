@@ -125,7 +125,7 @@ public class ResponseEntries implements JSONSerializable {
             new VoltTable.ColumnInfo("TIMESTAMP", VoltType.BIGINT),
             new VoltTable.ColumnInfo("CLIENT ID", VoltType.INTEGER),
             new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING),
-            new VoltTable.ColumnInfo("SINGLE-PARTITION?", VoltType.STRING),
+            new VoltTable.ColumnInfo("SINGLE-PARTITION", VoltType.STRING),
             new VoltTable.ColumnInfo("BASE PARTITION", VoltType.INTEGER),
             new VoltTable.ColumnInfo("STATUS", VoltType.STRING),
             new VoltTable.ColumnInfo("RESULT SIZE", VoltType.INTEGER),
