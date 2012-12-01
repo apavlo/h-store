@@ -1989,7 +1989,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        TransactionFinishCallback finish_callback = null;
         TransactionCleanupCallback cleanup_callback = null;
         if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
             if (t) LOG.trace(ts + " - Initializing the TransactionCleanupCallback");
@@ -1999,22 +1998,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 assert(cleanup_callback != null);
                 cleanup_callback.init(ts, status, partitions);
             }
-        } else {
-            finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
-            assert(finish_callback != null);
-            if (t) LOG.trace(ts + " - Retrieved " + finish_callback);
         }
 
         ts.setStatus(status);
-        for (int p : this.local_partitions.values()) {
-            if (partitions.contains(p) == false) continue;
-            if (t) LOG.trace(String.format("#%d - Invoking finish at partition %d", txn_id, p));
-            
-            // Then actually commit the transaction in the execution engine
-            // We only need to do this for distributed transactions, because all single-partition
-            // transactions will commit/abort immediately
-            if (ts.isPredictSinglePartition() == false && (hstore_conf.site.specexec_pre_query || ts.needsFinish(p))) {
-                if (t) LOG.trace(String.format("%s - Calling finishTransaction on partition %d", ts, p));
+        
+        // We only need to do this for distributed transactions, because all single-partition
+        // transactions will commit/abort immediately
+        if (ts.isPredictSinglePartition() == false) {
+            for (int p : this.local_partitions.values()) {
+                if (partitions.contains(p) == false) continue;
+                if (t) LOG.trace(String.format("#%d - Invoking finish at partition %d", txn_id, p));
+                
+                // 2012-12-01
+                // We always want to queue up the transaction at the partition, even
+                // if it didn't actually do anything. We'll let the partition executor 
+                // sort those things out for us.
+                if (t) LOG.trace(String.format("%s - Queued transaction to get finished on partition %d", ts, p));
                 try {
                     this.executors[p].queueFinish(ts, status);
                 } catch (Throwable ex) {
@@ -2022,21 +2021,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                               ts, ts.hashCode(), status, partitions));
                     throw new RuntimeException(ex);
                 }
-            }
-            // If this is a LocalTransaction, then we want to just decrement their TransactionFinishCallback counter
-            else if (finish_callback != null) {
-                if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                                 ts, finish_callback.getClass().getSimpleName(), p));
-                finish_callback.decrementCounter(1);
-            }
-            // If we didn't queue the transaction to be finished at this partition, then we need to make sure
-            // that we mark the transaction as finished for this callback
-            else if (cleanup_callback != null) {
-                if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                                 ts, cleanup_callback.getClass().getSimpleName(), p));
-                cleanup_callback.run(p);
-            }
-        } // FOR            
+            } // FOR
+        }
     }
 
     // ----------------------------------------------------------------------------

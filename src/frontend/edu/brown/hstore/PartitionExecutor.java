@@ -1313,53 +1313,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     }
 
     /**
-     * Enable speculative execution mode for this partition. The given transaction is 
-     * the one that we will need to wait to finish before we can release the ClientResponses 
-     * for any speculatively executed transactions. 
-     * @param txn_id
-     * @return true if speculative execution was enabled at this partition
-     */
-    private boolean prepareTransaction(AbstractTransaction ts) {
-        assert(ts != null) : "Null transaction handle???";
-        if (d) LOG.debug(String.format("%s - Preparing to commit txn at partition %d", ts, this.partitionId));
-        
-        // Skip if we've already invoked prepared for this txn at this partition
-        if (ts.isMarkedPrepared(this.partitionId) == false) {
-            ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
-            
-            // Set the speculative execution commit mode
-            if (hstore_conf.site.specexec_enable) {
-                if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
-                                 ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
-                
-                // Check whether the txn that we're waiting for is read-only.
-                // If it is, then that means all read-only transactions can commit right away
-                if (ts.isExecReadOnly(this.partitionId)) {
-                    newMode = ExecutionMode.COMMIT_READONLY;
-//                    if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
-//                                     ts, this.partitionId));
-//                    hstore_site.getTransactionQueueManager().lockQueueFinished(ts, Status.OK, this.partitionId);
-                }
-            }
-            if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
-        }
-        else if (d) {
-            LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
-        }
-
-        // IMPORTANT
-        // When we do an early 2PC-PREPARE, we won't have this callback ready
-        // because we don't know what callback to use to send the acknowledgements
-        // back over the network
-        TransactionPrepareWrapperCallback callback = ts.getPrepareWrapperCallback();
-        if (callback.isInitialized()) {
-            callback.run(Integer.valueOf(this.partitionId));
-        }
-
-        return (true);
-    }
-    
-    /**
      * Set the current ExecutionMode for this executor. The transaction handle given as an input
      * argument is the transaction that caused the mode to get changed. It is only used for debug
      * purposes.
@@ -3476,7 +3429,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // We don't want to delete the transaction here because whoever is going to requeue it for
             // us will need to know what partitions that the transaction touched when it executed before
             if (ts.isPredictSinglePartition()) {
-                this.finishTransaction(ts, false);
+                this.finishTransaction(ts, status);
                 this.hstore_site.transactionRequeue(ts, status);
             }
             // Send a message all the partitions involved that the party is over
@@ -3502,7 +3455,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // Commit or abort the transaction only if we haven't done it already
             // This can happen when we commit speculative txns out of order
             if (ts.isMarkedFinished(this.partitionId) == false) {
-                this.finishTransaction(ts, (status == Status.OK));
+                this.finishTransaction(ts, status);
             }
             
             // Use the separate post-processor thread to send back the result
@@ -3587,13 +3540,60 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.profiler.network_time.stop();
         }
     }
+    
+    /**
+     * Enable speculative execution mode for this partition. The given transaction is 
+     * the one that we will need to wait to finish before we can release the ClientResponses 
+     * for any speculatively executed transactions. 
+     * @param txn_id
+     * @return true if speculative execution was enabled at this partition
+     */
+    private boolean prepareTransaction(AbstractTransaction ts) {
+        assert(ts != null) : "Null transaction handle???";
+        if (d) LOG.debug(String.format("%s - Preparing to commit txn at partition %d", ts, this.partitionId));
+        
+        // Skip if we've already invoked prepared for this txn at this partition
+        if (ts.isMarkedPrepared(this.partitionId) == false) {
+            ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
+            
+            // Set the speculative execution commit mode
+            if (hstore_conf.site.specexec_enable) {
+                if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
+                                 ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
+                
+                // Check whether the txn that we're waiting for is read-only.
+                // If it is, then that means all read-only transactions can commit right away
+                if (ts.isExecReadOnly(this.partitionId)) {
+                    newMode = ExecutionMode.COMMIT_READONLY;
+//                    if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
+//                                     ts, this.partitionId));
+//                    hstore_site.getTransactionQueueManager().lockQueueFinished(ts, Status.OK, this.partitionId);
+                }
+            }
+            if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
+        }
+        else if (d) {
+            LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
+        }
+
+        // IMPORTANT
+        // When we do an early 2PC-PREPARE, we won't have this callback ready
+        // because we don't know what callback to use to send the acknowledgements
+        // back over the network
+        TransactionPrepareWrapperCallback callback = ts.getPrepareWrapperCallback();
+        if (callback.isInitialized()) {
+            callback.run(Integer.valueOf(this.partitionId));
+        }
+
+        return (true);
+    }
         
     /**
      * Internal call to abort/commit the transaction down in the execution engine
      * @param ts
      * @param commit
      */
-    private void finishTransaction(AbstractTransaction ts, boolean commit) {
+    private void finishTransaction(AbstractTransaction ts, Status status) {
         assert(ts != null) :
             "Unexpected null transaction handle at partition " + this.partitionId;
         assert(ts.isInitialized()) :
@@ -3602,19 +3602,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
         
         // This can be null if they haven't submitted anything
+        boolean commit = (status == Status.OK);
         long undoToken = (commit ? ts.getLastUndoToken(this.partitionId) :
                                    ts.getFirstUndoToken(this.partitionId));
         
         // Only commit/abort this transaction if:
-        //  (1) We have an ExecutionEngine handle
         //  (2) We have the last undo token used by this transaction
         //  (3) The transaction was executed with undo buffers
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
-        if (ts.hasExecutedWork(this.partitionId) && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+        if (ts.hasExecutedWork(this.partitionId) && 
+            ts.needsFinish(this.partitionId) &&
+            undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+            
             this.finishWorkEE(ts, undoToken, commit);
         }
-        
         if (hstore_conf.site.exec_profiling) {
             if (this.profiler.idle_2pc_local_time.isStarted()) 
                 this.profiler.idle_2pc_local_time.stop();
@@ -3737,7 +3739,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         boolean commit = (status == Status.OK);
         if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d [status=%s]",
                          ts, this.partitionId, status));
-
+        
         // 2012-11-22 -- Yes, today is Thanksgiving and I'm working on my database.
         // That's just grad student life I guess. Anyway, if you're reading this then 
         // you know that this is an important part of the system. We have a dtxn that 
@@ -3831,7 +3833,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 } // FOR
                 
                 // (2) Abort the distributed txn
-                this.finishTransaction(ts, false);
+                this.finishTransaction(ts, status);
                 
                 // (3) Restart all the other txns
                 while ((pair = tmp_toRestart.pollFirst()) != null) {
@@ -3890,7 +3892,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         else {
             if (t) LOG.trace(String.format("%s - No speculative txns at partition %d. Just %s txn by itself",
                              ts, this.partitionId, (commit ? "commiting" : "aborting")));
-            this.finishTransaction(ts, commit);
+            this.finishTransaction(ts, status);
         }
             
         // Clear our cached query results that are specific for this transaction
@@ -3925,9 +3927,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // If we have a cleanup callback, then invoke that
         if (ts.getCleanupCallback() != null) {
-            if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                             ts, ts.getCleanupCallback().getClass().getSimpleName(), this.partitionId));
-            ts.getCleanupCallback().run(this.partitionId);
+            // We don't want to invoke this callback at the basePartition's site
+            if ( !(ts instanceof MapReduceTransaction && this.partitionId == ts.getBasePartition())) {
+                if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                                 ts, ts.getCleanupCallback().getClass().getSimpleName(), this.partitionId));
+                ts.getCleanupCallback().run(this.partitionId);
+            }
         }
         // If it's a LocalTransaction, then we'll want to invoke their TransactionFinishCallback 
         else if (ts instanceof LocalTransaction) {
