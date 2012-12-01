@@ -708,13 +708,13 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.exec_controlCode);
     }
     
-    @Override
-    public boolean needsFinish(int partition) {
-        if (this.base_partition == partition) {
-            return (this.exec_controlCode);
-        }
-        return super.needsFinish(partition);
-    }
+//    @Override
+//    public boolean needsFinish(int partition) {
+//        if (this.base_partition == partition) {
+//            return (this.exec_controlCode);
+//        }
+//        return super.needsFinish(partition);
+//    }
     
     /**
      * Mark this transaction as needing to be restarted. This will prevent it from

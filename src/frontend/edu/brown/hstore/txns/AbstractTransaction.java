@@ -567,19 +567,35 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * the PartitionExecutor needs to be told that they are finished
      * This could be either executing a query or executing the transaction's control code
      */
-    public boolean needsFinish(int partition) {
+    public final boolean needsFinish(int partition) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
-        return (this.round_state[offset] != null || this.exec_queueWork[offset]);
         
-//        // If this is the base partition, check to see whether it has
-//        // even executed the procedure control code
-//        if (this.base_partition == partition) {
-//            return (this.round_state[offset] != null);
+        boolean ret = (this.exec_readOnly[offset] == false &&
+                        (this.round_state[offset] != null || 
+                         this.exec_eeWork[offset] ||
+                         this.exec_queueWork[offset])
+        );
+        
+//        if (this.isSpeculative()) {
+//            LOG.info(String.format(
+//                "%s - Speculative Execution Partition %d => %s\n" +
+//                "  Round State:   %s\n" +
+//                "  Exec ReadOnly: %s\n" +
+//                "  Exec Queue:    %s\n" +
+//                "  Exec EE:       %s\n",
+//                this, partition, ret,
+//                this.round_state[offset],
+//                this.exec_readOnly[offset],
+//                this.exec_queueWork[offset],
+//                this.exec_eeWork[offset]));
 //        }
-//        // Otherwise check whether they have executed a query that
-//        else {
-//            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
-//        }
+        
+        // This transaction needs to be "finished" down in the EE if:
+        //  (1) It's not read-only
+        //  (2) It has executed at least one batch round
+        //  (3) It has invoked work directly down in the EE
+        //  (4) It added work that may be waiting in this partition's queue
+        return (ret);
     }
     
     // ----------------------------------------------------------------------------

@@ -658,8 +658,9 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             if (request.hasError() && request.getError().isEmpty() == false) {
                 error = SerializableException.deserializeFromBuffer(request.getError().asReadOnlyByteBuffer());
             }
-            LOG.warn(String.format("Got %s from %s%s",
-                     request.getClass().getSimpleName(), originName, (error != null ? " - " + error : "")));
+            LOG.warn(String.format("Got %s from %s [hasError=%s]%s",
+                     request.getClass().getSimpleName(), originName, (error != null),
+                     (error != null ? " - " + error : "")));
             
             // Tell the HStoreSite to prepare to shutdown
             HStoreCoordinator.this.hstore_site.prepareShutdown(request.hasError());
