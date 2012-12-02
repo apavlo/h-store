@@ -160,22 +160,28 @@ public class BenchmarkController {
     /** Server Sites **/
     final ProcessSetManager m_sitePSM;
     
-    BenchmarkResults m_currentResults = null;
-    final List<String> m_clients = new ArrayList<String>();
-    final List<String> m_clientThreads = new ArrayList<String>();
-    final List<ClientStatusThread> m_statusThreads = new ArrayList<ClientStatusThread>();
-    final Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
-    
     Thread self = null;
     boolean stop = false;
     boolean failed = false;
     boolean cleaned = false;
-    HStoreConf hstore_conf;
-    AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
-    AtomicInteger m_clientsNotReady = new AtomicInteger(0);
-
-    // benchmark parameters
     final BenchmarkConfig m_config;
+    HStoreConf hstore_conf;
+    BenchmarkResults m_currentResults = null;
+    
+    // ----------------------------------------------------------------------------
+    // CLIENT INFORMATION
+    // ----------------------------------------------------------------------------
+    final List<String> m_clients = new ArrayList<String>();
+    final List<String> m_clientThreads = new ArrayList<String>();
+    final AtomicInteger m_clientsNotReady = new AtomicInteger(0);
+    final Collection<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
+    
+    // ----------------------------------------------------------------------------
+    // STATUS THREADS
+    // ----------------------------------------------------------------------------
+    final List<ClientStatusThread> m_statusThreads = new ArrayList<ClientStatusThread>();
+    final AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
+
     
     /**
      * BenchmarkResults Processing
@@ -187,7 +193,6 @@ public class BenchmarkController {
     protected CountDownLatch resultsToRead;
     ResultsUploader resultsUploader = null;
     protected PeriodicEvictionThread evictorThread;
-    private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
     private final ScheduledThreadPoolExecutor threadPool;
 
     Class<? extends BenchmarkComponent> m_clientClass = null;
@@ -196,7 +201,6 @@ public class BenchmarkController {
 
     final AbstractProjectBuilder m_projectBuilder;
     final File m_jarFileName;
-//    ServerThread m_localserver = null;
     
     /**
      * SiteId -> Set[Host, Port]
@@ -211,8 +215,36 @@ public class BenchmarkController {
     private final BenchmarkClientFileUploader m_clientFileUploader = new BenchmarkClientFileUploader();
     private final AtomicInteger m_clientFilesUploaded = new AtomicInteger(0);
     
-    // ProcessSetManager Failure Callback
-    final EventObserver<String> failure_observer = new EventObserver<String>() {
+    // ----------------------------------------------------------------------------
+    // FAILURE HANDLERS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * UncaughtExceptionHandler
+     * This just forwards the error message to the failure EventObserver
+     */
+    private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
+    {
+        this.exceptionHandler.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
+            final EventObservable<String> inner = new EventObservable<String>();
+            {
+                inner.addObserver(failure_observer);
+            }
+            @Override
+            public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
+                Thread thread = arg.getFirst();
+                Throwable throwable = arg.getSecond();
+                LOG.error(String.format("Unexpected error from %s", thread.getName()), throwable);
+                String msg = String.format("%s - %s", thread.getName(), throwable.getMessage());
+                inner.notifyObservers(msg);
+            }
+        });
+    }
+    
+    /**
+     * Failure EventObserver 
+     */
+    private final EventObserver<String> failure_observer = new EventObserver<String>() {
         final AtomicBoolean lock = new AtomicBoolean(false);
         
         @Override
@@ -221,6 +253,12 @@ public class BenchmarkController {
                 LOG.fatal(msg);
                 BenchmarkController.this.stop = true;
                 BenchmarkController.this.failed = true;
+                
+                // Stop all the benchmark interests
+                for (BenchmarkInterest bi : m_interested) {
+                    bi.stop();
+                } // FOR
+                
                 ThreadUtil.sleep(1500);
                 m_clientPSM.prepareShutdown(false);
                 m_sitePSM.prepareShutdown(false);
@@ -1026,36 +1064,22 @@ public class BenchmarkController {
                                                 m_clientThreads.size());
         m_currentResults.setEnableBasePartitions(hstore_conf.client.output_basepartitions);
         
-        EventObservableExceptionHandler eh = new EventObservableExceptionHandler();
-        eh.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
-            final EventObservable<String> inner = new EventObservable<String>();
-            {
-                inner.addObserver(failure_observer);
-            }
-            @Override
-            public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
-                Thread thread = arg.getFirst();
-                Throwable throwable = arg.getSecond();
-                LOG.error(String.format("Unexpected error from %s %s", ClientStatusThread.class.getSimpleName(), thread.getName()), throwable);  
-                inner.notifyObservers(thread.getName());
-            }
-        });
         
-        
-        Client local_client = null;
         long nextIntervalTime = hstore_conf.client.interval;
-        
         for (int i = 0; i < m_clients.size(); i++) {
             ClientStatusThread t = new ClientStatusThread(this, i);
-            m_statusThreads.add(t);
-            t.setUncaughtExceptionHandler(eh);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
             t.start();
+            m_statusThreads.add(t);
         } // FOR
         if (debug.get())
             LOG.debug(String.format("Started %d %s",
                                     m_statusThreads.size(), ClientStatusThread.class.getSimpleName()));
+
+        // Get a connection to the cluster
+        Client local_client = this.getClientConnection();
         
-        // spin on whether all clients are ready
+        // Spin on whether all clients are ready
         while (m_clientsNotReady.get() > 0 && this.stop == false) {
             if (debug.get()) LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
             try {
@@ -1071,10 +1095,9 @@ public class BenchmarkController {
         }
         
         // Reset some internal information at the cluster
-        if (local_client == null) local_client = this.getClientConnection();
         this.resetCluster(local_client);
         
-        // start up all the clients
+        // Start up all the clients
         for (String clientName : m_clients)
             m_clientPSM.writeToProcess(clientName, ControlCommand.START.name());
 
@@ -1098,7 +1121,6 @@ public class BenchmarkController {
                     // This means that it will have to wait until *all* of the previously submitted multi-partition
                     // transactions get executed before it will get executed... we really need to write our
                     // own transaction coordinator...
-                    if (local_client == null) local_client = this.getClientConnection();
                     LOG.info("Requesting HStoreSites to recalculate Markov models after warm-up");
                     try {
                         this.recomputeMarkovs(local_client, false);
@@ -1121,6 +1143,8 @@ public class BenchmarkController {
                 LOG.info("Starting benchmark stats collection");
             }
         }
+        
+        // 
         long startTime = System.currentTimeMillis();
         nextIntervalTime += startTime;
         long nowTime = startTime;
@@ -1157,7 +1181,6 @@ public class BenchmarkController {
             }
         } // WHILE
         
-        if (local_client == null) local_client = this.getClientConnection();
         if (this.stop == false) {
             this.postProcessBenchmark(local_client);
         }

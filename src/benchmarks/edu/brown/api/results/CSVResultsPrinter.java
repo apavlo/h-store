@@ -32,13 +32,21 @@ public class CSVResultsPrinter implements BenchmarkInterest {
     private Object last_eviction_row[] = null;
     private long last_eviction_start = -1;
     private long last_eviction_stop = -1;
+    private boolean stop = false;
     
     public CSVResultsPrinter(File outputPath) {
         this.outputPath = outputPath;
     }
     
     @Override
+    public void stop() {
+        this.stop = true;
+    }
+    
+    @Override
     public String formatFinalResults(BenchmarkResults br) {
+        if (this.stop) return (null);
+        
         VoltTable vt = new VoltTable(COLUMNS);
         for (Object row[] : this.results) {
             vt.addRow(row);
@@ -57,6 +65,8 @@ public class CSVResultsPrinter implements BenchmarkInterest {
     
     @Override
     public void benchmarkHasUpdated(BenchmarkResults br) {
+        if (this.stop) return;
+        
         Pair<Long, Long> p = br.computeTotalAndDelta();
         assert(p != null);
         

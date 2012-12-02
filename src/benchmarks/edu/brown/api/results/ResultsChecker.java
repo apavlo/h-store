@@ -41,9 +41,15 @@ public class ResultsChecker extends EventObservable<String> implements Benchmark
     }
 
     private long lastDelta = -1;
+    private boolean stop = false;
     
     public ResultsChecker(EventObserver<String> failure_observer) {
         this.addObserver(failure_observer);
+    }
+    
+    @Override
+    public void stop() {
+        this.stop = true;
     }
     
     @Override
@@ -54,6 +60,8 @@ public class ResultsChecker extends EventObservable<String> implements Benchmark
     
     @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
+        if (this.stop) return;
+        
         Pair<Long, Long> p = results.computeTotalAndDelta();
         assert(p != null);
         long txnDelta = p.getSecond();

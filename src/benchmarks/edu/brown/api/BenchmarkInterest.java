@@ -7,4 +7,5 @@ public interface BenchmarkInterest {
     public void benchmarkHasUpdated(BenchmarkResults currentResults);
     public void markEvictionStart();
     public void markEvictionStop();
+    public void stop();
 }

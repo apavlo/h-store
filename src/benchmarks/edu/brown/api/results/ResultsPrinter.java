@@ -68,6 +68,7 @@ public class ResultsPrinter implements BenchmarkInterest {
     protected final boolean output_clients;
     protected final boolean output_basepartitions;
     protected final boolean output_responses;
+    private boolean stop = false;
     
     public ResultsPrinter(HStoreConf hstore_conf) {
         this.output_interval = hstore_conf.client.output_interval;
@@ -76,8 +77,14 @@ public class ResultsPrinter implements BenchmarkInterest {
         this.output_responses = hstore_conf.client.output_status;
     }
     
+    public void stop() {
+        this.stop = true;
+    };
+    
     @Override
     public String formatFinalResults(BenchmarkResults results) {
+        if (this.stop) return (null);
+        
         StringBuilder sb = new StringBuilder();
         FinalResult fr = new FinalResult(results);
         
@@ -207,6 +214,7 @@ public class ResultsPrinter implements BenchmarkInterest {
     
     @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
+        if (this.stop) return;
         if (this.output_interval == false) return;
         
         Pair<Long, Long> p = results.computeTotalAndDelta();
