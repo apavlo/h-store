@@ -51,7 +51,6 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -735,14 +734,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         return (this.prepare_callback);
     }
     
-    /**
-     * Return a TransactionCleanupCallback
-     * Note that this will be null for LocalTransactions
-     */
-    public TransactionCleanupCallback getCleanupCallback() {
-        return (null);
-    }
-    
     // ----------------------------------------------------------------------------
     // ERROR METHODS
     // ----------------------------------------------------------------------------
@@ -797,13 +788,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         return (this.work_task[offset]);
     }
     
-    /**
-     * Return the current Status for this transaction
-     * This is not thread-safe. 
-     */
-    public final Status getStatus() {
-        return (this.status);
-    }
     /**
      * Set the current Status for this transaction
      * This is not thread-safe.

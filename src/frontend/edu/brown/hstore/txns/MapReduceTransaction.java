@@ -406,13 +406,6 @@ public class MapReduceTransaction extends LocalTransaction {
         return (this.reduceWrapper_callback);
     }
     
-    public TransactionCleanupCallback getCleanupCallback() {
-        // TODO(xin): This should return null if this handle is located at
-        //            the txn's basePartition HStoreSite
-        if (this.hstore_site.isLocalPartition(base_partition)) return null;
-        else return (this.cleanup_callback);
-    }
-    
     public void initTransactionMapWrapperCallback(RpcCallback<TransactionMapResponse> orig_callback) {
         if (debug.get()) LOG.debug("Trying to intialize TransactionMapWrapperCallback for " + this);
         assert (this.mapWrapper_callback.isInitialized() == false);
@@ -425,7 +418,35 @@ public class MapReduceTransaction extends LocalTransaction {
         this.reduceWrapper_callback.init(this, orig_callback);
     }
     
+    /**
+     * Initialize the TransactionCleanupCallback for this txn.
+     * @param status The final status of the txn
+     * @param partitions The local partitions that we need to finish for this txn
+     * @return
+     */
+    public TransactionCleanupCallback initCleanupCallback(Status status, PartitionSet partitions) {
+        assert(this.cleanup_callback.isInitialized() == false) :
+            String.format("Trying initialize the %s for %s more than once",
+                          this.cleanup_callback.getClass().getSimpleName(), this);
+        this.cleanup_callback.init(this, status, partitions);
+        return (this.cleanup_callback);
+    }
     
+    /**
+     * Get the TransactionCleanupCallback for this txn.
+     * <B>Note:</B> You must call initCleanupCallback() first
+     * @return
+     */
+    public TransactionCleanupCallback getCleanupCallback() {
+        // TODO(xin): This should return null if this handle is located at
+        //            the txn's basePartition HStoreSite
+        if (this.hstore_site.isLocalPartition(base_partition)) return null;
+        
+        assert(this.cleanup_callback.isInitialized()) :
+            String.format("Trying to grab the %s for %s before it has been initialized",
+                          this.cleanup_callback.getClass().getSimpleName(), this);
+        return (this.cleanup_callback);
+    }
 
     @Override
     public String toStringImpl() {

@@ -930,9 +930,13 @@ public abstract class BenchmarkComponent {
                     }
                 } // SYNCH
             }
-            synchronized (latencies) {
-                latencies.put(cresponse.getClusterRoundtrip());
-            } // SYNCH
+            // Ignore zero latencies... Not sure why this happens...
+            int latency = cresponse.getClusterRoundtrip();
+            if (latency > 0) {
+                synchronized (latencies) {
+                    latencies.put(latency);
+                } // SYNCH
+            }
             
             // RESPONSE ENTRIES
             if (m_enableResponseEntries) {

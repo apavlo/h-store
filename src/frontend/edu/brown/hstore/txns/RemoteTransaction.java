@@ -35,6 +35,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
@@ -117,7 +118,8 @@ public class RemoteTransaction extends AbstractTransaction {
     
     @Override
     public boolean isDeletable() {
-        if (this.cleanup_callback.allCallbacksFinished() == false) {
+        if (this.cleanup_callback.isInitialized() && 
+            this.cleanup_callback.allCallbacksFinished() == false) {
             if (debug.get()) LOG.warn(String.format("%s - %s is not finished", this,
                                       this.cleanup_callback.getClass().getSimpleName()));
             return (false);
@@ -133,8 +135,30 @@ public class RemoteTransaction extends AbstractTransaction {
     public TransactionWorkCallback getWorkCallback() {
         return (this.work_callback);
     }
+
+    /**
+     * Initialize the TransactionCleanupCallback for this txn.
+     * @param status The final status of the txn
+     * @param partitions The local partitions that we need to finish for this txn
+     * @return
+     */
+    public TransactionCleanupCallback initCleanupCallback(Status status, PartitionSet partitions) {
+        assert(this.cleanup_callback.isInitialized() == false) :
+            String.format("Trying initialize the %s for %s more than once",
+                          this.cleanup_callback.getClass().getSimpleName(), this);
+        this.cleanup_callback.init(this, status, partitions);
+        return (this.cleanup_callback);
+    }
     
+    /**
+     * Get the TransactionCleanupCallback for this txn.
+     * <B>Note:</B> You must call initCleanupCallback() first
+     * @return
+     */
     public TransactionCleanupCallback getCleanupCallback() {
+        assert(this.cleanup_callback.isInitialized()) :
+            String.format("Trying to grab the %s for %s before it has been initialized",
+                          this.cleanup_callback.getClass().getSimpleName(), this);
         return (this.cleanup_callback);
     }
 

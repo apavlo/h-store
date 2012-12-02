@@ -2003,14 +2003,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        TransactionCleanupCallback cleanup_callback = null;
-        if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
+        // Initialize the TransactionCleanupCallback if we are either
+        // a remote or mapreduce transaction. We have to do this here because
+        // we need to know the final status of the txn for when we delete it
+        if (ts instanceof RemoteTransaction) {
             if (t) LOG.trace(ts + " - Initializing the " + TransactionCleanupCallback.class.getSimpleName());
-            cleanup_callback = ts.getCleanupCallback();
-            assert(cleanup_callback != null);
-            cleanup_callback.init(ts, status, partitions);
+            ((RemoteTransaction)ts).initCleanupCallback(status, partitions);
+        }
+        else if (ts instanceof MapReduceTransaction) {
+            if (t) LOG.trace(ts + " - Initializing the " + TransactionCleanupCallback.class.getSimpleName());
+            ((MapReduceTransaction)ts).initCleanupCallback(status, partitions);
         }
 
+        // Set the status in case something goes awry and we just want
+        // to check whether this transaction is suppose to be aborted.
+        // This is primarily for debugging and sanity checks
         ts.setStatus(status);
         
         // We only need to do this for distributed transactions, because all single-partition
@@ -2573,7 +2580,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            this.deletable_last.add(ts.toString());
+            // this.deletable_last.add(ts.toString());
+            this.deletable_last.add(ts.debug());
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
         return;
@@ -2729,7 +2737,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            this.deletable_last.add(ts.toString());
+            // this.deletable_last.add(ts.toString());
+            this.deletable_last.add(ts.debug());
             if (ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
             } else {

@@ -3964,27 +3964,31 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId);
         }
         
-        // If we have a cleanup callback, then invoke that
-        if (ts.getCleanupCallback() != null) {
+        // -------------------------------
+        // FINISH/CLEANUP CALLBACKS
+        // -------------------------------
+        
+        // RemoteTransaction
+        if (ts instanceof RemoteTransaction) {
+            TransactionCleanupCallback callback = ((RemoteTransaction)ts).getCleanupCallback();
+            if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                             ts, callback.getClass().getSimpleName(), this.partitionId));
+            callback.run(this.partitionId);
+        }
+        // MapReduceTransaction
+        else if (ts instanceof MapReduceTransaction) {
+            TransactionCleanupCallback callback = ((MapReduceTransaction)ts).getCleanupCallback();
             // We don't want to invoke this callback at the basePartition's site
-            if ( !(ts instanceof MapReduceTransaction && this.partitionId == ts.getBasePartition())) {
+            // because we don't want the parent txn to actually get deleted.
+            if (this.partitionId == ts.getBasePartition()) {
                 if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                                 ts, ts.getCleanupCallback().getClass().getSimpleName(), this.partitionId));
-                TransactionCleanupCallback callback = ts.getCleanupCallback();
-//                assert(ts.checkDeletableFlag() == false) : ts + " is deletable?";
-//                assert(callback.allCallbacksFinished() == false) : callback + " is deletable?";
-//                String before = callback.toString();
-                try {
-                    callback.run(this.partitionId);
-                } catch (Throwable ex) {
-//                    LOG.error("*** BEFORE: " + before);
-//                    LOG.error("*** AFTER: " + callback);
-                    throw new RuntimeException(ex);
-                }
+                                 ts, callback.getClass().getSimpleName(), this.partitionId));
+                callback.run(this.partitionId);
             }
         }
-        // If it's a LocalTransaction, then we'll want to invoke their TransactionFinishCallback 
+        // LocalTransaction
         else if (ts instanceof LocalTransaction) {
+            // If it's a LocalTransaction, then we'll want to invoke their TransactionFinishCallback
             LocalTransactionFinishCallback callback = ((LocalTransaction)ts).getTransactionFinishCallback();
             if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
                              ts, callback.getClass().getSimpleName(), this.partitionId));
