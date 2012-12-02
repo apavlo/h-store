@@ -225,7 +225,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * The list of the last txn ids that were successfully deleted
      * This is primarily used for debugging
      */
-    private final CircularFifoBuffer<Long> deletable_last = new CircularFifoBuffer<Long>(100);
+    private final CircularFifoBuffer<String> deletable_last = new CircularFifoBuffer<String>(100);
     
     /**
      * Reusable Object Pools
@@ -1369,8 +1369,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // *********************************** DEBUG *********************************** 
         StringBuilder sb = new StringBuilder();
         int i = 0;
-        for (Long txn_id : this.deletable_last) {
-            sb.append(String.format(" [%02d %d\n", i++, txn_id));
+        for (String txn : this.deletable_last) {
+            sb.append(String.format(" [%02d] %s\n", i++, txn));
         }
         LOG.info("Last Deleted Transactions:\n" + sb);
     }
@@ -2576,9 +2576,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
+            this.deletable_last.add(ts.toString());
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
-        this.deletable_last.add(txn_id);
         return;
     }
 
@@ -2732,13 +2732,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
+            this.deletable_last.add(ts.toString());
             if (ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
             } else {
                 this.objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
             }
         }
-        this.deletable_last.add(txn_id);
     }
 
     // ----------------------------------------------------------------------------

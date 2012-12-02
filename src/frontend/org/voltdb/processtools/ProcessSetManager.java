@@ -198,6 +198,7 @@ public class ProcessSetManager implements Shutdownable {
         final String m_processName;
         final StreamType m_stream;
         final AtomicBoolean m_expectDeath = new AtomicBoolean(false);
+        final AtomicBoolean m_shutdownMsg = new AtomicBoolean(false);
         final FileWriter m_writer;
 
         StreamWatcher(BufferedReader reader, FileWriter writer, String processName, StreamType stream) {
@@ -212,6 +213,16 @@ public class ProcessSetManager implements Shutdownable {
         void setExpectDeath(boolean expectDeath) {
             m_expectDeath.set(expectDeath);
         }
+        
+        void shutdown(Throwable error) {
+            if (m_expectDeath.get() == false) {
+                if (shutting_down == false && m_shutdownMsg.compareAndSet(false, true)) {
+                    LOG.error(String.format("Stream monitoring thread for '%s' is exiting",
+                              m_processName), (debug.get() ? error : null));
+                    failure_observable.notifyObservers(m_processName);
+                }
+            }
+        }
 
         @Override
         public void run() {
@@ -221,14 +232,7 @@ public class ProcessSetManager implements Shutdownable {
                     try {
                         line = m_reader.readLine();
                     } catch (IOException e) {
-                        if (!m_expectDeath.get()) {
-                            synchronized (ProcessSetManager.this) { 
-                                if (shutting_down == false)
-                                    LOG.error(String.format("Stream monitoring thread for '%s' is exiting",
-                                              m_processName), (debug.get() ? e : null));
-                                failure_observable.notifyObservers(m_processName);
-                            } // SYNCH
-                        }
+                        this.shutdown(e);
                         return;
                     }
                     

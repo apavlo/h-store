@@ -568,37 +568,65 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
     
         @Override
         public void transactionInit(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> callback) {
-             transactionInit_handler.remoteQueue(controller, request, callback);
+            try {
+                transactionInit_handler.remoteQueue(controller, request, callback);
+            } catch (Throwable ex) {
+                shutdownCluster(ex);
+            }
         }
         
         @Override
         public void transactionWork(RpcController controller, TransactionWorkRequest request, RpcCallback<TransactionWorkResponse> callback) {
-            transactionWork_handler.remoteHandler(controller, request, callback);
+            try {
+                transactionWork_handler.remoteHandler(controller, request, callback);
+            } catch (Throwable ex) {
+                shutdownCluster(ex);
+            }
         }
 
         @Override
         public void transactionPrefetch(RpcController controller, TransactionPrefetchResult request, RpcCallback<TransactionPrefetchAcknowledgement> callback) {
-            transactionPrefetch_handler.remoteHandler(controller, request, callback);
+            try {
+                transactionPrefetch_handler.remoteHandler(controller, request, callback);
+            } catch (Throwable ex) {
+                shutdownCluster(ex);
+            }
         }
         
         @Override
         public void transactionMap(RpcController controller, TransactionMapRequest request, RpcCallback<TransactionMapResponse> callback) {
-            transactionMap_handler.remoteQueue(controller, request, callback);
+            try {
+                transactionMap_handler.remoteQueue(controller, request, callback);
+            } catch (Throwable ex) {
+                shutdownCluster(ex);
+            }
         }
         
         @Override
         public void transactionReduce(RpcController controller, TransactionReduceRequest request, RpcCallback<TransactionReduceResponse> callback) {
-            transactionReduce_handler.remoteQueue(controller, request, callback);
+            try {
+                transactionReduce_handler.remoteQueue(controller, request, callback);
+            } catch (Throwable ex) {
+                shutdownCluster(ex);
+            }
         }
         
         @Override
         public void transactionPrepare(RpcController controller, TransactionPrepareRequest request, RpcCallback<TransactionPrepareResponse> callback) {
-            transactionPrepare_handler.remoteQueue(controller, request, callback);
+            try {
+                transactionPrepare_handler.remoteQueue(controller, request, callback);
+            } catch (Throwable ex) {
+                shutdownCluster(ex);
+            }
         }
         
         @Override
         public void transactionFinish(RpcController controller, TransactionFinishRequest request, RpcCallback<TransactionFinishResponse> callback) {
-            transactionFinish_handler.remoteQueue(controller, request, callback);
+            try {
+                transactionFinish_handler.remoteQueue(controller, request, callback);
+            } catch (Throwable ex) {
+                shutdownCluster(ex);
+            }
         }
         
         @Override
@@ -606,21 +634,26 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             // We need to create a wrapper callback so that we can get the output that
             // HStoreSite wants to send to the client and forward 
             // it back to whomever told us about this txn
-            if (d) 
-                LOG.debug(String.format("Received redirected transaction request from HStoreSite %s", HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            if (d) LOG.debug(String.format("Received redirected transaction request from HStoreSite %s",
+                             HStoreThreadManager.formatSiteName(request.getSenderSite())));
             ByteBuffer serializedRequest = request.getWork().asReadOnlyByteBuffer();
             TransactionRedirectResponseCallback callback = null;
             try {
-                callback = (TransactionRedirectResponseCallback)hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_RESPONSE.borrowObject();
+                callback = hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_RESPONSE.borrowObject();
                 callback.init(local_site_id, request.getSenderSite(), done);
             } catch (Exception ex) {
-                throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);
+                String msg = "Failed to get " + TransactionRedirectResponseCallback.class.getSimpleName();
+                throw new RuntimeException(msg, ex);
             }
             
-            if (transactionRedirect_dispatcher != null) {
-                transactionRedirect_dispatcher.queue(Pair.of(serializedRequest, callback));
-            } else {
-                hstore_site.invocationQueue(serializedRequest, callback);
+            try {
+                if (transactionRedirect_dispatcher != null) {
+                    transactionRedirect_dispatcher.queue(Pair.of(serializedRequest, callback));
+                } else {
+                    hstore_site.invocationProcess(serializedRequest, callback);
+                }
+            } catch (Throwable ex) {
+                shutdownCluster(ex);
             }
         }
         
@@ -629,16 +662,19 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             // Take the SendDataRequest and pass it to the sendData_handler, which
             // will deserialize the embedded VoltTable and wrap it in something that we can
             // then pass down into the underlying ExecutionEngine
-            sendData_handler.remoteQueue(controller, request, done);
+            try {
+                sendData_handler.remoteQueue(controller, request, done);
+            } catch (Throwable ex) {
+                shutdownCluster(ex);
+            }
         }
         
         @Override
         public void initialize(RpcController controller, InitializeRequest request, RpcCallback<InitializeResponse> done) {
-            if (d)
-                LOG.debug(String.format("Received %s from HStoreSite %s [instanceId=%d]",
-                                                 request.getClass().getSimpleName(),
-                                                 HStoreThreadManager.formatSiteName(request.getSenderSite()),
-                                                 request.getInstanceId()));
+            if (d) LOG.debug(String.format("Received %s from HStoreSite %s [instanceId=%d]",
+                             request.getClass().getSimpleName(),
+                             HStoreThreadManager.formatSiteName(request.getSenderSite()),
+                             request.getInstanceId()));
             
             hstore_site.setInstanceId(request.getInstanceId());
             InitializeResponse response = InitializeResponse.newBuilder()
@@ -1130,7 +1166,6 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
     /**
      * Take down the cluster. This is a non-blocking call. It will return right away
      * @param error
-     * @param blocking
      */
     public void shutdownCluster(final Throwable error) {
         if (d) 
