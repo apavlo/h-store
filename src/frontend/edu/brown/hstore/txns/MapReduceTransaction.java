@@ -129,7 +129,8 @@ public class MapReduceTransaction extends LocalTransaction {
                                  PartitionSet predict_touchedPartitions,
                                  boolean predict_readOnly,
                                  boolean predict_canAbort,
-                                 Procedure catalog_proc, ParameterSet params,
+                                 Procedure catalog_proc,
+                                 ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
         super.init(txn_id,
                    initiateTime,
@@ -143,9 +144,9 @@ public class MapReduceTransaction extends LocalTransaction {
                    client_callback);
         
         // Intialize MapReduce properties
-        this.mapEmit = hstore_site.getCatalogContext().getTableByName(this.catalog_proc.getMapemittable());
-        this.reduceEmit = hstore_site.getCatalogContext().getTableByName(this.catalog_proc.getReduceemittable());
-        LOG.info(" CatalogUtil.getVoltTable(thisMapEmit): -> " + this.catalog_proc.getMapemittable());
+        this.mapEmit = hstore_site.getCatalogContext().getTableByName(catalog_proc.getMapemittable());
+        this.reduceEmit = hstore_site.getCatalogContext().getTableByName(catalog_proc.getReduceemittable());
+        LOG.info(" CatalogUtil.getVoltTable(thisMapEmit): -> " + catalog_proc.getMapemittable());
         LOG.info("MapReduce LocalPartitionIds: " + this.hstore_site.getLocalPartitionIds());
         
         // Get the Table catalog object for the map/reduce outputs

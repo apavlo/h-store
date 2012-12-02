@@ -93,7 +93,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     /**
      * Catalog object of the Procedure that this transaction is currently executing
      */
-    protected Procedure catalog_proc;
+    private Procedure catalog_proc;
     
     protected Long txn_id = null;
     protected long client_handle;
@@ -312,6 +312,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
                                              boolean exec_local) {
         assert(predict_touchedPartitions != null);
         assert(predict_touchedPartitions.isEmpty() == false);
+        assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
         this.txn_id = txn_id;
         this.client_handle = client_handle;
@@ -329,8 +330,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     }
 
     @Override
-    public boolean isInitialized() {
-        return (this.txn_id != null);
+    public final boolean isInitialized() {
+        return (this.txn_id != null && this.catalog_proc != null);
     }
     
     /**
@@ -549,7 +550,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     /**
      * Returns true if this transaction has not executed any modifying work at this partition
      */
-    public boolean isExecReadOnly(int partition) {
+    public final boolean isExecReadOnly(int partition) {
+        if (this.catalog_proc.getReadonly()) return (true);
         return (this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)]);
     }
     
@@ -705,6 +707,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * Returns true if this transaction is for a system procedure
      */
     public final boolean isSysProc() {
+        assert(this.catalog_proc != null) :
+            "Unexpected null Procedure handle for " + this;
         return this.catalog_proc.getSystemproc();
     }
     

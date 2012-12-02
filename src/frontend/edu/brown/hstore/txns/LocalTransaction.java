@@ -228,14 +228,6 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc,
                                  ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
-
-        assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
-        
-        this.initiateTime = initiateTime;
-        this.catalog_proc = catalog_proc;
-        this.client_callback = client_callback;
-        this.mapreduce = catalog_proc.getMapreduce();
-        
         super.init(txn_id,
                    clientHandle,
                    base_partition,
@@ -246,6 +238,9 @@ public class LocalTransaction extends AbstractTransaction {
                    predict_abortable,
                    true);
         
+        this.initiateTime = initiateTime;
+        this.client_callback = client_callback;
+        this.mapreduce = catalog_proc.getMapreduce();
         
         // Grab a DistributedState that will have all the goodies that we need
         // to execute a distributed transaction
@@ -324,11 +319,6 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     @Override
-    public boolean isInitialized() {
-        return (this.catalog_proc != null && super.isInitialized());
-    }
-    
-    @Override
     public void finish() {
         if (d) LOG.debug(String.format("%s - Invoking finish() cleanup", this));
         
@@ -343,7 +333,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.resetExecutionState();
         super.finish();
         
-        this.catalog_proc = null;
         this.client_callback = null;
         this.initiateTime = 0;
         this.cresponse = null;
@@ -837,12 +826,6 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.state.dependencies.get(d_id));
     }
 
-    @Override
-    public boolean isExecReadOnly(int partition) {
-        if (catalog_proc.getReadonly()) return (true);
-        return super.isExecReadOnly(partition);
-    }
-    
     /**
      * Returns true if this Transaction has executed only on a single-partition
      * @return
@@ -1004,7 +987,9 @@ public class LocalTransaction extends AbstractTransaction {
                          this, results.length));
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        boolean nonblocking = (hstore_conf.site.specexec_nonblocking && this.catalog_proc.getSystemproc() == false && this.profiler != null);
+        boolean nonblocking = (hstore_conf.site.specexec_nonblocking &&
+                               this.isSysProc() == false &&
+                               this.profiler != null);
         for (int stmt_index = 0; stmt_index < results.length; stmt_index++) {
             Integer dependency_id = this.state.output_order.get(stmt_index);
             assert(dependency_id != null) :
@@ -1125,12 +1110,12 @@ public class LocalTransaction extends AbstractTransaction {
         // *********************************** DEBUG ***********************************
         if (d) {
             CatalogType catalog_obj = null;
-            if (catalog_proc.getSystemproc()) {
-                catalog_obj = catalog_proc;
+            if (this.isSysProc()) {
+                catalog_obj = this.getProcedure();
             } else {
                 for (int i = 0; i < num_fragments; i++) {
                     int frag_id = fragment.getFragmentId(i);
-                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(this.getProcedure(), frag_id);
                     catalog_obj = catalog_frag.getParent();
                     if (catalog_obj != null) break;
                 } // FOR
@@ -1406,7 +1391,7 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public String toStringImpl() {
-        return String.format("%s #%d/%d", this.catalog_proc.getName(),
+        return String.format("%s #%d/%d", this.getProcedure().getName(),
                                           this.txn_id,
                                           this.base_partition);
     }
@@ -1474,7 +1459,7 @@ public class LocalTransaction extends AbstractTransaction {
             sb.append(StringUtil.SINGLE_LINE);
             String stmt_debug[] = new String[this.state.batch_size];
             
-            VoltProcedure voltProc = state.executor.getVoltProcedure(catalog_proc.getName());
+            VoltProcedure voltProc = state.executor.getVoltProcedure(this.getProcedure().getName());
             assert(voltProc != null);
             SQLStmt stmts[] = voltProc.voltLastQueriesExecuted();
             

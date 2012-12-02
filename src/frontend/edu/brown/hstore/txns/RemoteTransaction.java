@@ -170,9 +170,9 @@ public class RemoteTransaction extends AbstractTransaction {
 
     @Override
     public String toStringImpl() {
-        return String.format("%s-REMOTE #%d/%d", this.catalog_proc.getName(),
-                                          this.txn_id,
-                                          this.base_partition);
+        return String.format("%s-REMOTE #%d/%d", this.getProcedure().getName(),
+                             this.txn_id,
+                             this.base_partition);
     }
     
     @Override
