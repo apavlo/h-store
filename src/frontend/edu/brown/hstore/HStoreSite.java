@@ -2017,7 +2017,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // transactions will commit/abort immediately
         if (ts.isPredictSinglePartition() == false) {
             for (int p : this.local_partitions.values()) {
-                assert(partitions.contains(p));
+                if (partitions.contains(p) == false) continue;
                 
                 // 2012-12-01
                 // We always want to queue up the transaction at the partition, even
@@ -2573,7 +2573,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            this.deletable_last.add(ts.debug());
+            this.deletable_last.add(ts.toString());
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
         return;
@@ -2729,7 +2729,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            this.deletable_last.add(ts.debug());
+            this.deletable_last.add(ts.toString());
             if (ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
             } else {
