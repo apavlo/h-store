@@ -1381,8 +1381,10 @@ public class BenchmarkController {
                         row[i] = new Long(0l);
                     } // FOR
                     totalRows.put(procName, row);
-                    
-                    stdevs = (List<Double>[])new ArrayList<?>[cols.length];
+                
+                    @SuppressWarnings("unchecked")
+                    List<Double> temp[] = (List<Double>[])new ArrayList<?>[cols.length]; 
+                    stdevs = temp;
                     stdevRows.put(procName, stdevs);
                 }
                 

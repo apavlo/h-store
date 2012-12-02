@@ -18,7 +18,6 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.util.TransactionCounter;
 
 public class TransactionCounterStats extends StatsSource {
