@@ -797,6 +797,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.status = status;
     }
     
+    public final Status getStatus() {
+        return (this.status);
+    }
+    
     /**
      * Returns true if this transaction has been aborted.
      */

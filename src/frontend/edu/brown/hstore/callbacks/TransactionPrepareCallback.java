@@ -11,7 +11,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
- * This callback is invoked at the base partition once the tnx gets all of
+ * This callback is invoked at the base partition once the txn gets all of
  * the 2PC:PREPARE acknowledgments. This is where we will invoke the HStoreSite
  * to send the ClientResponse back to the client.
  * @author pavlo

@@ -13,7 +13,6 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
-import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.callbacks.SendDataCallback;
@@ -182,12 +181,11 @@ public class MapReduceTransaction extends LocalTransaction {
         this.reduce_callback.init(this);
         assert(this.reduce_callback.isInitialized()) : "Unexpected error for " + this;
         
-        // TODO(xin): Initialize the TransactionCleanupCallback if this txn's base partition
-        //            is not at this HStoreSite. 
-        if (!this.hstore_site.isLocalPartition(base_partition)) {
-            cleanup_callback.init(this, Status.OK, this.hstore_site.getLocalPartitionIds());
+        // Initialize the TransactionCleanupCallback if this txn's base partition
+        // is not at this HStoreSite. 
+        if (this.hstore_site.isLocalPartition(base_partition) == false) {
+            this.cleanup_callback.init(this, this.hstore_site.getLocalPartitionIds());
         }
-        
         
         LOG.info("Invoked MapReduceTransaction.init() -> " + this);
         return (this);
@@ -417,25 +415,9 @@ public class MapReduceTransaction extends LocalTransaction {
         //assert (this.reduceWrapper_callback.isInitialized() == false);
         this.reduceWrapper_callback.init(this, orig_callback);
     }
-    
-    /**
-     * Initialize the TransactionCleanupCallback for this txn.
-     * @param status The final status of the txn
-     * @param partitions The local partitions that we need to finish for this txn
-     * @return
-     */
-    public TransactionCleanupCallback initCleanupCallback(Status status, PartitionSet partitions) {
-        assert(this.cleanup_callback.isInitialized() == false) :
-            String.format("Trying initialize the %s for %s more than once",
-                          this.cleanup_callback.getClass().getSimpleName(), this);
-        this.cleanup_callback.init(this, status, partitions);
-        return (this.cleanup_callback);
-    }
-    
+
     /**
      * Get the TransactionCleanupCallback for this txn.
-     * <B>Note:</B> You must call initCleanupCallback() first
-     * @return
      */
     public TransactionCleanupCallback getCleanupCallback() {
         // TODO(xin): This should return null if this handle is located at
