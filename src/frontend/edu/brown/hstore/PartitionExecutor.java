@@ -1545,7 +1545,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.currentDtxn == null) :
             String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
-        if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition #%d [previous=%s]",
+        if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
                          ts, this.partitionId, this.currentDtxn));
         this.currentDtxn = ts;
     }
@@ -1556,7 +1556,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private void resetCurrentDtxn() {
         assert(this.currentDtxn != null) :
             "Trying to reset the currentDtxn when it is already null";
-        if (d) LOG.debug(String.format("Resetting current DTXN for partition #%d to null [previous=%s]",
+        if (d) LOG.debug(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
                          this.partitionId, this.currentDtxn));
         this.currentDtxn = null;
     }
@@ -3249,7 +3249,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                         } // FOR
                         if (needs_profiling) ts.profiler.stopSerialization();
                     }
-                    if (d) LOG.debug(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
+                    if (t) LOG.trace(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
                                      ts, num_remote));
                     this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams);
                     if (needs_profiling) ts.profiler.markRemoteQuery();
@@ -3258,7 +3258,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // Then dispatch the task that are needed at the same HStoreSite but 
                 // at a different partition than this one
                 if (num_localSite > 0) {
-                    if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local site's partitions",
+                    if (t) LOG.trace(String.format("%s - Executing %d WorkFragments on local site's partitions",
                                      ts, num_localSite));
                     for (WorkFragment.Builder builder : this.tmp_localSiteFragmentBuilders) {
                         hstore_site.getPartitionExecutor(builder.getPartitionId()).queueWork(ts, builder.build());
@@ -3270,7 +3270,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // We'll dispatch the remote-partition-local-site fragments first because they're going
                 // to need to get queued up by at the other PartitionExecutors
                 if (num_localPartition > 0) {
-                    if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local partition",
+                    if (t) LOG.trace(String.format("%s - Executing %d WorkFragments on local partition",
                                      ts, num_localPartition));
                     for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
                         WorkFragment fragment = fragmentBuilder.build();
@@ -3734,234 +3734,234 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 //            assert(this.specExecBlocked.isEmpty()) :
 //                String.format("Expected current DTXN to be %s but it was %s and we have %s speculative txns blocked!",
 //                              ts, this.currentDtxn, this.specExecBlocked.size());
-            if (ts.isInitialized()) {
-                hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId); // XXX
-            }
-            return;
         }
-        // assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
-        boolean commit = (status == Status.OK);
-        if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d " +
-        		         "[status=%s / readOnly=%s]",
-                         ts, this.partitionId,
-                         status, ts.isExecReadOnly(this.partitionId)));
-        
-        // 2012-11-22 -- Yes, today is Thanksgiving and I'm working on my database.
-        // That's just grad student life I guess. Anyway, if you're reading this then 
-        // you know that this is an important part of the system. We have a dtxn that 
-        // we have been told is completely finished and now we need to either commit 
-        // or abort any changes that it may have made at this partition. The tricky thing 
-        // is that if we have speculative execution enabled, then we need to make sure
-        // that we process any transactions that were executed while the dtxn was running
-        // in the right order to ensure that we maintain serializability.
-        // Here is the basic logic of what's about to happen:
-        // 
-        //  (1) If the dtxn is commiting, then we just need to commit the the last txn that 
-        //      was executed (since this will have the largest undo token).
-        //      The EE will automatically commit all undo tokens less than that.
-        //  (2) If the dtxn is aborting, then we can commit any speculative txn that was 
-        //      executed before the dtxn's first non-readonly undo token.
-        //  
-        //  Note that none of the speculative txns in the blocked queue will need to be
-        //  aborted at this point, because we will have rolled back their changes immediately 
-        //  when they aborted, so that our dtxn doesn't read dirty data.  
-        if (this.specExecBlocked.isEmpty() == false) {
-            // First thing we need to do is get the latch that will be set by any transaction
-            // that was in the middle of being executed when we were called
-            if (d) LOG.debug(String.format("%s - Checking %d blocked speculative transactions at partition %d currentMode=%s]",
-            		         ts, this.specExecBlocked.size(), this.partitionId, this.currentExecMode));
+        else {
+            // assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
+            boolean commit = (status == Status.OK);
+            if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d " +
+            		         "[status=%s / readOnly=%s]",
+                             ts, this.partitionId,
+                             status, ts.isExecReadOnly(this.partitionId)));
             
-            LocalTransaction spec_ts = null;
-            ClientResponseImpl spec_cr = null;
-            
-            // -------------------------------
-            // DTXN NON-READ-ONLY ABORT
-            // If the dtxn did not modify this partition, then everthing can commit 
-            // Otherwise, we want to commit anything that was executed before the dtxn started
-            // -------------------------------
-            if (commit == false && ts.isExecReadOnly(this.partitionId) == false) {
-                // We need to get the first undo tokens for our distributed transaction
-                long dtxnUndoToken = ts.getFirstUndoToken(this.partitionId);
-                if (d) LOG.debug(String.format("%s - Looking for speculative txns to commit before we rollback undoToken %d",
-                                 ts, dtxnUndoToken));
+            // 2012-11-22 -- Yes, today is Thanksgiving and I'm working on my database.
+            // That's just grad student life I guess. Anyway, if you're reading this then 
+            // you know that this is an important part of the system. We have a dtxn that 
+            // we have been told is completely finished and now we need to either commit 
+            // or abort any changes that it may have made at this partition. The tricky thing 
+            // is that if we have speculative execution enabled, then we need to make sure
+            // that we process any transactions that were executed while the dtxn was running
+            // in the right order to ensure that we maintain serializability.
+            // Here is the basic logic of what's about to happen:
+            // 
+            //  (1) If the dtxn is commiting, then we just need to commit the the last txn that 
+            //      was executed (since this will have the largest undo token).
+            //      The EE will automatically commit all undo tokens less than that.
+            //  (2) If the dtxn is aborting, then we can commit any speculative txn that was 
+            //      executed before the dtxn's first non-readonly undo token.
+            //  
+            //  Note that none of the speculative txns in the blocked queue will need to be
+            //  aborted at this point, because we will have rolled back their changes immediately 
+            //  when they aborted, so that our dtxn doesn't read dirty data.  
+            if (this.specExecBlocked.isEmpty() == false) {
+                // First thing we need to do is get the latch that will be set by any transaction
+                // that was in the middle of being executed when we were called
+                if (d) LOG.debug(String.format("%s - Checking %d blocked speculative transactions at partition %d currentMode=%s]",
+                		         ts, this.specExecBlocked.size(), this.partitionId, this.currentExecMode));
                 
-                long spec_token;
-                long max_token = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
-                LocalTransaction max_ts = null;
-                for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
-                    spec_ts = pair.getFirst(); 
-                    spec_token = spec_ts.getFirstUndoToken(this.partitionId);
-                    if (t) LOG.trace(String.format("Speculative Txn %s [undoToken=%d / %s]",
-                                     spec_ts, spec_token, spec_ts.getSpeculativeType()));
-                    
-                    // Speculative txns should never be executed without an undo token
-                    assert(spec_token != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN);
-                    assert(spec_ts.isSpeculative()) : spec_ts + " isn't marked as speculative!";
-                    
-                    // If the speculative undoToken is null, then this txn didn't execute
-                    // any queries. That means we can always commit it
-                    // We need to keep track of what the last undoToken was when this txn started.
-                    // That will tell us what version of the database this txn read from. 
-                    if (spec_token == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || spec_token < dtxnUndoToken) {
-                        tmp_toCommit.push(pair);
-                        if (spec_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN && spec_token > max_token) {
-                            max_token = spec_token;
-                            max_ts = spec_ts;
-                        }
-                    }
-                    else {
-                        tmp_toRestart.push(pair);
-                    }
-                } // FOR
-                if (d) LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be committed " +
-                                 "*before* we abort this txn",
-                                 ts, tmp_toCommit.size(), this.partitionId));
-
-                // Commit the greatest token that we've seen. This means that
-                // all our other txns can be safely processed without needing
-                // to go down in the EE
-                if (max_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-                    assert(max_ts != null);
-                    this.finishWorkEE(max_ts, max_token, true);
-                }
+                LocalTransaction spec_ts = null;
+                ClientResponseImpl spec_cr = null;
                 
-                // Process all the txns that need to be committed
-                Pair<LocalTransaction, ClientResponseImpl> pair = null;
-                while ((pair = tmp_toCommit.pollFirst()) != null) {
-                    spec_ts = pair.getFirst(); 
-                    spec_cr = pair.getSecond();
-                    spec_ts.markFinished(this.partitionId);
+                // -------------------------------
+                // DTXN NON-READ-ONLY ABORT
+                // If the dtxn did not modify this partition, then everthing can commit 
+                // Otherwise, we want to commit anything that was executed before the dtxn started
+                // -------------------------------
+                if (commit == false && ts.isExecReadOnly(this.partitionId) == false) {
+                    // We need to get the first undo tokens for our distributed transaction
+                    long dtxnUndoToken = ts.getFirstUndoToken(this.partitionId);
+                    if (d) LOG.debug(String.format("%s - Looking for speculative txns to commit before we rollback undoToken %d",
+                                     ts, dtxnUndoToken));
                     
-                    try {
-                        if (hstore_conf.site.exec_postprocessing_threads) {
-                            if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
-                                             ts, spec_ts, spec_cr.getStatus()));
-                            hstore_site.responseQueue(spec_ts, spec_cr);
+                    long spec_token;
+                    long max_token = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
+                    LocalTransaction max_ts = null;
+                    for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
+                        spec_ts = pair.getFirst(); 
+                        spec_token = spec_ts.getFirstUndoToken(this.partitionId);
+                        if (t) LOG.trace(String.format("Speculative Txn %s [undoToken=%d / %s]",
+                                         spec_ts, spec_token, spec_ts.getSpeculativeType()));
+                        
+                        // Speculative txns should never be executed without an undo token
+                        assert(spec_token != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN);
+                        assert(spec_ts.isSpeculative()) : spec_ts + " isn't marked as speculative!";
+                        
+                        // If the speculative undoToken is null, then this txn didn't execute
+                        // any queries. That means we can always commit it
+                        // We need to keep track of what the last undoToken was when this txn started.
+                        // That will tell us what version of the database this txn read from. 
+                        if (spec_token == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || spec_token < dtxnUndoToken) {
+                            tmp_toCommit.push(pair);
+                            if (spec_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN && spec_token > max_token) {
+                                max_token = spec_token;
+                                max_ts = spec_ts;
+                            }
                         }
                         else {
-                            if (t) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                             ts, spec_ts, spec_cr.getStatus()));
-                            this.processClientResponse(spec_ts, spec_cr);
+                            tmp_toRestart.push(pair);
                         }
-                    } catch (Throwable ex) {
-                        String msg = "Failed to complete queued response for " + spec_ts;
-                        throw new ServerFaultException(msg, ex, ts.getTransactionId());
+                    } // FOR
+                    if (d) LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be committed " +
+                                     "*before* we abort this txn",
+                                     ts, tmp_toCommit.size(), this.partitionId));
+    
+                    // Commit the greatest token that we've seen. This means that
+                    // all our other txns can be safely processed without needing
+                    // to go down in the EE
+                    if (max_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+                        assert(max_ts != null);
+                        this.finishWorkEE(max_ts, max_token, true);
                     }
-                } // FOR
-                
-                // (2) Abort the distributed txn
-                this.finishTransaction(ts, status);
-                
-                // (3) Restart all the other txns
-                while ((pair = tmp_toRestart.pollFirst()) != null) {
-                    spec_ts = pair.getFirst(); 
-                    spec_cr = pair.getSecond();
                     
-                    MispredictionException error = new MispredictionException(spec_ts.getTransactionId(), spec_ts.getTouchedPartitions());
-                    spec_ts.setPendingError(error, false);
-                    spec_cr.setStatus(Status.ABORT_MISPREDICT);
-                    this.processClientResponse(spec_ts, spec_cr);
-                } // FOR
+                    // Process all the txns that need to be committed
+                    Pair<LocalTransaction, ClientResponseImpl> pair = null;
+                    while ((pair = tmp_toCommit.pollFirst()) != null) {
+                        spec_ts = pair.getFirst(); 
+                        spec_cr = pair.getSecond();
+                        spec_ts.markFinished(this.partitionId);
+                        
+                        try {
+                            if (hstore_conf.site.exec_postprocessing_threads) {
+                                if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
+                                                 ts, spec_ts, spec_cr.getStatus()));
+                                hstore_site.responseQueue(spec_ts, spec_cr);
+                            }
+                            else {
+                                if (t) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                                 ts, spec_ts, spec_cr.getStatus()));
+                                this.processClientResponse(spec_ts, spec_cr);
+                            }
+                        } catch (Throwable ex) {
+                            String msg = "Failed to complete queued response for " + spec_ts;
+                            throw new ServerFaultException(msg, ex, ts.getTransactionId());
+                        }
+                    } // FOR
+                    
+                    // (2) Abort the distributed txn
+                    this.finishTransaction(ts, status);
+                    
+                    // (3) Restart all the other txns
+                    while ((pair = tmp_toRestart.pollFirst()) != null) {
+                        spec_ts = pair.getFirst(); 
+                        spec_cr = pair.getSecond();
+                        
+                        MispredictionException error = new MispredictionException(spec_ts.getTransactionId(), spec_ts.getTouchedPartitions());
+                        spec_ts.setPendingError(error, false);
+                        spec_cr.setStatus(Status.ABORT_MISPREDICT);
+                        this.processClientResponse(spec_ts, spec_cr);
+                    } // FOR
+                }
+                // -------------------------------
+                // DTXN READ-ONLY ABORT or DTXN COMMIT
+                // -------------------------------
+                else {
+                    // **IMPORTANT**
+                    // If the dtxn needs to commit, then all we need to do is get the 
+                    // last undoToken that we've generated (since we know that it had to 
+                    // have been used either by our distributed txn or for one of our 
+                    // speculative txns).
+                    //
+                    // If the read-only dtxn needs to abort, then there's nothing we need to
+                    // do, because it didn't make any changes. That means we can just
+                    // commit the last speculatively executed transaction
+                    //
+                    // Once we have this token, we can just make a direct call to the EE
+                    // to commit any changes that came before it. Note that we are using our
+                    // special 'finishWorkEE' method that does not require us to provide
+                    // the transaction that we're committing.
+                    long undoToken = this.lastUndoToken;
+                    if (d) LOG.debug(String.format("%s - Last undoToken at partition %d => %d",
+                                     ts, this.partitionId, undoToken));
+                    // Bombs away!
+                    if (undoToken != this.lastCommittedUndoToken) {
+                        this.finishWorkEE(ts, undoToken, true);
+                    }
+                    
+                    // Make sure that we mark the dtxn as finished so that we don't
+                    // try to do anything with it later on.
+                    ts.markFinished(this.partitionId);
+                
+                    // Now make sure that all of the speculative txns are processed without 
+                    // committing (since we just committed any change that they could have made
+                    // up above).
+                    Pair<LocalTransaction, ClientResponseImpl> pair = null;
+                    while ((pair = this.specExecBlocked.pollFirst()) != null) {
+                        spec_ts = pair.getFirst();
+                        spec_cr = pair.getSecond();
+                        spec_ts.markFinished(this.partitionId);
+                        try {
+                            if (hstore_conf.site.exec_postprocessing_threads) {
+                                if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
+                                                 ts, spec_ts, spec_cr.getStatus()));
+                                hstore_site.responseQueue(spec_ts, spec_cr);
+                            }
+                            else {
+                                if (t) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                                 ts, spec_ts, spec_cr.getStatus()));
+                                this.processClientResponse(spec_ts, spec_cr);
+                            }
+                        } catch (Throwable ex) {
+                            String msg = "Failed to complete queued response for " + spec_ts;
+                            throw new ServerFaultException(msg, ex, ts.getTransactionId());
+                        }
+                    } // WHILE
+                }
+                this.specExecBlocked.clear();
+                this.specExecModified = false;
+                if (t) LOG.trace(String.format("Finished processing all queued speculative txns for dtxn %s", ts));
             }
             // -------------------------------
-            // DTXN READ-ONLY ABORT or DTXN COMMIT
+            // NO SPECULATIVE TXNS
             // -------------------------------
             else {
-                // **IMPORTANT**
-                // If the dtxn needs to commit, then all we need to do is get the 
-                // last undoToken that we've generated (since we know that it had to 
-                // have been used either by our distributed txn or for one of our 
-                // speculative txns).
-                //
-                // If the read-only dtxn needs to abort, then there's nothing we need to
-                // do, because it didn't make any changes. That means we can just
-                // commit the last speculatively executed transaction
-                //
-                // Once we have this token, we can just make a direct call to the EE
-                // to commit any changes that came before it. Note that we are using our
-                // special 'finishWorkEE' method that does not require us to provide
-                // the transaction that we're committing.
-                long undoToken = this.lastUndoToken;
-                if (d) LOG.debug(String.format("%s - Last undoToken at partition %d => %d",
-                                 ts, this.partitionId, undoToken));
-                // Bombs away!
-                if (undoToken != this.lastCommittedUndoToken) {
-                    this.finishWorkEE(ts, undoToken, true);
-                }
-                
-                // Make sure that we mark the dtxn as finished so that we don't
-                // try to do anything with it later on.
-                ts.markFinished(this.partitionId);
-            
-                // Now make sure that all of the speculative txns are processed without 
-                // committing (since we just committed any change that they could have made
-                // up above).
-                Pair<LocalTransaction, ClientResponseImpl> pair = null;
-                while ((pair = this.specExecBlocked.pollFirst()) != null) {
-                    spec_ts = pair.getFirst();
-                    spec_cr = pair.getSecond();
-                    spec_ts.markFinished(this.partitionId);
-                    try {
-                        if (hstore_conf.site.exec_postprocessing_threads) {
-                            if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
-                                             ts, spec_ts, spec_cr.getStatus()));
-                            hstore_site.responseQueue(spec_ts, spec_cr);
-                        }
-                        else {
-                            if (t) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                             ts, spec_ts, spec_cr.getStatus()));
-                            this.processClientResponse(spec_ts, spec_cr);
-                        }
-                    } catch (Throwable ex) {
-                        String msg = "Failed to complete queued response for " + spec_ts;
-                        throw new ServerFaultException(msg, ex, ts.getTransactionId());
-                    }
-                } // WHILE
+                // There are no speculative txns waiting for this dtxn, 
+                // so we can just commit it right away
+                if (t) LOG.trace(String.format("%s - No speculative txns at partition %d. Just %s txn by itself",
+                                 ts, this.partitionId, (commit ? "commiting" : "aborting")));
+                this.finishTransaction(ts, status);
             }
-            this.specExecBlocked.clear();
-            this.specExecModified = false;
-            if (t) LOG.trace(String.format("Finished processing all queued speculative txns for dtxn %s", ts));
-        }
-        // -------------------------------
-        // NO SPECULATIVE TXNS
-        // -------------------------------
-        else {
-            // There are no speculative txns waiting for this dtxn, 
-            // so we can just commit it right away
-            if (t) LOG.trace(String.format("%s - No speculative txns at partition %d. Just %s txn by itself",
-                             ts, this.partitionId, (commit ? "commiting" : "aborting")));
-            this.finishTransaction(ts, status);
-        }
             
-        // Clear our cached query results that are specific for this transaction
-        this.queryCache.purgeTransaction(ts.getTransactionId());
-        
-        // TODO: Remove anything in our queue for this txn
-        // if (ts.hasQueuedWork(this.partitionId)) {
-        // }
-        
-        // Check whether this is the response that the speculatively executed txns have been waiting for
-        // We could have turned off speculative execution mode beforehand 
-        if (d) LOG.debug(String.format("%s - Attempting to unmark as the current DTXN at partition %d and " +
-        		         "setting execution mode to %s",
-                         ts, this.partitionId, ExecutionMode.COMMIT_ALL));
-        try {
-            // Resetting the current_dtxn variable has to come *before* we change the execution mode
-            this.resetCurrentDtxn();
-            this.setExecutionMode(ts, ExecutionMode.COMMIT_ALL);
-
-            // Release blocked transactions
-            this.releaseBlockedTransactions(ts);
-        } catch (Throwable ex) {
-            String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
-            throw new ServerFaultException(msg, ex, ts.getTransactionId());
+            // Clear our cached query results that are specific for this transaction
+            this.queryCache.purgeTransaction(ts.getTransactionId());
+            
+            // TODO: Remove anything in our queue for this txn
+            // if (ts.hasQueuedWork(this.partitionId)) {
+            // }
+            
+            // Check whether this is the response that the speculatively executed txns have been waiting for
+            // We could have turned off speculative execution mode beforehand 
+            if (d) LOG.debug(String.format("%s - Attempting to unmark as the current DTXN at partition %d and " +
+            		         "setting execution mode to %s",
+                             ts, this.partitionId, ExecutionMode.COMMIT_ALL));
+            try {
+                // Resetting the current_dtxn variable has to come *before* we change the execution mode
+                this.resetCurrentDtxn();
+                this.setExecutionMode(ts, ExecutionMode.COMMIT_ALL);
+    
+                // Release blocked transactions
+                this.releaseBlockedTransactions(ts);
+            } catch (Throwable ex) {
+                String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
+                throw new ServerFaultException(msg, ex, ts.getTransactionId());
+            }
         }
         
         // We only need to tell the queue stuff that the transaction is finished
         // if it's not a commit because there won't be a 2PC:PREPARE message
         if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
                          ts, this.partitionId));
-        hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId);
+        if (ts.isInitialized()) {
+            hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId);
+        }
         
         // If we have a cleanup callback, then invoke that
         if (ts.getCleanupCallback() != null) {

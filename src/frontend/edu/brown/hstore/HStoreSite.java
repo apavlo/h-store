@@ -2007,7 +2007,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts.isPredictSinglePartition() == false) {
             for (int p : this.local_partitions.values()) {
                 if (partitions.contains(p) == false) continue;
-                if (t) LOG.trace(String.format("#%d - Invoking finish at partition %d", txn_id, p));
                 
                 // 2012-12-01
                 // We always want to queue up the transaction at the partition, even
@@ -2560,6 +2559,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         if (hstore_conf.site.pool_txn_enable) {
+            if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+                             ts, ts.getClass().getSimpleName(), ts.hashCode()));
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
         return;
@@ -2709,9 +2710,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (t) LOG.trace(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + ts.getTransactionId();
-        if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
-                         ts, ts.getClass().getSimpleName(), ts.hashCode()));
         if (hstore_conf.site.pool_txn_enable) {
+            if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+                             ts, ts.getClass().getSimpleName(), ts.hashCode()));
             if (ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
             } else {

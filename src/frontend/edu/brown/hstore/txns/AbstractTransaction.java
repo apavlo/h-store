@@ -1092,7 +1092,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
             str = String.format("<Uninitialized-%s>", this.getClass().getSimpleName());
         }
         // Include hashCode for debugging
-        str += "/" + this.hashCode();
+        // str += "/" + this.hashCode();
         return (str);
     }
     

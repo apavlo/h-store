@@ -79,7 +79,7 @@ public class TestHStoreSite extends BaseTestCase {
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.pool_profiling = true;
-        this.hstore_conf.site.pool_txn_enable = false;
+        this.hstore_conf.site.pool_txn_enable = true;
         this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.status_interval = 4000;
         this.hstore_conf.site.anticache_enable = false;
@@ -253,8 +253,12 @@ public class TestHStoreSite extends BaseTestCase {
         // Check to make sure that we reject a bunch of txns that all of our
         // handles end up back in the object pool. To do this, we first need
         // to set the PartitionExecutor's to reject all incoming txns
-        hstore_conf.site.network_incoming_max_per_partition = 10;
-        hstore_conf.site.txn_restart_limit = 1;
+        // hstore_conf.site.network_incoming_max_per_partition = 4;
+        hstore_conf.site.txn_restart_limit = 0;
+        hstore_conf.site.queue_dtxn_increase = 0;
+        hstore_conf.site.queue_dtxn_max_per_partition = 1;
+        hstore_conf.site.exec_force_allpartitions = true;
+        hstore_conf.site.network_txn_initialization = true;
         hstore_site.updateConf(hstore_conf);
 
         final Set<LocalTransaction> expectedHandles = new HashSet<LocalTransaction>(); 
@@ -310,6 +314,7 @@ public class TestHStoreSite extends BaseTestCase {
 //        System.err.println("--------------------------------------------");
         
         System.err.println(statusHistogram);
+        System.err.println(hstore_site.statusSnapshot());
         assertTrue("Timed out [latch="+latch.getCount() + "]", result);
         assertNotSame(0, expectedHandles.size());
         assertNotSame(0, expectedIds.size());
