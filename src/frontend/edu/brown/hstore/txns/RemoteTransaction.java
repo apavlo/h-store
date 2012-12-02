@@ -115,6 +115,17 @@ public class RemoteTransaction extends AbstractTransaction {
         super.startRound(partition);
     }
     
+    @Override
+    public boolean isDeletable() {
+        if (this.cleanup_callback.allCallbacksFinished() == false) {
+            if (debug.get()) LOG.warn(String.format("%s - %s is not finished", this,
+                                      this.cleanup_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        // XXX: Do we care about the TransactionWorkCallback?
+        return (super.isDeletable());
+    }
+    
     public SetDistributedTxnMessage getSetDistributedTxnMessage() {
         return (this.dtxn_task);
     }

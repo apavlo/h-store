@@ -27,6 +27,9 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    /**
+     * The current transaction handle that this callback is assigned to
+     */
     protected X ts;
     
     /**
@@ -52,7 +55,11 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
     }
     
     protected void init(X ts, int counter_val, RpcCallback<T> orig_callback) {
-        assert(ts != null);
+        assert(ts != null) :
+            String.format("Null transaction handle in %s", this.getClass().getSimpleName());
+        assert(ts.isInitialized()) :
+            String.format("Uninitialized transaction handle in %s", this.getClass().getSimpleName());
+        
         this.ts = ts;
         if (debug.get()) LOG.debug(this.ts + " - Initializing new " + this.getClass().getSimpleName());
         super.init(this.ts.getTransactionId(), counter_val, orig_callback);
@@ -74,11 +81,13 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
     protected final void unblockCallback() {
         assert(this.isUnblocked());
         assert(this.ts != null) :
-            String.format("Null transaction handle for txn #%s in %s [lastTxn=%s]",
-                          this.getTransactionId(), this.getClass().getSimpleName(), this.lastTxnId);
+            String.format("Null transaction handle for txn #%s in %s [lastTxn=%s / counter=%d/%d]",
+                          this.getTransactionId(), this.getClass().getSimpleName(),
+                          this.getOrigTransactionId(), this.getCounter(), this.getOrigCounter());
         assert(this.ts.isInitialized()) :
-            String.format("Uninitialized transaction handle for txn #%s in %s [lastTxn=%s]",
-                          this.getTransactionId(), this.getClass().getSimpleName(), this.lastTxnId);
+            String.format("Uninitialized transaction handle for txn #%s in %s [lastTxn=%s / origCounter=%d/%d]",
+                          this.getTransactionId(), this.getClass().getSimpleName(),
+                          this.getOrigTransactionId(), this.getCounter(), this.getOrigCounter());
         
         if (this.isAborted() == false) {
             this.unblockTransactionCallback();
@@ -154,14 +163,14 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
         // Let everybody know that the party is over!
         if (this.ts instanceof LocalTransaction) {
             LocalTransaction local_ts = (LocalTransaction)this.ts;
-            TransactionFinishCallback finish_callback = local_ts.initTransactionFinishCallback(status);
+            LocalTransactionFinishCallback finish_callback = local_ts.initTransactionFinishCallback(status);
             this.hstore_site.getCoordinator().transactionFinish(local_ts, status, finish_callback);
         }
     }
     
     @Override
     public String toString() {
-        return String.format("%s / Deletable=%s",
-                             super.toString(), this.allCallbacksFinished());
+        return String.format("%s / %s / Deletable=%s",
+                             super.toString(), this.ts, this.allCallbacksFinished());
     }
 }

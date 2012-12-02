@@ -88,7 +88,7 @@ import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
+import edu.brown.hstore.callbacks.LocalTransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -225,7 +225,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * The list of the last txn ids that were successfully deleted
      * This is primarily used for debugging
      */
-    private final CircularFifoBuffer<String> deletable_last = new CircularFifoBuffer<String>(100);
+    private final CircularFifoBuffer<String> deletable_last = new CircularFifoBuffer<String>(5);
     
     /**
      * Reusable Object Pools
@@ -1897,7 +1897,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                              ts, status, base_partition,
                              this.executors[base_partition].getDebugContext().getWorkQueueSize()));
             if (singlePartitioned == false) {
-                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+                LocalTransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
@@ -2005,13 +2005,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         TransactionCleanupCallback cleanup_callback = null;
         if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
-            if (t) LOG.trace(ts + " - Initializing the TransactionCleanupCallback");
-            // TODO(xin): We should not be invoking this callback at the basePartition's site
-            if ( !(ts instanceof MapReduceTransaction && this.isLocalPartition(ts.getBasePartition()))) {
-                cleanup_callback = ts.getCleanupCallback();
-                assert(cleanup_callback != null);
-                cleanup_callback.init(ts, status, partitions);
-            }
+            if (t) LOG.trace(ts + " - Initializing the " + TransactionCleanupCallback.class.getSimpleName());
+            cleanup_callback = ts.getCleanupCallback();
+            assert(cleanup_callback != null);
+            cleanup_callback.init(ts, status, partitions);
         }
 
         ts.setStatus(status);
@@ -2020,7 +2017,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // transactions will commit/abort immediately
         if (ts.isPredictSinglePartition() == false) {
             for (int p : this.local_partitions.values()) {
-                if (partitions.contains(p) == false) continue;
+                assert(partitions.contains(p));
                 
                 // 2012-12-01
                 // We always want to queue up the transaction at the partition, even
@@ -2576,7 +2573,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            this.deletable_last.add(ts.toString());
+            this.deletable_last.add(ts.debug());
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
         return;
@@ -2732,7 +2729,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            this.deletable_last.add(ts.toString());
+            this.deletable_last.add(ts.debug());
             if (ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
             } else {

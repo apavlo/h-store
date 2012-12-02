@@ -31,6 +31,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -106,6 +107,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * These are the parameters that are sent from the client
      */
     protected ParameterSet parameters;
+    
+    /**
+     * Internal flag that is set to true once to tell whomever 
+     * that this transaction handle can be deleted.
+     */
+    private AtomicBoolean deletable = new AtomicBoolean(false);
     
     // ----------------------------------------------------------------------------
     // Attached Data Structures
@@ -375,6 +382,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         
+        this.deletable.lazySet(false);
         this.catalog_proc = null;
         this.base_partition = HStoreConstants.NULL_PARTITION_ID;
         this.txn_id = null;
@@ -598,6 +606,40 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         return (ret);
     }
     
+    /**
+     * Returns true if we believe that this transaction can be deleted
+     * <B>Note:</B> This will only return true once and only once for each 
+     * transaction invocation. So don't call this unless you are able to really
+     * delete the transaction now. If you just want to know whether the txn has
+     * been marked as deletable before, then use checkDeletableFlag()
+     * @return
+     */
+    public boolean isDeletable() {
+        if (this.isInitialized() == false) {
+            return (false);
+        }
+        if (this.init_callback.allCallbacksFinished() == false) {
+            if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                            this.init_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        if (this.prepare_callback.allCallbacksFinished() == false) {
+            if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                            this.prepare_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        return (this.deletable.compareAndSet(false, true));
+    }
+    
+    /**
+     * Returns true if this txn has already been marked for deletion
+     * This will not change the internal state of the txn.
+     */
+    public final boolean checkDeletableFlag() {
+        return (this.deletable.get());
+    }
+
+    
     // ----------------------------------------------------------------------------
     // GENERAL METHODS
     // ----------------------------------------------------------------------------
@@ -699,29 +741,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      */
     public TransactionCleanupCallback getCleanupCallback() {
         return (null);
-    }
-    
-    /**
-     * Returns true if we believe that this transaction can be deleted
-     * <B>Note:</B> This is not thread safe!
-     * @return
-     */
-    public boolean isDeletable() {
-        if (this.isInitialized() == false) {
-            return (false);
-        }
-        if (this.init_callback.allCallbacksFinished() == false) {
-            if (d) LOG.warn(String.format("%s - %s is not finished", this,
-                            this.init_callback.getClass().getSimpleName()));
-            return (false);
-        }
-        if (this.prepare_callback.allCallbacksFinished() == false) {
-            if (d) LOG.warn(String.format("%s - %s is not finished", this,
-                            this.prepare_callback.getClass().getSimpleName()));
-            return (false);
-        }
-        
-        return (true);
     }
     
     // ----------------------------------------------------------------------------
@@ -1104,6 +1123,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         m.put("Transaction #", this.txn_id);
         m.put("Procedure", this.catalog_proc);
         m.put("Hash Code", this.hashCode());
+        m.put("Deletable", this.deletable.get());
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
         m.put("First UndoToken", Arrays.toString(this.exec_firstUndoToken));

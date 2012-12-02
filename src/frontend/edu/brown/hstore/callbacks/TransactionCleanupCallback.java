@@ -39,8 +39,8 @@ public class TransactionCleanupCallback extends AbstractTransactionCallback<Abst
             if (partitions.contains(p)) counter++;
         } // FOR
         assert(counter > 0);
-        super.init(ts, counter, null);
         this.status = status;
+        super.init(ts, counter, null);
     }
     
     

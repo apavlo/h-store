@@ -64,7 +64,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
+import edu.brown.hstore.callbacks.LocalTransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -120,7 +120,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     private boolean needs_restart = false; // FIXME
-    private boolean deletable = false; // FIXME
     
     /**
      * Is this transaction part of a large MapReduce transaction  
@@ -359,7 +358,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.anticache_table = null;
         this.log_enabled = false;
         this.needs_restart = false;
-        this.deletable = false;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -654,7 +652,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param status
      * @return
      */
-    public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
+    public LocalTransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
         assert(this.dtxnState != null) :
             "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized() == false) :
@@ -665,7 +663,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.dtxnState.finish_callback.init(this, status);
         return (this.dtxnState.finish_callback);
     }
-    public TransactionFinishCallback getTransactionFinishCallback() {
+    public LocalTransactionFinishCallback getTransactionFinishCallback() {
         assert(this.dtxnState != null) :
             "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized()) :
@@ -735,13 +733,8 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
 
-    /**
-     * Note that this will only return true once and only once for each transaction invocation.
-     */
+    @Override
     public boolean isDeletable() {
-        if (super.isDeletable() == false) {
-            return (false);
-        }
         if (this.dtxnState != null) {
             if (this.dtxnState.init_callback.allCallbacksFinished() == false) {
                 if (t) LOG.warn(String.format("%s - %s is not finished", this,
@@ -763,13 +756,9 @@ public class LocalTransaction extends AbstractTransaction {
             if (t) LOG.warn(String.format("%s - Needs restart, can't delete now", this));
             return (false);
         }
-        if (this.deletable) return (false);
-        this.deletable = true;
-        return (true);
+        return (super.isDeletable());
     }
-    public final boolean checkDeletableFlag() {
-        return (this.deletable);
-    }
+
 
     /**
      * Returns true if this transaction is part of a MapReduce transaction 
@@ -1437,7 +1426,6 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Predict Read Only", this.isPredictReadOnly());
         m.put("Predict Abortable", this.isPredictAbortable());
         m.put("Restart Counter", this.restart_ctr);
-        m.put("Deletable", this.deletable);
         m.put("Needs Restart", this.needs_restart);
         m.put("Needs CommandLog", this.log_enabled);
         m.put("Speculative Execution", this.exec_specExecType);

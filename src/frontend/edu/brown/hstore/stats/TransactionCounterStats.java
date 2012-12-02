@@ -63,14 +63,14 @@ public class TransactionCounterStats extends StatsSource {
         } // FOR
         
         // Additional stuff to exclude
-        HStoreConf hstore_conf = HStoreConf.singleton();
-        if (hstore_conf.site.anticache_enable == false) {
-            COUNTER_EXCLUDE.add(TransactionCounter.EVICTEDACCESS);
-        }
-        if (hstore_conf.site.exec_prefetch_queries == false) {
-            COUNTER_EXCLUDE.add(TransactionCounter.PREFETCH_LOCAL);
-            COUNTER_EXCLUDE.add(TransactionCounter.PREFETCH_REMOTE);
-        }
+//        HStoreConf hstore_conf = HStoreConf.singleton();
+//        if (hstore_conf.site.anticache_enable == false) {
+//            COUNTER_EXCLUDE.add(TransactionCounter.EVICTEDACCESS);
+//        }
+//        if (hstore_conf.site.exec_prefetch_queries == false) {
+//            COUNTER_EXCLUDE.add(TransactionCounter.PREFETCH_LOCAL);
+//            COUNTER_EXCLUDE.add(TransactionCounter.PREFETCH_REMOTE);
+//        }
     }
 
     @Override
