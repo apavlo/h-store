@@ -2,7 +2,6 @@ package edu.brown.utils;
 
 import java.util.*;
 
-import org.apache.log4j.Level;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.voltdb.CatalogContext;
@@ -39,7 +38,6 @@ public class TestPartitionEstimator extends BaseTestCase {
     
     {
         // super.reset(ProjectType.TPCC);
-        PartitionEstimator.LOG.setLevel(Level.TRACE);
     }
     
     @Override

@@ -85,7 +85,7 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  */
 public class PartitionEstimator implements Loggable {
-    protected static final Logger LOG = Logger.getLogger(PartitionEstimator.class);
+    private static final Logger LOG = Logger.getLogger(PartitionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
