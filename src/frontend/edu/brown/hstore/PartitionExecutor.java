@@ -1923,7 +1923,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             result = this.executeWorkFragment(ts, fragment, parameters);
             
         } catch (EvictedTupleAccessException ex) {
-            // XXX: What do we do if this is not a single-partition txn? 
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
         } catch (ConstraintFailureException ex) {
@@ -2381,7 +2380,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                             this.lastCommittedTxnId.longValue(),
                             undoToken);
             
-        } catch (SerializableException ex) {
+        } 
+		catch(EvictedTupleAccessException ex)
+		{
+			LOG.info("Caught EvictedTupleAccessException.");
+            error = ex;
+            throw ex;
+		}
+		catch (SerializableException ex) {
             if (d) LOG.error(String.format("%s - Unexpected error in the ExecutionEngine on partition %d",
                              ts, this.partitionId), ex);
             error = ex;

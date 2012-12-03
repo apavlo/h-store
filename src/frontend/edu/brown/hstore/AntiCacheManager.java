@@ -52,9 +52,12 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1MB
-
-	public static final long DEFAULT_MEMORY_THRESHOLD_MB = 128; 
+   // public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1MB
+	//public static final long DEFAULT_MEMORY_THRESHOLD_MB = 128; 
+	
+	public static final long DEFAULT_EVICTED_BLOCK_SIZE = 51200; // 50 kb
+	public static final long DEFAULT_MEMORY_THRESHOLD_MB = 1; 
+	
     
     private boolean evicting;  
 

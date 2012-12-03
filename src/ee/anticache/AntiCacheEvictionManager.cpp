@@ -27,6 +27,7 @@
 #include "common/types.h"
 #include "common/FatalException.hpp"
 #include "common/ValueFactory.hpp"
+#include "common/debuglog.h"
 #include "storage/table.h"
 #include "storage/persistenttable.h"
 #include "storage/temptable.h"
@@ -274,6 +275,11 @@ Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSi
 
 Table* AntiCacheEvictionManager::readBlocks(PersistentTable *table, int numBlocks, uint16_t blockIds[]) {
     
+	VOLT_INFO("Reading %d evicted blocks.", numBlocks);
+
+	for(int i = 0; i < numBlocks; i++)
+		table->readEvictedBlock(blockIds[i]); 
+
     return (m_readResultTable);
 }
 

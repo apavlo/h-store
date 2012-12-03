@@ -601,6 +601,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             try {
                 // ANTI-CACHE TABLE MERGE
                 if (hstore_conf.site.anticache_enable && txnState.hasAntiCacheMergeTable()) {
+	
+					LOG.info("Merging blocks for anticache table.");
+	
                     // Note that I decided to put this in here because we already
                     // have the logic down below for handling various errors from the EE
                     Table catalog_tbl = txnState.getAntiCacheMergeTable();
@@ -656,7 +659,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             // EvictedTupleAccessException
             // -------------------------------
             } else if (ex_class.equals(EvictedTupleAccessException.class)) {
-                if (d) LOG.warn("Caught EvictedTupleAccessException for " + this.m_currentTxnState);
+                LOG.info("Caught EvictedTupleAccessException for " + this.m_currentTxnState);
                 this.status = Status.ABORT_EVICTEDACCESS;
 
             // -------------------------------

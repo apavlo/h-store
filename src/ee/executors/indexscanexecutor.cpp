@@ -526,23 +526,16 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
            ((m_lookupType != INDEX_LOOKUP_TYPE_EQ || m_numOfSearchkeys == 0) &&
             !(m_tuple = m_index->nextValue()).isNullTuple()))
     {
-		int tuple_id = (int)peeker.peekBigInt(m_tuple.getNValue(0));
-	
-		if(tuple_id != 0)
-		{
-			VOLT_INFO("Looking up tuple %d in index.", tuple_id); 
-		}
-	
+		int tuple_id = 0; 
+		tuple_id = (int)peeker.peekInteger(m_tuple.getNValue(0));
+		//VOLT_INFO("Looking up tuple %d in index.", tuple_id); 
         
 #ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple
 
-		
-
-
 		if(m_tuple.isEvicted())
         {
-			VOLT_INFO("Found an evicted tuple: %d", m_tuple.getTupleID());
+			VOLT_INFO("Found an evicted tuple: %d", tuple_id);
 	
 			// create an evicted tuple from the current tuple address
 			// NOTE: This is necessary because the original table tuple and the evicted tuple do not have the same schema
@@ -701,16 +694,21 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 		
 		int num_block_ids = static_cast<int>(evicted_block_ids.size()); 
 		
-        uint16_t* block_ids = new uint16_t[evicted_block_ids.size()];
+		assert(num_block_ids > 0); 
+		VOLT_INFO("%d evicted blocks to read.", num_block_ids); 
+		
+        uint16_t* block_ids = new uint16_t[num_block_ids];
 		int i = 0; 
         for(list<uint16_t>::iterator itr = evicted_block_ids.begin(); itr != evicted_block_ids.end(); ++itr, ++i)
         {
             block_ids[i] = *itr; 
+			VOLT_INFO("Unevicting block %d", *itr); 
         }
 		
 		VOLT_INFO("Throwing EvictedTupleAccessException"); 
 
-        throw new EvictedTupleAccessException(0, num_block_ids, block_ids); 
+		// TODO: insert correct table id instead of hardcoding 0
+        throw new EvictedTupleAccessException(m_targetTable->databaseId(), num_block_ids, block_ids); 
     }
 #endif
     
