@@ -37,7 +37,9 @@ public abstract class FixCatalog {
     static {
         LOCALHOST_TYPOS.add("locahost");
         LOCALHOST_TYPOS.add("localhst");
-        LOCALHOST_TYPOS.add("localhst");
+        LOCALHOST_TYPOS.add("locahlost");
+        LOCALHOST_TYPOS.add("loclhost");
+        LOCALHOST_TYPOS.add("loclhst");
     };
     
     /**
@@ -83,11 +85,12 @@ public abstract class FixCatalog {
         catalog_clus.getSites().clear();
         for (String host : cc.getHosts()) {
             if (LOCALHOST_TYPOS.contains(host)) {
-                String msg = StringBoxUtil.box(String.format("POSSIBLE TYPO IN HOSTNAME '%s'. " +
-                		                                  "DID YOU MEAN 'localhost'?", host));
+                String msg = String.format("POSSIBLE TYPO IN HOSTNAME '%s'. " +
+                                           "DID YOU MEAN 'localhost'?", host);
+                msg = StringBoxUtil.box(msg);
                 LOG.warn("");
                 for (String line : StringUtil.splitLines(msg)) {
-                    LOG.warn(line);
+                    LOG.warn(StringUtil.bold(line));
                 } // FOR
                 LOG.warn("");
             }
