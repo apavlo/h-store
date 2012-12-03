@@ -50,6 +50,10 @@ public class TestPartitionEstimator extends BaseTestCase {
             hasher = new DefaultHasher(catalog_db, NUM_PARTITIONS); // CatalogUtil.getNumberOfPartitions(catalog_db));
         }
         p_estimator.updateLogging();
+        
+        Table catalog_tbl = this.getTable("WAREHOUSE");
+        Column catalog_col = this.getColumn(catalog_tbl, "W_ID");
+        catalog_tbl.setPartitioncolumn(catalog_col);
     }
     
     /**
@@ -386,11 +390,11 @@ public class TestPartitionEstimator extends BaseTestCase {
         Object params[] = new Object[] { new Long(BASE_PARTITION) };
         for (int i = 0; i < 10000; i++) {
             String debug = String.format("Attempt #%05d", i); 
-            partitions.clear();
-            p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
-            assertEquals(debug + " -> " + partitions.toString(), 1, partitions.size());
-            assertEquals(debug, BASE_PARTITION, CollectionUtil.first(partitions).intValue());
-            assertFalse(debug, partitions.contains(HStoreConstants.NULL_PARTITION_ID));
+            this.partitions.clear();
+            p_estimator.getAllPartitions(this.partitions, catalog_stmt, params, BASE_PARTITION);
+            assertEquals(debug + " -> " + this.partitions.toString(), 1, this.partitions.size());
+            assertEquals(debug, BASE_PARTITION, CollectionUtil.first(this.partitions).intValue());
+            assertFalse(debug, this.partitions.contains(HStoreConstants.NULL_PARTITION_ID));
         } // FOR
         
         // Then reset the catalog in p_estimator and run the estimation again
