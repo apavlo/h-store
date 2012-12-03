@@ -291,6 +291,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private HStoreCoordinator hstore_coordinator;
     private HStoreConf hstore_conf;
     private TransactionInitializer txnInitializer;
+    private TransactionQueueManager queueManager;
     
     // ----------------------------------------------------------------------------
     // Partition-Specific Queues
@@ -791,6 +792,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.thresholds = hstore_site.getThresholds();
         this.specExecChecker.setEstimationThresholds(this.thresholds);
         this.txnInitializer = hstore_site.getTransactionInitializer();
+        this.queueManager = hstore_site.getTransactionQueueManager();
         
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
@@ -876,6 +878,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (d) LOG.debug("Starting PartitionExecutor run loop...");
             while (this.stop == false && this.isShuttingDown() == false) {
                 this.currentTxnId = null;
+                
+                // -------------------------------
+                // Poll Lock Queue
+                // -------------------------------
+                while (this.queueManager.checkLockQueues(this.partitionId)) {
+                    // Keep checking the queue as long as there is more stuff for us to process
+                } // WHILE
                 
                 // -------------------------------
                 // Poll Work Queue
@@ -3961,7 +3970,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
                          ts, this.partitionId));
         if (ts.isInitialized()) {
-            hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId);
+            this.queueManager.lockQueueFinished(ts, status, this.partitionId);
         }
         
         // -------------------------------
