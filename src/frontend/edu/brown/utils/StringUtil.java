@@ -77,9 +77,17 @@ public abstract class StringUtil {
     /** Unicode Down Arrow Character */
     public static final String UNICODE_DOWN_ARROW = "\u25BC";
     
+    
+    /**
+     * Wrap the given string with the control characters
+     * to make the text appear bold in the console
+     */
+    public static String bold(String str) {
+        return (SET_BOLD_TEXT + str + SET_PLAIN_TEXT);
+    }
+    
     /**
      * http://ubuntuforums.org/showpost.php?p=10215516&postcount=5
-     * 
      * @param bytes
      * @return
      */
