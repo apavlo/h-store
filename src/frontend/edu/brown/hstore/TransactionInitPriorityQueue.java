@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
+import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -80,7 +81,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     public AbstractTransaction poll() {
         AbstractTransaction retval = null;
         if (m_state == QueueState.BLOCKED_SAFETY) {
-            if (System.currentTimeMillis() >= m_blockTime) {
+            if (EstTime.currentTimeMillis() >= m_blockTime) {
                 retval = super.poll();
                 assert(retval != null);
             }
@@ -89,8 +90,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             retval = super.poll();
             assert(retval != null);
         }
-        if (d) LOG.debug(String.format("Partition %d poll() -> %s",
-                         m_partitionId, retval));
+        if (t) LOG.trace(String.format("Partition %d poll() -> %s", m_partitionId, retval));
         if (retval != null) {
             assert(m_nextTxn.equals(retval)) : 
                 String.format("Partition %d - Next txn is %s but our poll returned %s\n%s",
@@ -245,11 +245,15 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         }
         // This is a new txn and we should wait...
         else if (m_nextTxn == null || m_nextTxn != ts) {
-            if (d) LOG.debug(String.format("Partition %d - Blocking next txn #%d for %d ms",
+            if (d) LOG.debug(String.format("Partition %d - Blocking next %s for %d ms",
                              m_partitionId, ts, m_waitTime));
             newState = QueueState.BLOCKED_SAFETY;
-            m_blockTime = EstTime.currentTimeMillis() + this.m_waitTime;
+            // m_blockTime = EstTime.currentTimeMillis() + this.m_waitTime;
+            long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(ts.getTransactionId().longValue());
+            long timestamp = EstTime.currentTimeMillis();
+            m_blockTime = timestamp + Math.min(0, this.m_waitTime - (timestamp - txnTimestamp));
             m_nextTxn = ts;
+            if (t) LOG.trace("NEXT TRANSACTION:\n" + this.toString());
         }
         
         if (newState != m_state) {
@@ -264,10 +268,11 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     public synchronized String toString() {
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("PartitionId", m_partitionId);
-        m.put("Next Time Remaining", Math.max(0, System.currentTimeMillis() - m_blockTime));
-        m.put("Next Txn", m_nextTxn.toString());
-        m.put("Last Popped Txn", m_lastTxnPopped.toString());
-        m.put("Last Seen Txn", m_lastSeenTxn.toString());
+        m.put("Wait Time", m_waitTime);
+        m.put("Next Time Remaining", Math.max(0, EstTime.currentTimeMillis() - m_blockTime));
+        m.put("Next Txn", m_nextTxn);
+        m.put("Last Popped Txn", m_lastTxnPopped);
+        m.put("Last Seen Txn", m_lastSeenTxn);
         return (StringUtil.formatMaps(m));
     }
 }

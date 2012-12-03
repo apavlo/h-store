@@ -2756,7 +2756,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Don't delete anything if we're shutting down
         // This is so that we can see the state of things right before we stopped
         if (this.isShuttingDown()) {
-            if (d) LOG.warn(this.getSiteName() + " is shutting down. Suspending transaction handle cleanup");
+            if (t) LOG.warn(this.getSiteName() + " is shutting down. Suspending transaction handle cleanup");
             return;
         }
         

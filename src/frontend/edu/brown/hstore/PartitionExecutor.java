@@ -3636,6 +3636,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
+        
+        if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
+                         ts, this.partitionId));
+        this.queueManager.lockQueueFinished(ts, status, this.partitionId);
+        
         if (d) LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
                          ts, (commit ? "commit" : "abort"), this.partitionId));
         ts.markFinished(this.partitionId);
@@ -3963,14 +3968,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
             }
-        }
-        
-        // We only need to tell the queue stuff that the transaction is finished
-        // if it's not a commit because there won't be a 2PC:PREPARE message
-        if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
-                         ts, this.partitionId));
-        if (ts.isInitialized()) {
-            this.queueManager.lockQueueFinished(ts, status, this.partitionId);
         }
         
         // -------------------------------

@@ -111,10 +111,10 @@ public class TransactionInitCallback extends AbstractTransactionCallback<LocalTr
         // Otherwise, make sure it's legit
         // HACK HACK HACK
         if (this.ts == null || this.ts.isInitialized() == false || this.ts.getTransactionId() != response.getTransactionId()) {
-            String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d, partitions=%s]",
-                    response.getClass().getSimpleName(),
-                    this.ts, response.getTransactionId(),
-                    this.getTransactionId(), response.getPartitionsList());
+            LOG.warn(String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d, partitions=%s]",
+                     response.getClass().getSimpleName(),
+                     this.ts, response.getTransactionId(),
+                     this.getTransactionId(), response.getPartitionsList()));
         }
         
         this.partitions.addAll(response.getPartitionsList());

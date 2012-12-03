@@ -54,7 +54,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * the site that will send init requests to this coordinator
      */
     private final HStoreSite hstore_site;
-    private final HStoreCoordinator hstore_coordinator;
     private final HStoreConf hstore_conf;
     
     private final PartitionSet localPartitions;
@@ -165,7 +164,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
-        this.hstore_coordinator = hstore_site.getCoordinator();
         this.profiler = new TransactionQueueManagerProfiler(num_partitions);
         this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
         this.lockQueuesBlocked = new boolean[this.lockQueues.length];
@@ -307,6 +305,50 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // ----------------------------------------------------------------------------
     // INIT QUEUES
     // ----------------------------------------------------------------------------
+
+    /**
+     * Add a new transaction to be queued up for execution
+     * @param ts
+     */
+    public void initTransaction(LocalTransaction ts) {
+        Long txn_id = ts.getTransactionId();
+        
+        // Check whether our transaction can't run right now because its id is less than
+        // the last seen txnid from the remote partitions that it wants to touch
+        for (int partition : ts.getPredictTouchedPartitions().values()) {
+            Long last_txn_id = this.lockQueuesLastTxn[partition]; 
+            if (txn_id.compareTo(last_txn_id) < 0) {
+                // If we catch it here, then we can just block ourselves until
+                // we generate a txn_id with a greater value and then re-add ourselves
+                if (d) {
+                    LOG.warn(String.format("%s - Unable to queue transaction because the last txn " +
+                             "id at partition %d is %d. Restarting...",
+                             ts, partition, last_txn_id));
+                    LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
+                             TransactionIdManager.toString(last_txn_id),
+                             TransactionIdManager.toString(txn_id)));
+                }
+                if (hstore_conf.site.txn_counters && ts.getRestartCounter() == 1) {
+                    TransactionCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
+                }
+                this.blockTransaction(ts, partition, last_txn_id);
+                return;
+            }
+        } // FOR
+
+        TransactionInitCallback callback = ts.initTransactionInitCallback();
+        if (ts.isPredictSinglePartition()) {
+            this.lockQueueInsert(ts, ts.getPredictTouchedPartitions(), callback);
+        }
+        else {
+            hstore_site.getCoordinator().transactionInit(ts, callback);
+        }
+        
+        
+//        this.initQueue.add(ts);
+//        if (this.checkFlag.availablePermits() == 0)
+//            this.checkFlag.release();
+    }
     
     /**
      * Check whether there are any transactions that need to be released for execution
@@ -476,15 +518,13 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // insert the new transaction into its queue. 
             AbstractTransaction next_safe = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSeen(ts);
             Long next_safe_id = next_safe.getTransactionId();
-            // HACK
-            if (next_safe_id == null) next_safe_id = Long.valueOf(txn_id.longValue() + 10l);
             
             // The next txnId that we're going to try to execute is already greater
             // than this new txnId that we were given! Rejection!
-            if (next_safe.compareTo(ts) > 0) {
+            if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
                 if (d) LOG.debug(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
                 		         "is greater than our new txn %s. Rejecting...",
-                                 partition, next_safe, ts));
+                                 partition, this.lockQueuesLastTxn[partition], ts));
                 if (wrapper != null) {
                     this.rejectTransaction(ts,
                                            Status.ABORT_RESTART,
@@ -717,57 +757,15 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             this.checkFlag.release();
     }
 
-    // ----------------------------------------------------------------------------
-    // TRANSACTION INIT
-    // ----------------------------------------------------------------------------
-    
-    public void initTransaction(LocalTransaction ts) {
-        Long txn_id = ts.getTransactionId();
-        
-        // Check whether our transaction can't run right now because its id is less than
-        // the last seen txnid from the remote partitions that it wants to touch
-        for (int partition : ts.getPredictTouchedPartitions().values()) {
-            Long last_txn_id = this.lockQueuesLastTxn[partition]; 
-            if (txn_id.compareTo(last_txn_id) < 0) {
-                // If we catch it here, then we can just block ourselves until
-                // we generate a txn_id with a greater value and then re-add ourselves
-                if (d) {
-                    LOG.warn(String.format("%s - Unable to queue transaction because the last txn " +
-                             "id at partition %d is %d. Restarting...",
-                             ts, partition, last_txn_id));
-                    LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
-                             TransactionIdManager.toString(last_txn_id),
-                             TransactionIdManager.toString(txn_id)));
-                }
-                if (hstore_conf.site.txn_counters && ts.getRestartCounter() == 1) {
-                    TransactionCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
-                }
-                this.blockTransaction(ts, partition, last_txn_id);
-                return;
-            }
-        } // FOR
 
-        TransactionInitCallback callback = ts.initTransactionInitCallback();
-        if (ts.isPredictSinglePartition()) {
-            this.lockQueueInsert(ts, ts.getPredictTouchedPartitions(), callback);
-        }
-        else {
-            this.hstore_coordinator.transactionInit(ts, callback);
-        }
-        
-        
-//        this.initQueue.add(ts);
-//        if (this.checkFlag.availablePermits() == 0)
-//            this.checkFlag.release();
-    }
     
-    private void checkInitQueue() {
-        LocalTransaction ts = null;
-        while ((ts = this.initQueue.poll()) != null) {
-            TransactionInitCallback callback = ts.initTransactionInitCallback();
-            hstore_coordinator.transactionInit(ts, callback);
-        } // WHILE
-    }
+//    private void checkInitQueue() {
+//        LocalTransaction ts = null;
+//        while ((ts = this.initQueue.poll()) != null) {
+//            TransactionInitCallback callback = ts.initTransactionInitCallback();
+//            hstore_coordinator.transactionInit(ts, callback);
+//        } // WHILE
+//    }
     
     // ----------------------------------------------------------------------------
     // BLOCKED DTXN QUEUE MANAGEMENT
@@ -918,7 +916,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     public void updateConf(HStoreConf hstore_conf) {
         // HACK: If there is only one site in the cluster, then we can
         // set the wait time to 1ms
-        if (hstore_site.getCatalogContext().numberOfSites == 1) {
+        if (hstore_site.getCatalogContext().numberOfSites == -1) { // XXX
             this.wait_time = 1;
         }
         else {
