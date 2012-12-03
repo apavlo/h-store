@@ -463,6 +463,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // txnId that we're trying to insert is less than the next one that we expect to release 
             TransactionInitPriorityQueue queue = this.lockQueues[partition];
             AbstractTransaction next_safe = queue.noteTransactionRecievedAndReturnLastSeen(ts);
+            Long next_safe_id = next_safe.getTransactionId();
             
             // The next txnId that we're going to try to execute is already greater
             // than this new txnId that we were given! Rejection!
@@ -474,7 +475,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                     this.rejectTransaction(ts,
                                            Status.ABORT_RESTART,
                                            partition,
-                                           next_safe.getTransactionId());
+                                           next_safe_id);
                 } else {
                     this.rejectLocalTransaction(ts,
                                                 partitions,
@@ -496,7 +497,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                     this.rejectTransaction(ts,
                                            Status.ABORT_REJECT,
                                            partition,
-                                           next_safe.getTransactionId());
+                                           next_safe_id);
                 } else {
                     this.rejectLocalTransaction(ts,
                                                 partitions,
@@ -638,10 +639,17 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                    int reject_partition,
                                    Long reject_txnId) {
         assert(ts.isInitialized()) :
-            String.format("Unexpected uninitialized transaction handle %s in %s [status=%s / rejectPartition]",
+            String.format("Uninitialized transaction handle %s in %s [status=%s / rejectPartition=%d]",
                           ts, status, reject_partition);
-        if (d) LOG.debug(String.format("Rejecting txn %s on partition %d. Blocking until a txnId greater than #%d [valid=%s]",
-                         ts, reject_partition, reject_txnId, (ts.getTransactionId().compareTo(reject_txnId) > 0)));
+        assert(reject_txnId != null) :
+            String.format("Null reject txn id for %s [status=%s / rejectPartition=%d]",
+                          ts, status, reject_partition);
+        if (d) {
+            Long txnId = ts.getTransactionId();
+            boolean is_valid = (reject_txnId == null || txnId.compareTo(reject_txnId) > 0);
+            LOG.debug(String.format("Rejecting %s on partition %d. Blocking until a txnId greater than #%d [status=%s / valid=%s]",
+                      ts, reject_partition, reject_txnId, status, is_valid));
+        }
         
         TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
         
@@ -649,7 +657,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (callback.isAborted() == false && callback.isUnblocked() == false) {
             try {
                 if (status == Status.ABORT_RESTART) {
-                    reject_txnId = Long.valueOf(reject_txnId.longValue() + 5);
+                    reject_txnId = Long.valueOf(reject_txnId.longValue() + 5); // HACK
                     assert(ts.getTransactionId().equals(reject_txnId) == false) :
                         String.format("Rejected txn %s's blocked-until-id is also %d", ts, reject_txnId); 
                     callback.abort(status, reject_partition, reject_txnId);    

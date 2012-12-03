@@ -426,6 +426,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
             siteInfo.put("Post-Processing Txns", val);
         }
+        
+        // Last Deleted Txns
+        siteInfo.put("Last Deleted", StringUtil.join("\n", siteDebug.getLastDeletedTxns()));
 
         return (siteInfo);
     }
@@ -1012,8 +1015,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             int total_destroyed = 0;
             
             boolean found = false;
-            // FIXME: MapReduce & RemoteTransaction pools are for all partitions, not just local
             for (int p : hstore_site.getLocalPartitionIds()) {
+                pool = null;
                 switch (i) {
                     case 0:
                         pool = objPool.getLocalTransactionPool(p);
@@ -1028,7 +1031,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                         pool = objPool.getDistributedStatePool(p);
                         break;
                     case 4:
-                        pool = objPool.getPrefetchStatePool(p);
+                        if (hstore_conf.site.exec_prefetch_queries) {
+                            pool = objPool.getPrefetchStatePool(p);
+                        }
                         break;
                 } // SWITCH
                 if (pool == null) continue;

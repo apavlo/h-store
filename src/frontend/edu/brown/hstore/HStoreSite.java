@@ -2894,6 +2894,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             return (total);
         }
+        public Collection<String> getLastDeletedTxns() {
+            return (deletable_last);
+        }
         
         /**
          * Get the collection of inflight Transaction state handles

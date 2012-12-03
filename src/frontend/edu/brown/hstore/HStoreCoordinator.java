@@ -1206,7 +1206,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         this.hstore_site.prepareShutdown(error != null);
         
         if (error != null) {
-            LOG.warn("Shutting down cluster with " + error.getClass().getSimpleName());
+            LOG.warn("Shutting down cluster with " + error.getClass().getSimpleName(), error);
         } else {
             LOG.warn("Shutting down cluster");
         }

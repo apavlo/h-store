@@ -92,6 +92,7 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
 import org.voltdb.sysprocs.DatabaseDump;
+import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.MarkovUpdate;
 import org.voltdb.sysprocs.NoOp;
@@ -1184,6 +1185,9 @@ public class BenchmarkController {
         if (this.stop == false) {
             this.postProcessBenchmark(local_client);
         }
+//        else if (this.failed == true) {
+//            this.invokeStatusSnapshot(local_client);
+//        }
         
         this.stop = true;
         if (m_config.noShutdown == false && this.failed == false) m_sitePSM.prepareShutdown(false);
@@ -1433,24 +1437,39 @@ public class BenchmarkController {
         return;
     }
     
+    private ClientResponse[] invokeSysProcs(Client client, Class<? extends VoltSystemProcedure> sysprocs[], Object params[][]) {
+        ClientResponse cr[] = new ClientResponse[sysprocs.length];
+        for (int i = 0; i < sysprocs.length; i++) {
+            String procName = VoltSystemProcedure.procCallName(sysprocs[i]);
+            try {
+                cr[i] = client.callProcedure(procName, params[i]);
+            } catch (Exception ex) {
+                LOG.error("Failed to execute sysproc " + procName, ex);
+                return (null);
+            }
+            assert(cr[i].getStatus() == Status.OK) :
+                String.format("Unexpected response status %s for sysproc %s", cr[i].getStatus(), procName); 
+        } // FOR
+        return (cr);
+    }
+    
+    private void invokeStatusSnapshot(Client client) {
+        @SuppressWarnings("unchecked")
+        Class<VoltSystemProcedure> sysprocs[] = (Class<VoltSystemProcedure>[])new Class<?>[]{
+            ExecutorStatus.class,
+        };
+        Object params[][] = { { 0 } };
+        this.invokeSysProcs(client, sysprocs, params);
+    }
+    
     private void resetCluster(Client client) {
         @SuppressWarnings("unchecked")
         Class<VoltSystemProcedure> sysprocs[] = (Class<VoltSystemProcedure>[])new Class<?>[]{
             ResetProfiling.class,
             GarbageCollection.class
         };
-        
-        ClientResponse cr = null;
-        for (Class<VoltSystemProcedure> sysproc : sysprocs) {
-            String procName = VoltSystemProcedure.procCallName(sysproc);
-            try {
-                cr = client.callProcedure(procName);
-            } catch (Exception ex) {
-                LOG.error("Failed to execute sysproc " + procName, ex);
-                return;
-            }
-            assert(cr.getStatus() == Status.OK);
-        } // FOR
+        Object params[][] = { { }, { } };
+        this.invokeSysProcs(client, sysprocs, params);
     }
     
     private void recomputeMarkovs(Client client, boolean retrieveFiles) {
