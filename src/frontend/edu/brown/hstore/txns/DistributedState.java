@@ -50,7 +50,7 @@ public class DistributedState implements Poolable {
      * the acknowledgments back from all of the partitions that we're going to access.
      * This is only needed for distributed transactions. 
      */
-    protected final TransactionInitCallback init_callback;
+//    protected final TransactionInitCallback init_callback;
     
     /**
      * This callback is used to keep track of what partitions have replied that they are 
@@ -88,7 +88,7 @@ public class DistributedState implements Poolable {
         this.notified_prepare = new BitSet(catalogContext.numberOfPartitions);
         this.sent_parameters = new BitSet(catalogContext.numberOfSites);
         
-        this.init_callback = new TransactionInitCallback(hstore_site);
+//        this.init_callback = new TransactionInitCallback(hstore_site);
         this.prepare_callback = new TransactionPrepareCallback(hstore_site);
         this.finish_callback = new LocalTransactionFinishCallback(hstore_site);
         
@@ -118,7 +118,7 @@ public class DistributedState implements Poolable {
 
     @Override
     public void finish() {
-        this.init_callback.finish();
+//        this.init_callback.finish();
         this.prepare_callback.finish();
         this.finish_callback.finish();
         this.is_all_local = true;

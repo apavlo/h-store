@@ -54,6 +54,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * the site that will send init requests to this coordinator
      */
     private final HStoreSite hstore_site;
+    private final HStoreCoordinator hstore_coordinator;
     private final HStoreConf hstore_conf;
     
     private final PartitionSet localPartitions;
@@ -164,6 +165,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
+        this.hstore_coordinator = hstore_site.getCoordinator();
         this.profiler = new TransactionQueueManagerProfiler(num_partitions);
         this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
         this.lockQueuesBlocked = new boolean[this.lockQueues.length];
@@ -238,9 +240,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
 //            if (hstore_conf.site.queue_profiling && profiler.lock_queue.isStarted()) profiler.lock_queue.stop();
             
             // Release transactions for initialization to the HStoreCoordinator
-            if (hstore_conf.site.queue_profiling) profiler.init_queue.start();
-            this.checkInitQueue();
-            if (hstore_conf.site.queue_profiling && profiler.init_queue.isStarted()) profiler.init_queue.stop();
+//            if (hstore_conf.site.queue_profiling) profiler.init_queue.start();
+//            this.checkInitQueue();
+//            if (hstore_conf.site.queue_profiling && profiler.init_queue.isStarted()) profiler.init_queue.stop();
             
             // Release blocked distributed transactions
             if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
@@ -467,9 +469,15 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             
             // For local partitions, peek ahead in this partition's queue to see whether the 
             // txnId that we're trying to insert is less than the next one that we expect to release 
-            TransactionInitPriorityQueue queue = this.lockQueues[partition];
-            AbstractTransaction next_safe = queue.noteTransactionRecievedAndReturnLastSeen(ts);
+            //
+            // 2012-12-03 - There is a race condition here where we may get back the last txn that 
+            // was released but then it was deleted and cleaned-up. This means that its txn id
+            // might be null. A better way to do this is to only have each PartitionExecutor
+            // insert the new transaction into its queue. 
+            AbstractTransaction next_safe = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSeen(ts);
             Long next_safe_id = next_safe.getTransactionId();
+            // HACK
+            if (next_safe_id == null) next_safe_id = Long.valueOf(txn_id.longValue() + 10l);
             
             // The next txnId that we're going to try to execute is already greater
             // than this new txnId that we were given! Rejection!
@@ -493,7 +501,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 break;
             }
             // Our queue is overloaded. We have to reject the txnId!
-            else if (queue.offer(ts, ts.isSysProc()) == false) {
+            else if (this.lockQueues[partition].offer(ts, ts.isSysProc()) == false) {
                 if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
                 		        "Throttling %s until id is greater than %s " +
                 		        "[locked=%s / queueSize=%d]",
@@ -645,7 +653,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                    int reject_partition,
                                    Long reject_txnId) {
         assert(ts.isInitialized()) :
-            String.format("Uninitialized transaction handle %s in %s [status=%s / rejectPartition=%d]",
+            String.format("Uninitialized transaction handle %s [status=%s / rejectPartition=%d]",
                           ts, status, reject_partition);
         assert(reject_txnId != null) :
             String.format("Null reject txn id for %s [status=%s / rejectPartition=%d]",
@@ -718,8 +726,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         // Check whether our transaction can't run right now because its id is less than
         // the last seen txnid from the remote partitions that it wants to touch
-        for (Integer partition : ts.getPredictTouchedPartitions()) {
-            Long last_txn_id = this.lockQueuesLastTxn[partition.intValue()]; 
+        for (int partition : ts.getPredictTouchedPartitions().values()) {
+            Long last_txn_id = this.lockQueuesLastTxn[partition]; 
             if (txn_id.compareTo(last_txn_id) < 0) {
                 // If we catch it here, then we can just block ourselves until
                 // we generate a txn_id with a greater value and then re-add ourselves
@@ -734,19 +742,27 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 if (hstore_conf.site.txn_counters && ts.getRestartCounter() == 1) {
                     TransactionCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
                 }
-                this.blockTransaction(ts, partition.intValue(), last_txn_id);
+                this.blockTransaction(ts, partition, last_txn_id);
                 return;
             }
         } // FOR
 
-        this.initQueue.add(ts);
-        if (this.checkFlag.availablePermits() == 0)
-            this.checkFlag.release();
+        TransactionInitCallback callback = ts.initTransactionInitCallback();
+        if (ts.isPredictSinglePartition()) {
+            this.lockQueueInsert(ts, ts.getPredictTouchedPartitions(), callback);
+        }
+        else {
+            this.hstore_coordinator.transactionInit(ts, callback);
+        }
+        
+        
+//        this.initQueue.add(ts);
+//        if (this.checkFlag.availablePermits() == 0)
+//            this.checkFlag.release();
     }
     
     private void checkInitQueue() {
         LocalTransaction ts = null;
-        HStoreCoordinator hstore_coordinator = hstore_site.getCoordinator();
         while ((ts = this.initQueue.poll()) != null) {
             TransactionInitCallback callback = ts.initTransactionInitCallback();
             hstore_coordinator.transactionInit(ts, callback);

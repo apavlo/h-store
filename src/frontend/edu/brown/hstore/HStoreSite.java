@@ -1547,11 +1547,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (catalog_proc == null) {
                 catalog_proc = this.catalogContext.database.getProcedures().getIgnoreCase(procName);
             }
-            
-            // TODO: This should be an error message back to the client, not an exception
             if (catalog_proc == null) {
                 String msg = "Unknown procedure '" + procName + "'";
-                LOG.error(msg);
                 this.responseError(client_handle,
                                    Status.ABORT_UNEXPECTED,
                                    msg,
@@ -1826,16 +1823,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // SINGLE-PARTITION or NON-BLOCKING MAPREDUCE TRANSACTION
         // -------------------------------
-        if (ts.isPredictSinglePartition() || (ts.isMapReduce() && hstore_conf.site.mr_map_blocking == false)) {
-            if (d) LOG.debug(String.format("%s - Fast path single-partition execution at partition %d " +
-                             "[handle=%d]",
-                             ts, ts.getBasePartition(), ts.getClientHandle()));
-            this.transactionStart(ts, ts.getBasePartition());
-        }
-        // -------------------------------    
-        // DISTRIBUTED TRANSACTION
-        // -------------------------------
-        else {
+//        if (ts.isPredictSinglePartition() || (ts.isMapReduce() && hstore_conf.site.mr_map_blocking == false)) {
+//            if (d) LOG.debug(String.format("%s - Fast path single-partition execution at partition %d " +
+//                             "[handle=%d]",
+//                             ts, ts.getBasePartition(), ts.getClientHandle()));
+//            this.transactionStart(ts, ts.getBasePartition());
+//        }
+//        // -------------------------------    
+//        // DISTRIBUTED TRANSACTION
+//        // -------------------------------
+//        else {
             if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at partition %d " +
             		         "[handle=%d]",
                              ts, ts.getBasePartition(), ts.getClientHandle()));
@@ -1844,7 +1841,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // we get hear back about our our initialization request
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitDtxn();
             this.txnQueueManager.initTransaction(ts);
-        }
+//        }
     }
     
     /**

@@ -919,9 +919,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (d) {
                 String txnDebug = "";
                 if (this.currentTxn != null && this.currentTxn.getBasePartition() == this.partitionId) {
-                    txnDebug = "\n" + this.currentTxn.debug();
+                    txnDebug = " while a txn is still running\n" + this.currentTxn.debug();
                 }
-                LOG.warn(String.format("PartitionExecutor %d is stopping.%s%s",
+                LOG.warn(String.format("PartitionExecutor %d is stopping%s%s",
                                        this.partitionId,
                                        (this.currentTxnId != null ? " In-Flight Txn: #" + this.currentTxnId : ""),
                                        txnDebug));

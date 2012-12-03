@@ -119,13 +119,13 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
             // single-partition transactions because we now have a new distributed transaction
             // Note that we have to do this before send the message because the callback
             // might end up destroying this transaction
-            if (hstore_conf.site.specexec_pre_query && (this.ts instanceof MapReduceTransaction) == false) {
-                for (int p: this.hstore_site.getLocalPartitionIds().values()) {
-                    if (this.partitions.contains(p)) {
-                        this.hstore_site.getPartitionExecutor(p).queueInitDtxn(this.ts);
-                    }
-                } // FOR
-            }
+//            if (hstore_conf.site.specexec_pre_query && (this.ts instanceof MapReduceTransaction) == false) {
+//                for (int p: this.hstore_site.getLocalPartitionIds().values()) {
+//                    if (this.partitions.contains(p)) {
+//                        this.hstore_site.getPartitionExecutor(p).queueInitDtxn(this.ts);
+//                    }
+//                } // FOR
+//            }
 
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
