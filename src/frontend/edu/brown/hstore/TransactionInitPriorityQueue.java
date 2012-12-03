@@ -239,7 +239,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             if (EstTime.currentTimeMillis() < m_blockTime) {
                 newState = QueueState.BLOCKED_SAFETY;
             } else if (d) {
-                LOG.debug(String.format("Partition %d - Wait time for txn #%d has passed. Unblocking...",
+                LOG.debug(String.format("Partition %d - Wait time for %s has passed. Unblocking...",
                           m_partitionId, m_nextTxn));
             }
         }
@@ -251,9 +251,16 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             // m_blockTime = EstTime.currentTimeMillis() + this.m_waitTime;
             long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(ts.getTransactionId().longValue());
             long timestamp = EstTime.currentTimeMillis();
-            m_blockTime = timestamp + Math.min(0, this.m_waitTime - (timestamp - txnTimestamp));
+            m_blockTime = timestamp + Math.max(0, this.m_waitTime - (timestamp - txnTimestamp));
             m_nextTxn = ts;
-            if (t) LOG.trace("NEXT TRANSACTION:\n" + this.toString());
+            if (d) {
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
+                m.put("Txn Init Timestamp", txnTimestamp);
+                m.put("Current Timestamp", timestamp);
+                m.put("Block Time", m_blockTime);
+                LOG.debug(String.format("Partition %d - Next Txn %s\n%s",
+                          this.m_partitionId, this.m_nextTxn, StringUtil.formatMaps(m)));
+            }
         }
         
         if (newState != m_state) {

@@ -882,9 +882,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // -------------------------------
                 // Poll Lock Queue
                 // -------------------------------
-                while (this.queueManager.checkLockQueues(this.partitionId)) {
-                    // Keep checking the queue as long as there is more stuff for us to process
-                } // WHILE
+
+                // TODO: If we get something back here, it should be come our
+                // current "parent" transaction.
+                this.currentTxn = this.queueManager.checkLockQueues(this.partitionId);
                 
                 // -------------------------------
                 // Poll Work Queue

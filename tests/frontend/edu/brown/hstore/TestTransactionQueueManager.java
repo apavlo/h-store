@@ -3,10 +3,12 @@ package edu.brown.hstore;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
+import org.voltdb.TransactionIdManager;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.utils.EstTimeUpdater;
 
 import com.google.protobuf.RpcCallback;
 
@@ -14,6 +16,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
@@ -28,6 +31,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     HStoreSite hstore_site;
     HStoreConf hstore_conf;
     Procedure catalog_proc;
+    TransactionIdManager idManager;
     TransactionQueueManager queue;
     TransactionQueueManager.Debug dbg;
     
@@ -54,9 +58,11 @@ public class TestTransactionQueueManager extends BaseTestCase {
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         assertNotNull(catalog_site);
         this.hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, HStoreConf.singleton());
+        this.idManager = hstore_site.getTransactionIdManager(0);
         this.queue = this.hstore_site.getTransactionQueueManager();
         this.dbg = this.queue.getDebugContext();
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        EstTimeUpdater.update(System.currentTimeMillis());
     }
     
     private LocalTransaction createTransaction(Long txn_id, PartitionSet partitions) {
@@ -67,9 +73,12 @@ public class TestTransactionQueueManager extends BaseTestCase {
     }
     
     private boolean checkAllQueues(TransactionQueueManager queue) {
+        EstTimeUpdater.update(System.currentTimeMillis());
         boolean ret = false; 
         for (int partition : catalogContext.getAllPartitionIds().values()) {
-            ret = queue.checkLockQueues(partition) || ret;
+            AbstractTransaction ts = queue.checkLockQueues(partition);
+            // if (ts != null) System.err.printf("Partition %d => %s\n", partition, ts);
+            ret = (ts != null) || ret;
         }
         return (ret);
     }
@@ -81,7 +90,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
      */
     @Test
     public void testSingleTransaction() throws InterruptedException {
-        long txn_id = 1000;
+        Long txn_id = this.idManager.getNextUniqueTransactionId();
         LocalTransaction txn0 = this.createTransaction(txn_id, catalogContext.getAllPartitionIds());
         MockCallback inner_callback = new MockCallback();
         
@@ -107,8 +116,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
      */
     @Test
     public void testTwoTransactions() throws InterruptedException {
-        final long txn_id0 = 1000;
-        final long txn_id1 = 2000;
+        final Long txn_id0 = this.idManager.getNextUniqueTransactionId();
+        final Long txn_id1 = this.idManager.getNextUniqueTransactionId();
         final PartitionSet partitions0 = catalogContext.getAllPartitionIds();
         final PartitionSet partitions1 = catalogContext.getAllPartitionIds();
         final MockCallback inner_callback0 = new MockCallback();
@@ -117,9 +126,9 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1);
         
         // insert the higher ID first but make sure it comes out second
-        assertFalse(this.checkAllQueues(queue));
-        assertTrue(this.queue.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1));
-        assertTrue(this.queue.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0));
+        assertFalse(queue.toString(), this.checkAllQueues(queue));
+        assertTrue(queue.toString(), this.queue.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1));
+        assertTrue(queue.toString(), this.queue.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0));
         
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
         assertTrue(this.checkAllQueues(queue));
@@ -152,10 +161,9 @@ public class TestTransactionQueueManager extends BaseTestCase {
      */
     @Test
     public void testDisjointTransactions() throws InterruptedException {
-        long txn_id = 1000;
-        final long txn_id0 = txn_id++;
-        final long txn_id1 = txn_id++;
-        final long txn_id2 = txn_id++;
+        final Long txn_id0 = this.idManager.getNextUniqueTransactionId();
+        final Long txn_id1 = this.idManager.getNextUniqueTransactionId();
+        final Long txn_id2 = this.idManager.getNextUniqueTransactionId();
         final PartitionSet partitions0 = new PartitionSet(0, 2);
         final PartitionSet partitions1 = new PartitionSet(1, 3);
         final PartitionSet partitions2 = catalogContext.getAllPartitionIds();
@@ -165,6 +173,11 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
         final MockCallback inner_callback2 = new MockCallback();
+        
+//        System.err.println("txn_id0: " + txn_id0);
+//        System.err.println("txn_id1: " + txn_id1);
+//        System.err.println("txn_id2: " + txn_id2);
+//        System.err.println();
         
         this.queue.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0);
         this.queue.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1);
@@ -183,7 +196,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         for (int partition : partitions0) {
             queue.lockQueueFinished(txn0, Status.OK, partition);
         }
-        assertFalse(queue.toString(), this.checkAllQueues(queue));
+        this.checkAllQueues(queue);
         assertFalse("callback2", inner_callback2.lock.tryAcquire());
         assertFalse(dbg.isLockQueuesEmpty());
         
@@ -204,8 +217,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
      */
     @Test
     public void testOverlappingTransactions() throws InterruptedException {
-        final long txn_id0 = 1000;
-        final long txn_id1 = 2000;
+        final Long txn_id0 = this.idManager.getNextUniqueTransactionId();
+        final Long txn_id1 = this.idManager.getNextUniqueTransactionId();
         final PartitionSet partitions0 = new PartitionSet(0, 1, 2);
         final PartitionSet partitions1 = new PartitionSet(2, 3);
         final LocalTransaction txn0 = this.createTransaction(txn_id0, partitions0);
