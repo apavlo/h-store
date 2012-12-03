@@ -70,6 +70,7 @@ import edu.brown.designer.ColumnSet;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -83,8 +84,8 @@ import edu.brown.workload.TransactionTrace;
  * calculations. 
  * @author pavlo
  */
-public class PartitionEstimator {
-    private static final Logger LOG = Logger.getLogger(PartitionEstimator.class);
+public class PartitionEstimator implements Loggable {
+    protected static final Logger LOG = Logger.getLogger(PartitionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -411,6 +412,12 @@ public class PartitionEstimator {
         this.cache_fragmentEntries.clear();
         this.cache_statementEntries.clear();
         this.cache_stmtPartitionParameters.clear();
+    }
+    
+    @Override
+    public void updateLogging() {
+        debug.set(LOG.isDebugEnabled());
+        trace.set(LOG.isTraceEnabled());
     }
 
     // ----------------------------------------------------------------------------

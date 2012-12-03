@@ -2,6 +2,7 @@ package edu.brown.utils;
 
 import java.util.*;
 
+import org.apache.log4j.Level;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.voltdb.CatalogContext;
@@ -37,7 +38,8 @@ public class TestPartitionEstimator extends BaseTestCase {
     private final PartitionSet partitions = new PartitionSet();
     
     {
-        super.reset(ProjectType.TPCC);        
+        // super.reset(ProjectType.TPCC);
+        PartitionEstimator.LOG.setLevel(Level.TRACE);
     }
     
     @Override
@@ -47,6 +49,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         if (hasher == null) {
             hasher = new DefaultHasher(catalog_db, NUM_PARTITIONS); // CatalogUtil.getNumberOfPartitions(catalog_db));
         }
+        p_estimator.updateLogging();
     }
     
     /**

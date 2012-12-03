@@ -1147,6 +1147,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private void initStatSources() {
         StatsSource statsSource = null;
+
+        // TXN PROFILERS
+        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
         
         // MEMORY
         statsSource = new MemoryStats();
@@ -1155,10 +1159,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TXN COUNTERS
         statsSource = new TransactionCounterStats(this.catalogContext);
         this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
-
-        // TXN PROFILERS
-        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
 
         // EXECUTOR PROFILERS
         statsSource = new PartitionExecutorProfilerStats(this);
