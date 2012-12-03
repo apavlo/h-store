@@ -277,6 +277,13 @@ public class ProfileMeasurement implements JSONSerializable {
     public ProfileMeasurement stop() {
         return (this.stop(getTime()));
     }
+    
+    public ProfileMeasurement stopIfStarted() {
+        if (this.isStarted()) {
+            this.stop(getTime());
+        }
+        return (this);
+    }
 
     public synchronized void addStopObserver(EventObserver<ProfileMeasurement> observer) {
         if (this.stop_observable == null) {

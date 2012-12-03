@@ -119,7 +119,9 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
+import edu.brown.hstore.SpecExecScheduler.SchedulerPolicy;
+import edu.brown.hstore.callbacks.LocalTransactionFinishCallback;
+import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -289,6 +291,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private HStoreCoordinator hstore_coordinator;
     private HStoreConf hstore_conf;
     private TransactionInitializer txnInitializer;
+    private TransactionQueueManager queueManager;
     
     // ----------------------------------------------------------------------------
     // Partition-Specific Queues
@@ -380,6 +383,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private final LinkedList<Pair<LocalTransaction, ClientResponseImpl>> specExecBlocked;
     
     /**
+     * If this flag is set to true, that means some txn has modified the database
+     * in the current batch of speculatively executed txns. Any read-only specexec txn that 
+     * is executed when this flag is set to false can be returned to the client immediately.
+     * TODO: This should really be a bitmap of table ids so that we have finer grain control
+     */
+    private boolean specExecModified;
+    
+    /**
      * 
      */
     private final QueryCache queryCache = new QueryCache(10, 10); // FIXME
@@ -452,6 +463,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * Reusable int array for input dependency ids
      */
     private final IntArrayCache tmp_inputDepIds = new IntArrayCache(10);
+    
+    LinkedList<Pair<LocalTransaction, ClientResponseImpl>> tmp_toCommit = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+    LinkedList<Pair<LocalTransaction, ClientResponseImpl>> tmp_toRestart = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+
     
     /**
      * The following three arrays are used by utilityWork() to create transactions
@@ -618,6 +633,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // Speculative Execution
         this.specExecBlocked = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+        this.specExecModified = false;
         
         if (hstore_conf.site.specexec_markov) {
             // The MarkovConflictChecker is thread-safe, so we all of the partitions
@@ -626,15 +642,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         } else {
             this.specExecChecker = new TableConflictChecker(this.catalogContext);
         }
-        this.specExecScheduler = new SpecExecScheduler(
-        		this.catalogContext, this.specExecChecker, this.partitionId, this.currentBlockedTxns,
-                SpecExecScheduler.policyMap.get(hstore_conf.site.specexec_scheduler_policy.toUpperCase()),
-                hstore_conf.site.specexec_scheduler_window);
+        
+        SchedulerPolicy policy = SchedulerPolicy.get(hstore_conf.site.specexec_scheduler_policy);
+        assert(policy != null) : String.format("Invalid %s '%s'",
+                                               SchedulerPolicy.class.getSimpleName(),
+                                               hstore_conf.site.specexec_scheduler_policy);
+        this.specExecScheduler = new SpecExecScheduler(this.catalogContext,
+                                                       this.specExecChecker,
+                                                       this.partitionId,
+                                                       this.currentBlockedTxns,
+                                                       policy,
+                                                       hstore_conf.site.specexec_scheduler_window);
         if (hstore_conf.site.specexec_ignore_all_local) {
             this.specExecScheduler.setIgnoreAllLocal(true);
         }
-        
-
         
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
@@ -771,6 +792,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.thresholds = hstore_site.getThresholds();
         this.specExecChecker.setEstimationThresholds(this.thresholds);
         this.txnInitializer = hstore_site.getTransactionInitializer();
+        this.queueManager = hstore_site.getTransactionQueueManager();
         
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
@@ -858,6 +880,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.currentTxnId = null;
                 
                 // -------------------------------
+                // Poll Lock Queue
+                // -------------------------------
+                while (this.queueManager.checkLockQueues(this.partitionId)) {
+                    // Keep checking the queue as long as there is more stuff for us to process
+                } // WHILE
+                
+                // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
                 work = this.getNext();
@@ -877,10 +906,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.tick();
             } // WHILE
         } catch (final Throwable ex) {
-            ex.printStackTrace();
+            // ex.printStackTrace();
             if (this.isShuttingDown() == false) {
                 // ex.printStackTrace();
-                LOG.fatal(String.format("Unexpected error for PartitionExecutor at partition #%d [%s]",
+                LOG.fatal(String.format("Unexpected error at partition #%d [%s]",
                                         this.partitionId, this.currentTxn), ex);
                 if (this.currentTxn != null) LOG.fatal("TransactionState Dump:\n" + this.currentTxn.debug());
             }
@@ -1127,14 +1156,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         else if (work instanceof SetDistributedTxnMessage) {
             AbstractTransaction ts = work.getTransaction();
-            if (ts.isInitialized()) {
+            if (ts.isInitialized() && ts.isAborted() == false) {
             	this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
-//                if (this.currentDtxn != null) {
+                if (this.currentDtxn != null) {
 //                    //if (this.currentDtxn.compareTo(ts) < 0) this.blockTransaction(work);
-//                } else { 
-//                    this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
-//                }
-                
+                } else { 
+                    this.setCurrentDtxn(ts);
+                }
             }
         }
         // -------------------------------
@@ -1295,54 +1323,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     }
 
     /**
-     * Enable speculative execution mode for this partition. The given transaction is 
-     * the one that we will need to wait to finish before we can release the ClientResponses 
-     * for any speculatively executed transactions. 
-     * @param txn_id
-     * @return true if speculative execution was enabled at this partition
-     */
-    private boolean prepareTransaction(AbstractTransaction ts) {
-        assert(ts != null) : "Null transaction handle???";
-        if (d) LOG.debug(String.format("%s - Preparing to commit txn at partition %d", ts, this.partitionId));
-        
-        // Skip if we've already invoked prepared for this txn at this partition
-        if (ts.isMarkedPrepared(this.partitionId) == false) {
-            ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
-            
-            // Set the speculative execution commit mode
-            if (hstore_conf.site.specexec_enable) {
-                if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
-                                 ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
-                
-                // Check whether the txn that we're waiting for is read-only.
-                // If it is, then that means all read-only transactions can commit right away
-                if (ts.isExecReadOnly(this.partitionId)) {
-                    newMode = ExecutionMode.COMMIT_READONLY;
-                }
-            }
-            if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
-        
-            if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
-                             ts, this.partitionId));
-            hstore_site.getTransactionQueueManager().lockQueueFinished(ts, Status.OK, this.partitionId);
-        }
-        else if (d) {
-            LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
-        }
-
-        // IMPORTANT
-        // When we do an early 2PC-PREPARE, we won't have this callback ready
-        // because we don't know what callback to use to send the acknowledgements
-        // back over the network
-        TransactionPrepareWrapperCallback callback = ts.getPrepareWrapperCallback();
-        if (callback.isInitialized()) {
-            callback.run(Integer.valueOf(this.partitionId));
-        }
-
-        return (true);
-    }
-    
-    /**
      * Set the current ExecutionMode for this executor. The transaction handle given as an input
      * argument is the transaction that caused the mode to get changed. It is only used for debug
      * purposes.
@@ -1413,6 +1393,61 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private long getNextUndoToken() {
         if (t) LOG.trace(String.format("Next Undo for Partition %d: %d", this.partitionId, this.lastUndoToken+1));
         return (++this.lastUndoToken);
+    }
+    
+    /**
+     * For the given txn, return the next undo token to use for its next execution round
+     * @param ts
+     * @param readOnly
+     * @return
+     */
+    private long calculateNextUndoToken(AbstractTransaction ts, boolean readOnly) {
+        long undoToken = HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN;
+        long lastUndoToken = ts.getLastUndoToken(this.partitionId);
+        boolean singlePartition = ts.isPredictSinglePartition();
+        
+        // Speculative txns always need an undo token
+        // It's just easier this way...
+        if (ts.isSpeculative()) {
+            undoToken = this.getNextUndoToken();
+        }
+        // If this plan is read-only, then we don't need a new undo token (unless
+        // we don't have one already)
+        else if (readOnly) {
+            if (lastUndoToken == HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+                lastUndoToken = HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN;
+//                lastUndoToken = this.getNextUndoToken();
+            }
+            undoToken = lastUndoToken;
+        }
+        // Otherwise, we need to figure out whether we want to be a brave soul and 
+        // not use undo logging at all
+        else {
+            // If one of the following conditions are true, then we need to get a new token:
+            //  (1) If this our first time up at bat
+            //  (2) If we're a distributed transaction
+            //  (3) The force undo logging option is enabled
+            if (lastUndoToken == HStoreConstants.NULL_UNDO_LOGGING_TOKEN ||
+                    singlePartition == false ||
+                    hstore_conf.site.exec_force_undo_logging_all) {
+                undoToken = this.getNextUndoToken();
+            }
+            // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
+            // then we can go back and check whether we want to disable undo logging for the rest of the transaction
+            else if (ts.getEstimatorState() != null && singlePartition && ts.isSpeculative() == false) {
+                Estimate est = ts.getEstimatorState().getLastEstimate();
+                assert(est != null) : "Got back null MarkovEstimate for " + ts;
+                if (hstore_conf.site.exec_no_undo_logging == false ||
+                    est.isValid() == false ||
+                    est.isAbortable(this.thresholds) ||
+                    est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
+                    undoToken = lastUndoToken;
+                } else if (d) {
+                    LOG.warn(String.format("Bold! Disabling undo buffers for inflight %s\n%s", ts, est));
+                }
+            }
+        }
+        return (undoToken);
     }
     
     /**
@@ -1520,7 +1555,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.currentDtxn == null) :
             String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
-        if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition #%d [previous=%s]",
+        if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
                          ts, this.partitionId, this.currentDtxn));
         this.currentDtxn = ts;
     }
@@ -1531,7 +1566,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private void resetCurrentDtxn() {
         assert(this.currentDtxn != null) :
             "Trying to reset the currentDtxn when it is already null";
-        if (d) LOG.debug(String.format("Resetting current DTXN for partition #%d to null [previous=%s]",
+        if (d) LOG.debug(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
                          this.partitionId, this.currentDtxn));
         this.currentDtxn = null;
     }
@@ -1798,7 +1833,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             //       speculatively executing this dtxn. After all, if we're at this point in 
             //       the PartitionExecutor then we know that we got this partition's locks 
             //       from the TransactionQueueManager.
-            if (this.currentDtxn != null) {
+            if (this.currentDtxn != null && this.currentDtxn.equals(ts) == false) {
                 assert(this.currentDtxn.equals(ts) == false) :
                     String.format("New DTXN %s != Current DTXN %s", ts, this.currentDtxn);
                 
@@ -1826,7 +1861,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
             }
             // If there is no other DTXN right now, then we're it!
-            else {
+            else if (this.currentDtxn == null) { //  || this.currentDtxn.equals(ts) == false) {
                 this.setCurrentDtxn(ts);
             }
             // 2011-11-14: We don't want to set the execution mode here, because we know that we
@@ -1860,6 +1895,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 ts.setSpeculative(specType);
                 if (d) LOG.debug(String.format("%s - Speculatively executing %s while waiting for dtxn [%s]",
                                  this.currentDtxn, ts, specType));
+                assert(ts.isSpeculative()) : ts + " was not marked as being speculative!";
             }
         }
         
@@ -1902,6 +1938,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             volt_proc.finish();
             this.procedures.get(ts.getProcedure().getName()).offer(volt_proc);
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPost();
+            
+//            if (cresponse.getStatus() == Status.ABORT_UNEXPECTED) {
+//                cresponse.getException().printStackTrace();
+//            }
         }
         
         // If this is a MapReduce job, then we can just ignore the ClientResponse
@@ -1970,12 +2010,35 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @return
      */
     private boolean canProcessClientResponseNow(LocalTransaction ts, Status status, ExecutionMode before_mode) {
-        if (d) LOG.debug(String.format("%s - Checking whether to process response now [status=%s, singlePartition=%s, readOnly=%s, before=%s, current=%s]",
-                                       ts, status, ts.isPredictSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.currentExecMode));
+        if (d) LOG.debug(String.format("%s - Checking whether to process %s response now at partition %d " +
+	                     "[singlePartition=%s / readOnly=%s / specExecModified=%s / before=%s / current=%s]",
+                         ts, status, this.partitionId,
+                         ts.isPredictSinglePartition(),
+                         ts.isExecReadOnly(this.partitionId),
+                         this.specExecModified,
+                         before_mode, this.currentExecMode));
         // Commit All
         if (this.currentExecMode == ExecutionMode.COMMIT_ALL) {
             return (true);
         }
+        // SPECIAL CASE
+        // Any user-aborted, speculative single-partition transaction should be processed immediately.
+        else if (status == Status.ABORT_USER && ts.isSpeculative()) {
+            return (true);
+        }
+//        // SPECIAL CASE
+//        // If this txn threw a user abort, and the current outstanding dtxn is read-only
+//        // then it's safe for us to rollback
+//        else if (status == Status.ABORT_USER &&
+//                  this.currentDtxn != null &&
+//                  this.currentDtxn.isExecReadOnly(this.partitionId)) {
+//            return (true);
+//        }
+        // SPECIAL CASE
+        // Anything mispredicted should be processed right away
+        else if (status == Status.ABORT_MISPREDICT) {
+            return (true);
+        }    
         // Process successful txns based on the mode that it was executed under
         else if (status == Status.OK) {
             switch (before_mode) {
@@ -1983,7 +2046,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     return (true);
                 case COMMIT_READONLY:
                     // Read-only speculative txns can be committed right now
-                    return (ts.isExecReadOnly(this.partitionId));
+                    // TODO: Right now we're going to use the specExecModified flag to disable
+                    // sending out any results from spec execed txns that may have read from 
+                    // a modified database. We should switch to a bitmap of table ids so that we
+                    // have can be more selective.
+                    // return (false);
+                    return (this.specExecModified == false && ts.isExecReadOnly(this.partitionId));
                 case COMMIT_NONE: {
                     // If this txn does not conflict with the current dtxn, then we should be able
                     // to let it commit but we can't because of the way our undo tokens work
@@ -1993,22 +2061,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     throw new ServerFaultException("Unexpected execution mode: " + before_mode, ts.getTransactionId()); 
             } // SWITCH
         }
-        // Anything mispredicted should be processed right away
-        else if (status == Status.ABORT_MISPREDICT) {
-            return (true);
-        }    
-        // If the transaction aborted and it was read-only thus far, then we want to process it immediately
-        else if (status != Status.OK && ts.isExecReadOnly(this.partitionId)) {
-            return (true);
-        }
-        // If this txn threw a user abort, and the current outstanding dtxn is read-only
-        // then it's safe for us to rollback
-        else if (status == Status.ABORT_USER &&
-                  this.currentDtxn != null &&
-                  this.currentDtxn.isExecReadOnly(this.partitionId)) {
-            return (true);
-        }
-        
+//        // If the transaction aborted and it was read-only thus far, then we want to process it immediately
+//        else if (status != Status.OK && ts.isExecReadOnly(this.partitionId)) {
+//            return (true);
+//        }
+
         assert(this.currentExecMode != ExecutionMode.COMMIT_ALL) :
             String.format("Queuing ClientResponse for %s when in non-specutative mode [mode=%s, status=%s]",
                           ts, this.currentExecMode, status);
@@ -2031,17 +2088,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         
         // A txn is "local" if the Java is executing at the same partition as this one
-        boolean is_local = ts.isExecLocal(this.partitionId);
+        boolean is_local = (ts.getBasePartition() == this.partitionId);
         boolean is_remote = (ts instanceof LocalTransaction == false);
         boolean is_prefetch = fragment.getPrefetch();
-        if (d) LOG.debug(String.format("%s - Executing %s [isLocal=%s, isRemote=%s, isPrefetch=%s, fragments=%s]",
-                                       ts, fragment.getClass().getSimpleName(),
-                                       is_local, is_remote, is_prefetch,
-                                       fragment.getFragmentIdCount()));
+        if (d) LOG.debug(String.format("%s - Executing %s " +
+        		         "[isLocal=%s / isRemote=%s / isPrefetch=%s / fragments=%s]",
+                         ts, fragment.getClass().getSimpleName(),
+                         is_local, is_remote, is_prefetch,
+                         fragment.getFragmentIdCount()));
         
-        // If this txn isn't local, then we have to update our undoToken
+        // If this WorkFragment isn't being executed at this txn's base partition, then
+        // we need to start a new execution round
         if (is_local == false) {
-            ts.initRound(this.partitionId, this.getNextUndoToken());
+            long undoToken = this.calculateNextUndoToken(ts, fragment.getReadOnly());
+            ts.initRound(this.partitionId, undoToken);
             ts.startRound(this.partitionId);
         }
         
@@ -2075,7 +2135,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
         } finally {
             if (error != null) {
-                error.printStackTrace();
+                // error.printStackTrace();
                 LOG.error(String.format("%s - Unexpected %s on partition %d",
                           ts, error.getClass().getSimpleName(), this.partitionId), error);
             }
@@ -2326,38 +2386,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @return
      */
     private VoltTable[] executeLocalPlan(LocalTransaction ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
-        long lastUndoToken = ts.getLastUndoToken(this.partitionId);
-        if (lastUndoToken == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || ts.isPredictSinglePartition() == false) {
-            lastUndoToken = this.getNextUndoToken();
-        }
-        long undoToken = HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN;
-        
-        // Force all transactions to use undo logging
-        if (hstore_conf.site.exec_force_undo_logging_all) {
-            undoToken = lastUndoToken;
-        }
-        // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
-        // then we can go back and check whether we want to disable undo logging for the rest of the transaction
-        // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
-        else if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false) {
-            Estimate est = ts.getEstimatorState().getLastEstimate();
-            assert(est != null) : "Got back null MarkovEstimate for " + ts;
-            if (hstore_conf.site.exec_no_undo_logging == false ||
-                est.isValid() == false ||
-                est.isAbortable(this.thresholds) ||
-                est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
-                undoToken = lastUndoToken;
-            } else if (d) {
-                LOG.warn(String.format("Bold! Disabling undo buffers for inflight %s\n%s\n%s",
-                         ts, est, plan.toString()));
-            }
-        }
-        // If the transaction is predicted to be read-only, then we won't bother with an undo buffer
-        else if (ts.isPredictReadOnly() == false && hstore_conf.site.exec_no_undo_logging_all == false) {
-            undoToken = lastUndoToken;
-        }
-        ts.fastInitRound(this.partitionId, undoToken);
-        ts.setBatchSize(plan.getBatchSize());
+
+        // Start the new execution round
+        long undoToken = this.calculateNextUndoToken(ts, plan.isReadOnly());
+        ts.initRound(this.partitionId, undoToken);
       
         int fragmentCount = plan.getFragmentCount();
         long fragmentIds[] = plan.getFragmentIds();
@@ -2387,7 +2419,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                        Arrays.toString(plan.getOutputDependencyIds()),
                                        Arrays.toString(plan.getInputDependencyIds())));
         
-        // NOTE: There are no dependencies that we need to pass in because the entire batch is single-partitioned
+        // NOTE: There are no dependencies that we need to pass in because the entire
+        // batch is local to this partition.
         DependencySet result = null;
         try {
             result = this.executePlanFragments(ts,
@@ -2480,7 +2513,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             readonly = readonly && fragReadOnly;
         }
         
-        // Check whether this fragments are read-only
+        // Check whether the txn has only exeuted read-only queries up to this point
         if (ts.isExecReadOnly(this.partitionId)) {
             if (readonly == false) {
                 if (t) LOG.trace(String.format("%s - Marking txn as not read-only %s", ts, Arrays.toString(fragmentIds))); 
@@ -2707,7 +2740,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                              ts, execState.tmp_partitionFragments.size()));
 
             // Block until we get all of our responses.
-            results = this.dispatchWorkFragments(ts, batchSize, execState.tmp_partitionFragments, batchParams);
+            results = this.dispatchWorkFragments(ts, batchParams, batchSize, execState.tmp_partitionFragments);
         }
         if (d && results == null)
             LOG.warn("Got back a null results array for " + ts + "\n" + plan.toString());
@@ -2925,26 +2958,26 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * This is the slowest way to execute a bunch of WorkFragments and therefore should only be invoked
      * for batches that need to access non-local Partitions
      * @param ts
-     * @param fragmentBuilders
      * @param parameters
+     * @param allFragmentBuilders
      * @return
      */
     public VoltTable[] dispatchWorkFragments(final LocalTransaction ts,
+                                             final ParameterSet parameters[],
                                              final int batchSize,
-                                             Collection<WorkFragment.Builder> fragmentBuilders,
-                                             final ParameterSet parameters[]) {
-        assert(fragmentBuilders.isEmpty() == false) :
+                                             final Collection<WorkFragment.Builder> allFragmentBuilders) {
+        assert(allFragmentBuilders.isEmpty() == false) :
             "Unexpected empty WorkFragment list for " + ts;
         final boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
         
         // *********************************** DEBUG ***********************************
         if (d) {
             LOG.debug(String.format("%s - Preparing to dispatch %d messages and wait for the results",
-                      ts, fragmentBuilders.size()));
+                      ts, allFragmentBuilders.size()));
             if (t) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(ts + " - WorkFragments:\n");
-                for (WorkFragment.Builder fragment : fragmentBuilders) {
+                for (WorkFragment.Builder fragment : allFragmentBuilders) {
                     sb.append(StringBoxUtil.box(fragment.toString()) + "\n");
                 } // FOR
                 sb.append(ts + " - ParameterSets:\n");
@@ -2962,7 +2995,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (hstore_conf.site.exec_validate_work && ts.isSysProc() == false) {
             LOG.warn(String.format("%s - Checking whether all of the WorkFragments are valid", ts));
             boolean has_remote = false; 
-            for (WorkFragment.Builder frag : fragmentBuilders) {
+            for (WorkFragment.Builder frag : allFragmentBuilders) {
                 if (frag.getPartitionId() != this.partitionId) {
                     has_remote = true;
                 }
@@ -2972,26 +3005,45 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     assert(catalog_stmt != null);
                     Procedure catalog_proc = catalog_stmt.getParent();
                     if (catalog_proc.equals(ts.getProcedure()) == false) {
-                        LOG.warn(ts.debug() + "\n" + fragmentBuilders + "\n---- INVALID ----\n" + frag);
+                        LOG.warn(ts.debug() + "\n" + allFragmentBuilders + "\n---- INVALID ----\n" + frag);
                         String msg = String.format("%s - Unexpected %s", ts, catalog_frag.fullName());
                         throw new ServerFaultException(msg, ts.getTransactionId());
                     }
                 }
             } // FOR
             if (has_remote == false) {
-                LOG.warn(ts.debug() + "\n" + fragmentBuilders);
+                LOG.warn(ts.debug() + "\n" + allFragmentBuilders);
                 String msg = ts + "Trying to execute all local single-partition queries using the slow-path!";
                 throw new ServerFaultException(msg, ts.getTransactionId());
             }
         }
+
+        boolean first = true;
+        boolean serializedParams = false;
+        CountDownLatch latch = null;
+        boolean all_local = true;
+        boolean is_localSite;
+        boolean is_localPartition;
+        boolean is_localReadOnly = true;
+        int num_localPartition = 0;
+        int num_localSite = 0;
+        int num_remote = 0;
+        int num_skipped = 0;
+        int total = 0;
+        Collection<WorkFragment.Builder> fragmentBuilders = allFragmentBuilders;
         
-        // We have to store all of the tasks in the TransactionState before we start executing, otherwise
-        // there is a race condition that a task with input dependencies will start running as soon as we
-        // get one response back from another executor
-        ts.initRound(this.partitionId, this.getNextUndoToken());
-        ts.setBatchSize(batchSize);
+        // Figure out whether the txn will always be read-only at this partition
+        for (WorkFragment.Builder fragmentBuilder : allFragmentBuilders) {
+            if (this.partitionId == fragmentBuilder.getPartitionId() && fragmentBuilder.getReadOnly() == false) {
+                is_localReadOnly = false;
+                break;
+            }
+        } // FOR
+        long undoToken = this.calculateNextUndoToken(ts, is_localReadOnly);
+        ts.initRound(this.partitionId, undoToken);
         
         final ExecutionState execState = ts.getExecutionState();
+        execState.initRound(batchSize);
         final boolean prefetch = ts.hasPrefetchQueries();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
         
@@ -3003,18 +3055,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // In the first part, we wait until all of our blocked WorkFragments become unblocked
         final LinkedBlockingDeque<Collection<WorkFragment.Builder>> queue = execState.getUnblockedWorkFragmentsQueue();
 
-        boolean first = true;
-        boolean serializedParams = false;
-        CountDownLatch latch = null;
-        boolean all_local = true;
-        boolean is_localSite;
-        boolean is_localPartition;
-        int num_localPartition = 0;
-        int num_localSite = 0;
-        int num_remote = 0;
-        int num_skipped = 0;
-        int total = 0;
-        
         // Run through this loop if:
         //  (1) We have no pending errors
         //  (2) This is our first time in the loop (first == true)
@@ -3168,6 +3208,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                         // Otherwise add it to our list of WorkFragments that we want
                         // queue up right now
                         if (is_localPartition) {
+                            is_localReadOnly = (is_localReadOnly && fragmentBuilder.getReadOnly());
                             this.tmp_localWorkFragmentBuilders.add(fragmentBuilder);
                             num_localPartition++;
                         } else if (is_localSite) {
@@ -3218,7 +3259,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                         } // FOR
                         if (needs_profiling) ts.profiler.stopSerialization();
                     }
-                    if (d) LOG.debug(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
+                    if (t) LOG.trace(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
                                      ts, num_remote));
                     this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams);
                     if (needs_profiling) ts.profiler.markRemoteQuery();
@@ -3227,7 +3268,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // Then dispatch the task that are needed at the same HStoreSite but 
                 // at a different partition than this one
                 if (num_localSite > 0) {
-                    if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local site's partitions",
+                    if (t) LOG.trace(String.format("%s - Executing %d WorkFragments on local site's partitions",
                                      ts, num_localSite));
                     for (WorkFragment.Builder builder : this.tmp_localSiteFragmentBuilders) {
                         hstore_site.getPartitionExecutor(builder.getPartitionId()).queueWork(ts, builder.build());
@@ -3239,7 +3280,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // We'll dispatch the remote-partition-local-site fragments first because they're going
                 // to need to get queued up by at the other PartitionExecutors
                 if (num_localPartition > 0) {
-                    if (d) LOG.debug(String.format("%s - Executing %d WorkFragments on local partition",
+                    if (t) LOG.trace(String.format("%s - Executing %d WorkFragments on local partition",
                                      ts, num_localPartition));
                     for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
                         WorkFragment fragment = fragmentBuilder.build();
@@ -3360,7 +3401,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 //            case S
 //        }
         
-        this.specExecBlocked.add(Pair.of(ts, cresponse));
+        this.specExecBlocked.push(Pair.of(ts, cresponse));
+        this.specExecModified = this.specExecModified && ts.isExecReadOnly(this.partitionId);
 
         if (t) LOG.trace("Total # of Blocked Responses: " + this.specExecBlocked.size());
     }
@@ -3378,9 +3420,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         Status status = cresponse.getStatus();
 
         if (d) {
-            LOG.debug(String.format("%s - Processing ClientResponse at partition %d [status=%s, singlePartition=%s, local=%s, clientHandle=%d]",
-                                    ts, this.partitionId, status, ts.isPredictSinglePartition(),
-                                    ts.isExecLocal(this.partitionId), cresponse.getClientHandle()));
+            LOG.debug(String.format("%s - Processing ClientResponse at partition %d " +
+            		  "[status=%s / singlePartition=%s / local=%s / clientHandle=%d]",
+                      ts, this.partitionId, status, ts.isPredictSinglePartition(),
+                      ts.isExecLocal(this.partitionId), cresponse.getClientHandle()));
             if (t) {
                 LOG.trace(ts + " Touched Partitions: " + ts.getTouchedPartitions().values());
                 LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
@@ -3399,7 +3442,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // We don't want to delete the transaction here because whoever is going to requeue it for
             // us will need to know what partitions that the transaction touched when it executed before
             if (ts.isPredictSinglePartition()) {
-                this.finishTransaction(ts, false);
+                this.finishTransaction(ts, status);
                 this.hstore_site.transactionRequeue(ts, status);
             }
             // Send a message all the partitions involved that the party is over
@@ -3410,7 +3453,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // have successfully aborted the txn at least at all of the local partitions at this site.
             else {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
-                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+                LocalTransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 finish_callback.markForRequeue();
                 if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
@@ -3422,8 +3465,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // ALL: Single-Partition Transactions
         // -------------------------------
         else if (ts.isPredictSinglePartition()) {
-            // Commit or abort the transaction
-            this.finishTransaction(ts, (status == Status.OK));
+            // Commit or abort the transaction only if we haven't done it already
+            // This can happen when we commit speculative txns out of order
+            if (ts.isMarkedFinished(this.partitionId) == false) {
+                this.finishTransaction(ts, status);
+            }
             
             // Use the separate post-processor thread to send back the result
             if (hstore_conf.site.exec_postprocessing_threads) {
@@ -3500,12 +3546,59 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // to invoke HStoreSite.transactionFinish() for us. That means when it returns we will
             // have successfully aborted the txn at least at all of the local partitions at this site.
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
-            TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+            LocalTransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
             this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
             if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) 
                 this.profiler.network_time.stop();
         }
+    }
+    
+    /**
+     * Enable speculative execution mode for this partition. The given transaction is 
+     * the one that we will need to wait to finish before we can release the ClientResponses 
+     * for any speculatively executed transactions. 
+     * @param txn_id
+     * @return true if speculative execution was enabled at this partition
+     */
+    private boolean prepareTransaction(AbstractTransaction ts) {
+        assert(ts != null) : "Null transaction handle???";
+        if (d) LOG.debug(String.format("%s - Preparing to commit txn at partition %d", ts, this.partitionId));
+        
+        // Skip if we've already invoked prepared for this txn at this partition
+        if (ts.isMarkedPrepared(this.partitionId) == false) {
+            ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
+            
+            // Set the speculative execution commit mode
+            if (hstore_conf.site.specexec_enable) {
+                if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
+                                 ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
+                
+                // Check whether the txn that we're waiting for is read-only.
+                // If it is, then that means all read-only transactions can commit right away
+                if (ts.isExecReadOnly(this.partitionId)) {
+                    newMode = ExecutionMode.COMMIT_READONLY;
+//                    if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
+//                                     ts, this.partitionId));
+//                    hstore_site.getTransactionQueueManager().lockQueueFinished(ts, Status.OK, this.partitionId);
+                }
+            }
+            if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
+        }
+        else if (d) {
+            LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
+        }
+
+        // IMPORTANT
+        // When we do an early 2PC-PREPARE, we won't have this callback ready
+        // because we don't know what callback to use to send the acknowledgements
+        // back over the network
+        TransactionPrepareWrapperCallback callback = ts.getPrepareWrapperCallback();
+        if (callback.isInitialized()) {
+            callback.run(Integer.valueOf(this.partitionId));
+        }
+
+        return (true);
     }
         
     /**
@@ -3513,7 +3606,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param ts
      * @param commit
      */
-    private void finishTransaction(AbstractTransaction ts, boolean commit) {
+    private void finishTransaction(AbstractTransaction ts, Status status) {
         assert(ts != null) :
             "Unexpected null transaction handle at partition " + this.partitionId;
         assert(ts.isInitialized()) :
@@ -3522,93 +3615,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
         
         // This can be null if they haven't submitted anything
+        boolean commit = (status == Status.OK);
         long undoToken = (commit ? ts.getLastUndoToken(this.partitionId) :
                                    ts.getFirstUndoToken(this.partitionId));
         
         // Only commit/abort this transaction if:
-        //  (1) We have an ExecutionEngine handle
         //  (2) We have the last undo token used by this transaction
         //  (3) The transaction was executed with undo buffers
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
-        if (ts.hasExecutedWork(this.partitionId) && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-            // If the txn is completely read-only and they didn't use undo-logging, then
-            // there is nothing that we need to do, except to check to make sure we aren't
-            // trying to abort this txn
-            if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
-                // SANITY CHECK: Make sure that they're not trying to undo a transaction that
-                // modified the database but did not use undo logging
-                if (ts.isExecReadOnly(this.partitionId) == false && commit == false) {
-                    String msg = String.format("TRYING TO ABORT TRANSACTION ON PARTITION %d WITHOUT UNDO LOGGING [undoToken=%d]",
-                                               this.partitionId, undoToken); 
-                    LOG.fatal(msg + "\n" + ts.debug());
-                    this.crash(new ServerFaultException(msg, ts.getTransactionId()));
-                }
-                if (d) LOG.debug(String.format("%s - undoToken == DISABLE_UNDO_LOGGING_TOKEN", ts));
-            }
-            // COMMIT / ABORT
-            else {
-                boolean needs_profiling = false;
-                if (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ((LocalTransaction)ts).profiler != null) {
-                    needs_profiling = true;
-                    ((LocalTransaction)ts).profiler.startPostEE();
-                }
-                assert(this.lastCommittedUndoToken != undoToken) :
-                    String.format("Trying to %s undoToken %d for %s twice at partition %d",
-                                  (commit ? "commit" : "abort"), undoToken, ts, this.partitionId);
-                
-                // COMMIT!
-                if (commit) {
-                    if (d) {
-                        LOG.debug(String.format("%s - Committing txn on partition %d with undoToken %d " +
-                                  "[lastCommittedTxnId=%d / lastCommittedUndoToken=%d]%s",
-              		              ts, this.partitionId, undoToken,
-                		          this.lastCommittedTxnId, this.lastCommittedUndoToken,
-                		          (ts instanceof LocalTransaction ? " - " + ((LocalTransaction)ts).getSpeculativeType() : "")));
-                        if (this.specExecBlocked.isEmpty() == false && ts.isPredictSinglePartition() == false) {
-                            LOG.debug(String.format("%s - # of Speculatively Executed Txns: %d ", ts, this.specExecBlocked.size()));
-                        }
-                    }
-                        
-                    if (this.lastCommittedUndoToken > undoToken) {
-                    	LOG.warn( String.format("Trying to commit undoToken %d for %s but it is less than the " +
-                    			"last committed undoToken %d at partition %d",
-                    			undoToken, ts, this.lastCommittedUndoToken, this.partitionId));
-                    } else {
-                    	this.ee.releaseUndoToken(undoToken);
-                    	this.lastCommittedUndoToken = undoToken;
-                    }
-                }
-                // ABORT!
-                else {
-                    // Evan says that txns will be aborted LIFO. This means the first txn that
-                    // we get in abortWork() will have a the greatest undoToken, which means that 
-                    // it will automagically rollback all other outstanding txns.
-                    // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
-                    // we should be able to check whether our undoToken has already been rolled back
-                    if (d) LOG.debug(String.format("%s - Aborting txn on partition %d with undoToken %d " +
-                                     "[lastCommittedTxnId=%d / lastCommittedUndoToken=%d]%s",
-                                     ts, this.partitionId, undoToken,
-                                     this.lastCommittedTxnId, this.lastCommittedUndoToken,
-                                     (ts instanceof LocalTransaction ? " - " + ((LocalTransaction)ts).getSpeculativeType() : "")));
-                    if (this.specExecBlocked.isEmpty() == false && ts.isPredictSinglePartition() == false) {
-                        LOG.info(String.format("%s - # of Speculatively Executed Txns: %d ", ts, this.specExecBlocked.size()));
-                    }
-                    assert(this.lastCommittedUndoToken < undoToken) :
-                        String.format("Trying to abort undoToken %d for %s but it is less than the " +
-                                  "last committed undoToken %d at partition %d",
-                                  undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
-                    this.ee.undoUndoToken(undoToken);
-                }
-                if (needs_profiling) ((LocalTransaction)ts).profiler.stopPostEE();
-            }
+        if (ts.needsFinish(this.partitionId) && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+            if (d) LOG.debug(String.format("%s - Invoking EE to finish work for txn [%s / speculative=%s]",
+                             ts, status, ts.isSpeculative()));
+            this.finishWorkEE(ts, undoToken, commit);
         }
-        
         if (hstore_conf.site.exec_profiling) {
-            if (this.profiler.idle_2pc_local_time.isStarted()) 
-                this.profiler.idle_2pc_local_time.stop();
-            if (this.profiler.idle_2pc_remote_time.isStarted())
-                this.profiler.idle_2pc_remote_time.stop();
+            this.profiler.idle_2pc_local_time.stopIfStarted();
+            this.profiler.idle_2pc_remote_time.stopIfStarted();
         }
         
         // We always need to do the following things regardless if we hit up the EE or not
@@ -3619,25 +3642,303 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     }
     
     /**
+     * The real method that actually reaches down into the EE and commits/undos the changes 
+     * for the given token.
+     * Unless you know what you're doing, you probably want to be calling finishTransaction()
+     * instead of calling this directly.
+     * @param ts
+     * @param undoToken
+     * @param commit
+     */
+    private void finishWorkEE(AbstractTransaction ts, long undoToken, boolean commit) {
+        assert(ts.isMarkedFinished(this.partitionId) == false) :
+            String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
+        
+        // If the txn is completely read-only and they didn't use undo-logging, then
+        // there is nothing that we need to do, except to check to make sure we aren't
+        // trying to abort this txn
+        if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
+            // SANITY CHECK: Make sure that they're not trying to undo a transaction that
+            // modified the database but did not use undo logging
+            if (ts.isExecReadOnly(this.partitionId) == false && commit == false) {
+                String msg = String.format("TRYING TO ABORT TRANSACTION ON PARTITION %d WITHOUT UNDO LOGGING [undoToken=%d]",
+                                           this.partitionId, undoToken); 
+                LOG.fatal(msg + "\n" + ts.debug());
+                this.crash(new ServerFaultException(msg, ts.getTransactionId()));
+            }
+            if (d) LOG.debug(String.format("%s - undoToken == DISABLE_UNDO_LOGGING_TOKEN", ts));
+        }
+        // COMMIT / ABORT
+        else {
+            boolean needs_profiling = false;
+            if (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ((LocalTransaction)ts).profiler != null) {
+                needs_profiling = true;
+                ((LocalTransaction)ts).profiler.startPostEE();
+            }
+            assert(this.lastCommittedUndoToken != undoToken) :
+                String.format("Trying to %s undoToken %d for %s twice at partition %d",
+                              (commit ? "COMMIT" : "ABORT"), undoToken, ts, this.partitionId);
+            
+            // COMMIT!
+            if (commit) {
+                if (d) {
+                    LOG.debug(String.format("%s - COMMITING txn on partition %d with undoToken %d " +
+                              "[lastTxnId=%d / lastUndoToken=%d / dtxn=%s]%s",
+                              ts, this.partitionId, undoToken,
+                              this.lastCommittedTxnId, this.lastCommittedUndoToken, this.currentDtxn,
+                              (ts instanceof LocalTransaction ? " - " + ((LocalTransaction)ts).getSpeculativeType() : "")));
+                    if (this.specExecBlocked.isEmpty() == false && ts.isPredictSinglePartition() == false) {
+                        LOG.debug(String.format("%s - # of Speculatively Executed Txns: %d ", ts, this.specExecBlocked.size()));
+                    }
+                }
+                    
+                assert(this.lastCommittedUndoToken < undoToken) :
+                    String.format("Trying to commit undoToken %d for %s but it is less than the " +
+                                  "last committed undoToken %d at partition %d\n" +
+                                  "Last Committed Txn: %d",
+                                  undoToken, ts, this.lastCommittedUndoToken, this.partitionId,
+                                  this.lastCommittedTxnId);
+                this.ee.releaseUndoToken(undoToken);
+                this.lastCommittedUndoToken = undoToken;
+            }
+            // ABORT!
+            else {
+                // Evan says that txns will be aborted LIFO. This means the first txn that
+                // we get in abortWork() will have a the greatest undoToken, which means that 
+                // it will automagically rollback all other outstanding txns.
+                // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
+                // we should be able to check whether our undoToken has already been rolled back
+                if (d) {
+                    LOG.debug(String.format("%s - ABORTING txn on partition %d with undoToken %d " +
+                              "[lastTxnId=%d / lastUndoToken=%d / dtxn=%s]%s",
+                              ts, this.partitionId, undoToken,
+                              this.lastCommittedTxnId, this.lastCommittedUndoToken, this.currentDtxn,
+                              (ts instanceof LocalTransaction ? " - " + ((LocalTransaction)ts).getSpeculativeType() : "")));
+                    if (this.specExecBlocked.isEmpty() == false && ts.isPredictSinglePartition() == false) {
+                        LOG.debug(String.format("%s - # of Speculatively Executed Txns: %d ", ts, this.specExecBlocked.size()));
+                    }
+                }
+                assert(this.lastCommittedUndoToken < undoToken) :
+                    String.format("Trying to abort undoToken %d for %s but it is less than the " +
+                                  "last committed undoToken %d at partition %d" + 
+                                  "Last Committed Txn: %d",
+                                  undoToken, ts, this.lastCommittedUndoToken, this.partitionId,
+                                  this.lastCommittedTxnId);
+                this.ee.undoUndoToken(undoToken);
+            }
+            if (needs_profiling) ((LocalTransaction)ts).profiler.stopPostEE();
+        }
+    }
+    
+    /**
      * Somebody told us that our partition needs to abort/commit the given transaction id.
      * This method should only be used for distributed transactions, because
      * it will do some extra work for speculative execution
-     * @param txn_id
-     * @param commit If true, the work performed by this txn will be commited. Otherwise it will be aborted
+     * @param ts - The transaction to finish up.
+     * @param status - The final status of the transaction
      */
-    private void finishDistributedTransaction(AbstractTransaction ts, Status status) {
-        boolean commit = (status == Status.OK);
-        if (this.currentDtxn == ts) {  
-            if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d [status=%s]",
+    private void finishDistributedTransaction(final AbstractTransaction ts, final Status status) {
+        if (this.currentDtxn != ts) {
+            if (d) LOG.debug(String.format("%s - Hackishly skipping finishWork request at partition %d [status=%s]",
                              ts, this.partitionId, status));
+//            assert(this.specExecBlocked.isEmpty()) :
+//                String.format("Expected current DTXN to be %s but it was %s and we have %s speculative txns blocked!",
+//                              ts, this.currentDtxn, this.specExecBlocked.size());
+        }
+        else {
+            // assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
+            boolean commit = (status == Status.OK);
+            if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d " +
+            		         "[status=%s / readOnly=%s]",
+                             ts, this.partitionId,
+                             status, ts.isExecReadOnly(this.partitionId)));
+            
+            // 2012-11-22 -- Yes, today is Thanksgiving and I'm working on my database.
+            // That's just grad student life I guess. Anyway, if you're reading this then 
+            // you know that this is an important part of the system. We have a dtxn that 
+            // we have been told is completely finished and now we need to either commit 
+            // or abort any changes that it may have made at this partition. The tricky thing 
+            // is that if we have speculative execution enabled, then we need to make sure
+            // that we process any transactions that were executed while the dtxn was running
+            // in the right order to ensure that we maintain serializability.
+            // Here is the basic logic of what's about to happen:
+            // 
+            //  (1) If the dtxn is commiting, then we just need to commit the the last txn that 
+            //      was executed (since this will have the largest undo token).
+            //      The EE will automatically commit all undo tokens less than that.
+            //  (2) If the dtxn is aborting, then we can commit any speculative txn that was 
+            //      executed before the dtxn's first non-readonly undo token.
+            //  
+            //  Note that none of the speculative txns in the blocked queue will need to be
+            //  aborted at this point, because we will have rolled back their changes immediately 
+            //  when they aborted, so that our dtxn doesn't read dirty data.  
+            if (this.specExecBlocked.isEmpty() == false) {
+                // First thing we need to do is get the latch that will be set by any transaction
+                // that was in the middle of being executed when we were called
+                if (d) LOG.debug(String.format("%s - Checking %d blocked speculative transactions at partition %d currentMode=%s]",
+                		         ts, this.specExecBlocked.size(), this.partitionId, this.currentExecMode));
+                
+                LocalTransaction spec_ts = null;
+                ClientResponseImpl spec_cr = null;
+                
+                // -------------------------------
+                // DTXN NON-READ-ONLY ABORT
+                // If the dtxn did not modify this partition, then everthing can commit 
+                // Otherwise, we want to commit anything that was executed before the dtxn started
+                // -------------------------------
+                if (commit == false && ts.isExecReadOnly(this.partitionId) == false) {
+                    // We need to get the first undo tokens for our distributed transaction
+                    long dtxnUndoToken = ts.getFirstUndoToken(this.partitionId);
+                    if (d) LOG.debug(String.format("%s - Looking for speculative txns to commit before we rollback undoToken %d",
+                                     ts, dtxnUndoToken));
+                    
+                    long spec_token;
+                    long max_token = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
+                    LocalTransaction max_ts = null;
+                    for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
+                        spec_ts = pair.getFirst(); 
+                        spec_token = spec_ts.getFirstUndoToken(this.partitionId);
+                        if (t) LOG.trace(String.format("Speculative Txn %s [undoToken=%d / %s]",
+                                         spec_ts, spec_token, spec_ts.getSpeculativeType()));
+                        
+                        // Speculative txns should never be executed without an undo token
+                        assert(spec_token != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN);
+                        assert(spec_ts.isSpeculative()) : spec_ts + " isn't marked as speculative!";
+                        
+                        // If the speculative undoToken is null, then this txn didn't execute
+                        // any queries. That means we can always commit it
+                        // We need to keep track of what the last undoToken was when this txn started.
+                        // That will tell us what version of the database this txn read from. 
+                        if (spec_token == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || spec_token < dtxnUndoToken) {
+                            tmp_toCommit.push(pair);
+                            if (spec_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN && spec_token > max_token) {
+                                max_token = spec_token;
+                                max_ts = spec_ts;
+                            }
+                        }
+                        else {
+                            tmp_toRestart.push(pair);
+                        }
+                    } // FOR
+                    if (d) LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be committed " +
+                                     "*before* we abort this txn",
+                                     ts, tmp_toCommit.size(), this.partitionId));
     
-            assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
-    
-            // TODO: If the dtxn is committing, then we can let anything and
-            // everything out the door. If it is aborting, then we probably could
-            // be more fine-grained about how we decide what needs to get aborted.
-            boolean commitSpecExec = (ts.isExecReadOnly(this.partitionId) ? true : commit);
-            this.finishTransaction(ts, commit);
+                    // Commit the greatest token that we've seen. This means that
+                    // all our other txns can be safely processed without needing
+                    // to go down in the EE
+                    if (max_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+                        assert(max_ts != null);
+                        this.finishWorkEE(max_ts, max_token, true);
+                    }
+                    
+                    // Process all the txns that need to be committed
+                    Pair<LocalTransaction, ClientResponseImpl> pair = null;
+                    while ((pair = tmp_toCommit.pollFirst()) != null) {
+                        spec_ts = pair.getFirst(); 
+                        spec_cr = pair.getSecond();
+                        spec_ts.markFinished(this.partitionId);
+                        
+                        try {
+                            if (hstore_conf.site.exec_postprocessing_threads) {
+                                if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
+                                                 ts, spec_ts, spec_cr.getStatus()));
+                                hstore_site.responseQueue(spec_ts, spec_cr);
+                            }
+                            else {
+                                if (t) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                                 ts, spec_ts, spec_cr.getStatus()));
+                                this.processClientResponse(spec_ts, spec_cr);
+                            }
+                        } catch (Throwable ex) {
+                            String msg = "Failed to complete queued response for " + spec_ts;
+                            throw new ServerFaultException(msg, ex, ts.getTransactionId());
+                        }
+                    } // FOR
+                    
+                    // (2) Abort the distributed txn
+                    this.finishTransaction(ts, status);
+                    
+                    // (3) Restart all the other txns
+                    while ((pair = tmp_toRestart.pollFirst()) != null) {
+                        spec_ts = pair.getFirst(); 
+                        spec_cr = pair.getSecond();
+                        
+                        MispredictionException error = new MispredictionException(spec_ts.getTransactionId(), spec_ts.getTouchedPartitions());
+                        spec_ts.setPendingError(error, false);
+                        spec_cr.setStatus(Status.ABORT_MISPREDICT);
+                        this.processClientResponse(spec_ts, spec_cr);
+                    } // FOR
+                }
+                // -------------------------------
+                // DTXN READ-ONLY ABORT or DTXN COMMIT
+                // -------------------------------
+                else {
+                    // **IMPORTANT**
+                    // If the dtxn needs to commit, then all we need to do is get the 
+                    // last undoToken that we've generated (since we know that it had to 
+                    // have been used either by our distributed txn or for one of our 
+                    // speculative txns).
+                    //
+                    // If the read-only dtxn needs to abort, then there's nothing we need to
+                    // do, because it didn't make any changes. That means we can just
+                    // commit the last speculatively executed transaction
+                    //
+                    // Once we have this token, we can just make a direct call to the EE
+                    // to commit any changes that came before it. Note that we are using our
+                    // special 'finishWorkEE' method that does not require us to provide
+                    // the transaction that we're committing.
+                    long undoToken = this.lastUndoToken;
+                    if (d) LOG.debug(String.format("%s - Last undoToken at partition %d => %d",
+                                     ts, this.partitionId, undoToken));
+                    // Bombs away!
+                    if (undoToken != this.lastCommittedUndoToken) {
+                        this.finishWorkEE(ts, undoToken, true);
+                    }
+                    
+                    // Make sure that we mark the dtxn as finished so that we don't
+                    // try to do anything with it later on.
+                    ts.markFinished(this.partitionId);
+                
+                    // Now make sure that all of the speculative txns are processed without 
+                    // committing (since we just committed any change that they could have made
+                    // up above).
+                    Pair<LocalTransaction, ClientResponseImpl> pair = null;
+                    while ((pair = this.specExecBlocked.pollFirst()) != null) {
+                        spec_ts = pair.getFirst();
+                        spec_cr = pair.getSecond();
+                        spec_ts.markFinished(this.partitionId);
+                        try {
+                            if (hstore_conf.site.exec_postprocessing_threads) {
+                                if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
+                                                 ts, spec_ts, spec_cr.getStatus()));
+                                hstore_site.responseQueue(spec_ts, spec_cr);
+                            }
+                            else {
+                                if (t) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                                 ts, spec_ts, spec_cr.getStatus()));
+                                this.processClientResponse(spec_ts, spec_cr);
+                            }
+                        } catch (Throwable ex) {
+                            String msg = "Failed to complete queued response for " + spec_ts;
+                            throw new ServerFaultException(msg, ex, ts.getTransactionId());
+                        }
+                    } // WHILE
+                }
+                this.specExecBlocked.clear();
+                this.specExecModified = false;
+                if (t) LOG.trace(String.format("Finished processing all queued speculative txns for dtxn %s", ts));
+            }
+            // -------------------------------
+            // NO SPECULATIVE TXNS
+            // -------------------------------
+            else {
+                // There are no speculative txns waiting for this dtxn, 
+                // so we can just commit it right away
+                if (t) LOG.trace(String.format("%s - No speculative txns at partition %d. Just %s txn by itself",
+                                 ts, this.partitionId, (commit ? "commiting" : "aborting")));
+                this.finishTransaction(ts, status);
+            }
             
             // Clear our cached query results that are specific for this transaction
             this.queryCache.purgeTransaction(ts.getTransactionId());
@@ -3648,18 +3949,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             // Check whether this is the response that the speculatively executed txns have been waiting for
             // We could have turned off speculative execution mode beforehand 
-            if (d) LOG.debug(String.format("%s - Attempting to unmark as the current DTXN at partition %d and setting execution mode to %s",
+            if (d) LOG.debug(String.format("%s - Attempting to unmark as the current DTXN at partition %d and " +
+            		         "setting execution mode to %s",
                              ts, this.partitionId, ExecutionMode.COMMIT_ALL));
             try {
                 // Resetting the current_dtxn variable has to come *before* we change the execution mode
                 this.resetCurrentDtxn();
                 this.setExecutionMode(ts, ExecutionMode.COMMIT_ALL);
-                
-                // We can always commit our boys no matter what if we know that this multi-partition txn 
-                // was read-only at the given partition
-                if (hstore_conf.site.specexec_enable) {
-                    this.releaseQueuedResponses(ts, commitSpecExec);
-                }
+    
                 // Release blocked transactions
                 this.releaseBlockedTransactions(ts);
             } catch (Throwable ex) {
@@ -3667,26 +3964,41 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
             }
         }
-        else if (d) {
-            LOG.debug(String.format("%s - Skipping finishWork request at partition %d because it is not the current Dtxn [%s/undoToken=%d]",
-                     ts, this.partitionId, this.currentDtxn, ts.getLastUndoToken(partitionId)));
-        }
         
         // We only need to tell the queue stuff that the transaction is finished
         // if it's not a commit because there won't be a 2PC:PREPARE message
-        if (commit == false) {
-            this.hstore_site.getTransactionQueueManager().lockQueueFinished(ts, status, this.partitionId);
+        if (d) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
+                         ts, this.partitionId));
+        if (ts.isInitialized()) {
+            this.queueManager.lockQueueFinished(ts, status, this.partitionId);
         }
         
-        // If we have a cleanup callback, then invoke that
-        if (ts.getCleanupCallback() != null) {
+        // -------------------------------
+        // FINISH/CLEANUP CALLBACKS
+        // -------------------------------
+        
+        // RemoteTransaction
+        if (ts instanceof RemoteTransaction) {
+            TransactionCleanupCallback callback = ((RemoteTransaction)ts).getCleanupCallback();
             if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                             ts, ts.getCleanupCallback().getClass().getSimpleName(), this.partitionId));
-            ts.getCleanupCallback().run(this.partitionId);
+                             ts, callback.getClass().getSimpleName(), this.partitionId));
+            callback.run(this.partitionId);
         }
-        // If it's a LocalTransaction, then we'll want to invoke their TransactionFinishCallback 
+        // MapReduceTransaction
+        else if (ts instanceof MapReduceTransaction) {
+            TransactionCleanupCallback callback = ((MapReduceTransaction)ts).getCleanupCallback();
+            // We don't want to invoke this callback at the basePartition's site
+            // because we don't want the parent txn to actually get deleted.
+            if (this.partitionId == ts.getBasePartition()) {
+                if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                                 ts, callback.getClass().getSimpleName(), this.partitionId));
+                callback.run(this.partitionId);
+            }
+        }
+        // LocalTransaction
         else if (ts instanceof LocalTransaction) {
-            TransactionFinishCallback callback = ((LocalTransaction)ts).getTransactionFinishCallback();
+            // If it's a LocalTransaction, then we'll want to invoke their TransactionFinishCallback
+            LocalTransactionFinishCallback callback = ((LocalTransaction)ts).getTransactionFinishCallback();
             if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
                              ts, callback.getClass().getSimpleName(), this.partitionId));
             callback.decrementCounter(1);
@@ -3721,126 +4033,81 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.currentBlockedTxns.isEmpty());
     }
     
-    /**
-     * Commit/abort all of the queue transactions that were specutatively executed and waiting for
-     * their responses to be sent back to the client
-     * @param commit
-     */
-    private void releaseQueuedResponses(final AbstractTransaction parent_ts,
-                                        final boolean commit) {
-        // First thing we need to do is get the latch that will be set by any transaction
-        // that was in the middle of being executed when we were called
-        if (d) LOG.debug(String.format("%s - Checking waiting/blocked transactions at partition %d [currentMode=%s]",
-                         parent_ts, this.partitionId, this.currentExecMode));
-        
-        if (this.specExecBlocked.isEmpty()) {
-            if (t) LOG.trace(String.format("%s - No speculative transactions to commit at partition %d",
-                             parent_ts, this.partitionId));
-            return;
-        }
-        
-        // Ok now at this point we can access our queue send back all of our responses
-        if (d) LOG.debug(String.format("%s - %s %d speculatively executed transactions on partition %d",
-                         parent_ts, (commit ? "Commiting" : "Aborting"), this.specExecBlocked.size(), this.partitionId));
-
-        // Loop backwards through our queued responses and find the latest txn that 
-        // we need to tell the EE to commit. All ones that completed before that won't
-        // have to hit up the EE.
-        Pair<LocalTransaction, ClientResponseImpl> pair = null;
-        LocalTransaction ts = null;
-        ClientResponseImpl cr = null;
-        long undoToken;
-//        boolean ee_commit = true;
-        int txn_ctr = 0;
-        int skip_ctr = 0;
-        int abort_ctr = 0;
-        
-        while ((pair = this.specExecBlocked.pollFirst()) != null) {
-            ts = pair.getFirst();
-            cr = pair.getSecond();
-            undoToken = ts.getLastUndoToken(this.partitionId);
-            txn_ctr++;
-            assert(cr.getStatus() == Status.OK) :
-                String.format("Speculatively executed txn %s did not succeed [status=%s]",
-                              ts, cr.getStatus());
-            
-            // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
-            // I am getting a random error.
-            // FIXME if (hstore_conf.site.txn_profiling && ts.profiler.finish_time.isStopped()) ts.profiler.finish_time.start();
-            
-            // If the distributed txn aborted, then we need to abort everything in our queue
-            // Change the status to be a MISPREDICT so that they get executed again
-            if (commit == false) {
-                // TODO: We compare the read/write sets for this txn and the aborting dtxn 
-                //       to see if we are be able to avoid cascading the abort if one of the
-                //       following conditions is true:
-                //  (1) If this txn didn't read any table that the dtxn wrote to.
-                //  (2) If this txn didn't write to any table that the dtxn to.
-                
-                // We're going to assume that any transaction that didn't mispredict
-                // was single-partitioned. We'll use their TouchedPartitions histogram
-                if (cr.getStatus() != Status.ABORT_MISPREDICT) {
-                    MispredictionException error = new MispredictionException(ts.getTransactionId(), ts.getTouchedPartitions());
-                    ts.setPendingError(error, false);
-                    cr.setStatus(Status.ABORT_MISPREDICT);
-                }
-                abort_ctr++;
-            }
-            // OPTIMIZATION
-            // If we're committing and this txn's last undo token comes before the 
-            // last undo token for this partition, then we don't need to do anything
-            else if (commit && 
-                     undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN && 
-                     undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN &&
-                     undoToken < this.lastCommittedUndoToken) {
-                
-                if (t) LOG.trace(String.format("%s - Bypassing EE commit for %s because its undo token is before " +
-                		         "the last committed token [%d < %d]",
-                                 parent_ts, ts, undoToken, this.lastCommittedUndoToken));
-                ts.unmarkExecutedWork(this.partitionId);
-                skip_ctr++;
-            }
-            // OPTIMIZATION
-            // Check whether the last element in the list is a commit. 
-            // If it is, then we know that we don't need to tell the EE about all the ones that executed before it
-//            else if (hstore_conf.site.exec_queued_response_ee_bypass) {
-//                // Don't tell the EE that we committed
-//                if (ee_commit == false) {
-//                    if (t) LOG.trace(String.format("%s - Bypassing EE commit for %s undoToken=%d]",
-//                                     parent_ts, ts, ts.getLastUndoToken(this.partitionId)));
-//                    ts.unmarkExecutedWork(this.partitionId);
-//                    skip_ctr++;
-//                    
+//    /**
+//     * Commit/abort all of the queue transactions that were specutatively executed and waiting for
+//     * their responses to be sent back to the client
+//     * @param commit
+//     */
+//    private void releaseQueuedResponses(final AbstractTransaction parent_ts,
+//                                        final boolean commit) {
+//        
+//        // Ok now at this point we can access our queue send back all of our responses
+//        if (d) LOG.debug(String.format("%s - %s %d speculatively executed transactions on partition %d",
+//                         parent_ts, (commit ? "Commiting" : "Aborting"), this.specExecBlocked.size(), this.partitionId));
+//
+//        LocalTransaction ts = null;
+//        ClientResponseImpl cr = null;
+//        int txn_ctr = 0;
+//        Pair<LocalTransaction, ClientResponseImpl> pair = null;
+//        
+//        while ((pair = this.specExecBlocked.pollFirst()) != null) {
+//            ts = pair.getFirst();
+//            cr = pair.getSecond();
+//            txn_ctr++;
+//            assert(cr.getStatus() == Status.OK) :
+//                String.format("Speculatively executed txn %s did not succeed [status=%s]",
+//                              ts, cr.getStatus());
+//        
+//            
+//            if (t) LOG.trace(String.format("%s - Bypassing EE commit for %s because its undo token is before " +
+//                             "the last committed token [XXX < %d]",
+//                             parent_ts, ts, this.lastCommittedUndoToken));
+//            ts.unmarkExecutedWork(this.partitionId);
+//            
+//            // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
+//            // I am getting a random error.
+//            // FIXME if (hstore_conf.site.txn_profiling && ts.profiler.finish_time.isStopped()) ts.profiler.finish_time.start();
+//            
+//            // If the distributed txn aborted, then we need to abort everything in our queue
+//            // Change the status to be a MISPREDICT so that they get executed again
+//            if (commit == false) {
+//                // TODO: We compare the read/write sets for this txn and the aborting dtxn 
+//                //       to see if we are be able to avoid cascading the abort if one of the
+//                //       following conditions is true:
+//                //  (1) If this txn didn't read any table that the dtxn wrote to.
+//                //  (2) If this txn didn't write to any table that the dtxn to.
+//                
+//                // We're going to assume that any transaction that didn't mispredict
+//                // was single-partitioned. We'll use their TouchedPartitions histogram
+//                if (cr.getStatus() != Status.ABORT_MISPREDICT) {
+//                    MispredictionException error = new MispredictionException(ts.getTransactionId(), ts.getTouchedPartitions());
+//                    ts.setPendingError(error, false);
+//                    cr.setStatus(Status.ABORT_MISPREDICT);
 //                }
-//                else if (ee_commit && cr.getStatus() == Status.OK) {
-//                    if (t) LOG.trace(String.format("%s - Committing %s but will bypass all other successful transactions " +
-//                    		         "[undoToken=%d]",
-//                                     parent_ts, ts, ts.getLastUndoToken(this.partitionId)));
-//                    ee_commit = false;
-//                }
+//                abort_ctr++;
 //            }
-            
-            try {
-                if (hstore_conf.site.exec_postprocessing_threads) {
-                    if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
-                                     parent_ts, ts, cr.getStatus()));
-                    hstore_site.responseQueue(ts, cr);
-                }
-                else {
-                    if (t) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                     parent_ts, ts, cr.getStatus()));
-                    this.processClientResponse(ts, cr);
-                }
-            } catch (Throwable ex) {
-                String msg = "Failed to complete queued response for " + ts;
-                throw new ServerFaultException(msg, ex, parent_ts.getTransactionId());
-            }
-        } // WHILE
-        if (d && txn_ctr > 0)
-            LOG.debug(String.format("%s - Released %d blocked ClientResponses [skipCommit=%d / aborted=%d]",
-                      parent_ts, txn_ctr, skip_ctr, abort_ctr));
-        return;
-    }
+//
+//            try {
+//                if (hstore_conf.site.exec_postprocessing_threads) {
+//                    if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
+//                                     parent_ts, ts, cr.getStatus()));
+//                    hstore_site.responseQueue(ts, cr);
+//                }
+//                else {
+//                    if (t) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+//                                     parent_ts, ts, cr.getStatus()));
+//                    this.processClientResponse(ts, cr);
+//                }
+//            } catch (Throwable ex) {
+//                String msg = "Failed to complete queued response for " + ts;
+//                throw new ServerFaultException(msg, ex, parent_ts.getTransactionId());
+//            }
+//        } // WHILE
+//        if (d && txn_ctr > 0)
+//            LOG.debug(String.format("%s - Released %d blocked ClientResponses [skipCommit=%d / aborted=%d]",
+//                      parent_ts, txn_ctr, skip_ctr, abort_ctr));
+//        return;
+//    }
     
     // ---------------------------------------------------------------
     // SNAPSHOT METHODS
@@ -3980,12 +4247,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         public Long getCurrentTxnId() {
             return (PartitionExecutor.this.currentTxnId);
         }
-        public int getBlockedQueueSize() {
+        public int getBlockedWorkCount() {
             return (PartitionExecutor.this.currentBlockedTxns.size());
         }
-        public int getWaitingQueueSize() {
+        /**
+         * Return the number of spec exec txns have completed but are waiting
+         * for the distributed txn to finish at this partition
+         */
+        public int getBlockedSpecExecCount() {
             return (PartitionExecutor.this.specExecBlocked.size());
         }
+//        public Collection<Pair<LocalTransaction, ClientResponseImpl>> getBlockedSpecExecTxns() {
+//            Collection<Pair<LocalTransaction, ClientResponseImpl>> ret = new ArrayList<Pair<LocalTransaction,ClientResponseImpl>>(PartitionExecutor.this.specExecBlocked);
+//            return (ret);
+//        }
         public int getWorkQueueSize() {
             return (PartitionExecutor.this.work_queue.size());
         }

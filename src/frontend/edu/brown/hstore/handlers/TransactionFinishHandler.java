@@ -25,8 +25,12 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         LoggerUtil.attachObserver(LOG, debug);
     }
     
-    final PartitionSet finishPartitions = new PartitionSet();
     final AbstractDispatcher<Object[]> finishDispatcher;
+    
+    // Reusable container for the partitions that we need to
+    // use to tell the HStoreSite that we're finished with
+    // This is thread-safe
+    final PartitionSet finishPartitions = new PartitionSet();
     
     public TransactionFinishHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, AbstractDispatcher<Object[]> finishDispatcher) {
         super(hstore_site, hstore_coord);
@@ -34,40 +38,43 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     }
     
     @Override
-    public void sendLocal(Long txn_id, TransactionFinishRequest request, PartitionSet partitions, RpcCallback<TransactionFinishResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionFinishRequest request, PartitionSet partitions,
+                          RpcCallback<TransactionFinishResponse> callback) {
         hstore_site.transactionFinish(txn_id, request.getStatus(), partitions);
     }
     @Override
-    public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionFinishRequest request, RpcCallback<TransactionFinishResponse> callback) {
+    public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionFinishRequest request,
+                           RpcCallback<TransactionFinishResponse> callback) {
         channel.transactionFinish(controller, request, callback);
     }
     @Override
-    public void remoteQueue(RpcController controller, TransactionFinishRequest request, RpcCallback<TransactionFinishResponse> callback) {
+    public void remoteQueue(RpcController controller, TransactionFinishRequest request,
+                            RpcCallback<TransactionFinishResponse> callback) {
         if (this.finishDispatcher != null && request.getStatus() == Status.ABORT_RESTART) {
             if (debug.get())
                 LOG.debug(String.format("Queuing %s for txn #%d [status=%s]",
-                                        request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
+                          request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
             Object o[] = { controller, request, callback };
             this.finishDispatcher.queue(o);
         } else {
             if (debug.get())
                 LOG.debug(String.format("Sending %s to remote handler for txn #%d [status=%s]",
-                                        request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
+                          request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
             this.remoteHandler(controller, request, callback);
         }
     }
     @Override
     public void remoteHandler(RpcController controller, TransactionFinishRequest request,
-            RpcCallback<TransactionFinishResponse> callback) {
+                              RpcCallback<TransactionFinishResponse> callback) {
         assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         long txn_id = request.getTransactionId();
         if (debug.get())
             LOG.debug(String.format("Got %s for txn #%d [status=%s]",
-                                    request.getClass().getSimpleName(), txn_id, request.getStatus()));
+                      request.getClass().getSimpleName(), txn_id, request.getStatus()));
         
         this.finishPartitions.clear();
         this.finishPartitions.addAll(request.getPartitionsList());
-        hstore_site.transactionFinish(txn_id, request.getStatus(), finishPartitions);
+        hstore_site.transactionFinish(txn_id, request.getStatus(), this.finishPartitions);
         
         // Send back a FinishResponse to let them know we're cool with everything...
         TransactionFinishResponse.Builder builder = TransactionFinishResponse.newBuilder()
@@ -77,8 +84,8 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         } // FOR
         if (debug.get())
             LOG.debug(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
-                                    TransactionFinishResponse.class.getSimpleName(), txn_id,
-                                    request.getStatus(), builder.getPartitionsList()));
+                      TransactionFinishResponse.class.getSimpleName(), txn_id,
+                      request.getStatus(), builder.getPartitionsList()));
         callback.run(builder.build());
     }
     @Override

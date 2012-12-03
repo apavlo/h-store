@@ -67,7 +67,6 @@ public class TestHStoreSite extends BaseTestCase {
         new Long(3)  // END_TIME
     );
 
-    
     @Before
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
@@ -80,6 +79,7 @@ public class TestHStoreSite extends BaseTestCase {
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.pool_profiling = true;
+        this.hstore_conf.site.pool_txn_enable = true;
         this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.status_interval = 4000;
         this.hstore_conf.site.anticache_enable = false;
@@ -253,8 +253,12 @@ public class TestHStoreSite extends BaseTestCase {
         // Check to make sure that we reject a bunch of txns that all of our
         // handles end up back in the object pool. To do this, we first need
         // to set the PartitionExecutor's to reject all incoming txns
-        hstore_conf.site.network_incoming_max_per_partition = 1;
-        hstore_conf.site.txn_restart_limit = 1;
+        // hstore_conf.site.network_incoming_max_per_partition = 4;
+        hstore_conf.site.txn_restart_limit = 0;
+        hstore_conf.site.queue_dtxn_increase = 0;
+        hstore_conf.site.queue_dtxn_max_per_partition = 1;
+        hstore_conf.site.exec_force_allpartitions = true;
+        hstore_conf.site.network_txn_initialization = true;
         hstore_site.updateConf(hstore_conf);
 
         final Set<LocalTransaction> expectedHandles = new HashSet<LocalTransaction>(); 
@@ -310,6 +314,7 @@ public class TestHStoreSite extends BaseTestCase {
 //        System.err.println("--------------------------------------------");
         
         System.err.println(statusHistogram);
+        System.err.println(hstore_site.statusSnapshot());
         assertTrue("Timed out [latch="+latch.getCount() + "]", result);
         assertNotSame(0, expectedHandles.size());
         assertNotSame(0, expectedIds.size());
@@ -318,7 +323,10 @@ public class TestHStoreSite extends BaseTestCase {
         
         // HACK: Wait a little to know that the periodic thread has attempted
         // to clean-up our deletable txn handles
-        ThreadUtil.sleep(5000);
+        int sleepTime = 5000;
+        System.err.printf("Sleeping for %.1f seconds... ", sleepTime/1000d);
+        ThreadUtil.sleep(sleepTime);
+        System.err.println("Awake!");
 
         assertEquals(0, hstore_debug.getDeletableTxnCount());
         assertEquals(0, hstore_debug.getInflightTxnCount());
@@ -329,13 +337,15 @@ public class TestHStoreSite extends BaseTestCase {
         assertEquals("RESTART", 0, queue_debug.getRestartQueueSize());
         
         // Check to make sure that all of our handles are not initialized
-        for (LocalTransaction ts : expectedHandles) {
-            assertNotNull(ts);
-            if (ts.isInitialized()) {
-                System.err.println(ts.debug());
-            }
-            assertFalse(ts.debug(), ts.isInitialized());
-        } // FOR
+        // XXX: We only need to do this if object pooling is enabled
+        if (hstore_conf.site.pool_txn_enable) {
+            System.err.println("Checking whether object pools are cleaned up...");
+            for (LocalTransaction ts : expectedHandles) {
+                assertNotNull(ts);
+                if (ts.isInitialized()) System.err.println(ts.debug());
+                assertFalse(ts.debug(), ts.isInitialized());
+            } // FOR
+        }
         
         // Then check to make sure that there aren't any active objects in the
         // the various object pools

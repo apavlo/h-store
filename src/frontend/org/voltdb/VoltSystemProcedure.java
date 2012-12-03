@@ -222,7 +222,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.disableProfiling();
         
         // Bombs away!
-        return (this.executor.dispatchWorkFragments(ts, 1, this.fragments, parameters));
+        return (this.executor.dispatchWorkFragments(ts, parameters, 1, this.fragments));
     }
     
     /**

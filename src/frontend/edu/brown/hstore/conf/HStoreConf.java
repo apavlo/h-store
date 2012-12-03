@@ -43,6 +43,16 @@ public final class HStoreConf {
     public final class GlobalConf extends Conf {
         
         @ConfigProperty(
+            description="What version of the Java JDK should be used in this H-Store installation. " +
+                        "Accepted values are '1.6' or '1.7'. This will only be used when compiling " +
+                        "the system source code. It is up to you to configure your environment " +
+                        "appropriately to match whatever this is used for this option.",
+            defaultString="1.7",
+            experimental=false
+        )
+        public String jvm_version;
+        
+        @ConfigProperty(
             description="Temporary directory used to store various artifacts related to H-Store.",
             defaultString="obj",
             experimental=false
@@ -96,6 +106,14 @@ public final class HStoreConf {
             experimental=false
         )
         public int log_refresh;
+        
+        @ConfigProperty(
+            description="Measure all latencies using nanoseconds instead of milliseconds.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean nanosecond_latencies;
+
     }
     
     // ============================================================================
@@ -160,21 +178,6 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean cpu_affinity_one_partition_per_core;
-        
-        @ConfigProperty(
-                description="Speculative pollicy to pick the transactions to run speculatively. " +
-                		"It should be one of ('FIRST', 'SHORTEST', 'LONGEST')" ,
-                defaultString="FIRST",
-                experimental=false
-            )
-        public String specexec_scheduler_policy;
-        
-        @ConfigProperty(
-                description="The window size to pick up txn to run speculatively. ",
-                defaultInt= 10,
-                experimental=false
-            )
-        public int specexec_scheduler_window;
         
         @ConfigProperty(
             description="Enable profiling for the HStoreSite. " +
@@ -474,7 +477,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="", // TODO
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=true
         )
         public boolean specexec_pre_query;
@@ -486,6 +489,21 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean specexec_profiling;
+        
+        @ConfigProperty(
+            description="Speculative pollicy to pick the transactions to run speculatively. " +
+                    "It should be one of ('FIRST', 'SHORTEST', 'LONGEST')" ,
+            defaultString="FIRST",
+            experimental=false
+        )
+        public String specexec_scheduler_policy;
+        
+        @ConfigProperty(
+            description="The window size to pick up txn to run speculatively. ",
+            defaultInt= 10,
+            experimental=false
+        )
+        public int specexec_scheduler_window;
         
         // ----------------------------------------------------------------------------
         // Command Logging Options
@@ -704,49 +722,49 @@ public final class HStoreConf {
         )
         public boolean queue_profiling;
         
-        @ConfigProperty(
-            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
-                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
-            defaultInt=250,
-            experimental=false
-        )
-        @Deprecated
-        public int queue_incoming_max_per_partition;
-        
-        @ConfigProperty(
-            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
-                        "will not accept new requests until the number of queued transactions is less than " +
-                        "this percentage. This includes all transactions that are waiting to be executed, " +
-                        "executing, and those that have already executed and are waiting for their results " +
-                        "to be sent back to the client. The incoming queue release is calculated as " +
-                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
-            defaultDouble=0.75,
-            experimental=false
-        )
-        @Deprecated
-        public double queue_incoming_release_factor;
-        
-        @ConfigProperty(
-            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
-                        "for that transaction's base partition is empty (i.e., the PartitionExecutor is idle). " +
-                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
-                        "value by this amount. The release limit will also be recalculated using the new value " +
-                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
-                        "the first non-data loading transaction has been issued from the clients.",
-            defaultInt=100,
-            experimental=false
-        )
-        @Deprecated
-        public int queue_incoming_increase;
-        
-        @ConfigProperty(
-            description="The maximum amount that the ${site.queue_incoming_max_per_partition} parameter " +
-                        "can be increased by per partition.",
-            defaultInt=500,
-            experimental=false
-        )
-        @Deprecated
-        public int queue_incoming_increase_max;
+//        @ConfigProperty(
+//            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+//                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
+//            defaultInt=250,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int queue_incoming_max_per_partition;
+//        
+//        @ConfigProperty(
+//            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
+//                        "will not accept new requests until the number of queued transactions is less than " +
+//                        "this percentage. This includes all transactions that are waiting to be executed, " +
+//                        "executing, and those that have already executed and are waiting for their results " +
+//                        "to be sent back to the client. The incoming queue release is calculated as " +
+//                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
+//            defaultDouble=0.75,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public double queue_incoming_release_factor;
+//        
+//        @ConfigProperty(
+//            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
+//                        "for that transaction's base partition is empty (i.e., the PartitionExecutor is idle). " +
+//                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
+//                        "value by this amount. The release limit will also be recalculated using the new value " +
+//                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
+//                        "the first non-data loading transaction has been issued from the clients.",
+//            defaultInt=100,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int queue_incoming_increase;
+//        
+//        @ConfigProperty(
+//            description="The maximum amount that the ${site.queue_incoming_max_per_partition} parameter " +
+//                        "can be increased by per partition.",
+//            defaultInt=500,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int queue_incoming_increase_max;
         
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
@@ -1100,6 +1118,14 @@ public final class HStoreConf {
         public boolean pool_profiling;
         
         @ConfigProperty(
+            description="Whether to enable object pooling for AbstractTransaction handles. This includes" +
+            		    "all local transactions, remote transactions, and MapReduce transactions.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean pool_txn_enable;
+        
+        @ConfigProperty(
             description="The max number of LocalTransaction handles to keep in the pool per partition.",
             defaultInt=150,
             experimental=false
@@ -1163,22 +1189,22 @@ public final class HStoreConf {
         )
         public int pool_txnredirectresponses_idle;
         
-        @ConfigProperty(
-            description="The max number of TransactionInitCallbacks to keep idle in the pool.",
-            defaultInt=1000,
-            experimental=false
-        )
-        @Deprecated
-        public int pool_txninit_idle;
-        
-        @ConfigProperty(
-            description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
-            defaultInt=1000,
-            experimental=false,
-            replacedBy="site.pool_txninitqueue_idle"
-        )
-        @Deprecated
-        public int pool_txninitwrapper_idle;
+//        @ConfigProperty(
+//            description="The max number of TransactionInitCallbacks to keep idle in the pool.",
+//            defaultInt=1000,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int pool_txninit_idle;
+//        
+//        @ConfigProperty(
+//            description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
+//            defaultInt=1000,
+//            experimental=false,
+//            replacedBy="site.pool_txninitqueue_idle"
+//        )
+//        @Deprecated
+//        public int pool_txninitwrapper_idle;
         
         @ConfigProperty(
             description="The max number of TransactionInitQueueCallbacks to keep idle in the pool.",
@@ -1187,20 +1213,14 @@ public final class HStoreConf {
         )
         public int pool_txninitqueue_idle;
         
-        @ConfigProperty(
-            description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
-            defaultInt=1000,
-            experimental=false
-        )
-        @Deprecated
-        public int pool_txnprepare_idle;
-        
-        @ConfigProperty(
-            description="The max number of ParameterSets to keep idle in the pool.",
-            defaultInt=1000,
-            experimental=false
-        )
-        public int pool_parametersets_idle;
+//        @ConfigProperty(
+//            description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
+//            defaultInt=1000,
+//            experimental=false
+//        )
+//        @Deprecated
+//        public int pool_txnprepare_idle;
+
     }
     
     // ============================================================================
@@ -1558,13 +1578,6 @@ public final class HStoreConf {
         public boolean output_clients;
         
         @ConfigProperty(
-            description="Include latency measurements in output.",
-            defaultBoolean=true,
-            experimental=false
-        )
-        public boolean output_latencies;
-        
-        @ConfigProperty(
             description="Output a histogram at the end of a benchmark run of the number of transactions " +
             		    "that each partition executed.",
             defaultBoolean=false,
@@ -1576,9 +1589,19 @@ public final class HStoreConf {
             description="Output a histogram at the end of a benchmark run of the different transaction " +
             		    "response status codes that the database returned to the clients.",
             defaultBoolean=false,
+            replacedBy="client.output_status",
             experimental=false
         )
+        @Deprecated
         public boolean output_response_status;
+        
+        @ConfigProperty(
+            description="Output a histogram at the end of a benchmark run of the different transaction " +
+                        "response status codes that the database returned to the clients.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_status;
         
         @ConfigProperty(
             description="Include the percentage of txns that were speculatively executed. " +
@@ -1602,6 +1625,14 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean output_csv;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+            		    "the complete listing of all transactions executed by the clients.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_full_csv;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +

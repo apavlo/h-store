@@ -64,7 +64,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
+import edu.brown.hstore.callbacks.LocalTransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -120,7 +120,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     private boolean needs_restart = false; // FIXME
-    private boolean deletable = false; // FIXME
     
     /**
      * Is this transaction part of a large MapReduce transaction  
@@ -229,14 +228,6 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc,
                                  ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
-
-        assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
-        
-        this.initiateTime = initiateTime;
-        this.catalog_proc = catalog_proc;
-        this.client_callback = client_callback;
-        this.mapreduce = catalog_proc.getMapreduce();
-        
         super.init(txn_id,
                    clientHandle,
                    base_partition,
@@ -247,14 +238,21 @@ public class LocalTransaction extends AbstractTransaction {
                    predict_abortable,
                    true);
         
+        this.initiateTime = initiateTime;
+        this.client_callback = client_callback;
+        this.mapreduce = catalog_proc.getMapreduce();
         
         // Grab a DistributedState that will have all the goodies that we need
         // to execute a distributed transaction
         if (this.predict_singlePartition == false) {
             try {
-                this.dtxnState = hstore_site.getObjectPools()
-                                            .getDistributedStatePool(base_partition)
-                                            .borrowObject(); 
+                if (hstore_site.getHStoreConf().site.pool_txn_enable) {
+                    this.dtxnState = hstore_site.getObjectPools()
+                                                .getDistributedStatePool(base_partition)
+                                                .borrowObject();
+                } else {
+                    this.dtxnState = new DistributedState(hstore_site);
+                }
                 this.dtxnState.init(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
@@ -321,16 +319,11 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     @Override
-    public boolean isInitialized() {
-        return (this.catalog_proc != null && super.isInitialized());
-    }
-    
-    @Override
     public void finish() {
         if (d) LOG.debug(String.format("%s - Invoking finish() cleanup", this));
         
         // Return our DistributedState
-        if (this.dtxnState != null) {
+        if (this.dtxnState != null && hstore_site.getHStoreConf().site.pool_txn_enable) {
             hstore_site.getObjectPools()
                        .getDistributedStatePool(this.base_partition)
                        .returnObject(this.dtxnState);
@@ -340,7 +333,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.resetExecutionState();
         super.finish();
         
-        this.catalog_proc = null;
         this.client_callback = null;
         this.initiateTime = 0;
         this.cresponse = null;
@@ -355,7 +347,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.anticache_table = null;
         this.log_enabled = false;
         this.needs_restart = false;
-        this.deletable = false;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -426,6 +417,17 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public void initRound(int partition, long undoToken) {
+        if (d) LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
+                                       this, this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                                       partition, undoToken));
+        
+        // SAME SITE, DIFFERENT PARTITION
+        if (this.base_partition != partition) {
+            super.initRound(partition, undoToken);
+            return;
+        }
+        
+        // SAME SITE, SAME PARTITION
         // They are allowed to not have the ExecutionState handle if this partition is
         // executing a prefetchable query, which may be queued up before the
         // transaction's control code starts executing
@@ -440,40 +442,38 @@ public class LocalTransaction extends AbstractTransaction {
                                this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
                                this, this.state.queued_results.size());
         }
-
-        if (d) LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
-                                       this, this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
-                                       partition, undoToken));
         
         super.initRound(partition, undoToken);
         
-        if (this.base_partition == partition) {
-            // Reset these guys here so that we don't waste time in the last round
-            if (this.getLastUndoToken(partition) != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-                this.state.clearRound();
-            }
+        // We have to store all of the tasks in the TransactionState before we start executing, otherwise
+        // there is a race condition that a task with input dependencies will start running as soon as we
+        // get one response back from another executor
+        // Reset these guys here so that we don't waste time in the last round
+        if (this.getLastUndoToken(partition) != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+            this.state.clearRound();
         }
     }
     
-    /**
-     * Fast-path round initialization. This should be called when the next
-     * batch contains only local, single-partition queries
-     * @param partition
-     * @param undoToken
-     */
-    public void fastInitRound(int partition, long undoToken) {
-        super.initRound(partition, undoToken);
-    }
+//    /**
+//     * Fast-path round initialization. This should be called when the next
+//     * batch contains only local, single-partition queries. It will not reset
+//     * the ExecutionState information (since it's not needed) 
+//     * @param partition
+//     * @param undoToken
+//     */
+//    public void fastInitRound(int partition, long undoToken) {
+//        super.initRound(partition, undoToken);
+//    }
     
     @Override
     public void startRound(int partition) {
-        // Same site, different partition
+        // SAME SITE, DIFFERENT PARTITION
         if (this.base_partition != partition) {
             super.startRound(partition);
             return;
         }
         
-        // Same site, same partition
+        // SAME SITE, SAME PARTITION
         int base_partition_offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.state.output_order.isEmpty());
         assert(this.state.batch_size > 0);
@@ -528,30 +528,25 @@ public class LocalTransaction extends AbstractTransaction {
         if (d) LOG.debug(String.format("%s - Finishing ROUND #%d on partition %d", 
                                        this, this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)], partition));
         
-        if (this.base_partition == partition) {
-            // Same site, same partition
-            assert(this.state.dependency_ctr == this.state.received_ctr) :
-                String.format("Trying to finish ROUND #%d on partition %d for %s before it was started",
-                              this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
-                              partition, this);
-            assert(this.state.queued_results.isEmpty()) :
-                String.format("Trying to finish ROUND #%d on partition %d for %s but there are %d queued results",
-                              this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
-                              partition, this, this.state.queued_results.size());
+        // SAME SITE, DIFFERENT PARTITION
+        if (this.base_partition != partition) {
+            // This doesn't need to be synchronized because we know that only our
+            // thread should be calling this
+            super.finishRound(partition);
+            return;
         }
         
-        // This doesn't need to be synchronized because we know that only our
-        // thread should be calling this
+        // SAME SITE, SAME PARTITION
+        assert(this.state.dependency_ctr == this.state.received_ctr) :
+            String.format("Trying to finish ROUND #%d on partition %d for %s before it was started",
+                          this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                          partition, this);
+        assert(this.state.queued_results.isEmpty()) :
+            String.format("Trying to finish ROUND #%d on partition %d for %s but there are %d queued results",
+                          this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                          partition, this, this.state.queued_results.size());
+        
         super.finishRound(partition);
-        
-        // Same site, different partition
-        if (this.base_partition != partition) return;
-        
-//        if (this.predict_singlePartition == false) {
-//            for (int i = 0; i < this.state.batch_size; i++) {
-//                this.state.dinfo_lastRound[i] = -1;
-//            } // FOR
-//        }
         
         if (this.predict_singlePartition == false) this.state.lock.lock();
         try {
@@ -646,7 +641,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param status
      * @return
      */
-    public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
+    public LocalTransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
         assert(this.dtxnState != null) :
             "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized() == false) :
@@ -657,7 +652,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.dtxnState.finish_callback.init(this, status);
         return (this.dtxnState.finish_callback);
     }
-    public TransactionFinishCallback getTransactionFinishCallback() {
+    public LocalTransactionFinishCallback getTransactionFinishCallback() {
         assert(this.dtxnState != null) :
             "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized()) :
@@ -700,13 +695,13 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.exec_controlCode);
     }
     
-    @Override
-    public boolean needsFinish(int partition) {
-        if (this.base_partition == partition) {
-            return (this.exec_controlCode);
-        }
-        return super.needsFinish(partition);
-    }
+//    @Override
+//    public boolean needsFinish(int partition) {
+//        if (this.base_partition == partition) {
+//            return (this.exec_controlCode);
+//        }
+//        return super.needsFinish(partition);
+//    }
     
     /**
      * Mark this transaction as needing to be restarted. This will prevent it from
@@ -727,13 +722,8 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
 
-    /**
-     * Note that this will only return true once and only once for each transaction invocation.
-     */
+    @Override
     public boolean isDeletable() {
-        if (super.isDeletable() == false) {
-            return (false);
-        }
         if (this.dtxnState != null) {
             if (this.dtxnState.init_callback.allCallbacksFinished() == false) {
                 if (t) LOG.warn(String.format("%s - %s is not finished", this,
@@ -755,13 +745,9 @@ public class LocalTransaction extends AbstractTransaction {
             if (t) LOG.warn(String.format("%s - Needs restart, can't delete now", this));
             return (false);
         }
-        if (this.deletable) return (false);
-        this.deletable = true;
-        return (true);
+        return (super.isDeletable());
     }
-    public final boolean checkDeletableFlag() {
-        return (this.deletable);
-    }
+
 
     /**
      * Returns true if this transaction is part of a MapReduce transaction 
@@ -840,12 +826,6 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.state.dependencies.get(d_id));
     }
 
-    @Override
-    public boolean isExecReadOnly(int partition) {
-        if (catalog_proc.getReadonly()) return (true);
-        return super.isExecReadOnly(partition);
-    }
-    
     /**
      * Returns true if this Transaction has executed only on a single-partition
      * @return
@@ -878,6 +858,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Returns true if this transaction was executed speculatively
      */
+    @Override
     public boolean isSpeculative() {
         return (this.exec_specExecType != SpeculationType.NULL);
     }
@@ -1006,7 +987,9 @@ public class LocalTransaction extends AbstractTransaction {
                          this, results.length));
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        boolean nonblocking = (hstore_conf.site.specexec_nonblocking && this.catalog_proc.getSystemproc() == false && this.profiler != null);
+        boolean nonblocking = (hstore_conf.site.specexec_nonblocking &&
+                               this.isSysProc() == false &&
+                               this.profiler != null);
         for (int stmt_index = 0; stmt_index < results.length; stmt_index++) {
             Integer dependency_id = this.state.output_order.get(stmt_index);
             assert(dependency_id != null) :
@@ -1127,12 +1110,12 @@ public class LocalTransaction extends AbstractTransaction {
         // *********************************** DEBUG ***********************************
         if (d) {
             CatalogType catalog_obj = null;
-            if (catalog_proc.getSystemproc()) {
-                catalog_obj = catalog_proc;
+            if (this.isSysProc()) {
+                catalog_obj = this.getProcedure();
             } else {
                 for (int i = 0; i < num_fragments; i++) {
                     int frag_id = fragment.getFragmentId(i);
-                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(this.getProcedure(), frag_id);
                     catalog_obj = catalog_frag.getParent();
                     if (catalog_obj != null) break;
                 } // FOR
@@ -1408,7 +1391,7 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public String toStringImpl() {
-        return String.format("%s #%d/%d", this.catalog_proc.getName(),
+        return String.format("%s #%d/%d", this.getProcedure().getName(),
                                           this.txn_id,
                                           this.base_partition);
     }
@@ -1428,7 +1411,6 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Predict Read Only", this.isPredictReadOnly());
         m.put("Predict Abortable", this.isPredictAbortable());
         m.put("Restart Counter", this.restart_ctr);
-        m.put("Deletable", this.deletable);
         m.put("Needs Restart", this.needs_restart);
         m.put("Needs CommandLog", this.log_enabled);
         m.put("Speculative Execution", this.exec_specExecType);
@@ -1477,7 +1459,7 @@ public class LocalTransaction extends AbstractTransaction {
             sb.append(StringUtil.SINGLE_LINE);
             String stmt_debug[] = new String[this.state.batch_size];
             
-            VoltProcedure voltProc = state.executor.getVoltProcedure(catalog_proc.getName());
+            VoltProcedure voltProc = state.executor.getVoltProcedure(this.getProcedure().getName());
             assert(voltProc != null);
             SQLStmt stmts[] = voltProc.voltLastQueriesExecuted();
             

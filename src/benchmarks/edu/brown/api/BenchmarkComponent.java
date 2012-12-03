@@ -67,6 +67,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
@@ -88,6 +89,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
 import edu.brown.api.results.BenchmarkComponentResults;
+import edu.brown.api.results.ResponseEntries;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hstore.HStoreConstants;
@@ -126,7 +128,7 @@ public abstract class BenchmarkComponent {
     private static Client globalClient;
     private static final ReentrantLock globalClientLock = new ReentrantLock();
     
-    private static Catalog globalCatalog;
+    private static CatalogContext globalCatalog;
     private static final ReentrantLock globalCatalogLock = new ReentrantLock();
     
     private static PartitionPlan globalPartitionPlan;
@@ -169,13 +171,13 @@ public abstract class BenchmarkComponent {
         return (client);
     }
     
-    private static Catalog getCatalog(File catalogPath) {
+    private static CatalogContext getCatalog(File catalogPath) {
         // Read back the catalog and populate catalog object
         if (globalCatalog == null) {
             globalCatalogLock.lock();
             try {
                 if (globalCatalog == null) {
-                    globalCatalog = CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
+                    globalCatalog = CatalogUtil.loadCatalogContextFromJar(catalogPath);
                 }
             } finally {
                 globalCatalogLock.unlock();
@@ -293,7 +295,7 @@ public abstract class BenchmarkComponent {
      * Path to catalog jar
      */
     private final File m_catalogPath;
-    private Catalog m_catalog;
+    private CatalogContext m_catalog;
     private final String m_projectName;
     
     final boolean m_exitOnCompletion;
@@ -330,6 +332,12 @@ public abstract class BenchmarkComponent {
     private final Histogram<String> m_tableBytes = new Histogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
     protected final BenchmarkComponentResults m_txnStats;
+    
+    /**
+     * ClientResponse Entries
+     */
+    protected final ResponseEntries m_responseEntries;
+    private boolean m_enableResponseEntries = false;
 
     private final Map<String, ProfileMeasurement> computeTime = new HashMap<String, ProfileMeasurement>();
     
@@ -374,6 +382,7 @@ public abstract class BenchmarkComponent {
         m_tickInterval = -1;
         m_tickThread = null;
         m_txnStats = null;
+        m_responseEntries = null;
         m_tableStats = false;
         m_tableStatsDir = null;
         m_noUploading = false;
@@ -650,6 +659,10 @@ public abstract class BenchmarkComponent {
         if (m_countDisplayNames != null) {
             m_txnStats = new BenchmarkComponentResults(m_countDisplayNames.length);
             Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
+            
+            m_enableResponseEntries = (m_hstoreConf.client.output_full_csv != null);
+            m_responseEntries = new ResponseEntries();
+            
             for (int i = 0; i < m_countDisplayNames.length; i++) {
                 m_txnStats.transactions.put(i, 0);
                 m_txnStats.dtxns.put(i, 0);
@@ -657,12 +670,12 @@ public abstract class BenchmarkComponent {
             } // FOR
             m_txnStats.transactions.setDebugLabels(debugLabels);
             m_txnStats.dtxns.setDebugLabels(debugLabels);
-            
-            m_txnStats.setEnableLatencies(m_hstoreConf.client.output_latencies);
             m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
-            m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_response_status);
+            m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_status);
+            
         } else {
             m_txnStats = null;
+            m_responseEntries = null;
         }
         
         // If we need to call tick more frequently than when POLL is called,
@@ -757,7 +770,7 @@ public abstract class BenchmarkComponent {
                         this.getProjectName(),
                         (m_isLoader ? "LOADER" : "CLIENT"),
                         m_statsPollerInterval,
-                        m_catalog);
+                        m_catalog.catalog);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to initialize StatsUploader", ex);
             }
@@ -830,11 +843,11 @@ public abstract class BenchmarkComponent {
     // CONTROLLER COMMUNICATION METHODS
     // ----------------------------------------------------------------------------
     
-    public void printControlMessage(ControlState state) {
+    protected void printControlMessage(ControlState state) {
         printControlMessage(state, null);
     }
     
-    public void printControlMessage(ControlState state, String message) {
+    private void printControlMessage(ControlState state, String message) {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("%s %d,%d,%s", CONTROL_MESSAGE_PREFIX,
                                                this.getClientId(),
@@ -846,17 +859,23 @@ public abstract class BenchmarkComponent {
         System.out.println(sb);
     }
     
-    public void answerWithError() {
+    protected void answerWithError() {
         this.printControlMessage(m_controlState, m_reason);
     }
 
-    public void answerPoll() {
+    protected void answerPoll() {
         BenchmarkComponentResults copy = this.m_txnStats.copy();
         this.m_txnStats.clear(false);
         this.printControlMessage(m_controlState, copy.toJSONString());
     }
-
-    public void answerOk() {
+    
+    protected void answerDumpTxns() {
+        ResponseEntries copy = new ResponseEntries(this.m_responseEntries);
+        this.m_responseEntries.clear();
+        this.printControlMessage(ControlState.DUMPING, copy.toJSONString());
+    }
+    
+    protected void answerOk() {
         this.printControlMessage(m_controlState, "OK");
     }
 
@@ -884,11 +903,13 @@ public abstract class BenchmarkComponent {
      * @param cresponse - The ClientResponse returned from the server
      * @param txn_idx
      */
-    protected final void incrementTransactionCounter(ClientResponse cresponse, int txn_idx) {
+    protected final void incrementTransactionCounter(final ClientResponse cresponse, final int txn_idx) {
         // Only include it if it wasn't rejected
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
         Status status = cresponse.getStatus();
         if (status == Status.OK || status == Status.ABORT_USER) {
+            
+            // TRANSACTION COUNTERS
             boolean is_specexec = (cresponse.hasDebug() && cresponse.getDebug().isSpeculative()); 
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.put(txn_idx);
@@ -898,21 +919,32 @@ public abstract class BenchmarkComponent {
                 if (is_specexec) m_txnStats.specexecs.put(txn_idx);
             } // SYNCH
 
-            if (m_txnStats.isLatenciesEnabled()) {
-                Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
-                if (latencies == null) {
-                    synchronized (m_txnStats.latencies) {
-                        latencies = m_txnStats.latencies.get(txn_idx);
-                        if (latencies == null) {
-                            latencies = new Histogram<Integer>();
-                            m_txnStats.latencies.put(txn_idx, latencies);
-                        }
-                    } // SYNCH
-                }
-                synchronized (latencies) {
-                    latencies.put(cresponse.getClusterRoundtrip());
+            // LATENCIES COUNTERS
+            Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
+            if (latencies == null) {
+                synchronized (m_txnStats.latencies) {
+                    latencies = m_txnStats.latencies.get(txn_idx);
+                    if (latencies == null) {
+                        latencies = new Histogram<Integer>();
+                        m_txnStats.latencies.put(txn_idx, latencies);
+                    }
                 } // SYNCH
             }
+            // Ignore zero latencies... Not sure why this happens...
+            int latency = cresponse.getClusterRoundtrip();
+            if (latency > 0) {
+                synchronized (latencies) {
+                    latencies.put(latency);
+                } // SYNCH
+            }
+            
+            // RESPONSE ENTRIES
+            if (m_enableResponseEntries) {
+                long timestamp = System.currentTimeMillis();
+                m_responseEntries.add(cresponse, m_id, txn_idx, timestamp);
+            }
+            
+            // BASE PARTITIONS
             if (m_txnStats.isBasePartitionsEnabled()) {
                 synchronized (m_txnStats.basePartitions) {
                     m_txnStats.basePartitions.put(cresponse.getBasePartition());
@@ -1203,6 +1235,8 @@ public abstract class BenchmarkComponent {
     }
     
     protected final void invokeClearCallback() {
+        m_txnStats.clear(true);
+        m_responseEntries.clear();
         this.clearCallback();
     }
     
@@ -1387,10 +1421,10 @@ public abstract class BenchmarkComponent {
         if (m_catalog == null) {
             m_catalog = getCatalog(m_catalogPath);
         }
-        return (m_catalog);
+        return (m_catalog.catalog);
     }
-    public void setCatalog(Catalog catalog) {
-        m_catalog = catalog;
+    public void setCatalogContext(CatalogContext catalogContext) {
+        m_catalog = catalogContext;
     }
     public void applyPartitionPlan(File partitionPlanPath) {
         Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());

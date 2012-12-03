@@ -14,6 +14,7 @@ import org.voltdb.processtools.ProcessSetManager;
 
 import edu.brown.api.results.BenchmarkComponentResults;
 import edu.brown.api.results.BenchmarkResults;
+import edu.brown.api.results.ResponseEntries;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -50,6 +51,8 @@ public class ClientStatusThread extends Thread {
     private final BenchmarkResults m_currentResults;
     
     private final BenchmarkComponentResults tc = new BenchmarkComponentResults();
+    private final ResponseEntries responseEntries = new ResponseEntries();
+    private CountDownLatch responseEntriesLatch;
     
     public ClientStatusThread(BenchmarkController controller, int i) {
         super(String.format("client-status-%02d", i));
@@ -149,28 +152,44 @@ public class ClientStatusThread extends Thread {
                     break;
                 }
                 // ----------------------------------------------------------------------------
+                // DUMPING
+                // ----------------------------------------------------------------------------
+                case DUMPING: {
+                    ResponseEntries newEntries = new ResponseEntries();
+                    String json_line = getPayload(control_line, parts);
+                    JSONObject json_object;
+                    if (debug.get()) LOG.debug("Processing response dump");
+                    try {
+                        json_object = new JSONObject(json_line);
+                        newEntries.fromJSON(json_object, catalog_db);
+                    } catch (JSONException ex) {
+                        LOG.error("Invalid response:\n" + json_line);
+                        throw new RuntimeException(ex);
+                    }
+                    this.responseEntries.addAll(newEntries);
+                    if (this.responseEntriesLatch != null) this.responseEntriesLatch.countDown();
+                    resultsToRead.countDown();
+                    break;
+                }
+                // ----------------------------------------------------------------------------
                 // RUNNING
                 // ----------------------------------------------------------------------------
                 case RUNNING: {
                     // System.out.println("Got running message: " + Arrays.toString(parts));
                     if (parts[parts.length-1].equalsIgnoreCase("OK")) continue;
                     
-                    tc.clear(true);
-                    int offset = 1;
-                    for (int i = 0; i < 3; i++) {
-                        offset += parts[i].length() + 1;
-                    } // FOR
-                    String json_line = control_line.substring(offset);
+                    this.tc.clear(true);
+                    String json_line = getPayload(control_line, parts);
                     JSONObject json_object;
                     try {
                         json_object = new JSONObject(json_line);
-                        tc.fromJSON(json_object, catalog_db);
+                        this.tc.fromJSON(json_object, catalog_db);
                     } catch (JSONException ex) {
                         LOG.error("Invalid response:\n" + json_line);
                         throw new RuntimeException(ex);
                     }
                     assert(json_object != null);
-                    if (debug.get()) LOG.debug("Base Partitions:\n " + tc.basePartitions); 
+                    if (debug.get()) LOG.debug("Base Partitions:\n " + this.tc.basePartitions); 
                     
 //                    this.results.clear();
 //                    for (String txnName : tc.transactions.values()) {
@@ -179,7 +198,7 @@ public class ClientStatusThread extends Thread {
                     
                     try {
                         if (debug.get()) LOG.debug("UPDATE: " + line);
-                        this.addPollResponseInfo(clientName, time, tc, null);
+                        this.addPollResponseInfo(clientName, time, this.tc, null);
                     } catch (Throwable ex) {
                         List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);
                         LOG.error(String.format("Invalid response from '%s':\n%s\n%s\n", clientName, JSONUtil.format(json_object), line, results), ex);
@@ -207,6 +226,22 @@ public class ClientStatusThread extends Thread {
         if (debug.get())
             LOG.debug("Status thread is finished");
         this.finished = true;
+    }
+    
+    public ResponseEntries getResponseEntries() {
+        return (this.responseEntries);
+    }
+    
+    public void addResponseEntriesLatch(CountDownLatch latch) {
+        this.responseEntriesLatch = latch;
+    }
+    
+    String getPayload(String control_line, String parts[]) {
+        int offset = 1;
+        for (int i = 0; i < 3; i++) {
+            offset += parts[i].length() + 1;
+        } // FOR
+        return (control_line.substring(offset));
     }
     
     void addPollResponseInfo(String clientName, long time, BenchmarkComponentResults tc, String errMsg) {

@@ -42,6 +42,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.collections15.buffer.CircularFifoBuffer;
 import org.apache.log4j.Appender;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -86,8 +87,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
-import edu.brown.hstore.callbacks.TransactionCleanupCallback;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
+import edu.brown.hstore.callbacks.LocalTransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -219,6 +219,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final Queue<Long> deletable_txns[];
     
     private final List<Long> deletable_txns_requeue = new ArrayList<Long>();
+    
+    /**
+     * The list of the last txn ids that were successfully deleted
+     * This is primarily used for debugging
+     */
+    private final CircularFifoBuffer<String> deletable_last = new CircularFifoBuffer<String>(5);
     
     /**
      * Reusable Object Pools
@@ -1141,6 +1147,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private void initStatSources() {
         StatsSource statsSource = null;
+
+        // TXN PROFILERS
+        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
         
         // MEMORY
         statsSource = new MemoryStats();
@@ -1149,10 +1159,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TXN COUNTERS
         statsSource = new TransactionCounterStats(this.catalogContext);
         this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
-
-        // TXN PROFILERS
-        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
 
         // EXECUTOR PROFILERS
         statsSource = new PartitionExecutorProfilerStats(this);
@@ -1319,7 +1325,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.addAppender(appender);    
             } // FOR
         }
-        LOG.info("Flusing all logs");
+        if (d) LOG.debug("Preparing to shutdown. Flushing all logs");
         LoggerUtil.flushAllLogs();
         
         if (this.hstore_coordinator != null)
@@ -1359,6 +1365,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.executors[p].prepareShutdown(error);
         } // FOR
         
+        // *********************************** DEBUG *********************************** 
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        for (String txn : this.deletable_last) {
+            sb.append(String.format(" [%02d] %s\n", i++, txn));
+        }
+        LOG.info("Last Deleted Transactions:\n" + sb);
     }
     
     /**
@@ -1459,7 +1472,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
     
+    /**
+     * This is legacy method needed for using Evan's VoltProcedureListener.
+     */
     @Override
+    @Deprecated
     public void invocationQueue(ByteBuffer buffer, final RpcCallback<byte[]> clientCallback) {
         // XXX: This is a big hack. We should just deal with the ClientResponseImpl directly
         RpcCallback<ClientResponseImpl> wrapperCallback = new RpcCallback<ClientResponseImpl>() {
@@ -1500,7 +1517,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                ProfileMeasurement.swap(timestamp, this.profiler.network_idle_time, this.profiler.network_processing_time);
 //            }
 //        }
-        long timestamp = EstTime.currentTimeMillis();
+        
+        long timestamp = -1;
+        if (hstore_conf.global.nanosecond_latencies) {
+            timestamp = System.nanoTime();
+        } else {
+            timestamp = EstTime.currentTimeMillis();
+        }
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
@@ -1873,7 +1896,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                              ts, status, base_partition,
                              this.executors[base_partition].getDebugContext().getWorkQueueSize()));
             if (singlePartitioned == false) {
-                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+                LocalTransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
@@ -1979,32 +2002,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        TransactionFinishCallback finish_callback = null;
-        TransactionCleanupCallback cleanup_callback = null;
-        if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
-            if (t) LOG.trace(ts + " - Initializing the TransactionCleanupCallback");
-            // TODO(xin): We should not be invoking this callback at the basePartition's site
-            if ( !(ts instanceof MapReduceTransaction && this.isLocalPartition(ts.getBasePartition()))) {
-                cleanup_callback = ts.getCleanupCallback();
-                assert(cleanup_callback != null);
-                cleanup_callback.init(ts, status, partitions);
-            }
-        } else {
-            finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
-            assert(finish_callback != null);
-            if (t) LOG.trace(ts + " - Retrieved " + finish_callback);
-        }
-
+        // Set the status in case something goes awry and we just want
+        // to check whether this transaction is suppose to be aborted.
+        // This is needed by the TransactionCleanupCallbacks
         ts.setStatus(status);
-        for (int p : this.local_partitions.values()) {
-            if (partitions.contains(p) == false) continue;
-            if (t) LOG.trace(String.format("#%d - Invoking finish at partition %d", txn_id, p));
-            
-            // Then actually commit the transaction in the execution engine
-            // We only need to do this for distributed transactions, because all single-partition
-            // transactions will commit/abort immediately
-            if (ts.isPredictSinglePartition() == false && (hstore_conf.site.specexec_pre_query || ts.needsFinish(p))) {
-                if (t) LOG.trace(String.format("%s - Calling finishTransaction on partition %d", ts, p));
+        
+        // We only need to do this for distributed transactions, because all single-partition
+        // transactions will commit/abort immediately
+        if (ts.isPredictSinglePartition() == false) {
+            for (int p : this.local_partitions.values()) {
+                if (partitions.contains(p) == false) continue;
+                
+                // 2012-12-01
+                // We always want to queue up the transaction at the partition, even
+                // if it didn't actually do anything. We'll let the partition executor 
+                // sort those things out for us.
+                if (t) LOG.trace(String.format("%s - Queued transaction to get finished on partition %d", ts, p));
                 try {
                     this.executors[p].queueFinish(ts, status);
                 } catch (Throwable ex) {
@@ -2012,21 +2025,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                               ts, ts.hashCode(), status, partitions));
                     throw new RuntimeException(ex);
                 }
-            }
-            // If this is a LocalTransaction, then we want to just decrement their TransactionFinishCallback counter
-            else if (finish_callback != null) {
-                if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                                 ts, finish_callback.getClass().getSimpleName(), p));
-                finish_callback.decrementCounter(1);
-            }
-            // If we didn't queue the transaction to be finished at this partition, then we need to make sure
-            // that we mark the transaction as finished for this callback
-            else if (cleanup_callback != null) {
-                if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                                 ts, cleanup_callback.getClass().getSimpleName(), p));
-                cleanup_callback.run(p);
-            }
-        } // FOR            
+            } // FOR
+        }
     }
 
     // ----------------------------------------------------------------------------
@@ -2475,8 +2475,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                          (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null ?
                                  "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
         
-        long now = System.currentTimeMillis();
-        EstTimeUpdater.update(now);
+        long now = -1;
+        if (hstore_conf.global.nanosecond_latencies) {
+            now = System.nanoTime();
+        } else {
+            now = System.currentTimeMillis();
+            EstTimeUpdater.update(now);
+        }
         cresponse.setClusterRoundtrip((int)(now - initiateTime));
         cresponse.setRestartCounter(restartCounter);
         try {
@@ -2542,7 +2547,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private void deleteRemoteTransaction(RemoteTransaction ts, Status status) {
         // Nothing else to do for RemoteTransactions other than to just
         // return the object back into the pool
-        AbstractTransaction rm = this.inflight_txns.remove(ts.getTransactionId());
+        final Long txn_id = ts.getTransactionId();
+        AbstractTransaction rm = this.inflight_txns.remove(txn_id);
         if (d) LOG.debug(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
         EstimatorState t_state = ts.getEstimatorState(); 
@@ -2558,8 +2564,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
             } // FOR
         }
-        
-        // XXX this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
+        if (hstore_conf.site.pool_txn_enable) {
+            if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+                             ts, ts.getClass().getSimpleName(), ts.hashCode()));
+            this.deletable_last.add(ts.toString());
+            //this.deletable_last.add(ts.debug());
+            this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
+        }
         return;
     }
 
@@ -2569,6 +2580,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param status
      */
     private void deleteLocalTransaction(LocalTransaction ts, final Status status) {
+        final Long txn_id = ts.getTransactionId();
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
@@ -2651,10 +2663,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Pass...
         } finally {
             if (t_state != null && t_estimator != null) {
-                assert(ts.getTransactionId() == t_state.getTransactionId()) :
+                assert(txn_id == t_state.getTransactionId()) :
                     String.format("Unexpected mismatch txnId in %s [%d != %d]",
                                   t_state.getClass().getSimpleName(),
-                                  ts.getTransactionId(), t_state.getTransactionId());
+                                  txn_id, t_state.getTransactionId());
                 t_estimator.destroyEstimatorState(t_state);
             }
         }
@@ -2684,13 +2696,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 } // SWITCH
             }
             
-            if (ts.isExecNoUndoBuffer(base_partition)) TransactionCounter.NO_UNDO.inc(catalog_proc);
             if (ts.isSysProc()) {
                 TransactionCounter.SYSPROCS.inc(catalog_proc);
             } else if (status != Status.ABORT_MISPREDICT &&
                        status != Status.ABORT_REJECT &&
                        status != Status.ABORT_EVICTEDACCESS) {
                 (singlePartitioned ? TransactionCounter.SINGLE_PARTITION : TransactionCounter.MULTI_PARTITION).inc(catalog_proc);
+                
+                // Only count no-undo buffers for completed transactions
+                if (ts.isExecNoUndoBuffer(base_partition)) TransactionCounter.NO_UNDO.inc(catalog_proc);
             }
         }
         
@@ -2702,19 +2716,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
 
-        AbstractTransaction rm = this.inflight_txns.remove(ts.getTransactionId());
+        AbstractTransaction rm = this.inflight_txns.remove(txn_id);
         assert(rm == null || rm == ts) : String.format("%s != %s", ts, rm);
         if (t) LOG.trace(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
-        assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + ts.getTransactionId();
-        if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
-                         ts, ts.getClass().getSimpleName(), ts.hashCode()));
-        if (ts.isMapReduce()) {
-            objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
-        } else {
-            // XXX objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
+        assert(ts.isInitialized()) : "Trying to return uninitialized txn #" + txn_id;
+        if (hstore_conf.site.pool_txn_enable) {
+            if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+                             ts, ts.getClass().getSimpleName(), ts.hashCode()));
+            this.deletable_last.add(ts.toString());
+            // this.deletable_last.add(ts.debug());
+            if (ts.isMapReduce()) {
+                this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
+            } else {
+                this.objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
+            }
         }
-                
     }
 
     // ----------------------------------------------------------------------------
@@ -2739,12 +2756,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             checkForFinishedCompilerWork();
         }
         
+        // Don't delete anything if we're shutting down
+        // This is so that we can see the state of things right before we stopped
+        if (this.isShuttingDown()) {
+            if (d) LOG.warn(this.getSiteName() + " is shutting down. Suspending transaction handle cleanup");
+            return;
+        }
+        
         // Delete txn handles
         Long txn_id = null;
         if (hstore_conf.site.profiling) this.profiler.cleanup.start();
         for (Status status : Status.values()) {
             Queue<Long> queue = this.deletable_txns[status.ordinal()];
-            this.deletable_txns_requeue.clear();
             while ((txn_id = queue.poll()) != null) {
                 // It's ok for us to not have a transaction handle, because it could be
                 // for a remote transaction that told us that they were going to need one
@@ -2778,6 +2801,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (t) LOG.trace(String.format("Adding %d undeletable txns back to deletable queue",
                                  this.deletable_txns_requeue.size()));
                 queue.addAll(this.deletable_txns_requeue);
+                this.deletable_txns_requeue.clear();
             }
         } // FOR
         if (hstore_conf.site.profiling) this.profiler.cleanup.stop();
@@ -2869,6 +2893,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 total += deletable_txns[i].size();
             }
             return (total);
+        }
+        public Collection<String> getLastDeletedTxns() {
+            return (deletable_last);
         }
         
         /**

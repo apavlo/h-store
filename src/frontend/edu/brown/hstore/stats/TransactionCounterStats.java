@@ -19,15 +19,14 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.util.TransactionCounter;
-import edu.brown.utils.CollectionUtil;
 
 public class TransactionCounterStats extends StatsSource {
     
     private static final Set<TransactionCounter> COUNTER_EXCLUDE = new HashSet<TransactionCounter>();
     static {
-        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.SYSPROCS);
-//        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.BLOCKED_LOCAL);
-//        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.BLOCKED_REMOTE);
+        COUNTER_EXCLUDE.add(TransactionCounter.SYSPROCS);
+//        COUNTER_EXCLUDE.add(TransactionCounter.BLOCKED_LOCAL);
+//        COUNTER_EXCLUDE.add(TransactionCounter.BLOCKED_REMOTE);
     }
     
     private static class ProcedureRow {
@@ -61,6 +60,16 @@ public class TransactionCounterStats extends StatsSource {
             if (proc.getSystemproc()) continue;
             this.procedures.add(proc);
         } // FOR
+        
+        // Additional stuff to exclude
+//        HStoreConf hstore_conf = HStoreConf.singleton();
+//        if (hstore_conf.site.anticache_enable == false) {
+//            COUNTER_EXCLUDE.add(TransactionCounter.EVICTEDACCESS);
+//        }
+//        if (hstore_conf.site.exec_prefetch_queries == false) {
+//            COUNTER_EXCLUDE.add(TransactionCounter.PREFETCH_LOCAL);
+//            COUNTER_EXCLUDE.add(TransactionCounter.PREFETCH_REMOTE);
+//        }
     }
 
     @Override

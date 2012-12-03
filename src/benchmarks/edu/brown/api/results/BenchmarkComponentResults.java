@@ -38,14 +38,16 @@ public class BenchmarkComponentResults implements JSONSerializable {
      */
     public FastIntHistogram dtxns;
     
-    private boolean enableLatencies = false;
+    /**
+     * Transaction Name Index -> Latencies
+     */
     public final Map<Integer, Histogram<Integer>> latencies = new HashMap<Integer, Histogram<Integer>>();
     
-    private boolean enableBasePartitions = false;
     public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
+    private boolean enableBasePartitions = false;
     
-    private boolean enableResponseStatuses = false;
     public Histogram<String> responseStatuses = new Histogram<String>(true);
+    private boolean enableResponseStatuses = false;
 
     public BenchmarkComponentResults() {
         // Needed for deserialization
@@ -69,7 +71,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.dtxns.setDebugLabels(this.transactions.getDebugLabels());
         copy.dtxns.put(this.dtxns);
         
-        copy.enableLatencies = this.enableLatencies;
         copy.latencies.clear();
         for (Entry<Integer, Histogram<Integer>> e : this.latencies.entrySet()) {
             Histogram<Integer> h = new Histogram<Integer>();
@@ -86,13 +87,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.responseStatuses.put(this.responseStatuses);
         
         return (copy);
-    }
-    
-    public boolean isLatenciesEnabled() {
-        return (this.enableLatencies);
-    }
-    public void setEnableLatencies(boolean val) {
-        this.enableLatencies = val;
     }
     
     public boolean isBasePartitionsEnabled() {
@@ -138,7 +132,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
         String exclude[] = {
-            (this.enableLatencies == false ? "latencies" : ""),
             (this.enableBasePartitions == false ? "basePartitions" : ""),
             (this.enableResponseStatuses == false ? "responseStatuses" : ""),
         };
@@ -148,8 +141,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
         this.latencies.clear();
-        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true,
-                JSONUtil.getSerializableFields(this.getClass()));
+        Field fields[] = JSONUtil.getSerializableFields(this.getClass());
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true, fields);
         assert(this.transactions != null);
         assert(this.specexecs != null);
         assert(this.dtxns != null);

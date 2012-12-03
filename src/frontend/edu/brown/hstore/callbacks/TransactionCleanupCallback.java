@@ -22,8 +22,6 @@ public class TransactionCleanupCallback extends AbstractTransactionCallback<Abst
         LoggerUtil.attachObserver(LOG, debug);
     }
  
-    private Status status;
-    
     /**
      * Constructor
      * @param hstore_site
@@ -32,7 +30,7 @@ public class TransactionCleanupCallback extends AbstractTransactionCallback<Abst
         super(hstore_site);
     }
 
-    public void init(AbstractTransaction ts, Status status, PartitionSet partitions) {
+    public void init(AbstractTransaction ts, PartitionSet partitions) {
         // Only include local partitions
         int counter = 0;
         for (int p : hstore_site.getLocalPartitionIds().values()) {
@@ -40,13 +38,11 @@ public class TransactionCleanupCallback extends AbstractTransactionCallback<Abst
         } // FOR
         assert(counter > 0);
         super.init(ts, counter, null);
-        this.status = status;
     }
-    
     
     @Override
     protected void unblockTransactionCallback() {
-        hstore_site.queueDeleteTransaction(this.getTransactionId(), this.status);
+        hstore_site.queueDeleteTransaction(this.getTransactionId(), this.ts.getStatus());
     }
     
     @Override

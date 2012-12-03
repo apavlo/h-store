@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
@@ -23,7 +24,6 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.seats.procedures.DeleteReservation;
 import edu.brown.benchmark.seats.procedures.FindFlights;
 import edu.brown.benchmark.seats.procedures.FindOpenSeats;
-import edu.brown.benchmark.seats.procedures.GetTableCounts;
 import edu.brown.benchmark.seats.util.FlightId;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -245,17 +245,17 @@ public class TestSEATSSuite extends RegressionSuite {
         
     
     protected SEATSProfile loadDatabase() throws IOException, ProcCallException {
-        final Catalog catalog = this.getCatalog();
+        final CatalogContext catalogContext = this.getCatalogContext();
         final Client client = this.getClient();
         SEATSProfile.clearCachedProfile();
         SEATSLoader loader = new SEATSLoader(loaderArgs) {
             {
                 this.setClientHandle(client);
-                this.setCatalog(catalog);
+                this.setCatalogContext(catalogContext);
             }
             @Override
             public Catalog getCatalog() {
-                return (catalog);
+                return (catalogContext.catalog);
             }
         };
         loader.load();

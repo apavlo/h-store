@@ -139,7 +139,7 @@ public class TestLocalTransaction extends BaseTestCase {
     public void testReadWriteSets() throws Exception {
         ExecutionState state = new ExecutionState(this.executor);
         this.ts.setExecutionState(state);
-        this.ts.fastInitRound(BASE_PARTITION, UNDO_TOKEN);
+        this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);
         
         int tableIds[] = null;
         for (Statement catalog_stmt : catalog_proc.getStatements()) {

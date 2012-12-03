@@ -80,6 +80,7 @@ import org.voltdb.CatalogContext;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Site;
@@ -91,6 +92,7 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
 import org.voltdb.sysprocs.DatabaseDump;
+import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.MarkovUpdate;
 import org.voltdb.sysprocs.NoOp;
@@ -104,6 +106,7 @@ import org.voltdb.utils.VoltTableUtil;
 import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
+import edu.brown.api.results.ResponseEntries;
 import edu.brown.api.results.ResultsChecker;
 import edu.brown.api.results.ResultsPrinter;
 import edu.brown.api.results.ResultsUploader;
@@ -158,22 +161,28 @@ public class BenchmarkController {
     /** Server Sites **/
     final ProcessSetManager m_sitePSM;
     
-    BenchmarkResults m_currentResults = null;
-    final List<String> m_clients = new ArrayList<String>();
-    final List<String> m_clientThreads = new ArrayList<String>();
-    final List<ClientStatusThread> m_statusThreads = new ArrayList<ClientStatusThread>();
-    final Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
-    
     Thread self = null;
     boolean stop = false;
     boolean failed = false;
     boolean cleaned = false;
-    HStoreConf hstore_conf;
-    AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
-    AtomicInteger m_clientsNotReady = new AtomicInteger(0);
-
-    // benchmark parameters
     final BenchmarkConfig m_config;
+    HStoreConf hstore_conf;
+    BenchmarkResults m_currentResults = null;
+    
+    // ----------------------------------------------------------------------------
+    // CLIENT INFORMATION
+    // ----------------------------------------------------------------------------
+    final List<String> m_clients = new ArrayList<String>();
+    final List<String> m_clientThreads = new ArrayList<String>();
+    final AtomicInteger m_clientsNotReady = new AtomicInteger(0);
+    final Collection<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
+    
+    // ----------------------------------------------------------------------------
+    // STATUS THREADS
+    // ----------------------------------------------------------------------------
+    final List<ClientStatusThread> m_statusThreads = new ArrayList<ClientStatusThread>();
+    final AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
+
     
     /**
      * BenchmarkResults Processing
@@ -185,7 +194,6 @@ public class BenchmarkController {
     protected CountDownLatch resultsToRead;
     ResultsUploader resultsUploader = null;
     protected PeriodicEvictionThread evictorThread;
-    private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
     private final ScheduledThreadPoolExecutor threadPool;
 
     Class<? extends BenchmarkComponent> m_clientClass = null;
@@ -194,7 +202,6 @@ public class BenchmarkController {
 
     final AbstractProjectBuilder m_projectBuilder;
     final File m_jarFileName;
-//    ServerThread m_localserver = null;
     
     /**
      * SiteId -> Set[Host, Port]
@@ -209,8 +216,36 @@ public class BenchmarkController {
     private final BenchmarkClientFileUploader m_clientFileUploader = new BenchmarkClientFileUploader();
     private final AtomicInteger m_clientFilesUploaded = new AtomicInteger(0);
     
-    // ProcessSetManager Failure Callback
-    final EventObserver<String> failure_observer = new EventObserver<String>() {
+    // ----------------------------------------------------------------------------
+    // FAILURE HANDLERS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * UncaughtExceptionHandler
+     * This just forwards the error message to the failure EventObserver
+     */
+    private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
+    {
+        this.exceptionHandler.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
+            final EventObservable<String> inner = new EventObservable<String>();
+            {
+                inner.addObserver(failure_observer);
+            }
+            @Override
+            public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
+                Thread thread = arg.getFirst();
+                Throwable throwable = arg.getSecond();
+                LOG.error(String.format("Unexpected error from %s", thread.getName()), throwable);
+                String msg = String.format("%s - %s", thread.getName(), throwable.getMessage());
+                inner.notifyObservers(msg);
+            }
+        });
+    }
+    
+    /**
+     * Failure EventObserver 
+     */
+    private final EventObserver<String> failure_observer = new EventObserver<String>() {
         final AtomicBoolean lock = new AtomicBoolean(false);
         
         @Override
@@ -219,6 +254,12 @@ public class BenchmarkController {
                 LOG.fatal(msg);
                 BenchmarkController.this.stop = true;
                 BenchmarkController.this.failed = true;
+                
+                // Stop all the benchmark interests
+                for (BenchmarkInterest bi : m_interested) {
+                    bi.stop();
+                } // FOR
+                
                 ThreadUtil.sleep(1500);
                 m_clientPSM.prepareShutdown(false);
                 m_sitePSM.prepareShutdown(false);
@@ -326,7 +367,9 @@ public class BenchmarkController {
             total_num_clients *= catalogContext.numberOfPartitions;
         }
         this.totalNumClients = total_num_clients;
-        this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
+        int num_results = (int)(m_pollCount * this.totalNumClients);
+        if (hstore_conf.client.output_full_csv != null) num_results += this.totalNumClients;
+        this.resultsToRead = new CountDownLatch(num_results);
     }
     
     private String makeHeader(String label) {
@@ -1020,39 +1063,24 @@ public class BenchmarkController {
         m_currentResults = new BenchmarkResults(hstore_conf.client.interval,
                                                 hstore_conf.client.duration,
                                                 m_clientThreads.size());
-        m_currentResults.setEnableLatencies(hstore_conf.client.output_latencies);
         m_currentResults.setEnableBasePartitions(hstore_conf.client.output_basepartitions);
         
-        EventObservableExceptionHandler eh = new EventObservableExceptionHandler();
-        eh.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
-            final EventObservable<String> inner = new EventObservable<String>();
-            {
-                inner.addObserver(failure_observer);
-            }
-            @Override
-            public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
-                Thread thread = arg.getFirst();
-                Throwable throwable = arg.getSecond();
-                LOG.error(String.format("Unexpected error from %s %s", ClientStatusThread.class.getSimpleName(), thread.getName()), throwable);  
-                inner.notifyObservers(thread.getName());
-            }
-        });
         
-        
-        Client local_client = null;
         long nextIntervalTime = hstore_conf.client.interval;
-        
         for (int i = 0; i < m_clients.size(); i++) {
             ClientStatusThread t = new ClientStatusThread(this, i);
-            m_statusThreads.add(t);
-            t.setUncaughtExceptionHandler(eh);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
             t.start();
+            m_statusThreads.add(t);
         } // FOR
         if (debug.get())
             LOG.debug(String.format("Started %d %s",
                                     m_statusThreads.size(), ClientStatusThread.class.getSimpleName()));
+
+        // Get a connection to the cluster
+        Client local_client = this.getClientConnection();
         
-        // spin on whether all clients are ready
+        // Spin on whether all clients are ready
         while (m_clientsNotReady.get() > 0 && this.stop == false) {
             if (debug.get()) LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
             try {
@@ -1068,10 +1096,9 @@ public class BenchmarkController {
         }
         
         // Reset some internal information at the cluster
-        if (local_client == null) local_client = this.getClientConnection();
         this.resetCluster(local_client);
         
-        // start up all the clients
+        // Start up all the clients
         for (String clientName : m_clients)
             m_clientPSM.writeToProcess(clientName, ControlCommand.START.name());
 
@@ -1095,7 +1122,6 @@ public class BenchmarkController {
                     // This means that it will have to wait until *all* of the previously submitted multi-partition
                     // transactions get executed before it will get executed... we really need to write our
                     // own transaction coordinator...
-                    if (local_client == null) local_client = this.getClientConnection();
                     LOG.info("Requesting HStoreSites to recalculate Markov models after warm-up");
                     try {
                         this.recomputeMarkovs(local_client, false);
@@ -1118,6 +1144,8 @@ public class BenchmarkController {
                 LOG.info("Starting benchmark stats collection");
             }
         }
+        
+        // 
         long startTime = System.currentTimeMillis();
         nextIntervalTime += startTime;
         long nowTime = startTime;
@@ -1154,8 +1182,12 @@ public class BenchmarkController {
             }
         } // WHILE
         
-        if (local_client == null) local_client = this.getClientConnection();
-        if (this.stop == false) this.postProcessBenchmark(local_client);
+        if (this.stop == false) {
+            this.postProcessBenchmark(local_client);
+        }
+//        else if (this.failed == true) {
+//            this.invokeStatusSnapshot(local_client);
+//        }
         
         this.stop = true;
         if (m_config.noShutdown == false && this.failed == false) m_sitePSM.prepareShutdown(false);
@@ -1196,7 +1228,7 @@ public class BenchmarkController {
             
             // Print out the final results
 //            if (debug.get())
-            if (hstore_conf.client.output_basepartitions || hstore_conf.client.output_response_status) {
+            if (hstore_conf.client.output_basepartitions || hstore_conf.client.output_status) {
                 LOG.info("Computing final benchmark results...");
             }
             for (BenchmarkInterest interest : m_interested) {
@@ -1214,6 +1246,8 @@ public class BenchmarkController {
      * @throws Exception
      */
     private void postProcessBenchmark(Client client) throws Exception {
+        if (debug.get()) LOG.debug("Performing post-processing on benchmark");
+        
         // We have to tell all our clients to pause first
         m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
         
@@ -1229,7 +1263,13 @@ public class BenchmarkController {
         assert(cresponse.getStatus() == Status.OK) :
             String.format("Failed to quiesce cluster!\n%s", cresponse);
         
-        // Dump database
+        // DUMP RESPONSE ENTRIES
+        if (hstore_conf.client.output_full_csv != null) {
+            File outputPath = new File(hstore_conf.client.output_full_csv);
+            this.writeResponseEntries(client, outputPath);
+        }
+        
+        // DUMP DATABASE
         if (m_config.dumpDatabase && this.stop == false) {
             assert(m_config.dumpDatabaseDir != null);
             try {
@@ -1240,7 +1280,7 @@ public class BenchmarkController {
             }
         }
 
-        // Dump Profiling Information
+        // DUMP PROFILING INFORMATION
         @SuppressWarnings("unchecked")
         Pair<SysProcSelector, String> profilingData[] = (Pair<SysProcSelector, String>[])new Pair<?,?>[]{
             Pair.of(SysProcSelector.EXECPROFILER, hstore_conf.client.output_exec_profiling),
@@ -1253,7 +1293,7 @@ public class BenchmarkController {
         };
         for (Pair<SysProcSelector, String> pair : profilingData) {
             if (pair.getSecond() != null) {
-                this.writeStats(client, pair.getFirst(), pair.getSecond());
+                this.writeStats(client, pair.getFirst(), new File(pair.getSecond()));
             }
         } // FOR
         
@@ -1263,7 +1303,45 @@ public class BenchmarkController {
         }
     }
     
-    private void writeStats(Client client, SysProcSelector sps, String outputPath) throws Exception {
+    private void writeResponseEntries(Client client, File outputPath) throws Exception {
+        // We know how many clients that we need to get results back from
+        CountDownLatch latch = new CountDownLatch(this.totalNumClients);
+        for (ClientStatusThread t : m_statusThreads) {
+            t.addResponseEntriesLatch(latch);
+        } // FOR
+        
+        // Now tell everybody that part is over and we want them to dump their 
+        // results back to us
+        m_clientPSM.writeToAll(ControlCommand.DUMP_TXNS.name());
+        
+        // Wait until we get all of the responses that we need
+        boolean result = latch.await(10, TimeUnit.SECONDS);
+        if (result == false) {
+            LOG.warn(String.format("Only got %d out of %d response dumps from clients",
+                    this.totalNumClients-latch.getCount(), this.totalNumClients));
+        }
+        
+        // Merge sort them
+        LOG.info(String.format("Merging %s ClientResponse lists together and sorting...", m_statusThreads.size()));
+        ResponseEntries fullDump = new ResponseEntries();
+        for (ClientStatusThread t : m_statusThreads) {
+            fullDump.addAll(t.getResponseEntries());
+        } // FOR
+        if (fullDump.isEmpty()) {
+            LOG.warn("No ClientResponse results were returned!");
+            return;
+        }
+        
+        // Convert to a VoltTable and then write out to a CSV file
+        String txnNames[] = m_currentResults.getTransactionNames();
+        FileWriter out = new FileWriter(outputPath);
+        VoltTable vt = ResponseEntries.toVoltTable(fullDump, txnNames);
+        VoltTableUtil.csv(out, vt, true);
+        out.close();
+        LOG.info(String.format("Wrote %d response entries information to '%s'", fullDump.size(), outputPath));
+    }
+    
+    private void writeStats(Client client, SysProcSelector sps, File outputPath) throws Exception {
         Object params[] = { sps.name(), 0 };
         ClientResponse cresponse = null;
         String sysproc = VoltSystemProcedure.procCallName(Statistics.class);
@@ -1307,8 +1385,10 @@ public class BenchmarkController {
                         row[i] = new Long(0l);
                     } // FOR
                     totalRows.put(procName, row);
-                    
-                    stdevs = (List<Double>[])new ArrayList<?>[cols.length];
+                
+                    @SuppressWarnings("unchecked")
+                    List<Double> temp[] = (List<Double>[])new ArrayList<?>[cols.length]; 
+                    stdevs = temp;
                     stdevRows.put(procName, stdevs);
                 }
                 
@@ -1317,7 +1397,13 @@ public class BenchmarkController {
                         if (stdevs[i] == null) stdevs[i] = new ArrayList<Double>();
                         stdevs[i].add(vt.getDouble(offset + i));
                         // stdevs[i].put(vt.getDouble(offset + i), vt.getLong(offset + 1));
+                    } else if (vt.getColumnType(offset + i) == VoltType.STRING) {
+                        row[i] = vt.getString(offset + i);
+                    } else if (vt.getColumnType(offset + i) == VoltType.FLOAT) {
+                        row[i] = vt.getDouble(offset + i);
                     } else {
+                    	//LOG.info(String.format("offset: %d, i: %d, VoltTable: %s,",offset,i, vt));
+                    	//System.err.println(String.format("offset: %d, i: %d, VoltTable: %s,",offset,i, vt));
                         row[i] = ((Long)row[i]) + vt.getLong(offset + i);
                     }
                 } // FOR
@@ -1347,9 +1433,33 @@ public class BenchmarkController {
         FileWriter out = new FileWriter(outputPath);
         VoltTableUtil.csv(out, vt, true);
         out.close();
-        LOG.info(String.format("Wrote %s information to '%s'",
-                               sps, FileUtil.realpath(outputPath)));
+        LOG.info(String.format("Wrote %s information to '%s'", sps, outputPath));
         return;
+    }
+    
+    private ClientResponse[] invokeSysProcs(Client client, Class<? extends VoltSystemProcedure> sysprocs[], Object params[][]) {
+        ClientResponse cr[] = new ClientResponse[sysprocs.length];
+        for (int i = 0; i < sysprocs.length; i++) {
+            String procName = VoltSystemProcedure.procCallName(sysprocs[i]);
+            try {
+                cr[i] = client.callProcedure(procName, params[i]);
+            } catch (Exception ex) {
+                LOG.error("Failed to execute sysproc " + procName, ex);
+                return (null);
+            }
+            assert(cr[i].getStatus() == Status.OK) :
+                String.format("Unexpected response status %s for sysproc %s", cr[i].getStatus(), procName); 
+        } // FOR
+        return (cr);
+    }
+    
+    private void invokeStatusSnapshot(Client client) {
+        @SuppressWarnings("unchecked")
+        Class<VoltSystemProcedure> sysprocs[] = (Class<VoltSystemProcedure>[])new Class<?>[]{
+            ExecutorStatus.class,
+        };
+        Object params[][] = { { 0 } };
+        this.invokeSysProcs(client, sysprocs, params);
     }
     
     private void resetCluster(Client client) {
@@ -1358,18 +1468,8 @@ public class BenchmarkController {
             ResetProfiling.class,
             GarbageCollection.class
         };
-        
-        ClientResponse cr = null;
-        for (Class<VoltSystemProcedure> sysproc : sysprocs) {
-            String procName = VoltSystemProcedure.procCallName(sysproc);
-            try {
-                cr = client.callProcedure(procName);
-            } catch (Exception ex) {
-                LOG.error("Failed to execute sysproc " + procName, ex);
-                return;
-            }
-            assert(cr.getStatus() == Status.OK);
-        } // FOR
+        Object params[][] = { { }, { } };
+        this.invokeSysProcs(client, sysprocs, params);
     }
     
     private void recomputeMarkovs(Client client, boolean retrieveFiles) {

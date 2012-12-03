@@ -31,6 +31,28 @@ public class TestHStoreConf extends BaseTestCase {
     }
     
     /**
+     * testCheckDeprecated
+     */
+    public void testCheckDeprecated() throws Exception {
+        // Make sure that anything that is marked as deprecated has a replaced by
+        for (Conf handle : hstore_conf.getHandles().values()) {
+            assertNotNull(handle);
+            Map<Field, ConfigProperty> fields = handle.getConfigProperties();
+            assertFalse(fields.isEmpty());
+            for (Entry<Field, ConfigProperty> e : fields.entrySet()) {
+                Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
+                Deprecated d = f.getAnnotation(Deprecated.class);
+                if (d != null) {
+                    String name = handle.prefix + "." + f.getName();
+                    String replacedBy = cp.replacedBy();
+                    assertFalse(name, replacedBy.isEmpty());
+                }
+            } // FOR
+        } // FOR
+    }
+    
+    /**
      * testValidateReplacedBy
      */
     public void testValidateReplacedBy() throws Exception {

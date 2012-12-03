@@ -12,6 +12,7 @@ import org.voltdb.catalog.Table;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
+import edu.brown.catalog.special.MultiAttributeCatalogType;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.VerticalPartitionColumn;
@@ -28,15 +29,15 @@ public class TestCatalogKey extends BaseTestCase {
         assertNotNull(catalog_item);
         String key = CatalogKey.createKey(catalog_item);
         assertFalse(key.isEmpty());
-        assertTrue(key.contains(catalog_item.getName()));
+        assertTrue(key, key.contains(catalog_item.getName()));
     }
 
     private void Tester_getNameFromKey(CatalogType catalog_item) {
         String key = CatalogKey.createKey(catalog_item);
         String name = CatalogKey.getNameFromKey(key);
         assert (name != null);
-        assertFalse(name.isEmpty());
-        assertEquals(catalog_item.getName(), name);
+        assertFalse(key, name.isEmpty());
+        assertEquals(key, catalog_item.getName(), name);
     }
 
     private void Tester_getFromKey(CatalogType catalog_item) {
@@ -91,7 +92,9 @@ public class TestCatalogKey extends BaseTestCase {
             } // FOR (Statement)
 
             for (ProcParameter catalog_proc_param : catalog_proc.getParameters()) {
-                this.Tester_createKey(catalog_proc_param);
+                if ((catalog_proc_param instanceof MultiAttributeCatalogType<?>) == false) {
+                    this.Tester_createKey(catalog_proc_param);
+                }
             } // FOR (ProcParameter)
         } // FOR (Procedure)
     }
@@ -122,7 +125,9 @@ public class TestCatalogKey extends BaseTestCase {
             } // FOR (Statement)
 
             for (ProcParameter catalog_proc_param : catalog_proc.getParameters()) {
-                this.Tester_getNameFromKey(catalog_proc_param);
+                if ((catalog_proc_param instanceof MultiAttributeCatalogType<?>) == false) {
+                    this.Tester_getNameFromKey(catalog_proc_param);
+                }
             } // FOR (ProcParameter)
         } // FOR (Procedure)
     }
@@ -153,7 +158,9 @@ public class TestCatalogKey extends BaseTestCase {
             } // FOR (Statement)
 
             for (ProcParameter catalog_proc_param : catalog_proc.getParameters()) {
-                this.Tester_getFromKey(catalog_proc_param);
+                if ((catalog_proc_param instanceof MultiAttributeCatalogType<?>) == false) {
+                    this.Tester_getFromKey(catalog_proc_param);
+                }
             } // FOR (ProcParameter)
         } // FOR (Procedure)
     }

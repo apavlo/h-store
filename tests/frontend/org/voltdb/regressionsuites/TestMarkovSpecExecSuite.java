@@ -56,7 +56,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
     public void testRemoteQueryEstimates() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
         int w_id = 1;
         int d_id = 1;
 
@@ -131,7 +131,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
     public void testRemoteIdle() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext.catalog, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
         
         int w_id = 1;
         int d_id = 1;

@@ -88,7 +88,7 @@ public class ControlPipe implements Runnable {
             switch (command) {
                 case START: {
                     if (cmp.m_controlState != ControlState.READY) {
-                        cmp.setState(ControlState.ERROR, "START when not READY.");
+                        cmp.setState(ControlState.ERROR, command + " when not " + ControlState.READY);
                         cmp.answerWithError();
                         continue;
                     }
@@ -100,7 +100,7 @@ public class ControlPipe implements Runnable {
                 }
                 case POLL: {
                     if (cmp.m_controlState != ControlState.RUNNING) {
-                        cmp.setState(ControlState.ERROR, "POLL when not RUNNING.");
+                        cmp.setState(ControlState.ERROR, command + " when not " + ControlState.RUNNING);
                         cmp.answerWithError();
                         continue;
                     }
@@ -117,8 +117,17 @@ public class ControlPipe implements Runnable {
                                                 client.getQueueTime().getAverageThinkTimeMS()));
                     break;
                 }
+                case DUMP_TXNS: {
+                    if (cmp.m_controlState != ControlState.PAUSED) {
+                        cmp.setState(ControlState.ERROR, command + " when not " + ControlState.PAUSED);
+                        cmp.answerWithError();
+                        continue;
+                    }
+                    if (debug.get()) LOG.debug("DUMP TRANSACTIONS!");
+                    cmp.answerDumpTxns();
+                    break;
+                }
                 case CLEAR: {
-                    cmp.m_txnStats.clear(true);
                     cmp.invokeClearCallback();
                     cmp.answerOk();
                     break;
@@ -181,8 +190,7 @@ public class ControlPipe implements Runnable {
                     break;
                 }
                 default: {
-                    LOG.fatal("Error on standard input: unknown command " + command);
-                    System.exit(-1);
+                    throw new RuntimeException("Error on standard input: unknown command " + command);
                 }
             } // SWITCH
         }

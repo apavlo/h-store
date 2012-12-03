@@ -149,7 +149,7 @@ public class Histogram<X> implements JSONSerializable {
      * Default is false
      * @param flag
      */
-    public void setKeepZeroEntries(boolean flag) {
+    public Histogram<X> setKeepZeroEntries(boolean flag) {
         // When this option is disabled, we need to remove all of the zeroed entries
         if (!flag && this.keep_zero_entries) {
             synchronized (this) {
@@ -168,6 +168,7 @@ public class Histogram<X> implements JSONSerializable {
             } // SYNCHRONIZED
         }
         this.keep_zero_entries = flag;
+        return (this);
     }
     
     public boolean isZeroEntriesEnabled() {

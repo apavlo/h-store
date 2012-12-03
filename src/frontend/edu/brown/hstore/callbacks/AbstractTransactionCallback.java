@@ -15,6 +15,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * Special BlockingCallback wrapper for transactions. This class has utility methods for
  * identifying when it is safe to delete a transaction handle from our local HStoreSite. 
  * @author pavlo
+ * @param <X> The type of AbstractTransaction handle that this callback uses
  * @param <T> The message type of the original RpcCallback
  * @param <U> The message type that we will accumulate before invoking the original RpcCallback
  */
@@ -26,6 +27,9 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    /**
+     * The current transaction handle that this callback is assigned to
+     */
     protected X ts;
     
     /**
@@ -51,7 +55,11 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
     }
     
     protected void init(X ts, int counter_val, RpcCallback<T> orig_callback) {
-        assert(ts != null);
+        assert(ts != null) :
+            String.format("Null transaction handle in %s", this.getClass().getSimpleName());
+        assert(ts.isInitialized()) :
+            String.format("Uninitialized transaction handle in %s", this.getClass().getSimpleName());
+        
         this.ts = ts;
         if (debug.get()) LOG.debug(this.ts + " - Initializing new " + this.getClass().getSimpleName());
         super.init(this.ts.getTransactionId(), counter_val, orig_callback);
@@ -72,9 +80,14 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
     @Override
     protected final void unblockCallback() {
         assert(this.isUnblocked());
+        assert(this.ts != null) :
+            String.format("Null transaction handle for txn #%s in %s [lastTxn=%s / counter=%d/%d]",
+                          this.getTransactionId(), this.getClass().getSimpleName(),
+                          this.getOrigTransactionId(), this.getCounter(), this.getOrigCounter());
         assert(this.ts.isInitialized()) :
-            String.format("Unexpected uninitalized transaction handle for txn #%s in %s [lastTxn=%s]",
-                          this.getTransactionId(), this.getClass().getSimpleName(), this.lastTxnId);
+            String.format("Uninitialized transaction handle for txn #%s in %s [lastTxn=%s / origCounter=%d/%d]",
+                          this.getTransactionId(), this.getClass().getSimpleName(),
+                          this.getOrigTransactionId(), this.getCounter(), this.getOrigCounter());
         
         if (this.isAborted() == false) {
             this.unblockTransactionCallback();
@@ -143,21 +156,21 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
      */
     protected final void finishTransaction(Status status) {
         assert(this.ts != null) :
-            "Unexpected null transaction handle for txn #" + this.getTransactionId();
+            "Null transaction handle for txn #" + this.getTransactionId();
         if (debug.get()) LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
-                                                 this.ts, this.getClass().getSimpleName(), status));
+                                   this.ts, this.getClass().getSimpleName(), status));
         
         // Let everybody know that the party is over!
-        if (ts instanceof LocalTransaction) {
+        if (this.ts instanceof LocalTransaction) {
             LocalTransaction local_ts = (LocalTransaction)this.ts;
-            TransactionFinishCallback finish_callback = local_ts.initTransactionFinishCallback(status);
+            LocalTransactionFinishCallback finish_callback = local_ts.initTransactionFinishCallback(status);
             this.hstore_site.getCoordinator().transactionFinish(local_ts, status, finish_callback);
         }
     }
     
     @Override
     public String toString() {
-        return String.format("%s / Deletable=%s",
-                             super.toString(), this.allCallbacksFinished());
+        return String.format("%s / %s / Deletable=%s",
+                             super.toString(), this.ts, this.allCallbacksFinished());
     }
 }

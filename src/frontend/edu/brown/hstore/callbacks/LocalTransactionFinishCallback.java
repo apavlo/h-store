@@ -9,8 +9,16 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-public class TransactionFinishCallback extends AbstractTransactionCallback<LocalTransaction, TransactionFinishResponse, TransactionFinishResponse> {
-    private static final Logger LOG = Logger.getLogger(TransactionFinishCallback.class);
+/**
+ * This callback waits until we have heard back from all of the partitions
+ * that they have finished processing our transaction. Once we get all of the
+ * acknowledgments that we need (including any local partitions), then
+ * we will queue this transaction up for deletion. If the <b>needs_requeue</b> flag
+ * is set to true, then we will requeue it first before deleting 
+ * @author pavlo
+ */
+public class LocalTransactionFinishCallback extends AbstractTransactionCallback<LocalTransaction, TransactionFinishResponse, TransactionFinishResponse> {
+    private static final Logger LOG = Logger.getLogger(LocalTransactionFinishCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -24,7 +32,7 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Local
      * Constructor
      * @param hstore_site
      */
-    public TransactionFinishCallback(HStoreSite hstore_site) {
+    public LocalTransactionFinishCallback(HStoreSite hstore_site) {
         super(hstore_site);
     }
 

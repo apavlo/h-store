@@ -13,7 +13,6 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
-import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.callbacks.SendDataCallback;
@@ -130,7 +129,8 @@ public class MapReduceTransaction extends LocalTransaction {
                                  PartitionSet predict_touchedPartitions,
                                  boolean predict_readOnly,
                                  boolean predict_canAbort,
-                                 Procedure catalog_proc, ParameterSet params,
+                                 Procedure catalog_proc,
+                                 ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
         super.init(txn_id,
                    initiateTime,
@@ -144,9 +144,9 @@ public class MapReduceTransaction extends LocalTransaction {
                    client_callback);
         
         // Intialize MapReduce properties
-        this.mapEmit = hstore_site.getCatalogContext().getTableByName(this.catalog_proc.getMapemittable());
-        this.reduceEmit = hstore_site.getCatalogContext().getTableByName(this.catalog_proc.getReduceemittable());
-        LOG.info(" CatalogUtil.getVoltTable(thisMapEmit): -> " + this.catalog_proc.getMapemittable());
+        this.mapEmit = hstore_site.getCatalogContext().getTableByName(catalog_proc.getMapemittable());
+        this.reduceEmit = hstore_site.getCatalogContext().getTableByName(catalog_proc.getReduceemittable());
+        LOG.info(" CatalogUtil.getVoltTable(thisMapEmit): -> " + catalog_proc.getMapemittable());
         LOG.info("MapReduce LocalPartitionIds: " + this.hstore_site.getLocalPartitionIds());
         
         // Get the Table catalog object for the map/reduce outputs
@@ -182,12 +182,11 @@ public class MapReduceTransaction extends LocalTransaction {
         this.reduce_callback.init(this);
         assert(this.reduce_callback.isInitialized()) : "Unexpected error for " + this;
         
-        // TODO(xin): Initialize the TransactionCleanupCallback if this txn's base partition
-        //            is not at this HStoreSite. 
-        if (!this.hstore_site.isLocalPartition(base_partition)) {
-            cleanup_callback.init(this, Status.OK, this.hstore_site.getLocalPartitionIds());
+        // Initialize the TransactionCleanupCallback if this txn's base partition
+        // is not at this HStoreSite. 
+        if (this.hstore_site.isLocalPartition(base_partition) == false) {
+            this.cleanup_callback.init(this, this.hstore_site.getLocalPartitionIds());
         }
-        
         
         LOG.info("Invoked MapReduceTransaction.init() -> " + this);
         return (this);
@@ -406,13 +405,6 @@ public class MapReduceTransaction extends LocalTransaction {
         return (this.reduceWrapper_callback);
     }
     
-    public TransactionCleanupCallback getCleanupCallback() {
-        // TODO(xin): This should return null if this handle is located at
-        //            the txn's basePartition HStoreSite
-        if (this.hstore_site.isLocalPartition(base_partition)) return null;
-        else return (this.cleanup_callback);
-    }
-    
     public void initTransactionMapWrapperCallback(RpcCallback<TransactionMapResponse> orig_callback) {
         if (debug.get()) LOG.debug("Trying to intialize TransactionMapWrapperCallback for " + this);
         assert (this.mapWrapper_callback.isInitialized() == false);
@@ -424,8 +416,20 @@ public class MapReduceTransaction extends LocalTransaction {
         //assert (this.reduceWrapper_callback.isInitialized() == false);
         this.reduceWrapper_callback.init(this, orig_callback);
     }
-    
-    
+
+    /**
+     * Get the TransactionCleanupCallback for this txn.
+     */
+    public TransactionCleanupCallback getCleanupCallback() {
+        // TODO(xin): This should return null if this handle is located at
+        //            the txn's basePartition HStoreSite
+        if (this.hstore_site.isLocalPartition(base_partition)) return null;
+        
+        assert(this.cleanup_callback.isInitialized()) :
+            String.format("Trying to grab the %s for %s before it has been initialized",
+                          this.cleanup_callback.getClass().getSimpleName(), this);
+        return (this.cleanup_callback);
+    }
 
     @Override
     public String toStringImpl() {

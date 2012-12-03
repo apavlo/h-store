@@ -31,6 +31,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -50,7 +51,6 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -93,7 +93,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     /**
      * Catalog object of the Procedure that this transaction is currently executing
      */
-    protected Procedure catalog_proc;
+    private Procedure catalog_proc;
     
     protected Long txn_id = null;
     protected long client_handle;
@@ -106,6 +106,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * These are the parameters that are sent from the client
      */
     protected ParameterSet parameters;
+    
+    /**
+     * Internal flag that is set to true once to tell whomever 
+     * that this transaction handle can be deleted.
+     */
+    private AtomicBoolean deletable = new AtomicBoolean(false);
     
     // ----------------------------------------------------------------------------
     // Attached Data Structures
@@ -306,6 +312,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
                                              boolean exec_local) {
         assert(predict_touchedPartitions != null);
         assert(predict_touchedPartitions.isEmpty() == false);
+        assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
         this.txn_id = txn_id;
         this.client_handle = client_handle;
@@ -323,8 +330,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     }
 
     @Override
-    public boolean isInitialized() {
-        return (this.txn_id != null);
+    public final boolean isInitialized() {
+        return (this.txn_id != null && this.catalog_proc != null);
     }
     
     /**
@@ -375,6 +382,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         
+        this.deletable.lazySet(false);
         this.catalog_proc = null;
         this.base_partition = HStoreConstants.NULL_PARTITION_ID;
         this.txn_id = null;
@@ -521,6 +529,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         return (null);
     }
     
+    /**
+     * Returns true if this transaction was executed speculatively
+     */
+    public boolean isSpeculative() {
+        return (false);
+    }
+    
     // ----------------------------------------------------------------------------
     // EXECUTION FLAG METHODS
     // ----------------------------------------------------------------------------
@@ -535,7 +550,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     /**
      * Returns true if this transaction has not executed any modifying work at this partition
      */
-    public boolean isExecReadOnly(int partition) {
+    public final boolean isExecReadOnly(int partition) {
+        if (this.catalog_proc.getReadonly()) return (true);
         return (this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)]);
     }
     
@@ -560,20 +576,70 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * the PartitionExecutor needs to be told that they are finished
      * This could be either executing a query or executing the transaction's control code
      */
-    public boolean needsFinish(int partition) {
+    public final boolean needsFinish(int partition) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
-        return (this.round_state[offset] != null || this.exec_queueWork[offset]);
         
-//        // If this is the base partition, check to see whether it has
-//        // even executed the procedure control code
-//        if (this.base_partition == partition) {
-//            return (this.round_state[offset] != null);
+        boolean ret = (this.exec_readOnly[offset] == false &&
+                        (this.round_state[offset] != null || 
+                         this.exec_eeWork[offset] ||
+                         this.exec_queueWork[offset])
+        );
+        
+//        if (this.isSpeculative()) {
+//            LOG.info(String.format(
+//                "%s - Speculative Execution Partition %d => %s\n" +
+//                "  Round State:   %s\n" +
+//                "  Exec ReadOnly: %s\n" +
+//                "  Exec Queue:    %s\n" +
+//                "  Exec EE:       %s\n",
+//                this, partition, ret,
+//                this.round_state[offset],
+//                this.exec_readOnly[offset],
+//                this.exec_queueWork[offset],
+//                this.exec_eeWork[offset]));
 //        }
-//        // Otherwise check whether they have executed a query that
-//        else {
-//            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
-//        }
+        
+        // This transaction needs to be "finished" down in the EE if:
+        //  (1) It's not read-only
+        //  (2) It has executed at least one batch round
+        //  (3) It has invoked work directly down in the EE
+        //  (4) It added work that may be waiting in this partition's queue
+        return (ret);
     }
+    
+    /**
+     * Returns true if we believe that this transaction can be deleted
+     * <B>Note:</B> This will only return true once and only once for each 
+     * transaction invocation. So don't call this unless you are able to really
+     * delete the transaction now. If you just want to know whether the txn has
+     * been marked as deletable before, then use checkDeletableFlag()
+     * @return
+     */
+    public boolean isDeletable() {
+        if (this.isInitialized() == false) {
+            return (false);
+        }
+        if (this.init_callback.allCallbacksFinished() == false) {
+            if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                            this.init_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        if (this.prepare_callback.allCallbacksFinished() == false) {
+            if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                            this.prepare_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        return (this.deletable.compareAndSet(false, true));
+    }
+    
+    /**
+     * Returns true if this txn has already been marked for deletion
+     * This will not change the internal state of the txn.
+     */
+    public final boolean checkDeletableFlag() {
+        return (this.deletable.get());
+    }
+
     
     // ----------------------------------------------------------------------------
     // GENERAL METHODS
@@ -641,6 +707,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * Returns true if this transaction is for a system procedure
      */
     public final boolean isSysProc() {
+        assert(this.catalog_proc != null) :
+            "Unexpected null Procedure handle for " + this;
         return this.catalog_proc.getSystemproc();
     }
     
@@ -668,37 +736,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     
     public final TransactionPrepareWrapperCallback getPrepareWrapperCallback() {
         return (this.prepare_callback);
-    }
-    
-    /**
-     * Return a TransactionCleanupCallback
-     * Note that this will be null for LocalTransactions
-     */
-    public TransactionCleanupCallback getCleanupCallback() {
-        return (null);
-    }
-    
-    /**
-     * Returns true if we believe that this transaction can be deleted
-     * <B>Note:</B> This is not thread safe!
-     * @return
-     */
-    public boolean isDeletable() {
-        if (this.isInitialized() == false) {
-            return (false);
-        }
-        if (this.init_callback.allCallbacksFinished() == false) {
-            if (d) LOG.warn(String.format("%s - %s is not finished", this,
-                            this.init_callback.getClass().getSimpleName()));
-            return (false);
-        }
-        if (this.prepare_callback.allCallbacksFinished() == false) {
-            if (d) LOG.warn(String.format("%s - %s is not finished", this,
-                            this.prepare_callback.getClass().getSimpleName()));
-            return (false);
-        }
-        
-        return (true);
     }
     
     // ----------------------------------------------------------------------------
@@ -756,19 +793,16 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     }
     
     /**
-     * Return the current Status for this transaction
-     * This is not thread-safe. 
-     */
-    public final Status getStatus() {
-        return (this.status);
-    }
-    /**
      * Set the current Status for this transaction
      * This is not thread-safe.
      * @param status
      */
     public final void setStatus(Status status) {
         this.status = status;
+    }
+    
+    public final Status getStatus() {
+        return (this.status);
     }
     
     /**
@@ -908,7 +942,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * Mark this txn as finished (and thus ready for clean-up)
      */
     public void markFinished(int partition) {
-        if (d) LOG.debug(String.format("%s - Marking as finished on partition %d %s [hashCode=%d, offset=%d]",
+        if (d) LOG.debug(String.format("%s - Marking as finished on partition %d " +
+        		                       "[finished=%s / hashCode=%d / offset=%d]",
                                        this, partition, Arrays.toString(this.finished),
                                        this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
         this.finished[hstore_site.getLocalPartitionOffset(partition)] = true;
@@ -1080,6 +1115,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         m.put("Transaction #", this.txn_id);
         m.put("Procedure", this.catalog_proc);
         m.put("Hash Code", this.hashCode());
+        m.put("Deletable", this.deletable.get());
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
         m.put("First UndoToken", Arrays.toString(this.exec_firstUndoToken));

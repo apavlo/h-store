@@ -426,6 +426,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
             siteInfo.put("Post-Processing Txns", val);
         }
+        
+        // Last Deleted Txns
+        siteInfo.put("Last Deleted", StringUtil.join("\n", siteDebug.getLastDeletedTxns()));
 
         return (siteInfo);
     }
@@ -470,8 +473,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             m.put(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
                                     es_queue.size(),
                                     dbg.getWorkQueueSize(),
-                                    dbg.getBlockedQueueSize(),
-                                    dbg.getWaitingQueueSize()), null);
+                                    dbg.getBlockedWorkCount(),
+                                    dbg.getBlockedSpecExecCount()), null);
             
             // Execution Info
 //            status = String.format("%-5s [limit=%d, release=%d] %s",
@@ -489,7 +492,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             txn_id = dbg.getLastCommittedTxnId();
             m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
             
-            
             // TransactionQueueManager Info
             status = String.format("%-5s [limit=%d, release=%d] %s",
                                    dtxn_queue.size(), dtxn_queue.getQueueMax(), dtxn_queue.getQueueRelease(),
@@ -506,6 +508,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                                 callback.getPartitions(), callback.getCounter());
                     }
                 }
+            }
+            else if (queueManagerDebug.isLocked(partition)) {
+                status += "\nWARNING: Queue is locked but without a txn!";
             }
             // TransactionQueueManager - Blocked
             if (queueManagerDebug.getBlockedQueueSize() > 0) {
@@ -1010,8 +1015,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             int total_destroyed = 0;
             
             boolean found = false;
-            // FIXME: MapReduce & RemoteTransaction pools are for all partitions, not just local
             for (int p : hstore_site.getLocalPartitionIds()) {
+                pool = null;
                 switch (i) {
                     case 0:
                         pool = objPool.getLocalTransactionPool(p);
@@ -1026,7 +1031,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                         pool = objPool.getDistributedStatePool(p);
                         break;
                     case 4:
-                        pool = objPool.getPrefetchStatePool(p);
+                        if (hstore_conf.site.exec_prefetch_queries) {
+                            pool = objPool.getPrefetchStatePool(p);
+                        }
                         break;
                 } // SWITCH
                 if (pool == null) continue;
@@ -1080,7 +1087,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         } // FOR
         
 //        hstore_conf.site.status_show_thread_info = true;
-        this.printStatus();
+        //this.printStatus();
         
         // Quick Sanity Check!
 //        for (int i = 0; i < 2; i++) {
@@ -1116,10 +1123,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
 //            break;
 //        } // FOR
         
-        if (hstore_conf.site.txn_profiling) {
-            String csv = this.txnProfileCSV();
-            if (csv != null) System.out.println(csv);
-        }
+//        if (hstore_conf.site.txn_profiling) {
+//            String csv = this.txnProfileCSV();
+//            if (csv != null) System.out.println(csv);
+//        }
         
 //        for (ExecutionSite es : this.executors.values()) {
 //            TransactionEstimator te = es.getTransactionEstimator();

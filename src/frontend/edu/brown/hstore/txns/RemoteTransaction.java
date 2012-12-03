@@ -78,17 +78,22 @@ public class RemoteTransaction extends AbstractTransaction {
                                   Procedure catalog_proc,
                                   PartitionSet partitions,
                                   boolean predict_abortable) {
-        return ((RemoteTransaction)super.init(
-                            txnId,              // TxnId
-                            -1,                 // ClientHandle
-                            base_partition,     // BasePartition
-                            parameters,         // Procedure Parameters
-                            catalog_proc,       // Procedure
-                            partitions,         // Partitions
-                            true,               // ReadOnly (???)
-                            predict_abortable,  // Abortable
-                            false               // ExecLocal
-        ));
+        super.init(txnId,              // TxnId
+                   -1,                 // ClientHandle
+                   base_partition,     // BasePartition
+                   parameters,         // Procedure Parameters
+                   catalog_proc,       // Procedure
+                   partitions,         // Partitions
+                   true,               // ReadOnly (???)
+                   predict_abortable,  // Abortable
+                   false               // ExecLocal
+        );
+        
+        // Initialize TransactionCleanupCallback
+        // NOTE: This must come *after* our call to AbstractTransaction.init()
+        this.cleanup_callback.init(this, partitions);
+        
+        return (this);
     }
     
     @Override
@@ -115,6 +120,17 @@ public class RemoteTransaction extends AbstractTransaction {
         super.startRound(partition);
     }
     
+    @Override
+    public boolean isDeletable() {
+        if (this.cleanup_callback.allCallbacksFinished() == false) {
+            if (debug.get()) LOG.warn(String.format("%s - %s is not finished", this,
+                                      this.cleanup_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        // XXX: Do we care about the TransactionWorkCallback?
+        return (super.isDeletable());
+    }
+    
     public SetDistributedTxnMessage getSetDistributedTxnMessage() {
         return (this.dtxn_task);
     }
@@ -123,7 +139,15 @@ public class RemoteTransaction extends AbstractTransaction {
         return (this.work_callback);
     }
     
+    /**
+     * Get the TransactionCleanupCallback for this txn.
+     * <B>Note:</B> You must call initCleanupCallback() first
+     * @return
+     */
     public TransactionCleanupCallback getCleanupCallback() {
+        assert(this.cleanup_callback.isInitialized()) :
+            String.format("Trying to grab the %s for %s before it has been initialized",
+                          this.cleanup_callback.getClass().getSimpleName(), this);
         return (this.cleanup_callback);
     }
 
@@ -146,9 +170,9 @@ public class RemoteTransaction extends AbstractTransaction {
 
     @Override
     public String toStringImpl() {
-        return String.format("%s-REMOTE #%d/%d", this.catalog_proc.getName(),
-                                          this.txn_id,
-                                          this.base_partition);
+        return String.format("%s-REMOTE #%d/%d", this.getProcedure().getName(),
+                             this.txn_id,
+                             this.base_partition);
     }
     
     @Override

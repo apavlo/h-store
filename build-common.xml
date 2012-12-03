@@ -3,6 +3,7 @@
 <!-- http://hstore.cs.brown.edu/documentation/development/configuration-properties -->
 
 <!-- GLOBAL -->
+<arg value="global.jvm_version=${global.jvm_version}" />
 <arg value="global.temp_dir=${global.temp_dir}" />
 <arg value="global.log_dir=${global.log_dir}" />
 <arg value="global.sshoptions=${global.sshoptions}" />
@@ -10,6 +11,7 @@
 <arg value="global.defaulthost=${global.defaulthost}" />
 <arg value="global.hasherClass=${global.hasherClass}" />
 <arg value="global.log_refresh=${global.log_refresh}" />
+<arg value="global.nanosecond_latencies=${global.nanosecond_latencies}" />
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />
@@ -52,12 +54,13 @@
 <arg value="client.codespeed_branch=${client.codespeed_branch}" />
 <arg value="client.output_interval=${client.output_interval}" />
 <arg value="client.output_clients=${client.output_clients}" />
-<arg value="client.output_latencies=${client.output_latencies}" />
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
 <arg value="client.output_response_status=${client.output_response_status}" />
+<arg value="client.output_status=${client.output_status}" />
 <arg value="client.output_specexec=${client.output_specexec}" />
 <arg value="client.output_json=${client.output_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
+<arg value="client.output_full_csv=${client.output_full_csv}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
 <arg value="client.output_queue_profiling=${client.output_queue_profiling}" />
 <arg value="client.output_site_profiling=${client.output_site_profiling}" />
@@ -81,8 +84,6 @@
 <arg value="site.preload=${site.preload}" />
 <arg value="site.cpu_affinity=${site.cpu_affinity}" />
 <arg value="site.cpu_affinity_one_partition_per_core=${site.cpu_affinity_one_partition_per_core}" />
-<arg value="site.specexec_scheduler_policy=${site.specexec_scheduler_policy}" />
-<arg value="site.specexec_scheduler_window=${site.specexec_scheduler_window}" />
 <arg value="site.profiling=${site.profiling}" />
 <arg value="site.exec_ee_log_level=${site.exec_ee_log_level}" />
 <arg value="site.exec_profiling=${site.exec_profiling}" />
@@ -117,6 +118,8 @@
 <arg value="site.specexec_markov=${site.specexec_markov}" />
 <arg value="site.specexec_pre_query=${site.specexec_pre_query}" />
 <arg value="site.specexec_profiling=${site.specexec_profiling}" />
+<arg value="site.specexec_scheduler_policy=${site.specexec_scheduler_policy}" />
+<arg value="site.specexec_scheduler_window=${site.specexec_scheduler_window}" />
 <arg value="site.commandlog_enable=${site.commandlog_enable}" />
 <arg value="site.commandlog_dir=${site.commandlog_dir}" />
 <arg value="site.commandlog_timeout=${site.commandlog_timeout}" />
@@ -140,10 +143,6 @@
 <arg value="site.txn_restart_limit_sysproc=${site.txn_restart_limit_sysproc}" />
 <arg value="site.txn_partition_id_managers=${site.txn_partition_id_managers}" />
 <arg value="site.queue_profiling=${site.queue_profiling}" />
-<arg value="site.queue_incoming_max_per_partition=${site.queue_incoming_max_per_partition}" />
-<arg value="site.queue_incoming_release_factor=${site.queue_incoming_release_factor}" />
-<arg value="site.queue_incoming_increase=${site.queue_incoming_increase}" />
-<arg value="site.queue_incoming_increase_max=${site.queue_incoming_increase_max}" />
 <arg value="site.queue_dtxn_max_per_partition=${site.queue_dtxn_max_per_partition}" />
 <arg value="site.queue_dtxn_release_factor=${site.queue_dtxn_release_factor}" />
 <arg value="site.queue_dtxn_increase=${site.queue_dtxn_increase}" />
@@ -182,6 +181,7 @@
 <arg value="site.status_show_thread_info=${site.status_show_thread_info}" />
 <arg value="site.pool_scale_factor=${site.pool_scale_factor}" />
 <arg value="site.pool_profiling=${site.pool_profiling}" />
+<arg value="site.pool_txn_enable=${site.pool_txn_enable}" />
 <arg value="site.pool_localtxnstate_idle=${site.pool_localtxnstate_idle}" />
 <arg value="site.pool_mapreducetxnstate_idle=${site.pool_mapreducetxnstate_idle}" />
 <arg value="site.pool_remotetxnstate_idle=${site.pool_remotetxnstate_idle}" />
@@ -191,9 +191,5 @@
 <arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
 <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
 <arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />
-<arg value="site.pool_txninit_idle=${site.pool_txninit_idle}" />
-<arg value="site.pool_txninitwrapper_idle=${site.pool_txninitwrapper_idle}" />
 <arg value="site.pool_txninitqueue_idle=${site.pool_txninitqueue_idle}" />
-<arg value="site.pool_txnprepare_idle=${site.pool_txnprepare_idle}" />
-<arg value="site.pool_parametersets_idle=${site.pool_parametersets_idle}" />
 

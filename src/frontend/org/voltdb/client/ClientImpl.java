@@ -132,6 +132,7 @@ final class ClientImpl implements Client {
                 expectedOutgoingMessageSize,
                 maxArenaSizes,
                 heavyweight,
+                m_hstoreConf.global.nanosecond_latencies,
                 statsSettings);
         m_distributer.addClientStatusListener(new CSL());
     }

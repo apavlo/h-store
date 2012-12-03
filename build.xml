@@ -17,8 +17,6 @@
     </sequential>
 </macrodef>
 
-<property name="javac.version" value="1.7" />
-
 <!-- PATHS AND PROPERTIES -->
 
 <!-- make environment var foo available as env.foo -->
@@ -132,6 +130,13 @@
         <assertions id="client.assertions"><disable /></assertions>
     </else>
 </if>
+
+<!-- JAVA/JAVAC VERSION -->
+<condition property="global.jvm_version" value="1.7">
+    <not>
+        <isset property="global.jvm_version"/>
+    </not>
+</condition>
 
 <!--
 ******************************************************************************
@@ -581,8 +586,8 @@ JAVA COMPILATION
 
     <!-- compile the individual source directories -->
     <javac includeantruntime="false"
-        source="${javac.version}"
-        target="${javac.version}"
+        source="${global.jvm_version}"
+        target="${global.jvm_version}"
         srcdir="${src.protorpc.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
@@ -591,8 +596,8 @@ JAVA COMPILATION
     </javac>
 
     <javac includeantruntime="false"
-        source="${javac.version}"
-        target="${javac.version}"
+        source="${global.jvm_version}"
+        target="${global.jvm_version}"
         srcdir="${src.hsqldb.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
@@ -601,8 +606,8 @@ JAVA COMPILATION
     </javac>
 
     <javac includeantruntime="false"
-        source="${javac.version}"
-        target="${javac.version}"
+        source="${global.jvm_version}"
+        target="${global.jvm_version}"
         srcdir="${thirdpartysrc.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
@@ -611,8 +616,8 @@ JAVA COMPILATION
     </javac>
 
     <javac includeantruntime="false"
-        source="${javac.version}"
-        target="${javac.version}"
+        source="${global.jvm_version}"
+        target="${global.jvm_version}"
         srcdir="${src.frontend.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
@@ -621,8 +626,8 @@ JAVA COMPILATION
     </javac>
     
     <javac includeantruntime="false"
-        source="${javac.version}"
-        target="${javac.version}"
+        source="${global.jvm_version}"
+        target="${global.jvm_version}"
         srcdir="${src.benchmarks.dir}"
         destdir='${build.benchmarks.dir}'
         debug='true'>
@@ -632,8 +637,8 @@ JAVA COMPILATION
 
     <!-- compile the individual test directories -->
     <javac includeantruntime="false"
-        source="${javac.version}"
-        target="${javac.version}"
+        source="${global.jvm_version}"
+        target="${global.jvm_version}"
         srcdir="${src.hsqldb.test.dir}"
         destdir='${build.test.dir}'
         debug='true'>
@@ -642,8 +647,8 @@ JAVA COMPILATION
     </javac>
 
     <javac includeantruntime="false"
-        source="${javac.version}"
-        target="${javac.version}"
+        source="${global.jvm_version}"
+        target="${global.jvm_version}"
         srcdir="${src.test.dir}"
         destdir='${build.test.dir}'
         excludes="org/voltdb/benchmark/tpcc/JDBCClient.java,edu/mit/elt/ELTTester**"
@@ -653,7 +658,7 @@ JAVA COMPILATION
     </javac>
 
 <!--    <javac includeantruntime="false"
-        target="${javac.version}"
+        target="${global.jvm_version}"
         srcdir="${build.preprocessor.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
@@ -1568,8 +1573,8 @@ TEST CASES
         <!-- avoids needing ant clean when changing interfaces -->
         <depend srcdir="@{srcdir}" destdir="@{destdir}" cache="${depcache}"/>
         <javac includeantruntime="false"
-            source="${javac.version}"
-            target="${javac.version}"
+            source="${global.jvm_version}"
+            target="${global.jvm_version}"
             srcdir="@{srcdir}"
             destdir="@{destdir}"
             includeAntRuntime="no"
@@ -2005,6 +2010,21 @@ UTILITIES
 </exec>-->
 </target>
 
+<target name='conflicts-dump' description="Export table-based ConflictGraphs as GraphViz File">
+    <java fork="yes" classname="edu.brown.catalog.conflicts.ConflictSetTableDumper">
+        <jvmarg value="-Xmx512m" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="conflicts.exclude_procedures=${excludeProcedures}" />
+        <arg value="conflicts.exclude_statements=${excludeStatements}" />
+        <arg value="conflicts.focus=${focus}" />
+        <arg line="${output}" />
+        <classpath refid='project.classpath' />
+        <assertions>
+            <enable />
+        </assertions>
+    </java>
+</target>
+
 <!--
 ******************************************************************************
 * WORKLOAD OPERATIONS
@@ -2389,8 +2409,8 @@ UTILITIES
 
 <target name="oltpgen.compile" depends="oltpgen.clean, compile">
         <javac includeantruntime="false"
-                source="${javac.version}"
-                target="${javac.version}"
+                source="${global.jvm_version}"
+                target="${global.jvm_version}"
                 srcdir="${src.test.dir}"
                 destdir="${build.test.dir}"
                 debug='true'>

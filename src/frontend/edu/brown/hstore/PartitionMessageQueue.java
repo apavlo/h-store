@@ -65,8 +65,8 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
         
         @Override
         public int compare(InternalMessage msg0, InternalMessage msg1) {
-            assert(msg0 != null);
-            assert(msg1 != null);
+            assert(msg0 != null) : "Unexpected null message [msg0]";
+            assert(msg1 != null) : "Unexpected null message [msg1]";
 
             Class<?> class0 = msg0.getClass();
             Class<?> class1 = msg1.getClass();

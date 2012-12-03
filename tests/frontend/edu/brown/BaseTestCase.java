@@ -29,7 +29,9 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -113,6 +115,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected static Catalog catalog;
     protected static Database catalog_db;
     private static final Map<ProjectType, CatalogContext> project_catalogs = new HashMap<ProjectType, CatalogContext>();
+    private static final Set<ProjectType> needs_reset = new HashSet<ProjectType>(); 
     
     protected static PartitionEstimator p_estimator;
     private static final Map<ProjectType, PartitionEstimator> project_p_estimators = new HashMap<ProjectType, PartitionEstimator>();
@@ -154,7 +157,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             String catalogJar = new File(projectBuilder.getJarName(true)).getAbsolutePath();
             try {
                 boolean status = projectBuilder.compile(catalogJar);
-                assert (status);
+                assert(status) : "Failed to compile " + catalogJar;
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to create " + projectBuilder.getProjectName() + " catalog [" + catalogJar + "]", ex);
             }
@@ -198,6 +201,10 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             
             if (ENABLE_JAR_REUSE) {
                 File jar_path = projectBuilder.getJarPath(true);
+                if (needs_reset.contains(type)) {
+                    jar_path.delete();
+                    needs_reset.remove(type);
+                }
                 if (jar_path.exists()) {
                     LOG.debug("LOAD CACHE JAR: " + jar_path.getAbsolutePath());
                     cc = CatalogUtil.loadCatalogContextFromJar(jar_path);
@@ -228,6 +235,17 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         catalog = catalogContext.catalog;
         catalog_db = catalogContext.database;
         p_estimator = project_p_estimators.get(type);
+    }
+    
+    /**
+     * Reset all cached objects for this project type, including
+     * removing any jars that many already exist.
+     * @param type
+     */
+    protected void reset(ProjectType type) {
+        project_catalogs.remove(type);
+        project_p_estimators.remove(type);
+        needs_reset.add(type);
     }
     
     /**

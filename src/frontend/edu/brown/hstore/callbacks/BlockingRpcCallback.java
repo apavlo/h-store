@@ -31,9 +31,12 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     protected final HStoreConf hstore_conf;
     protected Long txn_id = null;
     private final AtomicInteger counter = new AtomicInteger(0);
+    
+    // We retain the original parameters of the last init() for debugging
+    private Long orig_txn_id = null;
     private int orig_counter;
     private RpcCallback<T> orig_callback;
-    protected Long lastTxnId = null;
+    
 
     /**
      * We'll flip this flag if one of our partitions replies with an
@@ -80,7 +83,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
         this.counter.set(counter_val);
         this.orig_callback = orig_callback;
         this.txn_id = txn_id;
-        this.lastTxnId = txn_id;
+        this.orig_txn_id = txn_id;
     }
     
     @Override
@@ -91,8 +94,15 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     protected final Long getTransactionId() {
         return (this.txn_id);
     }
+    /**
+     * Return the current state of this callback's internal counter
+     */
     public final int getCounter() {
         return (this.counter.get());
+    }
+    
+    protected final Long getOrigTransactionId() {
+        return (this.orig_txn_id);
     }
     protected final int getOrigCounter() {
         return (this.orig_counter);
@@ -232,10 +242,10 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     
     @Override
     public String toString() {
-        return String.format("%s[Invoked=%s, Aborted=%s, Counter=%d]",
+        return String.format("%s[Invoked=%s, Aborted=%s, Counter=%d/%d]",
                              this.getClass().getSimpleName(), 
                              this.unblockInvoked.get(),
                              this.abortInvoked.get(),
-                             this.counter.get()); 
+                             this.counter.get(), this.getOrigCounter()); 
     }
 }

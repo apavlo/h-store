@@ -5,6 +5,8 @@ import java.util.Random;
 
 import junit.framework.TestCase;
 
+import org.voltdb.CatalogContext;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
@@ -19,6 +21,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.SetConfiguration;
+import org.voltdb.sysprocs.Statistics;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTypeUtil;
 
@@ -40,7 +43,15 @@ public abstract class RegressionSuiteUtil {
         String confParams[] = {paramName};
         String confValues[] = {paramValue.toString()};
         ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
-        assert(cresponse.getStatus() == Status.OK);
+        assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+        return (cresponse);
+    }
+    
+    public static ClientResponse getStats(Client client, SysProcSelector statsType) throws Exception {
+        String procName = VoltSystemProcedure.procCallName(Statistics.class);
+        Object params[] = { statsType.name(), 0 };
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
         return (cresponse);
     }
     
@@ -84,7 +95,7 @@ public abstract class RegressionSuiteUtil {
         TestCase.assertEquals(Status.OK, cr.getStatus());
     }
 
-    public static final void initializeTPCCDatabase(final Catalog catalog, final Client client) throws Exception {
+    public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client) throws Exception {
         String args[] = {
             "NOCONNECTIONS=true",
             "BENCHMARK.WAREHOUSE_PER_PARTITION=true",
@@ -92,27 +103,27 @@ public abstract class RegressionSuiteUtil {
         };
         TPCCLoader loader = new TPCCLoader(args) {
             {
-                this.setCatalog(catalog);
+                this.setCatalogContext(catalogContext);
                 this.setClientHandle(client);
             }
             @Override
             public Catalog getCatalog() {
-                return (catalog);
+                return (catalogContext.catalog);
             }
         };
         loader.load();
     }
 
-    public static final void initializeTM1Database(final Catalog catalog, final Client client) throws Exception {
+    public static final void initializeTM1Database(final CatalogContext catalogContext, final Client client) throws Exception {
         String args[] = { "NOCONNECTIONS=true", };
         TM1Loader loader = new TM1Loader(args) {
             {
-                this.setCatalog(catalog);
+                this.setCatalogContext(catalogContext);
                 this.setClientHandle(client);
             }
             @Override
             public Catalog getCatalog() {
-                return (catalog);
+                return (catalogContext.catalog);
             }
         };
         loader.load();
