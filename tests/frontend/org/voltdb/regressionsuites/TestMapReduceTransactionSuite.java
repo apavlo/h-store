@@ -167,7 +167,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         return (vt);
     }
     
-    static public junit.framework.Test suite() {
+    public static junit.framework.Test suite() {
         VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestMapReduceTransactionSuite.class);

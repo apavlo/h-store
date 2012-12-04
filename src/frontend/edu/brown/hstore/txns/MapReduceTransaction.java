@@ -146,15 +146,17 @@ public class MapReduceTransaction extends LocalTransaction {
         // Intialize MapReduce properties
         this.mapEmit = hstore_site.getCatalogContext().getTableByName(catalog_proc.getMapemittable());
         this.reduceEmit = hstore_site.getCatalogContext().getTableByName(catalog_proc.getReduceemittable());
-        LOG.info(" CatalogUtil.getVoltTable(thisMapEmit): -> " + catalog_proc.getMapemittable());
-        LOG.info("MapReduce LocalPartitionIds: " + this.hstore_site.getLocalPartitionIds());
+        if (debug.get()) {
+            LOG.debug(" CatalogUtil.getVoltTable(thisMapEmit): -> " + catalog_proc.getMapemittable());
+            LOG.debug("MapReduce LocalPartitionIds: " + this.hstore_site.getLocalPartitionIds());
+        }
         
         // Get the Table catalog object for the map/reduce outputs
         // For each partition there should be a map/reduce output voltTable
         for (int partition : this.hstore_site.getLocalPartitionIds()) {
             int offset = hstore_site.getLocalPartitionOffset(partition);
             //int offset = partition;
-            LOG.info(String.format("Partition[%d] -> Offset[%d]", partition, offset));
+            if (debug.get()) LOG.debug(String.format("Partition[%d] -> Offset[%d]", partition, offset));
             this.local_txns[offset].init(this.txn_id,
                                          initiateTime,
                                          this.client_handle,
@@ -188,7 +190,7 @@ public class MapReduceTransaction extends LocalTransaction {
             this.cleanup_callback.init(this, this.hstore_site.getLocalPartitionIds());
         }
         
-        LOG.info("Invoked MapReduceTransaction.init() -> " + this);
+        if (debug.get()) LOG.info("Invoked MapReduceTransaction.init() -> " + this);
         return (this);
     }
 
