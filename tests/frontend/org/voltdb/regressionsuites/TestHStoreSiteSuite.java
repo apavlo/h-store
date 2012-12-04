@@ -30,21 +30,35 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         super(name);
     }
     
-    /**
-     * testNetworkThreadInitialization
-     */
-    public void testNetworkThreadInitialization() throws Exception {
-        Client client = this.getClient();
-        
-        // Enable the feature on the server
-        RegressionSuiteUtil.setHStoreConf(client, "site.network_txn_initialization", true);
-        
+    private void executeTestWorkload(Client client) throws Exception {
         RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = client.callProcedure(txn.callName, params);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
+    }
+    
+    /**
+     * testNetworkThreadInitialization
+     */
+    public void testNetworkThreadInitialization() throws Exception {
+        // Test transaction execution where the network processing threads are 
+        // responsible for initializing the transactions.
+        Client client = this.getClient();
+        RegressionSuiteUtil.setHStoreConf(client, "site.network_txn_initialization", true);
+        this.executeTestWorkload(client);
+    }
+    
+    /**
+     * testPartitionExecutorInitialization
+     */
+    public void testPartitionExecutorInitialization() throws Exception {
+        // Test transaction execution where the PartitionExecutor is responsible 
+        // for initializing the transactions.
+        Client client = this.getClient();
+        RegressionSuiteUtil.setHStoreConf(client, "site.network_txn_initialization", false);
+        this.executeTestWorkload(client);
     }
 
     public static Test suite() {
