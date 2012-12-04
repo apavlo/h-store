@@ -1,6 +1,9 @@
 package edu.brown.hstore;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -284,8 +287,10 @@ public class TestHStoreSite extends BaseTestCase {
         // returned in the proper order
         Procedure spProc = this.getProcedure(GetSubscriberData.class);
         HStoreSiteTestUtil.LatchableProcedureCallback spCallback = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_TXNS);
+        // spCallback.setDebug(true);
         Procedure mpProc = this.getProcedure(DeleteCallForwarding.class);
         HStoreSiteTestUtil.LatchableProcedureCallback mpCallback = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_TXNS);
+        // mpCallback.setDebug(true);
         
         for (int i = 0; i < NUM_TXNS; i++) {
             // SINGLE-PARTITION
@@ -319,17 +324,40 @@ public class TestHStoreSite extends BaseTestCase {
         assertTrue("SP LATCH --> " + spCallback.latch, result);
         result = mpCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue("MP LATCH --> " + mpCallback.latch, result);
+
+        // Although the results may come back in a different order, we expect that
+        // their transaction ids are in the right order. We'll sort them by their
+        // clientHandle, which is the ordered id of when they were sent to the cluster.
+        Comparator<ClientResponse> sorter = new Comparator<ClientResponse>() {
+            @Override
+            public int compare(ClientResponse o1, ClientResponse o2) {
+                return (int)(o1.getClientHandle() - o2.getClientHandle());
+            }
+        };
+        Collections.sort(spCallback.responses, sorter);
+        Collections.sort(mpCallback.responses, sorter);
         
+        // Just make sure that the txnIds are always increasing
+        long lastTxnIds[] = new long[NUM_PARTITIONS];
+        int basePartition;
+        long txnId;
+        Arrays.fill(lastTxnIds, -1l);
         for (int i = 0; i < NUM_TXNS; i++) {
             ClientResponse spResponse = spCallback.responses.get(i);
-            assertNotNull(spResponse);
-            long spTxnId = spResponse.getTransactionId();
+            assertEquals(spResponse.toString(), Status.OK, spResponse.getStatus());
+            txnId = spResponse.getTransactionId();
+            basePartition = spResponse.getBasePartition();
+            assertTrue(String.format("%02d :: LAST[%d] < SP[%d]", basePartition, lastTxnIds[basePartition], txnId),
+                       lastTxnIds[basePartition] < txnId);
+            lastTxnIds[basePartition] = txnId;
             
             ClientResponse mpResponse = mpCallback.responses.get(i);
-            assertNotNull(mpResponse);
-            long mpTxnId = mpResponse.getTransactionId();
-            
-            assertTrue(String.format("SP[%d] <-> MP[%d]", spTxnId, mpTxnId), spTxnId < mpTxnId);
+            assertEquals(mpResponse.toString(), Status.OK, mpResponse.getStatus());
+            txnId = mpResponse.getTransactionId();
+            basePartition = mpResponse.getBasePartition();
+            assertTrue(String.format("%02d :: LAST[%d] < SP[%d]", basePartition, lastTxnIds[basePartition], txnId),
+                    lastTxnIds[basePartition] < txnId);
+            lastTxnIds[basePartition] = txnId;
         } // FOR
         
         HStoreSiteTestUtil.checkObjectPools(hstore_site);

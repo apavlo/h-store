@@ -1574,11 +1574,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // PARAMETERSET INITIALIZATION
         // -------------------------------
         
-        // Initialize the ParameterSet
-        ParameterSet procParams = null;
+        // Extract just the ParameterSet from the StoredProcedureInvocation
+        // We will deserialize the rest of it later
+        ParameterSet procParams = new ParameterSet();
         try {
-//            procParams = objectPools.PARAMETERSETS.borrowObject();
-            procParams = new ParameterSet();
             StoredProcedureInvocation.seekToParameterSet(buffer);
             incomingDeserializer.setBuffer(buffer);
             procParams.readExternal(incomingDeserializer);
@@ -1617,6 +1616,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // SYNCH
         }
         
+        // The base partition is where this txn's Java stored procedure will run on
         base_partition = this.txnInitializer.calculateBasePartition(client_handle,
                                                                     catalog_proc,
                                                                     procParams,
@@ -1664,7 +1664,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                    clientCallback);
             if (success == false) {
                 Status status = Status.ABORT_REJECT;
-//                if (catalog_proc.getName().equalsIgnoreCase("@Quiesce"))
                 if (d) LOG.debug(String.format("Hit with a %s response from partition %d " +
                                  "[queueSize=%d]",
                                  status, base_partition, executor.getDebugContext().getWorkQueueSize()));
@@ -2476,8 +2475,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (d) LOG.debug(String.format("Txn #%d - Sending back ClientResponse [status=%s%s]",
-                         cresponse.getTransactionId(), status,
+        if (d) LOG.debug(String.format("Txn %s - Sending back ClientResponse [status=%s%s]",
+                         (cresponse.getTransactionId() == -1 ? "<NONE>" : "#"+cresponse.getTransactionId()),
+                         status,
                          (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null ?
                                  "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
         

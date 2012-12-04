@@ -20,7 +20,7 @@ public abstract class HStoreSiteTestUtil extends TestCase {
     public static class LatchableProcedureCallback implements ProcedureCallback {
         public final List<ClientResponse> responses = new ArrayList<ClientResponse>();
         public final CountDownLatch latch;
-        protected boolean debug = false;
+        private boolean debug = false;
         public LatchableProcedureCallback(int expected) {
             this.latch = new CountDownLatch(expected);
         }
@@ -32,6 +32,10 @@ public abstract class HStoreSiteTestUtil extends TestCase {
             }
             this.responses.add(clientResponse);
             this.latch.countDown();
+        }
+        public LatchableProcedureCallback setDebug(boolean val) {
+            this.debug = val;
+            return (this);
         }
     }
 

@@ -1,6 +1,5 @@
 package edu.brown.hstore;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -11,9 +10,6 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
-import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NullCallback;
-import org.voltdb.client.ProcedureCallback;
 import org.voltdb.sysprocs.Sleep;
 import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.VoltTableUtil;
