@@ -704,11 +704,10 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
             block_ids[i] = *itr; 
 			VOLT_INFO("Unevicting block %d", *itr); 
         }
-		
+
 		VOLT_INFO("Throwing EvictedTupleAccessException"); 
 
-		// TODO: insert correct table id instead of hardcoding 0
-        throw new EvictedTupleAccessException(m_targetTable->databaseId(), num_block_ids, block_ids); 
+		throw EvictedTupleAccessException(m_targetTable->databaseId(), num_block_ids, block_ids);
     }
 #endif
     

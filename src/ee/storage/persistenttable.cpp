@@ -235,11 +235,11 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 
 		tuple_length = tuple.tupleLength();
 		
-		ValuePeeker peeker; 
-		int tuple_id = (int)peeker.peekInteger(tuple.getNValue(0));
+		//ValuePeeker peeker; 
+		//int tuple_id = (int)peeker.peekInteger(tuple.getNValue(0));
 		
-		if(tuple_id < 20000)
-			continue; 
+		//if(tuple_id < 20000)
+		//	continue; 
 		
 	//	assert(tuple_id >= 0); 
 			

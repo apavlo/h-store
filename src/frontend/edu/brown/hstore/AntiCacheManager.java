@@ -208,6 +208,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         //       request asynchronously per partition. For now we're just going to
         //       block the AntiCacheManager until each of the requests are finished
         try {
+			LOG.info("Asking EE to read in evicted blocks.");
+	
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids);
         } catch (SerializableException ex) {
             
@@ -240,6 +242,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         
         // TODO: We should check whether there are any other txns that are also blocked waiting
         // for these blocks. This will ensure that we don't try to read in blocks twice.
+
+		LOG.info("Queueing a transaction for partition " + partition);
         
         return (this.queue.offer(e));
     }

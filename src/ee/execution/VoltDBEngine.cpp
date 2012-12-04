@@ -350,12 +350,14 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                        (intmax_t)txnId, m_currentOutputDepId);
         } else 
 		{
-            VOLT_DEBUG("[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
+            VOLT_DEBUG("_[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
                        (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
                        (intmax_t)txnId, m_currentOutputDepId);
             try {
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
+				executor->execute(params);
+/*
                 if (!executor->execute(params)) {
                     VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
                                ctr, (intmax_t)planfragmentId);
@@ -366,16 +368,13 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                     m_currentInputDepId = -1;
                     return ENGINE_ERRORCODE_ERROR;
                 }
+*/
             } 
-			catch(EvictedTupleAccessException &e)
-			{
-				VOLT_INFO("Caught EvictedTupleAccessException.");
-			}
 			catch (SerializableEEException &e) {
-				
-				
+								
                 VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
                            ctr, (intmax_t)planfragmentId);
+				
                 VOLT_INFO("SerializableEEException: %s", e.message().c_str());
                 if (cleanUpTable != NULL)
                     cleanUpTable->deleteAllTuples(false);
