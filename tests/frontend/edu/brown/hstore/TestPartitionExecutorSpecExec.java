@@ -135,7 +135,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.specexec_enable = true;
         this.hstore_conf.site.specexec_idle = true;
-        this.hstore_conf.site.specexec_pre_query = true;
         this.hstore_conf.site.txn_client_debug = true;
         this.hstore_conf.site.exec_voltdb_procinfo = true;
         

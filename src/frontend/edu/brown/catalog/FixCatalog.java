@@ -2,13 +2,11 @@ package edu.brown.catalog;
 
 import java.io.File;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
@@ -18,7 +16,6 @@ import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 

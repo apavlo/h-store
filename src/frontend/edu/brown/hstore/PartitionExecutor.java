@@ -136,7 +136,6 @@ import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
-import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
@@ -322,6 +321,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private Long currentTxnId = null;
     
+    /**
+     * We can only have one active "parent" transaction at a time.
+     * We can speculatively execute other transactions out of order, but the active parent
+     * transaction will always be the same.  
+     */
     private AbstractTransaction currentTxn;
     
     /**
@@ -886,6 +890,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // TODO: If we get something back here, it should be come our
                 // current "parent" transaction.
                 this.currentTxn = this.queueManager.checkLockQueues(this.partitionId);
+                if (this.currentTxn != null && this.currentTxn.isPredictSinglePartition() == false) {
+                    this.setCurrentDtxn(this.currentTxn);
+                    this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
+                }
                 
                 // -------------------------------
                 // Poll Work Queue
@@ -1151,20 +1159,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                               this.currentTxn, this.currentDtxn);
             this.setExecutionMode(this.currentTxn, newMode);
             this.processWorkFragment(this.currentTxn, fragment, parameters);
-        }
-        // -------------------------------
-        // Set Distributed Transaction Hack
-        // -------------------------------
-        else if (work instanceof SetDistributedTxnMessage) {
-            AbstractTransaction ts = work.getTransaction();
-            if (ts.isInitialized() && ts.isAborted() == false) {
-            	this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
-                if (this.currentDtxn != null) {
-//                    //if (this.currentDtxn.compareTo(ts) < 0) this.blockTransaction(work);
-                } else { 
-                    this.setCurrentDtxn(ts);
-                }
-            }
         }
         // -------------------------------
         // Prepare Transaction
@@ -1621,20 +1615,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (debug.get()) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
                                    this.partitionId, work));
         this.utility_queue.offer(work);
-    }
-    
-    /**
-     * Put a new SetDistributedTxnMessage in for the transaction 
-     * @param work
-     */
-    public void queueInitDtxn(AbstractTransaction ts) {
-        assert(ts.isInitialized());
-        // SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
-        SetDistributedTxnMessage work = new SetDistributedTxnMessage(ts);
-        boolean success = this.work_queue.offer(work);
-        assert(success);
-        if (d) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
-                         work.getTransaction(), work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
     
     /**
