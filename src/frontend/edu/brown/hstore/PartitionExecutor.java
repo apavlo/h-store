@@ -772,7 +772,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getCoordinator();
         this.thresholds = hstore_site.getThresholds();
-        this.specExecChecker.setEstimationThresholds(this.thresholds);
         this.txnInitializer = hstore_site.getTransactionInitializer();
         this.queueManager = hstore_site.getTransactionQueueManager();
         
@@ -808,6 +807,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                        this.queueManager.getInitQueue(this.partitionId),
                                                        policy,
                                                        hstore_conf.site.specexec_scheduler_window);
+        this.specExecChecker.setEstimationThresholds(this.thresholds);
         if (hstore_conf.site.specexec_ignore_all_local) {
             this.specExecScheduler.setIgnoreAllLocal(true);
         }
