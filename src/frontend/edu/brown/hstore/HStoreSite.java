@@ -2165,7 +2165,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                          orig_ts , status, orig_ts.getRestartCounter()));
         int base_partition = orig_ts.getBasePartition();
         SerializableException orig_error = orig_ts.getPendingError();
-        
+
+		LOG.info("In transactionRestart()"); 
+		        
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright
         int restart_limit = (orig_ts.isSysProc() ? hstore_conf.site.txn_restart_limit_sysproc :
@@ -2345,15 +2347,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // ANTI-CACHING REQUEUE
         // -------------------------------
-        if (status == Status.ABORT_EVICTEDACCESS) {
+        if (status == Status.ABORT_EVICTEDACCESS && orig_error instanceof EvictedTupleAccessException) {
             if (this.anticacheManager == null) {
+				LOG.info("Got eviction notice but anti-caching is not enabled"); 
+	
                 String message = "Got eviction notice but anti-caching is not enabled";
                 throw new ServerFaultException(message, orig_error, orig_ts.getTransactionId());
             }
-
+			
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
             Table catalog_tbl = error.getTableId(this.catalogContext.database);
             short block_ids[] = error.getBlockIds();
+
+			LOG.info("Added aborted txn to AnticacheManager queue. Unevicting " + block_ids.length + " blocks."); 
             this.anticacheManager.queue(new_ts, base_partition, catalog_tbl, block_ids);
         }
             
@@ -2596,6 +2602,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_MISPREDICT:
                 case ABORT_RESTART:
                 case ABORT_EVICTEDACCESS:
+
+					if (status == Status.ABORT_EVICTEDACCESS) {
+						LOG.info("status is ABORT_EVICTEDACCESS");
+                    }
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
                         t_estimator.abort(t_state, status);

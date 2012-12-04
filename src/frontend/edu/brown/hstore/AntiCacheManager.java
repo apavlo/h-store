@@ -52,9 +52,12 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1MB
-
-	public static final long DEFAULT_MEMORY_THRESHOLD_MB = 128; 
+   // public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1MB
+	//public static final long DEFAULT_MEMORY_THRESHOLD_MB = 128; 
+	
+	public static final long DEFAULT_EVICTED_BLOCK_SIZE = 51200; // 50 kb
+	public static final long DEFAULT_MEMORY_THRESHOLD_MB = 1; 
+	
     
     private boolean evicting;  
 
@@ -205,9 +208,11 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         //       request asynchronously per partition. For now we're just going to
         //       block the AntiCacheManager until each of the requests are finished
         try {
+			LOG.info("Asking EE to read in evicted blocks.");
+	
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids);
         } catch (SerializableException ex) {
-            
+            LOG.info("Caught unexpected SerializableException."); 
         }
         
         // Now go ahead and requeue our transaction
@@ -237,6 +242,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         
         // TODO: We should check whether there are any other txns that are also blocked waiting
         // for these blocks. This will ensure that we don't try to read in blocks twice.
+
+		LOG.info("Queueing a transaction for partition " + partition);
         
         return (this.queue.offer(e));
     }

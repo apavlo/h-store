@@ -49,6 +49,7 @@ import edu.brown.benchmark.ycsb.YCSBUtil;
 
 import edu.brown.benchmark.ycsb.distributions.CounterGenerator;
 import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
+import edu.brown.benchmark.ycsb.distributions.CustomSkewGenerator; 
 
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
@@ -58,7 +59,8 @@ public class YCSBClient extends BenchmarkComponent {
 	
     private int transaction_count = 0; 
     
-	private ZipfianGenerator readRecord;
+	private CustomSkewGenerator readRecord; 
+	//private ZipfianGenerator readRecord;
     private static CounterGenerator insertRecord;
     private ZipfianGenerator randScan;
 	
@@ -93,7 +95,9 @@ public class YCSBClient extends BenchmarkComponent {
 		int init_record_count = YCSBConstants.NUM_RECORDS;  
 		
 		// initialize distribution generators 
-		readRecord = new ZipfianGenerator(init_record_count, SIGMA);// pool for read keys
+		//readRecord = new ZipfianGenerator(init_record_count, SIGMA);// pool for read keys
+		readRecord = new CustomSkewGenerator(init_record_count, 80, 20); 
+		
         randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
 		
 		value_list = new LinkedList<String>(); 
@@ -162,10 +166,6 @@ public class YCSBClient extends BenchmarkComponent {
             while (true) {
 				
 				runOnce(); 
-                
-
-                    run_count = 0; 
-
             } 
             
             
@@ -253,8 +253,12 @@ public class YCSBClient extends BenchmarkComponent {
 		}
 		
 		key = readRecord.nextInt(); 
+		
+	 	//System.out.println("key = " + key);
+	
+		//LOG.info("key = " + key); 
         
-        zipf_histogram.put(new Integer(key)); 
+        //zipf_histogram.put(new Integer(key)); 
 
 		//if(key != 0)
 		//	System.out.println("key = " + key); 

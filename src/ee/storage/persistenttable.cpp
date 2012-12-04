@@ -236,12 +236,14 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 		tuple_length = tuple.tupleLength();
 		
 		ValuePeeker peeker; 
-		int tuple_id = (int)peeker.peekBigInt(tuple.getNValue(0));
+		int tuple_id = (int)peeker.peekInteger(tuple.getNValue(0));
 		
-		if(tuple_id < 2000000)
+		if(tuple_id < 20000)
 			continue; 
+		
+	//	assert(tuple_id >= 0); 
 			
-		//VOLT_INFO("Evicting tuple id: %d", tuple_id); 
+	//	VOLT_INFO("Evicting tuple id: %d", tuple_id); 
 			
         assert(tuple_length > 0);
         //assert(tuple.isEvicted() == false);
@@ -250,8 +252,9 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 			//VOLT_INFO("tuple %d is already evicted.", tuple.getTupleID()); 
 			continue;
 		} 
+		
         tuple.setEvictedTrue(); 
-        
+
         // Check whether we have more space for one more tuple
         if ((serialized_data_length+tuple_length) > block_size) break;
         

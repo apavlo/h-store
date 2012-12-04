@@ -1923,7 +1923,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             result = this.executeWorkFragment(ts, fragment, parameters);
             
         } catch (EvictedTupleAccessException ex) {
-            // XXX: What do we do if this is not a single-partition txn? 
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
         } catch (ConstraintFailureException ex) {
@@ -2293,6 +2292,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                Map<Integer, List<VoltTable>> input_deps) {
         assert(this.ee != null) : "The EE object is null. This is bad!";
         Long txn_id = ts.getTransactionId();
+
+		LOG.info("in executePlanFragments()");
         
         // *********************************** DEBUG ***********************************
         if (d) {
@@ -2381,7 +2382,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                             this.lastCommittedTxnId.longValue(),
                             undoToken);
             
-        } catch (SerializableException ex) {
+        } 
+		catch(EvictedTupleAccessException ex)
+		{
+			LOG.info("Caught EvictedTupleAccessException.");
+            error = ex;
+            throw ex;
+		}
+		catch (SerializableException ex) {
             if (d) LOG.error(String.format("%s - Unexpected error in the ExecutionEngine on partition %d",
                              ts, this.partitionId), ex);
             error = ex;
@@ -3226,11 +3234,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
             }
         }
-        
+
+		if(status == Status.ABORT_EVICTEDACCESS)
+		{
+			LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
+			
+			this.finishWork(ts, false);
+            this.hstore_site.transactionRestart(ts, status);
+		}
         // -------------------------------
         // ALL: Mispredicted Transactions
         // -------------------------------
-        if (status == Status.ABORT_MISPREDICT) {
+        else if (status == Status.ABORT_MISPREDICT) {
             // If the txn was mispredicted, then we will pass the information over to the
             // HStoreSite so that it can re-execute the transaction. We want to do this 
             // first so that the txn gets re-executed as soon as possible...

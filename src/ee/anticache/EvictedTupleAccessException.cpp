@@ -23,6 +23,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "common/debuglog.h"
 #include "anticache/EvictedTupleAccessException.h"
 #include "common/SerializableEEException.h"
 #include "common/serializeio.h"
@@ -39,11 +40,16 @@ EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlo
         m_tableId(tableId),
         m_numBlockIds(numBlockIds),
         m_blockIds(blockIds) {
+	
+			VOLT_DEBUG("In EvictedTupleAccessException constructor...setting eviction type to %d.", VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE); 
     
     // Nothing to see, nothing to do...
 }
 
 void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) {
+	
+	VOLT_DEBUG("In EvictedTupleAccessException p_serialize()."); 
+	
     output->writeInt(m_tableId);
     output->writeShort(static_cast<short>(m_numBlockIds)); // # of block ids
     for (int ii = 0; ii < m_numBlockIds; ii++) {
