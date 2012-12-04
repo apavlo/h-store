@@ -271,10 +271,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         return m_state;
     }
     
-    @Override
-    public synchronized String toString() {
+    public synchronized String debug() {
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("PartitionId", m_partitionId);
+        m.put("# of Elements", this.size());
         m.put("Wait Time", m_waitTime);
         m.put("Next Time Remaining", Math.max(0, EstTime.currentTimeMillis() - m_blockTime));
         m.put("Next Txn", m_nextTxn);

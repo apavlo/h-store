@@ -256,132 +256,132 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
-    /**
-     * testSpeculativeInterleavedAborts
-     */
-    @Test
-    public void testSpeculativeInterleavedAborts() throws Exception {
-        // This one is a bit more complicated. We're going to execute 
-        // transactions where we interleave speculative txns that abort
-        // We want to make sure that the final value is what we expect it to be
-        Object params[] = new Object[]{ BASE_PARTITION };
-        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
-        
-        // Block until we know that the txn has started running
-        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue(result);
-        this.checkCurrentDtxn();
-        
-        // Now submit our aborting single-partition txn
-        // This should be allowed to be speculatively executed right away
-        Procedure spProc0 = this.getProcedure(SinglePartitionAbortable.class);
-        Procedure spProc1 = this.getProcedure(CheckSubscriber.class);
-        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
-        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
-        LatchableProcedureCallback spCallback2 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
-        int MARKER = 1000;
-        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
-            // First txn will not abort
-            params = new Object[]{ BASE_PARTITION+1, MARKER, 0 };
-            this.client.callProcedure(spCallback0, spProc0.getName(), params);
-            
-            // Second txn will abort
-            params = new Object[]{ BASE_PARTITION+1, MARKER+1, 1 };
-            this.client.callProcedure(spCallback1, spProc0.getName(), params);
-            
-            // Third txn should only see the first txn's marker value
-            params = new Object[]{ BASE_PARTITION+1, MARKER, 1 }; // SHOULD BE EQUAL!
-            this.client.callProcedure(spCallback2, spProc1.getName(), params);
-        } // FOR
-        
-        // We should get back all of the aborting txns' responses, but none from
-        // the other txns
-        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("SINGLE-P LATCH1: "+spCallback1.latch, result);
-        assertTrue(spCallback0.responses.isEmpty());
-        assertTrue(spCallback2.responses.isEmpty());
-        
-        // Release all of the dtxn's locks
-        this.lockBefore.release();
-        this.lockAfter.release();
-        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
-        assertEquals(this.dtxnResponse.toString(), Status.OK, this.dtxnResponse.getStatus());
-        
-        // Now all of our single-partition txns should now come back to us too
-        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("SINGLE-P LATCH0: "+spCallback0.latch, result);
-        result = spCallback2.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("SINGLE-P LATCH2: "+spCallback2.latch, result);
-        
-        // The first + third batch should be all successful
-        this.checkClientResponses(spCallback0.responses, Status.OK, true, 0);
-        assertEquals(NUM_SPECEXEC_TXNS, spCallback0.responses.size());
-        this.checkClientResponses(spCallback2.responses, Status.OK, true, 0);
-        assertEquals(NUM_SPECEXEC_TXNS, spCallback2.responses.size());
-
-        // The second batch should all have been aborted
-        this.checkClientResponses(spCallback1.responses, Status.ABORT_USER, true, 0);
-        assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
-    }
-    
-    /**
-     * testSpeculativeAbort
-     */
-    @Test
-    public void testSpeculativeAbort() throws Exception {
-        // We're going to execute a dtxn that will block on the remote partition
-        // We will then execute a single-partition transaction that will throw a user
-        // abort. We will then execute a bunch of speculative txns that should *not*
-        // see the changes made by the aborted txn
-        Object params[] = new Object[]{ BASE_PARTITION };
-        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
-        
-        // Block until we know that the txn has started running
-        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue(result);
-        this.checkCurrentDtxn();
-        
-        // Now submit our aborting single-partition txn
-        // This should be allowed to be speculatively executed right away
-        Procedure spProc0 = this.getProcedure(SinglePartitionAbortable.class);
-        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
-        int MARKER = 9999;
-        params = new Object[]{ BASE_PARTITION+1, MARKER, 1 };
-        this.client.callProcedure(spCallback0, spProc0.getName(), params);
-
-        // Now execute the second batch of single-partition txns
-        // These should never see the changes made by our first single-partition txn
-        Procedure spProc1 = this.getProcedure(CheckSubscriber.class);
-        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
-        params = new Object[]{ BASE_PARTITION+1, MARKER, 0 }; // Should not be equal!
-        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
-            this.client.callProcedure(spCallback1, spProc1.getName(), params);
-        } // FOR
-        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
-        
-        // Release all of the dtxn's locks
-        this.lockBefore.release();
-        this.lockAfter.release();
-        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
-        assertEquals(this.dtxnResponse.toString(), Status.OK, this.dtxnResponse.getStatus());
-        
-        // All of our single-partition txns should now come back to us too
-        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("SINGLE-P LATCH0: "+spCallback0.latch, result);
-        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("SINGLE-P LATCH1: "+spCallback1.latch, result);
-        
-        // We should only have one response in the first batch that should have aborted
-        this.checkClientResponses(spCallback0.responses, Status.ABORT_USER, true, 0);
-        assertEquals(1, spCallback0.responses.size());
-
-        // The second wave should have all succeeded with being marked as speculative
-        // with no restarts
-        this.checkClientResponses(spCallback1.responses, Status.OK, true, 0);
-        assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
-    }
+//    /**
+//     * testSpeculativeInterleavedAborts
+//     */
+//    @Test
+//    public void testSpeculativeInterleavedAborts() throws Exception {
+//        // This one is a bit more complicated. We're going to execute 
+//        // transactions where we interleave speculative txns that abort
+//        // We want to make sure that the final value is what we expect it to be
+//        Object params[] = new Object[]{ BASE_PARTITION };
+//        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
+//        
+//        // Block until we know that the txn has started running
+//        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue(result);
+//        this.checkCurrentDtxn();
+//        
+//        // Now submit our aborting single-partition txn
+//        // This should be allowed to be speculatively executed right away
+//        Procedure spProc0 = this.getProcedure(SinglePartitionAbortable.class);
+//        Procedure spProc1 = this.getProcedure(CheckSubscriber.class);
+//        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+//        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+//        LatchableProcedureCallback spCallback2 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+//        int MARKER = 1000;
+//        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
+//            // First txn will not abort
+//            params = new Object[]{ BASE_PARTITION+1, MARKER, 0 };
+//            this.client.callProcedure(spCallback0, spProc0.getName(), params);
+//            
+//            // Second txn will abort
+//            params = new Object[]{ BASE_PARTITION+1, MARKER+1, 1 };
+//            this.client.callProcedure(spCallback1, spProc0.getName(), params);
+//            
+//            // Third txn should only see the first txn's marker value
+//            params = new Object[]{ BASE_PARTITION+1, MARKER, 1 }; // SHOULD BE EQUAL!
+//            this.client.callProcedure(spCallback2, spProc1.getName(), params);
+//        } // FOR
+//        
+//        // We should get back all of the aborting txns' responses, but none from
+//        // the other txns
+//        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("SINGLE-P LATCH1: "+spCallback1.latch, result);
+//        assertTrue(spCallback0.responses.isEmpty());
+//        assertTrue(spCallback2.responses.isEmpty());
+//        
+//        // Release all of the dtxn's locks
+//        this.lockBefore.release();
+//        this.lockAfter.release();
+//        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
+//        assertEquals(this.dtxnResponse.toString(), Status.OK, this.dtxnResponse.getStatus());
+//        
+//        // Now all of our single-partition txns should now come back to us too
+//        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("SINGLE-P LATCH0: "+spCallback0.latch, result);
+//        result = spCallback2.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("SINGLE-P LATCH2: "+spCallback2.latch, result);
+//        
+//        // The first + third batch should be all successful
+//        this.checkClientResponses(spCallback0.responses, Status.OK, true, 0);
+//        assertEquals(NUM_SPECEXEC_TXNS, spCallback0.responses.size());
+//        this.checkClientResponses(spCallback2.responses, Status.OK, true, 0);
+//        assertEquals(NUM_SPECEXEC_TXNS, spCallback2.responses.size());
+//
+//        // The second batch should all have been aborted
+//        this.checkClientResponses(spCallback1.responses, Status.ABORT_USER, true, 0);
+//        assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
+//    }
+//    
+//    /**
+//     * testSpeculativeAbort
+//     */
+//    @Test
+//    public void testSpeculativeAbort() throws Exception {
+//        // We're going to execute a dtxn that will block on the remote partition
+//        // We will then execute a single-partition transaction that will throw a user
+//        // abort. We will then execute a bunch of speculative txns that should *not*
+//        // see the changes made by the aborted txn
+//        Object params[] = new Object[]{ BASE_PARTITION };
+//        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
+//        
+//        // Block until we know that the txn has started running
+//        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue(result);
+//        this.checkCurrentDtxn();
+//        
+//        // Now submit our aborting single-partition txn
+//        // This should be allowed to be speculatively executed right away
+//        Procedure spProc0 = this.getProcedure(SinglePartitionAbortable.class);
+//        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
+//        int MARKER = 9999;
+//        params = new Object[]{ BASE_PARTITION+1, MARKER, 1 };
+//        this.client.callProcedure(spCallback0, spProc0.getName(), params);
+//
+//        // Now execute the second batch of single-partition txns
+//        // These should never see the changes made by our first single-partition txn
+//        Procedure spProc1 = this.getProcedure(CheckSubscriber.class);
+//        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+//        params = new Object[]{ BASE_PARTITION+1, MARKER, 0 }; // Should not be equal!
+//        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
+//            this.client.callProcedure(spCallback1, spProc1.getName(), params);
+//        } // FOR
+//        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
+//        
+//        // Release all of the dtxn's locks
+//        this.lockBefore.release();
+//        this.lockAfter.release();
+//        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
+//        assertEquals(this.dtxnResponse.toString(), Status.OK, this.dtxnResponse.getStatus());
+//        
+//        // All of our single-partition txns should now come back to us too
+//        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("SINGLE-P LATCH0: "+spCallback0.latch, result);
+//        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("SINGLE-P LATCH1: "+spCallback1.latch, result);
+//        
+//        // We should only have one response in the first batch that should have aborted
+//        this.checkClientResponses(spCallback0.responses, Status.ABORT_USER, true, 0);
+//        assertEquals(1, spCallback0.responses.size());
+//
+//        // The second wave should have all succeeded with being marked as speculative
+//        // with no restarts
+//        this.checkClientResponses(spCallback1.responses, Status.OK, true, 0);
+//        assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
+//    }
     
     /**
      * testAllCommitsBefore
@@ -430,70 +430,70 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertEquals(NUM_SPECEXEC_TXNS, spCallback.responses.size());
     }
     
-    /**
-     * testDtxnAbort
-     */
-    @Test
-    public void testDtxnAbort() throws Exception {
-        // Execute a dtxn that will abort *after* it executes a query
-        // We will also issue two batches of single-p txns. The first batch
-        // will get executed before the dtxn executes a query at the remote partition
-        // The second will get executed after the dtxn executed a query.
-        // When the dtxn aborts, this means that all of the txns in the first batch
-        // will be allowed to commit, but the second batch will get restarted
-        Object params[] = new Object[]{ BASE_PARTITION };
-        DistributedBlockable.SHOULD_ABORT.set(true);
-        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
-        
-        // Block until we know that the txn has started running
-        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue(result);
-        this.checkCurrentDtxn();
-        
-        // Now fire off our first batch of single-partition txns
-        // This should be allowed to be speculatively executed right away
-        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
-        params = new Object[]{ BASE_PARTITION+1 }; // S_ID
-        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
-            this.client.callProcedure(spCallback0, this.spProc.getName(), params);
-        } // FOR
-        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
-        LOG.info(StringUtil.header("BEFORE"));
-        
-        // Release the before lock, then wait until it reaches the next barrier
-        this.lockBefore.release();
-        result = this.notifyAfter.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue(result);
-        
-        // Now execute the second batch of single-partition txns
-        // All of these will get restarted when the dtxn gets aborted
-        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
-        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
-            this.client.callProcedure(spCallback1, this.spProc.getName(), params);
-        } // FOR
-        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS*2);
-        LOG.info(StringUtil.header("AFTER"));
-        
-        // We will now release the last lock. The dtxn will abort and will
-        // get its response
-        this.lockAfter.release();
-        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
-        assertEquals(this.dtxnResponse.toString(), Status.ABORT_USER, this.dtxnResponse.getStatus());
-        
-        // All of our single-partition txns should now come back to us too
-        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("SINGLE-P LATCH0: "+spCallback0.latch, result);
-        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("SINGLE-P LATCH1: "+spCallback1.latch, result);
-        
-        // The first wave should have succeeded with zero restarts and marked as speculative
-        this.checkClientResponses(spCallback0.responses, Status.OK, true, 0);
-        assertEquals(NUM_SPECEXEC_TXNS, spCallback0.responses.size());
-        // The second wave should have succeeded but with one restart and not marked as speculative
-        this.checkClientResponses(spCallback1.responses, Status.OK, false, 1);
-        assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
-        
-    }
+//    /**
+//     * testDtxnAbort
+//     */
+//    @Test
+//    public void testDtxnAbort() throws Exception {
+//        // Execute a dtxn that will abort *after* it executes a query
+//        // We will also issue two batches of single-p txns. The first batch
+//        // will get executed before the dtxn executes a query at the remote partition
+//        // The second will get executed after the dtxn executed a query.
+//        // When the dtxn aborts, this means that all of the txns in the first batch
+//        // will be allowed to commit, but the second batch will get restarted
+//        Object params[] = new Object[]{ BASE_PARTITION };
+//        DistributedBlockable.SHOULD_ABORT.set(true);
+//        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
+//        
+//        // Block until we know that the txn has started running
+//        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue(result);
+//        this.checkCurrentDtxn();
+//        
+//        // Now fire off our first batch of single-partition txns
+//        // This should be allowed to be speculatively executed right away
+//        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+//        params = new Object[]{ BASE_PARTITION+1 }; // S_ID
+//        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
+//            this.client.callProcedure(spCallback0, this.spProc.getName(), params);
+//        } // FOR
+//        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
+//        LOG.info(StringUtil.header("BEFORE"));
+//        
+//        // Release the before lock, then wait until it reaches the next barrier
+//        this.lockBefore.release();
+//        result = this.notifyAfter.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue(result);
+//        
+//        // Now execute the second batch of single-partition txns
+//        // All of these will get restarted when the dtxn gets aborted
+//        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+//        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
+//            this.client.callProcedure(spCallback1, this.spProc.getName(), params);
+//        } // FOR
+//        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS*2);
+//        LOG.info(StringUtil.header("AFTER"));
+//        
+//        // We will now release the last lock. The dtxn will abort and will
+//        // get its response
+//        this.lockAfter.release();
+//        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
+//        assertEquals(this.dtxnResponse.toString(), Status.ABORT_USER, this.dtxnResponse.getStatus());
+//        
+//        // All of our single-partition txns should now come back to us too
+//        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("SINGLE-P LATCH0: "+spCallback0.latch, result);
+//        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+//        assertTrue("SINGLE-P LATCH1: "+spCallback1.latch, result);
+//        
+//        // The first wave should have succeeded with zero restarts and marked as speculative
+//        this.checkClientResponses(spCallback0.responses, Status.OK, true, 0);
+//        assertEquals(NUM_SPECEXEC_TXNS, spCallback0.responses.size());
+//        // The second wave should have succeeded but with one restart and not marked as speculative
+//        this.checkClientResponses(spCallback1.responses, Status.OK, false, 1);
+//        assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
+//        
+//    }
 
 }

@@ -2,7 +2,6 @@ package edu.brown.hstore;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.voltdb.catalog.ConflictSet;
@@ -14,13 +13,11 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogInfo;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
+import edu.brown.hstore.SpecExecScheduler.SchedulerPolicy;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.internal.InternalMessage;
-import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.SpecExecScheduler;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -32,7 +29,8 @@ public class TestSpecExecScheduler extends BaseTestCase {
     private static long NEXT_TXN_ID = 1;
     
     private MockHStoreSite hstore_site;
-    private final List<InternalMessage> work_queue = new LinkedList<InternalMessage>();
+    private TransactionQueueManager queueManager;
+    private TransactionInitPriorityQueue work_queue;
     private SpecExecScheduler scheduler;
     private AbstractConflictChecker checker;
     private LocalTransaction dtxn;
@@ -45,7 +43,14 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         this.checker = new TableConflictChecker(catalogContext);
         this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
-        this.scheduler = new SpecExecScheduler(catalogContext, this.checker, BASE_PARTITION, this.work_queue,SpecExecScheduler.SchedulerPolicy.FIRST, 1);
+        this.queueManager = this.hstore_site.getTransactionQueueManager();
+        this.work_queue = this.queueManager.getInitQueue(BASE_PARTITION);
+        this.scheduler = new SpecExecScheduler(catalogContext,
+                                               this.checker,
+                                               BASE_PARTITION,
+                                               this.work_queue,
+                                               SchedulerPolicy.FIRST,
+                                               1);
         
         // Create our current distributed transaction
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
@@ -53,108 +58,69 @@ public class TestSpecExecScheduler extends BaseTestCase {
         this.dtxn.testInit(NEXT_TXN_ID++,
                            BASE_PARTITION,
                            null,
-                           catalogContext.getAllPartitionIds(), catalog_proc);
+                           catalogContext.getAllPartitionIds(),
+                           catalog_proc);
         assertFalse(this.dtxn.isPredictAllLocal());
     }
     
-    public void testShortestPolicy() throws Exception {
-    	  super.setUp(ProjectType.TM1);
-          this.initializeCatalog(2, 2, NUM_PARTITIONS);
-          if (isFirstSetup()) System.err.println(CatalogInfo.getInfo(catalog, null));
-          
-          this.checker = new TableConflictChecker(catalogContext);
-          this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
-          
-          this.scheduler = new SpecExecScheduler(catalogContext, this.checker, BASE_PARTITION, this.work_queue,SpecExecScheduler.SchedulerPolicy.SHORTEST, 10);
-          
-          // Create our current distributed transaction
-          Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
-          this.dtxn = new LocalTransaction(this.hstore_site);
-          this.dtxn.testInit(NEXT_TXN_ID++,
-                             BASE_PARTITION,
-                             null,
-                             catalogContext.getAllPartitionIds(), catalog_proc);
-          assertFalse(this.dtxn.isPredictAllLocal());
-          
-          
-          Collection<Procedure> conflicts = ConflictSetUtil.getAllConflicts(dtxn.getProcedure());
-          
-          List <Procedure> procList = new ArrayList<Procedure>();
-          int size  = 3;
-          for (Procedure p : catalogContext.getRegularProcedures()) {
-              if (conflicts.contains(p) == false) {
-                  procList.add(p);
-                  if (procList.size() >= size)
-                	  break;
-              }
-          } // FOR
-          assertFalse(procList.isEmpty());
-          
-          LocalTransaction ts = null, tsWithoutEstimatorState = null;
-          for (Procedure proc: procList) {
-        	  ts = new LocalTransaction(this.hstore_site);
-              ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
-              if (tsWithoutEstimatorState == null)
-              	tsWithoutEstimatorState = ts;
-              assertTrue(ts.isPredictSinglePartition());
-              this.work_queue.add(new StartTxnMessage(ts));
-          }
-          
-          StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
-          System.err.println(this.dtxn.debug());
-          assertNotNull(next);
-          assertEquals(tsWithoutEstimatorState, next.getTransaction());
-          assertFalse(this.work_queue.contains(next));
-    }
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
     
-    public void testLongestPolicy() throws Exception {
-  	  super.setUp(ProjectType.TM1);
-        this.initializeCatalog(2, 2, NUM_PARTITIONS);
-        if (isFirstSetup()) System.err.println(CatalogInfo.getInfo(catalog, null));
-        
-        this.checker = new TableConflictChecker(catalogContext);
-        this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
-        
-        this.scheduler = new SpecExecScheduler(catalogContext, this.checker, BASE_PARTITION, this.work_queue,SpecExecScheduler.SchedulerPolicy.LONGEST, 10);
-        
-        // Create our current distributed transaction
-        Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
-        this.dtxn = new LocalTransaction(this.hstore_site);
-        this.dtxn.testInit(NEXT_TXN_ID++,
-                           BASE_PARTITION,
-                           null,
-                           catalogContext.getAllPartitionIds(), catalog_proc);
-        assertFalse(this.dtxn.isPredictAllLocal());
-        
-        
+    private LocalTransaction populateQueue(int size) throws Exception {
         Collection<Procedure> conflicts = ConflictSetUtil.getAllConflicts(dtxn.getProcedure());
-        
-        List <Procedure> procList = new ArrayList<Procedure>();
-        int size  = 3;
+        List<Procedure> procList = new ArrayList<Procedure>();
         for (Procedure p : catalogContext.getRegularProcedures()) {
             if (conflicts.contains(p) == false) {
                 procList.add(p);
                 if (procList.size() >= size)
-              	  break;
+                    break;
             }
         } // FOR
         assertFalse(procList.isEmpty());
         
         LocalTransaction ts = null, tsWithoutEstimatorState = null;
         for (Procedure proc: procList) {
-      	  ts = new LocalTransaction(this.hstore_site);
-            ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
+            ts = new LocalTransaction(this.hstore_site);
+            ts.testInit(NEXT_TXN_ID++,
+                        BASE_PARTITION,
+                        null,
+                        new PartitionSet(BASE_PARTITION),
+                        proc);
             if (tsWithoutEstimatorState == null)
-            	tsWithoutEstimatorState = ts;
+              tsWithoutEstimatorState = ts;
             assertTrue(ts.isPredictSinglePartition());
-            this.work_queue.add(new StartTxnMessage(ts));
-        }
-        
-        StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+            this.work_queue.add(ts);
+        } // FOR
+        return (tsWithoutEstimatorState);
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * testShortestPolicy
+     */
+    public void testShortestPolicy() throws Exception {
+          LocalTransaction tsWithoutEstimatorState = this.populateQueue(3);
+          LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+          System.err.println(this.dtxn.debug());
+          assertNotNull(next);
+          assertEquals(tsWithoutEstimatorState, next);
+          assertFalse(this.work_queue.toString(), this.work_queue.contains(next));
+    }
+    
+    /**
+     * testLongestPolicy
+     */
+    public void testLongestPolicy() throws Exception {
+        LocalTransaction tsWithoutEstimatorState = this.populateQueue(3);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         System.err.println(this.dtxn.debug());
         assertNotNull(next);
-        assertEquals(tsWithoutEstimatorState, next.getTransaction());
-        assertFalse(this.work_queue.contains(next));
+        assertEquals(tsWithoutEstimatorState, next);
+        assertFalse(this.work_queue.toString(), this.work_queue.contains(next));
   }
     
     /**
@@ -177,12 +143,12 @@ public class TestSpecExecScheduler extends BaseTestCase {
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
-        this.work_queue.add(new StartTxnMessage(ts));
+        this.work_queue.add(ts);
         
-        StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         //System.err.println(this.dtxn.debug());
         assertNotNull(next);
-        assertEquals(ts, next.getTransaction());
+        assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next));
     }
     
@@ -213,10 +179,10 @@ public class TestSpecExecScheduler extends BaseTestCase {
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
-        this.work_queue.add(new StartTxnMessage(ts));
-        StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        this.work_queue.add(ts);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNotNull(next);
-        assertEquals(ts, next.getTransaction());
+        assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next));
         ts.finish();
         
@@ -225,7 +191,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
-        this.work_queue.add(new StartTxnMessage(ts));
+        this.work_queue.add(ts);
         next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNull(next);
         ts.finish();
@@ -235,7 +201,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
-        this.work_queue.add(new StartTxnMessage(ts));
+        this.work_queue.add(ts);
         next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNull(next);
         ts.finish();
@@ -269,10 +235,10 @@ public class TestSpecExecScheduler extends BaseTestCase {
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
-        this.work_queue.add(new StartTxnMessage(ts));
-        StartTxnMessage next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        this.work_queue.add(ts);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNotNull(next);
-        assertEquals(ts, next.getTransaction());
+        assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next));
         ts.finish();
         
@@ -281,10 +247,10 @@ public class TestSpecExecScheduler extends BaseTestCase {
         dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
-        this.work_queue.add(new StartTxnMessage(ts));
+        this.work_queue.add(ts);
         next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNotNull(next);
-        assertEquals(ts, next.getTransaction());
+        assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next));
         ts.finish();
         
@@ -293,7 +259,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
-        this.work_queue.add(new StartTxnMessage(ts));
+        this.work_queue.add(ts);
         next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNull(next);
     }

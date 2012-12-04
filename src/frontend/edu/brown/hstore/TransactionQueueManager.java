@@ -891,6 +891,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
+    protected TransactionInitPriorityQueue getInitQueue(int partition) {
+        return (this.lockQueues[partition]);
+    }
+    
     @Override
     public void updateConf(HStoreConf hstore_conf) {
         // HACK: If there is only one site in the cluster, then we can
@@ -963,9 +967,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
         public int getInitQueueSize(int partition) {
             return (lockQueues[partition].size());
-        }
-        public TransactionInitPriorityQueue getInitQueue(int partition) {
-            return (lockQueues[partition]);
         }
         public int getBlockedQueueSize() {
             return (blockedQueue.size());

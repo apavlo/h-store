@@ -376,8 +376,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // SPECULATIVE EXECUTION STATE
     // ----------------------------------------------------------------------------
     
-    private final AbstractConflictChecker specExecChecker;
-    private final SpecExecScheduler specExecScheduler;
+    private AbstractConflictChecker specExecChecker;
+    private SpecExecScheduler specExecScheduler;
     
     /**
      * ClientResponses from speculatively executed transactions that were executed 
@@ -639,28 +639,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         this.specExecBlocked = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
         this.specExecModified = false;
         
-        if (hstore_conf.site.specexec_markov) {
-            // The MarkovConflictChecker is thread-safe, so we all of the partitions
-            // at this site can reuse the same one.
-            this.specExecChecker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
-        } else {
-            this.specExecChecker = new TableConflictChecker(this.catalogContext);
-        }
-        
-        SchedulerPolicy policy = SchedulerPolicy.get(hstore_conf.site.specexec_scheduler_policy);
-        assert(policy != null) : String.format("Invalid %s '%s'",
-                                               SchedulerPolicy.class.getSimpleName(),
-                                               hstore_conf.site.specexec_scheduler_policy);
-        this.specExecScheduler = new SpecExecScheduler(this.catalogContext,
-                                                       this.specExecChecker,
-                                                       this.partitionId,
-                                                       this.currentBlockedTxns,
-                                                       policy,
-                                                       hstore_conf.site.specexec_scheduler_window);
-        if (hstore_conf.site.specexec_ignore_all_local) {
-            this.specExecScheduler.setIgnoreAllLocal(true);
-        }
-        
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
         // the VoltProcedure interface invokes HSQLDB directly through its
@@ -808,15 +786,33 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             this.profiler.exec_time.resetOnEventObservable(observable);
         }
         
-        // Make sure that we call tick() every 1 sec
-//        Runnable tickRunnable = new Runnable() {
-//            @Override
-//            public void run() { PartitionExecutor.this.tick(); }
-//        };
-//        hstore_site.getThreadManager().schedulePeriodicWork(tickRunnable, 0, 1002, TimeUnit.MILLISECONDS);
+        // -------------------------------
+        // SPECULATIVE EXECUTION INITIALIZATION
+        // -------------------------------
         
+        if (hstore_conf.site.specexec_markov) {
+            // The MarkovConflictChecker is thread-safe, so we all of the partitions
+            // at this site can reuse the same one.
+            this.specExecChecker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
+        } else {
+            this.specExecChecker = new TableConflictChecker(this.catalogContext);
+        }
+        
+        SchedulerPolicy policy = SchedulerPolicy.get(hstore_conf.site.specexec_scheduler_policy);
+        assert(policy != null) : String.format("Invalid %s '%s'",
+                                               SchedulerPolicy.class.getSimpleName(),
+                                               hstore_conf.site.specexec_scheduler_policy);
+        this.specExecScheduler = new SpecExecScheduler(this.catalogContext,
+                                                       this.specExecChecker,
+                                                       this.partitionId,
+                                                       this.queueManager.getInitQueue(this.partitionId),
+                                                       policy,
+                                                       hstore_conf.site.specexec_scheduler_window);
+        if (hstore_conf.site.specexec_ignore_all_local) {
+            this.specExecScheduler.setIgnoreAllLocal(true);
+        }
+
         // Initialize all of our VoltProcedures handles
-        // We will need one per stored procedure at this partition
         this.initializeVoltProcedures();
     }
     
@@ -1192,7 +1188,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (t) LOG.trace("Entering utilityWork");
         
         this.tick();
-        
+
+        LocalTransaction spec_ts = null;
         InternalMessage work = null;
         
         // Check whether there is something we can speculatively execute right now
@@ -1200,29 +1197,34 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (t) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
             try {
-                work = this.specExecScheduler.next(this.currentDtxn, this.calculateSpeculationType());
+                spec_ts = this.specExecScheduler.next(this.currentDtxn, this.calculateSpeculationType());
             } finally {
                 if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.stop();
             }
             
             // Because we don't have fine-grained undo support, we are just going
             // keep all of our speculative execution txn results around
-            if (work != null) {
+            if (spec_ts != null) {
                 if (d) LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
-                                 this.currentDtxn, ((StartTxnMessage)work).getTransaction()));
-                this.setExecutionMode(((StartTxnMessage)work).getTransaction(), ExecutionMode.COMMIT_NONE);
+                                 this.currentDtxn, spec_ts));
+                this.setExecutionMode(spec_ts, ExecutionMode.COMMIT_NONE);
+                this.executeTransaction(spec_ts);
+                
+                // IMPORTANT: We need to make sure that we remove this transaction for the lock queue
+                // so that we don't try to execute it again. We have to do this now because
+                // otherwise we may get the same transaction again
+                this.queueManager.getInitQueue(this.partitionId).remove(spec_ts);
             }
         }
         // Check whether we have anything in our non-blocking queue
-        if (work == null) {
+        if (spec_ts == null) {
             work = this.utility_queue.poll();
+            // Smoke 'em if you got 'em
+            if (work != null) this.processInternalMessage(work);
         }
-
-        // Smoke 'em if you got 'em
-        if (work != null) this.processInternalMessage(work);
         
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.stop();
-        return (work != null); //  && this.utility_queue.isEmpty() == false);
+        return (spec_ts != null || work != null);
     }
 
     private void tick() {
@@ -1776,11 +1778,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         } // FOR (dependencies)
         if (needs_profiling) ts.profiler.stopDeserialization();
     }
-    
+
     /**
-     * Execute a new transaction. This will invoke the run() method define in the
-     * VoltProcedure for this txn and then process the ClientResponse
-     * @param itask
+     * Execute a new transaction at this partition.
+     * This will invoke the run() method define in the VoltProcedure for this txn and 
+     * then process the ClientResponse. Only the PartitionExecutor itself should be calling
+     * this directly, since it's the only thing that knows what's going on with the world...
+     * @param ts
      */
     private void executeTransaction(LocalTransaction ts) {
         assert(ts.isInitialized()) : "Unexpected uninitialized transaction request: " + ts;

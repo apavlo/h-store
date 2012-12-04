@@ -3,7 +3,6 @@ package edu.brown.hstore;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -13,9 +12,6 @@ import org.voltdb.types.SpeculationType;
 
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.internal.InternalMessage;
-import edu.brown.hstore.internal.StartTxnMessage;
-import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -38,7 +34,7 @@ public class SpecExecScheduler {
     
     private final CatalogContext catalogContext;
     private final int partitionId;
-    private final List<InternalMessage> work_queue;
+    private final TransactionInitPriorityQueue work_queue;
     private AbstractConflictChecker checker;
     private boolean ignore_all_local = false;
     private final Map<SpeculationType, SpecExecProfiler> profilerMap = new HashMap<SpeculationType, SpecExecProfiler>();
@@ -71,7 +67,7 @@ public class SpecExecScheduler {
      * @param work_queue
      */
     public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, 
-    		                 List<InternalMessage> work_queue, SchedulerPolicy schedule_policy, int windown) {
+    		                 TransactionInitPriorityQueue work_queue, SchedulerPolicy schedule_policy, int windown) {
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;
@@ -107,7 +103,7 @@ public class SpecExecScheduler {
      * @param dtxn The current distributed txn at this partition.
      * @return
      */
-    public StartTxnMessage next(AbstractTransaction dtxn, SpeculationType specType) {
+    public LocalTransaction next(AbstractTransaction dtxn, SpeculationType specType) {
     	SpecExecProfiler profiler = null;
     	if (this.isProfiling) {
     		profiler = profilerMap.get(specType);
@@ -142,98 +138,69 @@ public class SpecExecScheduler {
         
         // Now peek in the queue looking for single-partition txns that do not
         // conflict with the current dtxn
-        StartTxnMessage next = null;
-        Iterator<InternalMessage> it = this.work_queue.iterator();
-        int msg_ctr = 0;
-        int size_ctr = 0;
-        StartTxnMessage best_next = null;
-        long best_time = Long.MAX_VALUE;
-        if (policy == SchedulerPolicy.LONGEST)
-        	best_time = Long.MIN_VALUE;
+        LocalTransaction next = null;
+        Iterator<AbstractTransaction> it = this.work_queue.iterator();
+        int txn_ctr = 0;
+        int examined_ctr = 0;
+        long best_time = (this.policy == SchedulerPolicy.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
         
         if (this.isProfiling) {
         	profiler.queue_size.put(this.work_queue.size());
         }
         while (it.hasNext()) {
-            InternalMessage msg = it.next();
-            msg_ctr++;
+            AbstractTransaction _tmp = it.next();
+            txn_ctr++;
 
-            // Any WorkFragmentMessage has to be for our current dtxn,
-            // so we want to never speculative execute stuff because we will
-            // always want to immediately execute that
-            if (msg instanceof WorkFragmentMessage) {
-                if (debug.get())
-                    LOG.debug(String.format("%s - Not choosing a txn to speculatively execute because there " +
-                    		  "are still WorkFragments in the queue", dtxn));
-                break;
+            // Skip any distributed or non-local transactions
+            if ((_tmp instanceof LocalTransaction) == false || _tmp.isPredictSinglePartition() == false) {
+                if (trace.get()) 
+                        LOG.trace(String.format("%s - Skipping speculative candidate %s", dtxn, _tmp));
+                continue;
             }
-            // A StartTxnMessage will have a fully initialized LocalTransaction handle
-            // that we can examine and execute right away if necessary
-            else if (msg instanceof StartTxnMessage) {
-                StartTxnMessage txn_msg = (StartTxnMessage)msg;
-                LocalTransaction ts = txn_msg.getTransaction();
-                if (debug.get())
-                    LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", ts, dtxn));
-                if (ts.isPredictSinglePartition() == false) {
-                    if (trace.get())
-                        LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, ts));
-                    continue;
-                }
-                if (this.isProfiling) {
-                	profiler.compute_time.start();
-                }
-                try {
-                    if (this.checker.canExecute(dtxn, ts, this.partitionId)) {
-                        if (best_next == null)
-                        	best_next = txn_msg;
-                    	if (this.policy == SchedulerPolicy.FIRST) {
-                        	next = txn_msg;
-                        	//LOG.info("[FIRST schedule]");
-                        } else if (this.policy == SchedulerPolicy.SHORTEST) {
-                        	EstimatorState es = ts.getEstimatorState();
-                        	if (es != null) {
-                        		long tmp = es.getLastEstimate().getRemainingExecutionTime();
-                             	if (best_time > tmp) {
-                             		best_time = tmp;
-                             		best_next = txn_msg;
-                             	}
-                             	LOG.info(String.format("[SHORTEST schedule %d] time for current txn: %d, SHORTESTS time up to now: %ld", size_ctr, tmp, best_time));
-                            }
-                        	if (es != null && ++size_ctr < this.window_size)
-                            	continue;
-                        	else {
-                        		next = best_next;
-                        		LOG.info(String.format("[SHORTEST schedule ] SHORTESTS time %d", best_time));
-                        	}
-                        } else if (this.policy == SchedulerPolicy.LONGEST) {
-                        	EstimatorState es = ts.getEstimatorState();
-                        	if (es != null) {
-                        		long tmp = es.getLastEstimate().getRemainingExecutionTime();
-                             	if (best_time < tmp) {
-                             		best_time = tmp;
-                             		best_next = txn_msg;
-                             	}
-                             	LOG.info(String.format("[LONGEST schedule %d] time for current txn: %d, LONGEST time up to now: %d", size_ctr, tmp, best_time));
-                            }
-                        	if (es != null && ++size_ctr < this.window_size)
-                            	continue;
-                        	else {
-                        		next = best_next;
-                        		LOG.info(String.format("[LONGEST schedule ] LONGEST time %d", best_time));
-                        	}
+
+            // Let's check it out!
+            if (this.isProfiling) profiler.compute_time.start();
+            LocalTransaction ts = (LocalTransaction)_tmp;
+            if (debug.get())
+                LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", ts, dtxn));
+            if (ts.isPredictSinglePartition() == false) {
+                if (trace.get())
+                    LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, ts));
+                continue;
+            }
+            try {
+                if (this.checker.canExecute(dtxn, ts, this.partitionId)) {
+                    if (next == null) {
+                        next = ts;
+                        // Scheduling Policy: FIRST MATCH
+                        if (this.policy == SchedulerPolicy.FIRST) {
+                            break;
                         }
-                        
-                        break;
                     }
-                } finally {
-                    if (this.isProfiling) {
-                    	profiler.compute_time.stop();
+                    // Scheduling Policy: Estimated Time Remaining
+                    else {
+                    	EstimatorState es = ts.getEstimatorState();
+                    	if (es != null) {
+                    		long remaining = es.getLastEstimate().getRemainingExecutionTime();
+                    		if ((this.policy == SchedulerPolicy.SHORTEST && remaining < best_time) ||
+                    		    (this.policy == SchedulerPolicy.LONGEST && remaining > best_time)) {
+                    		    best_time = remaining;
+                                next = ts;
+                                if (debug.get())
+                                    LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
+                                              this.policy, this.window_size, next, remaining));
+                         	}
+                        }
                     }
+                    // Stop if we've reached our window size
+                    if (++examined_ctr == this.window_size) break;
                 }
+            } finally {
+                if (this.isProfiling) profiler.compute_time.stop();
             }
         } // WHILE
         if (this.isProfiling) {
-        	profiler.num_comparisons.put(msg_ctr);
+        	profiler.num_comparisons.put(txn_ctr);
         }
         
         // We found somebody to execute right now!
