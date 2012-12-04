@@ -33,6 +33,8 @@ import org.voltdb.utils.EstTime;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
+import edu.brown.HStoreSiteTestUtil;
+import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
@@ -42,7 +44,6 @@ import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.TestPartitionExecutorSpecExec.LatchableProcedureCallback;
 import edu.brown.hstore.callbacks.MockClientCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -163,30 +164,6 @@ public class TestHStoreSite extends BaseTestCase {
         } // FOR
     }
     
-    /**
-     * This checks to make sure that there aren't any active objects in the
-     * the various object pools
-     */
-    private void checkObjectPools() throws Exception {
-        Map<String, TypedObjectPool<?>[]> allPools = this.objectPools.getPartitionedPools(); 
-        assertNotNull(allPools);
-        assertFalse(allPools.isEmpty());
-        for (String name : allPools.keySet()) {
-            TypedObjectPool<?> pools[] = allPools.get(name);
-            TypedPoolableObjectFactory<?> factory = null;
-            assertNotNull(name, pools);
-            assertNotSame(0, pools.length);
-            for (int i = 0; i < pools.length; i++) {
-                if (pools[i] == null) continue;
-                String poolName = String.format("%s-%02d", name, i);  
-                factory = (TypedPoolableObjectFactory<?>)pools[i].getFactory();
-                assertTrue(poolName, factory.isCountingEnabled());
-              
-                System.err.println(poolName + ": " + pools[i].toString());
-                assertEquals(poolName, 0, pools[i].getNumActive());
-            } // FOR
-        } // FOR
-    }
     
     // --------------------------------------------------------------------------------------------
     // TEST CASES
@@ -206,7 +183,7 @@ public class TestHStoreSite extends BaseTestCase {
         }
 //        System.err.println(cr);
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
-        this.checkObjectPools();
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
     
@@ -227,7 +204,7 @@ public class TestHStoreSite extends BaseTestCase {
         }
 //        System.err.println(cr);
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
-        this.checkObjectPools();
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
     
@@ -239,7 +216,7 @@ public class TestHStoreSite extends BaseTestCase {
         this.loadData(this.getTable(TM1Constants.TABLENAME_SUBSCRIBER));
         this.loadData(this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING));
         
-        LatchableProcedureCallback callback = new LatchableProcedureCallback(NUM_TXNS + 1);
+        HStoreSiteTestUtil.LatchableProcedureCallback callback = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_TXNS + 1);
         
         // Submit our first dtxn that will block until we tell it to go
         DistributedBlockable.NOTIFY_BEFORE.drainPermits();
@@ -280,7 +257,7 @@ public class TestHStoreSite extends BaseTestCase {
         } // FOR
         
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
-        this.checkObjectPools();
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
     
@@ -293,7 +270,7 @@ public class TestHStoreSite extends BaseTestCase {
         this.loadData(this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING));
         
         // Submit our first dtxn that will block until we tell it to go
-        LatchableProcedureCallback blockedCallback = new LatchableProcedureCallback(1);
+        HStoreSiteTestUtil.LatchableProcedureCallback blockedCallback = new HStoreSiteTestUtil.LatchableProcedureCallback(1);
         DistributedBlockable.NOTIFY_BEFORE.drainPermits();
         DistributedBlockable.LOCK_BEFORE.drainPermits();
         DistributedBlockable.NOTIFY_AFTER.drainPermits();
@@ -310,9 +287,9 @@ public class TestHStoreSite extends BaseTestCase {
         // will be farther enough apart that we should expect them to be
         // returned in the proper order
         Procedure spProc = this.getProcedure(GetSubscriberData.class);
-        LatchableProcedureCallback spCallback = new LatchableProcedureCallback(NUM_TXNS);
+        HStoreSiteTestUtil.LatchableProcedureCallback spCallback = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_TXNS);
         Procedure mpProc = this.getProcedure(DeleteCallForwarding.class);
-        LatchableProcedureCallback mpCallback = new LatchableProcedureCallback(NUM_TXNS);
+        HStoreSiteTestUtil.LatchableProcedureCallback mpCallback = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_TXNS);
         
         for (int i = 0; i < NUM_TXNS; i++) {
             // SINGLE-PARTITION
@@ -360,7 +337,7 @@ public class TestHStoreSite extends BaseTestCase {
         } // FOR
         
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
-        this.checkObjectPools();
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
     

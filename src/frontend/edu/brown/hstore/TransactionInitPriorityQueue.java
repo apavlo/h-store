@@ -80,15 +80,17 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     @Override
     public AbstractTransaction poll() {
         AbstractTransaction retval = null;
+        
+        // These invocations of poll() can return null if the next
+        // txn was speculatively executed
+        
         if (m_state == QueueState.BLOCKED_SAFETY) {
             if (EstTime.currentTimeMillis() >= m_blockTime) {
                 retval = super.poll();
-                assert(retval != null);
             }
         } else if (m_state == QueueState.UNBLOCKED) {
 //            assert(checkQueueState() == QueueState.UNBLOCKED);
             retval = super.poll();
-            assert(retval != null);
         }
         if (t) LOG.trace(String.format("Partition %d poll() -> %s", m_partitionId, retval));
         if (retval != null) {
