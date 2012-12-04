@@ -111,11 +111,16 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     protected static class LatchableProcedureCallback implements ProcedureCallback {
         protected final List<ClientResponse> responses = new ArrayList<ClientResponse>();
         protected final CountDownLatch latch;
+        protected boolean debug = false;
         LatchableProcedureCallback(int expected) {
             this.latch = new CountDownLatch(expected);
         }
         @Override
         public void clientCallback(ClientResponse clientResponse) {
+            if (this.debug) {
+                System.err.printf("Response #%02d:\n%s\n",
+                                  this.responses.size(), clientResponse);
+            }
             this.responses.add(clientResponse);
             this.latch.countDown();
         }

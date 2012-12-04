@@ -2661,9 +2661,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                    batchParams);
         
         assert(plan != null);
-        if (d) {
-            LOG.debug(ts + " - Touched Partitions: " + ts.getTouchedPartitions().values());
-            LOG.debug(ts + " - Next BatchPlan:\n" + plan.toString());
+        if (t) {
+            LOG.trace(ts + " - Touched Partitions: " + ts.getTouchedPartitions().values());
+            LOG.trace(ts + " - Next BatchPlan:\n" + plan.toString());
         }
         if (needs_profiling) ts.profiler.stopExecPlanning();
         

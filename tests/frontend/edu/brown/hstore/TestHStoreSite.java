@@ -195,23 +195,23 @@ public class TestHStoreSite extends BaseTestCase {
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
-//    /**
-//     * testSinglePartitionTxn
-//     */
-//    @Test
-//    public void testSinglePartitionTxn() throws Exception {
-//        // Simple test to check whether we can execute single-partition txns serially
-//        Procedure catalog_proc = this.getProcedure(GetSubscriberData.class);
-//        for (int i = 0; i < 4; i++) {
-//            Object params[] = { (long)i };
-//            ClientResponse cr = this.client.callProcedure(catalog_proc.getName(), params);
-//            assertEquals(Status.OK, cr.getStatus());
-//        }
-////        System.err.println(cr);
-//        ThreadUtil.sleep(NOTIFY_TIMEOUT);
-//        this.checkObjectPools();
-//        this.statusSnapshot();
-//    }
+    /**
+     * testSinglePartitionTxn
+     */
+    @Test
+    public void testSinglePartitionTxn() throws Exception {
+        // Simple test to check whether we can execute single-partition txns serially
+        Procedure catalog_proc = this.getProcedure(GetSubscriberData.class);
+        for (int i = 0; i < 4; i++) {
+            Object params[] = { (long)i };
+            ClientResponse cr = this.client.callProcedure(catalog_proc.getName(), params);
+            assertEquals(Status.OK, cr.getStatus());
+        }
+//        System.err.println(cr);
+        ThreadUtil.sleep(NOTIFY_TIMEOUT);
+        this.checkObjectPools();
+        this.statusSnapshot();
+    }
     
     /**
      * testMultiPartitionTxn
@@ -275,11 +275,91 @@ public class TestHStoreSite extends BaseTestCase {
         DistributedBlockable.LOCK_AFTER.release();
         DistributedBlockable.LOCK_BEFORE.release();
         result = callback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("DTXN LATCH"+callback.latch, result);
+        assertTrue("DTXN LATCH --> " + callback.latch, result);
         
         // Check to make sure the responses are all legit
         for (ClientResponse cr : callback.responses) {
             assertEquals(cr.toString(), Status.OK, cr.getStatus());
+        } // FOR
+        
+        ThreadUtil.sleep(NOTIFY_TIMEOUT);
+        this.checkObjectPools();
+        this.statusSnapshot();
+    }
+    
+    /**
+     * testMixedAsynchronous
+     */
+    @Test
+    public void testMixedAsynchronous() throws Exception {
+        this.loadData(this.getTable(TM1Constants.TABLENAME_SUBSCRIBER));
+        this.loadData(this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING));
+        
+        // Submit our first dtxn that will block until we tell it to go
+        LatchableProcedureCallback blockedCallback = new LatchableProcedureCallback(1);
+        DistributedBlockable.NOTIFY_BEFORE.drainPermits();
+        DistributedBlockable.LOCK_BEFORE.drainPermits();
+        DistributedBlockable.NOTIFY_AFTER.drainPermits();
+        DistributedBlockable.LOCK_AFTER.drainPermits();
+        Procedure catalog_proc = this.getProcedure(DistributedBlockable.class);
+        Object params[] = new Object[]{ BASE_PARTITION };
+        this.client.callProcedure(blockedCallback, catalog_proc.getName(), params);
+        // Block until we know that the txn has started running
+        boolean result = DistributedBlockable.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+
+        // Fire off a mix of single-partition txns and distributed txns
+        // Since we will delay each invocation, we know that the txn ids
+        // will be farther enough apart that we should expect them to be
+        // returned in the proper order
+        Procedure spProc = this.getProcedure(GetSubscriberData.class);
+        LatchableProcedureCallback spCallback = new LatchableProcedureCallback(NUM_TXNS);
+        Procedure mpProc = this.getProcedure(DeleteCallForwarding.class);
+        LatchableProcedureCallback mpCallback = new LatchableProcedureCallback(NUM_TXNS);
+        
+        for (int i = 0; i < NUM_TXNS; i++) {
+            // SINGLE-PARTITION
+            params = new Object[]{ new Long(i) };
+            this.client.callProcedure(spCallback, spProc.getName(), params);
+            ThreadUtil.sleep(100);
+            
+            // MULTI-PARTITION
+            params = new Object[]{ Integer.toString(i), 1l, 1l };
+            this.client.callProcedure(mpCallback, mpProc.getName(), params);
+            ThreadUtil.sleep(100);
+        } // FOR
+        
+        // Sleep for a bit. We still should have gotten back any responses
+        ThreadUtil.sleep(NOTIFY_TIMEOUT);
+        assertEquals(0, spCallback.responses.size());
+        assertEquals(NUM_TXNS, spCallback.latch.getCount());
+        assertEquals(0, mpCallback.responses.size());
+        assertEquals(NUM_TXNS, mpCallback.latch.getCount());
+        
+        // Ok, so let's release the blocked dtxn. This will allow everyone 
+        // else to come to the party
+        DistributedBlockable.LOCK_AFTER.release();
+        DistributedBlockable.LOCK_BEFORE.release();
+        result = blockedCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("BLOCKING LATCH --> " + blockedCallback.latch, result);
+        
+        // Wait until we get back all the other responses and then check to make 
+        // sure the responses are ok.
+        result = spCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SP LATCH --> " + spCallback.latch, result);
+        result = mpCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("MP LATCH --> " + mpCallback.latch, result);
+        
+        for (int i = 0; i < NUM_TXNS; i++) {
+            ClientResponse spResponse = spCallback.responses.get(i);
+            assertNotNull(spResponse);
+            long spTxnId = spResponse.getTransactionId();
+            
+            ClientResponse mpResponse = mpCallback.responses.get(i);
+            assertNotNull(mpResponse);
+            long mpTxnId = mpResponse.getTransactionId();
+            
+            assertTrue(String.format("SP[%d] <-> MP[%d]", spTxnId, mpTxnId), spTxnId < mpTxnId);
         } // FOR
         
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
