@@ -1041,7 +1041,6 @@ TEST CASES
                 <exclude name="**/TestFailureDetectSuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestMapReduceTransactionSuite.class" />
@@ -1128,7 +1127,6 @@ TEST CASES
                 <exclude name="**/TestFailureDetectSuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestMapReduceTransactionSuite.class" />
@@ -1205,7 +1203,6 @@ TEST CASES
                     <exclude name="**/TestFailureDetectSuite.class" />
                     <exclude name="**/TestReplicationSuite.class" />
                     <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                    <exclude name="**/TestSystemProcedureSuite.class" />
                     <exclude name="**/TestMaliciousClientSuite.class" />
                     <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                     <exclude name="**/TestMapReduceTransactionSuite.class" />
