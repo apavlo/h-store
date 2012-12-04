@@ -37,7 +37,6 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     private int orig_counter;
     private RpcCallback<T> orig_callback;
     
-
     /**
      * We'll flip this flag if one of our partitions replies with an
      * unexpected abort. This ensures that we only send out the ABORT
@@ -49,7 +48,11 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      * This flag is set to true when the unblockCallback() is invoked
      */
     private final AtomicBoolean unblockInvoked = new AtomicBoolean(false);
-
+    
+    /**
+     * This flag is set to true if the callback has been cancelled
+     */
+    private final AtomicBoolean canceled = new AtomicBoolean(false);
     
     /**
      * If set to true, then this callback will still invoke unblockCallback()
@@ -166,7 +169,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      * Internal method for calling the unblockCallback()
      */
     private final void unblock() {
-        if (this.abortInvoked.get() == false || this.invoke_even_if_aborted) {
+        if (this.canceled.get() == false && (this.abortInvoked.get() == false || this.invoke_even_if_aborted)) {
             if (this.unblockInvoked.compareAndSet(false, true)) {
                 if (debug.get())
                     LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback() [hashCode=%d]",
@@ -198,8 +201,8 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      */
     public final void abort(Status status) {
         // If this is the first response that told us to abort, then we'll
-        // send the abort message out 
-        if (this.abortInvoked.compareAndSet(false, true)) {
+        // send the abort message out
+        if (this.canceled.get() == false && this.abortInvoked.compareAndSet(false, true)) {
             this.abortCallback(status);
         }
     }
@@ -218,6 +221,25 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     protected abstract void abortCallback(Status status);
 
     // ----------------------------------------------------------------------------
+    // CANCEL
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Mark this callback as canceled. No matter what happens in the future,
+     * this callback will not invoke either the run or abort callbacks
+     */
+    public final void cancel() {
+        this.canceled.set(true);
+    }
+        
+    /**
+     * Returns true if this callback has been cancelled
+     */
+    public final boolean isCanceled() {
+        return (this.canceled.get());
+    }
+    
+    // ----------------------------------------------------------------------------
     // FINISH
     // ----------------------------------------------------------------------------
 
@@ -230,6 +252,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
         this.finishImpl();
         this.abortInvoked.set(false);
         this.unblockInvoked.set(false);
+        this.canceled.set(false);
         this.orig_callback = null;
         this.txn_id = null;
     }
@@ -239,13 +262,13 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      */
     protected abstract void finishImpl();
     
-    
     @Override
     public String toString() {
-        return String.format("%s[Invoked=%s, Aborted=%s, Counter=%d/%d]",
+        return String.format("%s[Invoked=%s / Aborted=%s / Canceled=%s / Counter=%d/%d]",
                              this.getClass().getSimpleName(), 
                              this.unblockInvoked.get(),
                              this.abortInvoked.get(),
+                             this.canceled.get(),
                              this.counter.get(), this.getOrigCounter()); 
     }
 }

@@ -114,6 +114,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         this.hstore_conf.site.specexec_idle = true;
         this.hstore_conf.site.txn_client_debug = true;
         this.hstore_conf.site.exec_voltdb_procinfo = true;
+        this.hstore_conf.site.pool_profiling = true;
         
         this.hstore_site = this.createHStoreSite(catalog_site, hstore_conf);
         this.client = createClient();
@@ -229,6 +230,56 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
+    
+    /**
+     * testAllCommitsBefore
+     */
+    @Test
+    public void testAllCommitsBefore() throws Exception {
+        // We will submit a distributed transaction that will first acquire the locks
+        // for all of the partitions and then block.
+        // We will then submit a bunch of single-partition transactions that will execute
+        // on the partition that's not the distributed txns base partition before the dtxn
+        // does anything at the partition.
+        // All of these txns should get speculatively executed but then never released
+        // until we release our distributed txn.
+        // All of the txns are going to commit successfully in the right order
+        Object params[] = new Object[]{ BASE_PARTITION };
+        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
+        
+        // Block until we know that the txn has started running
+        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+        this.checkCurrentDtxn();
+        
+        // Now fire off a bunch of single-partition txns
+        HStoreSiteTestUtil.LatchableProcedureCallback spCallback = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+        params = new Object[]{ BASE_PARTITION+1 }; // S_ID
+        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
+            this.client.callProcedure(spCallback, this.spProc.getName(), params);
+        } // FOR
+        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
+        
+        // Now release the locks and then wait until the dtxn returns and all 
+        // of the single-partition txns return
+        this.lockAfter.release();
+        this.lockBefore.release();
+        
+        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
+        result = spCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SINGLE-P LATCH: "+spCallback.latch, result);
+        
+        // Check to make sure that the dtxn succeeded
+        assertEquals(Status.OK, this.dtxnResponse.getStatus());
+        
+        // And that all of our single-partition txns succeeded and were speculatively executed
+        this.checkClientResponses(spCallback.responses, Status.OK, true, null);
+        assertEquals(NUM_SPECEXEC_TXNS, spCallback.responses.size());
+        
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
+    }
+    
     /**
      * testSpeculativeInterleavedAborts
      */
@@ -296,6 +347,8 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // The second batch should all have been aborted
         this.checkClientResponses(spCallback1.responses, Status.ABORT_USER, true, 0);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
+        
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
     /**
@@ -354,53 +407,8 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // with no restarts
         this.checkClientResponses(spCallback1.responses, Status.OK, true, 0);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
-    }
-    
-    /**
-     * testAllCommitsBefore
-     */
-    @Test
-    public void testAllCommitsBefore() throws Exception {
-        // We will submit a distributed transaction that will first acquire the locks
-        // for all of the partitions and then block.
-        // We will then submit a bunch of single-partition transactions that will execute
-        // on the partition that's not the distributed txns base partition before the dtxn
-        // does anything at the partition.
-        // All of these txns should get speculatively executed but then never released
-        // until we release our distributed txn.
-        // All of the txns are going to commit successfully in the right order
-        Object params[] = new Object[]{ BASE_PARTITION };
-        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
         
-        // Block until we know that the txn has started running
-        boolean result = this.notifyBefore.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue(result);
-        this.checkCurrentDtxn();
-        
-        // Now fire off a bunch of single-partition txns
-        HStoreSiteTestUtil.LatchableProcedureCallback spCallback = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
-        params = new Object[]{ BASE_PARTITION+1 }; // S_ID
-        for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
-            this.client.callProcedure(spCallback, this.spProc.getName(), params);
-        } // FOR
-        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
-        
-        // Now release the locks and then wait until the dtxn returns and all 
-        // of the single-partition txns return
-        this.lockAfter.release();
-        this.lockBefore.release();
-        
-        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
-        result = spCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("SINGLE-P LATCH: "+spCallback.latch, result);
-        
-        // Check to make sure that the dtxn succeeded
-        assertEquals(Status.OK, this.dtxnResponse.getStatus());
-        
-        // And that all of our single-partition txns succeeded and were speculatively executed
-        this.checkClientResponses(spCallback.responses, Status.OK, true, null);
-        assertEquals(NUM_SPECEXEC_TXNS, spCallback.responses.size());
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
     /**
@@ -467,6 +475,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         this.checkClientResponses(spCallback1.responses, Status.OK, false, 1);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
         
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
 
 }

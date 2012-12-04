@@ -32,6 +32,7 @@ public class SpecExecScheduler {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    @SuppressWarnings("unused")
     private final CatalogContext catalogContext;
     private final int partitionId;
     private final TransactionInitPriorityQueue work_queue;
@@ -67,14 +68,15 @@ public class SpecExecScheduler {
      * @param work_queue
      */
     public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, 
-    		                 TransactionInitPriorityQueue work_queue, SchedulerPolicy schedule_policy, int windown) {
+    		                 TransactionInitPriorityQueue work_queue, SchedulerPolicy schedule_policy, int window_size) {
+        assert(schedule_policy != null) : "Unsupported schedule policy parameter passed in";
+        
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.catalogContext = catalogContext;
         this.checker = checker;
-        assert (schedule_policy != null) : "Unsupported schedule policy parameter passed in";
         this.policy = schedule_policy;
-        this.window_size = windown;
+        this.window_size = window_size;
         
         if (HStoreConf.singleton().site.specexec_profiling) {
             this.isProfiling = true;

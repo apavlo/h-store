@@ -34,7 +34,6 @@ import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.HStoreSiteTestUtil;
-import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
@@ -182,7 +181,6 @@ public class TestHStoreSite extends BaseTestCase {
             assertEquals(Status.OK, cr.getStatus());
         }
 //        System.err.println(cr);
-        ThreadUtil.sleep(NOTIFY_TIMEOUT);
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
@@ -203,7 +201,6 @@ public class TestHStoreSite extends BaseTestCase {
             assertEquals(Status.OK, cr.getStatus());
         }
 //        System.err.println(cr);
-        ThreadUtil.sleep(NOTIFY_TIMEOUT);
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
@@ -256,7 +253,6 @@ public class TestHStoreSite extends BaseTestCase {
             assertEquals(cr.toString(), Status.OK, cr.getStatus());
         } // FOR
         
-        ThreadUtil.sleep(NOTIFY_TIMEOUT);
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
@@ -336,7 +332,6 @@ public class TestHStoreSite extends BaseTestCase {
             assertTrue(String.format("SP[%d] <-> MP[%d]", spTxnId, mpTxnId), spTxnId < mpTxnId);
         } // FOR
         
-        ThreadUtil.sleep(NOTIFY_TIMEOUT);
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }

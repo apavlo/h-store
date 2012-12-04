@@ -13,6 +13,7 @@ import junit.framework.TestCase;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
+import edu.brown.utils.ThreadUtil;
 
 public abstract class HStoreSiteTestUtil extends TestCase {
 
@@ -39,6 +40,9 @@ public abstract class HStoreSiteTestUtil extends TestCase {
      * the various object pools
      */
     public static void checkObjectPools(HStoreSite hstore_site) throws Exception {
+        // Sleep just a little bit to give the HStoreSite time to clean things up
+        ThreadUtil.sleep(1000);
+        
         Map<String, TypedObjectPool<?>[]> allPools = hstore_site.getObjectPools().getPartitionedPools(); 
         assertNotNull(allPools);
         assertFalse(allPools.isEmpty());

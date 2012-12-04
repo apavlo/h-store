@@ -1208,12 +1208,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (d) LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
                                  this.currentDtxn, spec_ts));
                 this.setExecutionMode(spec_ts, ExecutionMode.COMMIT_NONE);
-                this.executeTransaction(spec_ts);
                 
                 // IMPORTANT: We need to make sure that we remove this transaction for the lock queue
-                // so that we don't try to execute it again. We have to do this now because
-                // otherwise we may get the same transaction again
+                // before we execute it so that we don't try to run it again.
+                // We have to do this now because otherwise we may get the same transaction again
                 this.queueManager.getInitQueue(this.partitionId).remove(spec_ts);
+                
+                // It's also important that we cancel this txn's init queue callback, otherwise
+                // it will never get cleaned up properly. This is necessary in order to support
+                // sending out client results *before* the dtxn finishes
+                spec_ts.getTransactionInitQueueCallback().cancel();
+                
+                // Ok now that that's out of the way, let's run this baby...
+                this.executeTransaction(spec_ts);
             }
         }
         // Check whether we have anything in our non-blocking queue

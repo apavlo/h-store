@@ -139,7 +139,7 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
      * and have finished their processing
      */
     public final boolean allCallbacksFinished() {
-        if (this.isInitialized()) {
+        if (this.isCanceled() == false && this.isInitialized()) {
             if (this.getCounter() != 0) return (false);
             return ((this.isUnblocked() && this.unblockFinished) || (this.isAborted() && this.abortFinished));
         }
