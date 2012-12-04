@@ -165,24 +165,24 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public synchronized AbstractTransaction noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txnId) {
+    public synchronized AbstractTransaction noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txn) {
         // this doesn't exclude dummy txnid but is also a sanity check
-        assert(txnId != null);
+        assert(txn != null);
 
         // we've decided that this can happen, and it's fine... just ignore it
-        if (m_lastTxnPopped != null && m_lastTxnPopped.compareTo(txnId) > 0) {
+        if (m_lastTxnPopped != null && m_lastTxnPopped.compareTo(txn) > 0) {
             if (d) {
-                LOG.warn(String.format("Txn ordering deadlock at partition %d -> LastTxn: %d / NewTxn: %d",
-                                       m_partitionId, m_lastTxnPopped, txnId));
+                LOG.warn(String.format("Txn ordering deadlock at partition %d -> LastTxn: %s / NewTxn: %s",
+                                       m_partitionId, m_lastTxnPopped, txn));
                 LOG.warn("LAST: " + m_lastTxnPopped);
-                LOG.warn("NEW:  " + txnId);
+                LOG.warn("NEW:  " + txn);
             }
         }
 
         // update the latest transaction for the specified initiator
-        if (m_lastSeenTxn == null || txnId.compareTo(m_lastSeenTxn) < 0) {
-            if (t) LOG.trace("SET lastSeenTxnId = " + txnId);
-            m_lastSeenTxn = txnId;
+        if (m_lastSeenTxn == null || txn.compareTo(m_lastSeenTxn) < 0) {
+            if (t) LOG.trace("SET lastSeenTxnId = " + txn);
+            m_lastSeenTxn = txn;
         }
 
         // this minimum is the newest safe transaction to run
