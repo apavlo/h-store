@@ -624,7 +624,7 @@ public final class HStoreConf {
                         "network messages from the client. Otherwise, the transactions will be " +
                         "processed using the PartitionExecutor's thread. " +
                         "It is not clear which approach is better.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=true
         )
         public boolean network_txn_initialization;
