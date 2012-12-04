@@ -19,6 +19,7 @@ import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
+import edu.brown.HStoreSiteTestUtil;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.util.TransactionCounter;
@@ -116,7 +117,8 @@ public class TestClientInterface extends BaseTestCase {
         assertTrue(result);
         
         assertTrue(onBackPressure.get());
-
+        
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
 
 }
