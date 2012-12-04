@@ -86,7 +86,12 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
         addReplicatedSecondaryIndex(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
     }
 
-    public static final String PARTITIONING[][] = new String[][] { { "SUBSCRIBER", "S_ID" }, { "ACCESS_INFO", "S_ID" }, { "SPECIAL_FACILITY", "S_ID" }, { "CALL_FORWARDING", "S_ID" }, };
+    public static final String PARTITIONING[][] = new String[][] {
+        { "SUBSCRIBER", "S_ID" },
+        { "ACCESS_INFO", "S_ID" },
+        { "SPECIAL_FACILITY", "S_ID" },
+        { "CALL_FORWARDING", "S_ID" },
+    };
 
     public TM1ProjectBuilder() {
         super("tm1", TM1ProjectBuilder.class, PROCEDURES, PARTITIONING);

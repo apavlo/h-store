@@ -64,7 +64,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     private final Semaphore notifyBefore = DistributedBlockable.NOTIFY_BEFORE;
     private final Semaphore notifyAfter = DistributedBlockable.NOTIFY_AFTER;
     
-    
     private final TM1ProjectBuilder builder = new TM1ProjectBuilder() {
         {
             this.addAllDefaults();
@@ -109,9 +108,9 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     // SINGLE-PARTITION TXN CALLBACK
     // --------------------------------------------------------------------------------------------
     
-    private class LatchableProcedureCallback implements ProcedureCallback {
-        private final List<ClientResponse> responses = new ArrayList<ClientResponse>();
-        private final CountDownLatch latch;
+    protected static class LatchableProcedureCallback implements ProcedureCallback {
+        protected final List<ClientResponse> responses = new ArrayList<ClientResponse>();
+        protected final CountDownLatch latch;
         LatchableProcedureCallback(int expected) {
             this.latch = new CountDownLatch(expected);
         }

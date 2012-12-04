@@ -602,7 +602,9 @@ public class VoltProjectBuilder {
     }
     
     public void addTablePartitionInfo(final String tableName, final String partitionColumnName) {
-        assert(m_partitionInfos.containsKey(tableName) == false);
+        assert(m_partitionInfos.containsKey(tableName) == false) :
+            String.format("Already contains table partitioning info for '%s': %s",
+                          tableName, m_partitionInfos.get(tableName));
         m_partitionInfos.put(tableName, partitionColumnName);
     }
     
