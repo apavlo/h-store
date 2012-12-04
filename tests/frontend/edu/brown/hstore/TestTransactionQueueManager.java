@@ -32,7 +32,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     HStoreConf hstore_conf;
     Procedure catalog_proc;
     TransactionIdManager idManager;
-    TransactionQueueManager queue;
+    TransactionQueueManager queueManager;
     TransactionQueueManager.Debug dbg;
     
     class MockCallback implements RpcCallback<TransactionInitResponse> {
@@ -59,8 +59,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertNotNull(catalog_site);
         this.hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, HStoreConf.singleton());
         this.idManager = hstore_site.getTransactionIdManager(0);
-        this.queue = this.hstore_site.getTransactionQueueManager();
-        this.dbg = this.queue.getDebugContext();
+        this.queueManager = this.hstore_site.getTransactionQueueManager();
+        this.dbg = this.queueManager.getDebugContext();
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         EstTimeUpdater.update(System.currentTimeMillis());
     }
@@ -96,12 +96,12 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         // Insert the txn into our queue and then call check
         // This should immediately release our transaction and invoke the inner_callback
-        boolean result = this.queue.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback);
+        boolean result = this.queueManager.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback);
         assertTrue(result);
         
         int tries = 10;
         while (dbg.isLockQueuesEmpty() == false && tries-- > 0) {
-            this.checkAllQueues(queue);
+            this.checkAllQueues(queueManager);
             ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay);
         }
         assert(inner_callback.lock.availablePermits() > 0);
@@ -126,30 +126,30 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1);
         
         // insert the higher ID first but make sure it comes out second
-        assertFalse(queue.toString(), this.checkAllQueues(queue));
-        assertTrue(queue.toString(), this.queue.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1));
-        assertTrue(queue.toString(), this.queue.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0));
+        assertFalse(queueManager.toString(), this.checkAllQueues(queueManager));
+        assertTrue(queueManager.toString(), this.queueManager.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1));
+        assertTrue(queueManager.toString(), this.queueManager.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0));
         
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
-        assertTrue(this.checkAllQueues(queue));
+        assertTrue(this.checkAllQueues(queueManager));
         
         assertTrue("callback0", inner_callback0.lock.tryAcquire());
         assertFalse("callback1", inner_callback1.lock.tryAcquire());
         assertFalse(dbg.isLockQueuesEmpty());
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-            queue.lockQueueFinished(txn0, Status.OK, partition);
+            queueManager.lockQueueFinished(txn0, Status.OK, partition);
         }
         assertFalse(dbg.isLockQueuesEmpty());
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
         
-        assertTrue(this.checkAllQueues(queue));
+        assertTrue(this.checkAllQueues(queueManager));
         assertTrue("callback1", inner_callback1.lock.tryAcquire());
         assertTrue(dbg.isLockQueuesEmpty());
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-            queue.lockQueueFinished(txn1, Status.OK, partition);
+            queueManager.lockQueueFinished(txn1, Status.OK, partition);
         }
         
-        assertFalse(this.checkAllQueues(queue));
+        assertFalse(this.checkAllQueues(queueManager));
         assertTrue(dbg.isLockQueuesEmpty());
     }
     
@@ -179,13 +179,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
 //        System.err.println("txn_id2: " + txn_id2);
 //        System.err.println();
         
-        this.queue.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0);
-        this.queue.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1);
-        this.queue.lockQueueInsert(txn2, txn2.getPredictTouchedPartitions(), inner_callback2);
+        this.queueManager.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0);
+        this.queueManager.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1);
+        this.queueManager.lockQueueInsert(txn2, txn2.getPredictTouchedPartitions(), inner_callback2);
         
         // Both of the first two disjoint txns should be released on the same call to checkQueues()
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
-        assertTrue(this.checkAllQueues(queue));
+        assertTrue(this.checkAllQueues(queueManager));
         assertTrue("callback0", inner_callback0.lock.tryAcquire());
         assertTrue("callback1", inner_callback1.lock.tryAcquire());
         assertFalse("callback2", inner_callback2.lock.tryAcquire());
@@ -194,18 +194,18 @@ public class TestTransactionQueueManager extends BaseTestCase {
         // Now release mark the first txn as finished. We should still 
         // not be able to get the third txn's lock
         for (int partition : partitions0) {
-            queue.lockQueueFinished(txn0, Status.OK, partition);
+            queueManager.lockQueueFinished(txn0, Status.OK, partition);
         }
-        this.checkAllQueues(queue);
+        this.checkAllQueues(queueManager);
         assertFalse("callback2", inner_callback2.lock.tryAcquire());
         assertFalse(dbg.isLockQueuesEmpty());
         
         // Release the second txn. That should release the third txn
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
         for (int partition : partitions1) {
-            queue.lockQueueFinished(txn1, Status.OK, partition);
+            queueManager.lockQueueFinished(txn1, Status.OK, partition);
         }
-        assertTrue(this.checkAllQueues(queue));
+        assertTrue(this.checkAllQueues(queueManager));
         assertTrue("callback2", inner_callback2.lock.tryAcquire());
         assertTrue(dbg.isLockQueuesEmpty());
     }
@@ -226,17 +226,17 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
         
-        this.queue.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0);
-        this.queue.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1);
+        this.queueManager.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0);
+        this.queueManager.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1);
         
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
         
         // We should get the callback for the first txn right away
-        assertTrue(this.checkAllQueues(queue));
+        assertTrue(this.checkAllQueues(queueManager));
         assertTrue("callback0", inner_callback0.lock.tryAcquire());
         
         // And then checkLockQueues should always return false
-        assertFalse(this.checkAllQueues(queue));
+        assertFalse(this.checkAllQueues(queueManager));
         assertFalse(dbg.isLockQueuesEmpty());
         
         // Now if we mark the txn as finished, we should be able to acquire the
@@ -244,15 +244,15 @@ public class TestTransactionQueueManager extends BaseTestCase {
         // twice because we only process the finished txns after the first one
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-            queue.lockQueueFinished(txn0, Status.OK, partition);
+            queueManager.lockQueueFinished(txn0, Status.OK, partition);
         }
-        assertTrue(this.checkAllQueues(queue));
+        assertTrue(this.checkAllQueues(queueManager));
         assertTrue("callback1", inner_callback1.lock.tryAcquire());
         
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-            queue.lockQueueFinished(txn1, Status.OK, partition);
+            queueManager.lockQueueFinished(txn1, Status.OK, partition);
         }
-        assertFalse(this.checkAllQueues(queue));
+        assertFalse(this.checkAllQueues(queueManager));
         assertTrue(dbg.isLockQueuesEmpty());
     }
 }

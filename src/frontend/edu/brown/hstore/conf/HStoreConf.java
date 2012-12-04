@@ -1114,7 +1114,7 @@ public final class HStoreConf {
             description="Whether to enable object pooling for AbstractTransaction handles. This includes" +
             		    "all local transactions, remote transactions, and MapReduce transactions.",
             defaultBoolean=true,
-            experimental=true
+            experimental=false
         )
         public boolean pool_txn_enable;
         
@@ -2035,6 +2035,12 @@ public final class HStoreConf {
     // REFLECTIVE ACCESS METHODS
     // ----------------------------------------------------------------------------
     
+    /**
+     * Return the value for the given option key name.
+     * Must be in the proper format (i.e., "<handle>.<param-name>")
+     * @param k
+     * @return
+     */
     public Object get(String k) {
         Matcher m = REGEX_PARSE.matcher(k);
         boolean found = m.matches();

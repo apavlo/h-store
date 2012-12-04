@@ -538,27 +538,32 @@ public class BenchmarkController {
         if (hstore_conf.client.output_specexec) {
             m_config.siteParameters.put("site.txn_client_debug", Boolean.TRUE.toString());
         }
-        if (hstore_conf.client.output_exec_profiling != null) {
-            m_config.siteParameters.put("site.exec_profiling", Boolean.TRUE.toString());
-        }
-        if (hstore_conf.client.output_queue_profiling != null) {
-            m_config.siteParameters.put("site.queue_profiling", Boolean.TRUE.toString());
-        }
-        if (hstore_conf.client.output_site_profiling != null) {
-            m_config.siteParameters.put("site.profiling", Boolean.TRUE.toString());
-        }
-        if (hstore_conf.client.output_specexec_profiling != null) {
-            m_config.siteParameters.put("site.specexec_profiling", Boolean.TRUE.toString());
-        }
-        if (hstore_conf.client.output_markov_profiling != null) {
-            m_config.siteParameters.put("site.markov_profiling", Boolean.TRUE.toString());
-        }
-        if (hstore_conf.client.output_txn_profiling != null) {
-            m_config.siteParameters.put("site.txn_profiling", Boolean.TRUE.toString());
-        }
-        if (hstore_conf.client.output_txn_counters != null) {
-            m_config.siteParameters.put("site.txn_counters", Boolean.TRUE.toString());
-        }
+        
+        // For each client output option, we'll enable the corresponding
+        // site config parameter so that we can collect the proper data
+        String outputOpts[][] = {
+           {"client.output_exec_profiling", "site.exec_profiling"},
+           {"client.output_queue_profiling", "site.queue_profiling"},
+           {"client.output_site_profiling", "site.profiling"},
+           {"client.output_specexec_profiling", "site.specexec_profiling"},
+           {"client.output_markov_profiling", "site.markov_profiling"},
+           {"client.output_txn_profiling", "site.txn_profiling"},
+           {"client.output_txn_counters", "site.txn_counters"},
+        };
+        for (String pair[] : outputOpts) {
+            String clientOpt = pair[0];
+            assert(HStoreConf.isConfParameter(clientOpt)) : clientOpt;
+            String siteOpt = pair[1];
+            assert(HStoreConf.isConfParameter(siteOpt)) : siteOpt;
+            String clientOptVal = (String)hstore_conf.get(clientOpt);
+            if (clientOptVal != null && clientOptVal.isEmpty() == false) {
+                if (clientOptVal.equalsIgnoreCase("true")) {
+                    LOG.warn(String.format("The HStoreConf parameter '%s' should be a file path, not a boolean value", clientOpt));
+                } else {
+                    m_config.siteParameters.put(siteOpt, Boolean.TRUE.toString());
+                }
+            }
+        } // FOR
         
         List<String> siteBaseCommand = new ArrayList<String>();
         if (hstore_conf.global.sshprefix != null &&
