@@ -20,6 +20,7 @@ import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.HStoreSiteTestUtil;
+import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.util.TransactionCounter;
@@ -31,6 +32,7 @@ import edu.brown.utils.ThreadUtil;
 
 public class TestClientInterface extends BaseTestCase {
     
+    private static final int NUM_TXNS = 1000;
     private static final int NUM_PARTITIONS = 2;
     
     private HStoreSite hstore_site;
@@ -50,6 +52,7 @@ public class TestClientInterface extends BaseTestCase {
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.profiling = true;
+        this.hstore_conf.site.pool_profiling = true;
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
         this.clientInterface = this.hstore_site.getClientInterface();
@@ -67,7 +70,7 @@ public class TestClientInterface extends BaseTestCase {
      */
     @Test
     public void testClientResponseDebug() throws Exception {
-        long sleepTime = 10000;
+        long sleepTime = 2500;
         
         int num_rows = 10000;
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING);
@@ -76,14 +79,6 @@ public class TestClientInterface extends BaseTestCase {
             data[0].addRow(VoltTableUtil.getRandomRow(catalog_tbl));
         } // FOR
          
-        final CountDownLatch latch = new CountDownLatch(1);
-        ProcedureCallback callback = new ProcedureCallback() {
-           @Override
-           public void clientCallback(ClientResponse clientResponse) {
-               latch.countDown();
-           }
-        };
-        
         final AtomicBoolean onBackPressure = new AtomicBoolean(false);
         EventObserver<HStoreSite> onBackPressureObserver = new EventObserver<HStoreSite>() {
             @Override
@@ -104,19 +99,23 @@ public class TestClientInterface extends BaseTestCase {
 
         // Submit a bunch of txns that will block and check to make sure that
         // can go on and off on the backpressure status properly
+        LatchableProcedureCallback callback = new LatchableProcedureCallback(1);
         String procName = VoltSystemProcedure.procCallName(Sleep.class);
         Object params[] = { sleepTime, data };
         client.callProcedure(callback, procName, params);
         ThreadUtil.sleep(1000);
         
-        for (int i = 0; i < 1000; i++) {
-            client.callProcedure(new NullCallback(), procName, new Object[]{0, data});
+        LatchableProcedureCallback floodCallback = new LatchableProcedureCallback(NUM_TXNS);
+        for (int i = 0; i < NUM_TXNS; i++) {
+            client.callProcedure(floodCallback, procName, new Object[]{0, data});
         } // FOR
         
-        boolean result = latch.await(sleepTime*3, TimeUnit.MILLISECONDS);
+        boolean result = callback.latch.await(sleepTime*3, TimeUnit.MILLISECONDS);
         assertTrue(result);
-        
         assertTrue(onBackPressure.get());
+        
+        result = floodCallback.latch.await(sleepTime*3, TimeUnit.MILLISECONDS);
+        assertTrue(result);
         
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }

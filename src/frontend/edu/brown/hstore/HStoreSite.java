@@ -1366,12 +1366,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR
         
         // *********************************** DEBUG *********************************** 
-        StringBuilder sb = new StringBuilder();
-        int i = 0;
-        for (String txn : this.deletable_last) {
-            sb.append(String.format(" [%02d] %s\n", i++, txn));
+        if (d) {
+            StringBuilder sb = new StringBuilder();
+            int i = 0;
+            for (String txn : this.deletable_last) {
+                sb.append(String.format(" [%02d] %s\n", i++, txn));
+            }
+            LOG.debug("Last Deleted Transactions:\n" + sb + "\n\n");
         }
-        LOG.info("Last Deleted Transactions:\n" + sb);
+        
+//        sb = new StringBuilder();
+//        i = 0;
+//        for (Long txn : this.deletable_txns[Status.OK.ordinal()]) {
+//            sb.append(String.format(" [%02d] %s\n", i++, this.inflight_txns.get(txn).debug()));
+//        }
+//        LOG.info("Waiting to be Deleted Transactions:\n" + sb);
     }
     
     /**
@@ -2553,18 +2562,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.remoteTxnEstimator.destroyEstimatorState(t_state);
         }
         
-        // HACK: Make sure that we remove it completely the TransactionQueueManager
-        if (status != Status.OK) {
-            for (int partition : ts.getPredictTouchedPartitions().values()) {
-                if (this.local_partitions.contains(partition)) {
-                    this.txnQueueManager.lockQueueFinished(ts, status, partition);
-                }
-            } // FOR
-        }
+//        // HACK: Make sure that we remove it completely the TransactionQueueManager
+//        if (status != Status.OK) {
+//            for (int partition : ts.getPredictTouchedPartitions().values()) {
+//                if (this.local_partitions.contains(partition)) {
+//                    this.txnQueueManager.lockQueueFinished(ts, status, partition);
+//                }
+//            } // FOR
+//        }
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            this.deletable_last.add(ts.toString());
+            if (d) this.deletable_last.add(ts.toString());
             //this.deletable_last.add(ts.debug());
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
@@ -2587,14 +2596,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
         
-        // HACK: Make sure that we remove it completely the TransactionQueueManager
-        if (status != Status.OK) {
-            for (int partition : ts.getPredictTouchedPartitions().values()) {
-                if (this.local_partitions.contains(partition)) {
-                    this.txnQueueManager.lockQueueFinished(ts, status, partition);
-                }
-            } // FOR
-        }
+//        // HACK: Make sure that we remove it completely the TransactionQueueManager
+//        if (status != Status.OK) {
+//            for (int partition : ts.getPredictTouchedPartitions().values()) {
+//                if (this.local_partitions.contains(partition)) {
+//                    this.txnQueueManager.lockQueueFinished(ts, status, partition);
+//                }
+//            } // FOR
+//        }
         
         // Clean-up any extra information that we may have for the txn
         TransactionEstimator t_estimator = null;
@@ -2721,7 +2730,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.pool_txn_enable) {
             if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            this.deletable_last.add(ts.toString());
+            if (d) this.deletable_last.add(ts.toString());
             // this.deletable_last.add(ts.debug());
             if (ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);

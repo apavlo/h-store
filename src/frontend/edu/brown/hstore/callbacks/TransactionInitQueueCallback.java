@@ -92,7 +92,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
     }
     
     @Override
-    protected void unblockTransactionCallback() {
+    protected synchronized void unblockTransactionCallback() {
         if (debug.get()) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
                                    this.ts, TransactionInitResponse.class.getSimpleName(),
                                    (this.builder != null ? this.builder.getStatus() : "???")));
@@ -187,7 +187,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
      * @param partition
      * @param txn_id
      */
-    public void abort(Status status, int partition, Long txn_id) {
+    public synchronized void abort(Status status, int partition, Long txn_id) {
         if (this.builder != null) {
             if (debug.get()) LOG.debug(String.format("Txn #%d - Setting abort status to %s",
                                        this.getTransactionId(), status));
@@ -228,9 +228,9 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
         
         assert(this.builder != null) :
             "Unexpected null TransactionInitResponse builder for txn #" + this.getTransactionId();
-        assert(this.isAborted() == false) :
-            "Trying to add partitions for txn #" + this.getTransactionId() + " after the callback has been aborted";
-        this.builder.addPartitions(partition.intValue());
+        if (this.isAborted() == false) {
+            this.builder.addPartitions(partition.intValue());
+        }
         return 1;
     }
 }

@@ -397,6 +397,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                  partition, next, this.lockQueuesLastTxn[partition],
                                  this.lockQueues[partition].size()));
                 this.lockQueues[partition].remove(next);
+                next = null;
                 // Repeat so that we can try again
                 continue;
             }
@@ -411,6 +412,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                        Status.ABORT_RESTART,
                                        partition,
                                        this.lockQueuesLastTxn[partition]);
+                next = null;
                 continue;
             }
 
