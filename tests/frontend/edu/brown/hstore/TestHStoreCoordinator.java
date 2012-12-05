@@ -3,6 +3,7 @@ package edu.brown.hstore;
 import java.io.IOException;
 import java.lang.Thread.State;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
@@ -16,8 +17,15 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
+import org.voltdb.exceptions.SerializableException;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.BaseTestCase;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareResponse;
+import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -38,10 +46,10 @@ public class TestHStoreCoordinator extends BaseTestCase {
     private final HStoreSite hstore_sites[] = new HStoreSite[NUM_SITES_PER_HOST];
     private final HStoreCoordinator coordinators[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
     
-    private final VoltTable.ColumnInfo columns[] = {
-        new VoltTable.ColumnInfo("key", VoltType.STRING),
-        new VoltTable.ColumnInfo("value", VoltType.BIGINT),
-    };
+//    private final VoltTable.ColumnInfo columns[] = {
+//        new VoltTable.ColumnInfo("key", VoltType.STRING),
+//        new VoltTable.ColumnInfo("value", VoltType.BIGINT),
+//    };
 //    private final VoltTable fragment = new VoltTable(columns);
     
     @Before
@@ -159,19 +167,40 @@ public class TestHStoreCoordinator extends BaseTestCase {
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
+    /**
+     * testPrepareShutdownSerializeError
+     */
+    @Test
+    public void testPrepareShutdownSerializeError() throws Exception {
+        String errorMsg = "XXXXXXXXX";
+        Throwable error = null;
+        try {
+            throw new RuntimeException(errorMsg);
+        } catch (Throwable ex) {
+            error = ex;
+        }
+        assertNotNull(error);
+        SerializableException sError = new SerializableException(error);
+        ByteBuffer buffer = sError.serializeToBuffer();
+        buffer.rewind();
+        
+        ShutdownPrepareRequest.Builder builder = ShutdownPrepareRequest.newBuilder()
+                                                        .setSenderSite(0)
+                                                        .setError(ByteString.copyFrom(buffer));
+        ShutdownPrepareRequest request = builder.build();
+        
+        assertTrue(request.hasError());
+        buffer = request.getError().asReadOnlyByteBuffer();
+        SerializableException clone = SerializableException.deserializeFromBuffer(buffer);
+        assertTrue(clone.getMessage(), clone.getMessage().contains(errorMsg));
+    }
+    
 //    /**
 //     * testPrepareShutdown
 //     */
 //    @Test
 //    public void testPrepareShutdown() throws Exception {
-//        String errorMsg = "XXXXXXXXX";
-//        Throwable error = null;
-//        try {
-//            throw new RuntimeException(errorMsg);
-//        } catch (Throwable ex) {
-//            error = ex;
-//        }
-//        assertNotNull(error);
+
 //        
 //        // Attach an EventObserver to each HStoreSite
 //        @SuppressWarnings("unchecked")

@@ -417,30 +417,6 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         return (this.transactionFinish_handler);
     }
     
-//    private int getNumLocalPartitions(PartitionSet partitions) {
-//        int ctr = 0;
-//        int size = partitions.size();
-//        for (Integer p : this.local_partitions) {
-//            if (partitions.contains(p)) {
-//                ctr++;
-//                if (size == ctr) break;
-//            }
-//        } // FOR
-//        return (ctr);
-//    }
-//    
-//    private VoltTable copyVoltTable(VoltTable vt) throws Exception {
-//        FastSerializer fs = new FastSerializer(buffer_pool);
-//        fs.writeObject(vt);
-//        BBContainer bc = fs.getBBContainer();
-//        assert(bc.b.hasArray());
-//        ByteString bs = ByteString.copyFrom(bc.b);
-//        
-//        FastDeserializer fds = new FastDeserializer(bs.asReadOnlyByteBuffer());
-//        VoltTable copy = fds.readObject(VoltTable.class);
-//        return (copy);
-//    }
-    
     /**
      * Initialize all the network connections to remote
      *  
@@ -535,26 +511,6 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         }
         assert(finished);
     }
-    
-    // ----------------------------------------------------------------------------
-    // MESSAGE ROUTERS
-    // ----------------------------------------------------------------------------
-    
-    // TransactionFinish
-    
-    // Shutdown
-//    private final MessageRouter<ShutdownRequest, ShutdownResponse> router_shutdown = new MessageRouter<ShutdownRequest, ShutdownResponse>() {
-//        protected void sendLocal(long txn_id, ShutdownRequest request, PartitionSet partitions, RpcCallback<ShutdownResponse> callback) {
-//            
-//        }
-//        protected void sendRemote(HStoreService channel, ProtoRpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> callback) {
-//            channel.shutdown(controller, request, callback);
-//        }
-//        protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {
-//            return new ProtoRpcController();
-//        }
-//    };
-
     
     // ----------------------------------------------------------------------------
     // HSTORE RPC SERVICE METHODS
@@ -1206,6 +1162,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             if (error != null) {
                 SerializableException sError = new SerializableException(error);
                 ByteBuffer buffer = sError.serializeToBuffer();
+                buffer.rewind();
                 builder.setError(ByteString.copyFrom(buffer));
                 LOG.info("Serializing error message in shutdown request");
             }
