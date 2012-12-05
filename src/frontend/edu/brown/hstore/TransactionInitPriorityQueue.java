@@ -201,16 +201,6 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         return m_lastSeenTxn;
     }
 
-    /**
-     * Remove all pending transactions from the specified initiator
-     * and do not require heartbeats from that initiator to proceed.
-     * @param initiatorId id of the failed initiator.
-     */
-    public void gotFaultForInitiator(int initiatorId) {
-        // calculate the next minimum transaction w/o our dead friend
-        // XXX noteTransactionRecievedAndReturnLastSeen(Long.MAX_VALUE);
-    }
-
     public void faultTransaction(Long txnID) {
         this.remove(txnID);
     }
@@ -229,7 +219,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         return m_state;
     }
 
-    private QueueState checkQueueState() {
+    protected QueueState checkQueueState() {
         QueueState newState = QueueState.UNBLOCKED;
         AbstractTransaction ts = super.peek();
         if (ts == null) {

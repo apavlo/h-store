@@ -14,6 +14,7 @@ import org.voltdb.utils.EstTimeUpdater;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
@@ -96,6 +97,31 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             assertEquals(it.next(), this.queue.poll());
         } // FOR
         assertTrue(this.queue.isEmpty());
+    }
+    
+    /**
+     * testRemove
+     */
+    @Test
+    public void testRemove() throws Exception {
+        Collection<LocalTransaction> added = this.loadQueue(1);
+        assertEquals(added.size(), this.queue.size());
+        
+        // Remove the first. Make sure that poll() doesn't return it
+        ThreadUtil.sleep(TXN_DELAY*4);
+        // System.err.println(StringUtil.repeat("-", 100));
+        this.loadQueue(1);
+        
+        ThreadUtil.sleep(TXN_DELAY*2);
+        EstTimeUpdater.update(System.currentTimeMillis());
+        // System.err.println(StringUtil.repeat("-", 100));
+        this.queue.checkQueueState();
+        AbstractTransaction first = CollectionUtil.first(added);
+        assertEquals(first, this.queue.peek());
+        assertTrue(this.queue.remove(first));
+        
+        AbstractTransaction poll = this.queue.poll();
+        assertNotSame(first, poll);
     }
     
     /**
