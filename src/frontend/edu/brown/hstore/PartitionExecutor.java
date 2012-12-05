@@ -885,7 +885,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 
                 // TODO: If we get something back here, it should be come our
                 // current "parent" transaction.
-                this.currentTxn = this.queueManager.checkLockQueues(this.partitionId);
+                this.currentTxn = this.queueManager.checkLockQueue(this.partitionId);
                 if (this.currentTxn != null && this.currentTxn.isPredictSinglePartition() == false) {
                     this.setCurrentDtxn(this.currentTxn);
                     this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);

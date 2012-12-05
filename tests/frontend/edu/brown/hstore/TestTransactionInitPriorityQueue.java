@@ -1,8 +1,7 @@
 package edu.brown.hstore;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.Iterator;
 import java.util.TreeSet;
 
 import org.junit.Test;
@@ -10,6 +9,7 @@ import org.voltdb.TransactionIdManager;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.utils.EstTimeUpdater;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
@@ -18,7 +18,6 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 public class TestTransactionInitPriorityQueue extends BaseTestCase {
@@ -52,6 +51,10 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
     }
     
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
+    
     private Collection<LocalTransaction> loadQueue(int num_txns) {
         Collection<LocalTransaction> added = new TreeSet<LocalTransaction>();
         for (long i = 0; i < num_txns; i++) {
@@ -62,12 +65,16 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             // I think that we need to do this...
             this.queue.noteTransactionRecievedAndReturnLastSeen(ts);
             
-            boolean ret = this.queue.offer(ts);
+            boolean ret = this.queue.offer(ts, false);
             assert(ret);
             added.add(ts);
         } // FOR
         return (added);
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
     
     /**
      * testOutOfOrderExecution
@@ -77,9 +84,33 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         Collection<LocalTransaction> added = this.loadQueue(NUM_TXNS);
         assertEquals(added.size(), this.queue.size());
         
-        // If we peek in the queue, we should see our first guy
-        ThreadUtil.sleep(TXN_DELAY*2);
-        System.err.println(StringUtil.join("\n",this.queue)); 
-        // assertEquals(CollectionUtil.first(added), this.queue.poll());
+        // Now grab the last one and pop it out
+        LocalTransaction ts = CollectionUtil.last(added);
+        assertTrue(this.queue.remove(ts));
+        
+        // Now we should be able to remove the first of these mofos
+        Iterator<LocalTransaction> it = added.iterator();
+        for (int i = 0; i < NUM_TXNS-1; i++) {
+            ThreadUtil.sleep(TXN_DELAY);
+            EstTimeUpdater.update(System.currentTimeMillis());
+            assertEquals(it.next(), this.queue.poll());
+        } // FOR
+        assertTrue(this.queue.isEmpty());
+    }
+    
+    /**
+     * testPoll
+     */
+    @Test
+    public void testPoll() throws Exception {
+        Collection<LocalTransaction> added = this.loadQueue(NUM_TXNS);
+        assertEquals(added.size(), this.queue.size());
+        
+        Iterator<LocalTransaction> it = added.iterator();
+        for (int i = 0; i < NUM_TXNS; i++) {
+            ThreadUtil.sleep(TXN_DELAY);
+            EstTimeUpdater.update(System.currentTimeMillis());
+            assertEquals(it.next(), this.queue.poll());
+        } // FOR
     }
 }

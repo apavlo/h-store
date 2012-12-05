@@ -355,7 +355,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * at the partitions controlled by this queue manager
      * Returns true if we released a transaction at at least one partition
      */
-    protected AbstractTransaction checkLockQueues(int partition) {
+    protected AbstractTransaction checkLockQueue(int partition) {
         EstTimeUpdater.update(System.currentTimeMillis());
 
         if (this.lockQueuesBlocked[partition] != false) {
@@ -543,18 +543,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 ret = false;
                 break;
             }
-            // If our queue is currently idle, poke the thread so that it wakes up and tries to
-            // schedule our boys!
-            else if (this.lockQueuesBlocked[partition] == false) {
-                should_notify = true;
-            }
-            
             if (d) LOG.debug(String.format("Added %s to initQueue for partition %d [locked=%s / queueSize=%d]",
                              ts, partition,
                              this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
         } // FOR
-        if (should_notify && this.checkFlag.availablePermits() == 0)
-            this.checkFlag.release();
         return (ret);
     }
     
