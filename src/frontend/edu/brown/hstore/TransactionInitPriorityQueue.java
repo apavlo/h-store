@@ -95,8 +95,13 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         if (t) LOG.trace(String.format("Partition %d poll() -> %s", m_partitionId, retval));
         if (retval != null) {
             assert(m_nextTxn.equals(retval)) : 
-                String.format("Partition %d - Next txn is %s but our poll returned %s\n%s",
-                              m_partitionId, m_nextTxn, retval, this.toString());
+                String.format("Partition %d - Next txn is %s but our poll returned %s\n" +
+                              StringUtil.SINGLE_LINE +
+                		      "%s\n" +
+                		      StringUtil.SINGLE_LINE +
+                		      "%s",
+                              m_partitionId, m_nextTxn, retval, this.debug(),
+                              StringUtil.join("\n", super.iterator()));
             m_nextTxn = null;
             
             // call this again to check
@@ -157,7 +162,12 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     @Override
     public synchronized boolean remove(Object ts) {
         boolean retval = super.remove(ts);
-        if (retval) checkQueueState();
+        boolean checkQueue = retval;
+        if (m_nextTxn != null && m_nextTxn == ts) {
+            m_nextTxn = null;
+            checkQueue = true;
+        }
+        if (checkQueue) checkQueueState();
         if (d) LOG.debug(String.format("Partition %d remove(%s) -> %s",
                          m_partitionId, ts, retval));
         assert(super.contains(ts) == false) :
@@ -169,7 +179,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public synchronized AbstractTransaction noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txn) {
+    public AbstractTransaction noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txn) {
         // this doesn't exclude dummy txnid but is also a sanity check
         assert(txn != null);
 
@@ -221,7 +231,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         return m_state;
     }
 
-    protected QueueState checkQueueState() {
+    protected synchronized QueueState checkQueueState() {
         QueueState newState = QueueState.UNBLOCKED;
         AbstractTransaction ts = super.peek();
         if (ts == null) {
