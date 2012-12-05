@@ -7,6 +7,8 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -17,6 +19,8 @@ import org.voltdb.catalog.Site;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
@@ -89,6 +93,10 @@ public class TestHStoreCoordinator extends BaseTestCase {
         } // FOR
     }
     
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
+    
     /**
      * To keep track out how many threads fail
      */
@@ -146,6 +154,52 @@ public class TestHStoreCoordinator extends BaseTestCase {
             }
         } // FOR
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
+    
+//    /**
+//     * testPrepareShutdown
+//     */
+//    @Test
+//    public void testPrepareShutdown() throws Exception {
+//        String errorMsg = "XXXXXXXXX";
+//        Throwable error = null;
+//        try {
+//            throw new RuntimeException(errorMsg);
+//        } catch (Throwable ex) {
+//            error = ex;
+//        }
+//        assertNotNull(error);
+//        
+//        // Attach an EventObserver to each HStoreSite
+//        @SuppressWarnings("unchecked")
+//        final EventObserver<Object> observers[] = new EventObserver[this.hstore_sites.length];
+//        final Object observerValues[] = new Object[observers.length];
+//        final CountDownLatch observerLatches[] = new CountDownLatch[observers.length];
+//        for (int i = 0; i < hstore_sites.length; i++) {
+//            final int offset = i;
+//            observerLatches[i] = new CountDownLatch(1);
+//            observers[i] = new EventObserver<Object>() {
+//                @Override
+//                public void update(EventObservable<Object> o, Object arg) {
+//                    observerValues[offset] = arg;
+//                    observerLatches[offset].countDown();
+//                }
+//            };
+//            this.hstore_sites[i].getPrepareShutdownObservable().addObserver(observers[i]);
+//        } // FOR
+//        
+//        // Now tell the first HStoreCoordinator that we want to prepare
+//        // to shutdown the cluster. Make sure that everybody got the 
+//        // proper error message
+//        this.coordinators[0].prepareShutdownCluster(error);
+//        for (int i = 1; i < hstore_sites.length; i++) {
+//            boolean ret = observerLatches[i].await(1000, TimeUnit.MILLISECONDS);
+//            assertTrue("Latch " + i, ret);
+//        } // FOR
+//    }
     
     /**
      * testStartConnection

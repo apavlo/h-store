@@ -160,6 +160,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         if (retval) checkQueueState();
         if (d) LOG.debug(String.format("Partition %d remove(%s) -> %s",
                          m_partitionId, ts, retval));
+        assert(super.contains(ts) == false) :
+            "Failed to remove " + ts + "???";
         return retval;
     }
 
@@ -249,7 +251,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("Txn Init Timestamp", txnTimestamp);
                 m.put("Current Timestamp", timestamp);
-                m.put("Block Time", m_blockTime);
+                m.put("Block Time Remaining", (m_blockTime - timestamp));
                 LOG.debug(String.format("Partition %d - Next Txn %s\n%s",
                           this.m_partitionId, this.m_nextTxn, StringUtil.formatMaps(m)));
             }

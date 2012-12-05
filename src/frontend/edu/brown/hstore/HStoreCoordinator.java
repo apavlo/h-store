@@ -1195,6 +1195,46 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         this.shutdownCluster(null);
     }
     
+    protected void prepareShutdownCluster(final Throwable error) throws Exception {
+        final CountDownLatch latch = new CountDownLatch(this.num_sites-1);
+        
+        if (this.num_sites > 1) {
+            RpcCallback<ShutdownPrepareResponse> callback = new ShutdownPrepareCallback(this.num_sites, latch);
+            ShutdownPrepareRequest.Builder builder = ShutdownPrepareRequest.newBuilder()
+                                                        .setSenderSite(this.catalog_site.getId());
+            // Pack the error into a SerializableException
+            if (error != null) {
+                SerializableException sError = new SerializableException(error);
+                ByteBuffer buffer = sError.serializeToBuffer();
+                builder.setError(ByteString.copyFrom(buffer));
+                LOG.info("Serializing error message in shutdown request");
+            }
+            ShutdownPrepareRequest request = builder.build();
+            
+            if (d) LOG.debug(String.format("Sending %s to %d remote sites",
+                             request.getClass().getSimpleName(), this.num_sites-1));
+            for (int site_id = 0; site_id < this.num_sites; site_id++) {
+                if (site_id == this.local_site_id) continue;
+                this.channels[site_id].shutdownPrepare(new ProtoRpcController(), request, callback);
+                if (t) LOG.trace(String.format("Sent %s to %s",
+                                 request.getClass().getSimpleName(),
+                                 HStoreThreadManager.formatSiteName(site_id)));
+            } // FOR
+        }
+        
+        // Tell ourselves to get ready
+        this.hstore_site.prepareShutdown(error != null);
+        
+        // Block until the latch releases us
+        if (this.num_sites > 1) {
+            LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
+            boolean result = latch.await(10, TimeUnit.SECONDS);
+            if (result == false) {
+                LOG.warn("Failed to recieve all shutdown responses");
+            }
+        }
+    }
+    
     /**
      * Shutdown the cluster. If the given Exception is not null, then all the nodes will
      * exit with a non-zero status. This is will never return
@@ -1212,44 +1252,10 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         }
 
         final int exit_status = (error == null ? 0 : 1);
-        final CountDownLatch latch = new CountDownLatch(this.num_sites-1);
         
         try {
-            if (this.num_sites > 1) {
-                RpcCallback<ShutdownPrepareResponse> callback = new ShutdownPrepareCallback(this.num_sites, latch);
-                ShutdownPrepareRequest.Builder builder = ShutdownPrepareRequest.newBuilder()
-                                                            .setSenderSite(this.catalog_site.getId());
-                // Pack the error into a SerializableException
-                if (error != null) {
-                    SerializableException sError = new SerializableException(error);
-                    ByteBuffer buffer = sError.serializeToBuffer();
-                    builder.setError(ByteString.copyFrom(buffer));
-                    LOG.info("Serializing error message in shutdown request");
-                }
-                ShutdownPrepareRequest request = builder.build();
-                
-                if (d) LOG.debug(String.format("Sending %s to %d remote sites",
-                                 request.getClass().getSimpleName(), this.num_sites-1));
-                for (int site_id = 0; site_id < this.num_sites; site_id++) {
-                    if (site_id == this.local_site_id) continue;
-                    this.channels[site_id].shutdownPrepare(new ProtoRpcController(), request, callback);
-                    if (t) LOG.trace(String.format("Sent %s to %s",
-                                     request.getClass().getSimpleName(),
-                                     HStoreThreadManager.formatSiteName(site_id)));
-                } // FOR
-            }
-            
-            // Tell ourselves to get ready
-            this.hstore_site.prepareShutdown(error != null);
-            
-            // Block until the latch releases us
-            if (this.num_sites > 1) {
-                LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
-                boolean result = latch.await(10, TimeUnit.SECONDS);
-                if (result == false) {
-                    LOG.warn("Failed to recieve all shutdown responses");
-                }
-            }
+            // Tell everyone that we're getting ready to stop the party
+            this.prepareShutdownCluster(error);
             
             // Now send the final shutdown request
             if (this.num_sites > 1) {

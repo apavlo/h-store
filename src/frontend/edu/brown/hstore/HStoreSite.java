@@ -356,6 +356,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * EventObservable for when the HStoreSite has been told that it needs to shutdown.
      */
     private Shutdownable.ShutdownState shutdown_state = ShutdownState.INITIALIZED;
+    private final EventObservable<Object> prepare_observable = new EventObservable<Object>();
     private final EventObservable<Object> shutdown_observable = new EventObservable<Object>();
     
     // ----------------------------------------------------------------------------
@@ -1059,7 +1060,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
+     * Get the EventObservable handle for this HStoreSite that can alert 
+     * others when we have gotten a message to prepare to shutdown
+     * @return
+     */
+    public EventObservable<Object> getPrepareShutdownObservable() {
+        return (this.prepare_observable);
+    }
+    
+    /**
+     * Get the EventObservable handle for this HStoreSite that can alert 
+     * others when the party is ending
      * @return
      */
     public EventObservable<Object> getShutdownObservable() {
@@ -1364,6 +1375,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (this.executors[p] != null) 
                 this.executors[p].prepareShutdown(error);
         } // FOR
+        
+        // Tell anybody that wants to know that we're going down
+        if (t) LOG.trace(String.format("Notifying %d observers that we're preparing shutting down",
+                         this.prepare_observable.countObservers()));
+        this.prepare_observable.notifyObservers(error);
         
         // *********************************** DEBUG *********************************** 
         if (d) {

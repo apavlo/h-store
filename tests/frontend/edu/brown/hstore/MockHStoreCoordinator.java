@@ -48,7 +48,6 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
     
     final TransactionQueueManager txnQueueManager;
     final HStoreConf hstore_conf;
