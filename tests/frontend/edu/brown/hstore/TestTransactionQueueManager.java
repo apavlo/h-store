@@ -53,7 +53,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         addPartitions(NUM_PARTITONS);
         
         hstore_conf = HStoreConf.singleton();
-        hstore_conf.site.txn_incoming_delay = 10;
+        hstore_conf.site.txn_incoming_delay = 100;
         
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         assertNotNull(catalog_site);
@@ -64,6 +64,10 @@ public class TestTransactionQueueManager extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         EstTimeUpdater.update(System.currentTimeMillis());
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
     
     private LocalTransaction createTransaction(Long txn_id, PartitionSet partitions) {
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
@@ -82,6 +86,10 @@ public class TestTransactionQueueManager extends BaseTestCase {
         }
         return (ret);
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
     
     /**
      * Insert the txn into our queue and then call check
@@ -127,8 +135,14 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         // insert the higher ID first but make sure it comes out second
         assertFalse(queueManager.toString(), this.checkAllQueues(queueManager));
-        assertTrue(queueManager.toString(), this.queueManager.lockQueueInsert(txn1, txn1.getPredictTouchedPartitions(), inner_callback1));
-        assertTrue(queueManager.toString(), this.queueManager.lockQueueInsert(txn0, txn0.getPredictTouchedPartitions(), inner_callback0));
+        assertTrue(queueManager.toString(),
+                   this.queueManager.lockQueueInsert(txn1,
+                                                     txn1.getPredictTouchedPartitions(),
+                                                     inner_callback1));
+        assertTrue(queueManager.toString(),
+                   this.queueManager.lockQueueInsert(txn0,
+                                                     txn0.getPredictTouchedPartitions(),
+                                                     inner_callback0));
         
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
         assertTrue(this.checkAllQueues(queueManager));
