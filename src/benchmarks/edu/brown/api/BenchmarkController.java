@@ -1458,6 +1458,7 @@ public class BenchmarkController {
         return (cr);
     }
     
+    @SuppressWarnings("unused")
     private void invokeStatusSnapshot(Client client) {
         @SuppressWarnings("unchecked")
         Class<VoltSystemProcedure> sysprocs[] = (Class<VoltSystemProcedure>[])new Class<?>[]{

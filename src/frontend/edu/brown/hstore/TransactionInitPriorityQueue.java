@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.PriorityBlockingQueue;
 
+import org.apache.commons.collections15.buffer.CircularFifoBuffer;
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.EstTime;
@@ -56,6 +57,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     AbstractTransaction m_lastTxnPopped = null;
     AbstractTransaction m_nextTxn = null;
     
+    final CircularFifoBuffer<String> lastRemoved = new CircularFifoBuffer<String>(10);
+    final CircularFifoBuffer<String> lastPolled = new CircularFifoBuffer<String>(10);
+    
+    
     /**
      * Tell this queue about all initiators. If any initiators
      * are later referenced that aren't in this list, trip
@@ -78,7 +83,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * Only return transaction state objects that are ready to run.
      */
     @Override
-    public AbstractTransaction poll() {
+    public synchronized AbstractTransaction poll() {
         AbstractTransaction retval = null;
         
         // These invocations of poll() can return null if the next
@@ -108,8 +113,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             checkQueueState();
             m_txnsPopped++;
             m_lastTxnPopped = retval;
+            this.lastPolled.add(retval.toString());
         }
         
+        if (d) LOG.debug(String.format("Partition %d poll() -> %s", m_partitionId, retval));
         return retval;
     }
 
@@ -162,6 +169,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     @Override
     public synchronized boolean remove(Object ts) {
         boolean retval = super.remove(ts);
+        if (retval) this.lastRemoved.add(ts.toString());
         boolean checkQueue = retval;
         if (m_nextTxn != null && m_nextTxn == ts) {
             m_nextTxn = null;
@@ -170,8 +178,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         if (checkQueue) checkQueueState();
         if (d) LOG.debug(String.format("Partition %d remove(%s) -> %s",
                          m_partitionId, ts, retval));
+        // Sanity Check
         assert(super.contains(ts) == false) :
-            "Failed to remove " + ts + "???";
+            "Failed to remove " + ts + "???\n" + this.debug();
         return retval;
     }
 
@@ -179,7 +188,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public AbstractTransaction noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txn) {
+    public synchronized AbstractTransaction noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txn) {
         // this doesn't exclude dummy txnid but is also a sanity check
         assert(txn != null);
 
@@ -230,8 +239,12 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     public QueueState getQueueState() {
         return m_state;
     }
+    
+    public int getPartitionId() {
+        return (this.m_partitionId);
+    }
 
-    protected synchronized QueueState checkQueueState() {
+    protected QueueState checkQueueState() {
         QueueState newState = QueueState.UNBLOCKED;
         AbstractTransaction ts = super.peek();
         if (ts == null) {
@@ -249,8 +262,6 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         }
         // This is a new txn and we should wait...
         else if (m_nextTxn == null || m_nextTxn != ts) {
-            if (d) LOG.debug(String.format("Partition %d - Blocking next %s for %d ms",
-                             m_partitionId, ts, m_waitTime));
             newState = QueueState.BLOCKED_SAFETY;
             // m_blockTime = EstTime.currentTimeMillis() + this.m_waitTime;
             long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(ts.getTransactionId().longValue());
@@ -258,12 +269,16 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             m_blockTime = timestamp + Math.max(0, this.m_waitTime - (timestamp - txnTimestamp));
             m_nextTxn = ts;
             if (d) {
-                Map<String, Object> m = new LinkedHashMap<String, Object>();
-                m.put("Txn Init Timestamp", txnTimestamp);
-                m.put("Current Timestamp", timestamp);
-                m.put("Block Time Remaining", (m_blockTime - timestamp));
-                LOG.debug(String.format("Partition %d - Next Txn %s\n%s",
-                          this.m_partitionId, this.m_nextTxn, StringUtil.formatMaps(m)));
+                String debug = "";
+                if (t) {
+                    Map<String, Object> m = new LinkedHashMap<String, Object>();
+                    m.put("Txn Init Timestamp", txnTimestamp);
+                    m.put("Current Timestamp", timestamp);
+                    m.put("Block Time Remaining", (m_blockTime - timestamp));
+                    debug = "\n" + StringUtil.formatMaps(m);
+                }
+                LOG.debug(String.format("Partition %d - Blocking next %s for %d ms [defaultWait=%d]%s",
+                          m_partitionId, ts, (m_blockTime - timestamp), m_waitTime, debug));
             }
         }
         
@@ -284,6 +299,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         m.put("Next Txn", m_nextTxn);
         m.put("Last Popped Txn", m_lastTxnPopped);
         m.put("Last Seen Txn", m_lastSeenTxn);
+        m.put("Last Polled", StringUtil.join("\n", this.lastPolled));
+        m.put("Last Removed", StringUtil.join("\n", this.lastRemoved));
         return (StringUtil.formatMaps(m));
     }
 }

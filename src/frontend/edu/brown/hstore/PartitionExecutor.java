@@ -801,10 +801,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(policy != null) : String.format("Invalid %s '%s'",
                                                SchedulerPolicy.class.getSimpleName(),
                                                hstore_conf.site.specexec_scheduler_policy);
+        TransactionInitPriorityQueue queue = this.queueManager.getInitQueue(this.partitionId);
+        assert(queue.getPartitionId() == this.partitionId);
         this.specExecScheduler = new SpecExecScheduler(this.catalogContext,
                                                        this.specExecChecker,
                                                        this.partitionId,
-                                                       this.queueManager.getInitQueue(this.partitionId),
+                                                       queue,
                                                        policy,
                                                        hstore_conf.site.specexec_scheduler_window);
         this.specExecChecker.setEstimationThresholds(this.thresholds);
@@ -876,6 +878,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             this.shutdown_latch = new Semaphore(0);
             
             if (d) LOG.debug("Starting PartitionExecutor run loop...");
+            AbstractTransaction next = null;
             while (this.stop == false && this.isShuttingDown() == false) {
                 this.currentTxnId = null;
                 
@@ -885,9 +888,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 
                 // TODO: If we get something back here, it should be come our
                 // current "parent" transaction.
-                this.currentTxn = this.queueManager.checkLockQueue(this.partitionId);
-                if (this.currentTxn != null && this.currentTxn.isPredictSinglePartition() == false) {
-                    this.setCurrentDtxn(this.currentTxn);
+                next = this.queueManager.checkLockQueue(this.partitionId);
+                if (next != null && next.isPredictSinglePartition() == false) {
+                    this.setCurrentDtxn(next);
                     this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
                 }
                 
@@ -1087,6 +1090,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     protected void processInternalTxnMessage(InternalTxnMessage work) {
         AbstractTransaction ts = work.getTransaction();
+        this.currentTxn = ts;
         this.currentTxnId = ts.getTransactionId();
 
         // If this transaction has already been aborted and they are trying to give us
@@ -1207,6 +1211,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (spec_ts != null) {
                 if (d) LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
                                  this.currentDtxn, spec_ts));
+                assert(spec_ts.getBasePartition() == this.partitionId) :
+                    String.format("Trying to speculatively execute %s at partition %d but its base partition is %d\n%s",
+                                  spec_ts, this.partitionId, spec_ts.getBasePartition(), spec_ts.debug());
                 this.setExecutionMode(spec_ts, ExecutionMode.COMMIT_NONE);
                 
                 // IMPORTANT: We need to make sure that we remove this transaction for the lock queue
@@ -1794,6 +1801,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param ts
      */
     private void executeTransaction(LocalTransaction ts) {
+        this.currentTxn = ts;
         assert(ts.isInitialized()) : "Unexpected uninitialized transaction request: " + ts;
         if (t) LOG.trace(String.format("%s - Attempting to execute transaction on partition %d",
                          ts, this.partitionId));

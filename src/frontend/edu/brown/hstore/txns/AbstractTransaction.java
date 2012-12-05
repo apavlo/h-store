@@ -29,11 +29,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
@@ -1110,10 +1110,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     public abstract String toStringImpl();
     public abstract String debug();
     
-    protected Map<String, Object> getDebugMap() {
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+    @SuppressWarnings("unchecked")
+    protected Map<String, Object>[] getDebugMaps() {
+        List<Map<String, Object>> maps = new ArrayList<Map<String,Object>>();
+        Map<String, Object> m;
+        
+        m = new LinkedHashMap<String, Object>();
         m.put("Transaction #", this.txn_id);
         m.put("Procedure", this.catalog_proc);
+        m.put("Base Partition", this.base_partition);
         m.put("Hash Code", this.hashCode());
         m.put("Deletable", this.deletable.get());
         m.put("Current Round State", Arrays.toString(this.round_state));
@@ -1125,7 +1130,17 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         m.put("Executed Work", Arrays.toString(this.exec_eeWork));
         if (this.pending_error != null)
             m.put("Pending Error", this.pending_error);
-        return (m);
+        maps.add(m);
+        
+        // Predictions
+        m = new LinkedHashMap<String, Object>();
+        m.put("Predict Single-Partitioned", (this.predict_touchedPartitions != null ? this.isPredictSinglePartition() : "???"));
+        m.put("Predict Touched Partitions", this.getPredictTouchedPartitions());
+        m.put("Predict Read Only", this.isPredictReadOnly());
+        m.put("Predict Abortable", this.isPredictAbortable());
+        maps.add(m);
+        
+        return ((Map<String, Object>[])maps.toArray(new Map[0]));
     }
     
     public static String formatTxnName(Procedure catalog_proc, Long txn_id) {

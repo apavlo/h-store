@@ -171,10 +171,13 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public String debug() {
         List<Map<String, Object>> maps = new ArrayList<Map<String,Object>>();
-        Map<String, Object> m;
         
         // Base Class Info
-        maps.add(super.getDebugMap());
+        for (Map<String, Object> m : super.getDebugMaps()) {
+            maps.add(m);
+        } // FOR
+        
+        Map<String, Object> m;
         
         // Additional Info
         m = new LinkedHashMap<String, Object>();

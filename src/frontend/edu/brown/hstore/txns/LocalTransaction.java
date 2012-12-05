@@ -859,7 +859,9 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public void setSpeculative(SpeculationType type) {
         assert(type != SpeculationType.NULL);
-        assert(this.exec_specExecType == SpeculationType.NULL);
+        assert(this.exec_specExecType == SpeculationType.NULL) :
+            String.format("Trying to mark %s as speculative twice [new=%s / previous=%s]",
+                          this, type, this.exec_specExecType); 
         this.exec_specExecType = type;
     }
 
@@ -1407,27 +1409,23 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public String debug() {
         List<Map<String, Object>> maps = new ArrayList<Map<String,Object>>();
-        Map<String, Object> m;
         
         // Base Class Info
-        maps.add(super.getDebugMap());
+        for (Map<String, Object> m : super.getDebugMaps()) {
+            maps.add(m);
+        } // FOR
         
-        // Predictions
+        Map<String, Object> m;
+        
+        // Run Time Stuff
         m = new LinkedHashMap<String, Object>();
-        m.put("Predict Single-Partitioned", (this.predict_touchedPartitions != null ? this.isPredictSinglePartition() : "???"));
-        m.put("Predict Touched Partitions", this.getPredictTouchedPartitions());
-        m.put("Predict Read Only", this.isPredictReadOnly());
-        m.put("Predict Abortable", this.isPredictAbortable());
+        m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
+        m.put("Exec Touched Partitions", this.exec_touchedPartitions.toString(30));
         m.put("Restart Counter", this.restart_ctr);
         m.put("Needs Restart", this.needs_restart);
         m.put("Needs CommandLog", this.log_enabled);
         m.put("Speculative Execution", this.exec_specExecType);
         m.put("Estimator State", this.getEstimatorState());
-        maps.add(m);
-
-        m = new LinkedHashMap<String, Object>();
-        m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
-        m.put("Exec Touched Partitions", this.exec_touchedPartitions.toString(30));
         
         // Actual Execution
         if (this.state != null) {

@@ -318,8 +318,8 @@ class Distributer {
                     }
 
                 } else {
-                    LOG.warn(String.format("Failed to get callback for client handle #%d from %s\n%s\n%s",
-                                           clientHandle, this, response.toString(), m_callbacks.keySet())); 
+                    LOG.warn(String.format("Failed to get callback for client handle #%d from %s\n%s",
+                                           clientHandle, this, response.toString())); 
                 }
             } // SYNCH
 
