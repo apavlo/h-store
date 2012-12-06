@@ -96,7 +96,7 @@ public class YCSBClient extends BenchmarkComponent {
 		
 		// initialize distribution generators 
 		//readRecord = new ZipfianGenerator(init_record_count, SIGMA);// pool for read keys
-		readRecord = new CustomSkewGenerator(init_record_count, 80, 20); 
+		readRecord = new CustomSkewGenerator(init_record_count, 95, 5); 
 		
         randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
 		
