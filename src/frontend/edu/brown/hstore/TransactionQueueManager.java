@@ -426,18 +426,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 if (d) LOG.debug(String.format("The last lockQueue txnId for remote partition is #%d but this " +
                 		         "is greater than %s. Rejecting...",
                                  partition, this.lockQueuesLastTxn[partition], ts));
-                if (wrapper != null) {
-                    this.rejectTransaction(ts,
-                                           Status.ABORT_RESTART,
-                                           partition,
-                                           this.lockQueuesLastTxn[partition]);
-                } else {
-                    this.rejectLocalTransaction(ts,
-                                                partitions,
-                                                (TransactionInitCallback)callback,
-                                                Status.ABORT_RESTART,
-                                                partition);
-                }
+                this.rejectTransaction(ts,
+                                       Status.ABORT_RESTART,
+                                       partition,
+                                       this.lockQueuesLastTxn[partition]);
                 ret = false;
                 break;
             }
@@ -460,18 +452,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 if (d) LOG.debug(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
                 		         "is greater than our new txn %s. Rejecting...",
                                  partition, this.lockQueuesLastTxn[partition], ts));
-                if (wrapper != null) {
-                    this.rejectTransaction(ts,
-                                           Status.ABORT_RESTART,
-                                           partition,
-                                           next_safe_id);
-                } else {
-                    this.rejectLocalTransaction(ts,
-                                                partitions,
-                                                (TransactionInitCallback)callback,
-                                                Status.ABORT_RESTART,
-                                                partition);
-                }
+                this.rejectTransaction(ts,
+                                       Status.ABORT_RESTART,
+                                       partition,
+                                       next_safe_id);
                 ret = false;
                 break;
             }
@@ -482,18 +466,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 		        "[locked=%s / queueSize=%d]",
                                  partition, ts, next_safe_id,
                                  this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
-                if (wrapper != null) {
-                    this.rejectTransaction(ts,
-                                           Status.ABORT_REJECT,
-                                           partition,
-                                           next_safe_id);
-                } else {
-                    this.rejectLocalTransaction(ts,
-                                                partitions,
-                                                (TransactionInitCallback)callback,
-                                                Status.ABORT_RESTART,
-                                                partition);
-                }
+                this.rejectTransaction(ts,
+                                       Status.ABORT_REJECT,
+                                       partition,
+                                       next_safe_id);
                 ret = false;
                 break;
             }
@@ -575,35 +551,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // ----------------------------------------------------------------------------
     // INTERNAL METHODS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * Reject the given transaction at this QueueManager.
-     * @param ts
-     * @param callback
-     * @param status
-     * @param reject_partition
-     * @param reject_txnId
-     */
-    private void rejectLocalTransaction(AbstractTransaction ts,
-                                        PartitionSet partitions,
-                                        TransactionInitCallback callback,
-                                        Status status,
-                                        int reject_partition) {
-        assert(ts.isInitialized()) :
-            String.format("Unexpected uninitalized transaction handle %s in %s [status=%s / rejectPartition]",
-                          ts, status, reject_partition);
-        if (d) LOG.debug(String.format("Rejecting txn %s on partition %d [status=%s]", ts, status));
-
-        // First send back an ABORT message to the initiating HStoreSite (if we haven't already)
-        if (callback.isAborted() == false && callback.isUnblocked() == false) {
-            callback.abort(status);
-            for (Integer partition : partitions) {
-                if (this.hstore_site.isLocalPartition(partition.intValue())) {
-                    callback.decrementCounter(1);    
-                }
-            } // FOR
-        }
-    }
     
     /**
      * Reject the given transaction at this QueueManager.
