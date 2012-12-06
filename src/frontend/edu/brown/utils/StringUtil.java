@@ -27,6 +27,8 @@
  ***************************************************************************/
 package edu.brown.utils;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -77,6 +79,16 @@ public abstract class StringUtil {
     /** Unicode Down Arrow Character */
     public static final String UNICODE_DOWN_ARROW = "\u25BC";
     
+    
+    /**
+     * Return the given Exception's stacktrace as a string 
+     * @param ex
+     */
+    public static String exceptionToString(Throwable ex) {
+        PrintWriter writer = new PrintWriter(new StringWriter());
+        ex.printStackTrace(writer);
+        return (writer.toString());
+    }
     
     /**
      * Wrap the given string with the control characters
