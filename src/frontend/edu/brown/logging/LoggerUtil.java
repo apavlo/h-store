@@ -21,7 +21,6 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.StringUtil;
 
 /**
  * Hack to hook in log4j.properties

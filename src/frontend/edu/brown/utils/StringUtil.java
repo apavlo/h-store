@@ -84,9 +84,9 @@ public abstract class StringUtil {
      * Return the given Exception's stacktrace as a string 
      * @param ex
      */
-    public static String exceptionToString(Throwable ex) {
-        PrintWriter writer = new PrintWriter(new StringWriter());
-        ex.printStackTrace(writer);
+    public static String stacktrace(Throwable ex) {
+        StringWriter writer = new StringWriter();
+        ex.printStackTrace(new PrintWriter(writer));
         return (writer.toString());
     }
     

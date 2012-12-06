@@ -52,7 +52,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     long m_blockTime = 0;
     QueueState m_state = QueueState.BLOCKED_EMPTY;
     
-    AbstractTransaction m_lastSeenTxn = null;
+    Long m_lastSeenTxn = null;
     AbstractTransaction m_newestCandidateTransaction = null;
     AbstractTransaction m_lastTxnPopped = null;
     AbstractTransaction m_nextTxn = null;
@@ -108,15 +108,13 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                               m_partitionId, m_nextTxn, retval, this.debug(),
                               StringUtil.join("\n", super.iterator()));
             m_nextTxn = null;
-            
-            // call this again to check
-            checkQueueState();
             m_txnsPopped++;
             m_lastTxnPopped = retval;
             this.lastPolled.add(retval.toString());
         }
+        this.checkQueueState();
         
-        if (d) LOG.debug(String.format("Partition %d poll() -> %s", m_partitionId, retval));
+        if (d && retval != null) LOG.debug(String.format("Partition %d poll() -> %s", m_partitionId, retval));
         return retval;
     }
 
@@ -160,7 +158,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         
         boolean retval = super.offer(txnId, force);
         // update the queue state
-        if (retval) checkQueueState();
+        // if (retval) checkQueueState();
+        this.checkQueueState();
         if (d) LOG.debug(String.format("Partition %d offer(%s) -> %s",
                          m_partitionId, txnId, retval));
         return retval;
@@ -170,12 +169,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     public synchronized boolean remove(Object ts) {
         boolean retval = super.remove(ts);
         if (retval) this.lastRemoved.add(ts.toString());
-        boolean checkQueue = retval;
         if (m_nextTxn != null && m_nextTxn == ts) {
             m_nextTxn = null;
-            checkQueue = true;
         }
-        if (checkQueue) checkQueueState();
+        this.checkQueueState();
         if (d) LOG.debug(String.format("Partition %d remove(%s) -> %s",
                          m_partitionId, ts, retval));
         // Sanity Check
@@ -188,7 +185,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public synchronized AbstractTransaction noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txn) {
+    public synchronized Long noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txn) {
         // this doesn't exclude dummy txnid but is also a sanity check
         assert(txn != null);
 
@@ -203,17 +200,17 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         }
 
         // update the latest transaction for the specified initiator
-        if (m_lastSeenTxn == null || txn.compareTo(m_lastSeenTxn) < 0) {
+        if (m_lastSeenTxn == null || txn.getTransactionId().compareTo(m_lastSeenTxn) < 0) {
             if (t) LOG.trace("SET lastSeenTxnId = " + txn);
-            m_lastSeenTxn = txn;
+            m_lastSeenTxn = txn.getTransactionId();
         }
 
         // this minimum is the newest safe transaction to run
         // but you still need to check if a transaction has been confirmed
         //  by its initiator
         //  (note: this check is done when peeking/polling from the queue)
-        if (t) LOG.trace("SET m_newestCandidateTransaction = " + m_lastSeenTxn);
-        m_newestCandidateTransaction = m_lastSeenTxn;
+        // if (t) LOG.trace("SET m_newestCandidateTransaction = " + m_lastSeenTxn);
+        // m_newestCandidateTransaction = m_lastSeenTxn;
 
         // this will update the state of the queue if needed
         checkQueueState();
@@ -224,13 +221,6 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
 
     public void faultTransaction(Long txnID) {
         this.remove(txnID);
-    }
-
-    /**
-     * @return The id of the newest safe transaction to run.
-     */
-    AbstractTransaction getNewestSafeTransaction() {
-        return m_newestCandidateTransaction;
     }
 
     public void shutdown() throws InterruptedException {

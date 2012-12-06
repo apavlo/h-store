@@ -652,7 +652,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             }
             LOG.warn(String.format("Got %s from %s [hasError=%s]%s",
                      request.getClass().getSimpleName(), originName, (error != null),
-                     (error != null ? " - " + error : "")));
+                     (error != null ? "\n" + error : "")));
             
             // Tell the HStoreSite to prepare to shutdown
             HStoreCoordinator.this.hstore_site.prepareShutdown(request.hasError());
