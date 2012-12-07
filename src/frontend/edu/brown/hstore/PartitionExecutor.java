@@ -887,11 +887,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // -------------------------------
 
                 // TODO: If we get something back here, it should be come our
-                // current "parent" transaction.
-                next = this.queueManager.checkLockQueue(this.partitionId);
-                if (next != null && next.isPredictSinglePartition() == false) {
-                    this.setCurrentDtxn(next);
-                    this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
+                // current distributed transaction.
+                if (this.currentDtxn == null) {
+                    next = this.queueManager.checkLockQueue(this.partitionId);
+                    if (next != null && next.isPredictSinglePartition() == false) {
+                        this.setCurrentDtxn(next);
+                        this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
+                    }
                 }
                 
                 // -------------------------------
@@ -1566,8 +1568,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.currentDtxn == null) :
             String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
-//        if (d)
-            LOG.info(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
+        if (d)
+            LOG.debug(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
                          ts, this.partitionId, this.currentDtxn));
         this.currentDtxn = ts;
     }

@@ -2568,8 +2568,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         if (hstore_conf.site.pool_txn_enable) {
-//            if (d)
-                LOG.info(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+            if (d)
+                LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
             if (d) this.deletable_last.add(ts.toString());
             //this.deletable_last.add(ts.debug());
@@ -2726,8 +2726,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         assert(ts.isInitialized()) : "Trying to return uninitialized txn #" + txn_id;
         if (hstore_conf.site.pool_txn_enable) {
-//            if (d)
-                LOG.info(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+            if (d)
+                LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
             if (d) this.deletable_last.add(ts.toString());
             // this.deletable_last.add(ts.debug());
