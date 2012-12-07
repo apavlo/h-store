@@ -181,18 +181,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
         } // FOR
         
-        // Add a EventObservable that will tell us when the first non-sysproc
-        // request arrives from a client. This will then tell the queues that its ok
-        // to increase their limits if they're empty
-        EventObservable<HStoreSite> observable = hstore_site.getStartWorkloadObservable();
-        observable.addObserver(new EventObserver<HStoreSite>() {
-            public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-                for (TransactionInitPriorityQueue queue : lockQueues) {
-                    if (queue != null) queue.setAllowIncrease(true);
-                } // FOR
-            };
-        });
-        
         if (d) LOG.debug(String.format("Created %d TransactionInitQueues for %s",
                          num_partitions, hstore_site.getSiteName()));
     }
@@ -458,7 +446,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 break;
             }
             // Our queue is overloaded. We have to reject the txnId!
-            else if (this.lockQueues[partition].offer(ts, ts.isSysProc()) == false) {
+            else if (this.lockQueues[partition].offer(ts) == false) {
                 if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
                 		        "Throttling %s until id is greater than %s " +
                 		        "[locked=%s / queueSize=%d]",

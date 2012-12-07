@@ -10,7 +10,6 @@ import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.txns.AbstractTransaction;
-import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
@@ -27,7 +26,8 @@ import edu.brown.utils.StringUtil;
  *
  * <p>This class manages all that state.</p>
  */
-public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransaction> {
+public class TransactionInitPriorityQueue extends PriorityBlockingQueue<AbstractTransaction> {
+    private static final long serialVersionUID = 573677483413142310L;
     private static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -60,20 +60,14 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     final CircularFifoBuffer<String> lastRemoved = new CircularFifoBuffer<String>(10);
     final CircularFifoBuffer<String> lastPolled = new CircularFifoBuffer<String>(10);
     
-    
     /**
-     * Tell this queue about all initiators. If any initiators
-     * are later referenced that aren't in this list, trip
-     * an assertion.
-     * @param partitionId TODO
+     * Constructor
+     * @param hstore_site
+     * @param partitionId
+     * @param wait
      */
     public TransactionInitPriorityQueue(HStoreSite hstore_site, int partitionId, long wait) {
-        super(new PriorityBlockingQueue<AbstractTransaction>(),
-              hstore_site.getHStoreConf().site.queue_dtxn_max_per_partition,
-              hstore_site.getHStoreConf().site.queue_dtxn_release_factor,
-              hstore_site.getHStoreConf().site.queue_dtxn_increase,
-              hstore_site.getHStoreConf().site.queue_dtxn_increase_max
-        );
+        super();
         m_siteId = hstore_site.getSiteId();
         m_partitionId = partitionId;
         m_waitTime = wait;
@@ -139,7 +133,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * Drop data for unknown initiators. This is the only valid add interface.
      */
     @Override
-    public synchronized boolean offer(AbstractTransaction txnId, boolean force) {
+    public synchronized boolean offer(AbstractTransaction txnId) {
         assert(txnId != null);
         
         // Check whether this new txn is less than the current m_nextTxn
@@ -158,7 +152,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             }
         }
         
-        boolean retval = super.offer(txnId, force);
+        boolean retval = super.offer(txnId);
         // update the queue state
         // if (retval) checkQueueState();
         this.checkQueueState();

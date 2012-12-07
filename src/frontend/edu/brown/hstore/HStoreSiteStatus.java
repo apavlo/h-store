@@ -27,7 +27,6 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
@@ -463,7 +462,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             PartitionExecutor es = e.getValue();
             PartitionExecutor.Debug dbg = es.getDebugContext();
             Queue<?> es_queue = dbg.getWorkQueue();
-            ThrottlingQueue<?> dtxn_queue = queueManager.getInitQueue(partition);
+            TransactionInitPriorityQueue dtxn_queue = queueManager.getInitQueue(partition);
             AbstractTransaction current_dtxn = dbg.getCurrentDtxn();
             
             // Queue Information
@@ -493,9 +492,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
             
             // TransactionQueueManager Info
-            status = String.format("%-5s [limit=%d, release=%d] %s",
-                                   dtxn_queue.size(), dtxn_queue.getQueueMax(), dtxn_queue.getQueueRelease(),
-                                   (dtxn_queue.isThrottled() ? "*THROTTLED* " : ""));
+            status = String.format("%-5s", dtxn_queue.size());
             txn_id = queueManagerDebug.getCurrentTransaction(partition);
             if (txn_id != null) {
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);

@@ -66,7 +66,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             // I think that we need to do this...
             this.queue.noteTransactionRecievedAndReturnLastSeen(ts);
             
-            boolean ret = this.queue.offer(ts, false);
+            boolean ret = this.queue.offer(ts);
             assert(ret);
             added.add(ts);
         } // FOR
