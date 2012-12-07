@@ -765,6 +765,7 @@ public final class HStoreConf {
             defaultInt=100,
             experimental=false
         )
+        @Deprecated
         public int queue_dtxn_max_per_partition;
         
         @ConfigProperty(
@@ -777,6 +778,7 @@ public final class HStoreConf {
             defaultDouble=0.50,
             experimental=false
         )
+        @Deprecated
         public double queue_dtxn_release_factor;
         
         @ConfigProperty(
@@ -789,6 +791,7 @@ public final class HStoreConf {
             defaultInt=100,
             experimental=false
         )
+        @Deprecated
         public int queue_dtxn_increase;
         
         @ConfigProperty(
@@ -797,6 +800,7 @@ public final class HStoreConf {
             defaultInt=500,
             experimental=false
         )
+        @Deprecated
         public int queue_dtxn_increase_max;
         
         // ----------------------------------------------------------------------------

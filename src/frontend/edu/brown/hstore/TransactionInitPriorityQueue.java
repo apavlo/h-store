@@ -108,9 +108,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         }
         this.checkQueueState();
         
-        // if (d && retval != null)
-        if (retval != null && retval.isPredictSinglePartition() == false)
-            LOG.info(String.format("Partition %d poll() -> %s", m_partitionId, retval));
+         if (d && retval != null)
+            LOG.debug(String.format("Partition %d poll() -> %s", m_partitionId, retval));
         return retval;
     }
 
@@ -170,8 +169,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             m_nextTxn = null;
         }
         this.checkQueueState();
-        if (ts.isPredictSinglePartition() == false)
-            LOG.info(String.format("Partition %d remove(%s) -> %s",
+        if (d) LOG.debug(String.format("Partition %d remove(%s) -> %s",
                          m_partitionId, ts, retval));
         // Sanity Check
         assert(super.contains(ts) == false) :

@@ -43,7 +43,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.collections15.buffer.CircularFifoBuffer;
-import org.apache.log4j.Appender;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
@@ -84,7 +83,6 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.ClientInterface.ClientInputHandler;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
@@ -2554,11 +2552,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         if (hstore_conf.site.pool_txn_enable) {
-            if (d)
+            if (d) {
                 LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
-                             ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            // if (d) this.deletable_last.add(ts.toString());
-            this.deletable_last.add(ts.debug());
+                          ts, ts.getClass().getSimpleName(), ts.hashCode()));
+                // if (d) this.deletable_last.add(ts.toString());
+                this.deletable_last.add(ts.debug());
+            }
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
         return;
@@ -2712,10 +2711,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         assert(ts.isInitialized()) : "Trying to return uninitialized txn #" + txn_id;
         if (hstore_conf.site.pool_txn_enable) {
-//            if (d)
-            if (ts.isPredictSinglePartition() == false) {
-                LOG.info(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
-                             ts, ts.getClass().getSimpleName(), ts.hashCode()));
+            if (d) {
+                LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+                          ts, ts.getClass().getSimpleName(), ts.hashCode()));
                 // if (d) this.deletable_last.add(ts.toString());
                 this.deletable_last.add(ts.debug());
             }

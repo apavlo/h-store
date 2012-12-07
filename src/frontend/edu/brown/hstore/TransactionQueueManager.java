@@ -21,7 +21,6 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
-import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -35,8 +34,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.EventObservable;
-import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
@@ -388,6 +385,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     /**
      * Add a new transaction to this queue manager.
      * Returns true if the transaction was successfully inserted at all partitions
+     * <B>Note:</B> This should not be called directly. You probably want to use initTransaction().
      * @param ts
      * @param partitions
      * @param callback
@@ -459,8 +457,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 ret = false;
                 break;
             }
-            if (ts.isPredictSinglePartition() == false)
-                LOG.info(String.format("Added %s to initQueue for partition %d [locked=%s / queueSize=%d]",
+            if (d) LOG.debug(String.format("Added %s to initQueue for partition %d [locked=%s / queueSize=%d]",
                              ts, partition,
                              this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
         } // FOR
@@ -479,8 +476,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             String.format("Unexpected uninitialized transaction %s [status=%s / partition=%d]", ts, status, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + ts + " as finished on remote partition #" + partition;
-        if (ts.isPredictSinglePartition() == false)
-            LOG.info(String.format("Updating lock queues because %s is finished on partition %d [status=%s]",
+        if (d) LOG.debug(String.format("Updating lock queues because %s is finished on partition %d [status=%s]",
         		         ts, partition, status));
         
         // If the given txnId is the current transaction at this partition and still holds
@@ -537,9 +533,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // Initialize their TransactionInitQueueCallback
         TransactionInitQueueCallback wrapper = ts.initTransactionInitQueueCallback(callback);
         assert(wrapper.isInitialized());
-        this.initQueue.add(ts);
-        if (this.checkFlag.availablePermits() == 0)
-            this.checkFlag.release();
+        this.lockQueueInsert(ts, ts.getPredictTouchedPartitions(), wrapper);
+        
+//        this.initQueue.add(ts);
+//        if (this.checkFlag.availablePermits() == 0)
+//            this.checkFlag.release();
     }
     
     private void checkInitQueue() {
@@ -547,13 +545,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         while ((ts = this.initQueue.poll()) != null) {
             this.lockQueueInsert(ts, ts.getPredictTouchedPartitions(), ts.getTransactionInitQueueCallback());
         } // WHILE
-    }
-    
-    /**
-     * Get the last transaction id that was initialized at the given partition
-     */
-    public Long getLastLockTransaction(int partition) {
-        return (this.lockQueuesLastTxn[partition]);
     }
     
     // ----------------------------------------------------------------------------
@@ -666,9 +657,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param last_txnId
      */
     public void blockTransaction(LocalTransaction ts, int partition, Long last_txnId) {
-//        if (d)
-        if (ts.isPredictSinglePartition() == false)
-            LOG.info(String.format("%s - Blocking transaction until after a txnId greater than %d " +
+        if (d) LOG.debug(String.format("%s - Blocking transaction until after a txnId greater than %d " +
                          "is created for partition %d",
                          ts, last_txnId, partition));
        

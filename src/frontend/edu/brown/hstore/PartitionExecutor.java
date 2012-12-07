@@ -1571,8 +1571,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.currentDtxn == null) :
             String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
-//        if (d)
-            LOG.info(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
+        if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
                          ts, this.partitionId, this.currentDtxn));
         this.currentDtxn = ts;
         this.lastDtxn = this.currentDtxn.toString();
