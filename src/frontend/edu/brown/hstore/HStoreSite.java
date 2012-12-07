@@ -87,7 +87,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
-import edu.brown.hstore.callbacks.LocalTransactionFinishCallback;
+import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -1910,7 +1910,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                              ts, status, base_partition,
                              this.executors[base_partition].getDebugContext().getWorkQueueSize()));
             if (singlePartitioned == false) {
-                LocalTransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
@@ -2568,7 +2568,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         if (hstore_conf.site.pool_txn_enable) {
-            if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+//            if (d)
+                LOG.info(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
             if (d) this.deletable_last.add(ts.toString());
             //this.deletable_last.add(ts.debug());
@@ -2725,7 +2726,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         assert(ts.isInitialized()) : "Trying to return uninitialized txn #" + txn_id;
         if (hstore_conf.site.pool_txn_enable) {
-            if (d) LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+//            if (d)
+                LOG.info(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
             if (d) this.deletable_last.add(ts.toString());
             // this.deletable_last.add(ts.debug());

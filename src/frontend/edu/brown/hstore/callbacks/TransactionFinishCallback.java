@@ -17,8 +17,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * is set to true, then we will requeue it first before deleting 
  * @author pavlo
  */
-public class LocalTransactionFinishCallback extends AbstractTransactionCallback<LocalTransaction, TransactionFinishResponse, TransactionFinishResponse> {
-    private static final Logger LOG = Logger.getLogger(LocalTransactionFinishCallback.class);
+public class TransactionFinishCallback extends AbstractTransactionCallback<LocalTransaction, TransactionFinishResponse, TransactionFinishResponse> {
+    private static final Logger LOG = Logger.getLogger(TransactionFinishCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -32,7 +32,7 @@ public class LocalTransactionFinishCallback extends AbstractTransactionCallback<
      * Constructor
      * @param hstore_site
      */
-    public LocalTransactionFinishCallback(HStoreSite hstore_site) {
+    public TransactionFinishCallback(HStoreSite hstore_site) {
         super(hstore_site);
     }
 

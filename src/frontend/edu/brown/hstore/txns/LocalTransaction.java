@@ -64,7 +64,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
-import edu.brown.hstore.callbacks.LocalTransactionFinishCallback;
+import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -649,7 +649,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param status
      * @return
      */
-    public LocalTransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
+    public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
         assert(this.dtxnState != null) :
             "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized() == false) :
@@ -660,7 +660,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.dtxnState.finish_callback.init(this, status);
         return (this.dtxnState.finish_callback);
     }
-    public LocalTransactionFinishCallback getTransactionFinishCallback() {
+    public TransactionFinishCallback getTransactionFinishCallback() {
         assert(this.dtxnState != null) :
             "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized()) :

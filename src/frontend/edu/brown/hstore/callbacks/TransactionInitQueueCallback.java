@@ -111,20 +111,6 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
                               builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
             assert(this.getOrigCallback() != null) :
                 String.format("The original callback for txn #%d is null!", this.getTransactionId());
-            
-            
-            // HACK
-            // This is a big hack to have the PartitionExecutor block executing
-            // single-partition transactions because we now have a new distributed transaction
-            // Note that we have to do this before send the message because the callback
-            // might end up destroying this transaction
-//            if (hstore_conf.site.specexec_pre_query && (this.ts instanceof MapReduceTransaction) == false) {
-//                for (int p: this.hstore_site.getLocalPartitionIds().values()) {
-//                    if (this.partitions.contains(p)) {
-//                        this.hstore_site.getPartitionExecutor(p).queueInitDtxn(this.ts);
-//                    }
-//                } // FOR
-//            }
 
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
