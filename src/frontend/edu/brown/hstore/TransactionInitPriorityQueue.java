@@ -114,7 +114,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         }
         this.checkQueueState();
         
-        if (d && retval != null) LOG.debug(String.format("Partition %d poll() -> %s", m_partitionId, retval));
+        // if (d && retval != null)
+        if (retval != null && retval.isPredictSinglePartition() == false)
+            LOG.info(String.format("Partition %d poll() -> %s", m_partitionId, retval));
         return retval;
     }
 
@@ -166,14 +168,16 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     }
 
     @Override
-    public synchronized boolean remove(Object ts) {
+    public synchronized boolean remove(Object obj) {
+        AbstractTransaction ts = (AbstractTransaction)obj;
         boolean retval = super.remove(ts);
         if (retval) this.lastRemoved.add(ts.toString());
         if (m_nextTxn != null && m_nextTxn == ts) {
             m_nextTxn = null;
         }
         this.checkQueueState();
-        if (d) LOG.debug(String.format("Partition %d remove(%s) -> %s",
+        if (ts.isPredictSinglePartition() == false)
+            LOG.info(String.format("Partition %d remove(%s) -> %s",
                          m_partitionId, ts, retval));
         // Sanity Check
         assert(super.contains(ts) == false) :

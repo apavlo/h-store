@@ -64,7 +64,7 @@ public class HStoreTerminal implements Runnable {
     // STATIC CONFIGURATION MEMBERS
     // ---------------------------------------------------------------
     
-    private static final String setPlainText = "\033[0;0m";
+    private static final String setPlainText = StringUtil.SET_PLAIN_TEXT; 
     private static final String setBoldGreenText = "\033[1;32m"; // 0;1m";
     private static final String setBoldText = "\033[0;1m";
 

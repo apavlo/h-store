@@ -150,8 +150,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     // CALLBACKS
     // ----------------------------------------------------------------------------
     
-    protected final TransactionInitQueueCallback init_callback;
-    protected final TransactionPrepareWrapperCallback prepare_callback;
+    protected final TransactionInitQueueCallback initQueue_callback;
+    protected final TransactionPrepareWrapperCallback prepareWrapper_callback;
     
     // ----------------------------------------------------------------------------
     // GLOBAL PREDICTIONS FLAGS
@@ -270,8 +270,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numLocalPartitions];
         
-        this.init_callback = new TransactionInitQueueCallback(hstore_site);
-        this.prepare_callback = new TransactionPrepareWrapperCallback(hstore_site);
+        this.initQueue_callback = new TransactionInitQueueCallback(hstore_site);
+        this.prepareWrapper_callback = new TransactionPrepareWrapperCallback(hstore_site);
         
         this.readTables = new BitSet[numLocalPartitions];
         this.writeTables = new BitSet[numLocalPartitions];
@@ -345,8 +345,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.predict_readOnly = false;
         this.predict_tState = null;
         
-        this.init_callback.finish();
-        this.prepare_callback.finish();
+        this.initQueue_callback.finish();
+        this.prepareWrapper_callback.finish();
         
         this.pending_error = null;
         this.status = null;
@@ -619,14 +619,14 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         if (this.isInitialized() == false) {
             return (false);
         }
-        if (this.init_callback.allCallbacksFinished() == false) {
+        if (this.initQueue_callback.allCallbacksFinished() == false) {
             if (d) LOG.warn(String.format("%s - %s is not finished", this,
-                            this.init_callback.getClass().getSimpleName()));
+                            this.initQueue_callback.getClass().getSimpleName()));
             return (false);
         }
-        if (this.prepare_callback.allCallbacksFinished() == false) {
+        if (this.prepareWrapper_callback.allCallbacksFinished() == false) {
             if (d) LOG.warn(String.format("%s - %s is not finished", this,
-                            this.prepare_callback.getClass().getSimpleName()));
+                            this.prepareWrapper_callback.getClass().getSimpleName()));
             return (false);
         }
         return (this.deletable.compareAndSet(false, true));
@@ -721,21 +721,21 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      */
     public final TransactionInitQueueCallback initTransactionInitQueueCallback(RpcCallback<TransactionInitResponse> callback) {
         assert(this.isInitialized());
-        assert(this.init_callback.isInitialized() == false);
-        this.init_callback.init(this, this.predict_touchedPartitions, callback);
-        return (this.init_callback);
+        assert(this.initQueue_callback.isInitialized() == false);
+        this.initQueue_callback.init(this, this.predict_touchedPartitions, callback);
+        return (this.initQueue_callback);
     }
     
     /**
      * Return this handle's TransactionInitQueueCallback
      */
     public final TransactionInitQueueCallback getTransactionInitQueueCallback() {
-        return (this.init_callback);
+        return (this.initQueue_callback);
     }
     
     
     public final TransactionPrepareWrapperCallback getPrepareWrapperCallback() {
-        return (this.prepare_callback);
+        return (this.prepareWrapper_callback);
     }
     
     // ----------------------------------------------------------------------------
@@ -1116,7 +1116,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         Map<String, Object> m;
         
         m = new LinkedHashMap<String, Object>();
-        m.put("Transaction #", this.txn_id);
+        m.put("Transaction Id", this.txn_id);
         m.put("Procedure", this.catalog_proc);
         m.put("Base Partition", this.base_partition);
         m.put("Hash Code", this.hashCode());

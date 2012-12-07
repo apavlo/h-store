@@ -106,6 +106,7 @@ public class SpecExecScheduler {
      * @return
      */
     public LocalTransaction next(AbstractTransaction dtxn, SpeculationType specType) {
+        assert(dtxn != null) : "Null distributed transaction"; 
     	SpecExecProfiler profiler = null;
     	if (this.isProfiling) {
     		profiler = profilerMap.get(specType);

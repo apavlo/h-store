@@ -69,6 +69,10 @@ public class TableConflictChecker extends AbstractConflictChecker {
 
     @Override
     public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
+        assert(dtxn.isInitialized()) :
+            String.format("Uninitialized distributed transaction handle [%s]", dtxn);
+        assert(ts.isInitialized()) :
+            String.format("Uninitialized speculative transaction handle [%s]", ts);
         final Procedure dtxn_proc = dtxn.getProcedure();
         final Procedure ts_proc = ts.getProcedure();
         final int dtxn_procId = dtxn_proc.getId();
@@ -114,6 +118,8 @@ public class TableConflictChecker extends AbstractConflictChecker {
             } // FOR (R-W)
             for (ConflictPair conflict : dtxn_conflicts.getWritewriteconflicts().values()) {
                 for (TableRef ref : conflict.getTables().values()) {
+                    assert(ref.getTable() != null) :
+                        "Unexpected null table reference " + ref.fullName();
                     if (dtxn.isTableReadOrWritten(partitionId, ref.getTable())) {
                         return (false);
                     }

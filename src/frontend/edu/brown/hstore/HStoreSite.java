@@ -225,7 +225,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * The list of the last txn ids that were successfully deleted
      * This is primarily used for debugging
      */
-    private final CircularFifoBuffer<String> deletable_last = new CircularFifoBuffer<String>(5);
+    private final CircularFifoBuffer<String> deletable_last = new CircularFifoBuffer<String>(10);
     
     /**
      * Reusable Object Pools
@@ -1384,13 +1384,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) root.debug("Preparing to shutdown. Flushing all logs");
         LoggerUtil.flushAllLogs();
         
-        if (d) {
+        if (this.deletable_last.isEmpty() == false) {
             StringBuilder sb = new StringBuilder();
             int i = 0;
             for (String txn : this.deletable_last) {
-                sb.append(String.format(" [%02d] %s\n", i++, txn));
+                sb.append(String.format(" [%02d]\n%s\n", i++, StringUtil.prefix(txn, "  | ")));
             }
-            LOG.debug("Last Deleted Transactions:\n" + sb + "\n\n");
+            LOG.info("Last Deleted Transactions:\n" + sb + "\n\n");
         }
         
 //        sb = new StringBuilder();
@@ -1853,27 +1853,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // we get hear back about our our initialization request
         TransactionInitCallback callback = ts.initTransactionInitCallback();
         if (ts.isPredictSinglePartition()) {
-            this.txnQueueManager.lockQueueInsert(ts, ts.getPredictTouchedPartitions(), callback);
+            // this.txnQueueManager.lockQueueInsert(ts, ts.getPredictTouchedPartitions(), callback);
+            this.txnQueueManager.initTransaction(ts, callback);
         }
         else {
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitDtxn();
             this.hstore_coordinator.transactionInit(ts, callback);
         }
-    }
-    
-    /**
-     * Add the given transaction id to this site's queue manager with all of the partitions that
-     * it needs to lock. This is only for distributed transactions.
-     * The callback will be invoked once the transaction has acquired all of the locks for the
-     * partitions provided, or aborted if the transaction is unable to lock those partitions.
-     * @param txn_id
-     * @param partitions The list of partitions that this transaction needs to access
-     * @param callback
-     */
-    public void transactionInit(AbstractTransaction ts,
-                                PartitionSet partitions,
-                                RpcCallback<TransactionInitResponse> callback) {
-        this.txnQueueManager.lockQueueInsert(ts, partitions, callback);
     }
 
     /**
@@ -2571,8 +2557,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d)
                 LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            if (d) this.deletable_last.add(ts.toString());
-            //this.deletable_last.add(ts.debug());
+            // if (d) this.deletable_last.add(ts.toString());
+            this.deletable_last.add(ts.debug());
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
         return;
@@ -2726,11 +2712,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         assert(ts.isInitialized()) : "Trying to return uninitialized txn #" + txn_id;
         if (hstore_conf.site.pool_txn_enable) {
-            if (d)
-                LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+//            if (d)
+            if (ts.isPredictSinglePartition() == false) {
+                LOG.info(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                              ts, ts.getClass().getSimpleName(), ts.hashCode()));
-            if (d) this.deletable_last.add(ts.toString());
-            // this.deletable_last.add(ts.debug());
+                // if (d) this.deletable_last.add(ts.toString());
+                this.deletable_last.add(ts.debug());
+            }
             if (ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
             } else {

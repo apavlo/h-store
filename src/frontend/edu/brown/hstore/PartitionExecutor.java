@@ -334,6 +334,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * When we get the response for these txn, we know we can commit/abort the speculatively executed transactions
      */
     private AbstractTransaction currentDtxn = null;
+    private String lastDtxn = null;
     
     /**
      * List of messages that are blocked waiting for the outstanding dtxn to commit
@@ -919,8 +920,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // ex.printStackTrace();
             if (this.isShuttingDown() == false) {
                 // ex.printStackTrace();
-                LOG.fatal(String.format("Unexpected error at partition #%d [%s]",
-                                        this.partitionId, this.currentTxn), ex);
+                LOG.fatal(String.format("Unexpected error at partition #%d [current=%s / lastDtxn=%s]",
+                                        this.partitionId, this.currentTxn, this.lastDtxn), ex);
                 if (this.currentTxn != null) LOG.fatal("TransactionState Dump:\n" + this.currentTxn.debug());
             }
             this.shutdown_latch.release();
@@ -1201,6 +1202,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Check whether there is something we can speculatively execute right now
         if (hstore_conf.site.specexec_enable && this.currentDtxn != null) {
             if (t) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
+            assert(this.currentDtxn.isInitialized()) :
+                String.format("Uninitialized distributed transaction handle [%s]", this.currentDtxn);
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
             try {
                 spec_ts = this.specExecScheduler.next(this.currentDtxn, this.calculateSpeculationType());
@@ -1568,10 +1571,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.currentDtxn == null) :
             String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
-        if (d)
-            LOG.debug(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
+//        if (d)
+            LOG.info(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
                          ts, this.partitionId, this.currentDtxn));
         this.currentDtxn = ts;
+        this.lastDtxn = this.currentDtxn.toString();
     }
     
     /**
@@ -1580,7 +1584,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private void resetCurrentDtxn() {
         assert(this.currentDtxn != null) :
             "Trying to reset the currentDtxn when it is already null";
-        if (d) LOG.debug(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
+        if (d)
+            LOG.info(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
                          this.partitionId, this.currentDtxn));
         this.currentDtxn = null;
     }

@@ -110,8 +110,12 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
         // Note that we do this *even* if we haven't heard back from the remote
         // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
-        if (finish && this.ts.isPredictSinglePartition() == false && this.ts instanceof LocalTransaction) {
-            this.finishTransaction(status);
+        if (finish && this.ts.isPredictSinglePartition() == false) {
+            if (this.ts instanceof LocalTransaction) {
+                this.finishTransaction(status);
+            } else {
+                // FIXME
+            }
         }
         this.abortFinished = true;
         this.hstore_site.queueDeleteTransaction(this.txn_id, status);

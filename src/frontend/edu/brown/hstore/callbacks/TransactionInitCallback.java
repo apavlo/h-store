@@ -27,6 +27,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<LocalTr
     }
     
     private final PartitionSet partitions = new PartitionSet();
+    private final TransactionQueueManager txnQueueManager; 
     private transient int reject_partition;
     private transient Long reject_txnId = null;
     
@@ -40,6 +41,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<LocalTr
      */
     public TransactionInitCallback(HStoreSite hstore_site) {
         super(hstore_site);
+        this.txnQueueManager = this.hstore_site.getTransactionQueueManager();
     }
 
     public void init(LocalTransaction ts) {
@@ -61,22 +63,26 @@ public class TransactionInitCallback extends AbstractTransactionCallback<LocalTr
     @Override
     protected boolean abortTransactionCallback(Status status) {
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) this.ts.profiler.stopInitDtxn();
-        if (debug.get())
-            LOG.debug(this.ts + " - Transaction was aborted with status " + status);
+        // if (debug.get())
+        if (ts.isPredictSinglePartition() == false)
+            LOG.info(String.format("%s - Transaction was aborted by partition %d with status %s [rejectTxn=%d]",
+                     this.ts, this.reject_partition, status, this.reject_txnId));
         
         // If the transaction needs to be restarted, then we'll attempt to requeue it.
         switch (status) {
             case ABORT_RESTART: {
                 // If we have the transaction that we got busted up with at the remote site
                 // then we'll tell the TransactionQueueManager to unblock it when it gets released
-                TransactionQueueManager txnQueueManager = this.hstore_site.getTransactionQueueManager();
                 synchronized (this) {
                     if (this.reject_txnId != null) {
-                        txnQueueManager.blockTransaction(this.ts, this.reject_partition, this.reject_txnId);
+                        this.txnQueueManager.blockTransaction(this.ts,
+                                                              this.reject_partition,
+                                                              this.reject_txnId);
                     } else {
-                        // We don't care whether our transaction was rejected or not because we know that
-                        // we still need to call TransactionFinish, which will delete the final transaction state
-                        txnQueueManager.restartTransaction(this.ts, status);
+                        // We don't care whether our transaction was rejected or not because we 
+                        // know that we still need to call TransactionFinish, which will delete
+                        // the final transaction state
+                        this.txnQueueManager.restartTransaction(this.ts, status);
                     }
                 } // SYNCH
                 break;
