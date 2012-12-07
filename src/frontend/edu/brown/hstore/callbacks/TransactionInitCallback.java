@@ -63,10 +63,9 @@ public class TransactionInitCallback extends AbstractTransactionCallback<LocalTr
     @Override
     protected boolean abortTransactionCallback(Status status) {
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) this.ts.profiler.stopInitDtxn();
-        // if (debug.get())
-        if (ts.isPredictSinglePartition() == false)
-            LOG.info(String.format("%s - Transaction was aborted by partition %d with status %s [rejectTxn=%d]",
-                     this.ts, this.reject_partition, status, this.reject_txnId));
+        if (debug.get()) 
+            LOG.debug(String.format("%s - Transaction was aborted by partition %d with status %s [rejectTxn=%d]",
+                      this.ts, this.reject_partition, status, this.reject_txnId));
         
         // If the transaction needs to be restarted, then we'll attempt to requeue it.
         switch (status) {

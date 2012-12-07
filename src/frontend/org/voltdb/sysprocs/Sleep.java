@@ -36,9 +36,9 @@ public class Sleep extends VoltSystemProcedure {
     
     public VoltTable[] run(long sleepTime, VoltTable data[]) {
         
-        LOG.info(String.format("BEFORE: Sleeping for %.01f seconds", sleepTime / 1000d));
+        LOG.debug(String.format("BEFORE: Sleeping for %.01f seconds", sleepTime / 1000d));
         ThreadUtil.sleep(sleepTime);
-        LOG.info("BEFORE: Awake!");
+        LOG.debug("BEFORE: Awake!");
         
         return HStoreConstants.EMPTY_RESULT;
     }

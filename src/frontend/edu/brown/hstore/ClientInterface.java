@@ -770,9 +770,13 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
         long pendingBytes = m_pendingTxnBytes.addAndGet(messageSize);
         int pendingTxns = m_pendingTxnCount.incrementAndGet();
         if (debug.get()) 
-            LOG.debug(String.format("Increased Backpressure by %d bytes: [BYTES: %d/%d] [TXNS: %d/%d]",
+            LOG.debug(String.format("Increased Backpressure by %d bytes " +
+            		  "[BYTES: %d/%d] [TXNS: %d/%d]%s",
                       messageSize,
-                      pendingBytes, MAX_DESIRED_PENDING_BYTES, pendingTxns, MAX_DESIRED_PENDING_TXNS));
+                      pendingBytes, MAX_DESIRED_PENDING_BYTES,
+                      pendingTxns, MAX_DESIRED_PENDING_TXNS,
+                      (m_hadBackPressure ? " *THROTTLED*" : "")));
+        
         if (pendingBytes > MAX_DESIRED_PENDING_BYTES || pendingTxns > MAX_DESIRED_PENDING_TXNS) {
             if (!m_hadBackPressure) {
                 if (trace.get()) LOG.trace("DTXN back pressure began");
@@ -783,11 +787,16 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
     }
 
     public void reduceBackpressure(final int messageSize) {
-        if (debug.get()) 
-            LOG.debug("Reducing Backpressure: " + messageSize);
-        
         long pendingBytes = m_pendingTxnBytes.addAndGet(-1 * messageSize);
         int pendingTxns = m_pendingTxnCount.decrementAndGet();
+        if (debug.get())
+            LOG.debug(String.format("Reduced Backpressure by %d bytes " +
+                      "[BYTES: %d/%d] [TXNS: %d/%d]%s",
+                      messageSize,
+                      pendingBytes, MAX_DESIRED_PENDING_BYTES,
+                      pendingTxns, MAX_DESIRED_PENDING_TXNS,
+                      (m_hadBackPressure ? " *THROTTLED*" : "")));
+        
         if (pendingBytes < (MAX_DESIRED_PENDING_BYTES * MAX_DESIRED_PENDING_BYTES_RELEASE) &&
             pendingTxns < (MAX_DESIRED_PENDING_TXNS * MAX_DESIRED_PENDING_TXNS_RELEASE))
         {

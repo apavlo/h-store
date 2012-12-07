@@ -49,6 +49,7 @@ public class TestClientInterface extends BaseTestCase {
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.profiling = true;
         this.hstore_conf.site.pool_profiling = true;
+        this.hstore_conf.site.network_incoming_max_per_partition = 1;
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
         this.clientInterface = this.hstore_site.getClientInterface();
@@ -65,7 +66,7 @@ public class TestClientInterface extends BaseTestCase {
      * testBackPressure
      */
     @Test
-    public void testClientResponseDebug() throws Exception {
+    public void testBackPressure() throws Exception {
         long sleepTime = 2500;
         
         int num_rows = 10000;
@@ -108,10 +109,10 @@ public class TestClientInterface extends BaseTestCase {
         
         boolean result = callback.latch.await(sleepTime*3, TimeUnit.MILLISECONDS);
         assertTrue(result);
-        assertTrue(onBackPressure.get());
+        assertTrue("onBackPressure", onBackPressure.get());
         
         result = floodCallback.latch.await(sleepTime*3, TimeUnit.MILLISECONDS);
-        assertTrue(result);
+        assertTrue("floodCallback->"+floodCallback.latch, result);
         
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
