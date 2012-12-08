@@ -224,9 +224,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
 //            if (hstore_conf.site.queue_profiling && profiler.lock_queue.isStarted()) profiler.lock_queue.stop();
             
             // Release transactions for initialization
-            if (hstore_conf.site.queue_profiling) profiler.init_queue.start();
-            this.checkInitQueue();
-            if (hstore_conf.site.queue_profiling && profiler.init_queue.isStarted()) profiler.init_queue.stop();
+//            if (hstore_conf.site.queue_profiling) profiler.init_queue.start();
+//            this.checkInitQueue();
+//            if (hstore_conf.site.queue_profiling && profiler.init_queue.isStarted()) profiler.init_queue.stop();
             
             // Release blocked distributed transactions
             if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
@@ -314,9 +314,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // Poll the queue and get the next value. We need
             // a lock in case somebody is looking for this txnId to remove
             // XXX: Is the synchronized block still needed here?
-            synchronized (this.lockQueues[partition]) {
+            // synchronized (this.lockQueues[partition]) {
                 next = this.lockQueues[partition].poll();    
-            } // SYNCH
+            // } // SYNCH
             
             // If null, then there is nothing that is ready to run at this partition,
             // so we'll just skip to the next one
@@ -502,9 +502,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // sitting in the queue for that partition.
         boolean removed = false;
         // if (checkQueue) {
-            synchronized (this.lockQueues[partition]) { // FIXME
+            // synchronized (this.lockQueues[partition]) { // FIXME
                 removed = this.lockQueues[partition].remove(ts);
-            } // SYNCH
+            //} // SYNCH
         // }
         assert(this.lockQueues[partition].contains(ts) == false);
         
