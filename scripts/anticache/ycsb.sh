@@ -16,24 +16,21 @@ ENABLE_ANTICACHE=true
 SITE_HOST="modis"
 
 CLIENT_HOSTS=( \
-    "modis" \
-    "modis" \
-    "modis" \
-    # "saw" \
-    # "saw" \
+	"modis2" \
+	"modis2" \
 )
 
-BASE_CLIENT_THREADS=10
-BASE_SITE_MEMORY=2048
-BASE_SITE_MEMORY_PER_PARTITION=1024
-BASE_PROJECT="voter"
+BASE_CLIENT_THREADS=25
+BASE_SITE_MEMORY=8192
+BASE_SITE_MEMORY_PER_PARTITION=0
+BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
 
-ANTICACHE_EVICT_SIZE=512*1024*1024 # 512MB
+ANTICACHE_EVICT_SIZE=268400000
 ANTICACHE_THRESHOLD=.75
 
 BASE_ARGS=( \
-    "-Dsite.status_enable=false" \
+    "-Dsite.status_enable=true" \
     
     # SITE DEBUG
 #     "-Dsite.status_enable=true" \
@@ -51,13 +48,14 @@ BASE_ARGS=( \
     "-Dsite.exec_postprocessing_threads=false" \
     "-Dsite.queue_incoming_max_per_partition=500" \
     "-Dsite.queue_incoming_increase_max=2000" \
-    
+
     # Client Params
     "-Dclient.scalefactor=1" \
-    "-Dclient.memory=4096" \
+    "-Dclient.output_clients=true" \
+    "-Dclient.memory=2048" \
     "-Dclient.txnrate=2000" \
     "-Dclient.warmup=30000" \
-    "-Dclient.duration=300000 "\
+    "-Dclient.duration=30000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
@@ -69,6 +67,7 @@ BASE_ARGS=( \
     "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
     "-Dclient.interval=500" \
+	"-Dclient.output_txn_counters=txncounters.csv" \
     "-Dclient.anticache_enable=false" \
     "-Dclient.anticache_evict_interval=30000" \
     "-Dclient.anticache_evict_size=4194304" \
@@ -79,20 +78,19 @@ BASE_ARGS=( \
     "-Dclient.profiling=false" \
     "-Dclient.output_response_status=true" \
 #     "-Dclient.output_basepartitions=true" \
-#     "-Dclient.jvm_args=\"-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:-TraceClassUnloading\"" \
+#     "-Dclient.jvm_args=\"-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:-TraceClassUnloading\"" 
 )
 
 EVICTABLE_TABLES=( \
-    "votes" \
+    "usertable" \
 )
 EVICTABLES=""
 for t in ${EVICTABLE_TABLES[@]}; do
     EVICTABLES="${t},${EVICTABLES}"
 done
 
-# ant compile
-# for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
-for i in 4; do
+ant compile
+for i in 8; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
@@ -101,8 +99,9 @@ for i in 4; do
 #     else
 #         NUM_CLIENTS=$BASE_CLIENT_THREADS
 #     fi
-    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
-    
+#    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
+     SITE_MEMORY=$BASE_SITE_MEMORY
+   
     # BUILD PROJECT JAR
     ant hstore-prepare \
         -Dproject=${BASE_PROJECT} \
@@ -127,8 +126,8 @@ for i in 4; do
     # EXECUTE BENCHMARK
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
-        -Dkillonzero=true \
-        -Dclient.threads_per_host=${NUM_CLIENTS} \
+        -Dkillonzero=false \
+        -Dclient.threads_per_host=25 \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
         -Dclient.count=${CLIENT_COUNT}

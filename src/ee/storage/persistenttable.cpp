@@ -240,7 +240,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 		
 		if(tuple_id < 20000)
 			continue; 
-		
+
 	//	assert(tuple_id >= 0); 
 			
 	//	VOLT_INFO("Evicting tuple id: %d", tuple_id); 

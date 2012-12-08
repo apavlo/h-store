@@ -2166,7 +2166,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         int base_partition = orig_ts.getBasePartition();
         SerializableException orig_error = orig_ts.getPendingError();
 
-		LOG.info("In transactionRestart()"); 
+		//LOG.info("In transactionRestart()"); 
 		        
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright

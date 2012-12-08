@@ -33,8 +33,9 @@ public abstract class YCSBConstants {
 
 	//public static final int NUM_RECORDS = 2684354; // 128 MB
 	//public static final int NUM_RECORDS = 5368709; // 256 MB
-	//public static final int NUM_RECORDS = 41943; // 2 MB
-	public static final int NUM_RECORDS = 21474836; // 1 GB
+	public static final int NUM_RECORDS = 41943; // 2 MB
+	//public static final int NUM_RECORDS = 21474836; // 1 GB
+
 
 	
 	public static final String TABLE_NAME = "USERTABLE"; 
