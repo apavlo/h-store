@@ -25,6 +25,9 @@ import edu.brown.utils.StringUtil;
  * also safe to run.</p>
  *
  * <p>This class manages all that state.</p>
+ * 
+ * <B>NOTE:</B> Do not put any synchronized blocks in this. All synchronization
+ * should be done by the caller.
  */
 public class TransactionInitPriorityQueue extends PriorityBlockingQueue<AbstractTransaction> {
     private static final long serialVersionUID = 573677483413142310L;
@@ -77,7 +80,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
      * Only return transaction state objects that are ready to run.
      */
     @Override
-    public synchronized AbstractTransaction poll() {
+    public AbstractTransaction poll() {
         AbstractTransaction retval = null;
         
         // These invocations of poll() can return null if the next
@@ -117,7 +120,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
      * Only return transaction state objects that are ready to run.
      */
     @Override
-    public synchronized AbstractTransaction peek() {
+    public AbstractTransaction peek() {
         AbstractTransaction retval = null;
         if (m_state == QueueState.UNBLOCKED) {
             assert(checkQueueState() == QueueState.UNBLOCKED);
@@ -132,7 +135,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
      * Drop data for unknown initiators. This is the only valid add interface.
      */
     @Override
-    public synchronized boolean offer(AbstractTransaction txnId) {
+    public boolean offer(AbstractTransaction txnId) {
         assert(txnId != null);
         
         // Check whether this new txn is less than the current m_nextTxn
@@ -161,7 +164,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     }
 
     @Override
-    public synchronized boolean remove(Object obj) {
+    public boolean remove(Object obj) {
         AbstractTransaction ts = (AbstractTransaction)obj;
         boolean retval = super.remove(ts);
         if (retval) this.lastRemoved.add(ts.toString());
@@ -181,7 +184,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public synchronized Long noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txn) {
+    public Long noteTransactionRecievedAndReturnLastSeen(AbstractTransaction txn) {
         // this doesn't exclude dummy txnid but is also a sanity check
         assert(txn != null);
 
@@ -276,7 +279,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         return m_state;
     }
     
-    public synchronized String debug() {
+    public String debug() {
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("PartitionId", m_partitionId);
         m.put("# of Elements", this.size());

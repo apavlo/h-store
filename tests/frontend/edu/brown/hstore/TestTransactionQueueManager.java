@@ -15,6 +15,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -87,6 +88,16 @@ public class TestTransactionQueueManager extends BaseTestCase {
         return (ret);
     }
     
+    private boolean addToQueue(LocalTransaction txn, MockCallback callback) {
+        TransactionInitQueueCallback wrapper = txn.initTransactionInitQueueCallback(callback);
+        boolean ret = true;
+        for (int partition : txn.getPredictTouchedPartitions()) {
+            boolean result = this.queueManager.lockQueueInsert(txn, partition, wrapper);
+            ret = ret && result;
+        } // FOR
+        return (ret);
+    }
+    
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
@@ -104,9 +115,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         // Insert the txn into our queue and then call check
         // This should immediately release our transaction and invoke the inner_callback
-        boolean result = this.queueManager.lockQueueInsert(txn0,
-                                                           txn0.getPredictTouchedPartitions(),
-                                                           txn0.initTransactionInitQueueCallback(inner_callback));
+        boolean result = this.addToQueue(txn0, inner_callback);
         assertTrue(result);
         
         int tries = 10;
@@ -136,24 +145,18 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1);
         
         // insert the higher ID first but make sure it comes out second
-        assertFalse(queueManager.toString(), this.checkAllQueues(queueManager));
-        assertTrue(queueManager.toString(),
-                   this.queueManager.lockQueueInsert(txn1,
-                                                     txn1.getPredictTouchedPartitions(),
-                                                     txn1.initTransactionInitQueueCallback(inner_callback1)));
-        assertTrue(queueManager.toString(),
-                   this.queueManager.lockQueueInsert(txn0,
-                                                     txn0.getPredictTouchedPartitions(),
-                                                     txn0.initTransactionInitQueueCallback(inner_callback0)));
+        assertFalse(this.queueManager.toString(), this.checkAllQueues(queueManager));
+        assertTrue(this.queueManager.toString(), this.addToQueue(txn1, inner_callback1));
+        assertTrue(this.queueManager.toString(), this.addToQueue(txn0, inner_callback0));
         
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
-        assertTrue(this.checkAllQueues(queueManager));
+        assertTrue(this.checkAllQueues(this.queueManager));
         
         assertTrue("callback0", inner_callback0.lock.tryAcquire());
         assertFalse("callback1", inner_callback1.lock.tryAcquire());
         assertFalse(dbg.isLockQueuesEmpty());
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-            queueManager.lockQueueFinished(txn0, Status.OK, partition);
+            this.queueManager.lockQueueFinished(txn0, Status.OK, partition);
         }
         assertFalse(dbg.isLockQueuesEmpty());
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
@@ -162,7 +165,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertTrue("callback1", inner_callback1.lock.tryAcquire());
         assertTrue(dbg.isLockQueuesEmpty());
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-            queueManager.lockQueueFinished(txn1, Status.OK, partition);
+            this.queueManager.lockQueueFinished(txn1, Status.OK, partition);
         }
         
         assertFalse(this.checkAllQueues(queueManager));
@@ -194,16 +197,9 @@ public class TestTransactionQueueManager extends BaseTestCase {
 //        System.err.println("txn_id1: " + txn_id1);
 //        System.err.println("txn_id2: " + txn_id2);
 //        System.err.println();
-        
-        this.queueManager.lockQueueInsert(txn0,
-                                          txn0.getPredictTouchedPartitions(),
-                                          txn0.initTransactionInitQueueCallback(inner_callback0));
-        this.queueManager.lockQueueInsert(txn1,
-                                          txn1.getPredictTouchedPartitions(),
-                                          txn1.initTransactionInitQueueCallback(inner_callback1));
-        this.queueManager.lockQueueInsert(txn2,
-                                          txn2.getPredictTouchedPartitions(),
-                                          txn2.initTransactionInitQueueCallback(inner_callback2));
+        this.addToQueue(txn0, inner_callback0);
+        this.addToQueue(txn1, inner_callback1);
+        this.addToQueue(txn2, inner_callback2);
         
         // Both of the first two disjoint txns should be released on the same call to checkQueues()
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
@@ -248,12 +244,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
         
-        this.queueManager.lockQueueInsert(txn0,
-                                          txn0.getPredictTouchedPartitions(),
-                                          txn0.initTransactionInitQueueCallback(inner_callback0));
-        this.queueManager.lockQueueInsert(txn1,
-                                          txn1.getPredictTouchedPartitions(),
-                                          txn1.initTransactionInitQueueCallback(inner_callback1));
+        this.addToQueue(txn0, inner_callback0);
+        this.addToQueue(txn1, inner_callback1);
         
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
         
