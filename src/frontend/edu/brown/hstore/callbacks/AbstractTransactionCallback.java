@@ -120,6 +120,16 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
         this.abortFinished = true;
         this.hstore_site.queueDeleteTransaction(this.txn_id, status);
     }
+    
+    @SuppressWarnings("unchecked")
+    @Override
+    public void cancel() {
+        super.cancel();
+        if (this.getOrigCallback() != null) {
+            ((BlockingRpcCallback<T, U>)this.getOrigCallback()).cancel();
+        }
+    }
+    
 
     /**
      * Transaction unblocking callback implementation

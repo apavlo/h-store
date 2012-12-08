@@ -591,6 +591,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
      */
     private boolean m_hadBackPressure = false;
     
+    private int m_backpressureCounter = 0;
+    
     private final AtomicLong m_pendingTxnBytes = new AtomicLong(0);
     private final AtomicInteger m_pendingTxnCount = new AtomicInteger(0);
 
@@ -758,6 +760,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
         return m_numConnections.get();
     }
     
+    public int getBackPressureCount() {
+        return (m_backpressureCounter);
+    }
+    
     public EventObservable<HStoreSite> getOnBackPressureObservable() {
         return (this.onBackPressure);
     }
@@ -781,6 +787,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
             if (!m_hadBackPressure) {
                 if (trace.get()) LOG.trace("DTXN back pressure began");
                 m_hadBackPressure = true;
+                m_backpressureCounter += 1;
                 onBackPressure.notifyObservers(hstore_site);
             }
         }

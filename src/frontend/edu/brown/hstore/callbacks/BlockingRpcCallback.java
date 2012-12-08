@@ -228,7 +228,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      * Mark this callback as canceled. No matter what happens in the future,
      * this callback will not invoke either the run or abort callbacks
      */
-    public final void cancel() {
+    public void cancel() {
         this.canceled.set(true);
     }
         

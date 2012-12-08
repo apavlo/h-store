@@ -315,6 +315,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                   ci.getMaxPendingTxnBytes(),
                                   ci.getReleasePendingTxnBytes(),
                                   (ci.hasBackPressure() ? " / *THROTTLED*" : ""));
+            siteInfo.put("BackPressure Counter", ci.getBackPressureCount());
             siteInfo.put("Client Interface Queue", value);
         }
         
