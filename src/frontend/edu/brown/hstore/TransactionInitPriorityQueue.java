@@ -56,8 +56,9 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     QueueState m_state = QueueState.BLOCKED_EMPTY;
     
     Long m_lastSeenTxn = null;
+    Long m_lastTxnPopped = null;
     AbstractTransaction m_newestCandidateTransaction = null;
-    AbstractTransaction m_lastTxnPopped = null;
+    
     AbstractTransaction m_nextTxn = null;
     
     final CircularFifoBuffer<String> lastRemoved = new CircularFifoBuffer<String>(10);
@@ -106,7 +107,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                               StringUtil.join("\n", super.iterator()));
             m_nextTxn = null;
             m_txnsPopped++;
-            m_lastTxnPopped = retval;
+            m_lastTxnPopped = retval.getTransactionId();
             this.lastPolled.add(retval.toString());
         }
         this.checkQueueState();
@@ -189,7 +190,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         assert(txn != null);
 
         // we've decided that this can happen, and it's fine... just ignore it
-        if (m_lastTxnPopped != null && m_lastTxnPopped.compareTo(txn) > 0) {
+        if (m_lastTxnPopped != null && m_lastTxnPopped.compareTo(txn.getTransactionId()) > 0) {
             if (d) {
                 LOG.warn(String.format("Txn ordering deadlock at partition %d -> LastTxn: %s / NewTxn: %s",
                                        m_partitionId, m_lastTxnPopped, txn));

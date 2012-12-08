@@ -58,7 +58,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         "%8d total",
         "(%5.1f%%)",
         "%8.2f txn/s",
-        "%8.2f ms latency",
+        "%8s ms latency",
     };
     
     private static final String RESULT_FORMAT = "%.2f";
@@ -148,10 +148,23 @@ public class ResultsPrinter implements BenchmarkInterest {
             assert(er != null);
             int col_idx = 0;
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], txnName);
+            
+            // TXN COUNT
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
+            
+            // TXN PERCENTAGE
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
+            
+            // TXN / MS
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnAvgLatency());
+            
+            // AVG LATENCY
+            String txnAvgLatency = "-";
+            if (er.getTxnCount() > 0) {
+                txnAvgLatency = String.format(RESULT_FORMAT, er.getTxnAvgLatency());
+            }
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], txnAvgLatency);
+            
             row_idx++;
         } // FOR
 

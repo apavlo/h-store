@@ -104,6 +104,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
@@ -884,20 +885,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.currentTxnId = null;
                 
                 // -------------------------------
-                // Poll Lock Queue
-                // -------------------------------
-
-                // TODO: If we get something back here, it should be come our
-                // current distributed transaction.
-                if (this.currentDtxn == null) {
-                    next = this.queueManager.checkLockQueue(this.partitionId);
-                    if (next != null && next.isPredictSinglePartition() == false) {
-                        this.setCurrentDtxn(next);
-                        this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
-                    }
-                }
-                
-                // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
                 work = this.getNext();
@@ -943,7 +930,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
     }
     
-    
     /**
      * Get the next unit of work from this partition's queue
      * @return
@@ -976,6 +962,90 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         return (work);
     }
+    
+    
+    /**
+     * Special function that allows us to do some utility work while 
+     * we are waiting for a response or something real to do.
+     * Note: this tracks how long the system spends doing utility work. It would
+     * be interesting to have the system report on this before it shuts down.
+     * @return true if there is more utility work that can be done
+     */
+    private boolean utilityWork() {
+        if (hstore_conf.site.exec_profiling) this.profiler.util_time.start();
+        if (t) LOG.trace("Entering utilityWork");
+        
+        this.tick();
+        
+        // -------------------------------
+        // Poll Lock Queue
+        // -------------------------------
+
+        // TODO: If we get something back here, it should be come our
+        // current distributed transaction.
+        if (this.currentDtxn == null) {
+            EstTimeUpdater.update(System.currentTimeMillis());
+            AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
+            if (next != null && next.isPredictSinglePartition() == false) {
+                this.setCurrentDtxn(next);
+                this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
+                return (false);
+            }
+        }
+
+        LocalTransaction spec_ts = null;
+        InternalMessage work = null;
+        
+        // Check whether there is something we can speculatively execute right now
+        if (hstore_conf.site.specexec_enable && this.currentDtxn != null) {
+            if (t) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
+            assert(this.currentDtxn.isInitialized()) :
+                String.format("Uninitialized distributed transaction handle [%s]", this.currentDtxn);
+            if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
+            try {
+                spec_ts = this.specExecScheduler.next(this.currentDtxn, this.calculateSpeculationType());
+            } finally {
+                if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.stop();
+            }
+            
+            // Because we don't have fine-grained undo support, we are just going
+            // keep all of our speculative execution txn results around
+            if (spec_ts != null) {
+                if (d) LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
+                                 this.currentDtxn, spec_ts));
+                assert(spec_ts.getBasePartition() == this.partitionId) :
+                    String.format("Trying to speculatively execute %s at partition %d but its base partition is %d\n%s",
+                                  spec_ts, this.partitionId, spec_ts.getBasePartition(), spec_ts.debug());
+                this.setExecutionMode(spec_ts, ExecutionMode.COMMIT_NONE);
+                
+                // IMPORTANT: We need to make sure that we remove this transaction for the lock queue
+                // before we execute it so that we don't try to run it again.
+                // We have to do this now because otherwise we may get the same transaction again
+                this.queueManager.getInitQueue(this.partitionId).remove(spec_ts);
+                
+                // It's also important that we cancel this txn's init queue callback, otherwise
+                // it will never get cleaned up properly. This is necessary in order to support
+                // sending out client results *before* the dtxn finishes
+                spec_ts.getTransactionInitQueueCallback().cancel();
+                
+                // Ok now that that's out of the way, let's run this baby...
+                this.executeTransaction(spec_ts);
+            }
+        }
+        // Check whether we have anything in our non-blocking queue
+        if (spec_ts == null) {
+            work = this.utility_queue.poll();
+            // Smoke 'em if you got 'em
+            if (work != null) this.processInternalMessage(work);
+        }
+        
+        if (hstore_conf.site.exec_profiling) this.profiler.util_time.stop();
+        return (spec_ts != null || work != null);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // MESSAGE PROCESSING METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Process an InternalMessage
@@ -1181,69 +1251,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             FinishTxnMessage ftask = (FinishTxnMessage)work;
             this.finishDistributedTransaction(ftask.getTransaction(), ftask.getStatus());
         }
-    }
-    
-    /**
-     * Special function that allows us to do some utility work while 
-     * we are waiting for a response or something real to do.
-     * Note: this tracks how long the system spends doing utility work. It would
-     * be interesting to have the system report on this before it shuts down.
-     * @return true if there is more utility work that can be done
-     */
-    private boolean utilityWork() {
-        if (hstore_conf.site.exec_profiling) this.profiler.util_time.start();
-        if (t) LOG.trace("Entering utilityWork");
-        
-        this.tick();
-
-        LocalTransaction spec_ts = null;
-        InternalMessage work = null;
-        
-        // Check whether there is something we can speculatively execute right now
-        if (hstore_conf.site.specexec_enable && this.currentDtxn != null) {
-            if (t) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
-            assert(this.currentDtxn.isInitialized()) :
-                String.format("Uninitialized distributed transaction handle [%s]", this.currentDtxn);
-            if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
-            try {
-                spec_ts = this.specExecScheduler.next(this.currentDtxn, this.calculateSpeculationType());
-            } finally {
-                if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.stop();
-            }
-            
-            // Because we don't have fine-grained undo support, we are just going
-            // keep all of our speculative execution txn results around
-            if (spec_ts != null) {
-                if (d) LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
-                                 this.currentDtxn, spec_ts));
-                assert(spec_ts.getBasePartition() == this.partitionId) :
-                    String.format("Trying to speculatively execute %s at partition %d but its base partition is %d\n%s",
-                                  spec_ts, this.partitionId, spec_ts.getBasePartition(), spec_ts.debug());
-                this.setExecutionMode(spec_ts, ExecutionMode.COMMIT_NONE);
-                
-                // IMPORTANT: We need to make sure that we remove this transaction for the lock queue
-                // before we execute it so that we don't try to run it again.
-                // We have to do this now because otherwise we may get the same transaction again
-                this.queueManager.getInitQueue(this.partitionId).remove(spec_ts);
-                
-                // It's also important that we cancel this txn's init queue callback, otherwise
-                // it will never get cleaned up properly. This is necessary in order to support
-                // sending out client results *before* the dtxn finishes
-                spec_ts.getTransactionInitQueueCallback().cancel();
-                
-                // Ok now that that's out of the way, let's run this baby...
-                this.executeTransaction(spec_ts);
-            }
-        }
-        // Check whether we have anything in our non-blocking queue
-        if (spec_ts == null) {
-            work = this.utility_queue.poll();
-            // Smoke 'em if you got 'em
-            if (work != null) this.processInternalMessage(work);
-        }
-        
-        if (hstore_conf.site.exec_profiling) this.profiler.util_time.stop();
-        return (spec_ts != null || work != null);
     }
 
     private void tick() {

@@ -158,6 +158,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * Constructor
      * @param hstore_site
      */
+    @SuppressWarnings("unchecked")
     public TransactionQueueManager(HStoreSite hstore_site) {
         CatalogContext catalogContext = hstore_site.getCatalogContext();
         PartitionSet allPartitions = catalogContext.getAllPartitionIds();
@@ -308,9 +309,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         AbstractTransaction next = null;
         
         // Process initialization queue
+        // int added = 0;
         while ((next = this.initQueues[partition].poll()) != null) {
             TransactionInitQueueCallback wrapper = next.getTransactionInitQueueCallback();
             this.lockQueueInsert(next, partition, wrapper);
+            // if (++added > 3) break;
         } // WHILE
 
         if (this.lockQueuesBlocked[partition] != false) {
@@ -409,7 +412,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         assert(this.hstore_site.isLocalPartition(partition)) :
             String.format("Trying to add %s to non-local partition %d", ts, partition);
         
-        if (d) LOG.debug(String.format("Adding %s into lockQueue for partition %d", ts, partition));
+        if (d) LOG.debug(String.format("Adding %s into lockQueue for partition %d [allPartitions=%s]",
+                         ts, partition, ts.getPredictTouchedPartitions()));
         assert(wrapper.isInitialized());
         
         Long txn_id = ts.getTransactionId();
@@ -436,8 +440,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // was released but then it was deleted and cleaned-up. This means that its txn id
         // might be null. A better way to do this is to only have each PartitionExecutor
         // insert the new transaction into its queue. 
-        Long next_safe_id = null;
-        this.lockQueues[partition].noteTransactionRecievedAndReturnLastSeen(ts);
+        Long next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSeen(ts);
         
         // The next txnId that we're going to try to execute is already greater
         // than this new txnId that we were given! Rejection!
@@ -509,9 +512,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // sitting in the queue for that partition.
         boolean removed = false;
         if (checkQueue) {
-            synchronized (this.lockQueues[partition]) {
+            // synchronized (this.lockQueues[partition]) {
                 removed = this.lockQueues[partition].remove(ts);
-            } // SYNCH
+            //  } // SYNCH
         }
         assert(this.lockQueues[partition].contains(ts) == false);
         

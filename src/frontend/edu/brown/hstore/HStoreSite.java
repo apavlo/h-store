@@ -1740,11 +1740,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // QUIESCE
         // -------------------------------
-        else if (catalog_proc.getName().equals("@Quiesce")) {
-            // Tell the queue manager ahead of time to wipe out everything!
-            this.txnQueueManager.clearQueues();
-            return (false);
-        }
+//        else if (catalog_proc.getName().equals("@Quiesce")) {
+//            // Tell the queue manager ahead of time to wipe out everything!
+//            this.txnQueueManager.clearQueues();
+//            return (false);
+//        }
         
         // -------------------------------
         // EXECUTOR STATUS
