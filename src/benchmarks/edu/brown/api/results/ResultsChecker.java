@@ -71,7 +71,7 @@ public class ResultsChecker extends EventObservable<String> implements Benchmark
         
         if (this.lastDelta == 0 && txnDelta == 0) {
             int pollIndex = results.getCompletedIntervalCount();
-            String error = String.format("The results at poll interval %d are zero", pollIndex);
+            String error = String.format("The results at poll interval %d are zero. Halting benchmark...", pollIndex);
             LOG.error(error);
             this.notifyObservers(error);
         }

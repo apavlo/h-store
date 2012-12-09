@@ -101,7 +101,7 @@ public class ResultsPrinter implements BenchmarkInterest {
              .append(" / ")
              .append(String.format("max:" + RESULT_FORMAT, fr.getMaxTxnPerSecond()))
              .append(" / ")
-             .append(String.format("stddev:" + RESULT_FORMAT, fr.getStandardDeviationTxnPerSecond()))
+             .append(String.format("stdev:" + RESULT_FORMAT, fr.getStandardDeviationTxnPerSecond()))
              .append("]");
         
         StringBuilder latencies = new StringBuilder();
@@ -111,7 +111,7 @@ public class ResultsPrinter implements BenchmarkInterest {
              .append(" / ")
              .append(String.format("max:" + RESULT_FORMAT, fr.getTotalMaxLatency()))
              .append(" / ")
-             .append(String.format("stddev:" + RESULT_FORMAT, fr.getTotalStdDevLatency()))
+             .append(String.format("stdev:" + RESULT_FORMAT, fr.getTotalStdDevLatency()))
              .append("]");
         
         String txnInfo = String.format("Total:%d / Distributed:%d (%.1f%%)",
