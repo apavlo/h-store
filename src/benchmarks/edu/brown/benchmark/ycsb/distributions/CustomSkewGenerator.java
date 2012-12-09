@@ -31,21 +31,31 @@ public class CustomSkewGenerator extends IntegerGenerator
 {
 	private Random rand; 
 	
-	int access_skew; 
-	int data_skew; 
+	int hot_data_access_skew; 
+	int warm_data_access_skew; 
+	int hot_data_size; 
+	int warm_data_size; 
+	
+	// the max of the hot/warm/cold ranges, where hot_data_max < warm_data_max < max
 	int max; 
+	int hot_data_max; 	// integers in the range 0 < x < hot_data_max will represent the "hot" numbers getting hot_data_access_skew% of the accesses 
+	int warm_data_max;  // integers in the range hot_data_max < x < warm_data_max will represent the "warm" numbers
 	
-	// integers in the range 0 < x < data_skew_ceiling will represent the "hot" numbers getting access_skew% of the accesses 
-	int data_skew_ceiling; 
-	
-	public CustomSkewGenerator(int _max, int _access_skew, int _data_skew)
+	public CustomSkewGenerator(int _max, int _hot_data_access_skew, int _hot_data_size, int _warm_data_access_skew, int _warm_data_size)
 	{
+		assert(_hot_data_access_skew + _warm_data_access_skew <= 100) : "Workload skew cannot be more than 100%."; 
+		
 		rand = new Random(); 
 				
-		access_skew = _access_skew;
+		hot_data_access_skew = _hot_data_access_skew; 
+		warm_data_access_skew = _warm_data_access_skew; 
+		hot_data_size = _hot_data_size; 
+		warm_data_size = _warm_data_size;
+		
 		max = _max;  
 		
-		data_skew_ceiling = (int)(max * (_data_skew / (double)100)); 
+		hot_data_max = (int)(max * (hot_data_size / (double)100)); 
+		warm_data_max = (int)(max * (warm_data_size / (double)100)) + hot_data_max; 
 	}
 	
 	public int nextInt()
@@ -53,13 +63,17 @@ public class CustomSkewGenerator extends IntegerGenerator
 		int key = 0; 
 		int access_skew_rand = rand.nextInt(100); 
 		
-		if(access_skew_rand < access_skew)  // generate a number in the range 0 < x < data_skew_ceiling
+		if(access_skew_rand < hot_data_access_skew)  // generate a number in the "hot" data range, 0 < x < hot_data_max
 		{
-			key = rand.nextInt(data_skew_ceiling); 
+			key = rand.nextInt(hot_data_max); 
 		}
-		else  // generate a number in the range data_skew_ceiling < x < max
+		else if(access_skew_rand < hot_data_access_skew + warm_data_access_skew) // generate a key in the "warm" data range, hot_data_max < x < warm_data_max
 		{
-			key = rand.nextInt(max - data_skew_ceiling + 1) + data_skew_ceiling; 
+			key = rand.nextInt(warm_data_max - hot_data_max + 1) + hot_data_max; 
+		}
+		else  // generate a number in the "cold" data range, warm_data_max < x < max
+		{
+			key = rand.nextInt(max - warm_data_max + 1) + warm_data_max; 
 		}
 		
 		return key; 
