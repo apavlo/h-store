@@ -997,7 +997,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         InternalMessage work = null;
         
         // Check whether there is something we can speculatively execute right now
-        if (hstore_conf.site.specexec_enable && this.currentDtxn != null) {
+        if (hstore_conf.site.specexec_enable && this.currentDtxn != null && this.currentDtxn.isSysProc() == false) {
             if (t) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
             assert(this.currentDtxn.isInitialized()) :
                 String.format("Uninitialized distributed transaction handle [%s]", this.currentDtxn);

@@ -53,9 +53,7 @@ public class Quiesce extends VoltSystemProcedure {
                 
                 // Clear out the QueueManager too if this is the first partition
                 // at this site
-                if (this.isFirstLocalPartition()) {
-                    hstore_site.getTransactionQueueManager().clearQueues();
-                }
+                hstore_site.getTransactionQueueManager().clearQueues(executor.getPartitionId());
                 
                 VoltTable vt = new VoltTable(ResultsColumns);
                 Object row[] = {

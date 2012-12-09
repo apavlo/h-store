@@ -262,25 +262,23 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     /**
      * Reject any and all transactions that are in our queues!
      */
-    public synchronized void clearQueues() {
+    public void clearQueues(int partition) {
         AbstractTransaction ts = null;
         
-        for (int partition : this.localPartitions.values()) {
-            if (d) LOG.debug("Clearing out lock queue for partition " + partition);
-            // LOCK QUEUES
-            synchronized (this.lockQueues[partition]) {
-                while ((ts = this.lockQueues[partition].poll()) != null) {
-                    this.rejectTransaction(ts, Status.ABORT_REJECT, partition,
-                                           this.lockQueuesLastTxn[partition]);
-                } // WHILE
-            } // SYNCH
-            
-            // INIT QUEUE
-            while ((ts = this.initQueues[partition].poll()) != null) {
-                TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
-                callback.abort(Status.ABORT_REJECT);
+        if (d) LOG.debug("Clearing out lock queue for partition " + partition);
+        // LOCK QUEUES
+        synchronized (this.lockQueues[partition]) {
+            while ((ts = this.lockQueues[partition].poll()) != null) {
+                this.rejectTransaction(ts, Status.ABORT_REJECT, partition,
+                                       this.lockQueuesLastTxn[partition]);
             } // WHILE
-        }
+        } // SYNCH
+        
+        // INIT QUEUE
+        while ((ts = this.initQueues[partition].poll()) != null) {
+            TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
+            callback.abort(Status.ABORT_REJECT);
+        } // WHILE
         
         // BLOCKED QUEUE
         while ((ts = this.blockedQueue.poll()) != null) {
@@ -299,6 +297,17 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // INIT QUEUES
     // ----------------------------------------------------------------------------
 
+    protected void checkInitQueue(int partition, int max) {
+        // Process initialization queue
+        int added = 0;
+        AbstractTransaction next_init = null;
+        while ((next_init = this.initQueues[partition].poll()) != null) {
+            TransactionInitQueueCallback wrapper = next_init.getTransactionInitQueueCallback();
+            this.lockQueueInsert(next_init, partition, wrapper);
+            if (++added > max) break;
+        } // WHILE
+    }
+    
     /**
      * Check whether there are any transactions that need to be released for execution
      * at the partitions controlled by this queue manager
@@ -309,13 +318,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                          partition, this.initQueues[partition].size(), this.lockQueues[partition].size()));
         
         // Process initialization queue
-        int added = 0;
-        AbstractTransaction next_init = null;
-        while ((next_init = this.initQueues[partition].poll()) != null) {
-            TransactionInitQueueCallback wrapper = next_init.getTransactionInitQueueCallback();
-            this.lockQueueInsert(next_init, partition, wrapper);
-            if (++added > 100) break;
-        } // WHILE
+        this.checkInitQueue(partition, 100);
 
         if (this.lockQueuesBlocked[partition] != false) {
             if (d) LOG.warn(String.format("Partition %d is already executing a transaction %d. Skipping...",
@@ -545,7 +548,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
     }
 
-    public void initTransaction(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
+    protected void initTransaction(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
         // Initialize their TransactionInitQueueCallback
         TransactionInitQueueCallback wrapper = ts.initTransactionInitQueueCallback(callback);
         assert(wrapper.isInitialized());
@@ -807,7 +810,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     public void prepareShutdown(boolean error) {
         // Nothing for now
         // Probably should abort all queued txns.
-        this.clearQueues();
+        for (int partition : this.localPartitions.values()) {
+            this.clearQueues(partition);
+        }
     }
 
     @Override

@@ -109,7 +109,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
                                                                       partitions,
                                                                       request.getBasePartition(),
                                                                       request.getProcedureId());
-            txnQueueManager.initTransaction(ts, done);
+            hstore_site.transactionInit(ts, done);
         }
 
         @Override

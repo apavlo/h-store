@@ -83,6 +83,7 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.ClientInterface.ClientInputHandler;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
@@ -1833,8 +1834,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      */
     public void transactionQueue(LocalTransaction ts) {
-        assert(ts.isInitialized()) : 
-            "Unexpected uninitialized LocalTranaction for " + ts;
+        assert(ts.isInitialized()) : "Uninitialized transaction handle [" + ts + "]";
         
         // Make sure that we start the MapReduceHelperThread
         if (this.mr_helper_started == false && ts.isMapReduce()) {
@@ -1851,13 +1851,29 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // we get hear back about our our initialization request
         TransactionInitCallback callback = ts.initTransactionInitCallback();
         if (ts.isPredictSinglePartition()) {
-            // this.txnQueueManager.lockQueueInsert(ts, ts.getPredictTouchedPartitions(), callback);
-            this.txnQueueManager.initTransaction(ts, callback);
+            this.transactionInit(ts, callback);
         }
         else {
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitDtxn();
             this.hstore_coordinator.transactionInit(ts, callback);
         }
+    }
+    
+    /**
+     * Queue the given transaction to be initialized
+     * @param ts
+     * @param callback
+     */
+    public void transactionInit(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
+        assert(ts.isInitialized()) : "Uninitialized transaction handle [" + ts + "]";
+        
+//        for (int partition : ts.getPredictTouchedPartitions().values()) {
+//            if (this.isLocalPartition(partition)) {
+//                this.executors[partition].queueInit(ts);
+//            }
+//        } // FOR
+        
+        this.txnQueueManager.initTransaction(ts, callback);
     }
 
     /**

@@ -94,12 +94,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         if (retval != null) {
             assert(m_nextTxn.equals(retval)) : 
                 String.format("Partition %d :: Next txn is %s but our poll returned %s\n" +
-                              StringUtil.SINGLE_LINE +
-                		      "%s\n" +
-                		      StringUtil.SINGLE_LINE +
-                		      "%s",
-                              m_partitionId, m_nextTxn, retval, this.debug(),
-                              StringUtil.join("\n", super.iterator()));
+                              StringUtil.SINGLE_LINE + "%s",
+                              m_partitionId, m_nextTxn, retval, this.debug());
             m_nextTxn = null;
             m_txnsPopped++;
             m_lastTxnPopped = retval.getTransactionId();
@@ -161,15 +157,18 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     public boolean remove(Object obj) {
         AbstractTransaction ts = (AbstractTransaction)obj;
         boolean retval = super.remove(ts);
+        boolean checkQueue = false;
         if (m_nextTxn != null && m_nextTxn == ts) {
             m_nextTxn = null;
+            checkQueue = true;
+            
         }
         // Sanity Check
         assert(super.contains(ts) == false) :
             "Failed to remove " + ts + "???\n" + this.debug();
         if (d) LOG.debug(String.format("Partition %d :: remove(%s) -> %s",
                          m_partitionId, ts, retval));
-        this.checkQueueState();
+        if (checkQueue) this.checkQueueState();
         return retval;
     }
 
@@ -211,18 +210,11 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         return m_lastSeenTxn;
     }
 
-    public void faultTransaction(Long txnID) {
-        this.remove(txnID);
-    }
-
-    public void shutdown() throws InterruptedException {
-    }
-
-    public QueueState getQueueState() {
+    protected QueueState getQueueState() {
         return m_state;
     }
     
-    public int getPartitionId() {
+    protected int getPartitionId() {
         return (this.m_partitionId);
     }
 

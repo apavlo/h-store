@@ -10,8 +10,6 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
-import edu.brown.hstore.TransactionQueueManager;
-import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -36,12 +34,10 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     }
     
     private final AbstractDispatcher<Object[]> initDispatcher;
-    private final TransactionQueueManager txnQueueManager;
     
     public TransactionInitHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, AbstractDispatcher<Object[]> initDispatcher) {
         super(hstore_site, hstore_coord);
         this.initDispatcher = initDispatcher;
-        this.txnQueueManager = hstore_site.getTransactionQueueManager();
     }
     
     @Override
@@ -111,7 +107,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         // We don't need to send back a response right here.
         // TransactionInitWrapperCallback will wait until it has results from all of the partitions 
         // the tasks were sent to and then send back everything in a single response message
-        this.txnQueueManager.initTransaction(ts, callback);
+        this.hstore_site.transactionInit(ts, callback);
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {
