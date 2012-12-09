@@ -139,8 +139,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         if (m_nextTxn != null && ts.compareTo(m_nextTxn) < 0) {
             this.checkQueueState();
             if (m_state != QueueState.UNBLOCKED) {
-//                if (d)
-                    LOG.warn(String.format("Partition %d :: Switching %s as new next txn [old=%s]",
+                if (d) LOG.debug(String.format("Partition %d :: Switching %s as new next txn [old=%s]",
                                  m_partitionId, ts, m_nextTxn));
                 m_nextTxn = ts;
             }
