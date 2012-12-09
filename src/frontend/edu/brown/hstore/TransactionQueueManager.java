@@ -305,25 +305,27 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * Returns true if we released a transaction at at least one partition
      */
     protected AbstractTransaction checkLockQueue(int partition) {
-        // EstTimeUpdater.update(System.currentTimeMillis());
-        AbstractTransaction next = null;
+        if (d) LOG.debug(String.format("Checking lock queue for partition %d [initSize=%d, lockSize=%d]",
+                         partition, this.initQueues[partition].size(), this.lockQueues[partition].size()));
         
         // Process initialization queue
-        // int added = 0;
-        while ((next = this.initQueues[partition].poll()) != null) {
-            TransactionInitQueueCallback wrapper = next.getTransactionInitQueueCallback();
-            this.lockQueueInsert(next, partition, wrapper);
-            // if (++added > 3) break;
+        int added = 0;
+        AbstractTransaction next_init = null;
+        while ((next_init = this.initQueues[partition].poll()) != null) {
+            TransactionInitQueueCallback wrapper = next_init.getTransactionInitQueueCallback();
+            this.lockQueueInsert(next_init, partition, wrapper);
+            if (++added > 100) break;
         } // WHILE
 
         if (this.lockQueuesBlocked[partition] != false) {
-            if (t) LOG.trace(String.format("Partition %d is already executing a transaction %d. Skipping...",
+            if (d) LOG.warn(String.format("Partition %d is already executing a transaction %d. Skipping...",
                              this.lockQueuesLastTxn[partition], partition));
             return (null);
         }
         
         if (t) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
         TransactionInitQueueCallback callback = null;
+        AbstractTransaction next = null;
         while (next == null) {
 
             // Poll the queue and get the next value. We need
@@ -335,7 +337,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // If null, then there is nothing that is ready to run at this partition,
             // so we'll just skip to the next one
             if (next == null) {
-                if (t) LOG.trace(String.format("Partition %d initQueue does not have a transaction ready to run. Skipping... " +
+                if (d) LOG.debug(String.format("Partition %d initQueue does not have a transaction ready to run. Skipping... " +
                 		         "[queueSize=%d]",
                                  partition, this.lockQueues[partition].size()));
                 break;
@@ -392,7 +394,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
         } // WHILE
         
-        if (t) LOG.trace("Finished processing lock queues [next=" + next + "]");
+        if (d && next != null && next.isPredictSinglePartition() == false)
+            LOG.debug(String.format("Finished processing lock queue for partition %d [next=%s]",
+                      partition, next));
         return (next);
     }
     
@@ -608,29 +612,29 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         // Then make sure that our txnId is removed from all of the local partitions
         // that we queued it on.
-        boolean poke = false;
-        for (int partition : callback.getPartitions().values()) {
-            if (this.localPartitions.contains(partition) == false) continue;
-            
-            // Try to remove it from our queue. If we can't then it might
-            // be that we're the current transaction at this partition, so that
-            // we need to make sure that we release the locks
-            boolean removed = false;
-            synchronized (this.lockQueues[partition]) {
-                removed = this.lockQueues[partition].remove(ts);
-            } // SYNCH
-            
-            // We don't need to acquire a lock here because we know that
-            // nobody else can update us unless the lock flag is false
-            if (removed == false && this.lockQueuesBlocked[partition] != true && 
-                    this.lockQueuesLastTxn[partition].equals(ts)) {
-                // XXX: This most likely a race condition
-                this.lockQueuesBlocked[partition] = false;
-                poke = true;
-            }
-        } // FOR
-        if (poke && this.checkFlag.availablePermits() == 0)
-            this.checkFlag.release();
+//        boolean poke = false;
+//        for (int partition : callback.getPartitions().values()) {
+//            if (this.localPartitions.contains(partition) == false) continue;
+//            
+//            // Try to remove it from our queue. If we can't then it might
+//            // be that we're the current transaction at this partition, so that
+//            // we need to make sure that we release the locks
+//            boolean removed = false;
+//            synchronized (this.lockQueues[partition]) {
+//                removed = this.lockQueues[partition].remove(ts);
+//            } // SYNCH
+//            
+//            // We don't need to acquire a lock here because we know that
+//            // nobody else can update us unless the lock flag is false
+//            if (removed == false && this.lockQueuesBlocked[partition] != true && 
+//                    this.lockQueuesLastTxn[partition].equals(ts)) {
+//                // XXX: This most likely a race condition
+//                this.lockQueuesBlocked[partition] = false;
+//                poke = true;
+//            }
+//        } // FOR
+//        if (poke && this.checkFlag.availablePermits() == 0)
+//            this.checkFlag.release();
     }
     
     // ----------------------------------------------------------------------------

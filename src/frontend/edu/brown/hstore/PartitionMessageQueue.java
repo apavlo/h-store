@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import edu.brown.hstore.internal.FinishTxnMessage;
+import edu.brown.hstore.internal.InitializeRequestMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
@@ -36,7 +37,7 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
         
         while ((msg = this.poll()) != null) {
             // All new transaction requests must be put in the new collection
-            if (msg instanceof InitializeTxnMessage) {
+            if (msg instanceof InitializeRequestMessage) {
                 c.add(msg);
                 ctr++;
             // Everything else will get added back in afterwards 
@@ -59,6 +60,7 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
             PrepareTxnMessage.class,
             FinishTxnMessage.class,
             WorkFragmentMessage.class,
+            InitializeTxnMessage.class,
         };
         
         @Override

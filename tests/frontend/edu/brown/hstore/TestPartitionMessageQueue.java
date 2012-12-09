@@ -14,7 +14,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.FinishTxnMessage;
-import edu.brown.hstore.internal.InitializeTxnMessage;
+import edu.brown.hstore.internal.InitializeRequestMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
@@ -41,7 +41,7 @@ public class TestPartitionMessageQueue extends BaseTestCase {
     };
     private final WorkFragment mockFragment = null;
     
-    private InitializeTxnMessage initMsg;
+    private InitializeRequestMessage initMsg;
     private StartTxnMessage startMsg;
     private WorkFragmentMessage workMsg;
     
@@ -60,7 +60,7 @@ public class TestPartitionMessageQueue extends BaseTestCase {
         this.ts1.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), catalog_proc);
         
         // Initialize some messages that we can use
-        this.initMsg = new InitializeTxnMessage(mockSerialized, System.currentTimeMillis(), catalog_proc, mockParams, mockCallback);
+        this.initMsg = new InitializeRequestMessage(mockSerialized, System.currentTimeMillis(), catalog_proc, mockParams, mockCallback);
         this.startMsg = new StartTxnMessage(ts1);
         this.workMsg = new WorkFragmentMessage(ts1, mockFragment);
     }

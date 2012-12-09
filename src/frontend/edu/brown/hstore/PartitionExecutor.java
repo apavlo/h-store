@@ -132,6 +132,7 @@ import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
+import edu.brown.hstore.internal.InitializeRequestMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
@@ -880,7 +881,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             this.shutdown_latch = new Semaphore(0);
             
             if (d) LOG.debug("Starting PartitionExecutor run loop...");
-            AbstractTransaction next = null;
             while (this.stop == false && this.isShuttingDown() == false) {
                 this.currentTxnId = null;
                 
@@ -1061,8 +1061,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         // TRANSACTION INITIALIZATION
         // -------------------------------
-        else if (work instanceof InitializeTxnMessage) {
-            this.processInitializeTxnMessage((InitializeTxnMessage)work);
+        else if (work instanceof InitializeRequestMessage) {
+            this.processInitializeRequestMessage((InitializeRequestMessage)work);
         }
         // -------------------------------
         // DEFERRED QUERIES
@@ -1116,10 +1116,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 
     
     /**
-     * Process an InitializeTxnMessage
+     * Process an InitializeRequestMessage
      * @param work
      */
-    protected void processInitializeTxnMessage(InitializeTxnMessage work) {
+    protected void processInitializeRequestMessage(InitializeRequestMessage work) {
 
         LocalTransaction ts = this.txnInitializer.createLocalTransaction(
                                        work.getSerializedRequest(),
@@ -1175,9 +1175,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         
         // -------------------------------
+        // Add Transaction to Lock Queue
+        // -------------------------------
+        if (work instanceof InitializeTxnMessage) {
+            this.queueManager.lockQueueInsert(ts, this.partitionId, ts.getTransactionInitQueueCallback());
+        }
+        // -------------------------------
         // Start Transaction
         // -------------------------------
-        if (work instanceof StartTxnMessage) {
+        else if (work instanceof StartTxnMessage) {
             this.executeTransaction((LocalTransaction)ts);
         }
         // -------------------------------
@@ -1283,8 +1289,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // -------------------------------
             // InitializeTxnMessage
             // -------------------------------
-            if (msg instanceof InitializeTxnMessage) {
-                InitializeTxnMessage initMsg = (InitializeTxnMessage)msg;
+            if (msg instanceof InitializeRequestMessage) {
+                InitializeRequestMessage initMsg = (InitializeRequestMessage)msg;
                 hstore_site.responseError(initMsg.getClientHandle(),
                                           Status.ABORT_REJECT,
                                           hstore_site.getRejectionMessage() + " - [2]",
@@ -1590,8 +1596,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private void resetCurrentDtxn() {
         assert(this.currentDtxn != null) :
             "Trying to reset the currentDtxn when it is already null";
-        if (d)
-            LOG.info(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
+        if (d) LOG.debug(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
                          this.partitionId, this.currentDtxn));
         this.currentDtxn = null;
     }
@@ -1691,7 +1696,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         boolean sysproc = catalog_proc.getSystemproc();
         if (this.currentExecMode == ExecutionMode.DISABLED_REJECT && sysproc == false) return (false);
         
-        InitializeTxnMessage work = new InitializeTxnMessage(serializedRequest,
+        InitializeRequestMessage work = new InitializeRequestMessage(serializedRequest,
                                                              initiateTime,
                                                              catalog_proc,
                                                              procParams,
@@ -3756,7 +3761,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param status - The final status of the transaction
      */
     private void finishDistributedTransaction(final AbstractTransaction ts, final Status status) {
-        if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d " +
+        if (d) LOG.debug(String.format("%s - Processing finish request at partition %d " +
                          "[status=%s / readOnly=%s]",
                          ts, this.partitionId,
                          status, ts.isExecReadOnly(this.partitionId)));
@@ -4041,82 +4046,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         assert(this.currentBlockedTxns.isEmpty());
     }
-    
-//    /**
-//     * Commit/abort all of the queue transactions that were specutatively executed and waiting for
-//     * their responses to be sent back to the client
-//     * @param commit
-//     */
-//    private void releaseQueuedResponses(final AbstractTransaction parent_ts,
-//                                        final boolean commit) {
-//        
-//        // Ok now at this point we can access our queue send back all of our responses
-//        if (d) LOG.debug(String.format("%s - %s %d speculatively executed transactions on partition %d",
-//                         parent_ts, (commit ? "Commiting" : "Aborting"), this.specExecBlocked.size(), this.partitionId));
-//
-//        LocalTransaction ts = null;
-//        ClientResponseImpl cr = null;
-//        int txn_ctr = 0;
-//        Pair<LocalTransaction, ClientResponseImpl> pair = null;
-//        
-//        while ((pair = this.specExecBlocked.pollFirst()) != null) {
-//            ts = pair.getFirst();
-//            cr = pair.getSecond();
-//            txn_ctr++;
-//            assert(cr.getStatus() == Status.OK) :
-//                String.format("Speculatively executed txn %s did not succeed [status=%s]",
-//                              ts, cr.getStatus());
-//        
-//            
-//            if (t) LOG.trace(String.format("%s - Bypassing EE commit for %s because its undo token is before " +
-//                             "the last committed token [XXX < %d]",
-//                             parent_ts, ts, this.lastCommittedUndoToken));
-//            ts.unmarkExecutedWork(this.partitionId);
-//            
-//            // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
-//            // I am getting a random error.
-//            // FIXME if (hstore_conf.site.txn_profiling && ts.profiler.finish_time.isStopped()) ts.profiler.finish_time.start();
-//            
-//            // If the distributed txn aborted, then we need to abort everything in our queue
-//            // Change the status to be a MISPREDICT so that they get executed again
-//            if (commit == false) {
-//                // TODO: We compare the read/write sets for this txn and the aborting dtxn 
-//                //       to see if we are be able to avoid cascading the abort if one of the
-//                //       following conditions is true:
-//                //  (1) If this txn didn't read any table that the dtxn wrote to.
-//                //  (2) If this txn didn't write to any table that the dtxn to.
-//                
-//                // We're going to assume that any transaction that didn't mispredict
-//                // was single-partitioned. We'll use their TouchedPartitions histogram
-//                if (cr.getStatus() != Status.ABORT_MISPREDICT) {
-//                    MispredictionException error = new MispredictionException(ts.getTransactionId(), ts.getTouchedPartitions());
-//                    ts.setPendingError(error, false);
-//                    cr.setStatus(Status.ABORT_MISPREDICT);
-//                }
-//                abort_ctr++;
-//            }
-//
-//            try {
-//                if (hstore_conf.site.exec_postprocessing_threads) {
-//                    if (t) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
-//                                     parent_ts, ts, cr.getStatus()));
-//                    hstore_site.responseQueue(ts, cr);
-//                }
-//                else {
-//                    if (t) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-//                                     parent_ts, ts, cr.getStatus()));
-//                    this.processClientResponse(ts, cr);
-//                }
-//            } catch (Throwable ex) {
-//                String msg = "Failed to complete queued response for " + ts;
-//                throw new ServerFaultException(msg, ex, parent_ts.getTransactionId());
-//            }
-//        } // WHILE
-//        if (d && txn_ctr > 0)
-//            LOG.debug(String.format("%s - Released %d blocked ClientResponses [skipCommit=%d / aborted=%d]",
-//                      parent_ts, txn_ctr, skip_ctr, abort_ctr));
-//        return;
-//    }
     
     // ---------------------------------------------------------------
     // SNAPSHOT METHODS
