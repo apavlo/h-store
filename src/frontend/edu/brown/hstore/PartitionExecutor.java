@@ -992,6 +992,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 return (false);
             }
         }
+        this.queueManager.checkInitQueue(this.partitionId, 10);
 
         LocalTransaction spec_ts = null;
         InternalMessage work = null;
@@ -1628,7 +1629,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     public boolean queueInit(AbstractTransaction ts) {
         assert(ts != null) : "Unexpected null transaction handle!";
-        InitializeTxnMessage work = new InitializeTxnMessage(ts);
+        InitializeTxnMessage work = ts.getInitializeTxnMessage();
         if (d) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
                          "[currentDtxn=%s, queueSize=%d, mode=%s]",
                          work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,

@@ -56,6 +56,7 @@ import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.internal.FinishTxnMessage;
+import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.interfaces.Loggable;
@@ -139,6 +140,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     // ----------------------------------------------------------------------------
     // INTERNAL MESSAGE WRAPPERS
     // ----------------------------------------------------------------------------
+    
+    private final InitializeTxnMessage init_task;
     
     private final PrepareTxnMessage prepare_task;
     
@@ -266,6 +269,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.exec_lastUndoToken = new long[numLocalPartitions];
         this.exec_noUndoBuffer = new boolean[numLocalPartitions];
         
+        this.init_task = new InitializeTxnMessage(this);
         this.prepare_task = new PrepareTxnMessage(this);
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numLocalPartitions];
@@ -773,6 +777,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         }
     }
     
+    public InitializeTxnMessage getInitializeTxnMessage() {
+        return (this.init_task);
+    }
     public PrepareTxnMessage getPrepareTxnMessage() {
         return (this.prepare_task);
     }
