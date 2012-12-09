@@ -462,7 +462,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         else if (this.lockQueues[partition].offer(ts) == false) {
             if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
             		        "Throttling %s until id is greater than %s " +
-            		        "[locked=%s / queueSize=%d]",
+            		        "[locked=%s, queueSize=%d]",
                              partition, ts, next_safe_id,
                              this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
             this.rejectTransaction(ts,
@@ -471,7 +471,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                    next_safe_id);
             return (false);
         }
-        if (t) LOG.trace(String.format("Added %s to initQueue for partition %d [locked=%s / queueSize=%d]",
+        if (t) LOG.trace(String.format("Added %s to initQueue for partition %d [locked=%s, queueSize=%d]",
                          ts, partition,
                          this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
         return (true);
@@ -486,7 +486,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     public void lockQueueFinished(AbstractTransaction ts, Status status, int partition) {
         assert(ts.isInitialized()) :
-            String.format("Unexpected uninitialized transaction %s [status=%s / partition=%d]", ts, status, partition);
+            String.format("Unexpected uninitialized transaction %s [status=%s, partition=%d]", ts, status, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + ts + " as finished on remote partition #" + partition;
         if (d) LOG.debug(String.format("%s is finished on partition %d. Checking whether to update queues " +
@@ -575,15 +575,16 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                    int reject_partition,
                                    Long reject_txnId) {
         assert(ts.isInitialized()) :
-            String.format("Uninitialized transaction handle %s [status=%s / rejectPartition=%d]",
+            String.format("Uninitialized transaction handle %s [status=%s, rejectPartition=%d]",
                           ts, status, reject_partition);
         assert(reject_txnId != null) :
-            String.format("Null reject txn id for %s [status=%s / rejectPartition=%d]",
+            String.format("Null reject txn id for %s [status=%s, rejectPartition=%d]",
                           ts, status, reject_partition);
         if (d) {
             Long txnId = ts.getTransactionId();
             boolean is_valid = (reject_txnId == null || txnId.compareTo(reject_txnId) > 0);
-            LOG.debug(String.format("Rejecting %s on partition %d. Blocking until a txnId greater than #%d [status=%s / valid=%s]",
+            LOG.debug(String.format("Rejecting %s on partition %d. Blocking until a txnId greater than #%d " +
+            		  "[status=%s, valid=%s]",
                       ts, reject_partition, reject_txnId, status, is_valid));
         }
         

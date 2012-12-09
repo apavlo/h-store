@@ -907,7 +907,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // ex.printStackTrace();
             if (this.isShuttingDown() == false) {
                 // ex.printStackTrace();
-                LOG.fatal(String.format("Unexpected error at partition #%d [current=%s / lastDtxn=%s]",
+                LOG.fatal(String.format("Unexpected error at partition #%d [current=%s, lastDtxn=%s]",
                                         this.partitionId, this.currentTxn, this.lastDtxn), ex);
                 if (this.currentTxn != null) LOG.fatal("TransactionState Dump:\n" + this.currentTxn.debug());
             }
@@ -1630,7 +1630,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(ts != null) : "Unexpected null transaction handle!";
         InitializeTxnMessage work = new InitializeTxnMessage(ts);
         if (d) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
-                         "[currentDtxn=%s / queueSize=%d / mode=%s]",
+                         "[currentDtxn=%s, queueSize=%d, mode=%s]",
                          work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
                          this.currentDtxn, this.work_queue.size(), this.currentExecMode));
         return (this.work_queue.offer(work));
@@ -1718,7 +1718,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                              procParams,
                                                              clientCallback);
         if (d) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
-                         "[currentDtxn=%s / queueSize=%d / mode=%s]",
+                         "[currentDtxn=%s, queueSize=%d, mode=%s]",
                          work.getClass().getSimpleName(), catalog_proc.getName(), this.partitionId,
                          this.currentDtxn, this.work_queue.size(), this.currentExecMode));
         return (this.work_queue.offer(work));
@@ -1750,7 +1750,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         StartTxnMessage work = new StartTxnMessage(ts);
         if (d) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
-                         "[currentDtxn=%s / queueSize=%d / mode=%s]",
+                         "[currentDtxn=%s, queueSize=%d, mode=%s]",
                          work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
                          this.currentDtxn, this.work_queue.size(), this.currentExecMode));
         boolean success = this.work_queue.offer(work); // , force);
@@ -2045,7 +2045,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private boolean canProcessClientResponseNow(LocalTransaction ts, Status status, ExecutionMode before_mode) {
         if (d) LOG.debug(String.format("%s - Checking whether to process %s response now at partition %d " +
-	                     "[singlePartition=%s / readOnly=%s / specExecModified=%s / before=%s / current=%s]",
+	                     "[singlePartition=%s, readOnly=%s, specExecModified=%s, before=%s, current=%s]",
                          ts, status, this.partitionId,
                          ts.isPredictSinglePartition(),
                          ts.isExecReadOnly(this.partitionId),
@@ -2126,7 +2126,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         boolean is_remote = (ts instanceof LocalTransaction == false);
         boolean is_prefetch = fragment.getPrefetch();
         if (d) LOG.debug(String.format("%s - Executing %s " +
-        		         "[isLocal=%s / isRemote=%s / isPrefetch=%s / fragments=%s]",
+        		         "[isLocal=%s, isRemote=%s, isPrefetch=%s, fragments=%s]",
                          ts, fragment.getClass().getSimpleName(),
                          is_local, is_remote, is_prefetch,
                          fragment.getFragmentIdCount()));
@@ -3455,7 +3455,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 
         if (d) {
             LOG.debug(String.format("%s - Processing ClientResponse at partition %d " +
-            		  "[status=%s / singlePartition=%s / local=%s / clientHandle=%d]",
+            		  "[status=%s, singlePartition=%s, local=%s, clientHandle=%d]",
                       ts, this.partitionId, status, ts.isPredictSinglePartition(),
                       ts.isExecLocal(this.partitionId), cresponse.getClientHandle()));
             if (t) {
@@ -3722,7 +3722,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (commit) {
                 if (d) {
                     LOG.debug(String.format("%s - COMMITING txn on partition %d with undoToken %d " +
-                              "[lastTxnId=%d / lastUndoToken=%d / dtxn=%s]%s",
+                              "[lastTxnId=%d, lastUndoToken=%d, dtxn=%s]%s",
                               ts, this.partitionId, undoToken,
                               this.lastCommittedTxnId, this.lastCommittedUndoToken, this.currentDtxn,
                               (ts instanceof LocalTransaction ? " - " + ((LocalTransaction)ts).getSpeculativeType() : "")));
@@ -3749,7 +3749,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // we should be able to check whether our undoToken has already been rolled back
                 if (d) {
                     LOG.debug(String.format("%s - ABORTING txn on partition %d with undoToken %d " +
-                              "[lastTxnId=%d / lastUndoToken=%d / dtxn=%s]%s",
+                              "[lastTxnId=%d, lastUndoToken=%d, dtxn=%s]%s",
                               ts, this.partitionId, undoToken,
                               this.lastCommittedTxnId, this.lastCommittedUndoToken, this.currentDtxn,
                               (ts instanceof LocalTransaction ? " - " + ((LocalTransaction)ts).getSpeculativeType() : "")));
@@ -3778,7 +3778,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private void finishDistributedTransaction(final AbstractTransaction ts, final Status status) {
         if (d) LOG.debug(String.format("%s - Processing finish request at partition %d " +
-                         "[status=%s / readOnly=%s]",
+                         "[status=%s, readOnly=%s]",
                          ts, this.partitionId,
                          status, ts.isExecReadOnly(this.partitionId)));
         if (this.currentDtxn == ts) {
@@ -3827,7 +3827,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
                         spec_ts = pair.getFirst(); 
                         spec_token = spec_ts.getFirstUndoToken(this.partitionId);
-                        if (t) LOG.trace(String.format("Speculative Txn %s [undoToken=%d / %s]",
+                        if (t) LOG.trace(String.format("Speculative Txn %s [undoToken=%d, %s]",
                                          spec_ts, spec_token, spec_ts.getSpeculativeType()));
                         
                         // Speculative txns should never be executed without an undo token
