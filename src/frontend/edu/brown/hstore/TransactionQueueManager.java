@@ -467,7 +467,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                    next_safe_id);
             return (false);
         }
-        if (d) LOG.debug(String.format("Added %s to initQueue for partition %d [locked=%s / queueSize=%d]",
+        if (t) LOG.trace(String.format("Added %s to initQueue for partition %d [locked=%s / queueSize=%d]",
                          ts, partition,
                          this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
         return (true);
@@ -485,7 +485,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             String.format("Unexpected uninitialized transaction %s [status=%s / partition=%d]", ts, status, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + ts + " as finished on remote partition #" + partition;
-        if (d) LOG.debug(String.format("Updating lock queues because %s is finished on partition %d [status=%s]",
+        if (d) LOG.debug(String.format("%s is finished on partition %d. Checking whether to update queues " +
+        		         "[status=%s]",
         		         ts, partition, status));
         
         // If the given txnId is the current transaction at this partition and still holds
@@ -500,11 +501,19 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                              partition, ts, status));
             this.lockQueuesBlocked[partition] = false;
             checkQueue = false;
-        } else if (d) {
-            LOG.debug(String.format("Not unlocking partition %d for txn %s " +
-            		  "[current=%d / locked=%s / status=%s]",
-                      partition, ts,
-                      this.lockQueuesLastTxn[partition], this.lockQueuesBlocked[partition], status));
+        }
+        // If it wasn't running, then we need to make sure that we remove it from
+        // our initialization queue. Unfortunately this means that we need to traverse
+        // the queue to find it and remove.
+        // FIXME: Need to think of a better way of doing this or to not have the 
+        // the PartitionExecutor's thread have to do this
+        else {
+            boolean result = this.initQueues[partition].remove(ts);
+            if (d && result)
+                LOG.debug(String.format("Removed %s from partition %d initialization queue " +
+                          "[status=%s]",
+                          ts, partition, status));
+            checkQueue = (result == false);
         }
         
         // Always attempt to remove it from this partition's queue
@@ -512,9 +521,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // sitting in the queue for that partition.
         boolean removed = false;
         if (checkQueue) {
-            // synchronized (this.lockQueues[partition]) {
-                removed = this.lockQueues[partition].remove(ts);
-            //  } // SYNCH
+            removed = this.lockQueues[partition].remove(ts);
         }
         assert(this.lockQueues[partition].contains(ts) == false);
         
@@ -532,7 +539,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 throw new RuntimeException(msg, ex);
             }
         }
-        this.checkFlag.release();
     }
 
     public void initTransaction(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {

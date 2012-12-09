@@ -148,9 +148,10 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                 if (d) LOG.debug(String.format("Partition %d Switching %s as new next txn [old=%s]",
                                  m_partitionId, txnId, m_nextTxn));
                 m_nextTxn = txnId;
-            } else {
-                if (d) LOG.debug(String.format("Partition %d offer(%s) -> %s",
-                                 m_partitionId, txnId, "REJECTED"));
+            }
+            else {
+                if (d) LOG.warn(String.format("Partition %d offer(%s) -> %s [next=%s]",
+                                m_partitionId, txnId, "REJECTED", m_nextTxn));
                 return (false);
             }
         }
@@ -190,8 +191,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         assert(txn != null);
 
         // we've decided that this can happen, and it's fine... just ignore it
-        if (m_lastTxnPopped != null && m_lastTxnPopped.compareTo(txn.getTransactionId()) > 0) {
-            if (d) {
+        if (d) {
+            if (m_lastTxnPopped != null && m_lastTxnPopped.compareTo(txn.getTransactionId()) > 0) {
                 LOG.warn(String.format("Txn ordering deadlock at partition %d -> LastTxn: %s / NewTxn: %s",
                                        m_partitionId, m_lastTxnPopped, txn));
                 LOG.warn("LAST: " + m_lastTxnPopped);
@@ -258,7 +259,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             long timestamp = EstTime.currentTimeMillis();
             m_blockTime = timestamp + Math.max(0, this.m_waitTime - (timestamp - txnTimestamp));
             m_nextTxn = ts;
-            if (d) {
+             if (d) {
                 String debug = "";
                 if (t) {
                     Map<String, Object> m = new LinkedHashMap<String, Object>();
