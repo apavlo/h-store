@@ -1621,6 +1621,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // ---------------------------------------------------------------
 
     /**
+     * Queue a new transaction initialization at this partition. This will cause the 
+     * transaction to get added to this partition's lock queue. This PartitionExecutor does 
+     * not have to be this txn's base partition/
+     * @param ts
+     */
+    public boolean queueInit(AbstractTransaction ts) {
+        assert(ts != null) : "Unexpected null transaction handle!";
+        InitializeTxnMessage work = new InitializeTxnMessage(ts);
+        if (d) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
+                         "[currentDtxn=%s / queueSize=%d / mode=%s]",
+                         work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
+                         this.currentDtxn, this.work_queue.size(), this.currentExecMode));
+        return (this.work_queue.offer(work));
+    }
+    
+    /**
      * New work from the coordinator that this local site needs to execute (non-blocking)
      * This method will simply chuck the task into the work queue.
      * We should not be sent an InitiateTaskMessage here!

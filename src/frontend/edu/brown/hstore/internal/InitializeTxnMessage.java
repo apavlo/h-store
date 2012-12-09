@@ -1,10 +1,10 @@
 package edu.brown.hstore.internal;
 
-import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.AbstractTransaction;
 
 public class InitializeTxnMessage extends InternalTxnMessage {
 
-    public InitializeTxnMessage(LocalTransaction ts) {
+    public InitializeTxnMessage(AbstractTransaction ts) {
         super(ts);
     }
 }
