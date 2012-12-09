@@ -470,7 +470,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             Map<String, Object> m = new LinkedHashMap<String, Object>();
             
             // Header
-            m.put(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
+            m.put(String.format("%3d total / %3d queued / %3d blocked / %3d spec-exec\n",
                                     es_queue.size(),
                                     dbg.getWorkQueueSize(),
                                     dbg.getBlockedWorkCount(),
@@ -500,11 +500,14 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 if (ts != null) {
                     TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
                     status += ts;
+                    String spacer = StringUtil.repeat(" ", 5);
                     if (callback != null) {
-                        status += "\n" + StringUtil.repeat(" ", 6);
+                        status += "\n" + spacer;
                         status += String.format("Partitions=%s / Remaining=%d",
                                                 callback.getPartitions(), callback.getCounter());
                     }
+                    // FULL TXN DEBUG
+                    // status += "\n" + StringUtil.prefix(ts.debug(), spacer);
                 }
             }
             else if (queueManagerDebug.isLocked(partition)) {
@@ -956,6 +959,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         return (TableUtil.tableMap(this.txn_profile_format, this.txn_profiler_header, rows));
     }
     
+    @SuppressWarnings("unused")
     private String txnProfileCSV() {
         Object rows[][] = this.generateTxnProfileSnapshot();
         if (rows == null) return (null);
