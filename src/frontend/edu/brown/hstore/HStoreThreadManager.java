@@ -13,8 +13,11 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Site;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -69,32 +72,50 @@ public class HStoreThreadManager {
                                                                               hstore_site.getExceptionHandler(),
                                                                               1,
                                                                               1024 * 128);
-        
         this.defaultAffinity = new boolean[this.num_cores];
         Arrays.fill(this.defaultAffinity, true);
         
-        // IMPORTANT: There is a funkiness with the JVM on linux where the first core
-        // is always used for internal system threads. So if we put anything
-        // import on the first core, then it will always run slower.
-        if (this.num_cores > 4 && this.num_partitions < this.num_cores) {
-            this.ee_core_offset = 1;
-        } else {
-            this.ee_core_offset = 0;
-        }
+        Host host = hstore_site.getHost();
+        Collection<Site> sites = CatalogUtil.getSitesForHost(host);
+        Collection<Partition> host_partitions = CatalogUtil.getPartitionsForHost(host);
         
-        this.disable = (this.num_cores <= this.num_partitions);
         if (hstore_conf.site.cpu_affinity == false) {
             this.disable = true;
+            this.ee_core_offset = 0;
         }
-        else if (this.disable) {
-            if (debug.get())
-                LOG.warn(String.format("Unable to set CPU affinity - There are %d partitions but only %d available cores",
-                                       this.num_partitions, this.num_cores));
+        else if (this.num_cores <= host_partitions.size()) {
+//            if (debug.get())
+                LOG.warn(String.format("Unable to set CPU affinity on %s because there are %d partitions " +
+                		               "but only %d available cores",
+                                       host.getIpaddr(), host_partitions.size(), this.num_cores));
+            this.disable = true;
+            this.ee_core_offset = 0;
         }
         else {
-            for (int i = 0; i < this.num_partitions; i++) {
-                this.defaultAffinity[i+this.ee_core_offset] = false;
+            // IMPORTANT: There is a funkiness with the JVM on linux where the first core
+            // is always used for internal system threads. So if we put anything
+            // import on the first core, then it will always run slower.
+            int ee_core_offset = 0;
+            if (this.num_cores > 4 && this.num_partitions < this.num_cores) {
+                ee_core_offset = 1;
+            }
+            for (int i = 0; i < host_partitions.size(); i++) {
+                this.defaultAffinity[i+ee_core_offset] = false;
             } // FOR
+            
+            // IMPORTANT: If there are multiple sites at this node, then we need
+            // to make sure that we offset ourselves so that we don't overlap.
+            if (sites.size() != 1) {
+                for (Site site : sites) {
+                    if (site != hstore_site.getSite()) {
+                        ee_core_offset += site.getPartitions().size();
+                    } else {
+                        break;
+                    }
+                } // FOR
+            }
+            if (debug.get()) LOG.debug("EE CPU Core Offset: " + ee_core_offset);
+            this.ee_core_offset = ee_core_offset;
             
             // Reserve the lowest cores for the various utility threads
             if ((this.num_cores - this.num_partitions) > this.utility_suffixes.length) {
@@ -110,6 +131,7 @@ public class HStoreThreadManager {
                     this.utilityAffinities.put(this.utility_suffixes[i], affinity);
                 } // FOR
             }
+            if (debug.get()) LOG.debug("Default CPU Affinity: " + Arrays.toString(this.defaultAffinity));
         }
     }
     

@@ -1,5 +1,6 @@
 package edu.brown.catalog;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,7 +42,7 @@ public class TestFixCatalog extends BaseTestCase {
 
         for (Host catalog_host : catalog_clus.getHosts()) {
             assertNotNull(catalog_host);
-            List<Site> sites = CatalogUtil.getSitesForHost(catalog_host);
+            Collection<Site> sites = CatalogUtil.getSitesForHost(catalog_host);
             assertEquals(sites.toString(), NUM_SITES_PER_HOST, sites.size());
 
             for (Site catalog_site : sites) {

@@ -865,13 +865,15 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_host
      * @return
      */
-    public static List<Site> getSitesForHost(Host catalog_host) {
+    public static Collection<Site> getSitesForHost(Host catalog_host) {
         List<Site> sites = new ArrayList<Site>();
         Cluster cluster = (Cluster) catalog_host.getParent();
         for (Site catalog_site : cluster.getSites()) {
             if (catalog_site.getHost().getName().equals(catalog_host.getName()))
                 sites.add(catalog_site);
         } // FOR
+        // Sort them by id
+        Collections.sort(sites, new CatalogFieldComparator<Site>("id"));
         return (sites);
     }
     

@@ -15,8 +15,9 @@ traces/
 *.png
 *.csv
 *.markov
-junitvmwatcher*
 *.hprof
+.~lock*
+junitvmwatcher*
 buildstring.txt
 debugoutput
 .depcache

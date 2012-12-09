@@ -434,8 +434,8 @@ public class TestCatalogUtil extends BaseTestCase {
         } // FOR
 
         for (Host catalog_host : catalog_clus.getHosts()) {
-            List<Site> sites = CatalogUtil.getSitesForHost(catalog_host);
-            List<Site> expected = host_sites.get(catalog_host);
+            Collection<Site> sites = CatalogUtil.getSitesForHost(catalog_host);
+            Collection<Site> expected = host_sites.get(catalog_host);
             assertEquals(expected.size(), sites.size());
             assert (sites.containsAll(expected));
         } // FOR
