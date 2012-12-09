@@ -2,7 +2,6 @@ package edu.brown.hstore.stats;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.voltdb.StatsSource;
@@ -38,9 +37,7 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
     
     @Override
     protected Iterator<Object> getStatsRowKeyIterator(boolean interval) {
-        List<Integer> siteIds = new ArrayList<Integer>();
-        siteIds.add(this.hstore_site.getSiteId());
-        final Iterator<Integer> it = siteIds.iterator();
+        final Iterator<Integer> it = hstore_site.getLocalPartitionIds().iterator();
         return new Iterator<Object>() {
             @Override
             public boolean hasNext() {
@@ -60,6 +57,7 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
     @Override
     protected void populateColumnSchema(ArrayList<ColumnInfo> columns) {
         super.populateColumnSchema(columns);
+        columns.add(new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING));
         
         // Make a dummy profiler just so that we can get the fields from it
         TransactionQueueManagerProfiler profiler = new TransactionQueueManagerProfiler(1);
@@ -78,7 +76,9 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
 
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
-        TransactionQueueManagerProfiler profiler = this.queue_manager.getProfiler();
+        int partition = (Integer)rowKey;
+        TransactionQueueManager.Debug dbg = this.queue_manager.getDebugContext();
+        TransactionQueueManagerProfiler profiler = dbg.getProfiler(partition);
         
         int offset = this.columnNameToIndex.get("AVG_CONCURRENT");
         rowValues[offset++] = MathUtil.weightedMean(profiler.concurrent_dtxn);

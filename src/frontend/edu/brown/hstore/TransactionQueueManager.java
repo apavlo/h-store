@@ -67,8 +67,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     private long wait_time;
     
-    private final TransactionQueueManagerProfiler profiler;
-    
     // ----------------------------------------------------------------------------
     // TRANSACTION PARTITION LOCKS QUEUES
     // ----------------------------------------------------------------------------
@@ -90,6 +88,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * The txnId that currently has the lock for each partition
      */
     private final boolean[] lockQueuesBlocked;
+    
+    private final TransactionQueueManagerProfiler[] profilers;
+
     
     // ----------------------------------------------------------------------------
     // BLOCKED DISTRIBUTED TRANSACTIONS
@@ -167,11 +168,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
-        this.profiler = new TransactionQueueManagerProfiler(num_partitions);
         this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
         this.lockQueuesBlocked = new boolean[this.lockQueues.length];
         this.lockQueuesLastTxn = new Long[this.lockQueues.length];
         this.initQueues = new Queue[num_partitions];
+        this.profilers = new TransactionQueueManagerProfiler[num_partitions];
         
         this.updateConf(this.hstore_conf);
         
@@ -182,6 +183,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.lockQueues[partition] = new TransactionInitPriorityQueue(hstore_site, partition, this.wait_time);
                 this.lockQueuesBlocked[partition] = false;
                 this.initQueues[partition] = new ConcurrentLinkedQueue<AbstractTransaction>();
+                this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
             }
         } // FOR
         
@@ -212,14 +214,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug("Starting distributed transaction queue manager thread");
         
         while (this.stop == false) {
-            if (hstore_conf.site.queue_profiling) profiler.idle.start();
+            // if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
                 // this.checkFlag.tryAcquire(this.wait_time*2, TimeUnit.MILLISECONDS);
                 this.checkFlag.tryAcquire(5, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 // Nothing...
             } finally {
-                if (hstore_conf.site.queue_profiling && profiler.idle.isStarted()) profiler.idle.stop();
+                // if (hstore_conf.site.queue_profiling && profiler.idle.isStarted()) profiler.idle.stop();
             }
             
 //            if (t) LOG.trace("Checking partition queues for dtxns to release!");
@@ -236,25 +238,25 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
 //            if (hstore_conf.site.queue_profiling && profiler.init_queue.isStarted()) profiler.init_queue.stop();
             
             // Release blocked distributed transactions
-            if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
+//            if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
             this.checkBlockedQueue();
-            if (hstore_conf.site.queue_profiling && profiler.block_queue.isStarted()) profiler.block_queue.stop();
+//            if (hstore_conf.site.queue_profiling && profiler.block_queue.isStarted()) profiler.block_queue.stop();
             
             // Requeue mispredicted local transactions
-            if (hstore_conf.site.queue_profiling) profiler.restart_queue.start();
+//            if (hstore_conf.site.queue_profiling) profiler.restart_queue.start();
             this.checkRestartQueue();
-            if (hstore_conf.site.queue_profiling && profiler.restart_queue.isStarted()) profiler.restart_queue.stop();
+//            if (hstore_conf.site.queue_profiling && profiler.restart_queue.isStarted()) profiler.restart_queue.stop();
             
             // Count the number of unique concurrent dtxns
-            if (hstore_conf.site.queue_profiling) {
-                profiler.concurrent_dtxn_ids.clear();
-                for (int partition: this.localPartitions.values()) {
-                    if (this.lockQueuesLastTxn[partition].longValue() >= 0) {
-                        profiler.concurrent_dtxn_ids.add(this.lockQueuesLastTxn[partition]);   
-                    }
-                } // FOR
-                profiler.concurrent_dtxn.put(profiler.concurrent_dtxn_ids.size());
-            }
+//            if (hstore_conf.site.queue_profiling) {
+//                profiler.concurrent_dtxn_ids.clear();
+//                for (int partition: this.localPartitions.values()) {
+//                    if (this.lockQueuesLastTxn[partition].longValue() >= 0) {
+//                        profiler.concurrent_dtxn_ids.add(this.lockQueuesLastTxn[partition]);   
+//                    }
+//                } // FOR
+//                profiler.concurrent_dtxn.put(profiler.concurrent_dtxn_ids.size());
+//            }
             
         } // WHILE
     }
@@ -298,6 +300,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // ----------------------------------------------------------------------------
 
     protected void checkInitQueue(int partition, int max) {
+        if (hstore_conf.site.queue_profiling) profilers[partition].init_queue.start();
         // Process initialization queue
         int added = 0;
         AbstractTransaction next_init = null;
@@ -306,6 +309,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             this.lockQueueInsert(next_init, partition, wrapper);
             if (++added > max) break;
         } // WHILE
+        if (hstore_conf.site.queue_profiling) profilers[partition].init_queue.stop();
     }
     
     /**
@@ -314,15 +318,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * Returns true if we released a transaction at at least one partition
      */
     protected AbstractTransaction checkLockQueue(int partition) {
+        if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.start();
         if (d) LOG.debug(String.format("Checking lock queue for partition %d [initSize=%d, lockSize=%d]",
                          partition, this.initQueues[partition].size(), this.lockQueues[partition].size()));
         
-        // Process initialization queue
-        this.checkInitQueue(partition, 100);
-
         if (this.lockQueuesBlocked[partition] != false) {
             if (d) LOG.warn(String.format("Partition %d is already executing a transaction %d. Skipping...",
                              this.lockQueuesLastTxn[partition], partition));
+            if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.stop();
             return (null);
         }
         
@@ -370,6 +373,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 		         "[queueSize=%d]",
                                  partition, next, this.lockQueuesLastTxn[partition],
                                  this.lockQueues[partition].size()));
+                if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.stop();
                 this.rejectTransaction(next,
                                        Status.ABORT_RESTART,
                                        partition,
@@ -400,6 +404,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d && next != null && next.isPredictSinglePartition() == false)
             LOG.debug(String.format("Finished processing lock queue for partition %d [next=%s]",
                       partition, next));
+        if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.stop();
         return (next);
     }
     
@@ -802,10 +807,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
     }
     
-    public TransactionQueueManagerProfiler getProfiler() {
-        return this.profiler;
-    }
-    
     @Override
     public void prepareShutdown(boolean error) {
         // Nothing for now
@@ -873,6 +874,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
         public Histogram<Integer> getBlockedDtxnHistogram() {
             return (blockedQueueHistogram);
+        }
+        public TransactionQueueManagerProfiler getProfiler(int partition) {
+            return (profilers[partition]);
         }
         /**
          * Returns true if all of the partition's lock queues are empty

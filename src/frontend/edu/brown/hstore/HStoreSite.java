@@ -88,6 +88,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -1867,13 +1868,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionInit(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
         assert(ts.isInitialized()) : "Uninitialized transaction handle [" + ts + "]";
         
-//        for (int partition : ts.getPredictTouchedPartitions().values()) {
-//            if (this.isLocalPartition(partition)) {
-//                this.executors[partition].queueInit(ts);
-//            }
-//        } // FOR
+        TransactionInitQueueCallback wrapper = ts.initTransactionInitQueueCallback(callback);
+        assert(wrapper.isInitialized());
+        for (int partition : ts.getPredictTouchedPartitions().values()) {
+            if (this.isLocalPartition(partition)) {
+                this.executors[partition].queueInit(ts);
+            }
+        } // FOR
         
-        this.txnQueueManager.initTransaction(ts, callback);
+        // this.txnQueueManager.initTransaction(ts, callback);
     }
 
     /**

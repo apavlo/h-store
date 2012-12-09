@@ -983,6 +983,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 
         // TODO: If we get something back here, it should be come our
         // current distributed transaction.
+        // XXX this.queueManager.checkInitQueue(this.partitionId, 10);
         if (this.currentDtxn == null) {
             EstTimeUpdater.update(System.currentTimeMillis());
             AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
@@ -992,7 +993,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 return (false);
             }
         }
-        this.queueManager.checkInitQueue(this.partitionId, 10);
 
         LocalTransaction spec_ts = null;
         InternalMessage work = null;
@@ -1071,8 +1071,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         else if (work instanceof DeferredQueryMessage) {
             DeferredQueryMessage def_work = (DeferredQueryMessage)work;
             
-            // TODO: Set the txnId in our handle to be what the original txn was that
-            //       deferred this query.
+            // Set the txnId in our handle to be what the original txn was that
+            // deferred this query.
             tmp_def_stmt[0] = def_work.getStmt();
             tmp_def_params[0] = def_work.getParams();
             tmp_def_txn.init(def_work.getTxnId(), 
@@ -1162,7 +1162,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * Process an InternalTxnMessage
      * @param work
      */
-    protected void processInternalTxnMessage(InternalTxnMessage work) {
+    private void processInternalTxnMessage(InternalTxnMessage work) {
         AbstractTransaction ts = work.getTransaction();
         this.currentTxn = ts;
         this.currentTxnId = ts.getTransactionId();
@@ -1538,14 +1538,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             else if (attachedInputs.containsKey(input_dep_id)) {
                 List<VoltTable> deps = attachedInputs.get(input_dep_id);
                 List<VoltTable> pDeps = null;
-                // XXX: Do we actually need to copy these???
-                // XXX: I think we only need to copy if we're debugging the tables!
+                // We have to copy the tables if we have debugging enabled
                 if (d) { // this.firstPartition == false) {
                     pDeps = new ArrayList<VoltTable>();
                     for (VoltTable vt : deps) {
-                        // TODO: Move into VoltTableUtil
                         ByteBuffer buffer = vt.getTableDataReference();
-                        byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
+                        byte arr[] = new byte[vt.getUnderlyingBufferSize()];
                         buffer.get(arr, 0, arr.length);
                         pDeps.add(new VoltTable(ByteBuffer.wrap(arr), true));
                     }
@@ -1886,8 +1884,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     // TODO: Right now our current dtxn marker is a single value. We may want to 
                     //       switch it to a FIFO queue so that we can multiple guys hanging around.
                     //       For now we will just do the default thing and block this txn
-                    this.blockTransaction(ts); // FIXME
-                    return; // FIXME
+                    this.blockTransaction(ts);
+                    return;
                 }
                 // If it's not local, then we just have to block it right away
                 else {
