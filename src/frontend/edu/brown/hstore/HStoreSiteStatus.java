@@ -315,8 +315,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                   ci.getMaxPendingTxnBytes(),
                                   ci.getReleasePendingTxnBytes(),
                                   (ci.hasBackPressure() ? " / *THROTTLED*" : ""));
-            siteInfo.put("BackPressure Counter", ci.getBackPressureCount());
             siteInfo.put("Client Interface Queue", value);
+            siteInfo.put("BackPressure Counter", ci.getBackPressureCount());
         }
         
         if (hstore_conf.site.profiling && hstore_site.getProfiler() != null) {
@@ -428,7 +428,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         }
         
         // Last Deleted Txns
-        siteInfo.put("Last Deleted", StringUtil.join("\n", siteDebug.getLastDeletedTxns()));
+        Collection<String> lastDeleted = siteDebug.getLastDeletedTxns();
+        if (lastDeleted.isEmpty() == false) {
+            siteInfo.put("Last Deleted", StringUtil.join("\n", lastDeleted));
+        }
 
         return (siteInfo);
     }
