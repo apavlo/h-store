@@ -57,7 +57,7 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
     @Override
     protected void populateColumnSchema(ArrayList<ColumnInfo> columns) {
         super.populateColumnSchema(columns);
-        columns.add(new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING));
+        columns.add(new VoltTable.ColumnInfo("PARTITION", VoltType.INTEGER));
         
         // Make a dummy profiler just so that we can get the fields from it
         TransactionQueueManagerProfiler profiler = new TransactionQueueManagerProfiler(1);
@@ -80,7 +80,8 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         TransactionQueueManager.Debug dbg = this.queue_manager.getDebugContext();
         TransactionQueueManagerProfiler profiler = dbg.getProfiler(partition);
         
-        int offset = this.columnNameToIndex.get("AVG_CONCURRENT");
+        int offset = this.columnNameToIndex.get("PARTITION");
+        rowValues[offset++] = partition;
         rowValues[offset++] = MathUtil.weightedMean(profiler.concurrent_dtxn);
         
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
