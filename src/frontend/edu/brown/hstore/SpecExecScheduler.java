@@ -123,9 +123,7 @@ public class SpecExecScheduler implements Loggable {
         Procedure dtxnProc = dtxn.getProcedure();
         if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
             if (d) LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists", dtxn));
-            if (this.isProfiling) {
-                profiler.total_time.stop();
-            }
+            if (this.isProfiling) profiler.total_time.stop();
             return (null);
         }
         
@@ -135,9 +133,7 @@ public class SpecExecScheduler implements Loggable {
         if (this.ignore_all_local && dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
             if (d) LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
                              "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
-            if (this.isProfiling) {
-                profiler.total_time.stop();
-            }
+            if (this.isProfiling) profiler.total_time.stop();
             return (null);
         }
         
@@ -191,9 +187,8 @@ public class SpecExecScheduler implements Loggable {
                                 (this.policy == SchedulerPolicy.LONGEST && remaining > best_time)) {
                                 best_time = remaining;
                                 next = localTxn;
-                                if (d)
-                                    LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
-                                              this.policy, this.window_size, next, remaining));
+                                if (d) LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
+                                                 this.policy, this.window_size, next, remaining));
                              }
                         }
                     }
@@ -211,17 +206,12 @@ public class SpecExecScheduler implements Loggable {
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
         if (next != null) {
-            if (this.isProfiling) {
-                profiler.success++;
-            }
+            if (this.isProfiling) profiler.success++;
             it.remove();
-            if (d) 
-                LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
+            if (d) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         
-        if (this.isProfiling) { 
-            profiler.total_time.stop();
-        }
+        if (this.isProfiling) profiler.total_time.stop();
         return (next);
     }
     

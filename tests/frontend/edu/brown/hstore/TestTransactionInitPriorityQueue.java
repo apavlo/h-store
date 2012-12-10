@@ -161,6 +161,25 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     }
     
     /**
+     * testConcurrentRemoveIterator
+     */
+    @Test
+    public void testConcurrentRemoveIterator() throws Exception {
+        List<Long> added = new ArrayList<Long>(this.loadQueue(10));
+        assertEquals(added.size(), this.queue.size());
+        Collections.shuffle(added);
+        Long toDelete = CollectionUtil.last(added);
+        
+        Set<Long> found = new HashSet<Long>();
+        for (Long txnId : this.queue) {
+            if (found.isEmpty()) this.queue.remove(toDelete);
+            else this.queue.cleanup(toDelete);
+            found.add(txnId);
+        } // FOR
+        assertFalse(found.contains(toDelete));
+    }
+    
+    /**
      * testPoll
      */
     @Test

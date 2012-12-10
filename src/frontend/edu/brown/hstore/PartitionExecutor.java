@@ -1022,7 +1022,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // IMPORTANT: We need to make sure that we remove this transaction for the lock queue
                 // before we execute it so that we don't try to run it again.
                 // We have to do this now because otherwise we may get the same transaction again
-                this.queueManager.getInitQueue(this.partitionId).remove(spec_ts.getTransactionId());
+                assert(this.queueManager.getInitQueue(this.partitionId).contains(spec_ts.getTransactionId()) == false) :
+                    String.format("Failed to remove speculative %s before executing", spec_ts);
                 
                 // It's also important that we cancel this txn's init queue callback, otherwise
                 // it will never get cleaned up properly. This is necessary in order to support

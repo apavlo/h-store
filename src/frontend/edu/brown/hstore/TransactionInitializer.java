@@ -248,7 +248,9 @@ public class TransactionInitializer {
         }
         
         // Initialize our LocalTransaction handle
+        Long txn_id = this.registerTransaction(ts, base_partition);
         this.populateProperties(ts,
+                                txn_id,
                                 initiateTime,
                                 client_handle,
                                 base_partition,
@@ -491,6 +493,7 @@ public class TransactionInitializer {
      * @param client_callback
      */
     private void populateProperties(LocalTransaction ts,
+                                    Long txn_id,
                                     long initiateTime,
                                     long client_handle,
                                     int base_partition,
@@ -498,7 +501,6 @@ public class TransactionInitializer {
                                     ParameterSet params,
                                     RpcCallback<ClientResponseImpl> client_callback) {
         
-        Long txn_id = this.registerTransaction(ts, base_partition);
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
         PartitionSet predict_partitions = null;

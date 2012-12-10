@@ -190,10 +190,12 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
     }
     
     protected boolean cleanup(Long txnId) {
-        boolean retval = this.removed.remove(txnId);
-        if (retval) {
-            retval = super.remove(txnId);
-        }
+        // We'll just blindly delete from both. We have to make sure that
+        // we delete it from our queue first before we delete it from our removed set
+        boolean retval;
+        retval = super.remove(txnId);
+        retval = this.removed.remove(txnId) || retval;
+        if (d) LOG.debug(String.format("Partition %d :: cleanup(%d) -> %s", this.partitionId, txnId, retval));
         return (retval);
     }
 
@@ -209,7 +211,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
         if (d) {
             if (this.lastTxnIdPopped != null && this.lastTxnIdPopped.compareTo(txnId) > 0) {
                 LOG.warn(String.format("Txn ordering deadlock at Partition %d ::> LastTxn: %s / NewTxn: %s",
-                                       this.partitionId, this.lastTxnIdPopped, txnId));
+                         this.partitionId, this.lastTxnIdPopped, txnId));
                 LOG.warn("LAST: " + this.lastTxnIdPopped);
                 LOG.warn("NEW:  " + txnId);
             }

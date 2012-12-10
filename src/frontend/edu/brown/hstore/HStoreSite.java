@@ -583,7 +583,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                       catalog_site.getProc_port(),
                                                       null);
         
-        
         // -------------------------------
         // TRANSACTION PROCESSING THREADS
         // -------------------------------
