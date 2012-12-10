@@ -14,7 +14,6 @@ import org.voltdb.utils.EstTimeUpdater;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
@@ -56,19 +55,19 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     // UTILITY METHODS
     // --------------------------------------------------------------------------------------------
     
-    private Collection<LocalTransaction> loadQueue(int num_txns) {
-        Collection<LocalTransaction> added = new TreeSet<LocalTransaction>();
+    private Collection<Long> loadQueue(int num_txns) {
+        Collection<Long> added = new TreeSet<Long>();
         for (long i = 0; i < num_txns; i++) {
             LocalTransaction ts = new LocalTransaction(this.hstore_site);
             Long txnId = this.idManager.getNextUniqueTransactionId();
             ts.testInit(txnId, 0, new PartitionSet(1), this.catalog_proc);
             
             // I think that we need to do this...
-            this.queue.noteTransactionRecievedAndReturnLastSeen(ts);
+            this.queue.noteTransactionRecievedAndReturnLastSeen(txnId);
             
-            boolean ret = this.queue.offer(ts);
+            boolean ret = this.queue.offer(txnId);
             assert(ret);
-            added.add(ts);
+            added.add(txnId);
         } // FOR
         return (added);
     }
@@ -82,15 +81,15 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
      */
     @Test
     public void testOutOfOrderExecution() throws Exception {
-        Collection<LocalTransaction> added = this.loadQueue(NUM_TXNS);
+        Collection<Long> added = this.loadQueue(NUM_TXNS);
         assertEquals(added.size(), this.queue.size());
         
         // Now grab the last one and pop it out
-        LocalTransaction ts = CollectionUtil.last(added);
-        assertTrue(this.queue.remove(ts));
+        Long last = CollectionUtil.last(added);
+        assertTrue(this.queue.remove(last));
         
         // Now we should be able to remove the first of these mofos
-        Iterator<LocalTransaction> it = added.iterator();
+        Iterator<Long> it = added.iterator();
         for (int i = 0; i < NUM_TXNS-1; i++) {
             ThreadUtil.sleep(TXN_DELAY);
             EstTimeUpdater.update(System.currentTimeMillis());
@@ -104,7 +103,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
      */
     @Test
     public void testRemove() throws Exception {
-        Collection<LocalTransaction> added = this.loadQueue(1);
+        Collection<Long> added = this.loadQueue(1);
         assertEquals(added.size(), this.queue.size());
         
         // Remove the first. Make sure that poll() doesn't return it
@@ -116,11 +115,11 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         EstTimeUpdater.update(System.currentTimeMillis());
         // System.err.println(StringUtil.repeat("-", 100));
         this.queue.checkQueueState();
-        AbstractTransaction first = CollectionUtil.first(added);
+        Long first = CollectionUtil.first(added);
         assertEquals(first, this.queue.peek());
         assertTrue(this.queue.remove(first));
         
-        AbstractTransaction poll = this.queue.poll();
+        Long poll = this.queue.poll();
         assertNotSame(first, poll);
     }
     
@@ -129,10 +128,10 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
      */
     @Test
     public void testPoll() throws Exception {
-        Collection<LocalTransaction> added = this.loadQueue(NUM_TXNS);
+        Collection<Long> added = this.loadQueue(NUM_TXNS);
         assertEquals(added.size(), this.queue.size());
         
-        Iterator<LocalTransaction> it = added.iterator();
+        Iterator<Long> it = added.iterator();
         for (int i = 0; i < NUM_TXNS; i++) {
             ThreadUtil.sleep(TXN_DELAY);
             EstTimeUpdater.update(System.currentTimeMillis());

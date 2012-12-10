@@ -6,7 +6,6 @@ import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.SpeculationType;
 
@@ -37,8 +36,7 @@ public class SpecExecScheduler implements Loggable {
         t = trace.get();
     }
     
-    @SuppressWarnings("unused")
-    private final CatalogContext catalogContext;
+    private final HStoreSite hstore_site;
     private final int partitionId;
     private final TransactionInitPriorityQueue work_queue;
     private AbstractConflictChecker checker;
@@ -72,13 +70,14 @@ public class SpecExecScheduler implements Loggable {
      * @param partitionId
      * @param work_queue
      */
-    public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, 
-                             TransactionInitPriorityQueue work_queue, SchedulerPolicy schedule_policy, int window_size) {
+    public SpecExecScheduler(HStoreSite hstore_site, AbstractConflictChecker checker,
+                             int partitionId, TransactionInitPriorityQueue work_queue,
+                             SchedulerPolicy schedule_policy, int window_size) {
         assert(schedule_policy != null) : "Unsupported schedule policy parameter passed in";
         
+        this.hstore_site = hstore_site;
         this.partitionId = partitionId;
         this.work_queue = work_queue;
-        this.catalogContext = catalogContext;
         this.checker = checker;
         this.policy = schedule_policy;
         this.window_size = window_size;
@@ -145,7 +144,7 @@ public class SpecExecScheduler implements Loggable {
         // Now peek in the queue looking for single-partition txns that do not
         // conflict with the current dtxn
         LocalTransaction next = null;
-        Iterator<AbstractTransaction> it = this.work_queue.iterator();
+        Iterator<Long> it = this.work_queue.iterator();
         int txn_ctr = 0;
         int examined_ctr = 0;
         long best_time = (this.policy == SchedulerPolicy.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
@@ -154,28 +153,30 @@ public class SpecExecScheduler implements Loggable {
             profiler.queue_size.put(this.work_queue.size());
         }
         while (it.hasNext()) {
-            AbstractTransaction _tmp = it.next();
-            boolean singlePartition = _tmp.isPredictSinglePartition();
+            Long txnId = it.next();
+            AbstractTransaction txn = hstore_site.getTransaction(txnId);
+            assert(txn != null) : String.format("Unknown transaction '%d'", txnId);
+            boolean singlePartition = txn.isPredictSinglePartition();
             txn_ctr++;
 
             // Skip any distributed or non-local transactions
-            if ((_tmp instanceof LocalTransaction) == false || singlePartition == false) {
-                if (t) LOG.trace(String.format("%s - Skipping speculative candidate %s", dtxn, _tmp));
+            if ((txn instanceof LocalTransaction) == false || singlePartition == false) {
+                if (t) LOG.trace(String.format("%s - Skipping speculative candidate %s", dtxn, txn));
                 continue;
             }
 
             // Let's check it out!
             if (this.isProfiling) profiler.compute_time.start();
-            LocalTransaction ts = (LocalTransaction)_tmp;
-            if (d) LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", ts, dtxn));
+            LocalTransaction localTxn = (LocalTransaction)txn;
+            if (d) LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", localTxn, dtxn));
             if (singlePartition == false) {
-                if (t) LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, ts));
+                if (t) LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, localTxn));
                 continue;
             }
             try {
-                if (this.checker.canExecute(dtxn, ts, this.partitionId)) {
+                if (this.checker.canExecute(dtxn, localTxn, this.partitionId)) {
                     if (next == null) {
-                        next = ts;
+                        next = localTxn;
                         // Scheduling Policy: FIRST MATCH
                         if (this.policy == SchedulerPolicy.FIRST) {
                             break;
@@ -183,13 +184,13 @@ public class SpecExecScheduler implements Loggable {
                     }
                     // Scheduling Policy: Estimated Time Remaining
                     else {
-                        EstimatorState es = ts.getEstimatorState();
+                        EstimatorState es = localTxn.getEstimatorState();
                         if (es != null) {
                             long remaining = es.getLastEstimate().getRemainingExecutionTime();
                             if ((this.policy == SchedulerPolicy.SHORTEST && remaining < best_time) ||
                                 (this.policy == SchedulerPolicy.LONGEST && remaining > best_time)) {
                                 best_time = remaining;
-                                next = ts;
+                                next = localTxn;
                                 if (d)
                                     LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
                                               this.policy, this.window_size, next, remaining));

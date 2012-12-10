@@ -806,7 +806,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                hstore_conf.site.specexec_scheduler_policy);
         TransactionInitPriorityQueue queue = this.queueManager.getInitQueue(this.partitionId);
         assert(queue.getPartitionId() == this.partitionId);
-        this.specExecScheduler = new SpecExecScheduler(this.catalogContext,
+        this.specExecScheduler = new SpecExecScheduler(this.hstore_site,
                                                        this.specExecChecker,
                                                        this.partitionId,
                                                        queue,
