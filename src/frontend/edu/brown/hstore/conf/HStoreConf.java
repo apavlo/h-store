@@ -1595,7 +1595,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Output a histogram at the end of a benchmark run of the different transaction " +
                         "response status codes that the database returned to the clients.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=false
         )
         public boolean output_status;

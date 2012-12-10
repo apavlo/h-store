@@ -49,6 +49,7 @@ public class TPCCEstimator extends FixedEstimator {
         return (this.neworder_hack_hashes[w_id]);
     }
     
+    @SuppressWarnings("unchecked")
     @Override
     public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
@@ -84,9 +85,9 @@ public class TPCCEstimator extends FixedEstimator {
         
         ret.createInitialEstimate(partitions, readonly, EMPTY_PARTITION_SET);
         return (ret);
-        
     }
     
+    @SuppressWarnings("unchecked")
     @Override
     public Estimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions) {
         return state.getInitialEstimate();

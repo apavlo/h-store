@@ -553,6 +553,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
     }
 
+    @Deprecated
     protected void initTransaction(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
         // Initialize their TransactionInitQueueCallback
         TransactionInitQueueCallback wrapper = ts.initTransactionInitQueueCallback(callback);
@@ -614,7 +615,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                            "[status=%s, rejectPartition=%d, rejectTxnId=%s]",
                                            ts, status, reject_partition, reject_txnId);
                 if (d) LOG.warn(msg, ex); 
-                System.err.println(Thread.currentThread() + "\n" + StringUtil.stacktrace(ex));
                 throw new RuntimeException(msg, ex);
             }
         }
