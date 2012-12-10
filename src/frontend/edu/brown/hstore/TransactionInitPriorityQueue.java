@@ -1,7 +1,9 @@
 package edu.brown.hstore;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
@@ -54,6 +56,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
     private Long lastSeenTxnId = null;
     private Long lastTxnIdPopped = null;
     private Long nextTxnId = null;
+    private final Set<Long> removed = new HashSet<Long>();
     
     /**
      * Constructor
@@ -73,18 +76,19 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
     @Override
     public Long poll() {
         Long retval = null;
-        
-        // These invocations of poll() can return null if the next
-        // txn was speculatively executed
-        
-        if (this.state == QueueState.BLOCKED_SAFETY) {
-            if (EstTime.currentTimeMillis() >= this.blockTime) {
+        while (true) {
+            if (this.state == QueueState.UNBLOCKED ||
+                (this.state == QueueState.BLOCKED_SAFETY && EstTime.currentTimeMillis() >= this.blockTime)) {
                 retval = super.poll();
+                if (retval != null && this.removed.contains(retval)) {
+                    this.removed.remove(super.poll());
+                    this.checkQueueState();
+                    continue;
+                }
             }
-        } else if (this.state == QueueState.UNBLOCKED) {
-//            assert(checkQueueState() == QueueState.UNBLOCKED);
-            retval = super.poll();
-        }
+            break;
+        } // WHILE
+        
         if (t) LOG.trace(String.format("Partition %d :: poll() -> %s", this.partitionId, retval));
         if (retval != null) {
             assert(this.nextTxnId.equals(retval)) : 
@@ -156,19 +160,40 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
     @Override
     public boolean remove(Object obj) {
         Long txnId = (Long)obj;
-        boolean retval = super.remove(txnId);
+        // 2012-12-10
+        // Instead of immediately deleting the txnId from our queue, we're
+        // just going to mark it as deleted and then clean it up later on...
+        // boolean retval = super.remove(txnId);
+        boolean retval = this.removed.add(txnId);
         boolean checkQueue = false;
         if (this.nextTxnId != null && this.nextTxnId == txnId) {
             this.nextTxnId = null;
             checkQueue = true;
         }
         // Sanity Check
-        assert(super.contains(txnId) == false) :
-            "Failed to remove " + txnId + "???\n" + this.debug();
+//        assert(super.contains(txnId) == false) :
+//            "Failed to remove " + txnId + "???\n" + this.debug();
         if (d) LOG.debug(String.format("Partition %d :: remove(%s) -> %s",
                          this.partitionId, txnId, retval));
         if (checkQueue) this.checkQueueState();
         return retval;
+    }
+    
+    @Override
+    public boolean contains(Object obj) {
+        if (obj instanceof Long) {
+            Long txnId = (Long)obj;
+            return (this.removed.contains(txnId) ? false : super.contains(txnId));
+        }
+        return (false);
+    }
+    
+    protected boolean cleanup(Long txnId) {
+        boolean retval = this.removed.remove(txnId);
+        if (retval) {
+            retval = super.remove(txnId);
+        }
+        return (retval);
     }
 
     /**
@@ -219,7 +244,16 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
 
     protected QueueState checkQueueState() {
         QueueState newState = QueueState.UNBLOCKED;
-        Long txnId = super.peek();
+        Long txnId = null;
+        while (true) {
+            txnId = super.peek();
+            if (txnId != null && this.removed.contains(txnId)) {
+                this.removed.remove(super.poll());
+                continue;
+            }
+            break;
+        } // WHILE
+        
         if (txnId == null) {
             if (t) LOG.trace(String.format("Partition %d :: Queue is empty.", this.partitionId));
             newState = QueueState.BLOCKED_EMPTY;

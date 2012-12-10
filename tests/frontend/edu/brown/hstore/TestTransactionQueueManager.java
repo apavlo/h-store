@@ -1,5 +1,7 @@
 package edu.brown.hstore;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
@@ -29,12 +31,12 @@ public class TestTransactionQueueManager extends BaseTestCase {
     private static final int NUM_PARTITONS = 4;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     
-    HStoreSite hstore_site;
-    HStoreConf hstore_conf;
-    Procedure catalog_proc;
-    TransactionIdManager idManager;
-    TransactionQueueManager queueManager;
-    TransactionQueueManager.Debug dbg;
+    private HStoreSite hstore_site;
+    private HStoreConf hstore_conf;
+    private TransactionIdManager idManager;
+    private TransactionQueueManager queueManager;
+    private TransactionQueueManager.Debug dbg;
+    private final Map<Long, AbstractTransaction> txns = new HashMap<Long, AbstractTransaction>();
     
     class MockCallback implements RpcCallback<TransactionInitResponse> {
         Semaphore lock = new Semaphore(0);
@@ -58,11 +60,16 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         assertNotNull(catalog_site);
-        this.hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, HStoreConf.singleton());
+        this.hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, HStoreConf.singleton()) {
+            @SuppressWarnings("unchecked")
+            @Override
+            public <T extends AbstractTransaction> T getTransaction(Long txn_id) {
+                return (T)(txns.get(txn_id));
+            }
+        };
         this.idManager = hstore_site.getTransactionIdManager(0);
         this.queueManager = this.hstore_site.getTransactionQueueManager();
         this.dbg = this.queueManager.getDebugContext();
-        this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         EstTimeUpdater.update(System.currentTimeMillis());
     }
     
@@ -74,6 +81,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
         Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         ts.testInit(txn_id, 0, partitions, catalog_proc);
+        this.txns.put(txn_id, ts);
         return (ts);
     }
     

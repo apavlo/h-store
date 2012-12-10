@@ -536,7 +536,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // sitting in the queue for that partition.
         boolean removed = false;
         if (checkQueue) {
-            removed = this.lockQueues[partition].remove(ts);
+            removed = this.lockQueues[partition].remove(ts.getTransactionId());
         }
         assert(this.lockQueues[partition].contains(ts) == false);
         

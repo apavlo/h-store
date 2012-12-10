@@ -2562,14 +2562,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.remoteTxnEstimator.destroyEstimatorState(t_state);
         }
         
-        // HACK: Make sure that we remove it completely the TransactionQueueManager
-//        if (status != Status.OK) {
-//            for (int partition : ts.getPredictTouchedPartitions().values()) {
-//                if (this.local_partitions.contains(partition)) {
-//                    this.txnQueueManager.lockQueueFinished(ts, status, partition);
-//                }
-//            } // FOR
-//        }
+        // Make sure we completely remove it from the TransactionQueueManager
+        for (int partition : ts.getPredictTouchedPartitions().values()) {
+            if (this.local_partitions.contains(partition)) {
+                this.txnQueueManager.getInitQueue(partition).cleanup(txn_id);
+            }
+        } // FOR
+        
         if (hstore_conf.site.pool_txn_enable) {
             if (d) {
                 LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
@@ -2598,14 +2597,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
         
-        // HACK: Make sure that we remove it completely the TransactionQueueManager
-//        if (status != Status.OK) {
-//            for (int partition : ts.getPredictTouchedPartitions().values()) {
-//                if (this.local_partitions.contains(partition)) {
-//                    this.txnQueueManager.lockQueueFinished(ts, status, partition);
-//                }
-//            } // FOR
-//        }
+        // Make sure we completely remove it from the TransactionQueueManager
+        for (int partition : ts.getPredictTouchedPartitions().values()) {
+            if (this.local_partitions.contains(partition)) {
+                this.txnQueueManager.getInitQueue(partition).cleanup(txn_id);
+            }
+        } // FOR
         
         // Clean-up any extra information that we may have for the txn
         TransactionEstimator t_estimator = null;
