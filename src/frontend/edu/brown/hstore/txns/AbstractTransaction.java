@@ -653,15 +653,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     public boolean equals(Object obj) {
         if (obj instanceof AbstractTransaction) {
             AbstractTransaction other = (AbstractTransaction)obj;
-            if (other.txn_id == null) {
-                if (this.txn_id == null) return (this.hashCode() != other.hashCode());
-                return (false);
+            if (this.txn_id == null) {
+                return (this.hashCode() != other.hashCode());
             }
-            else if (this.txn_id == null) {
-                if (other.txn_id == null) return (this.hashCode() != other.hashCode());
-                return (false);
-            }
-            return (this.txn_id.equals(other.txn_id) && this.base_partition == other.base_partition);
+            return (this.txn_id.equals(other.txn_id));
         }
         return (false);
     }

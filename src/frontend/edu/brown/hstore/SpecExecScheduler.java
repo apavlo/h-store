@@ -15,6 +15,7 @@ import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.SpecExecProfiler;
@@ -24,12 +25,16 @@ import edu.brown.profilers.SpecExecProfiler;
  * to speculatively execute at a partition based on the current distributed transaction 
  * @author pavlo
  */
-public class SpecExecScheduler {
+public class SpecExecScheduler implements Loggable {
     private static final Logger LOG = Logger.getLogger(SpecExecScheduler.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static boolean d;
+    private static boolean t;
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
+        d = debug.get();
+        t = trace.get();
     }
     
     @SuppressWarnings("unused")
@@ -44,20 +49,20 @@ public class SpecExecScheduler {
     private boolean isProfiling = false;
     
     public enum SchedulerPolicy {
-    	  FIRST, // DEFAULT
-    	  SHORTEST,
-    	  LONGEST;
-    	  
-    	  private static final Map<String, SchedulerPolicy> name_lookup = new HashMap<String, SchedulerPolicy>();
-    	  static {
-    	      for (SchedulerPolicy e : EnumSet.allOf(SchedulerPolicy.class)) {
-    	          SchedulerPolicy.name_lookup.put(e.name().toLowerCase(), e);
-    	      } // FOR
-    	  } // STATIC
-    	  
-    	  public static SchedulerPolicy get(String name) {
-    	      return SchedulerPolicy.name_lookup.get(name.toLowerCase());
-    	  }
+          FIRST, // DEFAULT
+          SHORTEST,
+          LONGEST;
+          
+          private static final Map<String, SchedulerPolicy> name_lookup = new HashMap<String, SchedulerPolicy>();
+          static {
+              for (SchedulerPolicy e : EnumSet.allOf(SchedulerPolicy.class)) {
+                  SchedulerPolicy.name_lookup.put(e.name().toLowerCase(), e);
+              } // FOR
+          } // STATIC
+          
+          public static SchedulerPolicy get(String name) {
+              return SchedulerPolicy.name_lookup.get(name.toLowerCase());
+          }
     } // ENUM
     
     /**
@@ -68,7 +73,7 @@ public class SpecExecScheduler {
      * @param work_queue
      */
     public SpecExecScheduler(CatalogContext catalogContext, AbstractConflictChecker checker, int partitionId, 
-    		                 TransactionInitPriorityQueue work_queue, SchedulerPolicy schedule_policy, int window_size) {
+                             TransactionInitPriorityQueue work_queue, SchedulerPolicy schedule_policy, int window_size) {
         assert(schedule_policy != null) : "Unsupported schedule policy parameter passed in";
         
         this.partitionId = partitionId;
@@ -81,7 +86,7 @@ public class SpecExecScheduler {
         if (HStoreConf.singleton().site.specexec_profiling) {
             this.isProfiling = true;
             for (SpeculationType type: SpeculationType.getNameMap().values()) {
-            	this.profilerMap.put(type, new SpecExecProfiler());
+                this.profilerMap.put(type, new SpecExecProfiler());
             }
         } else {
             this.isProfiling = false; // do not need, but for explicit reason
@@ -93,7 +98,7 @@ public class SpecExecScheduler {
     }
     
     public void setWindowSize(int window) {
-    	this.window_size = window;
+        this.window_size = window;
     }
 
     /**
@@ -107,21 +112,20 @@ public class SpecExecScheduler {
      */
     public LocalTransaction next(AbstractTransaction dtxn, SpeculationType specType) {
         assert(dtxn != null) : "Null distributed transaction"; 
-    	SpecExecProfiler profiler = null;
-    	if (this.isProfiling) {
-    		profiler = profilerMap.get(specType);
-        	profiler.total_time.start();
+        SpecExecProfiler profiler = null;
+        if (this.isProfiling) {
+            profiler = profilerMap.get(specType);
+            profiler.total_time.start();
         }
         
-        if (trace.get()) LOG.trace(String.format("%s - Checking queue for transaction to speculatively execute [queueSize=%d]",
-                                   dtxn, this.work_queue.size()));
+        if (t) LOG.trace(String.format("%s - Checking queue for transaction to speculatively execute [queueSize=%d]",
+                         dtxn, this.work_queue.size()));
         
         Procedure dtxnProc = dtxn.getProcedure();
         if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
-            if (debug.get())
-                LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists", dtxn));
+            if (d) LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists", dtxn));
             if (this.isProfiling) {
-            	profiler.total_time.stop();
+                profiler.total_time.stop();
             }
             return (null);
         }
@@ -130,11 +134,10 @@ public class SpecExecScheduler {
         // on the same site, then we won't bother with trying to pick something out
         // because there is going to be very small wait times.
         if (this.ignore_all_local && dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
-            if (debug.get())
-                LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
-                		  "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
+            if (d) LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
+                             "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
             if (this.isProfiling) {
-            	profiler.total_time.stop();
+                profiler.total_time.stop();
             }
             return (null);
         }
@@ -148,27 +151,25 @@ public class SpecExecScheduler {
         long best_time = (this.policy == SchedulerPolicy.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
         
         if (this.isProfiling) {
-        	profiler.queue_size.put(this.work_queue.size());
+            profiler.queue_size.put(this.work_queue.size());
         }
         while (it.hasNext()) {
             AbstractTransaction _tmp = it.next();
+            boolean singlePartition = _tmp.isPredictSinglePartition();
             txn_ctr++;
 
             // Skip any distributed or non-local transactions
-            if ((_tmp instanceof LocalTransaction) == false || _tmp.isPredictSinglePartition() == false) {
-                if (trace.get()) 
-                        LOG.trace(String.format("%s - Skipping speculative candidate %s", dtxn, _tmp));
+            if ((_tmp instanceof LocalTransaction) == false || singlePartition == false) {
+                if (t) LOG.trace(String.format("%s - Skipping speculative candidate %s", dtxn, _tmp));
                 continue;
             }
 
             // Let's check it out!
             if (this.isProfiling) profiler.compute_time.start();
             LocalTransaction ts = (LocalTransaction)_tmp;
-            if (debug.get())
-                LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", ts, dtxn));
-            if (ts.isPredictSinglePartition() == false) {
-                if (trace.get())
-                    LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, ts));
+            if (d) LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", ts, dtxn));
+            if (singlePartition == false) {
+                if (t) LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, ts));
                 continue;
             }
             try {
@@ -182,17 +183,17 @@ public class SpecExecScheduler {
                     }
                     // Scheduling Policy: Estimated Time Remaining
                     else {
-                    	EstimatorState es = ts.getEstimatorState();
-                    	if (es != null) {
-                    		long remaining = es.getLastEstimate().getRemainingExecutionTime();
-                    		if ((this.policy == SchedulerPolicy.SHORTEST && remaining < best_time) ||
-                    		    (this.policy == SchedulerPolicy.LONGEST && remaining > best_time)) {
-                    		    best_time = remaining;
+                        EstimatorState es = ts.getEstimatorState();
+                        if (es != null) {
+                            long remaining = es.getLastEstimate().getRemainingExecutionTime();
+                            if ((this.policy == SchedulerPolicy.SHORTEST && remaining < best_time) ||
+                                (this.policy == SchedulerPolicy.LONGEST && remaining > best_time)) {
+                                best_time = remaining;
                                 next = ts;
-                                if (debug.get())
+                                if (d)
                                     LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
                                               this.policy, this.window_size, next, remaining));
-                         	}
+                             }
                         }
                     }
                     // Stop if we've reached our window size
@@ -203,22 +204,22 @@ public class SpecExecScheduler {
             }
         } // WHILE
         if (this.isProfiling) {
-        	profiler.num_comparisons.put(txn_ctr);
+            profiler.num_comparisons.put(txn_ctr);
         }
         
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
         if (next != null) {
             if (this.isProfiling) {
-            	profiler.success++;
+                profiler.success++;
             }
             it.remove();
-            if (debug.get()) 
+            if (d) 
                 LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         
         if (this.isProfiling) { 
-        	profiler.total_time.stop();
+            profiler.total_time.stop();
         }
         return (next);
     }
@@ -236,6 +237,12 @@ public class SpecExecScheduler {
     
     public Map<SpeculationType,SpecExecProfiler> getProfilers() {
         //return (this.profiler);
-    	return (this.profilerMap);
+        return (this.profilerMap);
+    }
+    
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
     }
 }

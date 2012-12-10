@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -217,7 +218,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Queues for transactions that are ready to be cleaned up and deleted
      * There is one queue for each Status type
      */
-    private final Queue<Long> deletable_txns[];
+    private final Map<Status, Queue<Long>> deletable_txns = new HashMap<Status, Queue<Long>>();
     
     private final List<Long> deletable_txns_requeue = new ArrayList<Long>();
     
@@ -421,7 +422,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param coordinators
      * @param p_estimator
      */
-    @SuppressWarnings("unchecked")
     protected HStoreSite(int site_id, CatalogContext catalogContext, HStoreConf hstore_conf) {
         assert(hstore_conf != null);
         assert(catalogContext != null);
@@ -439,9 +439,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
         
-         this.deletable_txns = new Queue[Status.values().length];
          for (Status s : Status.values()) {
-             this.deletable_txns[s.ordinal()] = new ConcurrentLinkedQueue<Long>();
+             this.deletable_txns.put(s, new ConcurrentLinkedQueue<Long>());
          } // FOR
         
         // **IMPORTANT**
@@ -2536,7 +2535,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Queue it up for deletion! There is no return for the txn from this!
         try {
-            this.deletable_txns[status.ordinal()].offer(txn_id);
+            this.deletable_txns.get(status).offer(txn_id);
         } catch (NullPointerException ex) {
             LOG.warn("STATUS = " + status);
             LOG.warn("TXN_ID = " + txn_id);
@@ -2777,7 +2776,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         Long txn_id = null;
         if (hstore_conf.site.profiling) this.profiler.cleanup.start();
         for (Status status : Status.values()) {
-            Queue<Long> queue = this.deletable_txns[status.ordinal()];
+            Queue<Long> queue = this.deletable_txns.get(status);
             while ((txn_id = queue.poll()) != null) {
                 // It's ok for us to not have a transaction handle, because it could be
                 // for a remote transaction that told us that they were going to need one
@@ -2899,8 +2898,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         public int getDeletableTxnCount() {
             int total = 0;
-            for (int i = 0; i < deletable_txns.length; i++) {
-                total += deletable_txns[i].size();
+            for (Queue<Long> q : deletable_txns.values()) {
+                total += q.size();
             }
             return (total);
         }
