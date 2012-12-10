@@ -774,7 +774,7 @@ public class BenchmarkController {
         allClientArgs.add(String.format("-Xmx%dm", m_config.clientHeapSize));
 
         // JProfiler
-        allClientArgs.add("-agentpath:/home/pavlo/Programs/jprofiler/bin/linux-x64/libjprofilerti.so=port=8849");
+        // allClientArgs.add("-agentpath:/home/pavlo/Programs/jprofiler/bin/linux-x64/libjprofilerti.so=port=8849");
         
         if (hstore_conf.client.jvm_args != null) {
             for (String arg : hstore_conf.client.jvm_args.split(" ")) {
@@ -1544,7 +1544,7 @@ public class BenchmarkController {
         if (m_config.noExecute == false) {
             if (debug.get()) 
                 LOG.warn("Killing clients");
-            // m_clientPSM.shutdown();
+            m_clientPSM.shutdown();
         }
         
         if (m_config.noShutdown == false && this.failed == false) {
