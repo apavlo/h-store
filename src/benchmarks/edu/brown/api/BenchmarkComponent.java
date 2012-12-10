@@ -749,7 +749,7 @@ public abstract class BenchmarkComponent {
         catch (final Throwable e) {
             String name = (clientMain != null ? clientMain.getProjectName()+"." : "") + clientClass.getSimpleName(); 
             LOG.error("Unexpected error while invoking " + name, e);
-            System.exit(-1);
+            throw new RuntimeException(e);
         }
         return (clientMain);
     }
@@ -819,9 +819,10 @@ public abstract class BenchmarkComponent {
             } catch (IOException ex) {
                 String msg = String.format("Failed to connect to %s on %s:%d",
                                            HStoreThreadManager.formatSiteName(site_id), host, port);
-                LOG.error(msg, ex);
-                setState(ControlState.ERROR, msg + ": " + ex.getMessage());
-                continue;
+                // LOG.error(msg, ex);
+                // setState(ControlState.ERROR, msg + ": " + ex.getMessage());
+                // continue;
+                throw new RuntimeException(msg, ex);
             }
             atLeastOneConnection = true;
         } // FOR

@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -2775,8 +2776,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Delete txn handles
         Long txn_id = null;
         if (hstore_conf.site.profiling) this.profiler.cleanup.start();
-        for (Status status : Status.values()) {
-            Queue<Long> queue = this.deletable_txns.get(status);
+        for (Entry<Status, Queue<Long>> e : this.deletable_txns.entrySet()) {
+            Status status = e.getKey();
+            Queue<Long> queue = e.getValue();
             while ((txn_id = queue.poll()) != null) {
                 // It's ok for us to not have a transaction handle, because it could be
                 // for a remote transaction that told us that they were going to need one

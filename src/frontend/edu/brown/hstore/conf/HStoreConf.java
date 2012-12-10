@@ -1123,8 +1123,9 @@ public final class HStoreConf {
         public boolean pool_txn_enable;
         
         @ConfigProperty(
-            description="The max number of LocalTransaction handles to keep in the pool per partition.",
-            defaultInt=150,
+            description="The max number of LocalTransaction handles to keep in the pool per partition. " +
+            		    "This should be roughly equivalent to ${site.network_incoming_max_per_partition}.",
+            defaultInt=1000,
             experimental=false
         )
         public int pool_localtxnstate_idle;
@@ -1137,30 +1138,33 @@ public final class HStoreConf {
         public int pool_mapreducetxnstate_idle;
         
         @ConfigProperty(
-            description="The max number of RemoteTransactionStates to keep in the pool per partition.",
-            defaultInt=200,
+            description="The max number of RemoteTransactionStates to keep in the pool per partition. " +
+                        "Depending on the workload, this should be roughly equivalent to " +
+                        "${site.network_incoming_max_per_partition}.",
+            defaultInt=1000,
             experimental=false
         )
         public int pool_remotetxnstate_idle;
         
         @ConfigProperty(
-            description="The max number of MarkovPathEstimators to keep in the pool",
-            defaultInt=1000,
+            description="The max number of MarkovPathEstimators to keep in the pool per partition",
+            defaultInt=100,
             experimental=false
         )
         public int pool_pathestimators_idle;
         
         @ConfigProperty(
             description="The max number of TransactionEstimator.States to keep in the pool. " + 
-                        "Should be the same as the number of MarkovPathEstimators.",
+                        "This should be the same as ${site.pool_localtxnstate_idle}.",
             defaultInt=1000,
             experimental=false
         )
         public int pool_estimatorstates_idle;
         
         @ConfigProperty(
-            description="The max number of DistributedStates to keep in the pool per partition.",
-            defaultInt=200,
+            description="The max number of DistributedStates to keep in the pool per partition." +
+                        "This should be the same as ${site.pool_localtxnstate_idle}.",
+            defaultInt=1000,
             experimental=false
         )
         public int pool_dtxnstates_idle;
@@ -1185,39 +1189,6 @@ public final class HStoreConf {
             experimental=false
         )
         public int pool_txnredirectresponses_idle;
-        
-//        @ConfigProperty(
-//            description="The max number of TransactionInitCallbacks to keep idle in the pool.",
-//            defaultInt=1000,
-//            experimental=false
-//        )
-//        @Deprecated
-//        public int pool_txninit_idle;
-//        
-//        @ConfigProperty(
-//            description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
-//            defaultInt=1000,
-//            experimental=false,
-//            replacedBy="site.pool_txninitqueue_idle"
-//        )
-//        @Deprecated
-//        public int pool_txninitwrapper_idle;
-        
-        @ConfigProperty(
-            description="The max number of TransactionInitQueueCallbacks to keep idle in the pool.",
-            defaultInt=1000,
-            experimental=false
-        )
-        public int pool_txninitqueue_idle;
-        
-//        @ConfigProperty(
-//            description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
-//            defaultInt=1000,
-//            experimental=false
-//        )
-//        @Deprecated
-//        public int pool_txnprepare_idle;
-
     }
     
     // ============================================================================

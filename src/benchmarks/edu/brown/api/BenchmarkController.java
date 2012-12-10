@@ -639,6 +639,12 @@ public class BenchmarkController {
                 throw new RuntimeException("Failed to start all HStoreSites. Halting benchmark");
             }
         }
+        // If one of them was started on the outside, let's just sleep for a 
+        // few seconds to make sure that our clients can connect
+        if (m_config.profileSiteIds.isEmpty() == false) {
+            ThreadUtil.sleep(5000);
+        }
+        
         if (debug.get()) LOG.debug("All remote HStoreSites are initialized");
     }
     
