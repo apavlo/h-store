@@ -186,5 +186,4 @@
 <arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
 <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
 <arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />
-<arg value="site.pool_txninitqueue_idle=${site.pool_txninitqueue_idle}" />
 
