@@ -36,7 +36,6 @@ public class SpecExecScheduler implements Loggable {
         t = trace.get();
     }
     
-    private final HStoreSite hstore_site;
     private final int partitionId;
     private final TransactionInitPriorityQueue work_queue;
     private AbstractConflictChecker checker;
@@ -45,6 +44,10 @@ public class SpecExecScheduler implements Loggable {
     private SchedulerPolicy policy;
     private int window_size = 1;
     private boolean isProfiling = false;
+    
+    private AbstractTransaction lastDtxn;
+    private SpeculationType lastSpecType;
+    private Iterator<AbstractTransaction> lastIterator;
     
     public enum SchedulerPolicy {
           FIRST, // DEFAULT
@@ -70,12 +73,11 @@ public class SpecExecScheduler implements Loggable {
      * @param partitionId
      * @param work_queue
      */
-    public SpecExecScheduler(HStoreSite hstore_site, AbstractConflictChecker checker,
+    public SpecExecScheduler(AbstractConflictChecker checker,
                              int partitionId, TransactionInitPriorityQueue work_queue,
                              SchedulerPolicy schedule_policy, int window_size) {
         assert(schedule_policy != null) : "Unsupported schedule policy parameter passed in";
         
-        this.hstore_site = hstore_site;
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.checker = checker;
@@ -98,6 +100,10 @@ public class SpecExecScheduler implements Loggable {
     
     public void setWindowSize(int window) {
         this.window_size = window;
+    }
+    
+    protected void reset() {
+        this.lastIterator = null;
     }
 
     /**
@@ -140,18 +146,18 @@ public class SpecExecScheduler implements Loggable {
         // Now peek in the queue looking for single-partition txns that do not
         // conflict with the current dtxn
         LocalTransaction next = null;
-        Iterator<Long> it = this.work_queue.iterator();
         int txn_ctr = 0;
         int examined_ctr = 0;
         long best_time = (this.policy == SchedulerPolicy.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
-        
-        if (this.isProfiling) {
-            profiler.queue_size.put(this.work_queue.size());
+
+        // Check whether we can use our same iterator from the last call
+        if (this.lastDtxn != dtxn || this.lastSpecType != specType || this.lastIterator == null) {
+            this.lastIterator = this.work_queue.iterator();    
         }
-        while (it.hasNext()) {
-            Long txnId = it.next();
-            AbstractTransaction txn = hstore_site.getTransaction(txnId);
-            assert(txn != null) : String.format("Unknown transaction '%d'", txnId);
+        if (this.isProfiling) profiler.queue_size.put(this.work_queue.size());
+        while (this.lastIterator.hasNext()) {
+            AbstractTransaction txn = this.lastIterator.next();
+            assert(txn != null) : "Null transaction handle " + txn;
             boolean singlePartition = txn.isPredictSinglePartition();
             txn_ctr++;
 
@@ -207,10 +213,12 @@ public class SpecExecScheduler implements Loggable {
         // Make sure that we set the speculative flag to true!
         if (next != null) {
             if (this.isProfiling) profiler.success++;
-            it.remove();
+            this.lastIterator.remove();
             if (d) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         
+        this.lastDtxn = dtxn;
+        this.lastSpecType = specType;
         if (this.isProfiling) profiler.total_time.stop();
         return (next);
     }

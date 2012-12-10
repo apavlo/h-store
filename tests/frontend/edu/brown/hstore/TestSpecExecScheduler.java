@@ -55,8 +55,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         };
         this.queueManager = this.hstore_site.getTransactionQueueManager();
         this.work_queue = this.queueManager.getInitQueue(BASE_PARTITION);
-        this.scheduler = new SpecExecScheduler(this.hstore_site,
-                                               this.checker,
+        this.scheduler = new SpecExecScheduler(this.checker,
                                                BASE_PARTITION,
                                                this.work_queue,
                                                SchedulerPolicy.FIRST,
@@ -107,7 +106,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     
     private LocalTransaction addToQueue(LocalTransaction ts) {
         this.txns.put(ts.getTransactionId(), ts);
-        this.work_queue.offer(ts.getTransactionId());
+        this.work_queue.offer(ts);
         return (ts);
     }
     
@@ -255,7 +254,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
         assertNotNull(next);
         assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next));
@@ -267,7 +266,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
-        next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
         assertNotNull(next);
         assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next.getTransactionId()));
@@ -279,7 +278,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
-        next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE);
         assertNull(next);
     }
 

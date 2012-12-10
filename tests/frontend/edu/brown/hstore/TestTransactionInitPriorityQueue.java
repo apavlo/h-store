@@ -19,6 +19,7 @@ import org.voltdb.utils.EstTimeUpdater;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
@@ -60,19 +61,19 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     // UTILITY METHODS
     // --------------------------------------------------------------------------------------------
     
-    private Collection<Long> loadQueue(int num_txns) {
-        Collection<Long> added = new TreeSet<Long>();
+    private Collection<AbstractTransaction> loadQueue(int num_txns) {
+        Collection<AbstractTransaction> added = new TreeSet<AbstractTransaction>();
         for (long i = 0; i < num_txns; i++) {
-            LocalTransaction ts = new LocalTransaction(this.hstore_site);
+            LocalTransaction txn = new LocalTransaction(this.hstore_site);
             Long txnId = this.idManager.getNextUniqueTransactionId();
-            ts.testInit(txnId, 0, new PartitionSet(1), this.catalog_proc);
+            txn.testInit(txnId, 0, new PartitionSet(1), this.catalog_proc);
             
             // I think that we need to do this...
-            this.queue.noteTransactionRecievedAndReturnLastSeen(txnId);
+            this.queue.noteTransactionRecievedAndReturnLastSeen(txn);
             
-            boolean ret = this.queue.offer(txnId);
+            boolean ret = this.queue.offer(txn);
             assert(ret);
-            added.add(txnId);
+            added.add(txn);
         } // FOR
         return (added);
     }
@@ -86,16 +87,16 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
      */
     @Test
     public void testOutOfOrderExecution() throws Exception {
-        Collection<Long> added = this.loadQueue(NUM_TXNS);
+        Collection<AbstractTransaction> added = this.loadQueue(NUM_TXNS);
         assertEquals(added.size(), this.queue.size());
         
         // Now grab the last one and pop it out
-        Long last = CollectionUtil.last(added);
+        AbstractTransaction last = CollectionUtil.last(added);
         assertTrue(this.queue.remove(last));
         assertFalse(this.queue.contains(last));
         
         // Now we should be able to remove the first of these mofos
-        Iterator<Long> it = added.iterator();
+        Iterator<AbstractTransaction> it = added.iterator();
         for (int i = 0; i < NUM_TXNS-1; i++) {
             ThreadUtil.sleep(TXN_DELAY);
             EstTimeUpdater.update(System.currentTimeMillis());
@@ -109,7 +110,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
      */
     @Test
     public void testRemove() throws Exception {
-        Collection<Long> added = this.loadQueue(1);
+        Collection<AbstractTransaction> added = this.loadQueue(1);
         assertEquals(added.size(), this.queue.size());
         
         // Remove the first. Make sure that poll() doesn't return it
@@ -121,12 +122,12 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         EstTimeUpdater.update(System.currentTimeMillis());
         // System.err.println(StringUtil.repeat("-", 100));
         this.queue.checkQueueState();
-        Long first = CollectionUtil.first(added);
+        AbstractTransaction first = CollectionUtil.first(added);
         assertEquals(first, this.queue.peek());
         assertTrue(first.toString(), this.queue.remove(first));
         assertFalse(first.toString(), this.queue.contains(first));
         
-        Long poll = this.queue.poll();
+        AbstractTransaction poll = this.queue.poll();
         assertNotSame(first, poll);
     }
     
@@ -135,25 +136,25 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
      */
     @Test
     public void testRemoveIterator() throws Exception {
-        List<Long> added = new ArrayList<Long>(this.loadQueue(10));
+        List<AbstractTransaction> added = new ArrayList<AbstractTransaction>(this.loadQueue(10));
         assertEquals(added.size(), this.queue.size());
         Collections.shuffle(added);
         
         // Remove them one by one and make sure that the iterator 
         // never returns an id that we removed
-        Set<Long> removed = new HashSet<Long>();
+        Set<AbstractTransaction> removed = new HashSet<AbstractTransaction>();
         for (int i = 0, cnt = added.size(); i < cnt; i++) {
-            Long next = added.get(i);
+            AbstractTransaction next = added.get(i);
             assertFalse(next.toString(), removed.contains(next));
             assertTrue(next.toString(), this.queue.contains(next));
             assertTrue(next.toString(),this.queue.remove(next));
             removed.add(next);
             
             int it_ctr = 0;
-            for (Long txnId : this.queue) {
-                assertNotNull(txnId);
-                assertFalse(txnId.toString(), removed.contains(txnId));
-                assertTrue(txnId.toString(), added.contains(txnId));
+            for (AbstractTransaction txn : this.queue) {
+                assertNotNull(txn);
+                assertFalse(txn.toString(), removed.contains(txn));
+                assertTrue(txn.toString(), added.contains(txn));
                 it_ctr++;
             } // FOR
             assertEquals(added.size() - removed.size(), it_ctr);
@@ -165,18 +166,42 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
      */
     @Test
     public void testConcurrentRemoveIterator() throws Exception {
-        List<Long> added = new ArrayList<Long>(this.loadQueue(10));
+        List<AbstractTransaction> added = new ArrayList<AbstractTransaction>(this.loadQueue(10));
         assertEquals(added.size(), this.queue.size());
         Collections.shuffle(added);
-        Long toDelete = CollectionUtil.last(added);
+        AbstractTransaction toDelete = CollectionUtil.last(added);
         
-        Set<Long> found = new HashSet<Long>();
-        for (Long txnId : this.queue) {
+        Set<AbstractTransaction> found = new HashSet<AbstractTransaction>();
+        for (AbstractTransaction txn : this.queue) {
             if (found.isEmpty()) this.queue.remove(toDelete);
-            else this.queue.cleanup(toDelete);
-            found.add(txnId);
+            found.add(txn);
         } // FOR
-        assertFalse(found.contains(toDelete));
+        System.err.println("ToDelete: " + toDelete);
+        System.err.println("Found: " + found);
+        assertFalse(toDelete.toString(), found.contains(toDelete));
+        assertEquals(added.size()-1, found.size());
+    }
+    
+    /**
+     * testConcurrentOfferIterator
+     */
+    @Test
+    public void testConcurrentOfferIterator() throws Exception {
+        Collection<AbstractTransaction> added = this.loadQueue(10);
+        assertEquals(added.size(), this.queue.size());
+        
+        LocalTransaction toOffer = new LocalTransaction(this.hstore_site);
+        Long txnId = this.idManager.getNextUniqueTransactionId();
+        toOffer.testInit(txnId, 0, new PartitionSet(1), this.catalog_proc);
+        assertFalse(this.queue.contains(toOffer));
+        
+        Set<AbstractTransaction> found = new HashSet<AbstractTransaction>();
+        for (AbstractTransaction txn : this.queue) {
+            if (found.isEmpty()) this.queue.offer(toOffer);
+            found.add(txn);
+        } // FOR
+        assertTrue(found.contains(toOffer));
+        assertEquals(added.size()+1, found.size());
     }
     
     /**
@@ -184,10 +209,10 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
      */
     @Test
     public void testPoll() throws Exception {
-        Collection<Long> added = this.loadQueue(NUM_TXNS);
+        Collection<AbstractTransaction> added = this.loadQueue(NUM_TXNS);
         assertEquals(added.size(), this.queue.size());
         
-        Iterator<Long> it = added.iterator();
+        Iterator<AbstractTransaction> it = added.iterator();
         for (int i = 0; i < NUM_TXNS; i++) {
             ThreadUtil.sleep(TXN_DELAY);
             EstTimeUpdater.update(System.currentTimeMillis());

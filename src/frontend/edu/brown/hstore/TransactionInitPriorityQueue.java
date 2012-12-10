@@ -1,16 +1,14 @@
 package edu.brown.hstore;
 
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.EstTime;
 
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
@@ -30,7 +28,7 @@ import edu.brown.utils.StringUtil;
  * <B>NOTE:</B> Do not put any synchronized blocks in this. All synchronization
  * should be done by the caller.
  */
-public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
+public class TransactionInitPriorityQueue extends PriorityBlockingQueue<AbstractTransaction> {
     private static final long serialVersionUID = 573677483413142310L;
     private static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -54,10 +52,9 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
     private long blockTime = 0;
     private QueueState state = QueueState.BLOCKED_EMPTY;
     
-    private Long lastSeenTxnId = null;
-    private Long lastTxnIdPopped = null;
-    private Long nextTxnId = null;
-    private final Set<Long> removed = new HashSet<Long>();
+    private Long lastSeenTxn = null;
+    private Long lastTxnPopped = null;
+    private AbstractTransaction nextTxn = null;
     
     /**
      * Constructor
@@ -72,32 +69,31 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
     }
 
     /**
-     * Only return transaction ids that are ready to run.
+     * Only return transaction state objects that are ready to run.
      */
     @Override
-    public Long poll() {
-        Long retval = null;
-        while (true) {
-            if (this.state == QueueState.UNBLOCKED ||
-                (this.state == QueueState.BLOCKED_SAFETY && EstTime.currentTimeMillis() >= this.blockTime)) {
-                retval = super.poll();
-                if (retval != null && this.removed.contains(retval)) {
-                    this.removed.remove(super.poll());
-                    this.checkQueueState();
-                    continue;
-                }
-            }
-            break;
-        } // WHILE
+    public AbstractTransaction poll() {
+        AbstractTransaction retval = null;
         
+        // These invocations of poll() can return null if the next
+        // txn was speculatively executed
+        
+        if (this.state == QueueState.BLOCKED_SAFETY) {
+            if (EstTime.currentTimeMillis() >= this.blockTime) {
+                retval = super.poll();
+            }
+        } else if (this.state == QueueState.UNBLOCKED) {
+//            assert(checkQueueState() == QueueState.UNBLOCKED);
+            retval = super.poll();
+        }
         if (t) LOG.trace(String.format("Partition %d :: poll() -> %s", this.partitionId, retval));
         if (retval != null) {
-            assert(this.nextTxnId.equals(retval)) : 
+            assert(this.nextTxn.equals(retval)) : 
                 String.format("Partition %d :: Next txn is %s but our poll returned %s\n" +
                               StringUtil.SINGLE_LINE + "%s",
-                              this.partitionId, this.nextTxnId, retval, this.debug());
-            this.nextTxnId = null;
-            this.lastTxnIdPopped = retval;
+                              this.partitionId, this.nextTxn, retval, this.debug());
+            this.nextTxn = null;
+            this.lastTxnPopped = retval.getTransactionId();
         }
         
         if (d && retval != null)
@@ -110,8 +106,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
      * Only return transaction state objects that are ready to run.
      */
     @Override
-    public Long peek() {
-        Long retval = null;
+    public AbstractTransaction peek() {
+        AbstractTransaction retval = null;
         if (this.state == QueueState.UNBLOCKED) {
             assert(checkQueueState() == QueueState.UNBLOCKED);
             retval = super.peek();
@@ -121,106 +117,78 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
         return retval;
     }
     
-    @Override
-    @Deprecated
-    public boolean add(Long e) {
-        return this.offer(e);
-    }
-    
     /**
      * Drop data for unknown initiators. This is the only valid add interface.
      */
     @Override
-    public boolean offer(Long txnId) {
-        assert(txnId != null);
+    public boolean offer(AbstractTransaction ts) {
+        assert(ts != null);
         
         // Check whether this new txn is less than the current this.nextTxn
         // If it is and there is still time remaining before it is released,
         // then we'll switch and become the new next this.nextTxn
-        if (this.nextTxnId != null && txnId.compareTo(this.nextTxnId) < 0) {
+        if (this.nextTxn != null && ts.compareTo(this.nextTxn) < 0) {
             this.checkQueueState();
             if (this.state != QueueState.UNBLOCKED) {
                 if (d) LOG.debug(String.format("Partition %d :: Switching %s as new next txn [old=%s]",
-                                 this.partitionId, txnId, this.nextTxnId));
-                this.nextTxnId = txnId;
+                                 this.partitionId, ts, this.nextTxn));
+                this.nextTxn = ts;
             }
             else {
                 if (d) LOG.warn(String.format("Partition %d :: offer(%s) -> %s [next=%s]",
-                                this.partitionId, txnId, "REJECTED", this.nextTxnId));
+                                this.partitionId, ts, "REJECTED", this.nextTxn));
                 return (false);
             }
         }
         
-        boolean retval = super.offer(txnId);
+        boolean retval = super.offer(ts);
         if (d) LOG.debug(String.format("Partition %d :: offer(%s) -> %s",
-                         this.partitionId, txnId, retval));
+                         this.partitionId, ts, retval));
         if (retval) this.checkQueueState();
         return retval;
     }
 
     @Override
     public boolean remove(Object obj) {
-        Long txnId = (Long)obj;
-        // 2012-12-10
-        // Instead of immediately deleting the txnId from our queue, we're
-        // just going to mark it as deleted and then clean it up later on...
-        // boolean retval = super.remove(txnId);
-        boolean retval = this.removed.add(txnId);
+        AbstractTransaction ts = (AbstractTransaction)obj;
+        boolean retval = super.remove(ts);
         boolean checkQueue = false;
-        if (this.nextTxnId != null && this.nextTxnId == txnId) {
-            this.nextTxnId = null;
+        if (this.nextTxn != null && this.nextTxn == ts) {
+            this.nextTxn = null;
             checkQueue = true;
+            
         }
         // Sanity Check
-//        assert(super.contains(txnId) == false) :
-//            "Failed to remove " + txnId + "???\n" + this.debug();
+        assert(super.contains(ts) == false) :
+            "Failed to remove " + ts + "???\n" + this.debug();
         if (d) LOG.debug(String.format("Partition %d :: remove(%s) -> %s",
-                         this.partitionId, txnId, retval));
+                         this.partitionId, ts, retval));
         if (checkQueue) this.checkQueueState();
         return retval;
-    }
-    
-    @Override
-    public boolean contains(Object obj) {
-        if (obj instanceof Long) {
-            Long txnId = (Long)obj;
-            return (this.removed.contains(txnId) ? false : super.contains(txnId));
-        }
-        return (false);
-    }
-    
-    protected boolean cleanup(Long txnId) {
-        // We'll just blindly delete from both. We have to make sure that
-        // we delete it from our queue first before we delete it from our removed set
-        boolean retval;
-        retval = super.remove(txnId);
-        retval = this.removed.remove(txnId) || retval;
-        if (d) LOG.debug(String.format("Partition %d :: cleanup(%d) -> %s", this.partitionId, txnId, retval));
-        return (retval);
     }
 
     /**
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public Long noteTransactionRecievedAndReturnLastSeen(Long txnId) {
+    public Long noteTransactionRecievedAndReturnLastSeen(AbstractTransaction ts) {
         // this doesn't exclude dummy txnid but is also a sanity check
-        assert(txnId != null);
+        assert(ts != null);
 
         // we've decided that this can happen, and it's fine... just ignore it
         if (d) {
-            if (this.lastTxnIdPopped != null && this.lastTxnIdPopped.compareTo(txnId) > 0) {
+            if (this.lastTxnPopped != null && this.lastTxnPopped.compareTo(ts.getTransactionId()) > 0) {
                 LOG.warn(String.format("Txn ordering deadlock at Partition %d ::> LastTxn: %s / NewTxn: %s",
-                         this.partitionId, this.lastTxnIdPopped, txnId));
-                LOG.warn("LAST: " + this.lastTxnIdPopped);
-                LOG.warn("NEW:  " + txnId);
+                                       this.partitionId, this.lastTxnPopped, ts));
+                LOG.warn("LAST: " + this.lastTxnPopped);
+                LOG.warn("NEW:  " + ts);
             }
         }
 
         // update the latest transaction for the specified initiator
-        if (this.lastSeenTxnId == null || txnId.compareTo(this.lastSeenTxnId) < 0) {
-            if (t) LOG.trace("SET lastSeenTxnId = " + txnId);
-            this.lastSeenTxnId = txnId;
+        if (this.lastSeenTxn == null || ts.getTransactionId().compareTo(this.lastSeenTxn) < 0) {
+            if (t) LOG.trace("SET lastSeenTxnId = " + ts);
+            this.lastSeenTxn = ts.getTransactionId();
         }
 
         // this minimum is the newest safe transaction to run
@@ -234,7 +202,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
         this.checkQueueState();
 
         // return the last seen id for the originating initiator
-        return this.lastSeenTxnId;
+        return this.lastSeenTxn;
     }
 
     protected QueueState getQueueState() {
@@ -247,38 +215,29 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
 
     protected QueueState checkQueueState() {
         QueueState newState = QueueState.UNBLOCKED;
-        Long txnId = null;
-        while (true) {
-            txnId = super.peek();
-            if (txnId != null && this.removed.contains(txnId)) {
-                this.removed.remove(super.poll());
-                continue;
-            }
-            break;
-        } // WHILE
-        
-        if (txnId == null) {
+        AbstractTransaction ts = super.peek();
+        if (ts == null) {
             if (t) LOG.trace(String.format("Partition %d :: Queue is empty.", this.partitionId));
             newState = QueueState.BLOCKED_EMPTY;
         }
         // Check whether can unblock now
-        else if (txnId == this.nextTxnId && this.state != QueueState.UNBLOCKED) {
+        else if (ts == this.nextTxn && this.state != QueueState.UNBLOCKED) {
             if (EstTime.currentTimeMillis() < this.blockTime) {
                 newState = QueueState.BLOCKED_SAFETY;
             }
             else if (d) {
                 LOG.debug(String.format("Partition %d :: Wait time for %s has passed. Unblocking...",
-                          this.partitionId, this.nextTxnId));
+                          this.partitionId, this.nextTxn));
             }
         }
         // This is a new txn and we should wait...
-        else if (this.nextTxnId != txnId) {
-            long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(txnId.longValue());
+        else if (this.nextTxn != ts) {
+            long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(ts.getTransactionId().longValue());
             long timestamp = EstTime.currentTimeMillis();
             long waitTime = Math.max(0, this.waitTime - (timestamp - txnTimestamp));
             newState = (waitTime > 0 ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
             this.blockTime = timestamp + waitTime;
-            this.nextTxnId = txnId;
+            this.nextTxn = ts;
             
             if (d) {
                 String debug = "";
@@ -290,7 +249,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
                     debug = "\n" + StringUtil.formatMaps(m);
                 }
                 LOG.debug(String.format("Partition %d :: Blocking %s for %d ms [maxWait=%d]%s",
-                          this.partitionId, txnId, (this.blockTime - timestamp),
+                          this.partitionId, ts, (this.blockTime - timestamp),
                           this.waitTime, debug));
             }
         }
@@ -298,43 +257,9 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
         if (newState != this.state) {
             this.state = newState;
             if (d) LOG.debug(String.format("Partition %d :: State:%s / NextTxn:%s",
-                             this.partitionId, this.state, this.nextTxnId));
+                             this.partitionId, this.state, this.nextTxn));
         }
         return this.state;
-    }
-    
-    @Override
-    public Iterator<Long> iterator() {
-        final Iterator<Long> superIt = super.iterator();
-        return new Iterator<Long>() {
-            private Long next = null;
-            private final Iterator<Long> it = superIt;
-            
-            @Override
-            public void remove() {
-                if (this.next != null) {
-                    TransactionInitPriorityQueue.this.remove(this.next);
-                }
-            }
-            @Override
-            public Long next() {
-                return (this.next);
-            }
-            @Override
-            public boolean hasNext() {
-                Long txnId = null;
-                this.next = null;
-                while (this.it.hasNext()) {
-                    txnId = this.it.next();
-                    if (TransactionInitPriorityQueue.this.removed.contains(txnId)) {
-                        continue;
-                    }
-                    this.next = txnId;
-                    break;
-                } // WHILE
-                return (this.next != null);
-            }
-        };
     }
     
     public String debug() {
@@ -343,9 +268,9 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
         m.put("# of Elements", this.size());
         m.put("Wait Time", this.waitTime);
         m.put("Next Time Remaining", Math.max(0, EstTime.currentTimeMillis() - this.blockTime));
-        m.put("Next Txn", this.nextTxnId);
-        m.put("Last Popped Txn", this.lastTxnIdPopped);
-        m.put("Last Seen Txn", this.lastSeenTxnId);
+        m.put("Next Txn", this.nextTxn);
+        m.put("Last Popped Txn", this.lastTxnPopped);
+        m.put("Last Seen Txn", this.lastSeenTxn);
         return (StringUtil.formatMaps(m));
     }
 }

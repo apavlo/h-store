@@ -267,8 +267,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug("Clearing out lock queue for partition " + partition);
         // LOCK QUEUES
         synchronized (this.lockQueues[partition]) {
-            while ((txnId = this.lockQueues[partition].poll()) != null) {
-                ts = hstore_site.getTransaction(txnId);
+            while ((ts = this.lockQueues[partition].poll()) != null) {
                 this.rejectTransaction(ts,
                                        Status.ABORT_REJECT,
                                        partition,
@@ -335,12 +334,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         AbstractTransaction nextTxn = null;
         Long nextTxnId = null;
         while (nextTxnId == null) {
-
-            // Poll the queue and get the next value. We need
-            // a lock in case somebody is looking for this txnId to remove
-            // synchronized (this.lockQueues[partition]) {
-                nextTxnId = this.lockQueues[partition].poll();    
-            //} // SYNCH
+            // Poll the queue and get the next value. 
+            nextTxn = this.lockQueues[partition].poll();
+            nextTxnId = nextTxn.getTransactionId();
             
             // If null, then there is nothing that is ready to run at this partition,
             // so we'll just skip to the next one
@@ -351,7 +347,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 break;
             }
             
-            nextTxn = hstore_site.getTransaction(nextTxnId);
             callback = nextTxn.getTransactionInitQueueCallback();
             assert(callback.isInitialized()) :
                 String.format("Uninitialized %s callback for %s [hashCode=%d]",
@@ -455,7 +450,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // was released but then it was deleted and cleaned-up. This means that its txn id
         // might be null. A better way to do this is to only have each PartitionExecutor
         // insert the new transaction into its queue. 
-        Long next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSeen(txn_id);
+        Long next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSeen(ts);
         
         // The next txnId that we're going to try to execute is already greater
         // than this new txnId that we were given! Rejection!
@@ -470,7 +465,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             return (false);
         }
         // Our queue is overloaded. We have to reject the txnId!
-        else if (this.lockQueues[partition].offer(txn_id) == false) {
+        else if (this.lockQueues[partition].offer(ts) == false) {
             if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
             		        "Throttling %s until id is greater than %s " +
             		        "[locked=%s, queueSize=%d]",
