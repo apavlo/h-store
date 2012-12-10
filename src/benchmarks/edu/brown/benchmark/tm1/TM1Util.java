@@ -14,7 +14,7 @@ public abstract class TM1Util {
         return number(1, 100) < number(86, 100) ? 1 : 0;
     }
 
-    public static Long getSubscriberId(long subscriberSize) {
+    public static long getSubscriberId(long subscriberSize) {
         // We have to initalize the zipfian random distribution the first time
         // we are called
         // if (zipf == null) {
@@ -44,7 +44,7 @@ public abstract class TM1Util {
 
     // taken from tpcc.RandomGenerator
     public static String randomString(int minimum_length, int maximum_length, char base, int numCharacters) {
-        int length = number(minimum_length, maximum_length).intValue();
+        int length = (int)number(minimum_length, maximum_length);
         byte baseByte = (byte) base;
         byte[] bytes = new byte[length];
         for (int i = 0; i < length; ++i) {
@@ -54,7 +54,7 @@ public abstract class TM1Util {
     }
 
     // taken from tpcc.RandomGenerator
-    public static Long number(long minimum, long maximum) {
+    public static long number(long minimum, long maximum) {
         assert minimum <= maximum;
         long value = Math.abs(rand.nextLong()) % (maximum - minimum + 1) + minimum;
         assert minimum <= value && value <= maximum;
@@ -62,11 +62,7 @@ public abstract class TM1Util {
     }
 
     public static String padWithZero(long n) {
-        String meat = Long.toString(n);
-        char[] zeros = new char[15 - meat.length()];
-        for (int i = 0; i < zeros.length; i++)
-            zeros[i] = '0';
-        return (new String(zeros) + meat);
+        return String.format("%015d", n);
     }
 
     /**
@@ -75,14 +71,14 @@ public abstract class TM1Util {
      */
     public static int[] subArr(int arr[], int min_len, int max_len) {
         assert min_len <= max_len && min_len >= 0;
-        int sub_len = number(min_len, max_len).intValue();
+        int sub_len = (int)number(min_len, max_len);
         int arr_len = arr.length;
 
         assert sub_len <= arr_len;
 
         int sub[] = new int[sub_len];
         for (int i = 0; i < sub_len; i++) {
-            int j = number(0, arr_len - 1).intValue();
+            int j = (int)number(0, arr_len - 1);
             sub[i] = arr[j];
             // arr[j] put to tail
             int tmp = arr[j];

@@ -173,19 +173,19 @@ public class TM1Loader extends Loader {
 
             // BIT_##
             for (int j = 0; j < 10; j++) {
-                row[col++] = TM1Util.number(0, 1).intValue();
+                row[col++] = TM1Util.number(0, 1);
             } // FOR
               // HEX_##
             for (int j = 0; j < 10; j++) {
-                row[col++] = TM1Util.number(0, 15).intValue();
+                row[col++] = TM1Util.number(0, 15);
             }
             // BYTE2_##
             for (int j = 0; j < 10; j++) {
-                row[col++] = TM1Util.number(0, 255).intValue();
+                row[col++] = TM1Util.number(0, 255);
             }
             // MSC_LOCATION + VLR_LOCATION
             for (int j = 0; j < 2; j++) {
-                row[col++] = TM1Util.number(0, Integer.MAX_VALUE).intValue();
+                row[col++] = TM1Util.number(0, Integer.MAX_VALUE);
             }
             assert col == table.getColumnCount();
             table.addRow(row);
@@ -222,8 +222,8 @@ public class TM1Loader extends Loader {
                 Object row[] = new Object[table.getColumnCount()];
                 row[0] = s_id;
                 row[1] = ai_type;
-                row[2] = TM1Util.number(0, 255).intValue();
-                row[3] = TM1Util.number(0, 255).intValue();
+                row[2] = TM1Util.number(0, 255);
+                row[3] = TM1Util.number(0, 255);
                 row[4] = TM1Util.astring(3, 3);
                 row[5] = TM1Util.astring(5, 5);
                 table.addRow(row);
@@ -264,8 +264,8 @@ public class TM1Loader extends Loader {
                 row_spe[0] = s_id;
                 row_spe[1] = sf_type;
                 row_spe[2] = TM1Util.isActive();
-                row_spe[3] = TM1Util.number(0, 255).intValue();
-                row_spe[4] = TM1Util.number(0, 255).intValue();
+                row_spe[3] = TM1Util.number(0, 255);
+                row_spe[4] = TM1Util.number(0, 255);
                 row_spe[5] = TM1Util.astring(5, 5);
                 speTbl.addRow(row_spe);
                 speTotal++;
