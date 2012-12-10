@@ -1,6 +1,7 @@
 package edu.brown.hstore;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -298,6 +299,40 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
                              this.partitionId, this.state, this.nextTxnId));
         }
         return this.state;
+    }
+    
+    @Override
+    public Iterator<Long> iterator() {
+        final Iterator<Long> superIt = super.iterator();
+        return new Iterator<Long>() {
+            private Long next = null;
+            private final Iterator<Long> it = superIt;
+            
+            @Override
+            public void remove() {
+                if (this.next != null) {
+                    TransactionInitPriorityQueue.this.remove(this.next);
+                }
+            }
+            @Override
+            public Long next() {
+                return (this.next);
+            }
+            @Override
+            public boolean hasNext() {
+                Long txnId = null;
+                this.next = null;
+                while (this.it.hasNext()) {
+                    txnId = this.it.next();
+                    if (TransactionInitPriorityQueue.this.removed.contains(txnId)) {
+                        continue;
+                    }
+                    this.next = txnId;
+                    break;
+                } // WHILE
+                return (this.next != null);
+            }
+        };
     }
     
     public String debug() {

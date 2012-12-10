@@ -123,9 +123,8 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         this.queue.checkQueueState();
         Long first = CollectionUtil.first(added);
         assertEquals(first, this.queue.peek());
-        assertTrue(this.queue.remove(first));
-        assertFalse(this.queue.remove(first));
-        assertFalse(this.queue.contains(first));
+        assertTrue(first.toString(), this.queue.remove(first));
+        assertFalse(first.toString(), this.queue.contains(first));
         
         Long poll = this.queue.poll();
         assertNotSame(first, poll);
@@ -145,14 +144,13 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         Set<Long> removed = new HashSet<Long>();
         for (int i = 0, cnt = added.size(); i < cnt; i++) {
             Long next = added.get(i);
-            assertFalse(removed.contains(next));
-            assertTrue(this.queue.contains(next));
-            assertTrue(this.queue.remove(next));
-            
-            Iterator<Long> it = this.queue.iterator();
+            assertFalse(next.toString(), removed.contains(next));
+            assertTrue(next.toString(), this.queue.contains(next));
+            assertTrue(next.toString(),this.queue.remove(next));
             removed.add(next);
+            
             int it_ctr = 0;
-            for (Long txnId : CollectionUtil.iterable(it)) {
+            for (Long txnId : this.queue) {
                 assertNotNull(txnId);
                 assertFalse(txnId.toString(), removed.contains(txnId));
                 assertTrue(txnId.toString(), added.contains(txnId));
@@ -161,7 +159,6 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             assertEquals(added.size() - removed.size(), it_ctr);
         } // FOR
     }
-    
     
     /**
      * testPoll
