@@ -829,19 +829,22 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
         Connection connectionsToCheck[];
         synchronized (m_connections) {
             connectionsToCheck = m_connections.toArray(new Connection[m_connections.size()]);
-        }
+        } // SYNCH
 
-        final ArrayList<Connection> connectionsToRemove = new ArrayList<Connection>();
+        ArrayList<Connection> connectionsToRemove = null;
         for (final Connection c : connectionsToCheck) {
             final int delta = c.writeStream().calculatePendingWriteDelta(now);
             if (delta > 4000) {
+                if (connectionsToRemove == null) 
+                    connectionsToRemove = new ArrayList<Connection>();
                 connectionsToRemove.add(c);
             }
-        }
-
-        for (final Connection c : connectionsToRemove) {
-            LOG.warn("Closing connection to " + c + " at " + now + " because it refuses to read responses");
-            c.unregister();
+        } // FOR
+        if (connectionsToRemove != null) {
+            for (final Connection c : connectionsToRemove) {
+                LOG.warn("Closing connection to " + c + " at " + now + " because it refuses to read responses");
+                c.unregister();
+            } // FOR
         }
     }
 

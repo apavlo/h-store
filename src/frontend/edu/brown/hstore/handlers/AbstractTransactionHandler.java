@@ -74,15 +74,15 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             LOG.debug(String.format("Sending %s to %d partitions for %s",
                                     request.getClass().getSimpleName(),  partitions.size(), ts));
         
-        for (Integer p : partitions) {
-            int dest_site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(p.intValue());
+        for (int partition : partitions.values()) {
+            int dest_site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
 
             // Skip this HStoreSite if we're already sent it a message 
             if (site_sent[dest_site_id]) continue;
             
             if (trace.get())
                 LOG.trace(String.format("Sending %s message to %s for %s",
-                                        request.getClass().getSimpleName(), HStoreThreadManager.formatSiteName(dest_site_id), ts));
+                          request.getClass().getSimpleName(), HStoreThreadManager.formatSiteName(dest_site_id), ts));
             
             // Local Partition
             if (this.local_site_id == dest_site_id) {
@@ -91,7 +91,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             // Remote Partition
             else {
                 HStoreService channel = coordinator.getChannel(dest_site_id);
-                assert(channel != null) : "Invalid partition id '" + p + "'";
+                assert(channel != null) : "Invalid partition id '" + partition + "'";
                 ProtoRpcController controller = this.getProtoRpcController(ts, dest_site_id);
                 assert(controller != null) : "Invalid " + request.getClass().getSimpleName() + " ProtoRpcController for site #" + dest_site_id;
                 this.sendRemote(channel, controller, request, callback);

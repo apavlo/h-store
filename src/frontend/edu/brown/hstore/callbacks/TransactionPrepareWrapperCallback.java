@@ -55,13 +55,13 @@ public class TransactionPrepareWrapperCallback extends AbstractTransactionCallba
     }
     
     @Override
-    protected void finishImpl() {
+    protected synchronized void finishImpl() {
         super.finishImpl();
         this.builder = null;
     }
     
     @Override
-    protected void unblockTransactionCallback() {
+    protected synchronized void unblockTransactionCallback() {
         if (debug.get()) {
             LOG.debug(String.format("%s - Sending %s to %s with status %s",
                                     this.ts,
@@ -98,7 +98,7 @@ public class TransactionPrepareWrapperCallback extends AbstractTransactionCallba
     protected synchronized int runImpl(Integer partition) {
         if (debug.get()) LOG.debug(String.format("%s - Adding partition %d", this.ts, partition));
         assert(this.partitions.contains(partition));
-        if (this.isAborted() == false)
+        if (this.isAborted() == false && this.builder != null)
             this.builder.addPartitions(partition.intValue());
         return 1;
     }

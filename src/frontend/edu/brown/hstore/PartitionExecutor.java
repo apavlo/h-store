@@ -1586,7 +1586,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
                          ts, this.partitionId, this.currentDtxn));
         this.currentDtxn = ts;
-        this.lastDtxn = this.currentDtxn.toString();
+        if (d) this.lastDtxn = this.currentDtxn.toString();
     }
     
     /**

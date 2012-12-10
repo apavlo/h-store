@@ -104,7 +104,11 @@ public class TestClientInterface extends BaseTestCase {
         
         LatchableProcedureCallback floodCallback = new LatchableProcedureCallback(NUM_TXNS);
         for (int i = 0; i < NUM_TXNS; i++) {
-            client.callProcedure(floodCallback, procName, new Object[]{0, data});
+            boolean bp = client.callProcedure(floodCallback, procName, new Object[]{0, data});
+            if (bp) {
+                // System.err.println("BackPressure!");
+                client.backpressureBarrier();
+            }
         } // FOR
         
         boolean result = callback.latch.await(sleepTime*3, TimeUnit.MILLISECONDS);
