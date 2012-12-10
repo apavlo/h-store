@@ -46,6 +46,9 @@ class ControlWorker extends Thread {
 
     @Override
     public void run() {
+        Thread self = Thread.currentThread();
+        self.setName(String.format("worker-%03d", cmp.getClientId()));
+        
         cmp.invokeStartCallback();
         try {
             if (cmp.m_txnRate == -1) {
@@ -131,7 +134,7 @@ class ControlWorker extends Thread {
                     hadErrors = true;
                     
                     // HACK: Sleep for a little bit to give time for the site logs to flush
-                    if (debug.get()) LOG.error("Failed to execution transaction: " + e.getMessage());
+                    if (debug.get()) LOG.error("Failed to execute transaction: " + e.getMessage());
                     ThreadUtil.sleep(5000);
                 } finally {
                     if (profile) execute_time.stop();

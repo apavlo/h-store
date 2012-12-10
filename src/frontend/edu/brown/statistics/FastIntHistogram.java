@@ -28,11 +28,20 @@ public class FastIntHistogram extends Histogram<Integer> {
     private long histogram[];
     private int value_count = 0;
     
+    public FastIntHistogram(boolean keepZeroEntries) {
+        this(keepZeroEntries, 10); // HACK
+    }
+    
     public FastIntHistogram() {
-        this(10); // HACK
+        this(false, 10); // HACK
     }
     
     public FastIntHistogram(int size) {
+        this(false, size);
+    }
+    
+    public FastIntHistogram(boolean keepZeroEntries, int size) {
+        this.keep_zero_entries = keepZeroEntries;
         this.histogram = new long[size];
         this.clearValues();
     }

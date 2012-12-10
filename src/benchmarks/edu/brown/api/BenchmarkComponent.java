@@ -965,7 +965,7 @@ public abstract class BenchmarkComponent {
         
         if (m_txnStats.isResponsesStatusesEnabled()) {
             synchronized (m_txnStats.responseStatuses) {
-                m_txnStats.responseStatuses.put(status.name());    
+                m_txnStats.responseStatuses.put(status.ordinal());    
             } // SYNCH
         }
     }

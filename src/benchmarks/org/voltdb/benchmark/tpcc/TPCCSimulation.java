@@ -71,6 +71,7 @@ import edu.brown.hashing.DefaultHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
 
@@ -117,8 +118,8 @@ public class TPCCSimulation {
     
     private int tick_counter = 0;
     private int temporal_counter = 0;
-    private final Histogram<Short> lastWarehouseHistory = new Histogram<Short>(true);
-    private final Histogram<Short> totalWarehouseHistory = new Histogram<Short>(true);
+    private final FastIntHistogram lastWarehouseHistory = new FastIntHistogram(true);
+    private final FastIntHistogram totalWarehouseHistory = new FastIntHistogram(true);
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
                           Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor, Catalog catalog) {
@@ -209,16 +210,10 @@ public class TPCCSimulation {
         return (this.zipf);
     }
     
-    protected Histogram<Short> getLastRoundWarehouseHistory() {
-        return (this.lastWarehouseHistory);
-    }
-    protected Histogram<Short> getTotalWarehouseHistory() {
-        return (this.totalWarehouseHistory);
-    }
     public synchronized void tick(int counter) {
         this.tick_counter = counter;
         if (config.warehouse_debug) {
-            Map<String, Histogram<Short>> m = new ListOrderedMap<String, Histogram<Short>>();
+            Map<String, Histogram<Integer>> m = new ListOrderedMap<String, Histogram<Integer>>();
             m.put(String.format("LAST ROUND\n - SampleCount=%d", this.lastWarehouseHistory.getSampleCount()),
                   this.lastWarehouseHistory);
             m.put(String.format("TOTAL\n - SampleCount=%d", this.totalWarehouseHistory.getSampleCount()),

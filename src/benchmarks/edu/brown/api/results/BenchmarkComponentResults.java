@@ -12,6 +12,7 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
@@ -43,10 +44,10 @@ public class BenchmarkComponentResults implements JSONSerializable {
      */
     public final Map<Integer, Histogram<Integer>> latencies = new HashMap<Integer, Histogram<Integer>>();
     
-    public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
+    public FastIntHistogram basePartitions = new FastIntHistogram();
     private boolean enableBasePartitions = false;
     
-    public Histogram<String> responseStatuses = new Histogram<String>(true);
+    public FastIntHistogram responseStatuses = new FastIntHistogram(Status.values().length);
     private boolean enableResponseStatuses = false;
 
     public BenchmarkComponentResults() {
@@ -60,6 +61,15 @@ public class BenchmarkComponentResults implements JSONSerializable {
         this.specexecs.setKeepZeroEntries(true);
         this.dtxns = new FastIntHistogram(numProcedures);
         this.dtxns.setKeepZeroEntries(true);
+        this.basePartitions.setKeepZeroEntries(true);
+        
+        this.responseStatuses.setKeepZeroEntries(true);
+        Map<Integer, String> statusLabels = new HashMap<Integer, String>();
+        for (Status s : Status.values()) {
+            statusLabels.put(s.ordinal(), s.name());
+        }
+        this.responseStatuses.setDebugLabels(statusLabels);
+        
     }
     
     public BenchmarkComponentResults copy() {
@@ -85,6 +95,7 @@ public class BenchmarkComponentResults implements JSONSerializable {
         
         copy.enableResponseStatuses = this.enableResponseStatuses;
         copy.responseStatuses.put(this.responseStatuses);
+        copy.responseStatuses.setDebugLabels(this.responseStatuses.getDebugLabels());
         
         return (copy);
     }

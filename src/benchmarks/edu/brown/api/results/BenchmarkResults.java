@@ -30,6 +30,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
 
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -337,7 +338,10 @@ public class BenchmarkResults {
         if (this.enableBasePartitions) {
             this.basePartitions.put(cmpResults.basePartitions);
         }
-        this.responseStatuses.put(cmpResults.responseStatuses);
+        for (Status s : Status.values()) {
+            long cnt = cmpResults.responseStatuses.get(s.ordinal(), 0);
+            if (cnt > 0) this.responseStatuses.put(s.name(), cnt);
+        } // FOR
         
         BenchmarkResults finishedIntervalClone = null;
         synchronized (this) {
