@@ -26,8 +26,9 @@ public class ControlPipe implements Runnable {
         LoggerUtil.attachObserver(LOG, debug);
     }
     
-    final InputStream in;
-    final BenchmarkComponent cmp;
+    private final InputStream in;
+    private final BenchmarkComponent cmp;
+    private boolean stop = false;
     
     /**
      * If this is set to true, then we will not wait for the START command
@@ -64,7 +65,7 @@ public class ControlPipe implements Runnable {
         final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
         final Pattern p = Pattern.compile(" ");
         ControlCommand command = null;
-        while (true) {
+        while (this.stop == false) {
             if (this.autoStart) {
                 command = ControlCommand.START;
                 this.autoStart = false;
@@ -75,8 +76,7 @@ public class ControlPipe implements Runnable {
                         LOG.debug(String.format("Recieved Message: '%s'", command));
                 } catch (final IOException e) {
                     // Hm. quit?
-                    LOG.fatal("Error on standard input", e);
-                    System.exit(-1);
+                    throw new RuntimeException("Error on standard input", e);
                 }
             }
             if (command == null) continue;
@@ -146,13 +146,14 @@ public class ControlPipe implements Runnable {
                         cmp.m_pauseLock.acquire();
                     } catch (InterruptedException ex) {
                         LOG.fatal("Unexpected interuption!", ex);
-                        System.exit(1);
+                        throw new RuntimeException(ex);
                     }
                     cmp.m_controlState = ControlState.PAUSED;
                     break;
                 }
                 case SHUTDOWN: {
                     if (debug.get()) LOG.debug("Shutting down client + cluster");
+                    this.stop = true;
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
                         cmp.invokeStopCallback();
                         try {
@@ -163,17 +164,14 @@ public class ControlPipe implements Runnable {
                             ex.printStackTrace();
                         }
                     }
-                    System.exit(0);
+                    
                     break;
                 }
                 case STOP: {
+                    this.stop = true;
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
                         if (debug.get()) LOG.debug("Stopping client");
                         cmp.invokeStopCallback();
-                        
-                        if (profile) {
-                            
-                        }
                         
                         try {
                             if (cmp.m_sampler != null) {
@@ -185,13 +183,11 @@ public class ControlPipe implements Runnable {
                                 cmp.checkTables();
                             }
                         } catch (InterruptedException e) {
-                            System.exit(0);
-                        } finally {
-                            System.exit(0);
+                            // Ignore...
                         }
+                    } else {
+                        LOG.fatal("STOP when not RUNNING");
                     }
-                    LOG.fatal("STOP when not RUNNING");
-                    System.exit(-1);
                     break;
                 }
                 default: {
@@ -205,7 +201,5 @@ public class ControlPipe implements Runnable {
         return (String.format("Client #%02d - %s / %s",
                 cmp.getClientId(), cmp.worker.getExecuteTime().debug(), cmp.worker.getBlockedTime().debug()));
     }
-
-    
 
 }

@@ -1227,8 +1227,7 @@ public abstract class BenchmarkComponent {
             try {
                 stats.save(path);
             } catch (IOException ex) {
-                LOG.error("Failed to save table statistics to '" + path + "'", ex);
-                System.exit(1);
+                throw new RuntimeException("Failed to save table statistics to '" + path + "'", ex);
             }
         }
         
@@ -1511,15 +1510,13 @@ public abstract class BenchmarkComponent {
                 return false;
             }
 
-            LOG.warn("Invalid " + procName + " response!\n" + clientResponse);
             if (clientResponse.getException() != null) {
                 clientResponse.getException().printStackTrace();
             }
             if (clientResponse.getStatusString() != null) {
                 LOG.warn(clientResponse.getStatusString());
             }
-
-            System.exit(-1);
+            throw new RuntimeException("Invalid " + procName + " response!\n" + clientResponse);
         }
 
         if (m_checkGenerator.nextFloat() >= m_checkTransaction)

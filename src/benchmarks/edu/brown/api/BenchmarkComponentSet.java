@@ -31,11 +31,6 @@ public class BenchmarkComponentSet implements Runnable {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
-    // ----------------------------------------------------------------------------
-    // SHUTDOWN NOTIFICATION
-    // ----------------------------------------------------------------------------
-
     
     // ----------------------------------------------------------------------------
     // INTERNAL DATA MEMBERS
@@ -63,6 +58,7 @@ public class BenchmarkComponentSet implements Runnable {
      */
     public BenchmarkComponentSet(Class<? extends BenchmarkComponent> componentClass, int clientIds[], String args[]) throws Exception {
         Thread.setDefaultUncaughtExceptionHandler(this.exceptionHandler);
+        Thread.currentThread().setUncaughtExceptionHandler(this.exceptionHandler);
         this.exceptionHandler.addObserver(this.exceptionObserver);
         
         this.clientIds = clientIds;

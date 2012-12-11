@@ -866,7 +866,7 @@ public class BenchmarkController {
                 _hostId = String.format("%s-%02d", clientHost, ctr);
                 clientNamesIdxs.put(clientHost);
             }
-            final String clientHostId = _hostId;
+            final String clientHostId = "client-" + _hostId;
             m_clients.add(clientHostId);
             
             final List<String> curClientArgs = new ArrayList<String>(allClientArgs);

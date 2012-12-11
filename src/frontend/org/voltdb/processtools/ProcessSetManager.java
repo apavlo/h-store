@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -68,6 +69,12 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     private static final SimpleDateFormat BACKUP_FORMAT = new SimpleDateFormat("yyyy.MM.dd-HH:mm:ss");
+    
+    /**
+     * How long to wait after a process starts before we will check whether
+     * it's still alive. 
+     */
+    private static final int POLLING_DELAY = 2000; // ms
     
     /**
      * Regular expressions of strings that we want to exclude from the remote
@@ -152,6 +159,7 @@ public class ProcessSetManager implements Shutdownable {
     
     class ProcessSetPoller extends Thread {
         boolean reported_error = false;
+        final Map<String, Long> delay = new HashMap<String, Long>();
         
         ProcessSetPoller() {
             this.setDaemon(true);
@@ -161,6 +169,7 @@ public class ProcessSetManager implements Shutdownable {
         public void run() {
             if (debug.get())
                 LOG.debug("Starting ProcessSetPoller [initialDelay=" + initial_polling_delay + "]");
+            final Set<String> toPoll = new HashSet<String>(); 
             while (true) {
                 try {
                     Thread.sleep(2500);
@@ -168,16 +177,33 @@ public class ProcessSetManager implements Shutdownable {
                     if (shutting_down == false) ex.printStackTrace();
                     break;
                 }
+                // First figure out what processes that we want to poll
+                // If we have a new entry, then we will want to wait a little bit to make
+                // sure that it comes on-line
+                toPoll.clear();
+                long timestamp = System.currentTimeMillis();
                 for (Entry<String, ProcessData> e : m_processes.entrySet()) {
-                    ProcessData pd = e.getValue();
+                    // This is the first time that that we've seen it
+                    if (this.delay.containsKey(e.getKey()) == false) {
+                        this.delay.put(e.getKey(), timestamp + POLLING_DELAY);
+                        if (debug.get()) LOG.debug(String.format("Waiting %.1f seconds before polling '%s'",
+                                                   POLLING_DELAY/1000d, e.getKey()));
+                    }
+                    // Otherwise, check whether the time has elapsed
+                    else if (timestamp > this.delay.get(e.getKey())) {
+                        toPoll.add(e.getKey());
+                    }
+                } // FOR
+                
+                for (String procName : toPoll) {
+                    ProcessData pd = m_processes.get(procName);
                     if (pd.poller == null) continue;
-                    
                     Boolean isAlive = pd.poller.isProcessAlive();
                     if (isAlive == null) continue;
                     if (isAlive == false && reported_error == false && isShuttingDown() == false) {
-                        String msg = String.format("Failed to poll '%s'", e.getKey());
+                        String msg = String.format("Failed to poll '%s' [exitValue=%d]", procName, pd.process.exitValue());
                         LOG.error(msg);
-                        msg = String.format("Process '%s' failed. Halting benchmark!", e.getKey());
+                        msg = String.format("Process '%s' failed. Halting benchmark!", procName);
                         failure_observable.notifyObservers(msg);
                         reported_error = true;
                     }
@@ -463,12 +489,6 @@ public class ProcessSetManager implements Shutdownable {
                 m_processes.put(processName, pd);
                 ALL_PROCESSES.add(pd.process);
             } // SYNCH
-
-            // Start the individual watching thread for this process
-            pd.poller = new ProcessPoller(pd.process, processName);
-            pd.poller.start();
-            
-            if (this.setPoller.isAlive() == false) this.setPoller.start();
         } catch (IOException e) {
             throw new RuntimeException("Failed to start process '" + processName + "'", e);
         }
@@ -509,6 +529,13 @@ public class ProcessSetManager implements Shutdownable {
         
         pd.stdout.start();
         pd.stderr.start();
+        
+        // Start the individual watching thread for this process
+        pd.poller = new ProcessPoller(pd.process, processName);
+        pd.poller.start();
+        synchronized (this) {
+            if (this.setPoller.isAlive() == false) this.setPoller.start();
+        } // SYNCH
     }
 
     // ============================================================================

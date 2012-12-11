@@ -107,6 +107,12 @@ public class BenchmarkResults {
         m_durationInMillis = durationInMillis;
         m_pollIntervalInMillis = pollIntervalInMillis;
         m_clientCount = clientCount;
+        
+        Map<Integer, String> statusLabels = new HashMap<Integer, String>();
+        for (Status s : Status.values()) {
+            statusLabels.put(s.ordinal(), s.name());
+        }
+        this.responseStatuses.setDebugLabels(statusLabels);
     }
 
     /**

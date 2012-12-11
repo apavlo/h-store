@@ -30,23 +30,17 @@
 package edu.brown.benchmark.ycsb;
 
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
-import java.util.Map;
-import java.util.List; 
-import java.util.LinkedList; 
 
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
-import edu.brown.benchmark.ycsb.YCSBUtil; 
-
 import edu.brown.benchmark.ycsb.distributions.CounterGenerator;
 import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
-import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
-
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
 
@@ -61,8 +55,6 @@ public class YCSBClient extends BenchmarkComponent {
 	
 	private final FlatHistogram<Transaction> txnWeights;
 	
-	Client client; 
-
     public static void main(String args[]) {
         BenchmarkComponent.main(YCSBClient.class, args, false);
     }
@@ -146,12 +138,6 @@ public class YCSBClient extends BenchmarkComponent {
 	
 	@Override
     protected boolean runOnce() throws IOException {
-		
-		boolean response = true; 
-		client = this.getClientHandle();
-		
-		Object procParams[] = new Object[1]; 
-		
 		// pick random transaction to call, weighted by txnWeights
 		final Transaction target = this.txnWeights.nextValue(); 
 		int procIdx = target.ordinal(); 
@@ -191,24 +177,9 @@ public class YCSBClient extends BenchmarkComponent {
 			key = readRecord.nextInt();
 		}
 		
-		procParams[0] = key; 
-		
-		try 
-		{
-
-			Callback callback = new Callback(procIdx);
-			
-			// invoke procedure asynchronously 
-			response = client.callProcedure(callback, procName, procParams);
-		}
-		catch(IOException e) 
-		{
-			throw e; 
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace(); 
-		}
+		Object procParams[] = new Object[]{ key };
+		Callback callback = new Callback(procIdx);
+		boolean response = this.getClientHandle().callProcedure(callback, procName, procParams);
 				
 		return response; 
 	}

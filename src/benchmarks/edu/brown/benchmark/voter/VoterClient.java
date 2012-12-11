@@ -91,28 +91,16 @@ public class VoterClient extends BenchmarkComponent {
 
     @Override
     protected boolean runOnce() throws IOException {
-        boolean response = true;
-        Client client = this.getClientHandle();
-
         // Get the next phone call
         PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
-        try {
-            response = client.callProcedure(callback,
-                                            "Vote",
-                                            call.voteId,
-                                            call.phoneNumber,
-                                            call.contestantNumber,
-                                            VoterConstants.MAX_VOTES);
-            if (response == false)
-                throw new IOException();
-
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+        Client client = this.getClientHandle();
+        boolean response = client.callProcedure(callback,
+                                                "Vote",
+                                                call.voteId,
+                                                call.phoneNumber,
+                                                call.contestantNumber,
+                                                VoterConstants.MAX_VOTES);
         return response;
     }
 
