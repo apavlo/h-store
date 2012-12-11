@@ -444,14 +444,13 @@ public class ProfileMeasurement implements JSONSerializable {
     @Override
     public String toString() {
         return (this.debug(false));
-//        return (this.debug(false));
     }
 
     public String debug() {
         return this.debug(true);
     }
 
-    public String debug(boolean verbose) {
+    private String debug(boolean verbose) {
         String prefix = this.type + "/" + this.hashCode();
         if (verbose) {
             return (String.format("%s[total=%d, marker=%s, invocations=%d, avg=%.2f ms]",

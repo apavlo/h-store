@@ -53,7 +53,7 @@ public class DistributedBlockable extends VoltProcedure {
         } finally {
             NOTIFY_BEFORE.drainPermits();
             pm_before.stop();
-            LOG.info("AWAKE - " + pm_before.debug(true));
+            LOG.info("AWAKE - " + pm_before.debug());
         }
         
         // -------------------- DISTRIBUTED QUERY --------------------
@@ -76,7 +76,7 @@ public class DistributedBlockable extends VoltProcedure {
         } finally {
             NOTIFY_AFTER.drainPermits();
             pm_after.stop();
-            LOG.info("AWAKE - " + pm_after.debug(true));
+            LOG.info("AWAKE - " + pm_after.debug());
         }
         
         if (SHOULD_ABORT.get()) {

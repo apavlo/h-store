@@ -58,7 +58,7 @@ public class GarbageCollection extends VoltSystemProcedure {
                 if (LOG.isDebugEnabled())
                     LOG.debug(String.format("Performed Garbage Collection at %s: %s",
                               this.executor.getHStoreSite().getSiteName(),
-                              this.gcTime.debug(true)));
+                              this.gcTime.debug()));
                 VoltTable vt = new VoltTable(nodeResultsColumns);
                 vt.addRow(this.executor.getHStoreSite().getSiteName(),
                           this.gcTime.getTotalThinkTimeMS() + " ms",

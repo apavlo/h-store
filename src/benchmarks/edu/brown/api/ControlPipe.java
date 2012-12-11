@@ -45,7 +45,9 @@ public class ControlPipe implements Runnable {
         final Thread self = Thread.currentThread();
         self.setName(String.format("client-%02d", cmp.getClientId()));
 
-        final boolean profile = cmp.getHStoreConf().client.profiling;
+        boolean profile = cmp.getHStoreConf().client.profiling;
+        if (profile) cmp.worker.enableProfiling(true);
+        
         final Client client = cmp.getClientHandle();
         final Thread workerThread = new Thread(cmp.worker);
         workerThread.setDaemon(true);
@@ -60,8 +62,8 @@ public class ControlPipe implements Runnable {
         }
         
         final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
-        ControlCommand command = null;
         final Pattern p = Pattern.compile(" ");
+        ControlCommand command = null;
         while (true) {
             if (this.autoStart) {
                 command = ControlCommand.START;
@@ -105,6 +107,9 @@ public class ControlPipe implements Runnable {
                         continue;
                     }
                     cmp.answerPoll();
+                    
+                    // Dump Profiling Info
+                    if (profile) System.err.println(this.getProfileInfo());
                     
                     // Call tick on the client if we're not polling ourselves
                     if (cmp.m_tickInterval < 0) {
@@ -167,7 +172,7 @@ public class ControlPipe implements Runnable {
                         cmp.invokeStopCallback();
                         
                         if (profile) {
-                            System.err.println("ExecuteTime: " + cmp.worker.getExecuteTime().debug(true));
+                            
                         }
                         
                         try {
@@ -194,6 +199,11 @@ public class ControlPipe implements Runnable {
                 }
             } // SWITCH
         }
+    }
+    
+    private String getProfileInfo() {
+        return (String.format("Client #%02d - %s / %s",
+                cmp.getClientId(), cmp.worker.getExecuteTime().debug(), cmp.worker.getBlockedTime().debug()));
     }
 
     

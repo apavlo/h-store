@@ -32,8 +32,9 @@ class ControlWorker extends Thread {
      */
     private long m_lastRequestTime;
 
-    
+    private boolean profiling = false;
     private ProfileMeasurement execute_time = new ProfileMeasurement("EXECUTE");
+    private ProfileMeasurement block_time = new ProfileMeasurement("BLOCK");
     
     
     /**
@@ -72,19 +73,26 @@ class ControlWorker extends Thread {
     }
 
     private void rateControlledRunLoop() {
-        final boolean profile = cmp.getHStoreConf().client.profiling;
         final Client client = cmp.getClientHandle();
         m_lastRequestTime = System.currentTimeMillis();
         
         boolean hadErrors = false;
+        boolean bp = false;
         while (true) {
-            boolean bp = false;
             try {
                 // If there is back pressure don't send any requests. Update the
                 // last request time so that a large number of requests won't
                 // queue up to be sent when there is no longer any back
                 // pressure.
-                client.backpressureBarrier();
+                if (bp) {
+                    if (this.profiling) this.block_time.start();
+                    try {
+                        client.backpressureBarrier();
+                    } finally {
+                        if (this.profiling) this.block_time.stop();
+                    }
+                    bp = false;
+                }
                 
                 // Check whether we are currently being paused
                 // We will block until we're allowed to go again
@@ -121,7 +129,7 @@ class ControlWorker extends Thread {
 
                 if (debug.get())
                     LOG.debug("Submitting " + transactionsToCreate + " transaction requests from client #" + cmp.getClientId());
-                if (profile) execute_time.start();
+                if (this.profiling) execute_time.start();
                 try {
                     for (int ii = 0; ii < transactionsToCreate; ii++) {
                         bp = !cmp.runOnce();
@@ -137,7 +145,7 @@ class ControlWorker extends Thread {
                     if (debug.get()) LOG.error("Failed to execute transaction: " + e.getMessage());
                     ThreadUtil.sleep(5000);
                 } finally {
-                    if (profile) execute_time.stop();
+                    if (this.profiling) execute_time.stop();
                 }
             }
             else {
@@ -153,9 +161,15 @@ class ControlWorker extends Thread {
             m_lastRequestTime = now;
         } // WHILE
     }
-    
+ 
+    public void enableProfiling(boolean val) {
+        this.profiling = val;
+    }
     public ProfileMeasurement getExecuteTime() {
-        return execute_time;
+        return (execute_time);
+    }
+    public ProfileMeasurement getBlockedTime() {
+        return (this.block_time);
     }
     
 }

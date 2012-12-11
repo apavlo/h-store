@@ -58,7 +58,7 @@ BUILD_DIR = "obj/release/prod"
 
 JVM_ARGS = [
     "-client",
-    "-Xmx128m",
+    "-Xmx64m",
     "-Dlog4j.configuration=log4j.properties",
     "-ea", 
 ]

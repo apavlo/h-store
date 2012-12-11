@@ -695,6 +695,8 @@ class Distributer {
             }
         }
         
+        if (trace.get()) LOG.trace(invocation.toString() + " ::: ignoreBackpressure->" + ignoreBackpressure);
+        
         // If we didn't get a direct site connection then we'll grab the next 
         // connection in our round-robin look up
         // Synchronization is necessary to ensure that m_connections is not modified
