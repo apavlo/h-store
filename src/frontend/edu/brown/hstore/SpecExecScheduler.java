@@ -163,13 +163,19 @@ public class SpecExecScheduler implements Loggable {
 
             // Skip any distributed or non-local transactions
             if ((txn instanceof LocalTransaction) == false || singlePartition == false) {
-                if (t) LOG.trace(String.format("%s - Skipping speculative candidate %s", dtxn, txn));
+                if (t) LOG.trace(String.format("%s - Skipping non-speculative candidate %s", dtxn, txn));
+                continue;
+            }
+            LocalTransaction localTxn = (LocalTransaction)txn;
+            
+            // Skip anything already speculatively executed
+            if (localTxn.isSpeculative()) {
+                if (t) LOG.trace(String.format("%s - Skipping %s because it was already executed", dtxn, txn));
                 continue;
             }
 
             // Let's check it out!
             if (this.isProfiling) profiler.compute_time.start();
-            LocalTransaction localTxn = (LocalTransaction)txn;
             if (d) LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", localTxn, dtxn));
             if (singlePartition == false) {
                 if (t) LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, localTxn));
