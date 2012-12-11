@@ -1,12 +1,12 @@
 package edu.brown.hstore;
 
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationType;
 
 import edu.brown.hstore.conf.HStoreConf;
@@ -14,6 +14,7 @@ import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -39,32 +40,22 @@ public class SpecExecScheduler implements Loggable {
     private final int partitionId;
     private final TransactionInitPriorityQueue work_queue;
     private AbstractConflictChecker checker;
-    private boolean ignore_all_local = false;
-    private final Map<SpeculationType, SpecExecProfiler> profilerMap = new HashMap<SpeculationType, SpecExecProfiler>();
-    private SchedulerPolicy policy;
+    private SpecExecSchedulerPolicyType policyType;
     private int window_size = 1;
-    private boolean isProfiling = false;
+    
+    /** Ignore all LocalTransaction handles **/
+    private boolean ignore_all_local = false;
+    
+    /** Don't reset the iterator if the queue size changes **/
+    private boolean ignore_queue_size_change = false;
     
     private AbstractTransaction lastDtxn;
     private SpeculationType lastSpecType;
     private Iterator<AbstractTransaction> lastIterator;
-    
-    public enum SchedulerPolicy {
-          FIRST, // DEFAULT
-          SHORTEST,
-          LONGEST;
-          
-          private static final Map<String, SchedulerPolicy> name_lookup = new HashMap<String, SchedulerPolicy>();
-          static {
-              for (SchedulerPolicy e : EnumSet.allOf(SchedulerPolicy.class)) {
-                  SchedulerPolicy.name_lookup.put(e.name().toLowerCase(), e);
-              } // FOR
-          } // STATIC
-          
-          public static SchedulerPolicy get(String name) {
-              return SchedulerPolicy.name_lookup.get(name.toLowerCase());
-          }
-    } // ENUM
+    private int lastSize = 0;
+
+    private final Map<SpeculationType, SpecExecProfiler> profilerMap = new HashMap<SpeculationType, SpecExecProfiler>();
+    private boolean profiling = false;
     
     /**
      * Constructor
@@ -75,36 +66,45 @@ public class SpecExecScheduler implements Loggable {
      */
     public SpecExecScheduler(AbstractConflictChecker checker,
                              int partitionId, TransactionInitPriorityQueue work_queue,
-                             SchedulerPolicy schedule_policy, int window_size) {
+                             SpecExecSchedulerPolicyType schedule_policy, int window_size) {
         assert(schedule_policy != null) : "Unsupported schedule policy parameter passed in";
         
         this.partitionId = partitionId;
         this.work_queue = work_queue;
         this.checker = checker;
-        this.policy = schedule_policy;
+        this.policyType = schedule_policy;
         this.window_size = window_size;
         
-        if (HStoreConf.singleton().site.specexec_profiling) {
-            this.isProfiling = true;
-            for (SpeculationType type: SpeculationType.getNameMap().values()) {
+        this.profiling = HStoreConf.singleton().site.specexec_profiling;
+        if (this.profiling) {
+            for (SpeculationType type: SpeculationType.values()) {
                 this.profilerMap.put(type, new SpecExecProfiler());
-            }
-        } else {
-            this.isProfiling = false; // do not need, but for explicit reason
+            } // FOR
         }
     }
     
-    public void setIgnoreAllLocal(boolean ignore_all_local) {
+    /**
+     * Replace the ConflictChecker. This should only be used for testing
+     * @param checker
+     */
+    protected void setConflictChecker(AbstractConflictChecker checker) {
+        LOG.warn(String.format("Replacing original checker %s with %s",
+                 this.checker.getClass().getSimpleName(),
+                 checker.getClass().getCanonicalName()));
+        this.checker = checker;
+    }
+    protected void setIgnoreAllLocal(boolean ignore_all_local) {
         this.ignore_all_local = ignore_all_local;
     }
-    
+    protected void setIgnoreQueueSizeChanges(boolean ignore_queue_changes) {
+        this.ignore_queue_size_change = ignore_queue_changes;
+    }
     protected void setWindowSize(int window) {
         this.window_size = window;
     }
-    protected void setPolicy(SchedulerPolicy policy) {
-        this.policy = policy;
+    protected void setPolicyType(SpecExecSchedulerPolicyType policy) {
+        this.policyType = policy;
     }
-    
     protected void reset() {
         this.lastIterator = null;
     }
@@ -128,7 +128,7 @@ public class SpecExecScheduler implements Loggable {
             String.format("Trying to check for speculative txns for %s but the txn should have been ignored");
         
         SpecExecProfiler profiler = null;
-        if (this.isProfiling) {
+        if (this.profiling) {
             profiler = profilerMap.get(specType);
             profiler.total_time.start();
         }
@@ -136,7 +136,7 @@ public class SpecExecScheduler implements Loggable {
         if (d) {
             LOG.debug(String.format("%s - Checking queue for transaction to speculatively execute " +
         		      "[specType=%s, queueSize=%d, policy=%s]",
-                      dtxn, specType, this.work_queue.size(), this.policy));
+                      dtxn, specType, this.work_queue.size(), this.policyType));
             if (t) LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
                              dtxn, this.lastDtxn, this.lastSpecType, this.lastIterator));
         }
@@ -147,7 +147,7 @@ public class SpecExecScheduler implements Loggable {
         if (this.ignore_all_local && dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
             if (d) LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
                              "it is using are on the same HStoreSite [%s]", dtxn, dtxn.getProcedure()));
-            if (this.isProfiling) profiler.total_time.stop();
+            if (this.profiling) profiler.total_time.stop();
             return (null);
         }
         
@@ -156,16 +156,17 @@ public class SpecExecScheduler implements Loggable {
         LocalTransaction next = null;
         int txn_ctr = 0;
         int examined_ctr = 0;
-        long best_time = (this.policy == SchedulerPolicy.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
+        long best_time = (this.policyType == SpecExecSchedulerPolicyType.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
 
         // Check whether we can use our same iterator from the last call
-        if (this.policy != SchedulerPolicy.FIRST ||
+        if (this.policyType != SpecExecSchedulerPolicyType.FIRST ||
                 this.lastDtxn != dtxn ||
                 this.lastSpecType != specType ||
-                this.lastIterator == null) {
+                this.lastIterator == null ||
+                (this.ignore_queue_size_change == false && this.lastSize != this.work_queue.size())) {
             this.lastIterator = this.work_queue.iterator();    
         }
-        if (this.isProfiling) profiler.queue_size.put(this.work_queue.size());
+        if (this.profiling) profiler.queue_size.put(this.work_queue.size());
         while (this.lastIterator.hasNext()) {
             AbstractTransaction txn = this.lastIterator.next();
             assert(txn != null) : "Null transaction handle " + txn;
@@ -186,7 +187,7 @@ public class SpecExecScheduler implements Loggable {
             }
 
             // Let's check it out!
-            if (this.isProfiling) profiler.compute_time.start();
+            if (this.profiling) profiler.compute_time.start();
             if (d) LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", localTxn, dtxn));
             if (singlePartition == false) {
                 if (t) LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, localTxn));
@@ -197,7 +198,7 @@ public class SpecExecScheduler implements Loggable {
                     if (next == null) {
                         next = localTxn;
                         // Scheduling Policy: FIRST MATCH
-                        if (this.policy == SchedulerPolicy.FIRST) {
+                        if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
                             break;
                         }
                     }
@@ -206,12 +207,12 @@ public class SpecExecScheduler implements Loggable {
                         EstimatorState es = localTxn.getEstimatorState();
                         if (es != null) {
                             long remaining = es.getLastEstimate().getRemainingExecutionTime();
-                            if ((this.policy == SchedulerPolicy.SHORTEST && remaining < best_time) ||
-                                (this.policy == SchedulerPolicy.LONGEST && remaining > best_time)) {
+                            if ((this.policyType == SpecExecSchedulerPolicyType.SHORTEST && remaining < best_time) ||
+                                (this.policyType == SpecExecSchedulerPolicyType.LONGEST && remaining > best_time)) {
                                 best_time = remaining;
                                 next = localTxn;
                                 if (d) LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
-                                                 this.policy, this.window_size, next, remaining));
+                                                 this.policyType, this.window_size, next, remaining));
                              }
                         }
                     }
@@ -219,51 +220,71 @@ public class SpecExecScheduler implements Loggable {
                     if (++examined_ctr == this.window_size) break;
                 }
             } finally {
-                if (this.isProfiling) profiler.compute_time.stop();
+                if (this.profiling) profiler.compute_time.stop();
             }
         } // WHILE
-        if (this.isProfiling) {
+        if (this.profiling) {
             profiler.num_comparisons.put(txn_ctr);
         }
         
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
         if (next != null) {
-            if (this.isProfiling) profiler.success++;
+            if (this.profiling) profiler.success++;
             this.lastIterator.remove();
             this.work_queue.clear(next);
             if (d) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
+        else if (d && this.work_queue.isEmpty() == false) {
+            LOG.debug(String.format("%s - Failed to find non-conflicting speculative txn [txnCtr=%d, examinedCtr=%d]",
+                      dtxn, txn_ctr, examined_ctr));
+        }
         
         this.lastDtxn = dtxn;
         this.lastSpecType = specType;
-        if (this.isProfiling) profiler.total_time.stop();
+        if (this.ignore_queue_size_change == false) this.lastSize = this.work_queue.size();
+        if (this.profiling) profiler.total_time.stop();
         return (next);
-    }
-    
-    /**
-     * Replace the ConflictChecker. This should only be used for testing
-     * @param checker
-     */
-    protected void setConflictChecker(AbstractConflictChecker checker) {
-        LOG.warn(String.format("Replacing original checker %s with %s",
-                 this.checker.getClass().getSimpleName(),
-                 checker.getClass().getCanonicalName()));
-        this.checker = checker;
-    }
-    
-    public Map<SpeculationType,SpecExecProfiler> getProfilers() {
-        //return (this.profiler);
-        return (this.profilerMap);
-    }
-    
-    public SpecExecProfiler getProfiler(SpeculationType stype) {
-        return (this.profilerMap.get(stype));
     }
     
     @Override
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    public class Debug implements DebugContext {
+        public AbstractTransaction getLastDtxn() {
+            return (lastDtxn);
+        }
+        public int getLastSize() {
+            return (lastSize);
+        }
+        public Iterator<AbstractTransaction> getLastIterator() {
+            return (lastIterator);
+        }
+        public SpeculationType getLastSpecType() {
+            return (lastSpecType);
+        }
+        public Map<SpeculationType,SpecExecProfiler> getProfilers() {
+            return (profilerMap);
+        }
+        public SpecExecProfiler getProfiler(SpeculationType stype) {
+            return (profilerMap.get(stype));
+        }
+        
+    } // CLASS
+    
+    private SpecExecScheduler.Debug cachedDebugContext;
+    public SpecExecScheduler.Debug getDebugContext() {
+        if (this.cachedDebugContext == null) {
+            // We don't care if we're thread-safe here...
+            this.cachedDebugContext = new SpecExecScheduler.Debug();
+        }
+        return this.cachedDebugContext;
     }
 }

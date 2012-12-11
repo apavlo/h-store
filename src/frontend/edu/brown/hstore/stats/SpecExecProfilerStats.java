@@ -16,6 +16,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.SpecExecScheduler;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
@@ -98,14 +99,15 @@ public class SpecExecProfilerStats extends StatsSource {
         @SuppressWarnings("unchecked")
         Pair<Integer, SpeculationType> rowKeyPair = (Pair<Integer, SpeculationType>) rowKey;
         Integer partition = rowKeyPair.getFirst();
-        SpeculationType rowValue = rowKeyPair.getSecond();
-        PartitionExecutor.Debug dbg = hstore_site.getPartitionExecutor(partition).getDebugContext();
-        SpecExecProfiler profiler = dbg.getSpecExecScheduler().getProfilers().get(rowValue);
+        SpeculationType specType = rowKeyPair.getSecond();
+        PartitionExecutor.Debug executorDebug = hstore_site.getPartitionExecutor(partition).getDebugContext();
+        SpecExecScheduler.Debug specExecDebug = executorDebug.getSpecExecScheduler().getDebugContext(); 
+        SpecExecProfiler profiler = specExecDebug.getProfiler(specType);
         assert(profiler != null);
         
         int offset = columnNameToIndex.get("PARTITION");
         rowValues[offset++] = partition;
-        rowValues[offset++] = rowValue.toString();
+        rowValues[offset++] = specType.toString();
         rowValues[offset++] = profiler.success;
         rowValues[offset++] = profiler.success / (double)profiler.total_time.getInvocations();
         rowValues[offset++] = MathUtil.weightedMean(profiler.queue_size);

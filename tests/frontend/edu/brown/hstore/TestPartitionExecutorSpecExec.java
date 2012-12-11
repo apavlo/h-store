@@ -19,13 +19,14 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.regressionsuites.specexecprocs.CheckSubscriber;
-import org.voltdb.regressionsuites.specexecprocs.DistributedBlockable;
-import org.voltdb.regressionsuites.specexecprocs.SinglePartitionAbortable;
+import org.voltdb.regressionsuites.specexecprocs.DtxnTester;
+import org.voltdb.regressionsuites.specexecprocs.SinglePartitionTester;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.HStoreSiteTestUtil;
+import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
@@ -58,16 +59,16 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     private PartitionExecutor baseExecutor;
     private PartitionExecutor remoteExecutor;
 
-    private final Semaphore lockBefore = DistributedBlockable.LOCK_BEFORE;
-    private final Semaphore lockAfter = DistributedBlockable.LOCK_AFTER;
-    private final Semaphore notifyBefore = DistributedBlockable.NOTIFY_BEFORE;
-    private final Semaphore notifyAfter = DistributedBlockable.NOTIFY_AFTER;
+    private final Semaphore lockBefore = DtxnTester.LOCK_BEFORE;
+    private final Semaphore lockAfter = DtxnTester.LOCK_AFTER;
+    private final Semaphore notifyBefore = DtxnTester.NOTIFY_BEFORE;
+    private final Semaphore notifyAfter = DtxnTester.NOTIFY_AFTER;
     
     private final TM1ProjectBuilder builder = new TM1ProjectBuilder() {
         {
             this.addAllDefaults();
-            this.addProcedure(DistributedBlockable.class);
-            this.addProcedure(SinglePartitionAbortable.class);
+            this.addProcedure(DtxnTester.class);
+            this.addProcedure(SinglePartitionTester.class);
             this.addProcedure(CheckSubscriber.class);
         }
     };
@@ -99,6 +100,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
             dtxnResponse = clientResponse;
             LOG.info(String.format("DTXN ClientResponse: %d / %s\n",
                                    clientResponse.getTransactionId(), clientResponse.getStatus()));
+            System.err.println(clientResponse);
             dtxnLatch.countDown();
         }
     };
@@ -130,7 +132,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertNotSame(this.baseExecutor.getPartitionId(), this.remoteExecutor.getPartitionId());
         this.executors = new PartitionExecutor[]{ this.baseExecutor, this.remoteExecutor };
         
-        this.dtxnProc = this.getProcedure(DistributedBlockable.class);
+        this.dtxnProc = this.getProcedure(DtxnTester.class);
         this.spProc = this.getProcedure(GetSubscriberData.class);
         
         // Make sure that we replace the conflict checker on the remote partition
@@ -140,7 +142,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         
         // Make sure that we always set to false to ensure that the dtxn won't abort
         // unless the test case really wants it to
-        DistributedBlockable.SHOULD_ABORT.set(false);
+        DtxnTester.SHOULD_ABORT.set(false);
         this.lockBefore.drainPermits();
         this.lockAfter.drainPermits();
         this.notifyBefore.drainPermits();
@@ -235,7 +237,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
      * testAllCommitsBefore
      */
     @Test
-    public void testAllCommitsBefore() throws Exception {
+    public void testAllCommitsBefore() throws Throwable {
         // We will submit a distributed transaction that will first acquire the locks
         // for all of the partitions and then block.
         // We will then submit a bunch of single-partition transactions that will execute
@@ -253,7 +255,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         this.checkCurrentDtxn();
         
         // Now fire off a bunch of single-partition txns
-        HStoreSiteTestUtil.LatchableProcedureCallback spCallback = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
+        LatchableProcedureCallback spCallback = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
         params = new Object[]{ BASE_PARTITION+1 }; // S_ID
         for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
             this.client.callProcedure(spCallback, this.spProc.getName(), params);
@@ -298,7 +300,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         
         // Now submit our aborting single-partition txn
         // This should be allowed to be speculatively executed right away
-        Procedure spProc0 = this.getProcedure(SinglePartitionAbortable.class);
+        Procedure spProc0 = this.getProcedure(SinglePartitionTester.class);
         Procedure spProc1 = this.getProcedure(CheckSubscriber.class);
         HStoreSiteTestUtil.LatchableProcedureCallback spCallback0 = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
         HStoreSiteTestUtil.LatchableProcedureCallback spCallback1 = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
@@ -370,7 +372,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         
         // Now submit our aborting single-partition txn
         // This should be allowed to be speculatively executed right away
-        Procedure spProc0 = this.getProcedure(SinglePartitionAbortable.class);
+        Procedure spProc0 = this.getProcedure(SinglePartitionTester.class);
         HStoreSiteTestUtil.LatchableProcedureCallback spCallback0 = new HStoreSiteTestUtil.LatchableProcedureCallback(1);
         int MARKER = 9999;
         params = new Object[]{ BASE_PARTITION+1, MARKER, 1 };
@@ -423,7 +425,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // When the dtxn aborts, this means that all of the txns in the first batch
         // will be allowed to commit, but the second batch will get restarted
         Object params[] = new Object[]{ BASE_PARTITION };
-        DistributedBlockable.SHOULD_ABORT.set(true);
+        DtxnTester.SHOULD_ABORT.set(true);
         this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), params);
         
         // Block until we know that the txn has started running

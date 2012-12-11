@@ -20,8 +20,8 @@ import edu.brown.profilers.ProfileMeasurement;
     partitionParam = 0,
     singlePartition = false
 )
-public class DistributedBlockable extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(DistributedBlockable.class);
+public class DtxnTester extends VoltProcedure {
+    private static final Logger LOG = Logger.getLogger(DtxnTester.class);
     
     public static final Semaphore LOCK_BEFORE = new Semaphore(0);
     public static final Semaphore NOTIFY_BEFORE = new Semaphore(0);
@@ -41,7 +41,7 @@ public class DistributedBlockable extends VoltProcedure {
     public VoltTable[] run(int partition) {
         // -------------------- LOCK BEFORE QUERY -------------------- 
         ProfileMeasurement pm_before = new ProfileMeasurement("BEFORE");
-        LOG.info("Blocking until LOCK_BEFORE is released");
+        LOG.info(this.getTransactionState() + " - Blocking until LOCK_BEFORE is released");
         pm_before.start();
         try {
             // Notify others before we lock
@@ -49,6 +49,7 @@ public class DistributedBlockable extends VoltProcedure {
             LOCK_BEFORE.acquire();
             LOCK_BEFORE.release();
         } catch (InterruptedException ex) {
+            ex.printStackTrace();
             throw new VoltAbortException(ex.getMessage());
         } finally {
             NOTIFY_BEFORE.drainPermits();
@@ -60,11 +61,11 @@ public class DistributedBlockable extends VoltProcedure {
         voltQueueSQL(updateAll);
         final VoltTable results[] = voltExecuteSQL();
         assert(results.length == 1);
-        LOG.info("RESULTS:\n" + results[0]);
+        LOG.info(this.getTransactionState() + " - RESULTS:\n" + results[0]);
 
         // -------------------- LOCK AFTER QUERY --------------------
         ProfileMeasurement pm_after = new ProfileMeasurement("AFTER");
-        LOG.info("Blocking until LOCK_AFTER is released");
+        LOG.info(this.getTransactionState() + " - Blocking until LOCK_AFTER is released");
         pm_after.start();
         try {
             // Notify others before we lock
@@ -72,6 +73,7 @@ public class DistributedBlockable extends VoltProcedure {
             LOCK_AFTER.acquire();
             LOCK_AFTER.release();
         } catch (InterruptedException ex) {
+            ex.printStackTrace();
             throw new VoltAbortException(ex.getMessage());
         } finally {
             NOTIFY_AFTER.drainPermits();

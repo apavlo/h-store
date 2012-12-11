@@ -16,8 +16,8 @@ import edu.brown.benchmark.tm1.TM1Constants;
     partitionParam = 0,
     singlePartition = true
 )
-public class SinglePartitionAbortable extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(SinglePartitionAbortable.class);
+public class SinglePartitionTester extends VoltProcedure {
+    private static final Logger LOG = Logger.getLogger(SinglePartitionTester.class);
     
     public final SQLStmt updateSubscriber = new SQLStmt(
         "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER +

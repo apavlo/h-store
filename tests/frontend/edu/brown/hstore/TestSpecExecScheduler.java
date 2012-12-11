@@ -8,13 +8,13 @@ import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
+import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.EstTimeUpdater;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
-import edu.brown.hstore.SpecExecScheduler.SchedulerPolicy;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.MockEstimate;
@@ -23,7 +23,6 @@ import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.profilers.SpecExecProfiler;
-import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -39,6 +38,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     private TransactionQueueManager queueManager;
     private TransactionInitPriorityQueue work_queue;
     private SpecExecScheduler scheduler;
+    private SpecExecScheduler.Debug schedulerDebug;
     private AbstractConflictChecker checker;
     private LocalTransaction dtxn;
     
@@ -59,8 +59,9 @@ public class TestSpecExecScheduler extends BaseTestCase {
         this.scheduler = new SpecExecScheduler(this.checker,
                                                BASE_PARTITION,
                                                this.work_queue,
-                                               SchedulerPolicy.FIRST,
+                                               SpecExecSchedulerPolicyType.FIRST,
                                                WINDOW_SIZE);
+        this.schedulerDebug = this.scheduler.getDebugContext();
         
         // Create our current distributed transaction
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
@@ -120,7 +121,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
      */
     public void testFirstMatchPolicy() throws Exception {
         // We should be able to get one match with only one evaluation
-        SpecExecProfiler profiler = this.scheduler.getProfiler(SpeculationType.SP2_REMOTE_BEFORE);
+        SpecExecProfiler profiler = this.schedulerDebug.getProfiler(SpeculationType.SP2_REMOTE_BEFORE);
         assertNotNull(profiler);
         assertTrue(profiler.num_comparisons.isEmpty());
         
@@ -135,7 +136,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
      */
     public void testShortestPolicy() throws Exception {
         // We should only evaluate the same # of txns as the WINDOW_SIZE
-        SpecExecProfiler profiler = this.scheduler.getProfiler(SpeculationType.SP2_REMOTE_BEFORE);
+        SpecExecProfiler profiler = this.schedulerDebug.getProfiler(SpeculationType.SP2_REMOTE_BEFORE);
         assertNotNull(profiler);
         assertTrue(profiler.num_comparisons.isEmpty());
         
@@ -154,7 +155,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         } // FOR
         
         int windowSize = this.work_queue.size();
-        this.scheduler.setPolicy(SchedulerPolicy.SHORTEST);
+        this.scheduler.setPolicyType(SpecExecSchedulerPolicyType.SHORTEST);
         this.scheduler.setWindowSize(windowSize);
         LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
         assertNotNull(next);

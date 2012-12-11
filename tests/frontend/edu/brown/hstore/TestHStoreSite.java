@@ -29,7 +29,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.regressionsuites.specexecprocs.DistributedBlockable;
+import org.voltdb.regressionsuites.specexecprocs.DtxnTester;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.EstTime;
@@ -88,7 +88,7 @@ public class TestHStoreSite extends BaseTestCase {
             this.addAllDefaults();
             this.enableReplicatedSecondaryIndexes(false);
             this.removeReplicatedSecondaryIndexes();
-            this.addProcedure(DistributedBlockable.class);
+            this.addProcedure(DtxnTester.class);
         }
     };
     
@@ -218,16 +218,16 @@ public class TestHStoreSite extends BaseTestCase {
         HStoreSiteTestUtil.LatchableProcedureCallback callback = new HStoreSiteTestUtil.LatchableProcedureCallback(NUM_TXNS + 1);
         
         // Submit our first dtxn that will block until we tell it to go
-        DistributedBlockable.NOTIFY_BEFORE.drainPermits();
-        DistributedBlockable.LOCK_BEFORE.drainPermits();
-        DistributedBlockable.NOTIFY_AFTER.drainPermits();
-        DistributedBlockable.LOCK_AFTER.drainPermits();
-        Procedure catalog_proc = this.getProcedure(DistributedBlockable.class);
+        DtxnTester.NOTIFY_BEFORE.drainPermits();
+        DtxnTester.LOCK_BEFORE.drainPermits();
+        DtxnTester.NOTIFY_AFTER.drainPermits();
+        DtxnTester.LOCK_AFTER.drainPermits();
+        Procedure catalog_proc = this.getProcedure(DtxnTester.class);
         Object params[] = new Object[]{ BASE_PARTITION };
         this.client.callProcedure(callback, catalog_proc.getName(), params);
         
         // Block until we know that the txn has started running
-        boolean result = DistributedBlockable.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        boolean result = DtxnTester.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
 
         // Now fire off all of our other dtxns. They should not 
@@ -245,8 +245,8 @@ public class TestHStoreSite extends BaseTestCase {
         
         // Ok, so let's release the blocked dtxn. This will allow everyone 
         // else to come to the party
-        DistributedBlockable.LOCK_AFTER.release();
-        DistributedBlockable.LOCK_BEFORE.release();
+        DtxnTester.LOCK_AFTER.release();
+        DtxnTester.LOCK_BEFORE.release();
         result = callback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue("DTXN LATCH --> " + callback.latch, result);
         
@@ -269,15 +269,15 @@ public class TestHStoreSite extends BaseTestCase {
         
         // Submit our first dtxn that will block until we tell it to go
         HStoreSiteTestUtil.LatchableProcedureCallback blockedCallback = new HStoreSiteTestUtil.LatchableProcedureCallback(1);
-        DistributedBlockable.NOTIFY_BEFORE.drainPermits();
-        DistributedBlockable.LOCK_BEFORE.drainPermits();
-        DistributedBlockable.NOTIFY_AFTER.drainPermits();
-        DistributedBlockable.LOCK_AFTER.drainPermits();
-        Procedure catalog_proc = this.getProcedure(DistributedBlockable.class);
+        DtxnTester.NOTIFY_BEFORE.drainPermits();
+        DtxnTester.LOCK_BEFORE.drainPermits();
+        DtxnTester.NOTIFY_AFTER.drainPermits();
+        DtxnTester.LOCK_AFTER.drainPermits();
+        Procedure catalog_proc = this.getProcedure(DtxnTester.class);
         Object params[] = new Object[]{ BASE_PARTITION };
         this.client.callProcedure(blockedCallback, catalog_proc.getName(), params);
         // Block until we know that the txn has started running
-        boolean result = DistributedBlockable.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        boolean result = DtxnTester.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
 
         // Fire off a mix of single-partition txns and distributed txns
@@ -312,8 +312,8 @@ public class TestHStoreSite extends BaseTestCase {
         
         // Ok, so let's release the blocked dtxn. This will allow everyone 
         // else to come to the party
-        DistributedBlockable.LOCK_AFTER.release();
-        DistributedBlockable.LOCK_BEFORE.release();
+        DtxnTester.LOCK_AFTER.release();
+        DtxnTester.LOCK_BEFORE.release();
         result = blockedCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue("BLOCKING LATCH --> " + blockedCallback.latch, result);
         

@@ -485,7 +485,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Speculative pollicy to pick the transactions to run speculatively. " +
-                    "It should be one of ('FIRST', 'SHORTEST', 'LONGEST')" ,
+                        "Allowed values are 'FIRST', 'SHORTEST', or 'LONGEST'." ,
             defaultString="FIRST",
             experimental=false
         )

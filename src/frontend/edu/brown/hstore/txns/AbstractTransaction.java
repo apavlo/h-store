@@ -1130,8 +1130,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         m.put("No Undo Buffer", Arrays.toString(this.exec_noUndoBuffer));
         m.put("# of Rounds", Arrays.toString(this.round_ctr));
         m.put("Executed Work", Arrays.toString(this.exec_eeWork));
-        if (this.pending_error != null)
-            m.put("Pending Error", this.pending_error);
+        m.put("Pending Error", this.pending_error);
         maps.add(m);
         
         // Predictions
