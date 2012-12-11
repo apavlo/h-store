@@ -28,6 +28,8 @@ public class FixedVoterEstimator extends AbstractFixedEstimator {
         PartitionSet readonly = EMPTY_PARTITION_SET;
         if (procName.equalsIgnoreCase("vote")) {
             partitions = this.catalogContext.getPartitionSetSingleton(base_partition);
+        } else {
+            partitions = this.catalogContext.getAllPartitionIds();
         }
         ret.createInitialEstimate(partitions, readonly, EMPTY_PARTITION_SET);
         return (ret);
