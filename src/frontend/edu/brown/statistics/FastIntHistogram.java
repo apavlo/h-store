@@ -414,4 +414,16 @@ public class FastIntHistogram extends Histogram<Integer> {
             }
         }
     }
+    
+    @Override
+    public String toString() {
+        // HACK HACK HACK
+        super.histogram.clear();
+        for (int i = 0; i < this.histogram.length; i++) {
+            if (this.histogram[i] != -1) {
+                super.put(i, this.histogram[i]);
+            }
+        } // FOR
+        return super.toString();
+    }
 }

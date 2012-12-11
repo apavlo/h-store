@@ -54,6 +54,7 @@ public class TestClientInterface extends BaseTestCase {
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
         this.clientInterface = this.hstore_site.getClientInterface();
         this.client = createClient();
+        this.client.configureBlocking(true);
     }
     
     @Override
@@ -104,11 +105,7 @@ public class TestClientInterface extends BaseTestCase {
         
         LatchableProcedureCallback floodCallback = new LatchableProcedureCallback(NUM_TXNS);
         for (int i = 0; i < NUM_TXNS; i++) {
-            boolean bp = client.callProcedure(floodCallback, procName, new Object[]{0, data});
-            if (bp) {
-                // System.err.println("BackPressure!");
-                client.backpressureBarrier();
-            }
+            client.callProcedure(floodCallback, procName, new Object[]{0, data});
         } // FOR
         
         boolean result = callback.latch.await(sleepTime*3, TimeUnit.MILLISECONDS);

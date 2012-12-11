@@ -14,16 +14,14 @@ import org.voltdb.utils.EstTimeUpdater;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
-import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.SpecExecScheduler.SchedulerPolicy;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.MockEstimate;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.SpecExecProfiler;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
@@ -43,104 +41,6 @@ public class TestSpecExecScheduler extends BaseTestCase {
     private SpecExecScheduler scheduler;
     private AbstractConflictChecker checker;
     private LocalTransaction dtxn;
-    
-    private class MockEstimate implements Estimate {
-        final long remaining;
-        
-        MockEstimate(long remaining) {
-            this.remaining = remaining;
-        }
-        @Override
-        public boolean isInitialized() {
-            return (true);
-        }
-        @Override
-        public void finish() { }
-        @Override
-        public boolean isInitialEstimate() {
-            return true;
-        }
-        @Override
-        public int getBatchId() {
-            return 0;
-        }
-        @Override
-        public boolean isValid() {
-            return (true);
-        }
-        @Override
-        public PartitionSet getTouchedPartitions(EstimationThresholds t) {
-            return null;
-        }
-        @Override
-        public long getRemainingExecutionTime() {
-            return (this.remaining);
-        }
-        @Override
-        public boolean hasQueryEstimate(int partition) {
-            return false;
-        }
-        @Override
-        public List<CountedStatement> getQueryEstimate(int partition) {
-            return null;
-        }
-        @Override
-        public boolean isSinglePartitionProbabilitySet() {
-            return false;
-        }
-        @Override
-        public boolean isSinglePartitioned(EstimationThresholds t) {
-            return false;
-        }
-        @Override
-        public boolean isReadOnlyProbabilitySet(int partition) {
-            return false;
-        }
-        @Override
-        public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
-            return false;
-        }
-        @Override
-        public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
-            return false;
-        }
-        @Override
-        public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-            return null;
-        }
-        @Override
-        public boolean isWriteProbabilitySet(int partition) {
-            return false;
-        }
-        @Override
-        public boolean isWritePartition(EstimationThresholds t, int partition) {
-            return false;
-        }
-        @Override
-        public PartitionSet getWritePartitions(EstimationThresholds t) {
-            return null;
-        }
-        @Override
-        public boolean isFinishProbabilitySet(int partition) {
-            return false;
-        }
-        @Override
-        public boolean isFinishPartition(EstimationThresholds t, int partition) {
-            return false;
-        }
-        @Override
-        public PartitionSet getFinishPartitions(EstimationThresholds t) {
-            return null;
-        }
-        @Override
-        public boolean isAbortProbabilitySet() {
-            return false;
-        }
-        @Override
-        public boolean isAbortable(EstimationThresholds t) {
-            return false;
-        }
-    }
     
     @Override
     protected void setUp() throws Exception {
@@ -253,12 +153,14 @@ public class TestSpecExecScheduler extends BaseTestCase {
             ts.setEstimatorState(state);
         } // FOR
         
+        int windowSize = this.work_queue.size();
         this.scheduler.setPolicy(SchedulerPolicy.SHORTEST);
-        this.scheduler.setWindowSize(this.work_queue.size());
+        this.scheduler.setWindowSize(windowSize);
         LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
         assertNotNull(next);
         assertEquals(shortest, next);
-        assertEquals(1, profiler.num_comparisons.get(this.work_queue.size()));
+        // System.err.println(profiler.num_comparisons.toString());
+        assertEquals(1, profiler.num_comparisons.get(windowSize));
     }
     
     /**
