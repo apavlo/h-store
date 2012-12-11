@@ -16,13 +16,13 @@ import edu.brown.utils.PartitionSet;
  * TM1 Benchmark Fixed Estimator
  * @author pavlo
  */
-public class TM1Estimator extends FixedEstimator {
+public class FixedTM1Estimator extends AbstractFixedEstimator {
 
     private final Set<String> singlePartition = new HashSet<String>();
     private final Set<String> multiPartition = new HashSet<String>();
     private final Set<String> readOnly = new HashSet<String>();
     
-    public TM1Estimator(PartitionEstimator p_estimator) {
+    public FixedTM1Estimator(PartitionEstimator p_estimator) {
         super(p_estimator);
         
         // NOTE: We can't use the class references here because

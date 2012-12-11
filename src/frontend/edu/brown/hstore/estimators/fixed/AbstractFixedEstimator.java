@@ -16,11 +16,11 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 
-public abstract class FixedEstimator extends TransactionEstimator {
+public abstract class AbstractFixedEstimator extends TransactionEstimator {
     
     protected static final PartitionSet EMPTY_PARTITION_SET = new PartitionSet();
     
-    public FixedEstimator(PartitionEstimator p_estimator) {
+    public AbstractFixedEstimator(PartitionEstimator p_estimator) {
         super(p_estimator);
     }
 
@@ -30,18 +30,18 @@ public abstract class FixedEstimator extends TransactionEstimator {
     }
     
     @SuppressWarnings("unchecked")
-    public static <T extends FixedEstimator> T factory(PartitionEstimator p_estimator, CatalogContext catalogContext) {
-        FixedEstimator estimator = null;
+    public static <T extends AbstractFixedEstimator> T factory(PartitionEstimator p_estimator, CatalogContext catalogContext) {
+        AbstractFixedEstimator estimator = null;
         ProjectType ptype = ProjectType.get(catalogContext.database.getProject());
         switch (ptype) {
             case TPCC:
-                estimator = new TPCCEstimator(p_estimator);
+                estimator = new FixedTPCCEstimator(p_estimator);
                 break;
             case TM1:
-                estimator = new TM1Estimator(p_estimator);
+                estimator = new FixedTM1Estimator(p_estimator);
                 break;
             case SEATS:
-                estimator = new SEATSEstimator(p_estimator);
+                estimator = new FixedSEATSEstimator(p_estimator);
                 break;
             default:
                 estimator = null;

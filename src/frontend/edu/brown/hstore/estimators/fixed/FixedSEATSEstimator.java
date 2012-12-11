@@ -13,8 +13,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
-public class SEATSEstimator extends FixedEstimator {
-    private static final Logger LOG = Logger.getLogger(SEATSEstimator.class);
+public class FixedSEATSEstimator extends AbstractFixedEstimator {
+    private static final Logger LOG = Logger.getLogger(FixedSEATSEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -25,7 +25,7 @@ public class SEATSEstimator extends FixedEstimator {
      * Constructor
      * @param hstore_site
      */
-    public SEATSEstimator(PartitionEstimator p_estimator) {
+    public FixedSEATSEstimator(PartitionEstimator p_estimator) {
         super(p_estimator);
     }
     

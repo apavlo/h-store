@@ -10,27 +10,27 @@ import edu.brown.BaseTestCase;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.Estimate;
-import edu.brown.hstore.estimators.fixed.FixedEstimator;
-import edu.brown.hstore.estimators.fixed.TPCCEstimator;
+import edu.brown.hstore.estimators.fixed.AbstractFixedEstimator;
+import edu.brown.hstore.estimators.fixed.FixedTPCCEstimator;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 
-public class TestTPCCEstimator extends BaseTestCase {
+public class TestFixedTPCCEstimator extends BaseTestCase {
 
     private static final int NUM_PARTITIONS = 8;
     private static final DefaultRandomGenerator rng = new DefaultRandomGenerator(0);
     private static final EstimationThresholds thresholds = new EstimationThresholds();
     
-    private TPCCEstimator estimator;
+    private FixedTPCCEstimator estimator;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
         
-        this.estimator = FixedEstimator.factory(p_estimator, catalogContext);
+        this.estimator = AbstractFixedEstimator.factory(p_estimator, catalogContext);
         assertNotNull(this.estimator);
     }
 

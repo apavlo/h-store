@@ -40,7 +40,7 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.fixed.FixedEstimator;
+import edu.brown.hstore.estimators.fixed.AbstractFixedEstimator;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -189,7 +189,7 @@ public abstract class HStore {
                 if (hstore_conf.site.markov_fixed == false && markovs != null) {
                     t_estimator = new MarkovEstimator(catalogContext, p_estimator, local_markovs);
                 } else if (hstore_conf.site.markov_fixed) {
-                    t_estimator = FixedEstimator.factory(p_estimator, singleton.getCatalogContext());
+                    t_estimator = AbstractFixedEstimator.factory(p_estimator, singleton.getCatalogContext());
                 }
             }
             if (first && t_estimator != null) {

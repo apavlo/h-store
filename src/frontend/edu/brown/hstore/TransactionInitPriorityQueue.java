@@ -1,6 +1,5 @@
 package edu.brown.hstore;
 
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.PriorityBlockingQueue;

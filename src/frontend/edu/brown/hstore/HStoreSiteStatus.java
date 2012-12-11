@@ -94,8 +94,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     private Integer last_completed = null;
     private AtomicInteger snapshot_ctr = new AtomicInteger(0);
     
-    private Integer inflight_min = null;
-    private Integer inflight_max = null;
+    private int inflight_min = Integer.MAX_VALUE;
+    private int inflight_max = Integer.MIN_VALUE;
     
     private Integer processing_min = null;
     private Integer processing_max = null;
@@ -345,8 +345,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         int inflight_cur = siteDebug.getInflightTxnCount();
         int inflight_local = queueManagerDebug.getInitQueueSize();
-        if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
-        if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
+        if (inflight_cur < this.inflight_min && inflight_cur > 0) this.inflight_min = inflight_cur;
+        if (inflight_cur > this.inflight_max) this.inflight_max = inflight_cur;
         
         // Check to see how many of them are marked as finished
         // There is no guarantee that this will be accurate because txns could be swapped out
