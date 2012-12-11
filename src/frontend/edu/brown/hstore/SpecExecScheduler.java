@@ -231,6 +231,7 @@ public class SpecExecScheduler implements Loggable {
         if (next != null) {
             if (this.isProfiling) profiler.success++;
             this.lastIterator.remove();
+            this.work_queue.clear(next);
             if (d) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         

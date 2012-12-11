@@ -1,5 +1,6 @@
 package edu.brown.hstore;
 
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -67,6 +68,15 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         this.partitionId = partitionId;
         this.waitTime = wait;
     }
+    
+
+    protected QueueState getQueueState() {
+        return this.state;
+    }
+    
+    protected int getPartitionId() {
+        return (this.partitionId);
+    }
 
     /**
      * Only return transaction state objects that are ready to run.
@@ -77,6 +87,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         
         // These invocations of poll() can return null if the next
         // txn was speculatively executed
+        if (this.nextTxn == null) this.checkQueueState();
         
         if (this.state == QueueState.BLOCKED_SAFETY) {
             if (EstTime.currentTimeMillis() >= this.blockTime) {
@@ -86,7 +97,6 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
 //            assert(checkQueueState() == QueueState.UNBLOCKED);
             retval = super.poll();
         }
-        if (t) LOG.trace(String.format("Partition %d :: poll() -> %s", this.partitionId, retval));
         if (retval != null) {
             assert(this.nextTxn.equals(retval)) : 
                 String.format("Partition %d :: Next txn is %s but our poll returned %s\n" +
@@ -150,20 +160,30 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
 
     @Override
     public boolean remove(Object obj) {
-        AbstractTransaction ts = (AbstractTransaction)obj;
-        boolean retval = super.remove(ts);
+        AbstractTransaction txn = (AbstractTransaction)obj;
+        boolean retval = super.remove(txn);
         boolean checkQueue = false;
-        if (this.nextTxn != null && this.nextTxn == ts) {
+        if (this.nextTxn != null && this.nextTxn == txn) {
             this.nextTxn = null;
             checkQueue = true;
-            
         }
         // Sanity Check
-        assert(super.contains(ts) == false) :
-            "Failed to remove " + ts + "???\n" + this.debug();
-        if (d) LOG.debug(String.format("Partition %d :: remove(%s) -> %s",
-                         this.partitionId, ts, retval));
+        assert(super.contains(txn) == false) :
+            "Failed to remove " + txn + "???\n" + this.debug();
+        if (d) LOG.warn(String.format("Partition %d :: remove(%s) -> %s",
+                        this.partitionId, txn, retval));
         if (checkQueue) this.checkQueueState();
+        return retval;
+    }
+    
+    protected boolean clear(AbstractTransaction txn) {
+        boolean retval = false;
+        if (this.nextTxn != null && this.nextTxn == txn) {
+            this.nextTxn = null;
+            retval = true;
+        }
+        if (d) LOG.warn(String.format("Partition %d :: clear(%s) -> %s",
+                        this.partitionId, txn, retval));
         return retval;
     }
 
@@ -203,14 +223,6 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
 
         // return the last seen id for the originating initiator
         return this.lastSeenTxn;
-    }
-
-    protected QueueState getQueueState() {
-        return this.state;
-    }
-    
-    protected int getPartitionId() {
-        return (this.partitionId);
     }
 
     protected QueueState checkQueueState() {

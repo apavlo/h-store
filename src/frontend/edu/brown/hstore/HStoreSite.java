@@ -1332,7 +1332,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.hstore_coordinator != null)
             this.hstore_coordinator.prepareShutdown(false);
         
-        this.txnQueueManager.prepareShutdown(error);
+        try {
+            this.txnQueueManager.prepareShutdown(error);
+        } catch (Throwable ex) {
+            LOG.error("Unexpected error when preparing " +
+                     this.txnQueueManager.getClass().getSimpleName() + " for shutdown", ex);
+        }
         this.clientInterface.prepareShutdown(error);
         
         if (this.preProcessors != null) {
@@ -2570,10 +2575,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (hstore_conf.site.pool_txn_enable) {
             if (d) {
-                LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+                LOG.warn(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                           ts, ts.getClass().getSimpleName(), ts.hashCode()));
-                // if (d) this.deletable_last.add(ts.toString());
-                this.deletable_last.add(ts.debug());
+                if (d) this.deletable_last.add(ts.toString());
+//                this.deletable_last.add(ts.debug());
             }
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
@@ -2727,10 +2732,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts.isInitialized()) : "Trying to return uninitialized txn #" + txn_id;
         if (hstore_conf.site.pool_txn_enable) {
             if (d) {
-                LOG.debug(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
+                LOG.warn(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                           ts, ts.getClass().getSimpleName(), ts.hashCode()));
-                // if (d) this.deletable_last.add(ts.toString());
-                this.deletable_last.add(ts.debug());
+                if (d) this.deletable_last.add(ts.toString());
+//                this.deletable_last.add(ts.debug());
             }
             if (ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);

@@ -2587,7 +2587,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 String.format("Trying to execute work using undoToken %d for %s but " +
                 		      "it is less than the last committed undoToken %d at partition %d",
                               undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
-            if (d) LOG.debug(String.format("%s - Executing fragments %s at partition %d [undoToken=%d]",
+            if (t) LOG.trace(String.format("%s - Executing fragments %s at partition %d [undoToken=%d]",
                              ts, Arrays.toString(fragmentIds), this.partitionId, undoToken));
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                             fragmentIds,

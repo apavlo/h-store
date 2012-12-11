@@ -95,6 +95,7 @@ public class SpecExecProfilerStats extends StatsSource {
 
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
+        @SuppressWarnings("unchecked")
         Pair<Integer, SpeculationType> rowKeyPair = (Pair<Integer, SpeculationType>) rowKey;
         Integer partition = rowKeyPair.getFirst();
         SpeculationType rowValue = rowKeyPair.getSecond();
