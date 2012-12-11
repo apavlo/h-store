@@ -34,6 +34,13 @@ public class FixedTM1Estimator extends AbstractFixedEstimator {
            "GetNewDestination",
            "GetSubscriberData",
            "UpdateSubscriberData",
+           
+           // When the secondary index is installed with speculative execution,
+           // it is faster to execute all txns as single-partitioned and then restart them
+           // when they need to access a remote partition
+           "DeleteCallForwarding",
+           "InsertCallForwarding",
+           "UpdateLocation",
         };
         for (String procName : spClasses) {
             assert(this.catalogContext.procedures.get(procName) != null) :
@@ -43,9 +50,9 @@ public class FixedTM1Estimator extends AbstractFixedEstimator {
         } // FOR
         
         String mpClasses[] = {
-           "DeleteCallForwarding",
-           "InsertCallForwarding",
-           "UpdateLocation",
+//           "DeleteCallForwarding",
+//           "InsertCallForwarding",
+//           "UpdateLocation",
         };
         for (String procName : mpClasses) {
             assert(this.catalogContext.procedures.get(procName) != null) :
