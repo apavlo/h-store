@@ -4,10 +4,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Statement;
 
-import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
@@ -63,7 +60,7 @@ public class FixedTM1Estimator extends AbstractFixedEstimator {
     
     @SuppressWarnings("unchecked")
     @Override
-    public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
+    public <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
         FixedEstimatorState ret = new FixedEstimatorState(this.catalogContext, txn_id, base_partition);
         PartitionSet partitions = null;
@@ -80,23 +77,11 @@ public class FixedTM1Estimator extends AbstractFixedEstimator {
         }
         
         ret.createInitialEstimate(partitions, readonly, EMPTY_PARTITION_SET);
-        return (ret);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public Estimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions) {
-        return (state.getInitialEstimate());
-    }
-    
-    @Override
-    protected void completeTransaction(EstimatorState state, Status status) {
-        // Nothing to do
+        return ((T)ret);
     }
 
     @Override
     public void updateLogging() {
         // TODO Auto-generated method stub
-        
     }
 }

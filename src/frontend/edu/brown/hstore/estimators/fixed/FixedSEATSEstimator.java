@@ -3,16 +3,17 @@ package edu.brown.hstore.estimators.fixed;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Statement;
 
-import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.Estimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
+/**
+ * SEATS Benchmark Fixed Estimator
+ * @author pavlo
+ */
 public class FixedSEATSEstimator extends AbstractFixedEstimator {
     private static final Logger LOG = Logger.getLogger(FixedSEATSEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -29,9 +30,8 @@ public class FixedSEATSEstimator extends AbstractFixedEstimator {
         super(p_estimator);
     }
     
-    @SuppressWarnings("unchecked")
     @Override
-    public EstimatorState startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
+    public <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
         String procName = catalog_proc.getName();
         long f_id = VoltType.NULL_BIGINT;
         long c_id = VoltType.NULL_BIGINT;
@@ -73,21 +73,7 @@ public class FixedSEATSEstimator extends AbstractFixedEstimator {
     }
 
     @Override
-    public Estimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions) {
-        return (state.getInitialEstimate());
-    }
-
-    @Override
-    protected void completeTransaction(EstimatorState state, Status status) {
-        // Nothing to do
-    }
-
-    @Override
     public void updateLogging() {
         // TODO Auto-generated method stub
-        
     }
-
-
-
 }

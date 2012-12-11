@@ -4,9 +4,12 @@ import java.util.List;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.CatalogContext;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorUtil;
@@ -24,8 +27,19 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         super(p_estimator);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public void destroyEstimatorState(EstimatorState state) {
+    public final Estimate executeQueries(EstimatorState state, Statement[] catalog_stmts, PartitionSet[] partitions) {
+        return (state.getInitialEstimate());
+    }
+    
+    @Override
+    protected final void completeTransaction(EstimatorState state, Status status) {
+        // Nothing to do
+    }
+    
+    @Override
+    public final void destroyEstimatorState(EstimatorState state) {
         // Nothing to do...
     }
     
@@ -47,10 +61,29 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
                 estimator = new FixedVoterEstimator(p_estimator);
                 break;
             default:
-                estimator = null;
+                estimator = new DefaultFixedEstimator(p_estimator);
         } // SWITCH
         return ((T)estimator);
     }
+    
+    protected static class DefaultFixedEstimator extends AbstractFixedEstimator {
+        public DefaultFixedEstimator(PartitionEstimator p_estimator) {
+            super(p_estimator);
+        }
+        @Override
+        public void updateLogging() {
+            // Nothing to do...
+        }
+        @SuppressWarnings("unchecked")
+        @Override
+        protected <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
+            FixedEstimatorState ret = new FixedEstimatorState(this.catalogContext, txn_id, base_partition);
+            PartitionSet partitions = this.catalogContext.getPartitionSetSingleton(base_partition);
+            PartitionSet readonly = EMPTY_PARTITION_SET;
+            ret.createInitialEstimate(partitions, readonly, EMPTY_PARTITION_SET);
+            return ((T)ret);
+        }
+    } // CLASS
     
     /**
      * Fixed Estimator State 
