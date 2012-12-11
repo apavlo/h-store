@@ -98,8 +98,11 @@ public class SpecExecScheduler implements Loggable {
         this.ignore_all_local = ignore_all_local;
     }
     
-    public void setWindowSize(int window) {
+    protected void setWindowSize(int window) {
         this.window_size = window;
+    }
+    protected void setPolicy(SchedulerPolicy policy) {
+        this.policy = policy;
     }
     
     protected void reset() {
@@ -123,8 +126,9 @@ public class SpecExecScheduler implements Loggable {
             profiler.total_time.start();
         }
         
-        if (t) LOG.trace(String.format("%s - Checking queue for transaction to speculatively execute [queueSize=%d]",
-                         dtxn, this.work_queue.size()));
+        if (t) LOG.trace(String.format("%s - Checking queue for transaction to speculatively execute " +
+        		         "[queueSize=%d, policy=%s]",
+                         dtxn, this.work_queue.size(), this.policy));
         
         Procedure dtxnProc = dtxn.getProcedure();
         if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
@@ -219,7 +223,7 @@ public class SpecExecScheduler implements Loggable {
         // Make sure that we set the speculative flag to true!
         if (next != null) {
             if (this.isProfiling) profiler.success++;
-            this.lastIterator.remove();
+            // this.lastIterator.remove();
             if (d) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         
@@ -243,6 +247,10 @@ public class SpecExecScheduler implements Loggable {
     public Map<SpeculationType,SpecExecProfiler> getProfilers() {
         //return (this.profiler);
         return (this.profilerMap);
+    }
+    
+    public SpecExecProfiler getProfiler(SpeculationType stype) {
+        return (this.profilerMap.get(stype));
     }
     
     @Override

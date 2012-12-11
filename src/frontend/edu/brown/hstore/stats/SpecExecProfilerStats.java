@@ -39,10 +39,12 @@ public class SpecExecProfilerStats extends StatsSource {
         
         for (int partition: hstore_site.getLocalPartitionIds().values()) {
         	for (SpeculationType type: SpeculationType.getNameMap().values()) {
-        		Pair<Integer, SpeculationType> pair = new Pair<Integer, SpeculationType>(partition, type);
-        		this.sortedPair.add(pair);
-        	}
-        }
+        	    if (type != SpeculationType.NULL) {
+            		Pair<Integer, SpeculationType> pair = new Pair<Integer, SpeculationType>(partition, type);
+            		this.sortedPair.add(pair);
+        	    }
+        	} // FOR
+        } // FOR
     }
     
     @Override

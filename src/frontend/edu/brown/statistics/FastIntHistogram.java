@@ -414,5 +414,4 @@ public class FastIntHistogram extends Histogram<Integer> {
             }
         }
     }
-
 }

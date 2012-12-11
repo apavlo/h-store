@@ -510,14 +510,14 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     /**
      * Returns true if this Transaction was originally predicted to be single-partitioned
      */
-    public boolean isPredictSinglePartition() {
+    public final boolean isPredictSinglePartition() {
         return (this.predict_singlePartition);
     }
     
     public EstimatorState getEstimatorState() {
         return (this.predict_tState);
     }
-    public void setEstimatorState(EstimatorState state) {
+    public final void setEstimatorState(EstimatorState state) {
         this.predict_tState = state;
     }
     
