@@ -110,6 +110,9 @@ public class TableConflictChecker extends AbstractConflictChecker {
                 String.format("Unexpected null ConflictSet for %s -> %s",
                               dtxn_proc.getName(), ts_proc.getName());
             for (ConflictPair conflict : dtxn_conflicts.getReadwriteconflicts().values()) {
+                assert(conflict.getTables() != null) :
+                    String.format("Unexpected null ConflictSet tables for %s [dtxn=%s, candidate=%s]",
+                                  conflict.fullName(), dtxn_proc.getName(), ts_proc.getName());
                 for (TableRef ref : conflict.getTables().values()) {
                     if (dtxn.isTableReadOrWritten(partitionId, ref.getTable())) {
                         return (false);
@@ -117,6 +120,9 @@ public class TableConflictChecker extends AbstractConflictChecker {
                 } // FOR
             } // FOR (R-W)
             for (ConflictPair conflict : dtxn_conflicts.getWritewriteconflicts().values()) {
+                assert(conflict.getTables() != null) :
+                    String.format("Unexpected null ConflictSet tables for %s [dtxn=%s, candidate=%s]",
+                                  conflict.fullName(), dtxn_proc.getName(), ts_proc.getName());
                 for (TableRef ref : conflict.getTables().values()) {
                     assert(ref.getTable() != null) :
                         "Unexpected null table reference " + ref.fullName();
