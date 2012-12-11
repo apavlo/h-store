@@ -107,12 +107,12 @@ public class TableConflictChecker extends AbstractConflictChecker {
         // we can let that slide as long as DTXN hasn't read from or written to those tables yet
         if (dtxn_hasRWConflict || dtxn_hasWWConflict) {
             assert(dtxn_conflicts != null) :
-                String.format("Unexpected null ConflictSet for %s -> %s",
+                String.format("Unexpected null DTXN ConflictSet for %s -> %s",
                               dtxn_proc.getName(), ts_proc.getName());
             for (ConflictPair conflict : dtxn_conflicts.getReadwriteconflicts().values()) {
-                assert(conflict.getTables() != null) :
-                    String.format("Unexpected null ConflictSet tables for %s [dtxn=%s, candidate=%s]",
-                                  conflict.fullName(), dtxn_proc.getName(), ts_proc.getName());
+                assert(conflict != null) :
+                    String.format("Unexpected null DTXN R/W ConflictSet tables for %s [candidate=%s]",
+                                  dtxn_proc.getName(), ts_proc.getName());
                 for (TableRef ref : conflict.getTables().values()) {
                     if (dtxn.isTableReadOrWritten(partitionId, ref.getTable())) {
                         return (false);
@@ -120,9 +120,9 @@ public class TableConflictChecker extends AbstractConflictChecker {
                 } // FOR
             } // FOR (R-W)
             for (ConflictPair conflict : dtxn_conflicts.getWritewriteconflicts().values()) {
-                assert(conflict.getTables() != null) :
-                    String.format("Unexpected null ConflictSet tables for %s [dtxn=%s, candidate=%s]",
-                                  conflict.fullName(), dtxn_proc.getName(), ts_proc.getName());
+                assert(conflict != null) : 
+                    String.format("Unexpected null ConflictSet for %s [candidate=%s]",
+                                  dtxn_proc.getName(), ts_proc.getName());
                 for (TableRef ref : conflict.getTables().values()) {
                     assert(ref.getTable() != null) :
                         "Unexpected null table reference " + ref.fullName();
@@ -143,6 +143,10 @@ public class TableConflictChecker extends AbstractConflictChecker {
             if (debug.get())
                 LOG.debug(String.format("%s has R-W conflict with %s. Checking read/write sets", ts, dtxn));
             for (ConflictPair conflict : ts_conflicts.getReadwriteconflicts().values()) {
+                assert(conflict != null) : 
+                    String.format("Unexpected null ConflictSet for %s [candidate=%s]",
+                                  dtxn_proc.getName(), ts_proc.getName());
+                
                 for (TableRef ref : conflict.getTables().values()) {
                     if (dtxn.isTableWritten(partitionId, ref.getTable())) {
                         return (false);

@@ -43,6 +43,9 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
             case SEATS:
                 estimator = new FixedSEATSEstimator(p_estimator);
                 break;
+            case VOTER:
+                estimator = new FixedVoterEstimator(p_estimator);
+                break;
             default:
                 estimator = null;
         } // SWITCH
