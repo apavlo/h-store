@@ -29,7 +29,7 @@ public abstract class AbstractConflictChecker {
      * @param proc
      * @return
      */
-    public abstract boolean ignoreProcedure(Procedure proc);
+    public abstract boolean shouldIgnoreProcedure(Procedure proc);
     
     /**
      * Calculate whether to two transaction handles are conflicting.

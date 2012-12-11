@@ -77,7 +77,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
      */
     private final AbstractConflictChecker checker = new AbstractConflictChecker(null) {
         @Override
-        public boolean ignoreProcedure(Procedure proc) {
+        public boolean shouldIgnoreProcedure(Procedure proc) {
             return (false);
         }
         @Override

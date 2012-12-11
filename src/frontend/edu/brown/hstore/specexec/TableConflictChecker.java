@@ -63,7 +63,7 @@ public class TableConflictChecker extends AbstractConflictChecker {
     }
 
     @Override
-    public boolean ignoreProcedure(Procedure proc) {
+    public boolean shouldIgnoreProcedure(Procedure proc) {
         return (this.hasConflicts.get(proc.getId()) == false);
     }
 

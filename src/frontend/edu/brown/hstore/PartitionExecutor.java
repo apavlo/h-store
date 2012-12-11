@@ -396,6 +396,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * TODO: This should really be a bitmap of table ids so that we have finer grain control
      */
     private boolean specExecModified;
+
+    /**
+     * If set to true, then we should not check for speculative execution candidates
+     * at run time. This needs to be set any time we change the currentDtxn
+     */
+    private boolean specExecIgnoreCurrent = false;
     
     /**
      * 
@@ -997,7 +1003,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         InternalMessage work = null;
         
         // Check whether there is something we can speculatively execute right now
-        if (hstore_conf.site.specexec_enable && this.currentDtxn != null && this.currentDtxn.isSysProc() == false) {
+        if (this.currentDtxn != null && this.specExecIgnoreCurrent == false) {
             if (t) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
             assert(this.currentDtxn.isInitialized()) :
                 String.format("Uninitialized distributed transaction handle [%s]", this.currentDtxn);
@@ -1586,6 +1592,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition %d [previous=%s]",
                          ts, this.partitionId, this.currentDtxn));
         this.currentDtxn = ts;
+        
+        // Check whether we should check for speculative txns to execute whenever this
+        // dtxn is idle at this partition
+        if (hstore_conf.site.specexec_enable && ts.isSysProc() == false) {
+            this.specExecIgnoreCurrent = this.specExecChecker.shouldIgnoreProcedure(ts.getProcedure());
+        } else {
+            this.specExecIgnoreCurrent = true;
+        }
+        
         if (d) this.lastDtxn = this.currentDtxn.toString();
     }
     

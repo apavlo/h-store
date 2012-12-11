@@ -109,6 +109,10 @@ public class SpecExecScheduler implements Loggable {
         this.lastIterator = null;
     }
 
+    public boolean shouldIgnoreProcedure(Procedure catalog_proc) {
+        return (this.checker.shouldIgnoreProcedure(catalog_proc));
+    }
+    
     /**
      * Find the next non-conflicting txn that we can speculatively execute.
      * Note that if we find one, it will be immediately removed from the queue
@@ -120,21 +124,21 @@ public class SpecExecScheduler implements Loggable {
      */
     public LocalTransaction next(AbstractTransaction dtxn, SpeculationType specType) {
         assert(dtxn != null) : "Null distributed transaction"; 
+        assert(this.checker.shouldIgnoreProcedure(dtxn.getProcedure()) == false) :
+            String.format("Trying to check for speculative txns for %s but the txn should have been ignored");
+        
         SpecExecProfiler profiler = null;
         if (this.isProfiling) {
             profiler = profilerMap.get(specType);
             profiler.total_time.start();
         }
         
-        if (t) LOG.trace(String.format("%s - Checking queue for transaction to speculatively execute " +
-        		         "[queueSize=%d, policy=%s]",
-                         dtxn, this.work_queue.size(), this.policy));
-        
-        Procedure dtxnProc = dtxn.getProcedure();
-        if (dtxnProc == null || this.checker.ignoreProcedure(dtxnProc)) {
-            if (d) LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists", dtxn));
-            if (this.isProfiling) profiler.total_time.stop();
-            return (null);
+        if (d) {
+            LOG.debug(String.format("%s - Checking queue for transaction to speculatively execute " +
+        		      "[specType=%s, queueSize=%d, policy=%s]",
+                      dtxn, specType, this.work_queue.size(), this.policy));
+            if (t) LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
+                             dtxn, this.lastDtxn, this.lastSpecType, this.lastIterator));
         }
         
         // If this is a LocalTransaction and all of the remote partitions that it needs are
@@ -142,7 +146,7 @@ public class SpecExecScheduler implements Loggable {
         // because there is going to be very small wait times.
         if (this.ignore_all_local && dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
             if (d) LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
-                             "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
+                             "it is using are on the same HStoreSite [%s]", dtxn, dtxn.getProcedure()));
             if (this.isProfiling) profiler.total_time.stop();
             return (null);
         }
@@ -155,7 +159,10 @@ public class SpecExecScheduler implements Loggable {
         long best_time = (this.policy == SchedulerPolicy.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
 
         // Check whether we can use our same iterator from the last call
-        if (this.lastDtxn != dtxn || this.lastSpecType != specType || this.lastIterator == null) {
+        if (this.policy != SchedulerPolicy.FIRST ||
+                this.lastDtxn != dtxn ||
+                this.lastSpecType != specType ||
+                this.lastIterator == null) {
             this.lastIterator = this.work_queue.iterator();    
         }
         if (this.isProfiling) profiler.queue_size.put(this.work_queue.size());
@@ -223,7 +230,7 @@ public class SpecExecScheduler implements Loggable {
         // Make sure that we set the speculative flag to true!
         if (next != null) {
             if (this.isProfiling) profiler.success++;
-            // this.lastIterator.remove();
+            this.lastIterator.remove();
             if (d) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         

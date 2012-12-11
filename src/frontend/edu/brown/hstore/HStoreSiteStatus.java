@@ -371,7 +371,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
            }
         } // FOR
         
-        siteInfo.put("InFlight Txns", String.format("%d total / %d dtxn / %d finished / %d deletable [totalMin=%d, totalMax=%d]",
+        siteInfo.put("InFlight Txns", String.format("%d total / %d queued / %d finished / %d deletable [totalMin=%d, totalMax=%d]",
                         inflight_cur,
                         inflight_local,
                         inflight_finished,

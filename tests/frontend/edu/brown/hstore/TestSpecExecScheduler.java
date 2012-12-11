@@ -270,7 +270,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         // System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(tsWithoutEstimatorState, next);
-        // assertFalse(this.work_queue.toString(), this.work_queue.contains(next));
+        assertFalse(this.work_queue.toString(), this.work_queue.contains(next));
   }
     
     /**
@@ -299,7 +299,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         //System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(ts, next);
-        // assertFalse(this.work_queue.contains(next));
+        assertFalse(this.work_queue.contains(next));
     }
     
     /**
@@ -333,7 +333,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
         assertNotNull(next);
         assertEquals(ts, next);
-        // assertFalse(this.work_queue.contains(next));
+        assertFalse(this.work_queue.contains(next));
         ts.finish();
         
         // Now have the dtxn "write" to one of the tables in our ConflictSet
@@ -392,7 +392,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
         assertNotNull(next);
         assertEquals(ts, next);
-        // assertFalse(this.work_queue.contains(next));
+        assertFalse(this.work_queue.contains(next));
         ts.finish();
         
         // Reads are allowed!
@@ -404,7 +404,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
         assertNotNull(next);
         assertEquals(ts, next);
-        // assertFalse(this.work_queue.contains(next));
+        assertFalse(this.work_queue.contains(next));
         ts.finish();
         
         // But writes are not!

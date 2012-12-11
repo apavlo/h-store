@@ -1,9 +1,11 @@
 package edu.brown.hstore;
 
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -319,12 +321,12 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     protected AbstractTransaction checkLockQueue(int partition) {
         if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.start();
-        if (d) LOG.debug(String.format("Checking lock queue for partition %d [queueSize=%d]",
+        if (t) LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
                          partition, this.lockQueues[partition].size()));
         
         if (this.lockQueuesBlocked[partition] != false) {
-            if (d) LOG.warn(String.format("Partition %d is already executing a transaction %d. Skipping...",
-                             this.lockQueuesLastTxn[partition], partition));
+            if (t) LOG.warn(String.format("Partition %d is already executing transaction %d. Skipping...",
+                            partition, this.lockQueuesLastTxn[partition]));
             if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.stop();
             return (null);
         }
@@ -340,7 +342,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // If null, then there is nothing that is ready to run at this partition,
             // so we'll just skip to the next one
             if (nextTxn == null) {
-                if (d) LOG.debug(String.format("Partition %d initQueue does not have a transaction ready to run. Skipping... " +
+                if (t) LOG.trace(String.format("Partition %d initQueue does not have a transaction ready to run. Skipping... " +
                 		         "[queueSize=%d]",
                                  partition, this.lockQueues[partition].size()));
                 break;
@@ -855,10 +857,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
 
     public class Debug implements DebugContext {
         public int getInitQueueSize() {
-            int ctr = 0;
-            for (int p : localPartitions.values())
-              ctr += lockQueues[p].size();
-            return (ctr);
+            Set<AbstractTransaction> allTxns = new HashSet<AbstractTransaction>();
+            for (int p : localPartitions.values()) {
+                allTxns.addAll(lockQueues[p]);
+            }
+            return (allTxns.size());
         }
         public int getInitQueueSize(int partition) {
             return (lockQueues[partition].size());
