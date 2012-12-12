@@ -2294,6 +2294,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 break;
             } // WHILE
         } else {
+            LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
             predict_touchedPartitions = this.catalogContext.getAllPartitionIds();
         }
         
@@ -2325,8 +2326,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             predict_touchedPartitions.add(base_partition);
         }
-        if (predict_touchedPartitions.isEmpty()) 
+        if (predict_touchedPartitions.isEmpty()) {
+            LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
             predict_touchedPartitions = this.catalogContext.getAllPartitionIds();
+        }
         
         // -------------------------------
         // NEW TXN INITIALIZATION
