@@ -121,17 +121,13 @@ DEBUG_CLIENT_LOGGING = [
 ]
 
 BASE_SETTINGS = {
-    "ec2.site_type":                    "m2.4xlarge",
+    "ec2.site_type":                    "c1.xlarge",
     "ec2.client_type":                  "c1.xlarge",
-    #"ec2.site_type":                    "m2.4xlarge",
-    #"ec2.client_type":                  "m1.large",
-    #"ec2.site_type":                    "m1.xlarge",
     "ec2.change_type":                  True,
-    "ec2.cluster_group":                "strangelove", # OPT_GIT_BRANCH,
+    "ec2.cluster_group":                "conflictsets", # OPT_GIT_BRANCH,
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
-    #"hstore.num_hosts_round_robin":     4,
 
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
@@ -147,27 +143,23 @@ BASE_SETTINGS = {
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
     
-    "site.jvm_asserts":                         True,
+    "site.jvm_asserts":                         False,
     "site.log_backup":                          False,
     "site.status_enable":                       False,
     "site.status_show_thread_info":             False,
     "site.status_show_executor_info":           False,
-    "site.txn_incoming_delay":                  10,
     "site.coordinator_init_thread":             False,
     "site.coordinator_finish_thread":           False,
     "site.txn_restart_limit":                   5,
     "site.txn_restart_limit_sysproc":           100,
     "site.exec_force_singlepartitioned":        True,
-    "site.memory":                              61440,
-    "site.queue_incoming_max_per_partition":    150,
-    "site.queue_incoming_release_factor":       0.90,
-    "site.queue_incoming_increase":             10,
-    "site.queue_dtxn_max_per_partition":        1000,
-    "site.queue_dtxn_release_factor":           0.90,
-    "site.queue_dtxn_increase":                 0,
+    "site.memory":                              6144,
     "site.exec_db2_redirects":                  False,
     "site.cpu_affinity":                        True,
     "site.cpu_affinity_one_partition_per_core": True,
+    
+    "site.txn_incoming_delay":                  5,
+    "site.network_incoming_max_per_partition":  200,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -181,11 +173,7 @@ EXPERIMENT_SETTINGS = {
         #"ec2.cluster_group":                    "hstore-hvm",
         #"hstore.partitions_per_site":           64,
         
-        "ec2.site_type":                       "c1.xlarge",
-        "site.memory":                          6144,
-        "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 False,
-        "site.specexec_idle":                   False,
         "site.markov_enable":                   False,
         "site.markov_fixed":                    True,
         "site.exec_force_singlepartitioned":    False,
@@ -208,11 +196,7 @@ EXPERIMENT_SETTINGS = {
         "benchmark.loadthread_per_warehouse":   False,
     },
     "remotequery": {
-        "ec2.site_type":                       "c1.xlarge",
-        "site.memory":                          6144,
-        "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 False,
-        "site.specexec_idle":                   False,
         "site.specexec_nonblocking":            True,
         "site.markov_enable":                   False,
         "site.markov_fixed":                    True,
@@ -225,12 +209,8 @@ EXPERIMENT_SETTINGS = {
         # "client.output_txn_profiling_combine":  True,
     },
     "prefetchquery": {
-        "ec2.site_type":                       "c1.xlarge",
-        "site.memory":                          6144,
         "site.exec_prefetch_queries":           True,
-        "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 False,
-        "site.specexec_idle":                   False,
         "site.specexec_nonblocking":            False,
         "site.markov_enable":                   True,
         "site.txn_client_debug":                False,
@@ -245,8 +225,6 @@ EXPERIMENT_SETTINGS = {
         "client.output_txn_counters_combine":   True,
     },
     "onepartition": {
-        "ec2.site_type":                       "c1.xlarge",
-        "site.memory":                          6144,
         "site.exec_force_singlepartitioned":    True,
         "client.count":                         1,
         "client.txnrate":                       100000,
@@ -254,20 +232,14 @@ EXPERIMENT_SETTINGS = {
         "client.output_txn_profiling":          "txnprofile.csv",
     },
     "specexec": {
-        "ec2.site_type":                       "m3.2xlarge", # c1.xlarge",
-        "hstore.num_hosts_round_robin":         1,
-        "site.memory":                          20480, # 6144,
-        "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 True,
-        "site.specexec_idle":                   True,
-        "site.specexec_markov":                 True,
-        "site.specexec_pre_query":              True,
+        "site.specexec_markov":                 False,
         "site.markov_enable":                   True,
         "site.markov_singlep_updates":          False,
-        "site.markov_dtxn_updates":             True,
+        "site.markov_dtxn_updates":             False,
         "site.markov_path_caching":             True,
         "site.markov_endpoint_caching":         False,
-        "site.markov_fixed":                    False,
+        "site.markov_fixed":                    True,
         "site.exec_force_singlepartitioned":    False,
         "client.count":                         1,
         "client.output_specexec":               True,
@@ -276,6 +248,7 @@ EXPERIMENT_SETTINGS = {
         "client.output_basepartitions":         False,
         "client.output_txn_counters":           "txncounters.csv",
         "client.output_txn_counters_combine":   True,
+        "client.output_specexec_profiling":     "specexec.csv",
         "benchmark.warehouse_pairing":          False,
         "benchmark.loadthread_per_warehouse":   False,
     },
@@ -288,7 +261,6 @@ for k, v in EXPERIMENT_SETTINGS['specexec-base'].iteritems():
         EXPERIMENT_SETTINGS['specexec-base'][k] = False
 ## FOR
 EXPERIMENT_SETTINGS['specexec-base']["site.exec_force_singlepartitioned"] = True
-EXPERIMENT_SETTINGS['specexec-base']["site.specexec_pre_query"] = True
 
 ## ==============================================
 ## updateEnv
@@ -350,9 +322,22 @@ def updateEnv(args, env, benchmark, partitions):
         env["client.threads_per_host"] = int(partitions*2)
         env["benchmark.loadthreads"] = min(16, partitions)
         
-    pplan = "%s.lns.pplan" % benchmark
-    env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
-    env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"
+    #pplan = "%s.lns.pplan" % benchmark
+    #env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+    #env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"
+## DEF
+
+## ==============================================
+## getCSVOutput
+## ==============================================
+def getCSVOutput(args, env, benchmark, partitions):
+    """Find all of the output parameters in the env and retrieve the files from the cluster"""
+    for k,v in env.iteritems():
+        if k.startswith("client.output_"):
+            LOG.info("Checking whether '%s' is enabled" % (k))
+            if not v is None and isinstance(v, str) and v.endswith(".csv"):
+                saveCSVResults(args, benchmark, partitions, v)
+    ## FOR
 ## DEF
 
 ## ==============================================
@@ -725,13 +710,7 @@ if __name__ == '__main__':
                             results.append(None)
                         
                         # CSV RESULT FILES
-                        for key in ["output_txn_profiling", "output_exec_profiling", "output_queue_profiling", "output_txn_counters"]:
-                            key = "client.%s" % key
-                            LOG.debug("Checking whether '%s' is enabled" % (key))
-                            if key in env and not env[key] is None:
-                                saveCSVResults(args, benchmark, partitions, env[key])
-                        ## FOR
-                        
+                        getCSVOutput(args, env, benchmark, partitions)
                     ## WITH
                 except KeyboardInterrupt:
                     stop = True
