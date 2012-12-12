@@ -2278,7 +2278,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (status == Status.ABORT_RESTART || status == Status.ABORT_EVICTEDACCESS) {
             predict_touchedPartitions = new PartitionSet(orig_ts.getPredictTouchedPartitions());
             malloc = true;
-        } else if (orig_ts.getRestartCounter() == 0) {
+        } else if (orig_ts.getRestartCounter() <= 2) { // FIXME
             // HACK: Ignore ConcurrentModificationException
             // This can occur if we are trying to requeue the transactions but there are still
             // pieces of it floating around at this site that modify the TouchedPartitions histogram
@@ -2294,7 +2294,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 break;
             } // WHILE
         } else {
-            LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
+            if (d) LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
             predict_touchedPartitions = this.catalogContext.getAllPartitionIds();
         }
         
@@ -2327,7 +2327,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             predict_touchedPartitions.add(base_partition);
         }
         if (predict_touchedPartitions.isEmpty()) {
-            LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
+            if (d) LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
             predict_touchedPartitions = this.catalogContext.getAllPartitionIds();
         }
         
