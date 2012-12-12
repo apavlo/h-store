@@ -2177,7 +2177,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // REDIRECTION
         // -------------------------------
         if (hstore_conf.site.exec_db2_redirects && 
-                 status != Status.ABORT_RESTART && 
+                 status != Status.ABORT_RESTART &&
+                 status != Status.ABORT_SPECULATIVE &&
                  status != Status.ABORT_EVICTEDACCESS) {
             // Figure out whether this transaction should be redirected based on what partitions it
             // tried to touch before it was aborted
@@ -2217,7 +2218,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // That's what you get for messing up!!
             if (this.isLocalPartition(redirect_partition.intValue()) == false && orig_ts.getRestartCounter() == 0) {
                 if (d) LOG.debug(String.format("%s - Redirecting to partition %d because of misprediction",
-                                               orig_ts, redirect_partition));
+                                 orig_ts, redirect_partition));
                 
                 Procedure catalog_proc = orig_ts.getProcedure();
                 StoredProcedureInvocation spi = new StoredProcedureInvocation(orig_ts.getClientHandle(),
@@ -2275,10 +2276,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // those when the txn is restarted
         boolean malloc = false;
         PartitionSet predict_touchedPartitions = null;
-        if (status == Status.ABORT_RESTART || status == Status.ABORT_EVICTEDACCESS) {
+        if (status == Status.ABORT_RESTART ||
+            status == Status.ABORT_EVICTEDACCESS ||
+            status == Status.ABORT_SPECULATIVE) {
+            
             predict_touchedPartitions = new PartitionSet(orig_ts.getPredictTouchedPartitions());
             malloc = true;
-        } else if (orig_ts.getRestartCounter() <= 2) { // FIXME
+        }
+        else if (orig_ts.getRestartCounter() <= 2) { // FIXME
             // HACK: Ignore ConcurrentModificationException
             // This can occur if we are trying to requeue the transactions but there are still
             // pieces of it floating around at this site that modify the TouchedPartitions histogram
@@ -2294,7 +2299,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 break;
             } // WHILE
         } else {
-            if (d) LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
+//            if (d)
+                LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
             predict_touchedPartitions = this.catalogContext.getAllPartitionIds();
         }
         
@@ -2630,7 +2636,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     // in order to check whether we are hung or not
                     if (hstore_conf.site.txn_counters || hstore_conf.site.status_kill_if_hung) {
                         TransactionCounter.COMPLETED.inc(catalog_proc);
-                        
                     }
                     break;
                 case ABORT_USER:
@@ -2644,6 +2649,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_MISPREDICT:
                 case ABORT_RESTART:
                 case ABORT_EVICTEDACCESS:
+                case ABORT_SPECULATIVE:
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
                         t_estimator.abort(t_state, status);
@@ -2651,8 +2657,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     if (hstore_conf.site.txn_counters) {
                         if (status == Status.ABORT_EVICTEDACCESS) {
                             TransactionCounter.EVICTEDACCESS.inc(catalog_proc);
-                        } else {
-                            (ts.isSpeculative() ? TransactionCounter.RESTARTED : TransactionCounter.MISPREDICTED).inc(catalog_proc);
+                        }
+                        else if (status == Status.ABORT_SPECULATIVE) {
+                            TransactionCounter.ABORT_SPECULATIVE.inc(catalog_proc);
+                        }
+                        else if (status == Status.ABORT_MISPREDICT) {
+                            TransactionCounter.MISPREDICTED.inc(catalog_proc);
+                        }
+                        else {
+                            TransactionCounter.RESTARTED.inc(catalog_proc);
                         }
                     }
                     break;
@@ -2688,7 +2701,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.txn_counters) {
             
             // Speculative Execution Counters
-            if (hstore_conf.site.specexec_enable && ts.isSpeculative()) {
+            if (ts.isSpeculative() && status != Status.ABORT_SPECULATIVE) {
                 TransactionCounter.SPECULATIVE.inc(catalog_proc);
                 switch (ts.getSpeculativeType()) {
                     case SP1_LOCAL:
@@ -2713,7 +2726,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 TransactionCounter.SYSPROCS.inc(catalog_proc);
             } else if (status != Status.ABORT_MISPREDICT &&
                        status != Status.ABORT_REJECT &&
-                       status != Status.ABORT_EVICTEDACCESS) {
+                       status != Status.ABORT_EVICTEDACCESS &&
+                       status != Status.ABORT_SPECULATIVE) {
                 (singlePartitioned ? TransactionCounter.SINGLE_PARTITION : TransactionCounter.MULTI_PARTITION).inc(catalog_proc);
                 
                 // Only count no-undo buffers for completed transactions

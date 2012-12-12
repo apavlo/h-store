@@ -3523,7 +3523,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         // ALL: Mispredicted Transactions
         // -------------------------------
-        if (status == Status.ABORT_MISPREDICT) {
+        if (status == Status.ABORT_MISPREDICT || status == Status.ABORT_SPECULATIVE) {
             // If the txn was mispredicted, then we will pass the information over to the
             // HStoreSite so that it can re-execute the transaction. We want to do this 
             // first so that the txn gets re-executed as soon as possible...
@@ -3948,7 +3948,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                         
                         MispredictionException error = new MispredictionException(spec_ts.getTransactionId(), spec_ts.getTouchedPartitions());
                         spec_ts.setPendingError(error, false);
-                        spec_cr.setStatus(Status.ABORT_MISPREDICT);
+                        spec_cr.setStatus(Status.ABORT_SPECULATIVE);
                         this.processClientResponse(spec_ts, spec_cr);
                     } // FOR
                 }

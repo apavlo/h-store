@@ -31,6 +31,9 @@ enum Status {
     // The transaction was aborted because it tried to access a tuple that was
     // evicted. This is only used with the anti-caching feature.
     ABORT_EVICTEDACCESS = 8;
+    // The transaction was aborted because it was speculatively executed and 
+    // its parent distributed transaction aborted.
+    ABORT_SPECULATIVE = 9;
 }
 
 // -----------------------------------

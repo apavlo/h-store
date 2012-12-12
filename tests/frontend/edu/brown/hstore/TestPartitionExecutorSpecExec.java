@@ -36,6 +36,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
@@ -113,11 +114,16 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     public void setUp() throws Exception {
         super.setUp(this.builder);
         initializeCatalog(1, 1, NUM_PARTITIONS);
+        
+        for (TransactionCounter tc : TransactionCounter.values()) {
+            tc.clear();
+        } // FOR
      
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.specexec_enable = true;
         this.hstore_conf.site.txn_client_debug = true;
+        this.hstore_conf.site.txn_counters = true;
         this.hstore_conf.site.exec_voltdb_procinfo = true;
         this.hstore_conf.site.pool_profiling = true;
         
@@ -479,6 +485,11 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // The second wave should have succeeded but with one restart and not marked as speculative
         this.checkClientResponses(spCallback1.responses, Status.OK, false, 1);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
+        
+        // Check TransactionCounters
+        assertEquals(1+(NUM_SPECEXEC_TXNS*2), TransactionCounter.COMPLETED.get());
+//        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.SPECULATIVE.get());
+//        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.ABORT_SPECULATIVE.get());
         
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }

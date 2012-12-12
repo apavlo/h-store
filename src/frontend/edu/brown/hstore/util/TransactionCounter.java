@@ -44,6 +44,8 @@ public enum TransactionCounter {
     ABORT_UNEXPECTED,
     /** The number of transactions that were gracefully aborted  */
     ABORT_GRACEFUL,
+    /** The number of transactions that were aborted while being speculatively executed */
+    ABORT_SPECULATIVE,
     /** The number of transactions that were speculative and had to be restarted */
     RESTARTED,
     /** The number of transactions that were aborted because they tried to access evicted data */
