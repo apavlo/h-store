@@ -43,17 +43,22 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     private static final Logger LOG = Logger.getLogger(MarkovConflictChecker.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static boolean d;
+    private static boolean t;
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
+        d = debug.get();
+        t = trace.get();
     }
     
     private final ParameterMappingsSet paramMappings;
     private final boolean disabled;
+    @SuppressWarnings("unused")
     private EstimationThresholds thresholds;
 
-    // ------------------------------------------------------------
+    // ----------------------------------------------------------------------------
     // PRECOMPUTED CACHE
-    // ------------------------------------------------------------
+    // ----------------------------------------------------------------------------
 
     protected static class StatementCache {
         /**
@@ -79,10 +84,9 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
      */
     protected final Map<Table, Column[]> pkeysCache = new HashMap<Table, Column[]>();
     
-    
-    // ------------------------------------------------------------
+    // ----------------------------------------------------------------------------
     // INITIALIZATION
-    // ------------------------------------------------------------
+    // ----------------------------------------------------------------------------
     
     /**
      * 
@@ -114,7 +118,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 List<StmtParameter> stmtParamOffsets = new ArrayList<StmtParameter>();
                 for (Table tbl : CatalogUtil.getReferencedTables(stmt)) {
                     Column pkeys[] = this.pkeysCache.get(tbl);
-                    if (trace.get()) LOG.trace(tbl + " => " + Arrays.toString(pkeys));
+                    if (t) LOG.trace(tbl + " => " + Arrays.toString(pkeys));
                     for (Column col : pkeys) {
                         Collection<StmtParameter> params = cset.findAllForOther(StmtParameter.class, col);
                         // If there are more than one, then it should always conflict
@@ -151,8 +155,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         EstimatorState dtxnState = dtxn.getEstimatorState();
         EstimatorState tsState = ts.getEstimatorState();
         if (dtxnState == null || tsState == null) {
-            if (debug.get())
-                LOG.debug(String.format("No EstimatorState available for %s<->%s", dtxn, ts));
+            if (d) LOG.debug(String.format("No EstimatorState available for %s<->%s", dtxn, ts));
             return (false);
         }
         
@@ -166,15 +169,13 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
             return (false);
         }
         if (dtxnEst.hasQueryEstimate(partitionId) == false) {
-            if (debug.get())
-                LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));
+            if (d) LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));
             return (false);
         }
         Estimate tsEst = tsState.getInitialEstimate();
         assert(tsEst != null);
         if (tsEst.hasQueryEstimate(partitionId) == false) {
-            if (debug.get())
-                LOG.debug(String.format("No query list estimate is available for candidate %s", ts));
+            if (d) LOG.debug(String.format("No query list estimate is available for candidate %s", ts));
             return (false);
         }
         
@@ -182,7 +183,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
 //        boolean readonly0 = dtxnEst.isReadOnlyPartition(this.thresholds, partitionId);
 //        boolean readonly1 = tsEst.isReadOnlyPartition(this.thresholds, partitionId);
 //        if (readonly0 && readonly1) {
-//            if (debug.get())
+//            if (d)
 //                LOG.debug(String.format("%s<->%s are both are read-only. No conflict!", dtxn, ts));
 //            return (false);
 //        }
@@ -202,13 +203,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         Map<StmtParameter, SortedSet<ParameterMapping>> mappings0, mappings1;
         
         if (params0 == null) {
-            if (debug.get())
-                LOG.warn(String.format("The ParameterSet for %s is null.", ts0));
+            if (d) LOG.warn(String.format("The ParameterSet for %s is null.", ts0));
             return (false);
         }
         else if (params1 == null) {
-            if (debug.get())
-                LOG.warn(String.format("The ParameterSet for %s is null.", ts1));
+            if (d) LOG.warn(String.format("The ParameterSet for %s is null.", ts1));
             return (false);
         }
         
@@ -240,8 +239,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 // If the ConflictPair is marked as always conflicting, then
                 // we can stop right here
                 else if (cp.getAlwaysconflicting()) {
-                    if (debug.get())
-                        LOG.debug(String.format("%s - Marked as always conflicting", cp.fullName()));
+                    if (d) LOG.debug(String.format("%s - Marked as always conflicting", cp.fullName()));
                     return (false);
                 }
                 
@@ -262,9 +260,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                     // all the same because we have no idea know whether they're 
                     // actually the same or not
                     if (param0 == null || param1 == null) {
-                        if (trace.get())
-                            LOG.trace(String.format("%s - Missing StmtParameters for %s [param0=%s / param1=%s]",
-                                      cp.fullName(), col.fullName(), param0, param1));
+                        if (t) LOG.trace(String.format("%s - Missing StmtParameters for %s [param0=%s / param1=%s]",
+                                         cp.fullName(), col.fullName(), param0, param1));
                         continue;
                     }
                     
@@ -274,24 +271,21 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                     ParameterMapping pm0 = CollectionUtil.first(mappings0.get(param0));
                     ParameterMapping pm1 = CollectionUtil.first(mappings1.get(param1));
                     if (pm0 == null) {
-                        if (trace.get())
-                            LOG.trace(String.format("%s - No ParameterMapping for %s",
-                                      cp.fullName(), param0.fullName()));
+                        if (t) LOG.trace(String.format("%s - No ParameterMapping for %s",
+                                         cp.fullName(), param0.fullName()));
                         continue;
                     }
                     else if (pm1 == null) {
-                        if (trace.get())
-                            LOG.trace(String.format("%s - No ParameterMapping for %s",
-                                      cp.fullName(), param1.fullName()));
+                        if (t) LOG.trace(String.format("%s - No ParameterMapping for %s",
+                                         cp.fullName(), param1.fullName()));
                         continue;
                     }
                     
                     // If the values are not equal, then we can stop checking the 
                     // other columns right away.
                     if (this.equalParameters(params0, pm0, params1, pm1) == false) {
-                        if (trace.get())
-                            LOG.trace(String.format("%s - Parameter values are equal for %s [param0=%s / param1=%s]",
-                                      cp.fullName(), col.fullName(), param0, param1));
+                        if (t) LOG.trace(String.format("%s - Parameter values are equal for %s [param0=%s / param1=%s]",
+                                         cp.fullName(), col.fullName(), param0, param1));
                         allEqual = false;
                         break;
                     }
@@ -300,8 +294,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 // If all the parameters are equal, than means they are likely to be
                 // accessing the same row in the table. That's a conflict!
                 if (allEqual) {
-                    if (debug.get())
-                        LOG.debug(String.format("%s - All known parameter values are equal", cp.fullName()));
+                    if (d) LOG.debug(String.format("%s - All known parameter values are equal", cp.fullName()));
                     return (false);
                 }
                 
@@ -321,6 +314,16 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         return (val0.equals(val1));
     }
     
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
+    }
+    
+    // ----------------------------------------------------------------------------
+    // SINGLETON
+    // ----------------------------------------------------------------------------
+    
     private static MarkovConflictChecker SINGLETON;
     public static MarkovConflictChecker singleton(CatalogContext catalogContext, EstimationThresholds t) {
         if (SINGLETON == null) {
@@ -332,4 +335,6 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         }
         return (SINGLETON);
     }
+    
+    
 }

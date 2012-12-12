@@ -5,6 +5,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.interfaces.Loggable;
 import edu.brown.markov.EstimationThresholds;
 
 /**
@@ -12,7 +13,7 @@ import edu.brown.markov.EstimationThresholds;
  * txn can be speculatively executed while we are waiting for a dtxn to finish
  * @author pavlo
  */
-public abstract class AbstractConflictChecker {
+public abstract class AbstractConflictChecker implements Loggable {
 
     protected final CatalogContext catalogContext;
     

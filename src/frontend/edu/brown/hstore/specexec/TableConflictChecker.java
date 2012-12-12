@@ -19,8 +19,10 @@ public class TableConflictChecker extends AbstractConflictChecker {
     private static final Logger LOG = Logger.getLogger(TableConflictChecker.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static boolean d;
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
+        d = debug.get();
     }
     
     private final BitSet hasConflicts;
@@ -81,22 +83,19 @@ public class TableConflictChecker extends AbstractConflictChecker {
         // DTXN->TS
         boolean dtxn_hasRWConflict = this.rwConflicts[dtxn_procId].get(ts_procId);
         boolean dtxn_hasWWConflict = this.wwConflicts[dtxn_procId].get(ts_procId);
-        if (debug.get())
-            LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", dtxn, ts, dtxn_hasRWConflict, dtxn_hasWWConflict));
+        if (d) LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", dtxn, ts, dtxn_hasRWConflict, dtxn_hasWWConflict));
         
         // TS->DTXN
         boolean ts_hasRWConflict = this.rwConflicts[ts_procId].get(dtxn_procId);
         boolean ts_hasWWConflict = this.wwConflicts[ts_procId].get(dtxn_procId);
-        if (debug.get())
-            LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", ts, dtxn, ts_hasRWConflict, ts_hasWWConflict));
+        if (d) LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", ts, dtxn, ts_hasRWConflict, ts_hasWWConflict));
         
         // Sanity Check
         assert(dtxn_hasWWConflict == ts_hasWWConflict);
         
         // If there is no conflict whatsoever, then we want to let this mofo out of the bag right away
         if ((dtxn_hasWWConflict || dtxn_hasRWConflict || ts_hasRWConflict || ts_hasWWConflict) == false) {
-            if (debug.get())
-                LOG.debug(String.format("No conflicts between %s<->%s", dtxn, ts));
+            if (d) LOG.debug(String.format("No conflicts between %s<->%s", dtxn, ts));
             return (true);
         }
 
@@ -109,6 +108,11 @@ public class TableConflictChecker extends AbstractConflictChecker {
             assert(dtxn_conflicts != null) :
                 String.format("Unexpected null DTXN ConflictSet for %s -> %s",
                               dtxn_proc.getName(), ts_proc.getName());
+            
+            // READ-WRITE
+            if (d && dtxn_conflicts.getReadwriteconflicts().isEmpty() == false)
+                LOG.debug(String.format("Examining %d R-W Conflicts from %s -> %s",
+                          dtxn_conflicts.getReadwriteconflicts().size(), dtxn_proc.getName(), ts_proc.getName()));
             for (ConflictPair conflict : dtxn_conflicts.getReadwriteconflicts().values()) {
                 assert(conflict != null) :
                     String.format("Unexpected null DTXN R/W ConflictSet tables for %s [candidate=%s]",
@@ -122,6 +126,11 @@ public class TableConflictChecker extends AbstractConflictChecker {
                     }
                 } // FOR
             } // FOR (R-W)
+            
+            // WRITE-WRITE
+            if (d && dtxn_conflicts.getWritewriteconflicts().isEmpty() == false)
+                LOG.debug(String.format("Examining %d W-W Conflicts from %s -> %s",
+                          dtxn_conflicts.getWritewriteconflicts().size(), dtxn_proc.getName(), ts_proc.getName()));
             for (ConflictPair conflict : dtxn_conflicts.getWritewriteconflicts().values()) {
                 assert(conflict != null) : 
                     String.format("Unexpected null ConflictSet for %s [candidate=%s]",
@@ -144,8 +153,7 @@ public class TableConflictChecker extends AbstractConflictChecker {
             assert(ts_conflicts != null) :
                 String.format("Unexpected null ConflictSet for %s -> %s",
                               ts_proc.getName(), dtxn_proc.getName());
-            if (debug.get())
-                LOG.debug(String.format("%s has R-W conflict with %s. Checking read/write sets", ts, dtxn));
+            if (d) LOG.debug(String.format("%s has R-W conflict with %s. Checking read/write sets", ts, dtxn));
             for (ConflictPair conflict : ts_conflicts.getReadwriteconflicts().values()) {
                 assert(conflict != null) : 
                     String.format("Unexpected null ConflictSet for %s [candidate=%s]",
@@ -164,5 +172,9 @@ public class TableConflictChecker extends AbstractConflictChecker {
         // If we get to this point, then we know that these two txns do not conflict
         return (true);
     }
-
+    
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+    }
 }
