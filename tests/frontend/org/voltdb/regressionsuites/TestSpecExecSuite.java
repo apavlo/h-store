@@ -186,7 +186,6 @@ public class TestSpecExecSuite extends RegressionSuite {
         builder.setGlobalConfParameter("client.scalefactor", SCALEFACTOR);
         builder.setGlobalConfParameter("site.txn_client_debug", true);
         builder.setGlobalConfParameter("site.specexec_enable", true);
-        builder.setGlobalConfParameter("site.specexec_idle", true);
         builder.setGlobalConfParameter("site.specexec_ignore_all_local", false);
         builder.setGlobalConfParameter("site.specexec_markov", false);
 
