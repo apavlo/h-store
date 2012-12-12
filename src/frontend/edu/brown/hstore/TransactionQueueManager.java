@@ -624,32 +624,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 throw new RuntimeException(msg, ex);
             }
         }
-        
-        // Then make sure that our txnId is removed from all of the local partitions
-        // that we queued it on.
-//        boolean poke = false;
-//        for (int partition : callback.getPartitions().values()) {
-//            if (this.localPartitions.contains(partition) == false) continue;
-//            
-//            // Try to remove it from our queue. If we can't then it might
-//            // be that we're the current transaction at this partition, so that
-//            // we need to make sure that we release the locks
-//            boolean removed = false;
-//            synchronized (this.lockQueues[partition]) {
-//                removed = this.lockQueues[partition].remove(ts);
-//            } // SYNCH
-//            
-//            // We don't need to acquire a lock here because we know that
-//            // nobody else can update us unless the lock flag is false
-//            if (removed == false && this.lockQueuesBlocked[partition] != true && 
-//                    this.lockQueuesLastTxn[partition].equals(ts)) {
-//                // XXX: This most likely a race condition
-//                this.lockQueuesBlocked[partition] = false;
-//                poke = true;
-//            }
-//        } // FOR
-//        if (poke && this.checkFlag.availablePermits() == 0)
-//            this.checkFlag.release();
     }
     
     // ----------------------------------------------------------------------------
