@@ -443,13 +443,6 @@ public final class HStoreConf {
         public boolean specexec_enable;
         
         @ConfigProperty(
-            description="",
-            defaultBoolean=false,
-            experimental=true
-        )
-        public boolean specexec_idle;
-        
-        @ConfigProperty(
             description="If this parameter is true, then the SpecExecScheduler will not attempt to " +
                         "speculatively execute any transactions if the current distributed transaction " +
                         "is using only partitions that are all on the same site.",
