@@ -15,6 +15,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeRequestMessage;
+import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
@@ -41,7 +42,7 @@ public class TestPartitionMessageQueue extends BaseTestCase {
     };
     private final WorkFragment mockFragment = null;
     
-    private InitializeRequestMessage initMsg;
+    private InitializeRequestMessage initRequestMsg;
     private StartTxnMessage startMsg;
     private WorkFragmentMessage workMsg;
     
@@ -60,7 +61,7 @@ public class TestPartitionMessageQueue extends BaseTestCase {
         this.ts1.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), catalog_proc);
         
         // Initialize some messages that we can use
-        this.initMsg = new InitializeRequestMessage(mockSerialized, System.currentTimeMillis(), catalog_proc, mockParams, mockCallback);
+        this.initRequestMsg = new InitializeRequestMessage(mockSerialized, System.currentTimeMillis(), catalog_proc, mockParams, mockCallback);
         this.startMsg = new StartTxnMessage(ts1);
         this.workMsg = new WorkFragmentMessage(ts1, mockFragment);
     }
@@ -79,6 +80,7 @@ public class TestPartitionMessageQueue extends BaseTestCase {
             
             // We should always get back the finish 
             ret = this.queue.add(target);
+            System.err.println(this.queue);
             assertTrue(ret);
             assertEquals(target, this.queue.peek());
             next = this.queue.poll();
@@ -103,19 +105,21 @@ public class TestPartitionMessageQueue extends BaseTestCase {
     }
     
     /**
-     * testFinishBeforeOthers
+     * testInitializeTxnBeforeOthers
      */
-    public void testFinishBeforeOthers() throws Exception {
-        InternalMessage messages[] = { initMsg, startMsg, workMsg };
-        FinishTxnMessage finishMsg = new FinishTxnMessage(ts0, Status.OK);
-        this.checkOutputOrder(finishMsg, messages);
+    public void testInitializeTxnBeforeOthers() throws Exception {
+        // We want to make sure that we always get the init before the FinishTxnMessage
+        InitializeTxnMessage initTxnMsg = new InitializeTxnMessage(ts0);
+        FinishTxnMessage finishTxnMsg = new FinishTxnMessage(ts0, Status.OK);
+        InternalMessage messages[] = { initRequestMsg, startMsg, workMsg, finishTxnMsg };
+        this.checkOutputOrder(initTxnMsg, messages);
     }
     
     /**
      * testWorkBeforeOthers
      */
     public void testWorkBeforeOthers() throws Exception {
-        InternalMessage messages[] = { initMsg, startMsg };
+        InternalMessage messages[] = { initRequestMsg, startMsg };
         this.checkOutputOrder(workMsg, messages);
     }
     
