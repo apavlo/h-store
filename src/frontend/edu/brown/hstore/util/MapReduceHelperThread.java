@@ -186,7 +186,10 @@ public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTra
     public void reduce(final MapReduceTransaction mr_ts) {
         // Runtime
 
-        VoltMapReduceProcedure<?> volt_proc = (VoltMapReduceProcedure<?>)this.executor.getVoltProcedure(mr_ts.getProcedure().getName());
+        // FIXME: This won't work. When you call getVoltProcedure() you will
+        // get a different handle each time. So anything that we're setting below
+        // will show up where you think it will
+        VoltMapReduceProcedure<?> volt_proc = null; // (VoltMapReduceProcedure<?>)this.executor.getVoltProcedure(mr_ts.getProcedure().getName());
         if (hstore_site.isLocalPartition(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_reduce_runed()) {
             if (debug.get())
                 LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts, volt_proc.getPartitionId()));
@@ -197,7 +200,7 @@ public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTra
 
         } else {
 
-            for (int partition : hstore_site.getLocalPartitionIds()) {
+            for (int partition : hstore_site.getLocalPartitionIds().values()) {
                 if (debug.get())
                     LOG.debug(String.format("TXN: %s $$$3 non-blocking reduce, partition called on:%d", mr_ts, partition));
 

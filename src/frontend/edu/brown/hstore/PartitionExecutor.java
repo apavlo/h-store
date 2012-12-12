@@ -1524,18 +1524,27 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     }
     
     /**
-     * Returns the VoltProcedure instance for a given stored procedure name
-     * This is slow and should not be used at run time
+     * Returns a new VoltProcedure instance for a given stored procedure name
+     * <B>Note:</B> You will get a new VoltProcedure for each invocation
      * @param proc_name
      * @return
      */
-    public VoltProcedure getVoltProcedure(String proc_name) {
+    protected VoltProcedure getVoltProcedure(String proc_name) {
         VoltProcedure voltProc = this.procedures.get(proc_name).poll();
         if (voltProc == null) {
             Procedure catalog_proc = catalogContext.procedures.getIgnoreCase(proc_name);
             voltProc = this.initializeVoltProcedure(catalog_proc);
         }
         return (voltProc);
+    }
+    
+    /**
+     * Return the given VoltProcedure back into the queue to be re-used again
+     * @param voltProc
+     */
+    protected void finishVoltProcedure(VoltProcedure voltProc) {
+        voltProc.finish();
+        this.procedures.get(voltProc.getProcedureName()).offer(voltProc);
     }
     
     private ParameterSet[] getFragmentParameters(AbstractTransaction ts, WorkFragment fragment, ParameterSet allParams[]) {
@@ -2022,8 +2031,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             ts.resetExecutionState();
             execState.finish();
             this.execStates.add(execState);
-            volt_proc.finish();
-            this.procedures.get(ts.getProcedure().getName()).offer(volt_proc);
+            this.finishVoltProcedure(volt_proc);
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPost();
             
 //            if (cresponse.getStatus() == Status.ABORT_UNEXPECTED) {
@@ -4197,7 +4205,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     public class Debug implements DebugContext {
-        
+        public VoltProcedure getVoltProcedure(String procName) {
+            return (PartitionExecutor.this.getVoltProcedure(procName));
+        }
         public SpecExecScheduler getSpecExecScheduler() {
             return (PartitionExecutor.this.specExecScheduler);
         }

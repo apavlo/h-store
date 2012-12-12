@@ -1469,9 +1469,10 @@ public class LocalTransaction extends AbstractTransaction {
             sb.append(StringUtil.SINGLE_LINE);
             String stmt_debug[] = new String[this.state.batch_size];
             
-            VoltProcedure voltProc = state.executor.getVoltProcedure(this.getProcedure().getName());
-            assert(voltProc != null);
-            SQLStmt stmts[] = voltProc.voltLastQueriesExecuted();
+            // FIXME
+            // VoltProcedure voltProc = state.executor.getVoltProcedure(this.getProcedure().getName());
+            // assert(voltProc != null);
+            SQLStmt stmts[] = null; // voltProc.voltLastQueriesExecuted();
             
             // This won't work in test cases
 //            assert(stmt_debug.length == stmts.length) :

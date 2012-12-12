@@ -1460,10 +1460,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Tell our local boys to go down too
         for (int p : this.local_partitions.values()) {
-            this.executors[p].shutdown();
+            if (this.executors[p] != null) this.executors[p].shutdown();
         } // FOR
-
-        this.hstore_coordinator.shutdown();
+        if (this.hstore_coordinator != null) {
+            this.hstore_coordinator.shutdown();
+        }
         
         if (this.voltNetwork != null) {
             try {

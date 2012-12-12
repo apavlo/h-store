@@ -258,8 +258,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         
         this.p_estimator = p_estimator;
         
-        if (d) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.partitionId));
-        
         if (catalog_proc.getHasjava()) {
             int tempParamTypesLength = 0;
             Method tempProcMethod = null;
@@ -409,6 +407,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 paramTypeComponentType[param.getIndex()] = null;
             }
         }
+        if (t) LOG.trace(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.partitionId));
     }
     
     protected SQLStmt getSQLStmt(String name) {
