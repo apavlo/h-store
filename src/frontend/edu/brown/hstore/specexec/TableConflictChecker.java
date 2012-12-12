@@ -114,6 +114,9 @@ public class TableConflictChecker extends AbstractConflictChecker {
                     String.format("Unexpected null DTXN R/W ConflictSet tables for %s [candidate=%s]",
                                   dtxn_proc.getName(), ts_proc.getName());
                 for (TableRef ref : conflict.getTables().values()) {
+                    assert(ref.getTable() != null) :
+                        String.format("Unexpected null table reference %s [%s -> %s]",
+                                      ref.fullName(), dtxn_proc.getName(), ts_proc.getName());
                     if (dtxn.isTableReadOrWritten(partitionId, ref.getTable())) {
                         return (false);
                     }
@@ -125,7 +128,8 @@ public class TableConflictChecker extends AbstractConflictChecker {
                                   dtxn_proc.getName(), ts_proc.getName());
                 for (TableRef ref : conflict.getTables().values()) {
                     assert(ref.getTable() != null) :
-                        "Unexpected null table reference " + ref.fullName();
+                        String.format("Unexpected null table reference %s [%s -> %s]",
+                                      ref.fullName(), dtxn_proc.getName(), ts_proc.getName());
                     if (dtxn.isTableReadOrWritten(partitionId, ref.getTable())) {
                         return (false);
                     }
@@ -146,8 +150,10 @@ public class TableConflictChecker extends AbstractConflictChecker {
                 assert(conflict != null) : 
                     String.format("Unexpected null ConflictSet for %s [candidate=%s]",
                                   dtxn_proc.getName(), ts_proc.getName());
-                
                 for (TableRef ref : conflict.getTables().values()) {
+                    assert(ref.getTable() != null) :
+                        String.format("Unexpected null table reference %s [%s -> %s]",
+                                      ref.fullName(), dtxn_proc.getName(), ts_proc.getName());
                     if (dtxn.isTableWritten(partitionId, ref.getTable())) {
                         return (false);
                     }
