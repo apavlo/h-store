@@ -166,6 +166,7 @@ public class SpecExecScheduler implements Loggable {
                 (this.ignore_queue_size_change == false && this.lastSize != this.work_queue.size())) {
             this.lastIterator = this.work_queue.iterator();    
         }
+        boolean resetIterator = true;
         if (this.profiling) profiler.queue_size.put(this.work_queue.size());
         while (this.lastIterator.hasNext()) {
             AbstractTransaction txn = this.lastIterator.next();
@@ -199,6 +200,7 @@ public class SpecExecScheduler implements Loggable {
                         next = localTxn;
                         // Scheduling Policy: FIRST MATCH
                         if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
+                            resetIterator = false;
                             break;
                         }
                     }
@@ -223,16 +225,18 @@ public class SpecExecScheduler implements Loggable {
                 if (this.profiling) profiler.compute_time.stop();
             }
         } // WHILE
-        if (this.profiling) {
-            profiler.num_comparisons.put(txn_ctr);
-        }
+        if (this.profiling) profiler.num_comparisons.put(txn_ctr);
         
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
         if (next != null) {
             if (this.profiling) profiler.success++;
-            this.lastIterator.remove();
-            this.work_queue.clear(next);
+            if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
+                this.lastIterator.remove();
+                this.work_queue.clear(next);
+            } else {
+                this.work_queue.remove(next);
+            }
             if (d) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         else if (d && this.work_queue.isEmpty() == false) {
@@ -242,7 +246,8 @@ public class SpecExecScheduler implements Loggable {
         
         this.lastDtxn = dtxn;
         this.lastSpecType = specType;
-        if (this.ignore_queue_size_change == false) this.lastSize = this.work_queue.size();
+        if (resetIterator) this.lastIterator = null;
+        else if (this.ignore_queue_size_change == false) this.lastSize = this.work_queue.size();
         if (this.profiling) profiler.total_time.stop();
         return (next);
     }

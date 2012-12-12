@@ -1066,7 +1066,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             work = this.utility_queue.poll();
             // Smoke 'em if you got 'em
             if (work != null) {
-                LOG.info(String.format("Found utility work at partition %d - %s", this.partitionId, work));
+                if (t) LOG.trace(String.format("Found utility work at partition %d - %s", this.partitionId, work));
                 this.processInternalMessage(work);
             }
         }
