@@ -152,7 +152,7 @@ ENV_DEFAULT = {
     "hstore.partitions":            6,
     "hstore.sites_per_host":        1,
     "hstore.partitions_per_site":   7,
-    # "hstore.num_hosts_round_robin": 2,
+    "hstore.round_robin_partitions": True,
 }
 
 has_rcfile = os.path.exists(env.rcfile)
@@ -717,8 +717,10 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     LOG.debug("Partitions Per Site: %d" % env["hstore.partitions_per_site"])
     site_hosts = set()
     
-    if "hstore.num_hosts_round_robin" in env and env["hstore.num_hosts_round_robin"] != None:
-        partitions_per_site = math.ceil(env["hstore.partitions"] / float(env["hstore.num_hosts_round_robin"]))
+    ## Attempt to assign the same number of partitions to nodes
+    if "hstore.round_robin_partitions" in env and env["hstore.round_robin_partitions"]:
+        sites_needed = math.ceil(env["hstore.partitions"] / float(partitions_per_site))
+        partitions_per_site = math.ceil(env["hstore.partitions"] / float(sites_needed))
     
     for inst in __getRunningSiteInstances__():
         site_hosts.add(inst.private_dns_name)
