@@ -40,6 +40,7 @@ import junit.framework.TestCase;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltProcedure;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
@@ -68,6 +69,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.mappings.ParametersUtil;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -395,11 +397,18 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected final Procedure getProcedure(String proc_name) {
         return getProcedure(catalog_db, proc_name);
     }
+    @SuppressWarnings("unchecked")
     protected final Procedure getProcedure(Database catalog_db, Class<? extends VoltProcedure> proc_class) {
-        return getProcedure(catalog_db, proc_class.getSimpleName());
+        String procName;
+        if (ClassUtil.getSuperClasses(proc_class).contains(VoltSystemProcedure.class)) {
+            procName = VoltSystemProcedure.procCallName((Class<? extends VoltSystemProcedure>)proc_class);
+        } else {
+            procName = proc_class.getSimpleName();
+        }
+        return getProcedure(catalog_db, procName);
     }
     protected final Procedure getProcedure(Class<? extends VoltProcedure> proc_class) {
-        return getProcedure(catalog_db, proc_class.getSimpleName());
+        return getProcedure(catalog_db, proc_class);        
     }
     
     protected final ProcParameter getProcParameter(Database catalog_db, Procedure catalog_proc, int idx) {

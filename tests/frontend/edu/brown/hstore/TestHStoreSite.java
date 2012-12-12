@@ -238,7 +238,7 @@ public class TestHStoreSite extends BaseTestCase {
             this.client.callProcedure(callback, catalog_proc.getName(), params);
         } // FOR
         
-        // Sleep for a bit. We still should have gotten back any responses
+        // Sleep for a bit. We still should not have gotten back any responses
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
         assertEquals(0, callback.responses.size());
         assertEquals(NUM_TXNS+1, callback.latch.getCount());

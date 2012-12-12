@@ -3,7 +3,9 @@
  */
 package edu.brown.hstore;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -12,26 +14,34 @@ import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.voltdb.DependencySet;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.sysprocs.Statistics;
+import org.voltdb.utils.VoltTableUtil;
 import org.voltdb.utils.VoltTypeUtil;
 
 import com.google.protobuf.ByteString;
 
 import edu.brown.BaseTestCase;
+import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
+import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.RemoteTransaction;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -44,11 +54,13 @@ import edu.brown.utils.StringUtil;
  */
 public class TestPartitionExecutor extends BaseTestCase {
 
+    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = GetAccessData.class;
     private static final int NUM_PARTITONS = 10;
     private static final int PARTITION_ID = 1;
-    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = GetAccessData.class;
+    private static final int NOTIFY_TIMEOUT = 2500; // ms
     
     private HStoreSite hstore_site;
+    private HStoreConf hstore_conf;
     private Client client;
     private PartitionExecutor executor;
     
@@ -74,7 +86,7 @@ public class TestPartitionExecutor extends BaseTestCase {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITONS);
         
-        HStoreConf hstore_conf = HStoreConf.singleton();
+        this.hstore_conf = HStoreConf.singleton();
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_site = this.createHStoreSite(catalog_site, hstore_conf);
         this.client = createClient();
@@ -91,6 +103,70 @@ public class TestPartitionExecutor extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testProfiling
+     */
+    @Test
+    public void testProfiling() throws Exception {
+        hstore_conf.site.exec_profiling = true;
+        hstore_conf.site.exec_force_allpartitions = true;
+        
+        int num_txns = 10;
+        LatchableProcedureCallback callback = new LatchableProcedureCallback(num_txns);
+        Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
+        for (int i = 0; i < num_txns; i++) {
+            Object params[] = { i, Integer.toString(i) };
+            boolean queued = this.client.callProcedure(callback, catalog_proc.getName(), params);
+            assertTrue(queued);
+        } // FOR
+        
+        // Wait until they all finish, then build a histogram of their base partitions
+        boolean result = callback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SP LATCH --> " + callback.latch, result);
+        assertEquals(num_txns, callback.responses.size());
+        Histogram<Integer> basePartitions = new Histogram<Integer>(); 
+        for (ClientResponse cresponse : callback.responses) {
+            assertEquals(Status.OK, cresponse.getStatus());
+            basePartitions.put(cresponse.getBasePartition());
+        } // FOR
+        
+        // Now invoke the @Statistics sysproc to get back what we want
+        catalog_proc = this.getProcedure(Statistics.class);
+        Object params[] = { SysProcSelector.EXECPROFILER.name(), 0 };
+        ClientResponse cresponse = this.client.callProcedure(catalog_proc.getName(), params);
+        assertEquals(Status.OK, cresponse.getStatus());
+        assertEquals(1, cresponse.getResults().length);
+        basePartitions.put(cresponse.getBasePartition());
+        
+        // Examine the stats output. 
+        VoltTable vt = cresponse.getResults()[0];
+        System.err.println(VoltTableUtil.format(vt));
+        assertEquals(NUM_PARTITONS, vt.getRowCount());
+        while (vt.advanceRow()) {
+            int partition = (int)vt.getLong("PARTITION");
+            assertTrue(partition >= 0);
+            assertTrue(partition < NUM_PARTITONS);
+            
+            // We expect the following things:
+            //  (1) Each partition should have waited for dtxn info the same # of txns 
+            //      that we executed in the entire cluster
+            //  (2) Each partition should have waited for 2PC for the same # of txns
+            //      that we executed on it.
+            Map<String, Long> expected = new HashMap<String, Long>();
+            expected.put("TRANSACTIONS", basePartitions.get(partition, 0l));
+            expected.put("IDLE_WAITING_DTXN_CNT", num_txns+1l);
+            expected.put("IDLE_DTXN_QUERY_CNT", basePartitions.get(partition, 0l)+1);
+            expected.put("IDLE_TWO_PHASE_LOCAL_CNT", Math.min(basePartitions.get(partition, 0l), 1));
+            expected.put("NETWORK_CNT", Math.min(basePartitions.get(partition, 0l), 1));
+            
+            for (String colName : expected.keySet()) {
+                assertTrue(colName, vt.hasColumn(colName));
+                long val = vt.getLong(colName);
+                assertEquals(partition + " - " + colName, expected.get(colName).longValue(), val);
+            } // FOR
+        } // WHILE
+    }
     
     /**
      * testGetVoltProcedure

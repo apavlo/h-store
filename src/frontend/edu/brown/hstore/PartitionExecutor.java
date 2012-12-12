@@ -916,9 +916,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 try {
                 	this.processInternalMessage(work);
                 } finally {
-                	if (hstore_conf.site.exec_profiling && this.profiler.exec_time.isStarted()) {
-                		this.profiler.exec_time.stop();
-                	}
+                	if (hstore_conf.site.exec_profiling) this.profiler.exec_time.stopIfStarted();
                 }
                 
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
@@ -976,8 +974,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.stop = true;
                 return (null);
             } finally {
-            	if (hstore_conf.site.exec_profiling && this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.stop();
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.stop();                    
+            	if (hstore_conf.site.exec_profiling && this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.stopIfStarted();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.stopIfStarted();                    
             }
         }
         return (work);
@@ -1010,7 +1008,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (next != null && next.isPredictSinglePartition() == false) {
                 this.setCurrentDtxn(next);
                 this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
-                if (hstore_conf.site.exec_profiling) this.profiler.util_time.stop();
+                if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
                 return (false);
             }
         }
@@ -1027,7 +1025,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             try {
                 spec_ts = this.specExecScheduler.next(this.currentDtxn, this.calculateSpeculationType());
             } finally {
-                if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.stop();
+                if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.stopIfStarted();
             }
             
             // Because we don't have fine-grained undo support, we are just going
@@ -1073,7 +1071,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
         }
         
-        if (hstore_conf.site.exec_profiling) this.profiler.util_time.stop();
+        if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
         return (spec_ts != null || work != null);
     }
     
@@ -1707,10 +1705,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     public void queueWork(AbstractTransaction ts, WorkFragment fragment) {
         assert(ts.isInitialized());
-        
-        if (hstore_conf.site.exec_profiling && this.profiler.idle_waiting_dtxn_time.isStarted()) {
-            this.profiler.idle_waiting_dtxn_time.stop();
-        }
+        if (hstore_conf.site.exec_profiling) this.profiler.idle_waiting_dtxn_time.stopIfStarted();
         
         WorkFragmentMessage work = ts.getWorkFragmentMessage(fragment);
         boolean ret = this.work_queue.offer(work); // , true);
@@ -3201,7 +3196,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     return (null);
                 } finally {
                     if (needs_profiling) ts.profiler.stopExecDtxnWork();
-                    if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.stop();
+                    if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.stopIfStarted();
                 }
             }
             assert(fragmentBuilders != null);
@@ -3433,7 +3428,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 throw new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
             } finally {
                 if (needs_profiling) ts.profiler.stopExecDtxnWork();
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.stop();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_response_time.stopIfStarted();
             }
             
             if (timeout && this.isShuttingDown() == false) {
@@ -3552,8 +3547,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 finish_callback.markForRequeue();
                 if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
-                if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) 
-                    this.profiler.network_time.stop();
+                if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
             }
         }
         // -------------------------------
@@ -3580,7 +3574,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 
                 if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
                 this.hstore_site.responseSend(ts, cresponse);
-                if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) this.profiler.network_time.stop();
+                if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
                 
                 this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
             }
@@ -3618,11 +3612,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             if (hstore_conf.site.exec_profiling) {
             	this.profiler.network_time.start();
-            	// if (this.profiler.idle_2pc_local_time.isStarted()) this.profiler.idle_2pc_local_time.stop();
             	this.profiler.idle_2pc_local_time.start();
             }
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
-            if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) this.profiler.network_time.stop();
+            if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
         }
         // -------------------------------
         // ABORT: Distributed Transaction
@@ -3644,8 +3637,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
             this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
-            if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) 
-                this.profiler.network_time.stop();
+            if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
         }
     }
     
