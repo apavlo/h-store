@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,6 +19,8 @@ import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ConflictPair;
+import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -32,11 +35,17 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.types.ConflictType;
+
+import weka.core.AttributeStats;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
+import edu.brown.utils.TableUtil;
 
 /**
  * 
@@ -412,7 +421,6 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     DefaultMutableTreeNode columnRootNode = new DefaultMutableTreeNode("Output Columns");
                     statement_node.add(columnRootNode);
                     for (Column column_cat : statement_cat.getOutput_columns()) {
-                        
                         DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
                             @Override
                             public String toString() {
@@ -425,14 +433,46 @@ public class CatalogTreeModel extends DefaultTreeModel {
                         buildSearchIndex(column_cat, column_node);
                     } // FOR (output columns)
                 } // FOR (statements)
-            }
             
-            // Conflicts
-            if (catalog_proc.getConflicts().isEmpty() == false) {
-                DefaultMutableTreeNode conflictRootNode = new CatalogMapTreeNode("Conflicts", catalog_proc.getConflicts());
-                procNode.add(conflictRootNode);
-                
+                // Conflicts
+                if (catalog_proc.getConflicts().isEmpty() == false) {
+                    DefaultMutableTreeNode conflictRootNode = new CatalogMapTreeNode("Conflicts", catalog_proc.getConflicts());
+                    procNode.add(conflictRootNode);
+                    Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
+                    
+                    for (ConflictSet conflicts : catalog_proc.getConflicts()) {
+                        final Procedure other = catalog_db.getProcedures().getIgnoreCase(conflicts.getName());
+                        assert(other != null) : "Invalid conflict procedure name '" + conflicts.getName() + "'";
+                        String attrText = "";
+                        
+                        // READ-WRITE CONFLICTS
+                        attrText += this.formatConflictSet(conflicts.getReadwriteconflicts(), ConflictType.READ_WRITE);
+                        
+                        // WRITE-WRITE CONFLICTS
+                        attrText += this.formatConflictSet(conflicts.getWritewriteconflicts(), ConflictType.WRITE_WRITE);
+
+                        AttributesNode conflict_node = new AttributesNode(other.getName(), attrText);
+                        conflictRootNode.add(new DefaultMutableTreeNode(conflict_node));
+                    } // FOR
+                } // SYSPROC
             }
         } // FOR (procedures)
+    }
+    
+    private String formatConflictSet(Collection<ConflictPair> conflicts, ConflictType conflictType) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(StringUtil.header(conflictType.name().toUpperCase() + " CONFLICTS")).append("\n");
+        if (conflicts.isEmpty()) {
+            sb.append("<NONE>\n\n");
+        } else {
+            int ctr = 0;
+            for (ConflictPair cp : conflicts) {
+                sb.append(String.format("[%02d] %s -> %s\n", ctr++, cp.getStatement0().fullName(), cp.getStatement1().fullName()));
+                sb.append(String.format("     Always Conflict: %s\n", cp.getAlwaysconflicting()));
+                sb.append(String.format("     Tables: %s\n", CatalogUtil.getDisplayNames(CatalogUtil.getTablesFromRefs(cp.getTables()))));
+                sb.append("\n");
+            } // FOR
+        }
+        return (sb.toString());
     }
 }
