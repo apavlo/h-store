@@ -159,7 +159,7 @@ BASE_SETTINGS = {
     "site.cpu_affinity_one_partition_per_core": True,
     
     "site.txn_incoming_delay":                  5,
-    "site.network_incoming_max_per_partition":  200,
+    "site.network_incoming_max_per_partition":  400,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -249,6 +249,7 @@ EXPERIMENT_SETTINGS = {
         "client.output_txn_counters":           "txncounters.csv",
         "client.output_txn_counters_combine":   True,
         "client.output_specexec_profiling":     "specexec.csv",
+        "client.output_exec_profiling":         "executor.csv",
         "benchmark.warehouse_pairing":          False,
         "benchmark.loadthread_per_warehouse":   False,
     },
@@ -318,7 +319,7 @@ def updateEnv(args, env, benchmark, partitions):
             markov = "%s-%dp.markov.gz" % (benchmark, partitions)
         else:
             markov = "%s.markov.gz" % (benchmark)
-        env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
+        # env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
         env["client.threads_per_host"] = int(partitions*2)
         env["benchmark.loadthreads"] = min(16, partitions)
         
@@ -334,7 +335,7 @@ def getCSVOutput(args, env, benchmark, partitions):
     """Find all of the output parameters in the env and retrieve the files from the cluster"""
     for k,v in env.iteritems():
         if k.startswith("client.output_"):
-            LOG.info("Checking whether '%s' is enabled" % (k))
+            LOG.debug("Checking whether '%s' is enabled" % (k))
             if not v is None and isinstance(v, str) and v.endswith(".csv"):
                 saveCSVResults(args, benchmark, partitions, v)
     ## FOR
