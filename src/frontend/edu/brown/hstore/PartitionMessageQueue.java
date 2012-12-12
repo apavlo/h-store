@@ -57,10 +57,10 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
     private static final Comparator<InternalMessage> WORK_COMPARATOR = new Comparator<InternalMessage>() {
         @SuppressWarnings("unchecked")
         private final Class<? extends InternalMessage> compareOrder[] = (Class<? extends InternalMessage>[])new Class<?>[]{
+            InitializeTxnMessage.class,
             PrepareTxnMessage.class,
             FinishTxnMessage.class,
             WorkFragmentMessage.class,
-            InitializeTxnMessage.class,
         };
         
         @Override
@@ -71,37 +71,38 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
             Class<?> class0 = msg0.getClass();
             Class<?> class1 = msg1.getClass();
             
-            // Rank them based on their message type
-            if (class0.equals(class1) == false) {
-                for (Class<? extends InternalMessage> clazz : compareOrder) {
-                    boolean isMatch0 = class0.equals(clazz);
-                    boolean isMatch1 = class1.equals(clazz);
-                    if (isMatch0 && !isMatch1) return (-1);
-                    else if (!isMatch0 && isMatch1) return (1);                    
-                } // FOR
-            }
-            
-            // If all else fails, then we'll compare Transaction Ids
+            // Always compare Transaction Ids first
             boolean isTxn0 = (msg0 instanceof InternalTxnMessage);
             boolean isTxn1 = (msg1 instanceof InternalTxnMessage);
-            if (isTxn0) {
-                assert(((InternalTxnMessage)msg0).getTransactionId() != null) :
-                    "Unexpected null txnId for " + msg0;
-                if (isTxn1) {
-                    assert(((InternalTxnMessage)msg1).getTransactionId() != null) :
-                        "Unexpected null txnId for " + msg1;
-                    return ((InternalTxnMessage)msg0).getTransactionId().compareTo(
-                                ((InternalTxnMessage)msg1).getTransactionId());
+            if (isTxn0 && isTxn1) {
+                // If they're both for the same txn, then use the compareOrder
+                Long txnId0 = ((InternalTxnMessage)msg0).getTransactionId();
+                assert(txnId0 != null) : "Unexpected null txnId for " + msg0;
+                Long txnId1 = ((InternalTxnMessage)msg1).getTransactionId();
+                assert(txnId1 != null) : "Unexpected null txnId for " + msg1;
+
+                // Compare TxnIds
+                int result = txnId0.compareTo(txnId1);
+                if (result != 0) return (result);
+                
+                // Rank them based on their message type
+                // This prevents us from removing a txn before it's been added 
+                if (class0.equals(class1) == false) {
+                    for (Class<? extends InternalMessage> clazz : compareOrder) {
+                        boolean isMatch0 = class0.equals(clazz);
+                        boolean isMatch1 = class1.equals(clazz);
+                        if (isMatch0 && !isMatch1) return (-1);
+                        else if (!isMatch0 && isMatch1) return (1);                    
+                    } // FOR
                 }
+            }
+            else if (isTxn0) {
                 return (-1); 
             } else if (isTxn1) {
-                assert(((InternalTxnMessage)msg1).getTransactionId() != null) :
-                    "Unexpected null txnId for " + msg1;
                 return (1);
             }
-            
-            // (4) They must be the same!
-            // assert(false) : String.format("%s <-> %s", class0, class1);
+
+            // Last Resort: Just use hashCode
             return msg0.hashCode() - msg1.hashCode();
         }
     };
