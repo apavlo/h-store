@@ -1009,6 +1009,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (next != null && next.isPredictSinglePartition() == false) {
                 this.setCurrentDtxn(next);
                 this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
+                if (hstore_conf.site.exec_profiling) this.profiler.util_time.stop();
                 return (false);
             }
         }

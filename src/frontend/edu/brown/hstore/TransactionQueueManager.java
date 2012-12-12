@@ -419,13 +419,20 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     protected boolean lockQueueInsert(AbstractTransaction ts,
                                       int partition,
                                       TransactionInitQueueCallback wrapper) {
-        assert(ts != null) : "Unexpected null transaction";
+        assert(ts.isInitialized()) :
+            String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
             String.format("Trying to add %s to non-local partition %d", ts, partition);
+
+        // This is actually bad and should never happen. But for the sake of trying
+        // to get the experiments working, we're just going to ignore it...
+        if (wrapper.isInitialized() == false) {
+            LOG.warn(String.format("Unexpected uninitialized %s for %s [partition=%d]", wrapper.getClass().getSimpleName(), ts, partition));
+            return (false);
+        }
         
         if (d) LOG.debug(String.format("Adding %s into lockQueue for partition %d [allPartitions=%s]",
                          ts, partition, ts.getPredictTouchedPartitions()));
-        assert(wrapper.isInitialized());
         
         Long txn_id = ts.getTransactionId();
         // We can preemptively check whether this txnId is greater than
