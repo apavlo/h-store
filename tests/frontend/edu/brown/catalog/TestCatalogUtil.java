@@ -54,11 +54,45 @@ public class TestCatalogUtil extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
     }
     
+    public void testCatalogMapValues() {
+        Database catalog_db = CatalogUtil.getDatabase(CatalogCloner.cloneBaseCatalog(this.getCatalog()));
+        Procedure catalog_proc = this.getProcedure(catalog_db, neworder.class);
+        CatalogMap<Statement> stmts = catalog_proc.getStatements();
+        List<Statement> orig = new ArrayList<Statement>(stmts);
+        assertFalse(stmts.isEmpty());
+        int expected = stmts.size();
+        assertEquals(expected, stmts.values().length);
+        assertEquals(orig.size(), stmts.values().length);
+        
+        stmts.clear();
+        
+        // Check that we can still iterate
+        int ctr = 0;
+        for (Statement stmt : stmts) {
+            assertNotNull(stmt);
+            ctr++;
+        }
+        assertEquals(0, ctr);
+        for (Statement stmt : stmts.values()) {
+            assertNotNull(stmt);
+            ctr++;
+        }
+        assertEquals(0, ctr);
+        
+        assertEquals(0, stmts.size());
+        assertEquals(0, stmts.values().length);
+
+        // Add them back
+        stmts.addAll(orig);
+        assertEquals(expected, stmts.size());
+        assertEquals(expected, stmts.values().length);
+    }
+    
     /**
      * testGetPlanFragment
      */
     public void testGetPlanFragment() throws Exception {
-        Procedure catalog_proc = getProcedure(neworder.class);
+        Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         assert (catalog_stmt != null);
 

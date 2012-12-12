@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,15 +36,11 @@ import org.voltdb.catalog.Table;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.types.ConflictType;
 
-import weka.core.AttributeStats;
-
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.TableUtil;
 
 /**
  * 
@@ -446,10 +441,10 @@ public class CatalogTreeModel extends DefaultTreeModel {
                         String attrText = "";
                         
                         // READ-WRITE CONFLICTS
-                        attrText += this.formatConflictSet(conflicts.getReadwriteconflicts(), ConflictType.READ_WRITE);
+                        attrText += this.formatConflictSet(conflicts.getReadwriteconflicts().values(), ConflictType.READ_WRITE);
                         
                         // WRITE-WRITE CONFLICTS
-                        attrText += this.formatConflictSet(conflicts.getWritewriteconflicts(), ConflictType.WRITE_WRITE);
+                        attrText += this.formatConflictSet(conflicts.getWritewriteconflicts().values(), ConflictType.WRITE_WRITE);
 
                         AttributesNode conflict_node = new AttributesNode(other.getName(), attrText);
                         conflictRootNode.add(new DefaultMutableTreeNode(conflict_node));
@@ -459,10 +454,10 @@ public class CatalogTreeModel extends DefaultTreeModel {
         } // FOR (procedures)
     }
     
-    private String formatConflictSet(Collection<ConflictPair> conflicts, ConflictType conflictType) {
+    private String formatConflictSet(ConflictPair conflicts[], ConflictType conflictType) {
         StringBuilder sb = new StringBuilder();
         sb.append(StringUtil.header(conflictType.name().toUpperCase() + " CONFLICTS")).append("\n");
-        if (conflicts.isEmpty()) {
+        if (conflicts.length == 0) {
             sb.append("<NONE>\n\n");
         } else {
             int ctr = 0;
