@@ -232,11 +232,6 @@ public class VerticalPartitionColumn extends MultiColumn {
                 assert (catalog_proc.getStatements().contains(backup) == false);
             }
             VerticalPartitionPlanner.applyOptimization(e.getKey(), backup);
-            
-            // Check whether the only table the query references is our replicated index
-            Collection<Table> tables = CatalogUtil.getReferencedTables(e.getKey());
-            LOG.info(e.getKey() + " => " + tables);
-            e.getKey().setReplicatedonly(tables.size() == 1);
 
             // Then copy the optimized query plans
             if (debug.get())
