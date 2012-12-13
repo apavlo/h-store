@@ -1631,20 +1631,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // BASE PARTITION
         // -------------------------------
+
+        // The base partition is where this txn's Java stored procedure will run on
+        if (base_partition == HStoreConstants.NULL_PARTITION_ID) {
+            base_partition = this.txnInitializer.calculateBasePartition(client_handle,
+                                                                        catalog_proc,
+                                                                        procParams,
+                                                                        base_partition);
+        }
         
         // Profiling Updates
         if (hstore_conf.site.txn_counters) TransactionCounter.RECEIVED.inc(procName);
-        if (hstore_conf.site.profiling && base_partition != -1) {
+        if (hstore_conf.site.profiling && base_partition != HStoreConstants.NULL_PARTITION_ID) {
             synchronized (profiler.network_incoming_partitions) {
                 profiler.network_incoming_partitions.put(base_partition);
             } // SYNCH
         }
-        
-        // The base partition is where this txn's Java stored procedure will run on
-        base_partition = this.txnInitializer.calculateBasePartition(client_handle,
-                                                                    catalog_proc,
-                                                                    procParams,
-                                                                    base_partition);
         
         // -------------------------------
         // REDIRECT TXN TO PROPER BASE PARTITION
@@ -2190,7 +2192,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // XXX: We should probably decrement the base partition by one 
             //      so that we only consider where they actually executed queries
-            if (t) LOG.trace(String.format("Touched partitions for mispredicted %s%s",
+            if (d) LOG.debug(String.format("Touched partitions for mispredicted %s%s",
                                            orig_ts, (t ? "\n"+touched : " " + touched.values())));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
@@ -2208,9 +2210,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 redirect_partition = CollectionUtil.random(this.catalogContext.getAllPartitionIds());
             }
             assert(redirect_partition != null) : "Redirect partition is null!\n" + orig_ts.debug();
-            if (t) {
-                LOG.trace("Redirect Partition: " + redirect_partition + " -> " + (this.isLocalPartition(redirect_partition) == false));
-                LOG.trace("Local Partitions: " + this.local_partitions);
+            if (d) {
+                LOG.debug("Redirect Partition: " + redirect_partition + " -> " + (this.isLocalPartition(redirect_partition) == false));
+                LOG.debug("Local Partitions: " + this.local_partitions);
             }
             
             // If the txn wants to execute on another node, then we'll send them off *only* if this txn wasn't
@@ -2373,14 +2375,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         else {
             if (d) {
                 LOG.debug(String.format("Re-executing %s as new %s-partition %s on partition %d " +
-                          "[restarts=%d, partitions=%s]",
+                          "[restarts=%d, partitions=%s]\n%s",
                           orig_ts,
                           (predict_touchedPartitions.size() == 1 ? "single" : "multi"),
                           new_ts,
                           base_partition,
                           new_ts.getRestartCounter(),
-                          predict_touchedPartitions));
-                if (t && status == Status.ABORT_MISPREDICT)
+                          predict_touchedPartitions,
+                          orig_ts.debug()));
+                if (status == Status.ABORT_MISPREDICT)
                     LOG.trace(String.format("%s Mispredicted partitions: %s",
                               new_ts, orig_ts.getTouchedPartitions().values()));
             }

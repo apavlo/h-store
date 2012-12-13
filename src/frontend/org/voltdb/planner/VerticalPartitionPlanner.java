@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
@@ -11,7 +12,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.CollectionUtils;
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
@@ -135,8 +135,7 @@ public class VerticalPartitionPlanner {
         Map<Statement, Statement> optimized = this.generateOptimizedStatements();
         if (optimized != null) {
             for (Entry<Statement, Statement> e : optimized.entrySet()) {
-                CatalogUtil.copyQueryPlans(e.getValue(), e.getKey());
-                e.getKey().setSecondaryindex(true);
+                applyOptimization(e.getValue(), e.getKey());
             } // FOR
             updated.addAll(optimized.keySet());
         }
@@ -158,8 +157,7 @@ public class VerticalPartitionPlanner {
             Map<Statement, Statement> optimized = this.projectBuilder.getRewrittenQueryPlans();
             assert (optimized != null);
             assert (optimized.size() == 1);
-            CatalogUtil.copyQueryPlans(CollectionUtil.first(optimized.values()), catalog_stmt);
-            catalog_stmt.setSecondaryindex(true);
+            applyOptimization(CollectionUtil.first(optimized.values()), catalog_stmt);
             return (true);
         }
         return (false);
@@ -177,7 +175,7 @@ public class VerticalPartitionPlanner {
 
         if (this.stmt_rewrites.size() > 0) {
             if (trace.get()) {
-                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
                 for (Statement catalog_stmt : this.stmt_rewrites.keySet()) {
                     m.put(catalog_stmt.fullName(), this.stmt_rewrites.get(catalog_stmt));
                 }
@@ -192,6 +190,16 @@ public class VerticalPartitionPlanner {
     // INTERNAL UTILITY METHODS
     // ======================================================================================
 
+    public static void applyOptimization(Statement src, Statement dest) {
+        CatalogUtil.copyQueryPlans(src, dest);
+        dest.setSecondaryindex(true);
+        
+        // Check whether the only table the query references is our replicated index
+        Collection<Table> tables = CatalogUtil.getReferencedTables(dest);
+        if (debug.get()) LOG.debug(dest + " => " + tables);
+        dest.setReplicatedonly(tables.size() == 1);
+    }
+    
     /**
      * Process the given Statement and rewrite its query plan if it can take
      * advantage of a vertical partitioning column
@@ -254,7 +262,7 @@ public class VerticalPartitionPlanner {
             // (3) At least one of the vertical partition's columns is in
             // predicate_cols
             if (debug.get()) {
-                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("VerticalP", catalog_view.getName());
                 m.put("Partitioning Col", partitioning_col.fullName());
                 m.put("Output Cols", output_cols);
@@ -335,7 +343,7 @@ public class VerticalPartitionPlanner {
         if (from_clause.length == 0) {
             throw new Exception(String.format("Failed to extract %s's FROM clause: %s", catalog_stmt.fullName(), catalog_stmt.getSqltext()));
         }
-        Map<String, String> from_xref = new ListOrderedMap<String, String>();
+        Map<String, String> from_xref = new LinkedHashMap<String, String>();
         Map<String, String> new_from_xref = new HashMap<String, String>();
         for (String from : from_clause) {
             String split[] = FROM_REGEX.split(from.trim());

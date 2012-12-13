@@ -619,9 +619,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Copy the query plans from Statement to another This will overwrite both
-     * the existing single-partition and multi-partition query plans
-     * 
+     * Copy the query plans from Statement to another.
+     * This will overwrite both the existing single-partition and
+     * multi-partition query plans.
      * @param copy_src
      * @param copy_dest
      */
@@ -1391,7 +1391,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 //                tables.add((Table) catalog_col.getParent());
 //            } // FOR
             ret = Collections.unmodifiableCollection(tables);
-            cache.STATEMENT_TABLES.put(catalog_stmt, ret);
+            // cache.STATEMENT_TABLES.put(catalog_stmt, ret);
         }
         return (ret);
     }

@@ -16,6 +16,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.compiler.VoltCompiler;
+import org.voltdb.planner.VerticalPartitionPlanner;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
@@ -230,8 +231,12 @@ public class VerticalPartitionColumn extends MultiColumn {
                 assert (ret);
                 assert (catalog_proc.getStatements().contains(backup) == false);
             }
-            CatalogUtil.copyQueryPlans(e.getKey(), backup);
-            e.getKey().setSecondaryindex(true);
+            VerticalPartitionPlanner.applyOptimization(e.getKey(), backup);
+            
+            // Check whether the only table the query references is our replicated index
+            Collection<Table> tables = CatalogUtil.getReferencedTables(e.getKey());
+            LOG.info(e.getKey() + " => " + tables);
+            e.getKey().setReplicatedonly(tables.size() == 1);
 
             // Then copy the optimized query plans
             if (debug.get())
