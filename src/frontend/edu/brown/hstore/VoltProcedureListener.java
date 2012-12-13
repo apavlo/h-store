@@ -259,7 +259,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     public void bind() {
-        bind(org.voltdb.client.Client.VOLTDB_SERVER_PORT);
+        bind(edu.brown.hstore.HStoreConstants.DEFAULT_PORT);
     }
 
     public void setServerSocketForTest(ServerSocketChannel serverSocket) {

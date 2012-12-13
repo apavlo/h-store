@@ -9,11 +9,13 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
@@ -176,6 +178,17 @@ public class CatalogInfo {
 //            }
 //            if (hasPrefetchable) System.out.println();
 //        }
+        
+        // DUMP SYSPROCS
+        for (Procedure proc : args.catalogContext.getSysProcedures()) {
+            System.out.println(proc.getName());
+            int ctr = 0;
+            for (ProcParameter param : CatalogUtil.getSortedCatalogItems(proc.getParameters(), "index")) {
+                System.out.printf("  [%02d] %s%s\n", ctr++,
+                                  VoltType.get(param.getType()),
+                                  (param.getIsarray() ? " <array>" : "")); 
+            } // FOR
+        } // FOR
     }
 
 }

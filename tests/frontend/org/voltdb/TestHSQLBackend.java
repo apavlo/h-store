@@ -35,6 +35,8 @@ import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.BuildDirectoryUtils;
 
+import edu.brown.hstore.HStoreConstants;
+
 public class TestHSQLBackend extends TestCase {
 
     /*public void testMilestoneOneHSQL() throws InterruptedException, IOException, ProcCallException {
@@ -149,7 +151,7 @@ public class TestHSQLBackend extends TestCase {
 
         // run the test
         Client client = ClientFactory.createClient();
-        client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
+        client.createConnection(null, "localhost", HStoreConstants.DEFAULT_PORT, "program", "none");
 
         // call the insert procedure
         VoltTable[] results = client.callProcedure("InsertHistory", 5, 5, 5, 5, 5, 100000L, 2.5, "nada").getResults();

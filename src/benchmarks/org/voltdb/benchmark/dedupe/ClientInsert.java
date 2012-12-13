@@ -29,12 +29,12 @@ import java.util.Calendar;
 import java.util.Date;
 
 import org.voltdb.VoltTable;
-import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 
 public class ClientInsert {
@@ -144,7 +144,7 @@ public class ClientInsert {
             try {
                 System.out.printf("Connecting to server: %s\n",thisServer);
 
-                voltclient.createConnection(null, thisServer, Client.VOLTDB_SERVER_PORT, "program", "none");
+                voltclient.createConnection(null, thisServer, HStoreConstants.DEFAULT_PORT, "program", "none");
             } catch (IOException e) {
                 e.printStackTrace();
                 System.exit(-1);

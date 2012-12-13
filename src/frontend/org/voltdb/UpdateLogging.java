@@ -24,6 +24,7 @@ import java.io.FileReader;
 import org.voltdb.client.*;
 import org.voltdb.utils.Pair;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -35,7 +36,7 @@ import edu.brown.utils.StringUtil;
 public class UpdateLogging {
     public static void main(String args[]) throws Exception {
         String host = "localhost";
-        int port = Client.VOLTDB_SERVER_PORT;
+        int port = HStoreConstants.DEFAULT_PORT;
         String configFilePath = null;
         String username = "";
         String password = "";

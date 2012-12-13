@@ -35,6 +35,8 @@ import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 
+import edu.brown.hstore.HStoreConstants;
+
 public class ProcedureCallMicrobench {
 
     static abstract class Runner {
@@ -89,7 +91,7 @@ public class ProcedureCallMicrobench {
                 // trigger classloading a couple times
                 {
                     Client client = ClientFactory.createClient();
-                    client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
+                    client.createConnection(null, "localhost", HStoreConstants.DEFAULT_PORT, "program", "none");
                     for (int i = 0; i < 10000; i++)
                         client.callProcedure("EmptyProcedure", 0L);
                 }
@@ -107,7 +109,7 @@ public class ProcedureCallMicrobench {
                             try {
                                 Client client = ClientFactory.createClient();
                                 client.createConnection(
-                                        null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
+                                        null, "localhost", HStoreConstants.DEFAULT_PORT, "program", "none");
 
                                 int count = 0;
                                 barrier.await();

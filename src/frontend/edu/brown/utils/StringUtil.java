@@ -42,11 +42,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
-import org.voltdb.client.Client;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
+
+import edu.brown.hstore.HStoreConstants;
 
 /**
  * @author pavlo
@@ -632,7 +633,7 @@ public abstract class StringUtil {
      * @return
      */
     public static Pair<String, Integer> getHostPort(String hostnport) {
-        return (getHostPort(hostnport, Client.VOLTDB_SERVER_PORT));
+        return (getHostPort(hostnport, HStoreConstants.DEFAULT_PORT));
     }
 
     public static Pair<String, Integer> getHostPort(String hostnport, int port) {

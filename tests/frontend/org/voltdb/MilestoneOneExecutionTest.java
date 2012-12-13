@@ -29,6 +29,8 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.BuildDirectoryUtils;
+
+import edu.brown.hstore.HStoreConstants;
 import junit.framework.TestCase;
 
 public class MilestoneOneExecutionTest extends TestCase {
@@ -68,7 +70,7 @@ public class MilestoneOneExecutionTest extends TestCase {
 
         // run the test
         client = ClientFactory.createClient();
-        client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
+        client.createConnection(null, "localhost", HStoreConstants.DEFAULT_PORT, "program", "none");
     }
 
     @Override

@@ -1580,7 +1580,7 @@ public class BenchmarkController {
         Client dumpClient = ClientFactory.createClient();
         for (String host : m_config.hosts) {
             try {
-                dumpClient.createConnection(null, host, Client.VOLTDB_SERVER_PORT, "program", "password");
+                dumpClient.createConnection(null, host, HStoreConstants.DEFAULT_PORT, "program", "password");
                 dumpClient.callProcedure("@dump");
             } catch (UnknownHostException e) {
                 e.printStackTrace();

@@ -145,6 +145,23 @@ final class ClientImpl implements Client {
      * @throws UnknownHostException
      * @throws IOException
      */
+    public void createConnection(String host, int port) throws UnknownHostException, IOException {
+        if (m_isShutdown) {
+            throw new IOException("Client instance is shutdown");
+        }
+        String subProgram = "default";
+        String subPassword = "password";
+        m_distributer.createConnection(null, host, port, subProgram, subPassword);
+    }
+    
+    /**
+     * Create a connection to another VoltDB node.
+     * @param host
+     * @param password
+     * @param program
+     * @throws UnknownHostException
+     * @throws IOException
+     */
     public void createConnection(Integer site_id, String host, int port, String program, String password)
         throws UnknownHostException, IOException
     {

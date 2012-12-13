@@ -13,7 +13,7 @@ public class HStoreClientExample {
         
         // connect to VoltDB server
         Client client = ClientFactory.createClient();
-        client.createConnection(null, args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS), Client.VOLTDB_SERVER_PORT, "user", "password");
+        client.createConnection(null, args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS), HStoreConstants.DEFAULT_PORT, "user", "password");
 
         // long w_id, String w_name, String w_street_1, String w_street_2, String w_city, String w_state, String w_zip, double w_tax, double w_ytd
         VoltTable[] result = client.callProcedure("InsertSubscriber", 1l, "0000001").getResults();

@@ -123,7 +123,7 @@ public class EchoServer {
      */
     public static void main(String[] args) {
         try{
-            server = new ServerSocket(org.voltdb.client.Client.VOLTDB_SERVER_PORT);
+            server = new ServerSocket(edu.brown.hstore.HStoreConstants.DEFAULT_PORT);
         } catch (IOException e) {
             System.out.println("Could not listen on port");
             e.printStackTrace();

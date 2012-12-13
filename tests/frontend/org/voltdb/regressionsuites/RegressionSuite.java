@@ -37,6 +37,7 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ConnectionUtil;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 
 /**
@@ -155,7 +156,7 @@ public class RegressionSuite extends TestCase {
         final Random r = new Random();
         final String listener = listeners.get(r.nextInt(listeners.size()));
         final Client client = ClientFactory.createClient();
-        client.createConnection(null, listener, Client.VOLTDB_SERVER_PORT, m_username, m_password);
+        client.createConnection(null, listener, HStoreConstants.DEFAULT_PORT, m_username, m_password);
         m_clients.add(client);
         return client;
     }
@@ -186,7 +187,7 @@ public class RegressionSuite extends TestCase {
         final SocketChannel channel = (SocketChannel)
             ConnectionUtil.getAuthenticatedConnection(
                     listener,
-                    m_username, m_password, Client.VOLTDB_SERVER_PORT)[0];
+                    m_username, m_password, HStoreConstants.DEFAULT_PORT)[0];
         channel.configureBlocking(true);
         if (!noTearDown) {
             synchronized (m_clientChannels) {
