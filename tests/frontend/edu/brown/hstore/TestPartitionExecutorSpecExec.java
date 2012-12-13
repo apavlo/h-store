@@ -487,11 +487,11 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
         
         // Check TransactionCounters
+        System.err.println(TransactionCounter.debug());
         assertEquals(1+(NUM_SPECEXEC_TXNS*2), TransactionCounter.COMPLETED.get());
-//        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.SPECULATIVE.get());
-//        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.ABORT_SPECULATIVE.get());
+        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.SPECULATIVE.get());
+        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.ABORT_SPECULATIVE.get());
         
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
-
 }

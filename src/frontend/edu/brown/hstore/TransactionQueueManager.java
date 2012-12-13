@@ -763,7 +763,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             if (d) LOG.debug(String.format("%s - Got return result %s after restarting", ts, ret));
             
             ts.unmarkNeedsRestart();
-            this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), ret);
+            this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
         } // WHILE
     }
     

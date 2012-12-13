@@ -6,6 +6,7 @@ package edu.brown.hstore.util;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -167,5 +168,17 @@ public enum TransactionCounter {
     }
     public static TransactionCounter get(String name) {
         return TransactionCounter.name_lookup.get(name.toLowerCase());
+    }
+    public static void resetAll() {
+        for (TransactionCounter tc : EnumSet.allOf(TransactionCounter.class)) {
+            tc.clear(); 
+        } // FOR
+    }
+    public static String debug() {
+        Map<String, Integer> m = new LinkedHashMap<String, Integer>();
+        for (TransactionCounter tc : EnumSet.allOf(TransactionCounter.class)) {
+            m.put(tc.name(), tc.get()); 
+        } // FOR
+        return (StringUtil.formatMaps(m));
     }
 }

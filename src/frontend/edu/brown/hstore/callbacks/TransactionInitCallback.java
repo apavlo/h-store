@@ -69,6 +69,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<LocalTr
         
         // If the transaction needs to be restarted, then we'll attempt to requeue it.
         switch (status) {
+            case ABORT_SPECULATIVE:
             case ABORT_RESTART: {
                 // If we have the transaction that we got busted up with at the remote site
                 // then we'll tell the TransactionQueueManager to unblock it when it gets released

@@ -1392,7 +1392,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             StringBuilder sb = new StringBuilder();
             int i = 0;
             for (String txn : this.deletable_last) {
-                sb.append(String.format(" [%02d]\n%s\n", i++, StringUtil.prefix(txn, "  | ")));
+                sb.append(String.format(" [%02d]%s\n", i++, txn));
+                // sb.append(String.format(" [%02d]\n%s\n", i++, StringUtil.prefix(txn, "  | ")));
             }
             LOG.info("Last Deleted Transactions:\n" + sb + "\n\n");
         }
