@@ -137,7 +137,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     
     /**
      * testReadEvictedTuples
-     */
+     
     @Test
     public void testReadEvictedTuples() throws Exception {
         this.loadData();
@@ -160,6 +160,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertTrue(adv);
         assertEquals(expected, results[0].getLong(0));
     }
+*/
     
     /**
      * testEvictTuples

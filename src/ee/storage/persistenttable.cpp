@@ -214,42 +214,48 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     EvictionIterator evict_itr(this); 
     
     #ifdef VOLT_INFO_ENABLED
-    VOLT_INFO("Starting evictable tuple iterator for %s", name().c_str());
     boost::timer timer;
     int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
     #endif
     
+    VOLT_INFO("Starting evictable tuple iterator for %s", name().c_str());
     while (table_itr.hasNext()) {
     //while (evict_itr.hasNext()) {
         table_itr.next(tuple);
         //evict_itr.next(tuple); 
-        VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
+
+		// remove the tuple from the eviction chain
+		AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+	    eviction_manager->removeTuple(this, &tuple);
+
+
+        VOLT_INFO("Evicting Tuple: %s", tuple.debug(name()).c_str());
         
-		/*
+		
         // If this is the first tuple, then we need to allocate all of the memory and
         // what not that we're going to need
         if (tuple_length == -1) {
             tuple_length = tuple.tupleLength();
         }
-		*/
+		
 
-		tuple_length = tuple.tupleLength();
+		//tuple_length = tuple.tupleLength();
 		
 		ValuePeeker peeker; 
 		int tuple_id = (int)peeker.peekInteger(tuple.getNValue(0));
 		
+		
 		if(tuple_id < 20000)
 			continue; 
-
-	//	assert(tuple_id >= 0); 
 			
-	//	VOLT_INFO("Evicting tuple id: %d", tuple_id); 
 			
-        assert(tuple_length > 0);
+		//VOLT_INFO("Evicting tuple id: %d", tuple_id); 
+			
+        //assert(tuple_length > 0);
         //assert(tuple.isEvicted() == false);
 		if(tuple.isEvicted())
 		{
-			//VOLT_INFO("tuple %d is already evicted.", tuple.getTupleID()); 
+			VOLT_INFO("tuple %d is already evicted.", tuple.getTupleID()); 
 			continue;
 		} 
 		
@@ -438,6 +444,8 @@ void setSearchKeyFromTuple(TableTuple &source) {
 bool PersistentTable::insertTuple(TableTuple &source) {
     size_t elMark = 0;
 
+	VOLT_INFO("In insertTuple().");
+
     // not null checks at first
     FAIL_IF(!checkNulls(source)) {
         throw ConstraintFailureException(this, source, TableTuple(),
@@ -451,11 +459,6 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     //
     nextFreeTuple(&m_tmpTarget1);
     m_tupleCount++;
-
-    #ifdef ANTICACHE
-    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-    eviction_manager->updateTuple(this, &m_tmpTarget1, true); 
-    #endif
 
     //
     // Then copy the source into the target
@@ -516,6 +519,11 @@ bool PersistentTable::insertTuple(TableTuple &source) {
         m_views[i]->processTupleInsert(source);
     }
 
+#ifdef ANTICACHE
+    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+    eviction_manager->updateTuple(this, &m_tmpTarget1, true); 
+#endif
+
     return true;
 }
 
@@ -524,6 +532,8 @@ bool PersistentTable::insertTuple(TableTuple &source) {
  * strings or create an UndoAction or update a materialized view.
  */
 void PersistentTable::insertTupleForUndo(TableTuple &source, size_t wrapperOffset) {
+
+	VOLT_INFO("In insertTupleForUndo()."); 
 
     // not null checks at first
     if (!checkNulls(source)) {
@@ -572,6 +582,11 @@ void PersistentTable::insertTupleForUndo(TableTuple &source, size_t wrapperOffse
     if (m_exportEnabled) {
         m_wrapper->rollbackTo(wrapperOffset);
     }
+
+#ifdef ANTICACHE
+    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+    eviction_manager->updateTuple(this, &source, false); 
+#endif
 }
 
 /*
@@ -1005,6 +1020,14 @@ void PersistentTable::onSetColumns() {
  * to do additional processing for views and Export
  */
 void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
+	
+	//VOLT_INFO("in processLoadedTuple()."); 
+	
+#ifdef ANTICACHE
+	AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+	eviction_manager->updateTuple(this, &m_tmpTarget1, true); 
+#endif
+	
     // handle any materialized views
     for (int i = 0; i < m_views.size(); i++) {
         m_views[i]->processTupleInsert(m_tmpTarget1);

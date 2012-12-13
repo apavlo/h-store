@@ -63,6 +63,8 @@ EvictionIterator::~EvictionIterator()
     
 bool EvictionIterator::hasNext()
 {
+	VOLT_INFO("In EvictionIterator.hasNext()");
+		
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
     
     if(current_tuple_id == ptable->getNewestTupleID())
@@ -74,28 +76,35 @@ bool EvictionIterator::hasNext()
 bool EvictionIterator::next(TableTuple &tuple)
 {    
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
-    
+    VOLT_INFO("In EvictionIterator.next()"); 
+
     if(current_tuple_id == -1) // this is the first call to next
     {
+		VOLT_INFO("This is the first tuple in the chain.");
+
         if(ptable->getNumTuplesInEvictionChain() == 0)  // there are no tuples in the chain
         {
+			VOLT_INFO("There are no tuples in the eviction chain.");
             return false; 
         }
-
+		
         current_tuple_id = ptable->getOldestTupleID(); 
-            
     }
     else if(current_tuple_id == ptable->getNewestTupleID()) // we've already returned the last tuple in the chain
     {
+		VOLT_INFO("No more tuples in the chain.");
         return false; 
     }
     else  // advance the iterator to the next tuple in the chain
     {
+		VOLT_INFO("Returning the next tuple in the chain.");
         TableTuple temp = ptable->tempTuple(); 
         temp.move(ptable->dataPtrForTuple(current_tuple_id));
         
         current_tuple_id = temp.getTupleID(); 
     }
+
+	VOLT_INFO("current_tuple_id = %d", current_tuple_id); 
     
     tuple.move(ptable->dataPtrForTuple(current_tuple_id)); 
     return true; 

@@ -2293,7 +2293,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.ee != null) : "The EE object is null. This is bad!";
         Long txn_id = ts.getTransactionId();
 
-		LOG.info("in executePlanFragments()");
+		//LOG.info("in executePlanFragments()");
         
         // *********************************** DEBUG ***********************************
         if (d) {
