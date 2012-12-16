@@ -38,6 +38,22 @@ public abstract class HStoreSiteTestUtil extends TestCase {
             return (this);
         }
     }
+    
+    public static class WrapperProcedureCallback extends LatchableProcedureCallback {
+        final ProcedureCallback orig;
+        
+        public WrapperProcedureCallback(int expected, ProcedureCallback orig) {
+            super(expected);
+            this.orig = orig;
+        }
+        
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            this.orig.clientCallback(clientResponse);
+            super.clientCallback(clientResponse);
+        }
+    }
+
 
     /**
      * This checks to make sure that there aren't any active objects in the

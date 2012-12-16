@@ -350,6 +350,10 @@ public class SEATSClient extends BenchmarkComponent {
         assert(weights.getSampleCount() == 100) : "The total weight for the transactions is " + this.xacts.getSampleCount() + ". It needs to be 100";
         if (debug.get()) LOG.debug("Transaction Execution Distribution:\n" + weights);
     }
+    
+    protected SEATSProfile getProfile() {
+        return this.profile;
+    }
         
     @Override
     public String[] getTransactionDisplayNames() {
@@ -406,11 +410,11 @@ public class SEATSClient extends BenchmarkComponent {
             if (debug.get()) LOG.debug("Attempting to execute " + txn);
             switch (txn) {
                 case DELETE_RESERVATION: {
-                    ret = this.getDeleteReservationParams(txn);
+                    ret = this.getDeleteReservationParams();
                     break;
                 }
                 case FIND_FLIGHTS: {
-                    ret = this.getFindFlightsParams(txn);
+                    ret = this.getFindFlightsParams();
                     break;
                 }
                 case FIND_OPEN_SEATS: {
@@ -418,7 +422,7 @@ public class SEATSClient extends BenchmarkComponent {
                     break;
                 }
                 case NEW_RESERVATION: {
-                    ret = this.getNewReservationParams(txn);
+                    ret = this.getNewReservationParams();
                     break;
                 }
                 case UPDATE_CUSTOMER: {
@@ -500,7 +504,8 @@ public class SEATSClient extends BenchmarkComponent {
         }
     }
     
-    protected Pair<Object[], ProcedureCallback> getDeleteReservationParams(Transaction txn) {
+    protected Pair<Object[], ProcedureCallback> getDeleteReservationParams() {
+        Transaction txn = Transaction.DELETE_RESERVATION;
         this.startComputeTime(txn.displayName);
         
         // Pull off the first cached reservation and drop it on the cluster...
@@ -584,7 +589,8 @@ public class SEATSClient extends BenchmarkComponent {
      * @param txn
      * @throws IOException
      */
-    protected Pair<Object[], ProcedureCallback> getFindFlightsParams(Transaction txn) {
+    protected Pair<Object[], ProcedureCallback> getFindFlightsParams() {
+        Transaction txn = Transaction.FIND_FLIGHTS;
         this.startComputeTime(txn.displayName);
         
         long depart_airport_id;
@@ -808,7 +814,8 @@ public class SEATSClient extends BenchmarkComponent {
         }
     }
     
-    protected Pair<Object[], ProcedureCallback> getNewReservationParams(Transaction txn) {
+    protected Pair<Object[], ProcedureCallback> getNewReservationParams() {
+        Transaction txn = Transaction.DELETE_RESERVATION;
         this.startComputeTime(txn.displayName);
         Reservation reservation = null;
         BitSet seats = null;

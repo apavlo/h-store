@@ -36,6 +36,8 @@ import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
@@ -44,7 +46,11 @@ import edu.brown.utils.StringUtil;
 
 public class WikipediaClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WikipediaClient.class);
-	//private final TransactionGenerator<WikipediaOperation> generator;
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
 //	final Flat usersRng;
 //	final int num_users;
@@ -107,7 +113,7 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            //LOG.info(clientResponse);
+            //if (debug.get()) LOG.debug(clientResponse);
             
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
@@ -154,8 +160,7 @@ public class WikipediaClient extends BenchmarkComponent {
         assert(txns.getSampleCount() == 100) : txns;
         Random rand = new Random(); // FIXME
         this.txnWeights = new FlatHistogram<Transaction>(rand, txns);
-        if (LOG.isDebugEnabled())
-            LOG.debug("Transaction Workload Distribution:\n" + txns);
+        if (debug.get()) LOG.debug("Transaction Workload Distribution:\n" + txns);
         
         // Setup callbacks
         int num_txns = Transaction.values().length;
@@ -197,7 +202,7 @@ public class WikipediaClient extends BenchmarkComponent {
         // Where first element is namespace, second is title
         VoltTable res[] = cr.getResults();
         VoltTable vt = res[0];
-        LOG.info("vt:\n"+ vt);
+        if (debug.get()) LOG.debug("vt:\n"+ vt);
         while (vt.advanceRow()) {
             int page_id = (int) vt.getLong(0);
             int namespace = (int) vt.getLong(1);
@@ -224,7 +229,7 @@ public class WikipediaClient extends BenchmarkComponent {
      */
     @Override
     public void runLoop() {
-        LOG.info("Starting runLoop()");
+        if (debug.get()) LOG.debug("Starting runLoop()");
         Client client = this.getClientHandle();
         try {
             while (true) {
@@ -258,7 +263,7 @@ public class WikipediaClient extends BenchmarkComponent {
                                                            target.callName,
                                                            params);
 
-        //LOG.info("Executing txn:" + target.callName + ",with params:" + params);
+        //if (debug.get()) LOG.debug("Executing txn:" + target.callName + ",with params:" + params);
         return ret;
 	}
  
@@ -335,7 +340,7 @@ public class WikipediaClient extends BenchmarkComponent {
                 //Transaction target = Transaction.getTransaction(procedureName);
                 //assert(target != null):"can not find procedure: " + procedureName;
                 ClientResponse cr = null;
-                //LOG.info("Invoking GetPageAnonymous before executing UpdatePage");
+                //if (debug.get()) LOG.debug("Invoking GetPageAnonymous before executing UpdatePage");
                 try {
                     cr = this.getClientHandle().callProcedure(GetPageAnonymous.class.getSimpleName(), params);
                 } catch (Exception e) {
@@ -390,8 +395,7 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         assert(params != null);
         
-        if (LOG.isDebugEnabled())
-            LOG.info(txn + " Params:\n" + StringUtil.join("\n", params));
+        if (debug.get()) LOG.debug(txn + " Params:\n" + StringUtil.join("\n", params));
         return params;
     }
 }

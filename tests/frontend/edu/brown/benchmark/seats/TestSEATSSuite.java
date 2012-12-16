@@ -3,6 +3,7 @@ package edu.brown.benchmark.seats;
 import java.io.File;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import junit.framework.Test;
 
@@ -13,14 +14,21 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
+import org.voltdb.client.ProcedureCallback;
+import org.voltdb.regressionsuites.LocalCluster;
 import org.voltdb.regressionsuites.LocalSingleProcessServer;
 import org.voltdb.regressionsuites.MultiConfigSuiteBuilder;
 import org.voltdb.regressionsuites.RegressionSuite;
 import org.voltdb.regressionsuites.RegressionSuiteUtil;
 import org.voltdb.regressionsuites.VoltServerConfig;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTableUtil;
 
+import edu.brown.HStoreSiteTestUtil.WrapperProcedureCallback;
 import edu.brown.benchmark.seats.RandomGenerator;
+import edu.brown.benchmark.seats.SEATSClient.Transaction;
 import edu.brown.benchmark.seats.SEATSConstants;
 import edu.brown.benchmark.seats.SEATSLoader;
 import edu.brown.benchmark.seats.SEATSProfile;
@@ -92,61 +100,102 @@ public class TestSEATSSuite extends RegressionSuite {
                 return (catalogContext.catalog);
             }
         };
+        benchmarkClient.getProfile().loadProfile(client);
+        
+        // Fire off a FindOpenSeats so that we can prime ourselves
+        Pair<Object[], ProcedureCallback> pair = benchmarkClient.getFindOpenSeatsParams(Transaction.FIND_OPEN_SEATS);
+        assert(pair != null);
+        Object params[] = pair.getFirst();
+        WrapperProcedureCallback callback = new WrapperProcedureCallback(1, pair.getSecond());
+        client.callProcedure(callback, Transaction.FIND_OPEN_SEATS.getExecName(), params);
+        
+        // Wait until it's done
+        boolean ret = callback.latch.await(1000, TimeUnit.MILLISECONDS);
+        assertTrue(callback.latch.toString(), ret);
+        
         return (benchmarkClient);
     }
     
     
-    /**
-     * testInitialize
-     */
-    public void testInitialize() throws Exception {
-        Client client = this.getClient();
-        this.initializeSEATSDatabase(this.getCatalogContext(), client);
-        
-        Set<String> allTables = new HashSet<String>();
-        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_SCALING);
-        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_DATAFILES);
-        
-        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-        for (String tableName : allTables) {
-            String query = "SELECT COUNT(*) FROM " + tableName;
-            ClientResponse cresponse = client.callProcedure(procName, query);
-            assertEquals(Status.OK, cresponse.getStatus());
-            VoltTable results[] = cresponse.getResults();
-            assertEquals(1, results.length);
-            long count = results[0].asScalarLong();
-            assertTrue(tableName + " -> " + count, count > 0);
-            // System.err.println(tableName + "\n" + results[0]);
-        } // FOR
-    }
+//    /**
+//     * testInitialize
+//     */
+//    public void testInitialize() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeSEATSDatabase(this.getCatalogContext(), client);
+//        
+//        Set<String> allTables = new HashSet<String>();
+//        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_SCALING);
+//        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_DATAFILES);
+//        
+//        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+//        for (String tableName : allTables) {
+//            String query = "SELECT COUNT(*) FROM " + tableName;
+//            ClientResponse cresponse = client.callProcedure(procName, query);
+//            assertEquals(Status.OK, cresponse.getStatus());
+//            VoltTable results[] = cresponse.getResults();
+//            assertEquals(1, results.length);
+//            long count = results[0].asScalarLong();
+//            assertTrue(tableName + " -> " + count, count > 0);
+//            // System.err.println(tableName + "\n" + results[0]);
+//        } // FOR
+//    }
+//    
+//    /**
+//     * testSaveLoadProfile
+//     */
+//    public void testSaveLoadProfile() throws Exception {
+//        Client client = this.getClient();
+//        CatalogContext catalogContext = this.getCatalogContext();
+//        SEATSLoader loader = this.initializeSEATSDatabase(catalogContext, client);
+//        
+//        SEATSProfile orig = loader.getProfile();
+//        assertNotNull(orig);
+//        
+//        SEATSProfile copy = new SEATSProfile(catalogContext.catalog, new RandomGenerator(0));
+//        assert(copy.airport_histograms.isEmpty());
+//        copy.loadProfile(client);
+//        
+//        assertEquals(orig.scale_factor, copy.scale_factor);
+//        assertEquals(orig.airport_max_customer_id, copy.airport_max_customer_id);
+//        assertEquals(orig.flight_start_date.toString(), copy.flight_start_date.toString());
+//        assertEquals(orig.flight_upcoming_date.toString(), copy.flight_upcoming_date.toString());
+//        assertEquals(orig.flight_past_days, copy.flight_past_days);
+//        assertEquals(orig.flight_future_days, copy.flight_future_days);
+//        assertEquals(orig.flight_upcoming_offset, copy.flight_upcoming_offset);
+//        assertEquals(orig.reservation_upcoming_offset, copy.reservation_upcoming_offset);
+//        assertEquals(orig.num_reservations, copy.num_reservations);
+//        assertEquals(orig.histograms, copy.histograms);
+//        assertEquals(orig.airport_histograms, copy.airport_histograms);
+//    }
     
-    /**
-     * testSaveLoadProfile
-     */
-    public void testSaveLoadProfile() throws Exception {
-        Client client = this.getClient();
-        CatalogContext catalogContext = this.getCatalogContext();
-        SEATSLoader loader = this.initializeSEATSDatabase(catalogContext, client);
-        
-        SEATSProfile orig = loader.getProfile();
-        assertNotNull(orig);
-        
-        SEATSProfile copy = new SEATSProfile(catalogContext.catalog, new RandomGenerator(0));
-        assert(copy.airport_histograms.isEmpty());
-        copy.loadProfile(client);
-        
-        assertEquals(orig.scale_factor, copy.scale_factor);
-        assertEquals(orig.airport_max_customer_id, copy.airport_max_customer_id);
-        assertEquals(orig.flight_start_date.toString(), copy.flight_start_date.toString());
-        assertEquals(orig.flight_upcoming_date.toString(), copy.flight_upcoming_date.toString());
-        assertEquals(orig.flight_past_days, copy.flight_past_days);
-        assertEquals(orig.flight_future_days, copy.flight_future_days);
-        assertEquals(orig.flight_upcoming_offset, copy.flight_upcoming_offset);
-        assertEquals(orig.reservation_upcoming_offset, copy.reservation_upcoming_offset);
-        assertEquals(orig.num_reservations, copy.num_reservations);
-        assertEquals(orig.histograms, copy.histograms);
-        assertEquals(orig.airport_histograms, copy.airport_histograms);
-    }
+//    /**
+//     * testDeleteReservation
+//     */
+//    public void testDeleteReservation() throws Exception {
+//        Client client = this.getClient();
+//        CatalogContext catalogContext = this.getCatalogContext();
+//        this.initializeSEATSDatabase(catalogContext, client);
+//        SEATSClient benchmarkClient = this.initializeSEATSClient(catalogContext, client);
+//        assertNotNull(benchmarkClient);
+//        
+//        // First insert a new reservation
+//        Transaction txn = Transaction.FIND_FLIGHTS;
+//        Pair<Object[], ProcedureCallback> pair = benchmarkClient.getNewReservationParams();
+//        assertNotNull(pair);
+//        Object params[] = pair.getFirst();
+//        ClientResponse cresponse = null;
+//        try {
+//            cresponse = client.callProcedure(txn.getExecName(), params);
+//            assertEquals(Status.OK, cresponse.getStatus());
+//        } catch (ProcCallException ex) {
+//            cresponse = ex.getClientResponse();
+//            assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
+//        }
+//        
+//        
+//        System.err.println(VoltTableUtil.format(cresponse.getResults()[0]));
+//    }
     
     /**
      * testFindFlights
@@ -158,128 +207,21 @@ public class TestSEATSSuite extends RegressionSuite {
         SEATSClient benchmarkClient = this.initializeSEATSClient(catalogContext, client);
         assertNotNull(benchmarkClient);
         
-
+        Transaction txn = Transaction.FIND_FLIGHTS;
+        Pair<Object[], ProcedureCallback> pair = benchmarkClient.getFindFlightsParams();
+        assertNotNull(pair);
+        Object params[] = pair.getFirst();
         
+        ClientResponse cresponse = null;
+        try {
+            cresponse = client.callProcedure(txn.getExecName(), params);
+            assertEquals(Status.OK, cresponse.getStatus());
+        } catch (ProcCallException ex) {
+            cresponse = ex.getClientResponse();
+            assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
+        }
     }
     
-    
-//    /**
-//     * testDeleteCallForwarding
-//     */
-//    public void testDeleteCallForwarding() throws Exception {
-//        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
-//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-//        
-//        for (int i = 0; i < 1000; i++) {
-//            ClientResponse cresponse = null;
-//            try {
-//                cresponse = client.callProcedure(txn.callName, params);
-//                assertEquals(Status.OK, cresponse.getStatus());
-//            } catch (ProcCallException ex) {
-//                cresponse = ex.getClientResponse();
-////                System.err.println();
-//                assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
-//            }
-//            assertNotNull(cresponse);
-//        } // FOR
-//    }
-//    
-//    /**
-//     * testGetAccessData
-//     */
-//    public void testGetAccessData() throws Exception {
-//        Client client = this.getClient();
-//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
-//        TM1Client.Transaction txn = Transaction.GET_ACCESS_DATA;
-//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
-//        assertNotNull(cresponse);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//    }
-//    
-//    /**
-//     * testGetNewDestination
-//     */
-//    public void testGetNewDestination() throws Exception {
-//        Client client = this.getClient();
-//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
-//        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
-//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-//        ClientResponse cresponse = null;
-//        try {
-//            cresponse = client.callProcedure(txn.callName, params);
-//            assertEquals(Status.OK, cresponse.getStatus());
-//        } catch (ProcCallException ex) {
-//            cresponse = ex.getClientResponse();
-//            assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
-//        }
-//        assertNotNull(cresponse);
-//        
-//    }
-//    
-//    /**
-//     * testGetSubscriberData
-//     */
-//    public void testGetSubscriberData() throws Exception {
-//        Client client = this.getClient();
-//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
-//        TM1Client.Transaction txn = Transaction.GET_SUBSCRIBER_DATA;
-//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
-//        assertNotNull(cresponse);
-//    }
-//    
-//    /**
-//     * testInsertCallForwarding
-//     */
-//    public void testInsertCallForwarding() throws Exception {
-//        Client client = this.getClient();
-//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
-//        TM1Client.Transaction txn = Transaction.INSERT_CALL_FORWARDING;
-//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-//        ClientResponse cresponse = null;
-//        try {
-//            cresponse = client.callProcedure(txn.callName, params);
-//            assertEquals(Status.OK, cresponse.getStatus());
-//        } catch (ProcCallException ex) {
-//            cresponse = ex.getClientResponse();
-//            assertEquals(Status.ABORT_USER, cresponse.getStatus());
-//        }
-//        assertNotNull(cresponse);
-//    }
-//    
-//    /**
-//     * testUpdateLocation
-//     */
-//    public void testUpdateLocation() throws Exception {
-//        Client client = this.getClient();
-//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
-//        TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
-//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
-//        assertNotNull(cresponse);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//    }
-//    
-//    /**
-//     * testUpdateSubscriberData
-//     */
-//    public void testUpdateSubscriberData() throws Exception {
-//        Client client = this.getClient();
-//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
-//        TM1Client.Transaction txn = Transaction.UPDATE_SUBSCRIBER_DATA;
-//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-//        ClientResponse cresponse = null;
-//        try {
-//            cresponse = client.callProcedure(txn.callName, params);
-//            assertEquals(Status.OK, cresponse.getStatus());
-//        } catch (ProcCallException ex) {
-//            cresponse = ex.getClientResponse();
-//            assertEquals(Status.ABORT_USER, cresponse.getStatus());
-//        }
-//        assertNotNull(cresponse);
-//    }
-
     public static Test suite() {
         VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class

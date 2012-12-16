@@ -28,6 +28,8 @@ import edu.brown.benchmark.wikipedia.util.TextGenerator;
 import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.utils.StringUtil;
@@ -40,6 +42,11 @@ import edu.brown.utils.StringUtil;
  */
 public class WikipediaLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WikipediaLoader.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private final int num_users;
     private final int num_pages;
@@ -90,7 +97,7 @@ public class WikipediaLoader extends BenchmarkComponent {
         this.page_last_rev_length = new int[this.num_pages];
         Arrays.fill(this.page_last_rev_length, -1);
         
-        if (LOG.isDebugEnabled()) {
+        if (debug.get()) {
             LOG.debug("# of USERS:  " + this.num_users);
             LOG.debug("# of PAGES: " + this.num_pages);
         }
@@ -177,7 +184,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                 this.loadVoltTable(catalog_tbl.getName(), vt);
                 vt.clearRowData();
                 batchSize = 0;
-                if (LOG.isDebugEnabled()) {
+                if (debug.get()) {
                     int percent = (int) (((double) i / (double) this.num_users) * 100);
                     if (percent != lastPercent) LOG.debug("USERACCT (" + percent + "%)");
                     lastPercent = percent;
@@ -189,7 +196,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             vt.clearRowData();
         }
         
-        if (LOG.isDebugEnabled())
+        if (debug.get())
             LOG.debug("Users  % " + this.num_users);
     }
 
@@ -236,7 +243,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                 this.loadVoltTable(catalog_tbl.getName(), vt);
                 vt.clearRowData();
                 batchSize = 0;
-                if (LOG.isDebugEnabled()) {
+                if (debug.get()) {
                     int percent = (int) (((double) i / (double) this.num_pages) * 100);
                     if (percent != lastPercent) LOG.debug("PAGE (" + percent + "%)");
                     lastPercent = percent;
@@ -247,7 +254,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             this.loadVoltTable(catalog_tbl.getName(), vt);
             vt.clearRowData();
         }
-        if (LOG.isDebugEnabled())
+        if (debug.get())
             LOG.debug("Users  % " + this.num_pages);
     }
 
@@ -293,11 +300,11 @@ public class WikipediaLoader extends BenchmarkComponent {
             } // FOR
 
             if (batchSize >= WikipediaConstants.BATCH_SIZE) {
-                //LOG.info("watchList(batch):\n" + vt);
+                if (debug.get()) LOG.debug("watchList(batch):\n" + vt);
                 this.loadVoltTable(catalog_tbl.getName(), vt);
                 vt.clearRowData();
                 batchSize = 0;
-                if (LOG.isDebugEnabled()) {
+                if (debug.get()) {
                     int percent = (int) (((double) user_id / (double) this.num_users) * 100);
                     if (percent != lastPercent) LOG.debug("WATCHLIST (" + percent + "%)");
                     lastPercent = percent;
@@ -305,11 +312,11 @@ public class WikipediaLoader extends BenchmarkComponent {
             }
         } // FOR
         if (batchSize > 0) {
-            //LOG.info("watchList(<batch):\n" + vt);
+            if (debug.get()) LOG.debug("watchList(<batch):\n" + vt);
             this.loadVoltTable(catalog_tbl.getName(), vt);
             vt.clearRowData();
         }
-        if (LOG.isDebugEnabled())
+        if (debug.get())
             LOG.debug("Watchlist Loaded");
     }
 
@@ -354,7 +361,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             
             // Generate what the new revision is going to be
             int old_text_length = h_textLength.nextValue().intValue();
-            //LOG.info("Max length:" + max_text_length + " old_text_length:" + old_text_length);
+            if (debug.get()) LOG.debug("Max length:" + max_text_length + " old_text_length:" + old_text_length);
             assert(old_text_length > 0);
             assert(old_text_length < max_text_length);
             char old_text[] = TextGenerator.randomChars(randGenerator, old_text_length);
@@ -417,7 +424,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                 vtRev.clearRowData();
                 batchSize = 0;
                 
-                if (LOG.isDebugEnabled()) {
+                if (debug.get()) {
                     int percent = (int) (((double) page_id / (double) this.num_pages) * 100);
                     if (percent != lastPercent) LOG.debug("REVISIONS (" + percent + "%)");
                     lastPercent = percent;
@@ -451,7 +458,7 @@ public class WikipediaLoader extends BenchmarkComponent {
         assert(cr != null);
         assert(cr.getStatus() == Status.OK);
         
-        if (LOG.isDebugEnabled()) {
+        if (debug.get()) {
             LOG.debug("Revision loaded");
         }
     }
