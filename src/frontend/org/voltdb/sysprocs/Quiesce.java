@@ -12,7 +12,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.exceptions.ServerFaultException;
-import org.voltdb.utils.EstTime;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.Hstoreservice.Status;
@@ -26,11 +26,11 @@ public class Quiesce extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(Quiesce.class);
 
     private static final ColumnInfo ResultsColumns[] = {
-        new ColumnInfo("TIMESTAMP", VoltType.BIGINT),
         new ColumnInfo(VoltSystemProcedure.CNAME_HOST_ID, VoltSystemProcedure.CTYPE_ID),
         new ColumnInfo("HOSTNAME", VoltType.STRING),
         new ColumnInfo("PARTITION", VoltType.INTEGER),
         new ColumnInfo("STATUS", VoltType.STRING),
+        new ColumnInfo("CREATED", VoltType.TIMESTAMP),
     };
     
     @Override
@@ -57,11 +57,11 @@ public class Quiesce extends VoltSystemProcedure {
                 
                 VoltTable vt = new VoltTable(ResultsColumns);
                 Object row[] = {
-                    EstTime.currentTimeMillis(),
                     this.hstore_site.getSiteId(),
                     this.hstore_site.getSiteName(),
                     this.executor.getPartitionId(),
-                    Status.OK.name()
+                    Status.OK.name(),
+                    new TimestampType(),
                 };
                 vt.addRow(row);
                 result = new DependencySet(SysProcFragmentId.PF_quiesceDistribute, vt);

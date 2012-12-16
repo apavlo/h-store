@@ -11,6 +11,8 @@ import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.VoltTable.ColumnInfo;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
@@ -31,6 +33,14 @@ public class MarkovUpdate extends VoltSystemProcedure {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    public static final ColumnInfo RESULT_COLS[] = {
+        new VoltTable.ColumnInfo("SITE", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("PARTITION", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("OUTPUTFILE", VoltType.STRING),
+        new VoltTable.ColumnInfo("ISGLOBAL", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("CREATED", VoltType.TIMESTAMP)
+    };
+    
     @Override
     public void initImpl() {
         executor.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsDistribute, this);
@@ -45,10 +55,7 @@ public class MarkovUpdate extends VoltSystemProcedure {
                                              SystemProcedureExecutionContext context) {
         // Return the path to the files
         VoltTable[] result = new VoltTable[1];
-        result[0] = new VoltTable(new VoltTable.ColumnInfo("SiteId", VoltType.BIGINT),
-                                  new VoltTable.ColumnInfo("PartitionId", VoltType.BIGINT),
-                                  new VoltTable.ColumnInfo("OutputFile", VoltType.STRING),
-                                  new VoltTable.ColumnInfo("IsGlobal", VoltType.INTEGER));
+        result[0] = new VoltTable(RESULT_COLS);
         
         if (fragmentId == SysProcFragmentId.PF_recomputeMarkovsDistribute) {
             
@@ -89,16 +96,24 @@ public class MarkovUpdate extends VoltSystemProcedure {
                     } // FOR
                     if (debug.get()) LOG.debug(String.format("Recalculated %d MarkovGraph probabilities at partition %d", ctr, this.partitionId));
                     
+                    File f = null;
                     if (save_to_file) {
-                        File f = FileUtil.getTempFile("markovs-" + this.partitionId, true);
+                        File dir = new File(hstore_conf.global.temp_dir);
+                        f = FileUtil.getTempFile(dir, "markovs-" + this.partitionId, true);
                         LOG.info(String.format("Saving updated MarkovGraphs to '" + f + "'"));
                         try {
                             markovs.save(f);
                         } catch (Throwable ex) {
                             throw new RuntimeException("Failed to save MarkovGraphContainer for site " + HStoreThreadManager.formatSiteName(this.executor.getSiteId()), ex);
                         }
-                        result[0].addRow(this.executor.getSiteId(), this.partitionId, f.getAbsolutePath(), is_global ? 1 : 0);
                     }
+                    result[0].addRow(
+                        this.executor.getSiteId(),
+                        this.partitionId,
+                        (f != null ? f.getAbsolutePath() : null), 
+                        (is_global ? 1 : 0),
+                        new TimestampType()
+                    );
                 }
             }
             return new DependencySet(new int[] { (int)SysProcFragmentId.PF_recomputeMarkovsDistribute }, result);

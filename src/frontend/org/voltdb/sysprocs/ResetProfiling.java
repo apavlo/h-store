@@ -1,5 +1,6 @@
 package org.voltdb.sysprocs;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -17,8 +18,12 @@ import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.SpecExecProfiler;
+import edu.brown.profilers.TransactionQueueManagerProfiler;
 
 /** 
  * Reset internal profiling statistics
@@ -54,15 +59,38 @@ public class ResetProfiling extends VoltSystemProcedure {
                 LOG.debug("Resetting internal profiling counters");
                 HStoreConf hstore_conf = hstore_site.getHStoreConf();
                 
+                PartitionExecutor.Debug executorDebug = this.executor.getDebugContext();
+                
                 // EXECUTOR
                 if (hstore_conf.site.exec_profiling) {
-                    this.executor.getDebugContext().getProfiler().reset();
+                    executorDebug.getProfiler().reset();
+                }
+                
+                // SPEC EXEC
+                if (hstore_conf.site.specexec_profiling) {
+                    Collection<SpecExecProfiler> profilers = executorDebug.getSpecExecScheduler().getDebugContext().getProfilers().values();
+                    for (SpecExecProfiler profiler : profilers) {
+                        profiler.reset();
+                    } // FOR
+                }
+                                
+                // MARKOV
+                if (hstore_conf.site.markov_profiling) {
+                    TransactionEstimator est = executor.getTransactionEstimator();
+                    if (est instanceof MarkovEstimator) {
+                        ((MarkovEstimator)est).getDebugContext().getProfiler().reset();
+                    }
+                }
+
+                // QUEUE
+                if (hstore_conf.site.queue_profiling) {
+                    TransactionQueueManagerProfiler profiler = hstore_site.getTransactionQueueManager().getDebugContext().getProfiler(this.partitionId);
+                    profiler.reset();
                 }
                 
                 // The first partition at this HStoreSite will have to reset
                 // any global profling parameters
                 if (this.isFirstLocalPartition()) {
-                    
                     // COMMAND LOGGER
                     CommandLogWriter commandLog = hstore_site.getCommandLogWriter();
                     if (hstore_conf.site.commandlog_profiling && commandLog.getProfiler() != null) {

@@ -28,7 +28,7 @@ public class GetConfiguration extends VoltSystemProcedure {
         new ColumnInfo("SITE", VoltType.INTEGER),
         new ColumnInfo("NAME", VoltType.STRING),
         new ColumnInfo("VALUE", VoltType.STRING),
-        new ColumnInfo("TIMESTAMP", VoltType.TIMESTAMP)
+        new ColumnInfo("CREATED", VoltType.TIMESTAMP)
     };
 
     @Override

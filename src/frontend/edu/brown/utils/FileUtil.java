@@ -129,14 +129,22 @@ public abstract class FileUtil {
      * @return
      */
     public static File getTempFile(String ext, boolean deleteOnExit) {
-        return getTempFile(null, ext, deleteOnExit);
+        return getTempFile((String)null, ext, deleteOnExit);
     }
 
     public static File getTempFile(String ext) {
-        return (FileUtil.getTempFile(null, ext, false));
+        return (FileUtil.getTempFile((String)null, ext, false));
     }
 
     public static File getTempFile(String prefix, String suffix, boolean deleteOnExit) {
+        return getTempFile(new File(System.getProperty("java.io.tmpdir")), prefix, suffix, deleteOnExit); 
+    }
+    
+    public static File getTempFile(File tempDir, String ext, boolean deleteOnExit) {
+        return getTempFile(tempDir, null, ext, deleteOnExit);
+    }
+        
+    public static File getTempFile(File tempDir, String prefix, String suffix, boolean deleteOnExit) {
         File tempFile;
         if (suffix != null && suffix.startsWith(".") == false)
             suffix = "." + suffix;
@@ -144,7 +152,7 @@ public abstract class FileUtil {
             prefix = "hstore";
 
         try {
-            tempFile = File.createTempFile(prefix, suffix);
+            tempFile = File.createTempFile(prefix, suffix, tempDir);
             if (deleteOnExit)
                 tempFile.deleteOnExit();
         } catch (Exception ex) {
