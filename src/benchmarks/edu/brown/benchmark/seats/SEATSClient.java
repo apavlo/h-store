@@ -390,12 +390,8 @@ public class SEATSClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
         if (this.first.compareAndSet(true, false)) {
             // Fire off a FindOpenSeats so that we can prime ourselves
-            try {
-                boolean ret = this.executeFindOpenSeats(Transaction.FIND_OPEN_SEATS);
-                assert(ret);
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
+            boolean ret = this.executeFindOpenSeats(Transaction.FIND_OPEN_SEATS);
+            assert(ret);
         }
         
         int tries = 10;

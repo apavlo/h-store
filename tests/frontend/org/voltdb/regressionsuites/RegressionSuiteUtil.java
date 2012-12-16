@@ -1,5 +1,6 @@
 package org.voltdb.regressionsuites;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Random;
 
@@ -25,6 +26,8 @@ import org.voltdb.sysprocs.Statistics;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTypeUtil;
 
+import edu.brown.benchmark.seats.SEATSLoader;
+import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.benchmark.tm1.TM1Loader;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;

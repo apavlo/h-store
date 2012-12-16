@@ -1,49 +1,43 @@
 package edu.brown.benchmark.seats;
 
-import java.io.IOException;
-import java.util.Random;
-import java.util.regex.Pattern;
+import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
 
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcCallException;
-import org.voltdb.regressionsuites.LocalCluster;
 import org.voltdb.regressionsuites.LocalSingleProcessServer;
 import org.voltdb.regressionsuites.MultiConfigSuiteBuilder;
 import org.voltdb.regressionsuites.RegressionSuite;
+import org.voltdb.regressionsuites.RegressionSuiteUtil;
 import org.voltdb.regressionsuites.VoltServerConfig;
-import org.voltdb.types.TimestampType;
+import org.voltdb.sysprocs.AdHoc;
 
-import edu.brown.benchmark.seats.procedures.DeleteReservation;
-import edu.brown.benchmark.seats.procedures.FindFlights;
-import edu.brown.benchmark.seats.procedures.FindOpenSeats;
-import edu.brown.benchmark.seats.util.FlightId;
+import edu.brown.benchmark.seats.RandomGenerator;
+import edu.brown.benchmark.seats.SEATSConstants;
+import edu.brown.benchmark.seats.SEATSLoader;
+import edu.brown.benchmark.seats.SEATSProfile;
+import edu.brown.benchmark.seats.SEATSProjectBuilder;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.utils.CollectionUtil;
 
 /**
- * SEATS Benchmark Regression Tests
+ * Simple test suite for the SEATS benchmark
+ * @author pavlo
  */
 public class TestSEATSSuite extends RegressionSuite {
-
-    private static final double SCALE_FACTOR = 0.001;
-    private static final int RANDOM_SEED = 1;
     
-    private final String loaderArgs[] = {
-        "CLIENT.SCALEFACTOR=" + SCALE_FACTOR, 
-        "HOST=localhost",
-        "NUMCLIENTS=1",
-        "NOCONNECTIONS=true",
-        "BENCHMARK.DATADIR=" + SEATSHistogramUtil.findDataDir()
-    };
-    private final Random rand = new Random();
+    private static final String PREFIX = "seats";
+    private static final double SCALEFACTOR = 0.01;
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -53,19 +47,93 @@ public class TestSEATSSuite extends RegressionSuite {
         super(name);
     }
     
+    
+    public SEATSLoader initializeSEATSDatabase(final CatalogContext catalogContext, final Client client) throws Exception {
+        File dataDir = SEATSHistogramUtil.findDataDir();
+        assert(dataDir != null);
+        
+        HStoreConf hstore_conf = HStoreConf.singleton();
+        String args[] = {
+            "NOCONNECTIONS=true",
+            "CLIENT.SCALEFACTOR=" + hstore_conf.client.scalefactor, 
+            "BENCHMARK.DATADIR=" + dataDir.getAbsolutePath()
+        };
+        SEATSLoader loader = new SEATSLoader(args) {
+            {
+                this.setCatalogContext(catalogContext);
+                this.setClientHandle(client);
+            }
+            @Override
+            public Catalog getCatalog() {
+                return (catalogContext.catalog);
+            }
+        };
+        loader.load();
+        return (loader);
+    }
+    
+    public SEATSClient initializeSEATSClient(final CatalogContext catalogContext, final Client client) throws Exception {
+        File dataDir = SEATSHistogramUtil.findDataDir();
+        assert(dataDir != null);
+        
+        HStoreConf hstore_conf = HStoreConf.singleton();
+        String args[] = {
+            "NOCONNECTIONS=true",
+            "CLIENT.SCALEFACTOR=" + hstore_conf.client.scalefactor, 
+            "BENCHMARK.DATADIR=" + dataDir.getAbsolutePath()
+        };
+        SEATSClient benchmarkClient = new SEATSClient(args) {
+            {
+                this.setCatalogContext(catalogContext);
+                this.setClientHandle(client);
+            }
+            @Override
+            public Catalog getCatalog() {
+                return (catalogContext.catalog);
+            }
+        };
+        return (benchmarkClient);
+    }
+    
+    
     /**
-     * testLOADER
+     * testInitialize
      */
-    @org.junit.Test
-    public void testLOADER() throws IOException, ProcCallException {
-        // Load the mofo up and then check to make sure that if we load 
-        // the profile back in that it has the values that we expect it to have
-        SEATSProfile orig = this.loadDatabase();
+    public void testInitialize() throws Exception {
+        Client client = this.getClient();
+        this.initializeSEATSDatabase(this.getCatalogContext(), client);
+        
+        Set<String> allTables = new HashSet<String>();
+        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_SCALING);
+        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_DATAFILES);
+        
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        for (String tableName : allTables) {
+            String query = "SELECT COUNT(*) FROM " + tableName;
+            ClientResponse cresponse = client.callProcedure(procName, query);
+            assertEquals(Status.OK, cresponse.getStatus());
+            VoltTable results[] = cresponse.getResults();
+            assertEquals(1, results.length);
+            long count = results[0].asScalarLong();
+            assertTrue(tableName + " -> " + count, count > 0);
+            // System.err.println(tableName + "\n" + results[0]);
+        } // FOR
+    }
+    
+    /**
+     * testSaveLoadProfile
+     */
+    public void testSaveLoadProfile() throws Exception {
+        Client client = this.getClient();
+        CatalogContext catalogContext = this.getCatalogContext();
+        SEATSLoader loader = this.initializeSEATSDatabase(catalogContext, client);
+        
+        SEATSProfile orig = loader.getProfile();
         assertNotNull(orig);
         
-        SEATSProfile copy = new SEATSProfile(this.getCatalog(), new RandomGenerator(RANDOM_SEED));
+        SEATSProfile copy = new SEATSProfile(catalogContext.catalog, new RandomGenerator(0));
         assert(copy.airport_histograms.isEmpty());
-        copy.loadProfile(this.getClient());
+        copy.loadProfile(client);
         
         assertEquals(orig.scale_factor, copy.scale_factor);
         assertEquals(orig.airport_max_customer_id, copy.airport_max_customer_id);
@@ -81,219 +149,153 @@ public class TestSEATSSuite extends RegressionSuite {
     }
     
     /**
-     * testDeleteReservation
-     */
-    @org.junit.Test
-    public void testDeleteReservation() throws IOException, ProcCallException {
-        SEATSProfile profile = this.loadDatabase();
-        assertNotNull(profile);
-        
-        // First we need to find a customer that we want to delete a reservation
-        Client client = this.getClient();
-        ClientResponse cr = client.callProcedure("GetReservations");
-        assertEquals(Status.OK, cr.getStatus());
-        assertEquals(1, cr.getResults().length);
-        
-        VoltTable vt = cr.getResults()[0];
-        int row_idx = Math.max(0, rand.nextInt(vt.getRowCount() - 2));
-        System.err.println("row_idx = " + row_idx + " / " + vt.getRowCount());
-        // This doesn't work??? vt.advanceToRow(row_idx);
-        while (row_idx-- > 0) {
-            boolean adv = vt.advanceRow();
-            assert(adv);
-        }
-        
-        // Now we're try deleting the reservation
-        // The first time we'lll use the integer C_ID, then
-        // we'll try the next record using the C_ID_STR
-        long deleted[] = new long[2];
-        for (int i = 0; i < 2; i++) {
-            boolean use_str = (i == 1);
-            long r_id = vt.getLong(0);
-            long f_id = vt.getLong(1);
-            long c_id = vt.getLong(2);
-            
-            Object params[] = new Object[] {
-                f_id,                                       // F_ID
-                (use_str ? VoltType.NULL_BIGINT : c_id),    // C_ID
-                (use_str ? Long.toString(c_id) : ""),       // C_ID_STR
-                "",                                         // FF_C_ID_STR
-                VoltType.NULL_BIGINT                        // FF_AL_ID
-            };
-            
-            cr = client.callProcedure(DeleteReservation.class.getSimpleName(), params);
-            assertNotNull(cr);
-            assertEquals(Status.OK, cr.getStatus());
-            assertEquals(1, cr.getResults().length);
-            assertEquals(1l, cr.getResults()[0].asScalarLong());
-            
-            deleted[i] = r_id;
-            vt.advanceRow();
-        } // FOR
-        
-        // Now grab the RESERVATIONS again and make sure our boys aren't there
-        cr = client.callProcedure("GetReservations");
-        assertEquals(Status.OK, cr.getStatus());
-        assertEquals(1, cr.getResults().length);
-        vt = cr.getResults()[0];
-        while (vt.advanceRow()) {
-            long id = vt.getLong(0);
-            for (long r_id : deleted) 
-                assert(id != r_id);
-        } // WHILE
-        
-    }
-    
-    /**
      * testFindFlights
      */
-    @org.junit.Test
-    public void testFindFlights() throws IOException, ProcCallException {
-        SEATSProfile profile = this.loadDatabase();
-        assertNotNull(profile);
-        
-        FlightId flight = profile.getRandomFlightId();
-        assertNotNull(flight);
-        
-        Object params[] = {
-            flight.getDepartAirportId(),
-            flight.getArriveAirportId(),
-            profile.flight_start_date,
-            new TimestampType(2524626000l * 1000000), // 2050-01-01
-            50 // miles
-        };
-        
+    public void testFindFlights() throws Exception {
         Client client = this.getClient();
-        ClientResponse cr = client.callProcedure(FindFlights.class.getSimpleName(), params);
-        assertEquals(Status.OK, cr.getStatus());
-        assertEquals(1, cr.getResults().length);
+        CatalogContext catalogContext = this.getCatalogContext();
+        this.initializeSEATSDatabase(catalogContext, client);
+        SEATSClient benchmarkClient = this.initializeSEATSClient(catalogContext, client);
+        assertNotNull(benchmarkClient);
         
-        // We should at least the flight that we already knew about
-        VoltTable vt = cr.getResults()[0];
-        boolean found = false;
-        long expected = flight.encode();
-        while (vt.advanceRow()) {
-            long f_id = vt.getLong("F_ID");
-            if (f_id == expected) {
-                found = true;
-            }
-        } // WHILE
-        assertTrue(flight.toString(), found);
-        System.err.println(flight);
-        System.err.println("==================");
-        System.err.println(vt.toString());
+
+        
     }
     
-    /**
-     * testFindOpenSeats
-     */
-    @org.junit.Test
-    public void testFindOpenSeats() throws IOException, ProcCallException {
-        SEATSProfile profile = this.loadDatabase();
-        assertNotNull(profile);
-        
-        FlightId flight = profile.getRandomFlightId();
-        assertNotNull(flight);
-        
-        Client client = this.getClient();
-        ClientResponse cr = client.callProcedure("GetFlight", flight.encode());
-        assertEquals(Status.OK, cr.getStatus());
-        assertEquals(1, cr.getResults().length);
-        VoltTable vt = cr.getResults()[0];
-        boolean adv = vt.advanceRow();
-        assertTrue(adv);
-        int seats_left = (int)vt.getLong("F_SEATS_LEFT");
-        
-        cr = client.callProcedure(FindOpenSeats.class.getSimpleName(), flight.encode());
-        assertEquals(Status.OK, cr.getStatus());
-        assertEquals(1, cr.getResults().length);
-        vt = cr.getResults()[0];
-        assertEquals(seats_left, vt.getRowCount());
-        while (vt.advanceRow()) {
-            int seatnum = (int)vt.getLong(1);
-            assertTrue(seatnum >= 0);
-            assertTrue(seatnum < SEATSConstants.FLIGHTS_NUM_SEATS);
-        } // WHILE
-    }
-
+    
 //    /**
-//     * testTABLECOUNTS
+//     * testDeleteCallForwarding
 //     */
-//    @org.junit.Test
-//    public void testTABLECOUNTS() throws IOException, ProcCallException {
-//        Client client = getClient();
-//        ClientResponse cr = null;
-//        Random rand = new Random();
-//        int num_tuples = 11;
-//        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
-//        for (Table catalog_tbl : catalog_db.getTables()) {
-//            RegressionSuiteUtil.loadRandomData(client, catalog_tbl, rand, num_tuples);
-//        } // FOR
+//    public void testDeleteCallForwarding() throws Exception {
+//        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
 //        
-//        // Now get the counts for the tables that we just loaded
-//        cr = client.callProcedure(GetTableCounts.class.getSimpleName());
-//        System.err.println(cr);
-//        assertEquals(Status.OK, cr.getStatus());
-//        assertEquals(1, cr.getResults().length);
-//        VoltTable vt = cr.getResults()[0];
-//        while (vt.advanceRow()) {
-//            String tableName = vt.getString(0);
-//            int count = (int)vt.getLong(1);
-//            assertEquals(tableName, num_tuples, count);
-//        } // WHILE
+//        for (int i = 0; i < 1000; i++) {
+//            ClientResponse cresponse = null;
+//            try {
+//                cresponse = client.callProcedure(txn.callName, params);
+//                assertEquals(Status.OK, cresponse.getStatus());
+//            } catch (ProcCallException ex) {
+//                cresponse = ex.getClientResponse();
+////                System.err.println();
+//                assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
+//            }
+//            assertNotNull(cresponse);
+//        } // FOR
 //    }
-        
-    
-    protected SEATSProfile loadDatabase() throws IOException, ProcCallException {
-        final CatalogContext catalogContext = this.getCatalogContext();
-        final Client client = this.getClient();
-        SEATSProfile.clearCachedProfile();
-        SEATSLoader loader = new SEATSLoader(loaderArgs) {
-            {
-                this.setClientHandle(client);
-                this.setCatalogContext(catalogContext);
-            }
-            @Override
-            public Catalog getCatalog() {
-                return (catalogContext.catalog);
-            }
-        };
-        loader.load();
-        return (loader.getProfile());
-    }
-    
+//    
+//    /**
+//     * testGetAccessData
+//     */
+//    public void testGetAccessData() throws Exception {
+//        Client client = this.getClient();
+//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
+//        TM1Client.Transaction txn = Transaction.GET_ACCESS_DATA;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+//        assertNotNull(cresponse);
+//        assertEquals(Status.OK, cresponse.getStatus());
+//    }
+//    
+//    /**
+//     * testGetNewDestination
+//     */
+//    public void testGetNewDestination() throws Exception {
+//        Client client = this.getClient();
+//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
+//        TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = null;
+//        try {
+//            cresponse = client.callProcedure(txn.callName, params);
+//            assertEquals(Status.OK, cresponse.getStatus());
+//        } catch (ProcCallException ex) {
+//            cresponse = ex.getClientResponse();
+//            assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
+//        }
+//        assertNotNull(cresponse);
+//        
+//    }
+//    
+//    /**
+//     * testGetSubscriberData
+//     */
+//    public void testGetSubscriberData() throws Exception {
+//        Client client = this.getClient();
+//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
+//        TM1Client.Transaction txn = Transaction.GET_SUBSCRIBER_DATA;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+//        assertNotNull(cresponse);
+//    }
+//    
+//    /**
+//     * testInsertCallForwarding
+//     */
+//    public void testInsertCallForwarding() throws Exception {
+//        Client client = this.getClient();
+//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
+//        TM1Client.Transaction txn = Transaction.INSERT_CALL_FORWARDING;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = null;
+//        try {
+//            cresponse = client.callProcedure(txn.callName, params);
+//            assertEquals(Status.OK, cresponse.getStatus());
+//        } catch (ProcCallException ex) {
+//            cresponse = ex.getClientResponse();
+//            assertEquals(Status.ABORT_USER, cresponse.getStatus());
+//        }
+//        assertNotNull(cresponse);
+//    }
+//    
+//    /**
+//     * testUpdateLocation
+//     */
+//    public void testUpdateLocation() throws Exception {
+//        Client client = this.getClient();
+//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
+//        TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+//        assertNotNull(cresponse);
+//        assertEquals(Status.OK, cresponse.getStatus());
+//    }
+//    
+//    /**
+//     * testUpdateSubscriberData
+//     */
+//    public void testUpdateSubscriberData() throws Exception {
+//        Client client = this.getClient();
+//        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
+//        TM1Client.Transaction txn = Transaction.UPDATE_SUBSCRIBER_DATA;
+//        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
+//        ClientResponse cresponse = null;
+//        try {
+//            cresponse = client.callProcedure(txn.callName, params);
+//            assertEquals(Status.OK, cresponse.getStatus());
+//        } catch (ProcCallException ex) {
+//            cresponse = ex.getClientResponse();
+//            assertEquals(Status.ABORT_USER, cresponse.getStatus());
+//        }
+//        assertNotNull(cresponse);
+//    }
 
-    /**
-     * Build a list of the tests that will be run when TestSEATSSuite gets run by JUnit.
-     * Use helper classes that are part of the RegressionSuite framework.
-     * This particular class runs all tests on the JNI and HSQL backends.
-     *
-     * @return The TestSuite containing all the tests to be run.
-     */
-    static public Test suite() {
+    public static Test suite() {
         VoltServerConfig config = null;
+        // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSEATSSuite.class);
+        builder.setGlobalConfParameter("client.scalefactor", SCALEFACTOR);
 
-        // build up a project builder for the SEATS app
+        // build up a project builder for the benchmark
         SEATSProjectBuilder project = new SEATSProjectBuilder();
         project.addAllDefaults();
-//        project.addProcedure(GetTableCounts.class);
-
-        project.addStmtProcedure("GetFlight",
-                                 "SELECT * FROM " + SEATSConstants.TABLENAME_FLIGHT + " WHERE F_ID = ?");
-        project.addStmtProcedure("GetReservations",
-                                 "SELECT R_ID, R_F_ID, R_C_ID FROM " + SEATSConstants.TABLENAME_RESERVATION);
-        
-        // Remove any MapReduce and OLAP transactions
-        project.removeProcedures(Pattern.compile("^MR.*", Pattern.CASE_INSENSITIVE));
-        project.removeProcedures(Pattern.compile("^OLAP.*", Pattern.CASE_INSENSITIVE));
         
         boolean success;
         
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("seats-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -301,18 +303,18 @@ public class TestSEATSSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-//        config = new LocalSingleProcessServer("tpcc-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+//        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
 //        success = config.compile(project);
 //        assert(success);
 //        builder.addServerConfig(config);
-
-        ////////////////////////////////////////////////////////////
-        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
-        ////////////////////////////////////////////////////////////
-        config = new LocalCluster("seats-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//
+//        ////////////////////////////////////////////////////////////
+//        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+//        ////////////////////////////////////////////////////////////
+//        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
 
         return builder;
     }
