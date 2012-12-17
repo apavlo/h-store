@@ -101,8 +101,8 @@ public class GetPageAnonymous extends VoltProcedure {
         voltQueueSQL(selectText, pageId, pageLatest);
         rs = voltExecuteSQL(true);
         if (rs[0].advanceRow() == false) {
-            String msg = String.format("Invalid Page: Missing revision Namespace:%d / Title:--%s-- / PageId:%d",
-                                       pageNamespace, pageId);
+            String msg = String.format("No such revision revId=%d exists for pageId:%d / pageNamespace:%d",
+                                       pageLatest, pageId, pageNamespace);
             throw new VoltAbortException(msg);
         }
         long revisionId = rs[0].getLong(0);
