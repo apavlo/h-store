@@ -512,6 +512,7 @@ public class BenchmarkController {
             ProfileMeasurement load_time = new ProfileMeasurement("load").start();
             this.startLoader();
             load_time.stop();
+            if (this.failed) System.exit(1);
             LOG.info(String.format("Completed %s loading phase in %.2f sec",
                                    m_projectBuilder.getProjectName().toUpperCase(),
                                    load_time.getTotalThinkTimeSeconds()));

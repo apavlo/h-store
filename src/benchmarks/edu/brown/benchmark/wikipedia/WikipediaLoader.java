@@ -97,7 +97,6 @@ public class WikipediaLoader extends Loader {
             this.loadRevision(catalogContext.database);
         } catch (Exception e) {
             e.printStackTrace();
-            System.err.println("????");
             throw new RuntimeException(e);
         }
     }
@@ -315,6 +314,7 @@ public class WikipediaLoader extends Loader {
             assert(old_text_length > 0);
             assert(old_text_length < max_text_length);
             char old_text[] = TextGenerator.randomChars(randGenerator, old_text_length);
+            long batchBytes = 0;
             
             for (int i = 0; i < num_revised; i++) {
                 // Generate the User who's doing the revision and the Page revised
@@ -366,10 +366,10 @@ public class WikipediaLoader extends Loader {
                 
                 if (trace.get()) LOG.trace(String.format("%s [pageId=%05d / revId=%05d]",
                                                          revTable.getName(), pageId, rev_id));
-                
+                batchBytes += old_text.length;
                 batchSize++;
             } // FOR (revision)
-            if (batchSize >= 500) { // WikipediaConstants.BATCH_SIZE) {
+            if (batchSize >= WikipediaConstants.BATCH_SIZE || batchBytes >= 16777216l) {
                 this.loadVoltTable(textTable.getName(), vtText);
                 this.loadVoltTable(revTable.getName(), vtRev);
                 vtText.clearRowData();

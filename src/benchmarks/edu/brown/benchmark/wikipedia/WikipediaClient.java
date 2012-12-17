@@ -199,8 +199,6 @@ public class WikipediaClient extends BenchmarkComponent {
     
     @Override
 	protected boolean runOnce() throws IOException {
-        
-        
         Transaction target = this.selectTransaction();
         this.startComputeTime(target.displayName);
         Object params[] = null;
