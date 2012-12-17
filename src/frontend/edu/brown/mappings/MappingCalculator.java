@@ -519,6 +519,9 @@ public class MappingCalculator {
             case STRING:
                 ret = raw_value.hashCode();
                 break;
+            case BOOLEAN:
+                ret = ((Boolean)raw_value ? 1 : 0);
+                break;
             default: {
                 Object param_obj = VoltTypeUtil.getObjectFromString(type, raw_value.toString());
                 ret = (Number)param_obj;
