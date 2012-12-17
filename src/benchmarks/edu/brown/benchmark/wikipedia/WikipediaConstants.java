@@ -25,7 +25,7 @@ public abstract class WikipediaConstants {
 	/**
 	 * Number of baseline pages
 	 */
-	public static final int PAGES = 1000;
+	public static final int PAGES = 10000;
 
 	/**
 	 * Number of baseline Users
@@ -43,11 +43,12 @@ public abstract class WikipediaConstants {
     // -----------------------------------------------------------------
     
     public static final VoltTable.ColumnInfo[] GETPAGE_OUTPUT_COLS = {
-        new VoltTable.ColumnInfo("USER_TEXT", VoltType.STRING),
-        new VoltTable.ColumnInfo("PAGE_ID", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("PAGE_ID", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("PAGE_TITLE", VoltType.STRING),
         new VoltTable.ColumnInfo("OLD_TEXT", VoltType.STRING),
         new VoltTable.ColumnInfo("TEXT_ID", VoltType.INTEGER),
         new VoltTable.ColumnInfo("REVISION_ID", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("USER_TEXT", VoltType.STRING),
     };
     
     // -----------------------------------------------------------------

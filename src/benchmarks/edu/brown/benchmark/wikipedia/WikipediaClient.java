@@ -238,7 +238,7 @@ public class WikipediaClient extends BenchmarkComponent {
         return (procNames);
     }
 
-    protected Object[] generateParams(Transaction txn, int userId, int nameSpace, int pageId) {
+    protected Object[] generateParams(Transaction txn, int userId, int nameSpace, long pageId) {
         Object params[] = null;
         
         switch (txn) {
@@ -260,33 +260,30 @@ public class WikipediaClient extends BenchmarkComponent {
             case GET_PAGE_ANONYMOUS:
                 params = new Object[]{
                         pageId,
-                        true,
+                        nameSpace,
                         this.generateUserIP(),
-                        nameSpace
+                        true,
                 };
                 break;
             case GET_PAGE_AUTHENTICATED:
                 params = new Object[]{
                         pageId,
-                        true,
-                        this.generateUserIP(),
+                        nameSpace,
                         userId, 
-                        nameSpace
+                        this.generateUserIP(),
+                        true,
                 };
                 break;
-            case UPDATE_PAGE:
+            case UPDATE_PAGE: {
                 String user_ip = this.generateUserIP();
                 params = new Object[]{
                         pageId,
-                        false,
-                        user_ip,
                         nameSpace,
+                        user_ip,
+                        false,
                 };
-                //String procedureName = "GetPageAnonymous";
-                //Transaction target = Transaction.getTransaction(procedureName);
-                //assert(target != null):"can not find procedure: " + procedureName;
                 ClientResponse cr = null;
-                //if (debug.get()) LOG.debug("Invoking GetPageAnonymous before executing UpdatePage");
+                if (debug.get()) LOG.debug("Invoking GetPageAnonymous before executing UpdatePage");
                 try {
                     cr = this.getClientHandle().callProcedure(GetPageAnonymous.class.getSimpleName(), params);
                 } catch (Exception e) {
@@ -306,13 +303,16 @@ public class WikipediaClient extends BenchmarkComponent {
                     throw new VoltAbortException(msg);
                 }
 
-                String vt_userText = vt.getString(0);
-                int vt_pageId = (int) vt.getLong(1);
-                String vt_oldText = vt.getString(2);
-                int vt_textId = (int) vt.getLong(3);
-                int vt_revisionId = (int) vt.getLong(4);
-                
-                assert(!vt.advanceRow()):"This assert should be false, vt has only one row";
+                String vt_userText = vt.getString("USER_TEXT");
+                long vt_pageId = vt.getLong("PAGE_ID");
+                String vt_pageTitle = vt.getString("PAGE_TITLE");
+                String vt_oldText = vt.getString("OLD_TEXT");
+                int vt_textId = (int) vt.getLong("TEXT_ID");
+                int vt_revisionId = (int) vt.getLong("REVISION_ID");
+
+                assert(vt_pageId == pageId) : String.format("pageId=%d / pageTitle=%d", vt_pageId, vt_pageTitle);
+                assert(vt.advanceRow() == false) : "This assert should be false, vt has only one row";
+
                 // Permute the original text of the article
                 // Important: We have to make sure that we fill in the entire array
                 String newText = new String(util.generateRevisionText(vt_oldText.toCharArray()));
@@ -321,8 +321,8 @@ public class WikipediaClient extends BenchmarkComponent {
                 int revMinorEdit = util.h_minorEdit.nextValue().intValue();
                 
                 params = new Object[]{
-                        vt_textId,
                         vt_pageId,
+                        vt_textId,
                         nameSpace,
                         newText,
                         userId,
@@ -333,7 +333,8 @@ public class WikipediaClient extends BenchmarkComponent {
                         revMinorEdit
                 };
                 break;
-             default:
+            }
+            default:
                  assert(false):"Should not come to this point";
         }
         assert(params != null);

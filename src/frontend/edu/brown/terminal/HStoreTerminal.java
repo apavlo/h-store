@@ -51,6 +51,7 @@ public class HStoreTerminal implements Runnable {
     public enum Command {
         DESCRIBE("Not Implemented"),
         EXEC("ProcedureName [OptionalParams]"),
+        ENABLE("OptionName"),
         SHOW("Not Implemented"),
         QUIT("");
         
@@ -82,6 +83,7 @@ public class HStoreTerminal implements Runnable {
     
     // OPTIONS
     private boolean enable_csv = false; 
+    private boolean enable_debug = false;
     
     // ---------------------------------------------------------------
     // CONSTRUCTOR
@@ -147,6 +149,9 @@ public class HStoreTerminal implements Runnable {
                                             cresponse = this.execProcedure(client, tokens[1], query, reconnect);
                                         }
                                         break;
+                                    case ENABLE:
+                                        this.processEnable(client, tokens[1], query, reconnect);
+                                        break;
                                     case QUIT:
                                         stop = true;
                                         break;
@@ -190,7 +195,7 @@ public class HStoreTerminal implements Runnable {
                         System.out.print(setPlainText);
                     }
                     // Print warning if we're not supposed to stop
-                    else if (stop == false) {
+                    else if (stop == false && targetCmd != Command.ENABLE) {
                         LOG.warn("Return result is null");
                     }
                     
@@ -340,6 +345,12 @@ public class HStoreTerminal implements Runnable {
         return (cresponse);
     }
     
+    protected void processEnable(Client client, String option, String query, boolean reconnect) throws Exception {
+        // HACK
+        this.enable_debug = true;
+        LOG.info("Enabled debug output");
+    }
+    
     /**
      * 
      * @param paramStr
@@ -400,32 +411,37 @@ public class HStoreTerminal implements Runnable {
         final int num_results = results.length;
         StringBuilder sb = new StringBuilder();
         
-        // MAIN BODY
-        if (this.enable_csv) {
-            StringWriter out = new StringWriter();
-            for (int i = 0; i < num_results; i++) {
-                if (i > 0) out.write("\n\n");
-                VoltTableUtil.csv(out, results[i], true);
-            } // FOR
-            sb.append(out.toString());
-        } else {
-            sb.append(VoltTableUtil.format(results));
+        if (this.enable_debug) {
+            sb.append(cr.toString());
         }
-        
-        // FOOTER
-        String footer = "";
-        if (this.enable_csv == false) {
-            if (num_results == 1) {
-                int row_count = results[0].getRowCount(); 
-                footer = String.format("%d row%s in set", row_count, (row_count > 1 ? "s" : ""));
+        else {
+            // MAIN BODY
+            if (this.enable_csv) {
+                StringWriter out = new StringWriter();
+                for (int i = 0; i < num_results; i++) {
+                    if (i > 0) out.write("\n\n");
+                    VoltTableUtil.csv(out, results[i], true);
+                } // FOR
+                sb.append(out.toString());
+            } else {
+                sb.append(VoltTableUtil.format(results));
             }
-            else if (num_results == 0) {
-                footer = "No results returned";
+            
+            // FOOTER
+            String footer = "";
+            if (this.enable_csv == false) {
+                if (num_results == 1) {
+                    int row_count = results[0].getRowCount(); 
+                    footer = String.format("%d row%s in set", row_count, (row_count > 1 ? "s" : ""));
+                }
+                else if (num_results == 0) {
+                    footer = "No results returned";
+                }
+                else {
+                    footer = num_results + " tables returned";
+                }
+                sb.append(String.format("\n%s (%.2f sec)\n", footer, (cr.getClientRoundtrip() / 1000d)));
             }
-            else {
-                footer = num_results + " tables returned";
-            }
-            sb.append(String.format("\n%s (%.2f sec)\n", footer, (cr.getClientRoundtrip() / 1000d)));
         }
         return (sb.toString());
     }

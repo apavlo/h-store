@@ -28,7 +28,8 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
 @ProcInfo(
-    partitionInfo = "USERACCT.USER_ID: 0"
+    partitionInfo = "USERACCT.USER_ID: 0",
+    singlePartition = true
 )
 public class AddWatchList extends VoltProcedure {
  
@@ -38,9 +39,15 @@ public class AddWatchList extends VoltProcedure {
 
     public SQLStmt insertWatchList = new SQLStmt(
         "INSERT INTO " + WikipediaConstants.TABLENAME_WATCHLIST + " (" + 
-        "wl_user, wl_namespace, wl_page, wl_notificationtimestamp" +
+        "wl_user, " +
+        "wl_namespace, " +
+        "wl_page, " +
+        "wl_notificationtimestamp" +
         ") VALUES (" +
-        "?,?,?,?" +
+        "?," +  // wl_user
+        "?," +  // wl_namespace
+        "?," +  // wl_page
+        "?" +   // wl_notificationtimestamp
         ")"
     );
    

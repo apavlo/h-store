@@ -1347,6 +1347,7 @@ public class ParserDDL extends ParserRoutine {
         Constraint uniqueConstraint =
             c.core.mainTable.getUniqueConstraintForColumns(c.core.mainCols,
                 c.core.refCols);
+        assert(uniqueConstraint != null) : "Invalid foreign key for " + c.core.mainTable.getName();
         Index      mainIndex  = uniqueConstraint.getMainIndex();
         TableWorks tableWorks = new TableWorks(session, table);
 

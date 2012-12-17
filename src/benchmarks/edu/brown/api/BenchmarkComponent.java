@@ -952,17 +952,17 @@ public abstract class BenchmarkComponent {
                 } // SYNCH
             }
         }
-        else {
-            LOG.warn("Invalid " + m_countDisplayNames[txn_idx] + " response!\n" + cresponse);
-            if (cresponse.getException() != null) {
-                cresponse.getException().printStackTrace();
-            }
-            if (cresponse.getStatusString() != null) {
-                LOG.warn(cresponse.getStatusString());
-            }
-
-            System.exit(-1);   
-        }
+//        else {
+//            LOG.warn("Invalid " + m_countDisplayNames[txn_idx] + " response!\n" + cresponse);
+//            if (cresponse.getException() != null) {
+//                cresponse.getException().printStackTrace();
+//            }
+//            if (cresponse.getStatusString() != null) {
+//                LOG.warn(cresponse.getStatusString());
+//            }
+//
+//            System.exit(-1);   
+//        }
         
         if (m_txnStats.isResponsesStatusesEnabled()) {
             synchronized (m_txnStats.responseStatuses) {

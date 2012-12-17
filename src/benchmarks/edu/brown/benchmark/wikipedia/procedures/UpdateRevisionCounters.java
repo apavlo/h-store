@@ -11,9 +11,11 @@ import edu.brown.benchmark.wikipedia.WikipediaConstants;
 /**
  * Bulk update the revision counters for users/pages
  * @author xin
+ * @author pavlo
  */
 public class UpdateRevisionCounters extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(UpdateRevisionCounters.class);
+    
     public final SQLStmt updateUser = new SQLStmt(
             "UPDATE " + WikipediaConstants.TABLENAME_USER + 
             "   SET user_editcount = ?, " +

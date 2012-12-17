@@ -1867,7 +1867,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         if (needs_profiling) ts.profiler.startDeserialization();
         for (int i = 0, cnt = result.getDepDataCount(); i < cnt; i++) {
-            if (d) LOG.debug(String.format("Storing intermediate results from partition %d for %s",
+            if (t) LOG.trace(String.format("Storing intermediate results from partition %d for %s",
                              result.getPartitionId(), ts));
             int depId = result.getDepId(i);
             ByteString bs = result.getDepData(i);

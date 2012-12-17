@@ -19,6 +19,7 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia.procedures;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltTable;
@@ -26,6 +27,10 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
+@ProcInfo(
+    partitionInfo = "PAGE.PAGE_ID: 0",
+    singlePartition = false
+)
 public class UpdatePage extends VoltProcedure {
 	
     // -----------------------------------------------------------------
@@ -39,9 +44,15 @@ public class UpdatePage extends VoltProcedure {
     
 	public SQLStmt insertText = new SQLStmt(
         "INSERT INTO " + WikipediaConstants.TABLENAME_TEXT + " (" +
-        "old_id,old_page,old_text,old_flags" + 
+        "old_id, " +
+        "old_page, " +
+        "old_text, " +
+        "old_flags" + 
         ") VALUES (" +
-        "?,?,?,?" +
+        "?, " + // old_id
+        "?, " + // old_page
+        "?, " + // old_text
+        "?" +   // old_flags
         ")"
     ); 
 	public SQLStmt insertRevision = new SQLStmt(
@@ -153,7 +164,7 @@ public class UpdatePage extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public long run(int textId, int pageId, int pageNamespace, String pageText,
+	public long run(long pageId, int textId, int pageNamespace, String pageText,
 	                int userId, String userIp, String userText,
 	                int revisionId, String revComment, int revMinorEdit) {
 
@@ -254,7 +265,7 @@ public class UpdatePage extends VoltProcedure {
 		// This is always executed, sometimes as a separate transaction,
 		// sometimes together with the previous one
 		long logId = pageId | nextId<<32;
-		String logParams = String.format("%d\n%d\n%d", nextId, revisionId, 1);
+		String logParams = String.format("%d -- %d -- %d", nextId, revisionId, 1);
 		voltQueueSQL(insertLogging, logId,                                    // log_id
 		                            WikipediaConstants.UPDATEPAGE_LOG_TYPE,   // log_type
 		                            WikipediaConstants.UPDATEPAGE_LOG_ACTION, // log_action

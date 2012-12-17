@@ -29,7 +29,8 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
 @ProcInfo(
-    partitionInfo = "USERACCT.USER_ID: 0"
+    partitionInfo = "USERACCT.USER_ID: 0",
+    singlePartition = true
 )
 public class RemoveWatchList extends VoltProcedure {
 	
@@ -43,7 +44,7 @@ public class RemoveWatchList extends VoltProcedure {
         " WHERE user_id =  ? "
     ); 
 
-    public VoltTable[] run( int userId, int nameSpace, int pageId) {
+    public VoltTable[] run(int userId, int nameSpace, long pageId) {
         final TimestampType timestamp = new TimestampType();
         if (userId > 0) {
             voltQueueSQL(removeWatchList, userId, nameSpace, pageId);
