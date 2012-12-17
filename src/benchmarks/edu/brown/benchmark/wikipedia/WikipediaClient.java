@@ -30,7 +30,6 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
-import edu.brown.benchmark.wikipedia.data.RevisionHistograms;
 import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
@@ -54,7 +53,6 @@ public class WikipediaClient extends BenchmarkComponent {
 	private final WikipediaUtil util;
 
 	
-	private int nextRevId;
 	private final Flat z_users;
 	private final Zipf z_pages;
 	
@@ -161,7 +159,6 @@ public class WikipediaClient extends BenchmarkComponent {
             this.callbacks[i] = new WikipediaCallback(i);
         } // FOR
         
-        this.nextRevId = (this.getClientId()+1) * WikipediaConstants.CLIENT_NEXT_ID_OFFSET;
         this.util = new WikipediaUtil(this.randGenerator, this.getScaleFactor());
         
         this.z_users = new Flat(this.randGenerator, 1, util.num_users);
@@ -318,14 +315,12 @@ public class WikipediaClient extends BenchmarkComponent {
                 assert(!vt.advanceRow()):"This assert should be false, vt has only one row";
                 // Permute the original text of the article
                 // Important: We have to make sure that we fill in the entire array
-                char[] newText = util.generateRevisionText(vt_oldText.toCharArray());
+                String newText = new String(util.generateRevisionText(vt_oldText.toCharArray()));
                 int revCommentLen = util.h_commentLength.nextValue().intValue();
-                String revComment = TextGenerator.randomStr(new Random(), revCommentLen);
+                String revComment = TextGenerator.randomStr(this.randGenerator, revCommentLen);
                 int revMinorEdit = util.h_minorEdit.nextValue().intValue();
                 
-                this.nextRevId++;
                 params = new Object[]{
-                        this.nextRevId,
                         vt_textId,
                         vt_pageId,
                         nameSpace,

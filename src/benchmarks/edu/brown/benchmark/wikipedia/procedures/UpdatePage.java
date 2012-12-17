@@ -19,8 +19,6 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia.procedures;
 
-import java.util.ArrayList;
-
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltTable;
@@ -33,6 +31,11 @@ public class UpdatePage extends VoltProcedure {
     // -----------------------------------------------------------------
     // STATEMENTS
     // -----------------------------------------------------------------
+    
+    public SQLStmt selectLastPageRevision = new SQLStmt(
+        "SELECT page_latest FROM " + WikipediaConstants.TABLENAME_PAGE +
+        " WHERE page_id = ?"
+    );
     
 	public SQLStmt insertText = new SQLStmt(
         "INSERT INTO " + WikipediaConstants.TABLENAME_TEXT + " (" +
@@ -60,7 +63,11 @@ public class UpdatePage extends VoltProcedure {
 	);
 	public SQLStmt updatePage = new SQLStmt(
         "UPDATE " + WikipediaConstants.TABLENAME_PAGE +
-        "   SET page_latest = ?, page_touched = ?, page_is_new = 0, page_is_redirect = 0, page_len = ? " +
+        "   SET page_latest = page_latest + 1, " +
+        "       page_touched = ?, " +
+        "       page_is_new = 0, " +
+        "       page_is_redirect = 0, " +
+        "       page_len = ? " +
         " WHERE page_id = ?"
     );
 	public SQLStmt insertRecentChanges = new SQLStmt(
@@ -108,10 +115,27 @@ public class UpdatePage extends VoltProcedure {
     );
 	public SQLStmt insertLogging = new SQLStmt(
         "INSERT INTO " + WikipediaConstants.TABLENAME_LOGGING + " (" +
-		"log_id,log_type, log_action, log_timestamp, log_user, log_user_text, " +
-        "log_namespace, log_title, log_page, log_comment, log_params" +
+		"log_id," +
+		"log_type, " +
+		"log_action, " +
+		"log_timestamp, " +
+		"log_user, " +
+		"log_namespace, " +
+		"log_page, " +
+		"log_comment, " +
+		"log_params, " +
+		"log_user_text " +
         ") VALUES (" +
-        "?,?,?,?,?,?,?,?,?,'',?" +
+        "?," +  // log_id
+        "?," +  // log_type
+        "?," +  // log_action
+        "?," +  // log_timestamp
+        "?," +  // log_user
+        "?," +  // log_namespace
+        "?," +  // log_page
+        "''," +  // log_comment
+        "?," +  // log_params
+        "?" +   // log_user_text
         ")"
     );
 	public SQLStmt updateUserEdit = new SQLStmt(
@@ -129,7 +153,7 @@ public class UpdatePage extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public long run(int nextId, int textId, int pageId, int pageNamespace, String pageText,
+	public long run(int textId, int pageId, int pageNamespace, String pageText,
 	                int userId, String userIp, String userText,
 	                int revisionId, String revComment, int revMinorEdit) {
 
@@ -137,44 +161,37 @@ public class UpdatePage extends VoltProcedure {
 	    VoltTable rs[] = null;
 	    final TimestampType timestamp = new TimestampType();
 	    
+	    // Get the next id from the PAGE
+	    voltQueueSQL(selectLastPageRevision, pageId);
+	    rs = voltExecuteSQL();
+	    int nextId = (int)rs[0].asScalarLong() + 1;
+	    
 	    // INSERT NEW TEXT
 		voltQueueSQL(insertText, nextId, pageId, pageText, "utf-8");
 		rs = voltExecuteSQL();
 		adv = rs[0].advanceRow();
 		assert(adv) : "Problem inserting new tuples in table text";
-		
-        int nextTextId = (int) rs[0].getLong(0);
+        int nextTextId = (int)rs[0].getLong(0);
+        
 		// INSERT NEW REVISION
 		voltQueueSQL(insertRevision, nextId,
 		                             pageId, 
 		                             nextTextId,
-		                            revComment, 
-		                            revMinorEdit,
-		                            userId, 
-		                            userText,
-		                            timestamp,
-		                            0,
-		                            pageText.length(),
-		                            revisionId);		
+		                             revComment, 
+		                             revMinorEdit,
+		                             userId, 
+		                             userText,
+		                             timestamp,
+		                             0,
+		                             pageText.length(),
+		                             revisionId);		
 		rs = voltExecuteSQL();
-		
 		adv = rs[0].advanceRow();
-		int nextRevId = (int)rs[0].getLong(0); // TODO: Should be passed in as argument to run()
-		
-		assert(nextRevId >= 0) : "Invalid nextRevID (" + nextRevId + ")";
 
 		// I'm removing AND page_latest = "+a.revisionId+" from the query, since
 		// it creates sometimes problem with the data, and page_id is a PK
 		// anyway
-		voltQueueSQL(updatePage,nextRevId,
-		                        timestamp,
-		                        pageText.length(), 
-		                        pageId);
-		
-		// REMOVED
-		// sql="DELETE FROM `redirect` WHERE rd_from = '"+a.pageId+"';";
-		// st.addBatch(sql);
-		
+		voltQueueSQL(updatePage, timestamp, pageText.length(), pageId);
 		voltQueueSQL(insertRecentChanges, nextId,
 		                                  timestamp, 
 		                                  new TimestampType(),
@@ -193,38 +210,27 @@ public class UpdatePage extends VoltProcedure {
 		                                  "", 
 		                                  userIp,
 		                                  pageText.length(),
-		                                  pageText.length()
-		                                  );
+		                                  pageText.length());
 		
 		// SELECT WATCHING USERS
 		voltQueueSQL(selectWatchList, pageId, pageNamespace, userId, null);
-		
 		rs = voltExecuteSQL();
-
-		ArrayList<Integer> wlUser = new ArrayList<Integer>();
-		while (rs[0].advanceRow()) {
-			wlUser.add((int)rs[0].getLong(0));
-		}
-		
 
 		// =====================================================================
 		// UPDATING WATCHLIST: txn3 (not always, only if someone is watching the
 		// page, might be part of txn2)
 		// =====================================================================
-		if (wlUser.isEmpty() == false) {
+		if (rs[0].getRowCount() > 0) {
 
 			// NOTE: this commit is skipped if none is watching the page, and
 			// the transaction merge with the following one
-			
-			for (Integer otherUserId : wlUser) {
-			    voltQueueSQL(updateWatchList, timestamp, pageId, pageNamespace, otherUserId.intValue());
+		
+		    while (rs[0].advanceRow()) {
+	            int otherUserId = (int)rs[0].getLong(0);
+			    voltQueueSQL(updateWatchList, timestamp, pageId, pageNamespace, otherUserId);
 			    voltExecuteSQL();
-			} // FOR
+			} // WHILE
 			
-			// NOTE: this commit is skipped if none is watching the page, and
-			// the transaction merge with the following one
-			
-
 			// ===================================================================== 
 			// UPDATING USER AND LOGGING STUFF: txn4 (might still be part of
 			// txn2)
@@ -233,31 +239,34 @@ public class UpdatePage extends VoltProcedure {
 			// This seems to be executed only if the page is watched, and once
 			// for each "watcher"
 			
-            
-			for (Integer otherUserId : wlUser) {
-			    voltQueueSQL(selectUser, otherUserId.intValue());
-				rs = voltExecuteSQL();
-				rs[0].advanceRow();
-				
-			} // FOR
+		    rs[0].resetRowPosition();
+		    while (rs[0].advanceRow()) {
+                int otherUserId = (int)rs[0].getLong(0);
+			    voltQueueSQL(selectUser, otherUserId);
+			} // WHILE
+		    rs = voltExecuteSQL();
+		    while (rs[0].advanceRow()) {
+		        // Nothing to do
+		    } // WHILE
+		    
 		}
 
 		// This is always executed, sometimes as a separate transaction,
 		// sometimes together with the previous one
-		voltQueueSQL(insertLogging, nextId,
-		                            WikipediaConstants.UPDATEPAGE_LOG_TYPE,
-		                            WikipediaConstants.UPDATEPAGE_LOG_ACTION,
-		                            timestamp,
-		                            userId,
-		                            pageId,
-		                            pageNamespace,
-		                            userText,
-		                            pageId,
-		                            String.format("%d\n%d\n%d", nextRevId, revisionId, 1));
+		long logId = pageId | nextId<<32;
+		String logParams = String.format("%d\n%d\n%d", nextId, revisionId, 1);
+		voltQueueSQL(insertLogging, logId,                                    // log_id
+		                            WikipediaConstants.UPDATEPAGE_LOG_TYPE,   // log_type
+		                            WikipediaConstants.UPDATEPAGE_LOG_ACTION, // log_action
+		                            timestamp,                                // log_timestamp
+		                            userId,                                   // log_user
+		                            pageNamespace,                            // log_namespace
+		                            pageId,                                   // log_page
+		                            logParams,                                // log_params
+		                            userText);                                // log_user_text
 		voltQueueSQL(updateUserEdit, userId);
 		voltQueueSQL(updateUserTouched, timestamp, userId);
-		
-		voltExecuteSQL();
+		voltExecuteSQL(true);
 		
 		return (1);
 	}

@@ -45,27 +45,12 @@ CREATE TABLE useracct (
 );
 CREATE INDEX IDX_USER_EMAIL_TOKEN ON useracct (user_email_token);
 
-CREATE TABLE logging (
-  log_id int NOT NULL, -- serial
-  log_type varchar(32) NOT NULL,
-  log_action varchar(32) NOT NULL,
-  log_timestamp timestamp NOT NULL,
-  log_user int DEFAULT '0' NOT NULL,
-  log_namespace int DEFAULT '0' NOT NULL,
-  log_title varchar(255) DEFAULT '' NOT NULL,
-  log_comment varchar(255) DEFAULT '' NOT NULL,
-  log_params varchar(255) NOT NULL,
-  log_deleted smallint DEFAULT '0' NOT NULL,
-  log_user_text varchar(255) DEFAULT '' NOT NULL,
-  log_page int DEFAULT NULL,
-  PRIMARY KEY (log_id)
+CREATE TABLE user_groups (
+  ug_user int DEFAULT '0' NOT NULL,
+  ug_group varchar(16) DEFAULT '' NOT NULL,
+  UNIQUE (ug_user,ug_group)
 );
-CREATE INDEX IDX_LOG_TYPE_TIME ON logging (log_type,log_timestamp);
-CREATE INDEX IDX_LOG_USER_TIME ON logging (log_user,log_timestamp);
-CREATE INDEX IDX_LOG_PAGE_TIME ON logging (log_namespace,log_title,log_timestamp);
-CREATE INDEX IDX_LOG_TIMES ON logging (log_timestamp);
-CREATE INDEX IDX_LOG_USER_TYPE_TIME ON logging (log_user,log_type,log_timestamp);
-CREATE INDEX IDX_LOG_PAGE_ID_TIME ON logging (log_page,log_timestamp);
+CREATE INDEX IDX_UG_GROUP ON user_groups (ug_group);
 
 CREATE TABLE page (
   page_id int NOT NULL,
@@ -127,17 +112,8 @@ CREATE TABLE recentchanges (
   rc_log_type varchar(255) DEFAULT NULL,
   rc_log_action varchar(255) DEFAULT NULL,
   rc_params varchar(255),
-  PRIMARY KEY (rc_id)
+  PRIMARY KEY (rc_id, rc_page)
 );
-
-CREATE TABLE text (
-  old_id bigint NOT NULL,
-  old_text varchar(1000000) NOT NULL,
-  old_flags varchar(255) NOT NULL,
-  old_page int NOT NULL REFERENCES page (page_id),
-  PRIMARY KEY (old_id)
-);
-
 CREATE INDEX IDX_RC_TIMESTAMP ON recentchanges (rc_timestamp);
 CREATE INDEX IDX_RC_NAMESPACE_TITLE ON recentchanges (rc_namespace,rc_page);
 CREATE INDEX IDX_RC_CUR_ID ON recentchanges (rc_cur_id);
@@ -146,10 +122,18 @@ CREATE INDEX IDX_RC_IP ON recentchanges (rc_ip);
 CREATE INDEX IDX_RC_NS_USERTEXT ON recentchanges (rc_namespace,rc_user_text);
 CREATE INDEX IDX_RC_USER_TEXT ON recentchanges (rc_user_text,rc_timestamp);
 
+CREATE TABLE text (
+  old_id bigint NOT NULL,
+  old_text varchar(1000000) NOT NULL,
+  old_flags varchar(255) NOT NULL,
+  old_page int NOT NULL REFERENCES page (page_id),
+  PRIMARY KEY (old_id, old_page)
+);
+
 CREATE TABLE revision (
-  rev_id int NOT NULL,
-  rev_page int NOT NULL REFERENCES page (page_id),
-  rev_text_id int NOT NULL REFERENCES text (old_id),
+  rev_id bigint NOT NULL,
+  rev_page int NOT NULL,
+  rev_text_id bigint NOT NULL,
   rev_comment varchar(255) NOT NULL,
   rev_user int DEFAULT '0' NOT NULL REFERENCES useracct (user_id),
   rev_user_text varchar(255) DEFAULT '' NOT NULL,
@@ -158,25 +142,34 @@ CREATE TABLE revision (
   rev_deleted smallint DEFAULT '0' NOT NULL,
   rev_len int DEFAULT NULL,
   rev_parent_id int DEFAULT NULL,
-  PRIMARY KEY (rev_id),
-  UNIQUE (rev_page,rev_id)
+  FOREIGN KEY (rev_text_id, rev_page) REFERENCES text (old_id, old_page),
+  PRIMARY KEY (rev_id, rev_page),
 );
 CREATE INDEX IDX_REV_TIMESTAMP ON revision (rev_timestamp);
 CREATE INDEX IDX_PAGE_TIMESTAMP ON revision (rev_page,rev_timestamp);
 CREATE INDEX IDX_USER_TIMESTAMP ON revision (rev_user,rev_timestamp);
-CREATE INDEX IDX_USERTEXT_TIMESTAMP ON revision (rev_user_text,rev_timestamp);
+-- CREATE INDEX IDX_USERTEXT_TIMESTAMP ON revision (rev_user_text,rev_timestamp);
 
-CREATE TABLE user_groups (
-  ug_user int DEFAULT '0' NOT NULL,
-  ug_group varchar(16) DEFAULT '' NOT NULL,
-  UNIQUE (ug_user,ug_group)
+CREATE TABLE logging (
+  log_id bigint NOT NULL, -- serial
+  log_type varchar(32) NOT NULL,
+  log_action varchar(32) NOT NULL,
+  log_timestamp timestamp NOT NULL,
+  log_user int DEFAULT '0' NOT NULL,
+  log_namespace int DEFAULT '0' NOT NULL,
+  log_page bigint DEFAULT 0 NOT NULL,
+  log_comment varchar(255) DEFAULT '' NOT NULL,
+  log_params varchar(255) NOT NULL,
+  log_deleted smallint DEFAULT '0' NOT NULL,
+  log_user_text varchar(255) DEFAULT '' NOT NULL,
+  PRIMARY KEY (log_id)
 );
-CREATE INDEX IDX_UG_GROUP ON user_groups (ug_group);
-
-CREATE TABLE value_backup (
-  table_name varchar(255) DEFAULT NULL,
-  maxid int DEFAULT NULL
-);
+CREATE INDEX IDX_LOG_TYPE_TIME ON logging (log_type,log_timestamp);
+CREATE INDEX IDX_LOG_USER_TIME ON logging (log_user,log_timestamp);
+CREATE INDEX IDX_LOG_PAGE_TIME ON logging (log_namespace,log_page,log_timestamp);
+CREATE INDEX IDX_LOG_TIMES ON logging (log_timestamp);
+CREATE INDEX IDX_LOG_USER_TYPE_TIME ON logging (log_user,log_type,log_timestamp);
+CREATE INDEX IDX_LOG_PAGE_ID_TIME ON logging (log_page,log_timestamp);
 
 CREATE TABLE watchlist (
   wl_user int NOT NULL,

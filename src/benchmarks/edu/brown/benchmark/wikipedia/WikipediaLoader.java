@@ -73,12 +73,12 @@ public class WikipediaLoader extends Loader {
         this.util = new WikipediaUtil(this.randGenerator, this.getScaleFactor());
         
         this.user_revision_ctr = new int[util.num_users];
-        Arrays.fill(this.user_revision_ctr, 0);
-        
         this.page_last_rev_id = new int[util.num_pages];
-        Arrays.fill(this.page_last_rev_id, -1);
         this.page_last_rev_length = new int[util.num_pages];
-        Arrays.fill(this.page_last_rev_length, -1);
+        
+        Arrays.fill(this.page_last_rev_id, 0);
+        Arrays.fill(this.user_revision_ctr, 0);
+        Arrays.fill(this.page_last_rev_length, 0);
         
         if (debug.get()) {
             LOG.debug("# of USERS:  " + util.num_users);
@@ -165,8 +165,7 @@ public class WikipediaLoader extends Loader {
             vt.clearRowData();
         }
         
-        if (debug.get())
-            LOG.debug("Users  % " + util.num_users);
+        if (debug.get()) LOG.debug(userTable.getName() + " Loaded");
     }
 
     /**
@@ -218,8 +217,7 @@ public class WikipediaLoader extends Loader {
             this.loadVoltTable(pageTable.getName(), vt);
             vt.clearRowData();
         }
-        if (debug.get())
-            LOG.debug("Users  % " + util.num_pages);
+        if (debug.get()) LOG.debug(pageTable.getName() + " Loaded");
     }
 
     /**
@@ -270,7 +268,7 @@ public class WikipediaLoader extends Loader {
             }
         } // FOR
         if (batchSize > 0) {
-            if (debug.get()) LOG.debug("watchList(<batch):\n" + vt);
+            if (trace.get()) LOG.trace("watchList(<batch):\n" + vt);
             this.loadVoltTable(watchTable.getName(), vt);
             vt.clearRowData();
         }
@@ -304,7 +302,6 @@ public class WikipediaLoader extends Loader {
         FlatHistogram<Integer> h_nameLength = new FlatHistogram<Integer>(this.randGenerator, UserHistograms.NAME_LENGTH);
         FlatHistogram<Integer> h_numRevisions = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
         
-        int rev_id = 1;
         int lastPercent = -1;
         for (int pageId = 1; pageId <= util.num_pages; pageId++) {
             // There must be at least one revision per page
@@ -330,6 +327,9 @@ public class WikipediaLoader extends Loader {
                     old_text = util.generateRevisionText(old_text);
                     old_text_length = old_text.length;
                 }
+                
+                int rev_id = ++this.page_last_rev_id[pageId-1];
+                this.page_last_rev_length[pageId-1] = old_text_length;
                 
                 // TEXT
                 Object row[] = new Object[num_txt_cols];
@@ -362,10 +362,9 @@ public class WikipediaLoader extends Loader {
                 row[col++] = 0;                     // rev_parent_id
                 vtRev.addRow(row);
                 
-                // Update Last Revision Stuff
-                this.page_last_rev_id[pageId-1] = rev_id;
-                this.page_last_rev_length[pageId-1] = old_text_length;
-                rev_id++;
+                if (trace.get()) LOG.trace(String.format("%s [pageId=%05d / revId=%05d]",
+                                                         revTable.getName(), pageId, rev_id));
+                
                 batchSize++;
             } // FOR (revision)
             if (batchSize >= WikipediaConstants.BATCH_SIZE) {
