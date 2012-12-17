@@ -369,18 +369,24 @@ public class WikipediaLoader extends Loader {
                 batchBytes += old_text.length;
                 batchSize++;
             } // FOR (revision)
-            if (batchSize >= WikipediaConstants.BATCH_SIZE || batchBytes >= 16777216l) {
+            
+            // XXX: We have to push out the batch for each page, because sometimes we
+            // generate a batch that is too large and we lose our connection to the database
+            try {
                 this.loadVoltTable(textTable.getName(), vtText);
-                this.loadVoltTable(revTable.getName(), vtRev);
-                vtText.clearRowData();
-                vtRev.clearRowData();
-                batchSize = 0;
-                
-                if (debug.get()) {
-                    int percent = (int) (((double) pageId / (double) util.num_pages) * 100);
-                    if (percent != lastPercent) LOG.debug("REVISIONS (" + percent + "%)");
-                    lastPercent = percent;
-                }
+            } catch (Exception ex) {
+                LOG.error(String.format("Failed to upload %s [batchSize=%d, batchBytes=%d]", textTable, batchSize, batchBytes)); 
+                throw ex;
+            }
+            this.loadVoltTable(revTable.getName(), vtRev);
+            vtText.clearRowData();
+            vtRev.clearRowData();
+            batchSize = 0;
+            
+            if (debug.get()) {
+                int percent = (int) (((double) pageId / (double) util.num_pages) * 100);
+                if (percent != lastPercent) LOG.debug("REVISIONS (" + percent + "%)");
+                lastPercent = percent;
             }
         } // FOR (page)
         if (batchSize > 0) {

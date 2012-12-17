@@ -625,7 +625,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will block the network connections.",
-            defaultInt=1000,
+            defaultInt=400,
             experimental=false
         )
         public int network_incoming_max_per_partition;
