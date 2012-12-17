@@ -1,10 +1,13 @@
 package edu.brown.benchmark.wikipedia;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -30,6 +33,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 
 /**
  * Synthetic Wikipedia Data Loader
@@ -63,6 +67,8 @@ public class WikipediaLoader extends Loader {
      */
     private final int page_last_rev_length[];
     
+    private final AtomicInteger page_counter = new AtomicInteger(0);
+    
     /**
      * Constructor
      * @param benchmark
@@ -94,11 +100,45 @@ public class WikipediaLoader extends Loader {
             this.loadUsers(catalogContext.database);
             this.loadPages(catalogContext.database);
             this.loadWatchlist(catalogContext.database);
-            this.loadRevision(catalogContext.database);
+            
+            // Multiple Threads
+            List<Runnable> runnables = new ArrayList<Runnable>();
+            int num_threads = ThreadUtil.availableProcessors();
+            int pageId = 1;
+            int pagesPerThread = (int)Math.ceil(util.num_pages / (double)num_threads);
+            for (int i = 0; i < num_threads; i++) {
+                final int firstPageId = pageId;
+                final int lastPageId = Math.min(util.num_pages, firstPageId + pagesPerThread);
+                Runnable r = new Runnable() {
+                    @Override
+                    public void run() {
+                        WikipediaLoader.this.loadRevision(catalogContext.database, firstPageId, lastPageId);
+                    }
+                };
+                runnables.add(r);
+                pageId += pagesPerThread;
+            } // FOR
+            ThreadUtil.runGlobalPool(runnables);
+            
+            // Update Counters
+            this.updateCounters();
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
+    }
+    
+    private void updateCounters() throws Exception {
+        // UPDATE USER & UPDATE PAGES
+        Client client = this.getClientHandle();
+        ClientResponse cr = client.callProcedure(UpdateRevisionCounters.class.getSimpleName(),
+                                                 this.user_revision_ctr,
+                                                 util.num_pages,
+                                                 this.page_last_rev_id,
+                                                 this.page_last_rev_length);
+        assert(cr != null);
+        assert(cr.getStatus() == Status.OK);
+        if (debug.get()) LOG.debug("Updated page/user revision counters");
     }
     
     /**
@@ -279,7 +319,7 @@ public class WikipediaLoader extends Loader {
     /**
      * REVISIONS
      */
-    private void loadRevision(Database catalog_db) throws Exception {
+    private void loadRevision(Database catalog_db, int firstPageId, long lastPageId) {
         
         // TEXT
         Table textTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_TEXT);
@@ -304,7 +344,7 @@ public class WikipediaLoader extends Loader {
         FlatHistogram<Integer> h_numRevisions = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
         
         int lastPercent = -1;
-        for (int pageId = 1; pageId <= util.num_pages; pageId++) {
+        for (int pageId = firstPageId; pageId <= lastPageId; pageId++) {
             // There must be at least one revision per page
             int num_revised = h_numRevisions.nextValue().intValue();
             
@@ -368,23 +408,30 @@ public class WikipediaLoader extends Loader {
                                                          revTable.getName(), pageId, rev_id));
                 batchBytes += old_text.length;
                 batchSize++;
+                
+                if (batchSize > WikipediaConstants.BATCH_SIZE || batchBytes >= 16777216) {
+                    this.loadVoltTable(textTable.getName(), vtText);
+                    this.loadVoltTable(revTable.getName(), vtRev);
+                    vtText.clearRowData();
+                    vtRev.clearRowData();
+                    batchSize = 0;
+                    batchBytes = 0;
+                }
             } // FOR (revision)
             
             // XXX: We have to push out the batch for each page, because sometimes we
             // generate a batch that is too large and we lose our connection to the database
-            try {
+            if (batchSize > WikipediaConstants.BATCH_SIZE || batchBytes >= 16777216) {
                 this.loadVoltTable(textTable.getName(), vtText);
-            } catch (Exception ex) {
-                LOG.error(String.format("Failed to upload %s [batchSize=%d, batchBytes=%d]", textTable, batchSize, batchBytes)); 
-                throw ex;
+                this.loadVoltTable(revTable.getName(), vtRev);
+                vtText.clearRowData();
+                vtRev.clearRowData();
+                batchSize = 0;
+                batchBytes = 0;
             }
-            this.loadVoltTable(revTable.getName(), vtRev);
-            vtText.clearRowData();
-            vtRev.clearRowData();
-            batchSize = 0;
             
             if (debug.get()) {
-                int percent = (int) (((double) pageId / (double) util.num_pages) * 100);
+                int percent = (int) (((double) this.page_counter.incrementAndGet() / (double) util.num_pages) * 100);
                 if (percent != lastPercent) LOG.debug("REVISIONS (" + percent + "%)");
                 lastPercent = percent;
             }
@@ -394,22 +441,11 @@ public class WikipediaLoader extends Loader {
             this.loadVoltTable(revTable.getName(), vtRev);
             vtText.clearRowData();
             vtRev.clearRowData();
-            batchSize = 0;
         }
+        
+        
         if (debug.get()) LOG.debug(textTable.getName() + " Loaded");
         if (debug.get()) LOG.debug(revTable.getName() + " Loaded");
-        
-        // UPDATE USER & UPDATE PAGES
-        batchSize = 0;
-        Client client = this.getClientHandle();
-        ClientResponse cr = client.callProcedure(UpdateRevisionCounters.class.getSimpleName(),
-                                                 this.user_revision_ctr,
-                                                 util.num_pages,
-                                                 this.page_last_rev_id,
-                                                 this.page_last_rev_length);
-        assert(cr != null);
-        assert(cr.getStatus() == Status.OK);
-        if (debug.get()) LOG.debug("Updated page/user revision counters");
     }
    
 }
