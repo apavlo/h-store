@@ -107,7 +107,7 @@ CREATE TABLE recentchanges (
   rc_user int DEFAULT '0' NOT NULL,
   rc_user_text varchar(255) NOT NULL,
   rc_namespace int DEFAULT '0' NOT NULL,
-  rc_title varchar(255) DEFAULT '' NOT NULL,
+  rc_page int NOT NULL REFERENCES page (page_id),
   rc_comment varchar(255) DEFAULT '' NOT NULL,
   rc_minor smallint DEFAULT '0' NOT NULL,
   rc_bot smallint DEFAULT '0' NOT NULL,
@@ -139,7 +139,7 @@ CREATE TABLE text (
 );
 
 CREATE INDEX IDX_RC_TIMESTAMP ON recentchanges (rc_timestamp);
-CREATE INDEX IDX_RC_NAMESPACE_TITLE ON recentchanges (rc_namespace,rc_title);
+CREATE INDEX IDX_RC_NAMESPACE_TITLE ON recentchanges (rc_namespace,rc_page);
 CREATE INDEX IDX_RC_CUR_ID ON recentchanges (rc_cur_id);
 CREATE INDEX IDX_NEW_NAME_TIMESTAMP ON recentchanges (rc_new,rc_namespace,rc_timestamp);
 CREATE INDEX IDX_RC_IP ON recentchanges (rc_ip);
@@ -166,8 +166,6 @@ CREATE INDEX IDX_PAGE_TIMESTAMP ON revision (rev_page,rev_timestamp);
 CREATE INDEX IDX_USER_TIMESTAMP ON revision (rev_user,rev_timestamp);
 CREATE INDEX IDX_USERTEXT_TIMESTAMP ON revision (rev_user_text,rev_timestamp);
 
-
-
 CREATE TABLE user_groups (
   ug_user int DEFAULT '0' NOT NULL,
   ug_group varchar(16) DEFAULT '' NOT NULL,
@@ -183,8 +181,8 @@ CREATE TABLE value_backup (
 CREATE TABLE watchlist (
   wl_user int NOT NULL,
   wl_namespace int DEFAULT '0' NOT NULL,
-  wl_title varchar(255) DEFAULT '' NOT NULL,
+  wl_page int NOT NULL REFERENCES page (page_id),
   wl_notificationtimestamp timestamp DEFAULT NULL,
-  UNIQUE (wl_user,wl_namespace,wl_title)
+  UNIQUE (wl_user,wl_namespace,wl_page)
 );
-CREATE INDEX IDX_WL_NAMESPACE_TITLE ON watchlist (wl_namespace, wl_title);
+CREATE INDEX IDX_WL_NAMESPACE_TITLE ON watchlist (wl_namespace, wl_page);

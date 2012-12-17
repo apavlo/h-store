@@ -24,24 +24,21 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
-import org.apache.log4j.Logger;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 @ProcInfo(
     partitionInfo = "USERACCT.USER_ID: 0"
 )
 public class AddWatchList extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(AddWatchList.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+ 
     // -----------------------------------------------------------------
     // STATEMENTS
     // -----------------------------------------------------------------
 
     public SQLStmt insertWatchList = new SQLStmt(
         "INSERT INTO " + WikipediaConstants.TABLENAME_WATCHLIST + " (" + 
-        "wl_user, wl_namespace, wl_title, wl_notificationtimestamp" +
+        "wl_user, wl_namespace, wl_page, wl_notificationtimestamp" +
         ") VALUES (" +
         "?,?,?,?" +
         ")"
@@ -56,19 +53,19 @@ public class AddWatchList extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 
-    public VoltTable[] run(int userId, int nameSpace, String pageTitle) throws VoltAbortException {
+    public VoltTable[] run(int userId, int nameSpace, long pageId) throws VoltAbortException {
         final TimestampType timestamp = new TimestampType();
         
         if (userId > 0) {
             // TODO: find a way to by pass Unique constraints in SQL server
             // (Replace, Merge ..?)
             // Here I am simply catching the right excpetion and move on.
-            voltQueueSQL(insertWatchList, userId, nameSpace, pageTitle, null);
+            voltQueueSQL(insertWatchList, userId, nameSpace, pageId, null);
 
             if (nameSpace == 0) {
                 // if regular page, also add a line of
                 // watchlist for the corresponding talk page
-                voltQueueSQL(insertWatchList, userId, 1,  pageTitle,  null);
+                voltQueueSQL(insertWatchList, userId, 1,  pageId,  null);
             }
             voltQueueSQL(setUserTouched, timestamp, userId);
         }

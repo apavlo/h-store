@@ -171,7 +171,7 @@ public abstract class BenchmarkComponent {
         return (client);
     }
     
-    private static CatalogContext getCatalog(File catalogPath) {
+    private static CatalogContext getCatalogContext(File catalogPath) {
         // Read back the catalog and populate catalog object
         if (globalCatalog == null) {
             globalCatalogLock.lock();
@@ -295,7 +295,7 @@ public abstract class BenchmarkComponent {
      * Path to catalog jar
      */
     private final File m_catalogPath;
-    private CatalogContext m_catalog;
+    private CatalogContext m_catalogContext;
     private final String m_projectName;
     
     final boolean m_exitOnCompletion;
@@ -770,7 +770,7 @@ public abstract class BenchmarkComponent {
                         this.getProjectName(),
                         (m_isLoader ? "LOADER" : "CLIENT"),
                         m_statsPollerInterval,
-                        m_catalog.catalog);
+                        m_catalogContext.catalog);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to initialize StatsUploader", ex);
             }
@@ -952,17 +952,17 @@ public abstract class BenchmarkComponent {
                 } // SYNCH
             }
         }
-//        else {
-//            LOG.warn("Invalid " + m_countDisplayNames[txn_idx] + " response!\n" + cresponse);
-//            if (cresponse.getException() != null) {
-//                cresponse.getException().printStackTrace();
-//            }
-//            if (cresponse.getStatusString() != null) {
-//                LOG.warn(cresponse.getStatusString());
-//            }
-//
-//            System.exit(-1);   
-//        }
+        else {
+            LOG.warn("Invalid " + m_countDisplayNames[txn_idx] + " response!\n" + cresponse);
+            if (cresponse.getException() != null) {
+                cresponse.getException().printStackTrace();
+            }
+            if (cresponse.getStatusString() != null) {
+                LOG.warn(cresponse.getStatusString());
+            }
+
+            System.exit(-1);   
+        }
         
         if (m_txnStats.isResponsesStatusesEnabled()) {
             synchronized (m_txnStats.responseStatuses) {
@@ -1416,19 +1416,28 @@ public abstract class BenchmarkComponent {
      * @return
      * @throws Exception
      */
+    @Deprecated
     public Catalog getCatalog() {
+        return (this.getCatalogContext().catalog);
+    }
+    
+    /**
+     * Return the CatalogContext used for this benchmark
+     * @return
+     */
+    public CatalogContext getCatalogContext() {
         // Read back the catalog and populate catalog object
-        if (m_catalog == null) {
-            m_catalog = getCatalog(m_catalogPath);
+        if (m_catalogContext == null) {
+            m_catalogContext = getCatalogContext(m_catalogPath);
         }
-        return (m_catalog.catalog);
+        return (m_catalogContext);
     }
     public void setCatalogContext(CatalogContext catalogContext) {
-        m_catalog = catalogContext;
+        m_catalogContext = catalogContext;
     }
     public void applyPartitionPlan(File partitionPlanPath) {
-        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
-        BenchmarkComponent.applyPartitionPlan(catalog_db, partitionPlanPath);
+        CatalogContext catalogContext = this.getCatalogContext();
+        BenchmarkComponent.applyPartitionPlan(catalogContext.database, partitionPlanPath);
     }
 
     /**

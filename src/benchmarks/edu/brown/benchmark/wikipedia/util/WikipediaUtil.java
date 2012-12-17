@@ -22,48 +22,77 @@ package edu.brown.benchmark.wikipedia.util;
 
 import java.util.Random;
 
-import org.apache.log4j.Logger;
-
+import edu.brown.benchmark.wikipedia.WikipediaConstants;
+import edu.brown.benchmark.wikipedia.data.PageHistograms;
 import edu.brown.benchmark.wikipedia.data.RevisionHistograms;
+import edu.brown.benchmark.wikipedia.data.UserHistograms;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
+import edu.brown.rand.RandomDistribution.Zipf;
 
-
-/** Immutable class containing information about transactions. */
+/**
+ * Helper class that contains all of the useful information about the benchmark database
+ * @author pavlo
+ */
 public final class WikipediaUtil {
 	
-	private static final Logger LOG = Logger.getLogger(WikipediaUtil.class);
+    private final Random rand;
+    private final double scaleFactor;
     
-//    private static FlatHistogram<Integer> commentLength;
-//    private static FlatHistogram<Integer> minorEdit;
-	public static Random rand = new Random();
-    public static  FlatHistogram<Integer> commentLength = new FlatHistogram<Integer>(rand, RevisionHistograms.COMMENT_LENGTH);
-    public static FlatHistogram<Integer> minorEdit = new FlatHistogram<Integer>(rand, RevisionHistograms.MINOR_EDIT);
+    public final int num_users;
+    public final int num_pages;
     
-//    private static FlatHistogram<Integer> revisionDeltas[];
+    public final FlatHistogram<Integer> h_nameLength;
+    public final FlatHistogram<Integer> h_realNameLength;
+    public final FlatHistogram<Integer> h_revCount;
+    public final FlatHistogram<Integer> h_titleLength;
+    public final FlatHistogram<String> h_restrictions;
+    public final Zipf h_watchPageCount;
+    public final Zipf h_watchPageId;
+    public final FlatHistogram<Integer> h_commentLength;
+    public final FlatHistogram<Integer> h_minorEdit;
 
-	public WikipediaUtil(int userId, int nameSpace, String pageTitle) {
-		
-//		this.commentLength = new FlatHistogram<Integer>(randGenerator, RevisionHistograms.COMMENT_LENGTH);
-//        this.minorEdit = new FlatHistogram<Integer>(randGenerator, RevisionHistograms.MINOR_EDIT);
-//        this.revisionDeltas = (FlatHistogram<Integer>[])new FlatHistogram [RevisionHistograms.REVISION_DELTA_SIZES.length];
-//        for (int i = 0; i < revisionDeltas.length; i++) {
-//            this.revisionDeltas[i] = new FlatHistogram<Integer>(randGenerator, RevisionHistograms.REVISION_DELTAS[i]);
-//        } // FOR
-	}
+    /**
+     * Constructor
+     * @param rand
+     * @param scaleFactor
+     */
+    public WikipediaUtil(Random rand, double scaleFactor) {
+        this.rand = rand;
+        this.scaleFactor = scaleFactor;
+        
+        this.num_users = (int) Math.round(WikipediaConstants.USERS * this.scaleFactor);
+        this.num_pages = (int) Math.round(WikipediaConstants.PAGES * this.scaleFactor);
+        
+        this.h_nameLength = new FlatHistogram<Integer>(this.rand, UserHistograms.NAME_LENGTH);
+        this.h_realNameLength = new FlatHistogram<Integer>(this.rand, UserHistograms.REAL_NAME_LENGTH);
+        this.h_revCount = new FlatHistogram<Integer>(this.rand, UserHistograms.REVISION_COUNT);
+        this.h_titleLength = new FlatHistogram<Integer>(this.rand, PageHistograms.TITLE_LENGTH);
+        this.h_restrictions = new FlatHistogram<String>(this.rand, PageHistograms.RESTRICTIONS);
+        this.h_watchPageCount = new Zipf(this.rand, 0, this.num_pages, WikipediaConstants.NUM_WATCHES_PER_USER_SIGMA);
+        this.h_watchPageId = new Zipf(this.rand, 1, this.num_pages, WikipediaConstants.WATCHLIST_PAGE_SIGMA);
+        this.h_commentLength = new FlatHistogram<Integer>(this.rand, RevisionHistograms.COMMENT_LENGTH);
+        this.h_minorEdit = new FlatHistogram<Integer>(this.rand, RevisionHistograms.MINOR_EDIT);
+    }
 	
-	public String toString() {
-	    return String.format("<UserId:%d, NameSpace:%d, Title:%s>");
-	    
-	}
+    /**
+     * Return the computed namespace for the given pageId
+     * @param pageId
+     * @return
+     */
+    public int getPageNameSpace(int pageId) {
+        return (0);
+    }
+    
 	
 	/**
      * 
      * @param orig_text
      * @return
      */
-    public static char[] generateRevisionText(char orig_text[]) {
+    public char[] generateRevisionText(char orig_text[]) {
         Random randGenerator = new Random();
        
+        @SuppressWarnings("unchecked")
         FlatHistogram<Integer> revisionDeltas[] = (FlatHistogram<Integer>[])new FlatHistogram [RevisionHistograms.REVISION_DELTA_SIZES.length];
         
         for (int i = 0; i < revisionDeltas.length; i++) {
@@ -82,8 +111,6 @@ public final class WikipediaUtil {
         } // FOR
         if (h == null) h = revisionDeltas[revisionDeltas.length-1];
         assert(h != null);
-        
-        LOG.debug("");
         
         int delta = h.nextValue().intValue();
         if (orig_text.length + delta <= 0) {

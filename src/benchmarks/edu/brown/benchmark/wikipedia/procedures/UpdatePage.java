@@ -69,7 +69,7 @@ public class UpdatePage extends VoltProcedure {
 	    "rc_timestamp, " +
 	    "rc_cur_time, " +
 	    "rc_namespace, " +
-	    "rc_title, " +
+	    "rc_page, " +
 	    "rc_type, " +
         "rc_minor, " +
         "rc_cur_id, " +
@@ -90,7 +90,7 @@ public class UpdatePage extends VoltProcedure {
     );
 	public SQLStmt selectWatchList = new SQLStmt(
         "SELECT wl_user FROM " + WikipediaConstants.TABLENAME_WATCHLIST +
-        " WHERE wl_title = ?" +
+        " WHERE wl_page = ?" +
         "   AND wl_namespace = ?" +
 		"   AND wl_user != ?" +
 		"   AND wl_notificationtimestamp = ?"
@@ -98,7 +98,7 @@ public class UpdatePage extends VoltProcedure {
 	public SQLStmt updateWatchList = new SQLStmt(
         "UPDATE " + WikipediaConstants.TABLENAME_WATCHLIST +
         "   SET wl_notificationtimestamp = ? " +
-	    " WHERE wl_title = ?" +
+	    " WHERE wl_page = ?" +
 	    "   AND wl_namespace = ?" +
 	    "   AND wl_user = ?"
     );
@@ -129,10 +129,9 @@ public class UpdatePage extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public long run( int nextId, int textId, int pageId,
-	                                 String pageTitle,int pageNamespace, String pageText,
-	                                 int userId, String userIp, String userText,
-	                                 int revisionId, String revComment, int revMinorEdit) {
+	public long run(int nextId, int textId, int pageId, int pageNamespace, String pageText,
+	                int userId, String userIp, String userText,
+	                int revisionId, String revComment, int revMinorEdit) {
 
 	    boolean adv;
 	    VoltTable rs[] = null;
@@ -180,7 +179,7 @@ public class UpdatePage extends VoltProcedure {
 		                                  timestamp, 
 		                                  new TimestampType(),
 		                                  pageNamespace,
-		                                  pageTitle,
+		                                  pageId,
 		                                  0, 
 		                                  0,
 		                                  pageId, 
@@ -198,7 +197,7 @@ public class UpdatePage extends VoltProcedure {
 		                                  );
 		
 		// SELECT WATCHING USERS
-		voltQueueSQL(selectWatchList, pageTitle, pageNamespace, userId, null);
+		voltQueueSQL(selectWatchList, pageId, pageNamespace, userId, null);
 		
 		rs = voltExecuteSQL();
 
@@ -218,7 +217,7 @@ public class UpdatePage extends VoltProcedure {
 			// the transaction merge with the following one
 			
 			for (Integer otherUserId : wlUser) {
-			    voltQueueSQL(updateWatchList, timestamp, pageTitle, pageNamespace, otherUserId.intValue());
+			    voltQueueSQL(updateWatchList, timestamp, pageId, pageNamespace, otherUserId.intValue());
 			    voltExecuteSQL();
 			} // FOR
 			
@@ -250,7 +249,7 @@ public class UpdatePage extends VoltProcedure {
 		                            WikipediaConstants.UPDATEPAGE_LOG_ACTION,
 		                            timestamp,
 		                            userId,
-		                            pageTitle,
+		                            pageId,
 		                            pageNamespace,
 		                            userText,
 		                            pageId,

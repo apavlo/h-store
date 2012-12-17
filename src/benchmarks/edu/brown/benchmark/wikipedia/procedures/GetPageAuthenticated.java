@@ -73,7 +73,7 @@ public class GetPageAuthenticated extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-    public VoltTable run( int pageId, boolean forSelect, String userIp, int userId, int nameSpace, String pageTitle) {
+    public VoltTable run( int pageId, boolean forSelect, String userIp, int userId, int nameSpace) {
         // =======================================================
         // LOADING BASIC DATA: txn1
         // =======================================================
@@ -130,7 +130,7 @@ public class GetPageAuthenticated extends VoltProcedure {
         
         // check page revision
         if (!rs[1].advanceRow()) {
-            throw new VoltAbortException("no such revision: page_id:" + pageId + " page_namespace: " + nameSpace + " page_title:" + pageTitle);
+            throw new VoltAbortException("no such revision: page_id:" + pageId + " page_namespace: " + nameSpace);
         }
 
         int revisionId = (int)rs[1].getLong("rev_id");
@@ -146,7 +146,7 @@ public class GetPageAuthenticated extends VoltProcedure {
         voltQueueSQL(selectText, textId);
         rs = voltExecuteSQL();
         if (!rs[0].advanceRow()) {
-            throw new VoltAbortException("no such text: " + textId + " for page_id:" + pageId + " page_namespace: " + nameSpace + " page_title:" + pageTitle);
+            throw new VoltAbortException("no such text: " + textId + " for page_id:" + pageId + " page_namespace: " + nameSpace);
         }
         VoltTable result = new VoltTable(WikipediaConstants.GETPAGE_OUTPUT_COLS);
         if (forSelect == false)

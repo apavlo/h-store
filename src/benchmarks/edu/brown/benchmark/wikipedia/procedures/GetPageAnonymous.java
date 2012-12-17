@@ -23,7 +23,6 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
@@ -65,7 +64,6 @@ public class GetPageAnonymous extends VoltProcedure {
             " WHERE " +
 	        "rev_id = ? LIMIT 1"
     );
-	
 	public SQLStmt selectText = new SQLStmt(
         "SELECT old_text, old_flags FROM " + WikipediaConstants.TABLENAME_TEXT +
         " WHERE old_id = ? LIMIT 1"
@@ -75,7 +73,7 @@ public class GetPageAnonymous extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public VoltTable run(int pageId, boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
+	public VoltTable run(int pageId, boolean forSelect, String userIp, int pageNamespace) {		
 
         voltQueueSQL(selectPageRestriction, pageId);
         voltQueueSQL(selectIpBlocks, userIp);
@@ -113,7 +111,7 @@ public class GetPageAnonymous extends VoltProcedure {
         
         if (!rs[0].advanceRow()) {
             String msg = String.format("Invalid Page: Missing revision Namespace:%d / Title:--%s-- / PageId:%d",
-                                       pageNamespace, pageTitle, pageId);
+                                       pageNamespace, pageId);
             throw new VoltAbortException(msg);
         }
         int revisionId = (int)rs[0].getLong("rev_id");
@@ -127,7 +125,7 @@ public class GetPageAnonymous extends VoltProcedure {
         voltQueueSQL(selectText, textId);
         rs = voltExecuteSQL();
         if (!rs[0].advanceRow()) {
-            String msg = "No such text: " + textId + " for page_id:" + pageId + " page_namespace: " + pageNamespace + " page_title:" + pageTitle;
+            String msg = "No such text: " + textId + " for page_id:" + pageId + " page_namespace: " + pageNamespace;
             throw new VoltAbortException(msg);
         }
         

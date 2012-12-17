@@ -35,7 +35,7 @@ public class RemoveWatchList extends VoltProcedure {
 	
 	public SQLStmt removeWatchList = new SQLStmt(
         "DELETE FROM " + WikipediaConstants.TABLENAME_WATCHLIST +
-        " WHERE wl_user = ? AND wl_namespace = ? AND wl_title = ?"
+        " WHERE wl_user = ? AND wl_namespace = ? AND wl_page = ?"
     );
     public SQLStmt setUserTouched = new SQLStmt(
         "UPDATE " + WikipediaConstants.TABLENAME_USER +
@@ -43,15 +43,15 @@ public class RemoveWatchList extends VoltProcedure {
         " WHERE user_id =  ? "
     ); 
 
-    public VoltTable[] run( int userId, int nameSpace, String pageTitle) {
+    public VoltTable[] run( int userId, int nameSpace, int pageId) {
         final TimestampType timestamp = new TimestampType();
         if (userId > 0) {
-            voltQueueSQL(removeWatchList, userId, nameSpace, pageTitle);
+            voltQueueSQL(removeWatchList, userId, nameSpace, pageId);
             
             if (nameSpace == 0) {
                 // if regular page, also remove a line of
                 // watchlist for the corresponding talk page
-                voltQueueSQL(removeWatchList, userId, 1, pageTitle);
+                voltQueueSQL(removeWatchList, userId, 1, pageId);
             }
                         
             voltQueueSQL(setUserTouched, timestamp, userId);

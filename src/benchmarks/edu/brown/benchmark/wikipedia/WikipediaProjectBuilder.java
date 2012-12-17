@@ -59,7 +59,7 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
         { WikipediaConstants.TABLENAME_LOGGING, "log_id" },
         { WikipediaConstants.TABLENAME_PAGE, "page_id" },
         { WikipediaConstants.TABLENAME_PAGE_RESTRICTIONS, "pr_page" },
-        { WikipediaConstants.TABLENAME_RECENTCHANGES, "rc_id" },
+        { WikipediaConstants.TABLENAME_RECENTCHANGES, "rc_page" },
         { WikipediaConstants.TABLENAME_REVISION, "rev_page" },
         { WikipediaConstants.TABLENAME_TEXT, "old_page" },
         { WikipediaConstants.TABLENAME_WATCHLIST, "wl_user" },
