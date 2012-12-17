@@ -53,7 +53,8 @@ public class GetPageAuthenticated extends VoltProcedure {
     public SQLStmt selectPage = new SQLStmt(
         "SELECT page_title, page_latest, page_restrictions " +
         "  FROM " + WikipediaConstants.TABLENAME_PAGE  +
-        " WHERE page_id = ?"
+        " WHERE page_id = ? " +
+        "   AND page_namespace = ?"
     );
     public SQLStmt selectText = new SQLStmt(
         "SELECT old_text, old_flags FROM " + WikipediaConstants.TABLENAME_TEXT +

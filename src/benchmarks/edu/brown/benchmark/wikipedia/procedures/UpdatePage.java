@@ -264,7 +264,11 @@ public class UpdatePage extends VoltProcedure {
 
 		// This is always executed, sometimes as a separate transaction,
 		// sometimes together with the previous one
-		long logId = pageId | nextId<<32;
+		long logId = pageId | ((long)nextId)<<32;
+		System.err.println("pageId: " + pageId);
+		System.err.println("nextId: " + nextId);
+		System.err.println("logId: " + logId);
+		System.err.println();
 		String logParams = String.format("%d -- %d -- %d", nextId, revisionId, 1);
 		voltQueueSQL(insertLogging, logId,                                    // log_id
 		                            WikipediaConstants.UPDATEPAGE_LOG_TYPE,   // log_type
@@ -275,7 +279,9 @@ public class UpdatePage extends VoltProcedure {
 		                            pageId,                                   // log_page
 		                            logParams,                                // log_params
 		                            userText);                                // log_user_text
+		voltExecuteSQL();
 		voltQueueSQL(updateUserEdit, userId);
+		voltExecuteSQL();
 		voltQueueSQL(updateUserTouched, timestamp, userId);
 		voltExecuteSQL(true);
 		
