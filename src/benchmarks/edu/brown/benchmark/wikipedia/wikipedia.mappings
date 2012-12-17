@@ -1,0 +1,551 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'UpdatePage':'insertText'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertText':'1'}",
+  "STATEMENT_COLUMN": "{'TEXT':'OLD_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'RemoveWatchList':'removeWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'RemoveWatchList.removeWatchList':'0'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_USER'}",
+  "PROCEDURE_PARAMETER": "{'RemoveWatchList':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRevision':'5'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_USER'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'RemoveWatchList':'removeWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'RemoveWatchList.removeWatchList':'1'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_NAMESPACE'}",
+  "PROCEDURE_PARAMETER": "{'RemoveWatchList':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'RemoveWatchList':'removeWatchList'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'RemoveWatchList.removeWatchList':'0'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_USER'}",
+  "PROCEDURE_PARAMETER": "{'RemoveWatchList':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'10'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_COMMENT'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'8'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAuthenticated':'selectPage'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAuthenticated.selectPage':'1'}",
+  "STATEMENT_COLUMN": "{'PAGE':'PAGE_NAMESPACE'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAuthenticated':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAnonymous':'selectPage'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAnonymous.selectPage':'1'}",
+  "STATEMENT_COLUMN": "{'PAGE':'PAGE_NAMESPACE'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAnonymous':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'updateUserTouched'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.updateUserTouched':'1'}",
+  "STATEMENT_COLUMN": "{'USERACCT':'USER_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'selectWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.selectWatchList':'2'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_USER'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'15'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_MOVED_TO_TITLE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertLogging'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertLogging':'8'}",
+  "STATEMENT_COLUMN": "{'LOGGING':'LOG_USER_TEXT'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAuthenticated':'selectPage'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAuthenticated.selectPage':'0'}",
+  "STATEMENT_COLUMN": "{'PAGE':'PAGE_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAuthenticated':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAnonymous':'selectPage'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAnonymous.selectPage':'0'}",
+  "STATEMENT_COLUMN": "{'PAGE':'PAGE_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAnonymous':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'12'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_LAST_OLDID'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'14'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_MOVED_TO_NS'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAuthenticated':'selectPageRestriction'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAuthenticated.selectPageRestriction':'0'}",
+  "STATEMENT_COLUMN": "{'PAGE_RESTRICTIONS':'PR_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAuthenticated':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAnonymous':'selectPageRestriction'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAnonymous.selectPageRestriction':'0'}",
+  "STATEMENT_COLUMN": "{'PAGE_RESTRICTIONS':'PR_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAnonymous':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'updateWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.updateWatchList':'2'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_NAMESPACE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAuthenticated':'selectPageRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAuthenticated.selectPageRevision':'1'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAuthenticated':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'selectWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.selectWatchList':'0'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'AddWatchList':'insertWatchList'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'AddWatchList.insertWatchList':'2'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'AddWatchList':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertLogging'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertLogging':'5'}",
+  "STATEMENT_COLUMN": "{'LOGGING':'LOG_NAMESPACE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'4'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRevision':'3'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_COMMENT'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'8'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRevision':'6'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_USER_TEXT'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAuthenticated':'selectIpBlocks'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAuthenticated.selectIpBlocks':'0'}",
+  "STATEMENT_COLUMN": "{'IPBLOCKS':'IPB_USER'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAuthenticated':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAnonymous':'selectIpBlocks'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAnonymous.selectIpBlocks':'0'}",
+  "STATEMENT_COLUMN": "{'IPBLOCKS':'IPB_ADDRESS'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAnonymous':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'RemoveWatchList':'removeWatchList'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'RemoveWatchList.removeWatchList':'2'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'RemoveWatchList':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRevision':'1'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'5'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_TYPE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'AddWatchList':'insertWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'AddWatchList.insertWatchList':'1'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_NAMESPACE'}",
+  "PROCEDURE_PARAMETER": "{'AddWatchList':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertLogging'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertLogging':'4'}",
+  "STATEMENT_COLUMN": "{'LOGGING':'LOG_USER'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'6'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_MINOR'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'9'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_USER_TEXT'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAuthenticated':'selectUser'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAuthenticated.selectUser':'0'}",
+  "STATEMENT_COLUMN": "{'USERACCT':'USER_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAuthenticated':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertLogging'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertLogging':'6'}",
+  "STATEMENT_COLUMN": "{'LOGGING':'LOG_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'AddWatchList':'insertWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'AddWatchList.insertWatchList':'2'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'AddWatchList':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'AddWatchList':'setUserTouched'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'AddWatchList.setUserTouched':'1'}",
+  "STATEMENT_COLUMN": "{'USERACCT':'USER_ID'}",
+  "PROCEDURE_PARAMETER": "{'AddWatchList':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'RemoveWatchList':'setUserTouched'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'RemoveWatchList.setUserTouched':'1'}",
+  "STATEMENT_COLUMN": "{'USERACCT':'USER_ID'}",
+  "PROCEDURE_PARAMETER": "{'RemoveWatchList':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'13'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_BOT'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAuthenticated':'selectText'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAuthenticated.selectText':'0'}",
+  "STATEMENT_COLUMN": "{'TEXT':'OLD_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAuthenticated':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAnonymous':'selectText'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAnonymous.selectText':'0'}",
+  "STATEMENT_COLUMN": "{'TEXT':'OLD_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAnonymous':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'3'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_NAMESPACE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'AddWatchList':'insertWatchList'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'AddWatchList.insertWatchList':'0'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_USER'}",
+  "PROCEDURE_PARAMETER": "{'AddWatchList':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'updateWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.updateWatchList':'1'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'8'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_USER'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAuthenticated':'selectGroup'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAuthenticated.selectGroup':'0'}",
+  "STATEMENT_COLUMN": "{'USER_GROUPS':'UG_USER'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAuthenticated':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'updateUserEdit'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.updateUserEdit':'0'}",
+  "STATEMENT_COLUMN": "{'USERACCT':'USER_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'AddWatchList':'insertWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'AddWatchList.insertWatchList':'0'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_USER'}",
+  "PROCEDURE_PARAMETER": "{'AddWatchList':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRevision':'10'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_PARENT_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'7'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRevision':'8'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_DELETED'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRevision':'4'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_MINOR_EDIT'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'RemoveWatchList':'removeWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'RemoveWatchList.removeWatchList':'2'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'RemoveWatchList':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertRecentChanges'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertRecentChanges':'16'}",
+  "STATEMENT_COLUMN": "{'RECENTCHANGES':'RC_IP'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'selectWatchList'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.selectWatchList':'1'}",
+  "STATEMENT_COLUMN": "{'WATCHLIST':'WL_NAMESPACE'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'updatePage'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.updatePage':'2'}",
+  "STATEMENT_COLUMN": "{'PAGE':'PAGE_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'insertText'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.insertText':'2'}",
+  "STATEMENT_COLUMN": "{'TEXT':'OLD_TEXT'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdatePage':'selectLastPageRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdatePage.selectLastPageRevision':'0'}",
+  "STATEMENT_COLUMN": "{'PAGE':'PAGE_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdatePage':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAnonymous':'selectPageRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAnonymous.selectPageRevision':'0'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAnonymous':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetPageAuthenticated':'selectPageRevision'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetPageAuthenticated.selectPageRevision':'0'}",
+  "STATEMENT_COLUMN": "{'REVISION':'REV_PAGE'}",
+  "PROCEDURE_PARAMETER": "{'GetPageAuthenticated':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ }
+]}
