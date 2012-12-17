@@ -96,6 +96,8 @@ public class WikipediaLoader extends Loader {
             this.loadWatchlist(catalogContext.database);
             this.loadRevision(catalogContext.database);
         } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("????");
             throw new RuntimeException(e);
         }
     }
@@ -179,7 +181,7 @@ public class WikipediaLoader extends Loader {
         int num_cols = pageTable.getColumns().size();
         int batchSize = 0;
         int lastPercent = -1;
-        for (int pageId = 1; pageId <= util.num_pages; pageId++) {
+        for (long pageId = 1; pageId <= util.num_pages; pageId++) {
             String title = TextGenerator.randomStr(this.randGenerator, util.h_titleLength.nextValue().intValue());
             int namespace = util.getPageNameSpace(pageId);
             String restrictions = util.h_restrictions.nextValue();
@@ -231,16 +233,16 @@ public class WikipediaLoader extends Loader {
         int num_cols = watchTable.getColumns().size();
         int batchSize = 0;
         int lastPercent = -1;
-        Set<Integer> userPages = new HashSet<Integer>();
+        Set<Long> userPages = new HashSet<Long>();
         for (int user_id = 1; user_id <= util.num_users; user_id++) {
             int num_watches = util.h_watchPageCount.nextInt();
             if (trace.get()) LOG.trace(user_id + " => " + num_watches);
             
             userPages.clear();
             for (int i = 0; i < num_watches; i++) {
-                int pageId = util.h_watchPageId.nextInt();
+                long pageId = util.h_watchPageId.nextLong();
                 while (userPages.contains(pageId)) {
-                    pageId = util.h_watchPageId.nextInt();
+                    pageId = util.h_watchPageId.nextLong();
                 } // WHILE
                 userPages.add(pageId);
                 int nameSpace = util.getPageNameSpace(pageId);
@@ -367,7 +369,7 @@ public class WikipediaLoader extends Loader {
                 
                 batchSize++;
             } // FOR (revision)
-            if (batchSize >= WikipediaConstants.BATCH_SIZE) {
+            if (batchSize >= 500) { // WikipediaConstants.BATCH_SIZE) {
                 this.loadVoltTable(textTable.getName(), vtText);
                 this.loadVoltTable(revTable.getName(), vtRev);
                 vtText.clearRowData();

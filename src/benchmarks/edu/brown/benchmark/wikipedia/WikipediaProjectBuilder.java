@@ -61,28 +61,29 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
         { WikipediaConstants.TABLENAME_REVISION, "rev_page" },
         { WikipediaConstants.TABLENAME_TEXT, "old_page" },
         { WikipediaConstants.TABLENAME_WATCHLIST, "wl_user" },
-        { WikipediaConstants.TABLENAME_USER, "user_id" }
+        { WikipediaConstants.TABLENAME_USER, "user_id" },
+        { WikipediaConstants.TABLENAME_USER_GROUPS, "ug_user" }
     };
  
     public WikipediaProjectBuilder() {
         super("wikipedia", WikipediaProjectBuilder.class, PROCEDURES, PARTITIONING);
         
-        addStmtProcedure("testPage", "select * from page");
-        addStmtProcedure("testUser", "select * from USERACCT");
-        addStmtProcedure("testWatchlist", "select * from WATCHLIST");
-        addStmtProcedure("testRevision", "select * from REVISION");
-        addStmtProcedure("testText", "select * from TEXT");
-        addStmtProcedure("testJoin1", "SELECT * " +
-                "  FROM " + WikipediaConstants.TABLENAME_PAGE + ", " +
-                            WikipediaConstants.TABLENAME_REVISION +
-                " WHERE page_id = rev_page " +
-                " AND rev_id = page_latest LIMIT 1"
-                );
-        addStmtProcedure("testJoin2", "SELECT * " +
-                "  FROM " + WikipediaConstants.TABLENAME_PAGE + ", " +
-                            WikipediaConstants.TABLENAME_REVISION +
-                " WHERE rev_id = page_latest LIMIT 1"
-                );
+//        addStmtProcedure("testPage", "select * from page");
+//        addStmtProcedure("testUser", "select * from USERACCT");
+//        addStmtProcedure("testWatchlist", "select * from WATCHLIST");
+//        addStmtProcedure("testRevision", "select * from REVISION");
+//        addStmtProcedure("testText", "select * from TEXT");
+//        addStmtProcedure("testJoin1", "SELECT * " +
+//                "  FROM " + WikipediaConstants.TABLENAME_PAGE + ", " +
+//                            WikipediaConstants.TABLENAME_REVISION +
+//                " WHERE page_id = rev_page " +
+//                " AND rev_id = page_latest LIMIT 1"
+//                );
+//        addStmtProcedure("testJoin2", "SELECT * " +
+//                "  FROM " + WikipediaConstants.TABLENAME_PAGE + ", " +
+//                            WikipediaConstants.TABLENAME_REVISION +
+//                " WHERE rev_id = page_latest LIMIT 1"
+//                );
     }
     
 //    public void addDefaultProcedures() {

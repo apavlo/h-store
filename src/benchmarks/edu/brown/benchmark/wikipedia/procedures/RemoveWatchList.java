@@ -57,6 +57,6 @@ public class RemoveWatchList extends VoltProcedure {
                         
             voltQueueSQL(setUserTouched, timestamp, userId);
         }
-        return (voltExecuteSQL());
+        return (voltExecuteSQL(true));
     }
 }

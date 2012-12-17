@@ -23,6 +23,7 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
@@ -67,6 +68,7 @@ public class AddWatchList extends VoltProcedure {
             // TODO: find a way to by pass Unique constraints in SQL server
             // (Replace, Merge ..?)
             // Here I am simply catching the right excpetion and move on.
+            
             voltQueueSQL(insertWatchList, userId, nameSpace, pageId, null);
 
             if (nameSpace == 0) {
@@ -76,7 +78,15 @@ public class AddWatchList extends VoltProcedure {
             }
             voltQueueSQL(setUserTouched, timestamp, userId);
         }
-        return (voltExecuteSQL());
+        VoltTable result[] = null;
+        try {
+            result = voltExecuteSQL(true);
+        } catch (ConstraintFailureException ex) {
+            String msg = String.format("Duplicate watchlist record on pageId:%d for userId:%d",
+                                       pageId, userId);
+            throw new VoltAbortException(msg);
+        }
+        return (result);
     }
 
 }

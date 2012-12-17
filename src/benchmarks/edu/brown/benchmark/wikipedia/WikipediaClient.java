@@ -53,8 +53,9 @@ public class WikipediaClient extends BenchmarkComponent {
 	private final WikipediaUtil util;
 
 	
-	private final Flat z_users;
-	private final Zipf z_pages;
+	private final Flat flat_users;
+	private final Zipf zipf_pages;
+	private final Flat flat_pages;
 	
     /**
      * Set of transactions structs with their appropriate parameters
@@ -161,8 +162,9 @@ public class WikipediaClient extends BenchmarkComponent {
         
         this.util = new WikipediaUtil(this.randGenerator, this.getScaleFactor());
         
-        this.z_users = new Flat(this.randGenerator, 1, util.num_users);
-        this.z_pages = new Zipf(this.randGenerator, 1, util.num_pages, WikipediaConstants.USER_ID_SIGMA);
+        this.flat_users = new Flat(this.randGenerator, 1, util.num_users);
+        this.zipf_pages = new Zipf(this.randGenerator, 1, util.num_pages, WikipediaConstants.USER_ID_SIGMA);
+        this.flat_pages = new Flat(this.randGenerator, 1, util.num_pages);
     }
     
     /**
@@ -198,15 +200,12 @@ public class WikipediaClient extends BenchmarkComponent {
     @Override
 	protected boolean runOnce() throws IOException {
         
-        int userId = this.z_users.nextInt();
-        int pageId = this.z_pages.nextInt();
-        int nameSpace = util.getPageNameSpace(pageId);
+        
         Transaction target = this.selectTransaction();
-
         this.startComputeTime(target.displayName);
         Object params[] = null;
         try {
-            params = this.generateParams(target, userId, nameSpace, pageId);
+            params = this.generateParams(target);
         } catch (Throwable ex) {
             throw new RuntimeException("Unexpected error when generating params for " + target, ex);
         } finally {
@@ -238,43 +237,51 @@ public class WikipediaClient extends BenchmarkComponent {
         return (procNames);
     }
 
-    protected Object[] generateParams(Transaction txn, int userId, int nameSpace, long pageId) {
+    protected Object[] generateParams(Transaction txn) {
         Object params[] = null;
-        
         switch (txn) {
-            // AddWatchList
-            case ADD_WATCHLIST:    
+            case ADD_WATCHLIST:
+            case REMOVE_WATCHLIST: {
+                long pageId = this.flat_pages.nextLong();
+                int nameSpace = util.getPageNameSpace(pageId);
+                int userId = this.flat_users.nextInt();
                 params = new Object[]{
                         userId, 
                         nameSpace, 
                         pageId
                 };
                 break;
-            case REMOVE_WATCHLIST:
-                params = new Object[]{
-                        userId,
-                        nameSpace, 
-                        pageId
-                };
-                break;
-            case GET_PAGE_ANONYMOUS:
+            }
+            case GET_PAGE_ANONYMOUS: {
+                String userIp = this.generateUserIP();
+                long pageId = this.zipf_pages.nextLong();
+                int nameSpace = util.getPageNameSpace(pageId);
                 params = new Object[]{
                         pageId,
                         nameSpace,
-                        this.generateUserIP(),
+                        userIp,
                         true,
                 };
                 break;
-            case GET_PAGE_AUTHENTICATED:
+            }
+            case GET_PAGE_AUTHENTICATED: {
+                int userId = this.flat_users.nextInt();
+                String userIp = this.generateUserIP();
+                long pageId = this.zipf_pages.nextLong();
+                int nameSpace = util.getPageNameSpace(pageId);
                 params = new Object[]{
                         pageId,
                         nameSpace,
                         userId, 
-                        this.generateUserIP(),
+                        userIp,
                         true,
                 };
                 break;
+            }
             case UPDATE_PAGE: {
+                int userId = this.flat_users.nextInt();
+                long pageId = this.zipf_pages.nextLong();
+                int nameSpace = util.getPageNameSpace(pageId);
                 String user_ip = this.generateUserIP();
                 params = new Object[]{
                         pageId,

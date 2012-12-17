@@ -99,7 +99,7 @@ public class GetPageAnonymous extends VoltProcedure {
         // Grab Page Revision + Text
         voltQueueSQL(selectPageRevision, pageId, pageLatest);
         voltQueueSQL(selectText, pageId, pageLatest);
-        rs = voltExecuteSQL();
+        rs = voltExecuteSQL(true);
         if (rs[0].advanceRow() == false) {
             String msg = String.format("Invalid Page: Missing revision Namespace:%d / Title:--%s-- / PageId:%d",
                                        pageNamespace, pageId);

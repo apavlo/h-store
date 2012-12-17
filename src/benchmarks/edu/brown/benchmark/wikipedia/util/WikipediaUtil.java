@@ -79,7 +79,7 @@ public final class WikipediaUtil {
      * @param pageId
      * @return
      */
-    public int getPageNameSpace(int pageId) {
+    public int getPageNameSpace(long pageId) {
         return (0);
     }
     

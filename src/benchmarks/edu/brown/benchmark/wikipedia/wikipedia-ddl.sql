@@ -53,7 +53,7 @@ CREATE TABLE user_groups (
 CREATE INDEX IDX_UG_GROUP ON user_groups (ug_group);
 
 CREATE TABLE page (
-  page_id int NOT NULL,
+  page_id bigint NOT NULL,
   page_namespace int NOT NULL,
   page_title varchar(255) NOT NULL,
   page_restrictions varchar(255) NOT NULL,
@@ -71,7 +71,7 @@ CREATE INDEX IDX_PAGE_RANDOM ON page (page_random);
 CREATE INDEX IDX_PAGE_LEN ON page (page_len);
 
 CREATE TABLE page_restrictions (
-  pr_page int NOT NULL REFERENCES page (page_id),
+  pr_page bigint NOT NULL REFERENCES page (page_id),
   pr_type varchar(60) NOT NULL,
   pr_level varchar(60) NOT NULL,
   pr_cascade smallint NOT NULL,
@@ -92,7 +92,7 @@ CREATE TABLE recentchanges (
   rc_user int DEFAULT '0' NOT NULL,
   rc_user_text varchar(255) NOT NULL,
   rc_namespace int DEFAULT '0' NOT NULL,
-  rc_page int NOT NULL REFERENCES page (page_id),
+  rc_page bigint NOT NULL REFERENCES page (page_id),
   rc_comment varchar(255) DEFAULT '' NOT NULL,
   rc_minor smallint DEFAULT '0' NOT NULL,
   rc_bot smallint DEFAULT '0' NOT NULL,
@@ -126,13 +126,13 @@ CREATE TABLE text (
   old_id bigint NOT NULL,
   old_text varchar(1000000) NOT NULL,
   old_flags varchar(255) NOT NULL,
-  old_page int NOT NULL REFERENCES page (page_id),
+  old_page bigint NOT NULL REFERENCES page (page_id),
   PRIMARY KEY (old_id, old_page)
 );
 
 CREATE TABLE revision (
   rev_id bigint NOT NULL,
-  rev_page int NOT NULL,
+  rev_page bigint NOT NULL,
   rev_text_id bigint NOT NULL,
   rev_comment varchar(255) NOT NULL,
   rev_user int DEFAULT '0' NOT NULL REFERENCES useracct (user_id),
@@ -174,7 +174,7 @@ CREATE INDEX IDX_LOG_PAGE_ID_TIME ON logging (log_page,log_timestamp);
 CREATE TABLE watchlist (
   wl_user int NOT NULL,
   wl_namespace int DEFAULT '0' NOT NULL,
-  wl_page int NOT NULL REFERENCES page (page_id),
+  wl_page bigint NOT NULL REFERENCES page (page_id),
   wl_notificationtimestamp timestamp DEFAULT NULL,
   UNIQUE (wl_user,wl_namespace,wl_page)
 );

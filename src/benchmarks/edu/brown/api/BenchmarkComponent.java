@@ -1050,23 +1050,22 @@ public abstract class BenchmarkComponent {
         
         // Keep track of table stats
         if (m_tableStats && cr.getStatus() == Status.OK) {
-            final Catalog catalog = this.getCatalog();
-            assert(catalog != null);
-            final Database catalog_db = CatalogUtil.getDatabase(catalog);
-            final Table catalog_tbl = catalog_db.getTables().getIgnoreCase(tableName);
+            final CatalogContext catalogContext = this.getCatalogContext();
+            assert(catalogContext != null);
+            final Table catalog_tbl = catalogContext.getTableByName(tableName);
             assert(catalog_tbl != null) : "Invalid table name '" + tableName + "'";
             
             synchronized (m_tableStatsData) {
                 TableStatistics stats = m_tableStatsData.get(catalog_tbl);
                 if (stats == null) {
                     stats = new TableStatistics(catalog_tbl);
-                    stats.preprocess(catalog_db);
+                    stats.preprocess(catalogContext.database);
                     m_tableStatsData.put(catalog_tbl, stats);
                 }
                 vt.resetRowPosition();
                 while (vt.advanceRow()) {
                     VoltTableRow row = vt.getRow();
-                    stats.process(catalog_db, row);
+                    stats.process(catalogContext.database, row);
                 } // WHILE
             } // SYNCH
         }
