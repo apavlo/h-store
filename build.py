@@ -385,6 +385,10 @@ if ENABLE_ANTICACHE:
 # BUILD THE MAKEFILE
 ###############################################################################
 
+print "TARGET PLATFORM: ", CTX.PLATFORM, "-", CTX.PLATFORM_VERSION
+print "CPPFLAGS: ", CTX.CPPFLAGS
+print sys.stdout.flush()
+
 # this function (in buildtools.py) generates the makefile
 # it's currently a bit ugly but it'll get cleaned up soon
 buildMakefile(CTX)
@@ -393,8 +397,7 @@ buildMakefile(CTX)
 # RUN THE MAKEFILE
 ###############################################################################
 numHardwareThreads = 4
-print "TARGET PLATFORM: ", CTX.PLATFORM, "-", CTX.PLATFORM_VERSION
-print "CPPFLAGS: ", CTX.CPPFLAGS
+
 if CTX.PLATFORM == "Darwin":
     numHardwareThreads = 0
     output = commands.getstatusoutput("sysctl hw.ncpu")
