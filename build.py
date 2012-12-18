@@ -393,6 +393,8 @@ buildMakefile(CTX)
 # RUN THE MAKEFILE
 ###############################################################################
 numHardwareThreads = 4
+print "TARGET PLATFORM: ", CTX.PLATFORM, "-", CTX.PLATFORM_VERSION
+print "CPPFLAGS: ", CTX.CPPFLAGS
 if CTX.PLATFORM == "Darwin":
     numHardwareThreads = 0
     output = commands.getstatusoutput("sysctl hw.ncpu")
@@ -406,8 +408,11 @@ elif CTX.PLATFORM == "Linux":
         name,value = name_value
         if name == "processor":
             numHardwareThreads = numHardwareThreads + 1
+else:
+    print "WARNING: Unsupported platform type '%s'" % CTX.PLATFORM
 print "Detected %d hardware threads to use during the build" % (numHardwareThreads)
 
+print 
 retval = os.system("make --directory=%s -j%d nativelibs/libvoltdb.sym" % (CTX.OUTPUT_PREFIX, numHardwareThreads))
 print "Make returned: ", retval
 if retval != 0:

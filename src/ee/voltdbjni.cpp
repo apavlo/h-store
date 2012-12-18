@@ -72,15 +72,16 @@
 #include <mach/mach.h>
 #endif // MACOSX
 
+// Print an error if trying to compile on 32-bit systemes.
 #ifdef LINUX
 #if __SIZEOF_POINTER__ == 4
-#error VoltDB server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
-#endif
+#error H-Store server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
+#endif // __SIZEOF_POINTER__ == 4
 #else
 #ifndef __x86_64
-#error VoltDB server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
-#endif
-#endif
+#error H-Store server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
+#endif // __x86_64
+#endif // LINUX
 
 //#include <google/profiler.h>
 
