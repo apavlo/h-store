@@ -1045,6 +1045,7 @@ TEST CASES
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestMapReduceTransactionSuite.class" />
                 <exclude name="**/TestPrefetchableSuite.class" />
+                <exclude name="**/TestWikipediaSuite.class" />
                 
                 <!-- Tests that use too much memory -->
                 <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
@@ -1132,6 +1133,7 @@ TEST CASES
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestMapReduceTransactionSuite.class" />
                 <exclude name="**/TestPrefetchableSuite.class" />
+                <exclude name="**/TestWikipediaSuite.class" />
 
                 <!-- Tests that use too much memory -->
                 <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
@@ -1209,6 +1211,7 @@ TEST CASES
                     <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                     <exclude name="**/TestMapReduceTransactionSuite.class" />
                     <exclude name="**/TestPrefetchableSuite.class" />
+                    <exclude name="**/TestWikipediaSuite.class" />
                 </fileset>
             </tests>
         </run_junit>
