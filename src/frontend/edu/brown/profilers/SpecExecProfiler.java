@@ -7,12 +7,12 @@ public class SpecExecProfiler extends AbstractProfiler {
     /**
      * The total amount time spent in SpecExecScheduler.next()
      */
-    public final ProfileMeasurement total_time = new ProfileMeasurement("TOTAL");
+    public final ProfileMeasurement total_time = new ProfileMeasurement("TOTAL_TIME");
     
     /**
      * The amount of time spent performing the conflict calculations
      */
-    public final ProfileMeasurement compute_time = new ProfileMeasurement("COMPUTE");
+    public final ProfileMeasurement compute_time = new ProfileMeasurement("COMPUTE_TIME");
     
     /**
      * The current queue size when SpecExecScheduler.next() is invoked
