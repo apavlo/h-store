@@ -1518,6 +1518,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 }
             }
         }
+        // Make sure that it's at least as big as the last one handed out
+        if (undoToken < this.lastUndoToken) undoToken = this.lastUndoToken;
+        
         return (undoToken);
     }
     
