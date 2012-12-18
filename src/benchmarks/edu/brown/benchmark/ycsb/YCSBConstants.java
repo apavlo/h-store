@@ -31,8 +31,8 @@ package edu.brown.benchmark.ycsb;
 
 public abstract class YCSBConstants {
 
-	public static final int NUM_RECORDS = 2684354; // 128 MB
-	//public static final int NUM_RECORDS = 5368709; // 256 MB
+	//public static final int NUM_RECORDS = 2684354; // 128 MB
+	public static final int NUM_RECORDS = 5368709; // 256 MB
 	//public static final int NUM_RECORDS = 41943; // 2 MB
 	//public static final int NUM_RECORDS = 21474836; // 1 GB
 
@@ -54,7 +54,6 @@ public abstract class YCSBConstants {
 	// Transaction frequencies as specified in YCSB
 	public static final int FREQUENCY_INSERT_RECORD = 0; 
 	public static final int FREQUENCY_DELETE_RECORD = 0;
-	//public static final int FREQUENCY_READ_MODIFY_WRITE_RECORD = 0;
 	public static final int FREQUENCY_READ_RECORD = 100;
 	public static final int FREQUENCY_SCAN_RECORD = 0;
 	public static final int FREQUENCY_UPDATE_RECORD = 0;

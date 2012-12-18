@@ -109,7 +109,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
     
     if(!is_insert)  // this is an update, so we have to remove the previous entry in the chain
     {
-		VOLT_INFO("Updating a tuple in the chain."); 
+		//VOLT_INFO("Updating a tuple in the chain."); 
 		
         assert(table->getNumTuplesInEvictionChain() > 0); 
         
@@ -122,7 +122,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
     
     if(table->getNumTuplesInEvictionChain() == 0) // this is the first tuple in the chain
     {
-		VOLT_INFO("Inserting the first tuple into the chain."); 
+		//VOLT_INFO("Inserting the first tuple into the chain."); 
 
 	
         table->setNewestTupleID(current_tuple_id); 
@@ -147,9 +147,9 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
     ++tuples_in_chain; 
     table->setNumTuplesInEvictionChain(tuples_in_chain); 
 
-	VOLT_INFO("tuples in eviction chain: %d", tuples_in_chain); 
-	VOLT_INFO("newest tuple in chain: %d", table->getNewestTupleID());
-	VOLT_INFO("oldest tuple in the chain: %d", table->getOldestTupleID());
+	//VOLT_INFO("tuples in eviction chain: %d", tuples_in_chain); 
+	//VOLT_INFO("newest tuple in chain: %d", table->getNewestTupleID());
+	//VOLT_INFO("oldest tuple in the chain: %d", table->getOldestTupleID());
     
     return true; 
 }

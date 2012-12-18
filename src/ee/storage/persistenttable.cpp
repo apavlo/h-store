@@ -229,7 +229,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 	    eviction_manager->removeTuple(this, &tuple);
 
 
-        VOLT_INFO("Evicting Tuple: %s", tuple.debug(name()).c_str());
+        VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
         
 		
         // If this is the first tuple, then we need to allocate all of the memory and
@@ -245,7 +245,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 		int tuple_id = (int)peeker.peekInteger(tuple.getNValue(0));
 		
 		
-		if(tuple_id < 20000)
+		if(tuple_id < 2684354)
 			continue; 
 			
 			

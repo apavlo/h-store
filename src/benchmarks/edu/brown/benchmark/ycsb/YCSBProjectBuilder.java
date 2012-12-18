@@ -61,7 +61,6 @@ public class YCSBProjectBuilder extends AbstractProjectBuilder {
     {
         addTransactionFrequency(InsertRecord.class, YCSBConstants.FREQUENCY_INSERT_RECORD);
         addTransactionFrequency(DeleteRecord.class, YCSBConstants.FREQUENCY_DELETE_RECORD);
-        // addTransactionFrequency(DeleteRecord.class, YCSBConstants.FREQUENCY_READ_MODIFY_WRITE_RECORD);
         addTransactionFrequency(ReadRecord.class, YCSBConstants.FREQUENCY_READ_RECORD);
         addTransactionFrequency(ScanRecord.class, YCSBConstants.FREQUENCY_SCAN_RECORD);
         addTransactionFrequency(UpdateRecord.class, YCSBConstants.FREQUENCY_UPDATE_RECORD);

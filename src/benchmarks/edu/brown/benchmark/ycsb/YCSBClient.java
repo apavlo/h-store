@@ -61,7 +61,7 @@ public class YCSBClient extends BenchmarkComponent {
     
 	private CustomSkewGenerator readRecord; 
 	//private ZipfianGenerator readRecord;
-    private static CounterGenerator insertRecord;
+    private  CustomSkewGenerator insertRecord;
     private ZipfianGenerator randScan;
 	
 	private List<String> value_list; 
@@ -93,23 +93,29 @@ public class YCSBClient extends BenchmarkComponent {
 		rand_gen = new Random(); 
 		
 		int init_record_count = YCSBConstants.NUM_RECORDS;  
-		
-		// initialize distribution generators 
-		readRecord = new CustomSkewGenerator(init_record_count, 
-											YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
-											YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE); 
-		
+	
         randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
 		
 		value_list = new LinkedList<String>(); 
 		
+		// initialize distribution generators 
 		synchronized (YCSBClient.class) {
             // We must know where to start inserting
-            if (insertRecord == null) {
-                insertRecord = new CounterGenerator(init_record_count);
+            if (insertRecord == null) 
+{
+				insertRecord = new CustomSkewGenerator(init_record_count, 
+													YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+													YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+
             }
+
+			if(readRecord == null)
+			{
+				readRecord = new CustomSkewGenerator(init_record_count, 
+													YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+													YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+			}
 		}  // end SYNC
-        
         
         zipf_histogram = new Histogram<Integer>(); 
 		
@@ -129,9 +135,7 @@ public class YCSBClient extends BenchmarkComponent {
 		INSERT_RECORD("Insert Record", YCSBConstants.FREQUENCY_INSERT_RECORD),
 		
 		DELETE_RECORD("Delete Record", YCSBConstants.FREQUENCY_DELETE_RECORD), 
-		
-		// READ_MODIFY_WRITE_RECORD("read Modify Write Record", YCSBConstants.FREQUENCY_READ_MODIFY_WRITE_RECORD), 
-		
+				
 		READ_RECORD("Read Record", YCSBConstants.FREQUENCY_READ_RECORD), 
 		
 		SCAN_RECORD("Scan Record", YCSBConstants.FREQUENCY_SCAN_RECORD), 
@@ -168,8 +172,6 @@ public class YCSBClient extends BenchmarkComponent {
 				
 				runOnce(); 
             } 
-            
-            
         } 
 		catch (IOException e) {
             
@@ -190,17 +192,8 @@ public class YCSBClient extends BenchmarkComponent {
 		String procName = target.callName; 
 		
 		int key = 0; 
-		int scan_count = 0; 
-        
-		/*
-        transaction_count++; 
-        
-        if(transaction_count % 5000 == 0)
-        {
-            LOG.info("Zipfian distribution histogram: \n" + zipf_histogram.toString()); 
-        }
-		 */
-		
+		int scan_count = 0;
+        				
 		if (procName.equals("DeleteRecord")) {
 			
 			procParams = new Object[1]; 
@@ -217,28 +210,22 @@ public class YCSBClient extends BenchmarkComponent {
 			for(int i = 0; i < 10; i++)
 				procParams[i+1] = values.get(i); 			
 		} 
-		else if (procName.equals("ReadModifyWriteRecord")) {
-			
-			procParams = new Object[11]; 
-			
-			key = readRecord.nextInt(); 
-			List<String> values = buildValues(10); 
-		} 
 		else if (procName.equals("ReadRecord")) {
-			
+						
 			procParams = new Object[1]; 
 			
 			key = readRecord.nextInt(); 
+						
 		} 
 		else if (procName.equals("ScanRecord")) {
-			
+						
 			procParams = new Object[1]; 
 			
 			key = readRecord.nextInt(); 
 			scan_count = randScan.nextInt(); 
 		} 
 		else if (procName.equals("UpdateRecord")) {
-			
+						
 			procParams = new Object[11]; 
 			
 			key = readRecord.nextInt(); 
@@ -252,19 +239,6 @@ public class YCSBClient extends BenchmarkComponent {
 			procParams = new Object[1]; 
 			key = readRecord.nextInt();
 		}
-		
-		key = readRecord.nextInt(); 
-		
-	 	//System.out.println("key = " + key);
-	
-		//LOG.info("key = " + key); 
-        
-        //zipf_histogram.put(new Integer(key)); 
-
-		//if(key != 0)
-		//	System.out.println("key = " + key); 
-		
-		procParams[0] = key; 
 		
 		try 
 		{
@@ -305,6 +279,7 @@ public class YCSBClient extends BenchmarkComponent {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
             incrementTransactionCounter(clientResponse, this.idx);
+
         }
     } // END CLASS
 
