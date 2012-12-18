@@ -136,12 +136,13 @@ public abstract class MathUtil {
     
     public static <T extends Number> double weightedMean(Histogram<T> h) {
         double values[] = new double[h.getValueCount()];
-        double weights[] = new double[h.getValueCount()];
+        double weights[] = new double[values.length];
         int i = 0;
         for (T val : h.values()) {
             values[i] = val.doubleValue();
             weights[i] = h.get(val, 0l); 
             i++;
+            if (i >= values.length) break; // HACK
         } // FOR
         return (MathUtil.weightedMean(values, weights));
     }
