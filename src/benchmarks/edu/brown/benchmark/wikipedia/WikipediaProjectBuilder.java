@@ -50,17 +50,14 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
         UpdatePage.class,
     };
     
-    /**
-     * FIXME how the schemas are partitioned...
-     */
     public static final String PARTITIONING[][] = new String[][] {
-        { WikipediaConstants.TABLENAME_LOGGING, "log_id" },
+        { WikipediaConstants.TABLENAME_LOGGING, "log_page" },
         { WikipediaConstants.TABLENAME_PAGE, "page_id" },
         { WikipediaConstants.TABLENAME_PAGE_RESTRICTIONS, "pr_page" },
         { WikipediaConstants.TABLENAME_RECENTCHANGES, "rc_page" },
         { WikipediaConstants.TABLENAME_REVISION, "rev_page" },
         { WikipediaConstants.TABLENAME_TEXT, "old_page" },
-        { WikipediaConstants.TABLENAME_WATCHLIST, "wl_user" },
+        { WikipediaConstants.TABLENAME_WATCHLIST, "wl_page" },
         { WikipediaConstants.TABLENAME_USER, "user_id" },
         { WikipediaConstants.TABLENAME_USER_GROUPS, "ug_user" }
     };
@@ -85,13 +82,5 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
 //                " WHERE rev_id = page_latest LIMIT 1"
 //                );
     }
-    
-//    public void addDefaultProcedures() {
-//        addProcedures(PROCEDURES);
-//    }
-//    
-//    public void addDefaultSchema() {
-//        addSchema(this.getDDLURL(true));
-//    }
 
 }

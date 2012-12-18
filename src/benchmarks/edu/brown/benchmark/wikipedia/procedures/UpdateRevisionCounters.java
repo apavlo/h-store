@@ -1,6 +1,5 @@
 package edu.brown.benchmark.wikipedia.procedures;
 
-import org.apache.log4j.Logger;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -14,7 +13,6 @@ import edu.brown.benchmark.wikipedia.WikipediaConstants;
  * @author pavlo
  */
 public class UpdateRevisionCounters extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(UpdateRevisionCounters.class);
     
     public final SQLStmt updateUser = new SQLStmt(
             "UPDATE " + WikipediaConstants.TABLENAME_USER + 
@@ -44,7 +42,6 @@ public class UpdateRevisionCounters extends VoltProcedure {
     public VoltTable run(int user_revision_ctr[], int num_pages, int page_last_rev_id[], int page_last_rev_length[]) {
         final TimestampType timestamp = new TimestampType();
         final int batch_size = voltRemainingQueue();
-        LOG.info("voltRemainingQueue for updateUser:" + batch_size);
         int ctr = 0;
         for (int i = 0; i < user_revision_ctr.length; i++) {
             voltQueueSQL(updateUser, user_revision_ctr[i], 
@@ -59,7 +56,6 @@ public class UpdateRevisionCounters extends VoltProcedure {
         }
         if (ctr > 0) voltExecuteSQL();
         
-        LOG.info("voltRemainingQueue for updatePage:" + batch_size);
         ctr = 0;
         for (int i = 0; i < num_pages; i++) {
             if (page_last_rev_id[i] == -1) continue;

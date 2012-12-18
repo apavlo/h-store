@@ -29,14 +29,16 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
 @ProcInfo(
-    partitionInfo = "USERACCT.USER_ID: 0",
+    partitionInfo = "PAGE.USER_ID: 0",
     singlePartition = true
 )
 public class RemoveWatchList extends VoltProcedure {
 	
 	public SQLStmt removeWatchList = new SQLStmt(
         "DELETE FROM " + WikipediaConstants.TABLENAME_WATCHLIST +
-        " WHERE wl_user = ? AND wl_namespace = ? AND wl_page = ?"
+        " WHERE wl_user = ? " +
+        "   AND wl_namespace = ? " +
+        "   AND wl_page = ?"
     );
     public SQLStmt setUserTouched = new SQLStmt(
         "UPDATE " + WikipediaConstants.TABLENAME_USER +
