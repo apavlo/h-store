@@ -131,13 +131,6 @@
     </else>
 </if>
 
-<!-- JAVA/JAVAC VERSION -->
-<condition property="global.jvm_version" value="1.7">
-    <not>
-        <isset property="global.jvm_version"/>
-    </not>
-</condition>
-
 <!--
 ******************************************************************************
 ** BENCHMARK CONFIGURATION
@@ -267,9 +260,16 @@ ENVIRONMENT SETUP
 ******************************************************************************
 -->
 
-<target name="getcpus" description="Get the number of CPUs on this machine"
-                       unless="numcpus">
+<target name="getcpus"
+        description="Get the number of CPUs on this machine"
+        unless="numcpus">
     <exec executable="${tools.dir}/getcpus.py" outputproperty="numcpus" />
+</target>
+
+<target name="getjava"
+        description="Get local Java version"
+        unless="global.jvm_version">
+    <exec executable="${tools.dir}/getjava.py" outputproperty="global.jvm_version" />
 </target>
 
 <!--<target name="default_properties.check">
@@ -517,7 +517,7 @@ JAVA COMPILATION
 ******************************************************************************
 -->
 
-<target name="compile">
+<target name="compile" depends="getjava">
     <mkdir dir='${build.prod.dir}' />
     <mkdir dir='${build.benchmarks.dir}' />
     <mkdir dir='${build.test.dir}' />
@@ -1623,7 +1623,7 @@ TEST CASES
 </target>
 
 <target name="protobuf.compile" description="Builds the protocol buffer compiler"
-                                depends="protobuf.protoc.check, getcpus"
+                                depends="protobuf.protoc.check, getcpus, getjava"
                                 unless="protobuf.protoc.built">
     <mkdir dir="${build.protobuf.dir}" />
     <exec executable="${src.protobuf.dir}/configure" dir="${build.protobuf.dir}" failonerror="true"  resolveexecutable="true">
@@ -1642,7 +1642,7 @@ TEST CASES
 </target>
 
 <target name="protobuf.java" description="Generates require protocol buffer for Java"
-                             depends="protobuf.compile, protobuf.java.check"
+                             depends="getjava, protobuf.compile, protobuf.java.check"
                              unless="protobuf.java.built" >
     <!-- Generate the required protocol buffers for the Java build -->
     <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${src.protorpc.dir}">
@@ -1658,7 +1658,7 @@ TEST CASES
 </target>
 
 <target name="protorpc.java" description="Generates ProtoRPC files"
-                        depends="protobuf.java, protorpc.java.check"
+                        depends="getjava, protobuf.java, protorpc.java.check"
                         unless="protorpc.built">
     <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${src.protorpc.dir}">
         <fileset dir="${src.protorpc.dir}">
@@ -1667,7 +1667,7 @@ TEST CASES
     </ProtobufGenerateJava>
 </target>
 
-<target name="protorpc" description=""> <!-- depends="protobuf.java,protobuf.compile">-->
+<target name="protorpc" description="" depends="getjava"> <!-- depends="protobuf.java,protobuf.compile">-->
     <mkdir dir='${build.prod.dir}' />
     <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${src.protorpc.dir}" destdir="${build.prod.dir}">
         <classpath refid="project.classpath"/>
@@ -2413,7 +2413,7 @@ UTILITIES
         <delete includeemptydirs="true" dir="${build.test.dir}/edu/brown/oltpgenerator" />
 </target>
 
-<target name="oltpgen.compile" depends="oltpgen.clean, compile">
+<target name="oltpgen.compile" depends="getjava, oltpgen.clean, compile">
         <javac includeantruntime="false"
                 source="${global.jvm_version}"
                 target="${global.jvm_version}"
