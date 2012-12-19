@@ -308,6 +308,57 @@ public class RandomDistribution {
         }
     }
 
+	public static class HotWarmCold extends DiscreteRNG {
+		
+		int hot_data_access_skew; 
+		int warm_data_access_skew; 
+		int hot_data_size; 
+		int warm_data_size; 
+
+		// the max of the hot/warm/cold ranges, where hot_data_max < warm_data_max < max
+		int max; 
+		int hot_data_max; 	// integers in the range 0 < x < hot_data_max will represent the "hot" numbers getting hot_data_access_skew% of the accesses 
+		int warm_data_max;  // integers in the range hot_data_max < x < warm_data_max will represent the "warm" numbers
+		
+		public HotWarmCold(Random r, int _max, int _hot_data_access_skew, int _hot_data_size, int _warm_data_access_skew, int _warm_data_size) {
+			super(r, 0, _max); 
+			
+			assert(_hot_data_access_skew + _warm_data_access_skew <= 100) : "Workload skew cannot be more than 100%."; 
+
+			hot_data_access_skew = _hot_data_access_skew; 
+			warm_data_access_skew = _warm_data_access_skew; 
+			hot_data_size = _hot_data_size; 
+			warm_data_size = _warm_data_size;
+
+			max = _max;  
+
+			hot_data_max = (int)(max * (hot_data_size / (double)100)); 
+			warm_data_max = (int)(max * (warm_data_size / (double)100)) + hot_data_max; 
+		}
+		
+		@Override
+        protected long nextLongImpl()
+		{
+			int key = 0; 
+			int access_skew_rand = random.nextInt(100); 
+
+			if(access_skew_rand < hot_data_access_skew)  // generate a number in the "hot" data range, 0 < x < hot_data_max
+			{
+				key = random.nextInt(hot_data_max); 
+			}
+			else if(access_skew_rand < hot_data_access_skew + warm_data_access_skew) // generate a key in the "warm" data range, hot_data_max < x < warm_data_max
+			{
+				key = random.nextInt(warm_data_max - hot_data_max + 1) + hot_data_max; 
+			}
+			else  // generate a number in the "cold" data range, warm_data_max < x < max
+			{
+				key = random.nextInt(max - warm_data_max + 1) + warm_data_max; 
+			}
+
+			return key; 
+		}
+	}
+
     /**
      * Zipf distribution. The ratio of the probabilities of integer i and j is
      * defined as follows: P(i)/P(j)=((j-min+1)/(i-min+1))^sigma.
