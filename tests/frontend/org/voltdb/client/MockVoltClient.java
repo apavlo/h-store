@@ -53,11 +53,7 @@ package org.voltdb.client;
 import java.io.IOException;
 import java.net.UnknownHostException;
 
-import org.voltdb.client.Client;
-import org.voltdb.client.ClientStatusListener;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcedureCallback;
-import org.voltdb.client.ProcCallException;
+import org.voltdb.ClientResponseDebug;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.Status;
@@ -173,6 +169,17 @@ public class MockVoltClient implements Client {
                 // TODO Auto-generated method stub
                 
             }
+
+            @Override
+            public boolean hasDebug() {
+                // TODO Auto-generated method stub
+                return false;
+            }
+
+            public ClientResponseDebug getDebug() {
+                // TODO Auto-generated method stub
+                return null;
+            }
         };
     }
 
@@ -196,6 +203,12 @@ public class MockVoltClient implements Client {
         return false;
     }
 
+    @Override
+    public void createConnection(String host, int port) throws UnknownHostException, IOException {
+        // TODO Auto-generated method stub
+        
+    }
+    
     @Override
     public void createConnection(Integer siteId, String host, int port, String program, String password)
             throws UnknownHostException, IOException {

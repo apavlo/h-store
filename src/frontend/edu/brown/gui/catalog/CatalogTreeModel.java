@@ -18,6 +18,8 @@ import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ConflictPair;
+import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -32,10 +34,13 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.types.ConflictType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * 
@@ -43,13 +48,16 @@ import edu.brown.utils.CollectionUtil;
  *
  */
 public class CatalogTreeModel extends DefaultTreeModel {
-    private static final Logger LOG = Logger.getLogger(CatalogTreeModel.class.getName());
+    private static final Logger LOG = Logger.getLogger(CatalogTreeModel.class);
     
     private static final long serialVersionUID = 1L;
     private final Catalog catalog;
 
     protected DefaultMutableTreeNode procedures_node;
     protected DefaultMutableTreeNode tables_node;
+    protected ProcedureConflictGraphNode conflictgraph_node;
+    
+    protected final Set<Procedure> conflictGraphExcludes = new HashSet<Procedure>(); 
     
     // ----------------------------------------------
     // SEARCH INDEXES
@@ -58,9 +66,25 @@ public class CatalogTreeModel extends DefaultTreeModel {
     protected final Map<String, Set<DefaultMutableTreeNode>> name_node_xref = new HashMap<String, Set<DefaultMutableTreeNode>>();
     protected final Map<Integer, Set<DefaultMutableTreeNode>> plannode_node_xref = new HashMap<Integer, Set<DefaultMutableTreeNode>>();
     
-    public CatalogTreeModel(Catalog catalog, String catalog_path) {
+    public CatalogTreeModel(ArgumentsParser args, Catalog catalog, String catalog_path) {
         super(new DefaultMutableTreeNode(catalog.getName() + " [" + catalog_path + "]"));
         this.catalog = catalog;
+        
+        // Procedures to exclude in Conflict Graph
+        if (args.hasParam(ArgumentsParser.PARAM_CONFLICTS_EXCLUDE_PROCEDURES)) {
+            String param = args.getParam(ArgumentsParser.PARAM_CONFLICTS_EXCLUDE_PROCEDURES);
+            Database catalog_db = CatalogUtil.getDatabase(this.catalog);
+            for (String procName : param.split(",")) {
+                Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
+                if (catalog_proc != null) {
+                    this.conflictGraphExcludes.add(catalog_proc);
+                } else {
+                    LOG.warn("Invalid procedure name to exclude '" + procName + "'");
+                }
+            } // FOR
+            LOG.debug("Excluded ConflictGraph Procedures: " + this.conflictGraphExcludes);
+        }
+        
         this.buildModel();
     }
     
@@ -74,6 +98,10 @@ public class CatalogTreeModel extends DefaultTreeModel {
         return this.name_node_xref;
     }
     
+    
+    public ProcedureConflictGraphNode getProcedureConflictGraphNode() {
+        return (this.conflictgraph_node);
+    }
     
     /**
      * @return the procedures_node
@@ -251,10 +279,14 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 database_node.add(procedures_node);
                 
                 // Conflicts Graph
-                DefaultMutableTreeNode conflictNode = new DefaultMutableTreeNode(new ProcedureConflictGraphNode(procs));
-                procedures_node.add(conflictNode);
+                // Remove anything that should be excluded
+                Set<Procedure> conflictProcs = new HashSet<Procedure>(procs);
+                conflictProcs.removeAll(this.conflictGraphExcludes);
+                this.conflictgraph_node = new ProcedureConflictGraphNode(conflictProcs);
+                DefaultMutableTreeNode conflictNode = new DefaultMutableTreeNode(this.conflictgraph_node);
+                this.procedures_node.add(conflictNode);
                 
-                this.buildProceduresTree(procedures_node, procs);
+                this.buildProceduresTree(this.procedures_node, procs);
                 
             } // FOR (databases)
             
@@ -384,7 +416,6 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     DefaultMutableTreeNode columnRootNode = new DefaultMutableTreeNode("Output Columns");
                     statement_node.add(columnRootNode);
                     for (Column column_cat : statement_cat.getOutput_columns()) {
-                        
                         DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
                             @Override
                             public String toString() {
@@ -397,14 +428,46 @@ public class CatalogTreeModel extends DefaultTreeModel {
                         buildSearchIndex(column_cat, column_node);
                     } // FOR (output columns)
                 } // FOR (statements)
-            }
             
-            // Conflicts
-            if (catalog_proc.getConflicts().isEmpty() == false) {
-                DefaultMutableTreeNode conflictRootNode = new CatalogMapTreeNode("Conflicts", catalog_proc.getConflicts());
-                procNode.add(conflictRootNode);
-                
+                // Conflicts
+                if (catalog_proc.getConflicts().isEmpty() == false) {
+                    DefaultMutableTreeNode conflictRootNode = new CatalogMapTreeNode("Conflicts", catalog_proc.getConflicts());
+                    procNode.add(conflictRootNode);
+                    Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
+                    
+                    for (ConflictSet conflicts : catalog_proc.getConflicts()) {
+                        final Procedure other = catalog_db.getProcedures().getIgnoreCase(conflicts.getName());
+                        assert(other != null) : "Invalid conflict procedure name '" + conflicts.getName() + "'";
+                        String attrText = "";
+                        
+                        // READ-WRITE CONFLICTS
+                        attrText += this.formatConflictSet(conflicts.getReadwriteconflicts().values(), ConflictType.READ_WRITE);
+                        
+                        // WRITE-WRITE CONFLICTS
+                        attrText += this.formatConflictSet(conflicts.getWritewriteconflicts().values(), ConflictType.WRITE_WRITE);
+
+                        AttributesNode conflict_node = new AttributesNode(other.getName(), attrText);
+                        conflictRootNode.add(new DefaultMutableTreeNode(conflict_node));
+                    } // FOR
+                } // SYSPROC
             }
         } // FOR (procedures)
+    }
+    
+    private String formatConflictSet(ConflictPair conflicts[], ConflictType conflictType) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(StringUtil.header(conflictType.name().toUpperCase() + " CONFLICTS")).append("\n");
+        if (conflicts.length == 0) {
+            sb.append("<NONE>\n\n");
+        } else {
+            int ctr = 0;
+            for (ConflictPair cp : conflicts) {
+                sb.append(String.format("[%02d] %s -> %s\n", ctr++, cp.getStatement0().fullName(), cp.getStatement1().fullName()));
+                sb.append(String.format("     Always Conflict: %s\n", cp.getAlwaysconflicting()));
+                sb.append(String.format("     Tables: %s\n", CatalogUtil.getDisplayNames(CatalogUtil.getTablesFromRefs(cp.getTables()))));
+                sb.append("\n");
+            } // FOR
+        }
+        return (sb.toString());
     }
 }

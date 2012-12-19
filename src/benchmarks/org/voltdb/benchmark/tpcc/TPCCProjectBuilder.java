@@ -72,11 +72,11 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         LoadWarehouse.class,
         LoadWarehouseReplicated.class,
         GetTableCounts.class,
-        MRquery1.class,
-        //MRquery3.class,
-        MRquery6.class,
-        MRquery12.class,
-        MRqueryJoinAgg.class,
+//        MRquery1.class,
+//        //MRquery3.class,
+//        MRquery6.class,
+//        MRquery12.class,
+//        MRqueryJoinAgg.class,
     };
     
     // Transaction Frequencies
@@ -112,13 +112,13 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         super("tpcc", TPCCProjectBuilder.class, PROCEDURES, partitioning);
         
         // MapReduce OLAP Experimental Queries
-        addStmtProcedure("OLAPQuery1",
-                         "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
-                         "       AVG(ol_quantity), AVG(ol_amount), COUNT(*) " +
-                         " FROM ORDER_LINE " +
-                         " WHERE ol_delivery_d > '2007-01-02 00:00:00.000000'" + // "The data can be"
-                         " GROUP BY ol_number " +
-                         " ORDER BY ol_number");
+//        addStmtProcedure("OLAPQuery1",
+//                         "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
+//                         "       AVG(ol_quantity), AVG(ol_amount), COUNT(*) " +
+//                         " FROM ORDER_LINE " +
+//                         " WHERE ol_delivery_d > '2007-01-02 00:00:00.000000'" + // "The data can be"
+//                         " GROUP BY ol_number " +
+//                         " ORDER BY ol_number");
         
 //        addStmtProcedure("OLAPQuery3",
 //                "SELECT ol_o_id, ol_w_id, ol_d_id, SUM(ol_amount) as revenue, o_entry_d " +
@@ -138,21 +138,21 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
 //                //" ORDER BY revenue desc, o_entry_d"); // error: "ORDER BY with complex expressions not yet supported
 //                " ORDER BY o_entry_d");
         
-        addStmtProcedure("OLAPQuery6",
-                         "SELECT SUM(ol_amount) as revenue " +
-                         "FROM ORDER_LINE " +
-                         "WHERE ol_delivery_d >= '1999-01-01 00:00:00.000000' " +
-                                 "and ol_delivery_d < '2020-01-01 00:00:00.000000' " +
-                                 "and ol_quantity between 1 and 100000");
-        
-        addStmtProcedure("OLAPJoinAgg",
-                         "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
-                         "       SUM(i_price), AVG(ol_quantity), AVG(ol_amount), " +
-                         "       AVG(i_price), COUNT(*) " +
-                         "  FROM ORDER_LINE, ITEM " +
-                         " WHERE order_line.ol_i_id = item.i_id " +
-                         " GROUP BY ol_number " +
-                        "  ORDER BY ol_number");
+//        addStmtProcedure("OLAPQuery6",
+//                         "SELECT SUM(ol_amount) as revenue " +
+//                         "FROM ORDER_LINE " +
+//                         "WHERE ol_delivery_d >= '1999-01-01 00:00:00.000000' " +
+//                                 "and ol_delivery_d < '2020-01-01 00:00:00.000000' " +
+//                                 "and ol_quantity between 1 and 100000");
+//        
+//        addStmtProcedure("OLAPJoinAgg",
+//                         "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
+//                         "       SUM(i_price), AVG(ol_quantity), AVG(ol_amount), " +
+//                         "       AVG(i_price), COUNT(*) " +
+//                         "  FROM ORDER_LINE, ITEM " +
+//                         " WHERE order_line.ol_i_id = item.i_id " +
+//                         " GROUP BY ol_number " +
+//                        "  ORDER BY ol_number");
         
         // Helpers
         addStmtProcedure("GetWarehouse", "SELECT * FROM WAREHOUSE WHERE W_ID = ?");

@@ -72,7 +72,7 @@ public class UpdateCustomer extends VoltProcedure {
         " WHERE FF_C_ID = ?"
     );
             
-    public final SQLStmt UpdatFrequentFlyers = new SQLStmt(
+    public final SQLStmt UpdateFrequentFlyers = new SQLStmt(
         "UPDATE " + SEATSConstants.TABLENAME_FREQUENT_FLYER +
         "   SET FF_IATTR00 = ?, " +
         "       FF_IATTR01 = ? " +
@@ -118,12 +118,12 @@ public class UpdateCustomer extends VoltProcedure {
             assert(results.length == 1);
             while (ff_results[0].advanceRow()) {
                 long ff_al_id = ff_results[0].getLong(1); 
-                voltQueueSQL(UpdatFrequentFlyers, attr0, attr1, c_id, ff_al_id);
+                voltQueueSQL(UpdateFrequentFlyers, attr0, attr1, c_id, ff_al_id);
             } // WHILE
         }
         
         voltQueueSQL(UpdateCustomer, attr0, attr1, c_id);
-        results = voltExecuteSQL();
+        results = voltExecuteSQL(true);
         long updated = results[results.length - 1].asScalarLong();
         if (updated != 1) {
             String msg = String.format("Failed to update customer #%d - Updated %d records", c_id, updated);

@@ -39,6 +39,7 @@ import getopt
 import string
 import math
 import types
+import subprocess
 from datetime import datetime
 from pprint import pprint, pformat
 from types import *
@@ -88,9 +89,10 @@ OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 6
 OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
+OPT_GIT_BRANCH = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True).strip()
 
 DEFAULT_OPTIONS = {
-    "hstore.git_branch": "strangelove"
+    "hstore.git_branch": OPT_GIT_BRANCH
 }
 DEBUG_OPTIONS = {
     "site.status_enable":             True,
@@ -103,25 +105,29 @@ DEBUG_OPTIONS = {
 DEBUG_SITE_LOGGING = [
     "edu.brown.hstore.HStoreSite",
     "edu.brown.hstore.PartitionExecutor",
-    "edu.brown.hstore.TransactionQueueManager"
+    "edu.brown.hstore.TransactionQueueManager",
+    #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
+    #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
+    #"edu.brown.hstore.callbacks.TransactionInitCallback",
+    #"edu.brown.hstore.callbacks.TransactionInitQueueCallback",
+    #"edu.brown.hstore.callbacks.BlockingRpcCallback",
 ]
 DEBUG_CLIENT_LOGGING = [
-    "edu.brown.api.BenchmarkComponent",
-    "edu.brown.api.BenchmarkController",
+    #"edu.brown.api.BenchmarkComponent",
+    #"edu.brown.api.BenchmarkController",
+    "edu.brown.api.ControlPipe",
+    "edu.brown.api.ControlWorker",
+    #"org.voltdb.benchmark.tpcc.TPCCLoader",
 ]
 
 BASE_SETTINGS = {
-    "ec2.site_type":                    "m2.4xlarge",
+    "ec2.site_type":                    "c1.xlarge",
     "ec2.client_type":                  "c1.xlarge",
-    #"ec2.site_type":                    "m2.4xlarge",
-    #"ec2.client_type":                  "m1.large",
-    #"ec2.site_type":                    "m1.xlarge",
     "ec2.change_type":                  True,
-    "ec2.cluster_group":                "strangelove",
+    "ec2.cluster_group":                "conflictsets", # OPT_GIT_BRANCH,
     
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
-    "hstore.num_hosts_round_robin":     None,
 
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
@@ -130,7 +136,7 @@ BASE_SETTINGS = {
     "client.threads_per_host":          OPT_BASE_CLIENT_THREADS_PER_HOST,
     "client.interval":                  10000,
     "client.skewfactor":                -1,
-    "client.duration":                  120000,
+    "client.duration":                  300000,
     "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
@@ -142,22 +148,18 @@ BASE_SETTINGS = {
     "site.status_enable":                       False,
     "site.status_show_thread_info":             False,
     "site.status_show_executor_info":           False,
-    "site.txn_incoming_delay":                  10,
     "site.coordinator_init_thread":             False,
     "site.coordinator_finish_thread":           False,
     "site.txn_restart_limit":                   5,
     "site.txn_restart_limit_sysproc":           100,
     "site.exec_force_singlepartitioned":        True,
-    "site.memory":                              61440,
-    "site.queue_incoming_max_per_partition":    150,
-    "site.queue_incoming_release_factor":       0.90,
-    "site.queue_incoming_increase":             10,
-    "site.queue_dtxn_max_per_partition":        1000,
-    "site.queue_dtxn_release_factor":           0.90,
-    "site.queue_dtxn_increase":                 0,
+    "site.memory":                              6144,
     "site.exec_db2_redirects":                  False,
     "site.cpu_affinity":                        True,
     "site.cpu_affinity_one_partition_per_core": True,
+    
+    "site.txn_incoming_delay":                  5,
+    "site.network_incoming_max_per_partition":  400,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -171,11 +173,7 @@ EXPERIMENT_SETTINGS = {
         #"ec2.cluster_group":                    "hstore-hvm",
         #"hstore.partitions_per_site":           64,
         
-        "ec2.site_type":                       "c1.xlarge",
-        "site.memory":                          6144,
-        "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 False,
-        "site.specexec_idle":                   False,
         "site.markov_enable":                   False,
         "site.markov_fixed":                    True,
         "site.exec_force_singlepartitioned":    False,
@@ -198,26 +196,72 @@ EXPERIMENT_SETTINGS = {
         "benchmark.loadthread_per_warehouse":   False,
     },
     "remotequery": {
-        "ec2.site_type":                       "c1.xlarge",
-        "site.memory":                          6144,
-        "site.txn_incoming_delay":              2,
         "site.specexec_enable":                 False,
-        "site.specexec_idle":                   False,
+        "site.specexec_nonblocking":            True,
         "site.markov_enable":                   False,
         "site.markov_fixed":                    True,
         "site.exec_force_singlepartitioned":    False,
         "client.count":                         1,
         "client.txnrate":                       100000,
         "client.blocking":                      True,
+        "client.output_exec_profiling":         "execprofile.csv",
+        # "client.output_txn_profiling":          "txnprofile.csv",
+        # "client.output_txn_profiling_combine":  True,
+    },
+    "prefetchquery": {
+        "site.exec_prefetch_queries":           True,
+        "site.specexec_enable":                 False,
+        "site.specexec_nonblocking":            False,
+        "site.markov_enable":                   True,
+        "site.txn_client_debug":                False,
+        "site.markov_fixed":                    False,
+        "site.exec_force_singlepartitioned":    False,
+        "site.exec_voltdb_procinfo":            False,
+        "client.txn_hints":                     False,
+        "client.count":                         1,
+        "client.txnrate":                       100000,
+        "client.blocking":                      True,
+        "client.output_txn_counters":           "txncounters.csv",
+        "client.output_txn_counters_combine":   True,
+    },
+    "onepartition": {
+        "site.exec_force_singlepartitioned":    True,
+        "client.count":                         1,
+        "client.txnrate":                       100000,
+        "client.blocking":                      True,
         "client.output_txn_profiling":          "txnprofile.csv",
-        "client.output_txn_profiling_combine":  True,
-        
-        #"benchmark.neworder_multip_mix":        100,
-        #"benchmark.payment_multip_mix":         100,
+    },
+    "specexec": {
+        "site.specexec_enable":                 True,
+        "site.specexec_markov":                 False,
+        "site.markov_enable":                   True,
+        "site.markov_singlep_updates":          False,
+        "site.markov_dtxn_updates":             False,
+        "site.markov_path_caching":             True,
+        "site.markov_endpoint_caching":         False,
+        "site.markov_fixed":                    True,
+        "site.exec_force_singlepartitioned":    False,
+        "client.count":                         1,
+        "client.output_specexec":               True,
+        "client.txnrate":                       1000, # 1500,
+        "client.output_response_status":        True,
+        "client.output_basepartitions":         False,
+        "client.output_txn_counters":           "txncounters.csv",
+        "client.output_txn_counters_combine":   True,
+        "client.output_specexec_profiling":     "specexec.csv",
+        "client.output_exec_profiling":         "executor.csv",
+        "benchmark.warehouse_pairing":          False,
+        "benchmark.loadthread_per_warehouse":   False,
     },
 }
 EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
 
+EXPERIMENT_SETTINGS['specexec-base'] = dict(EXPERIMENT_SETTINGS['specexec'].items())
+for k, v in EXPERIMENT_SETTINGS['specexec-base'].iteritems():
+    if isinstance(v, bool) and (k.startswith("site.markov_") or k.startswith("site.specexec_")):
+        EXPERIMENT_SETTINGS['specexec-base'][k] = False
+## FOR
+EXPERIMENT_SETTINGS['specexec-base']["site.exec_force_singlepartitioned"] = True
 
 ## ==============================================
 ## updateEnv
@@ -252,17 +296,55 @@ def updateEnv(args, env, benchmark, partitions):
         
         if benchmark == "tpcc":
             env["client.weights"] = "neworder:50,paymentByCustomerId:50,*:0"
+            env["benchmark.neworder_multip_mix"] = 100
+            env["benchmark.payment_multip_mix"] = 100
+            
+        elif benchmark == "tm1":
+            env["client.weights"] = "DeleteCallForwarding:33,InsertCallForwarding:33,UpdateLocation:34,*:0"
+        elif benchmark == "seats":
+            env["client.weights"] = ""
+        else:
+            env["client.weights"] = ""
+    ## ----------------------------------------------
+    ## ONE PARTITION EXPERIMENTS
+    ## ----------------------------------------------
+    elif args['exp_type'].startswith("onepartition"):
+        pass
+
+    ## ----------------------------------------------
+    ## SPECEXEC EXPERIMENTS
+    ## ----------------------------------------------
+    elif args['exp_type'].startswith("specexec"):
+        if benchmark == "tpcc":
+            markov = "%s-%dp.markov.gz" % (benchmark, partitions)
+        else:
+            markov = "%s.markov.gz" % (benchmark)
+        # env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
+        env["client.threads_per_host"] = int(partitions*2)
+        env["benchmark.loadthreads"] = min(16, partitions)
         
-    pplan = "%s.lns.pplan" % benchmark
-    env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
-    env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"
-        
+    #pplan = "%s.lns.pplan" % benchmark
+    #env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+    #env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"
+## DEF
+
+## ==============================================
+## getCSVOutput
+## ==============================================
+def getCSVOutput(args, env, benchmark, partitions):
+    """Find all of the output parameters in the env and retrieve the files from the cluster"""
+    for k,v in env.iteritems():
+        if k.startswith("client.output_"):
+            LOG.debug("Checking whether '%s' is enabled" % (k))
+            if not v is None and isinstance(v, str) and v.endswith(".csv"):
+                saveCSVResults(args, benchmark, partitions, v)
+    ## FOR
 ## DEF
 
 ## ==============================================
 ## saveCSVResults
 ## ==============================================
-def saveCSVResults(args, partitions, filename):
+def saveCSVResults(args, benchmark, partitions, filename):
     # Create local results directory
     resultsDir = os.path.join(args['results_dir'], args['exp_type'])
     if not os.path.exists(resultsDir):
@@ -275,7 +357,7 @@ def saveCSVResults(args, partitions, filename):
     contents = hstore.fabfile.get_file(filename)
     if len(contents) > 0:
         # We'll prefix the name with the number of partitions
-        localName = "%02dp-%s" % (partitions, os.path.basename(filename))
+        localName = "%s-%02dp-%s" % (benchmark, partitions, os.path.basename(filename))
         localFile = os.path.join(resultsDir, localName)
         with open(localFile, "w") as f:
             f.write(contents)
@@ -368,6 +450,7 @@ if __name__ == '__main__':
     agroup = aparser.add_argument_group('EC2 Cluster Control Parameters')
     agroup.add_argument("--partitions", type=int, default=4, metavar='P', nargs='+',)
     agroup.add_argument("--start-cluster", action='store_true')
+    agroup.add_argument("--stop-cluster", action='store_true')
     agroup.add_argument("--fast-start", action='store_true')
     agroup.add_argument("--force-reboot", action='store_true')
     agroup.add_argument("--single-client", action='store_true')
@@ -378,6 +461,8 @@ if __name__ == '__main__':
     agroup.add_argument("--no-conf", action='store_true', help='Disable updating HStoreConf properties file')
     agroup.add_argument("--no-sync", action='store_true', help='Disable synching time between nodes')
     agroup.add_argument("--no-json", action='store_true', help='Disable JSON output results')
+    agroup.add_argument("--no-profiling", action='store_true', help='Disable all profiling stats output files')
+    agroup.add_argument("--no-shutdown", action='store_true', help='Disable shutting down cluster after a trial run')
     
     ## Experiment Parameters
     agroup = aparser.add_argument_group('Experiment Parameters')
@@ -392,7 +477,7 @@ if __name__ == '__main__':
     agroup.add_argument("--retry-on-zero", action='store_true')
     agroup.add_argument("--clear-logs", action='store_true')
     agroup.add_argument("--workload-trace", action='store_true')
-    agroup.add_argument("--results-dir", type=str, default='results', help='Directory where CSV results are stored')
+    agroup.add_argument("--results-dir", type=str, default='results', metavar='D', help='Directory where CSV results are stored')
     
     ## Codespeed Parameters
     agroup = aparser.add_argument_group('Codespeed Parameters')
@@ -449,9 +534,6 @@ if __name__ == '__main__':
     ## ARGUMENT PROCESSING 
     ## ----------------------------------------------
     
-    if not args['benchmark']:
-        raise Exception("Did not specify benchmarks to execute")
-    
     for key in env.keys():
         if key in args and not args[key] is None:
             env[key] = args[key]
@@ -483,6 +565,8 @@ if __name__ == '__main__':
     # If we get two consecutive intervals with zero results, then stop the benchmark
     if args['retry_on_zero']:
         env["hstore.exec_prefix"] += " -Dkillonzero=true"
+    if args['no_shutdown']:
+        env["hstore.exec_prefix"] += " -Dnoshutdown=true"
     
     # Update Fabric env
     conf_remove = set()
@@ -515,12 +599,21 @@ if __name__ == '__main__':
     # BenchmarkController Parameters
     controllerParams = { } # { "noshutdown": True }
     
+    # Shut 'er down!
+    if args['stop_cluster']:
+        LOG.info("Stopping cluster now!")
+        hstore.fabfile.stop_cluster()
+        sys.exit(0)
+        
+    if not args['benchmark']:
+        raise Exception("Did not specify benchmarks to execute")
+    
     needUpdate = (args['no_update'] == False)
     needUpdateLog4j = args['debug_log4j_site'] or args['debug_log4j_client']
     needResetLog4j = not (args['no_update'] or needUpdateLog4j)
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
-    needClearLogs = (args['clear_logs'] == False)
+    needClearLogs = (args['clear_logs'] == True)
     origScaleFactor = BASE_SETTINGS['client.scalefactor']
     for benchmark in args['benchmark']:
         final_results = { }
@@ -542,6 +635,13 @@ if __name__ == '__main__':
                 hstore.fabfile.start_cluster(updateSync=needSync)
                 if args['no_execute']: sys.exit(0)
             ## IF
+            
+            # Disable all profiling
+            if args['no_profiling']:
+                for k,v in env.iteritems():
+                    if re.match("^(client|site)\.[\w\_]*profiling[\w\_]*", k):
+                        env[k] = False if isinstance(v, bool) else ""
+                ## FOR
             
             client_inst = hstore.fabfile.__getRunningClientInstances__()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
@@ -607,16 +707,11 @@ if __name__ == '__main__':
                         # Process JSON Output
                         if args['no_json'] == False:
                             processResults(args, partitions, output, workloads, results)
-                        ## IF
+                        else:
+                            results.append(None)
                         
                         # CSV RESULT FILES
-                        for key in ["output_txn_profiling", "output_exec_profiling", "output_queue_profiling", "output_txn_counters"]:
-                            key = "client.%s" % key
-                            LOG.debug("Checking whether '%s' is enabled" % (key))
-                            if key in env and not env[key] is None:
-                                saveCSVResults(args, partitions, env[key])
-                        ## FOR
-                        
+                        getCSVOutput(args, env, benchmark, partitions)
                     ## WITH
                 except KeyboardInterrupt:
                     stop = True
@@ -650,6 +745,8 @@ if __name__ == '__main__':
     try:
         disconnect_all()
     finally:
+        if args['no_json']:
+            pass
         for partitions in sorted(final_results.keys()):
             print "%s - Partitions %d" % (args['exp_type'].upper(), partitions)
             pprint(final_results[partitions])

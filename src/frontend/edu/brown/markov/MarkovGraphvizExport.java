@@ -22,7 +22,7 @@ public class MarkovGraphvizExport {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_MARKOV);
         
-        String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
+        File input_path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
         boolean full_output = true;
         boolean vldb_output = false;
 

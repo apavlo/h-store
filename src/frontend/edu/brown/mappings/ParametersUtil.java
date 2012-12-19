@@ -1,6 +1,8 @@
 package edu.brown.mappings;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -8,25 +10,49 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.voltdb.ParameterSet;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.JarReader;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
 /**
  * @author pavlo
  */
-public class ParametersUtil {
+public abstract class ParametersUtil {
     private static final Logger LOG = Logger.getLogger(ParametersUtil.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
+    public static final int NULL_PROC_PARAMETER_OFFSET = -1;
+    
+    
+    /**
+     * Find a parameter correlations file for a given project type
+     * @param current
+     * @param type
+     * @return
+     * @throws IOException
+     */
+    public static File getParameterMappingsFile(ProjectType type) throws IOException {
+        // HACK HACK HACK
+        File srcDir = FileUtil.findDirectory("src");
+        File mappingsFile = FileUtil.join(srcDir.getAbsolutePath(),
+                                         "benchmarks",
+                                         type.getPackageName().replace(".", File.separator),
+                                         type.name().toLowerCase() + ".mappings");
+        return (mappingsFile);
+    }
+    
     /**
      *
      */
@@ -114,19 +140,6 @@ public class ParametersUtil {
     } // END CLASS
 
     /**
-     * Instead of doing all this work every time the class is loaded into the
-     * namespace, we'll construct a static object that is initialized only when
-     * the static methods are called. There you go old boy, I'm so clever!
-     */
-    private static ParametersUtil cache;
-
-    private static ParametersUtil getCachedObject() {
-        if (ParametersUtil.cache == null)
-            ParametersUtil.cache = new ParametersUtil();
-        return (ParametersUtil.cache);
-    }
-
-    /**
      * Load a ParameterMappingsSet from a project jar file.
      * @param catalog_db
      * @param jarPath
@@ -161,110 +174,6 @@ public class ParametersUtil {
         LOG.debug(String.format("Loaded ParameterMappingSet '%s' from '%s'", paramFile, jarPath));
         return (pms);
     }
-    
-    /**
-     * Return a map from procedure names to ParameterMappings
-     * 
-     * @param project_type
-     * @return
-     */
-    public static Map<String, ParametersUtil.DefaultParameterMapping> getParameterMapping(ProjectType project_type) {
-        return (ParametersUtil.getCachedObject().PARAMETER_MAPS.get(project_type));
-    }
-
-    /**
-     * Return the estimated Statement parameter name for a given
-     * Procedure+Statement
-     * 
-     * @param catalog_type
-     * @param proc_name
-     * @param stmt_name
-     * @param idx
-     * @return
-     */
-    public static String getStmtParameterName(ProjectType project_type, String proc_name, String stmt_name, int idx) {
-        ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
-        assert (map != null) : "Invalid catalog type '" + project_type + "'";
-        if (map.containsKey(proc_name)) {
-            DefaultParameterMapping param_map = map.get(proc_name);
-            return (param_map.getStmtParamName(stmt_name, idx));
-        }
-        return (null);
-    }
-
-    /**
-     * Return the estimated Statement parameter index for a given
-     * Procedure+Statement
-     * 
-     * @param catalog_type
-     * @param proc_name
-     * @param stmt_name
-     * @param param_name
-     * @return
-     */
-    public static Integer getStmtParameterIndex(ProjectType project_type, String proc_name, String stmt_name, String param_name) {
-        ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
-        assert (map != null) : "Invalid catalog type '" + project_type + "'";
-        if (map.containsKey(proc_name)) {
-            DefaultParameterMapping param_map = map.get(proc_name);
-            return (param_map.getStmtParamIndex(stmt_name, param_name));
-        }
-        return (null);
-    }
-
-    /**
-     * Return the list of parameter names for this procedure
-     * 
-     * @param project_type
-     * @param proc_name
-     * @return
-     */
-    public static Set<String> getProcParameterNames(ProjectType project_type, String proc_name) {
-        ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
-        assert (map != null) : "Invalid catalog type '" + project_type + "'";
-        return (map.get(proc_name).getProcParamNames());
-    }
-
-    /**
-     * Return the estimated Procedure parameter name
-     * 
-     * @param catalog_type
-     * @param proc_name
-     * @param idx
-     * @return
-     */
-    public static String getProcParameterName(ProjectType project_type, String proc_name, int idx) {
-        ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
-        assert (map != null) : "Invalid catalog type '" + project_type + "'";
-        if (map.containsKey(proc_name)) {
-            DefaultParameterMapping param_map = map.get(proc_name);
-            return (param_map.getProcParamName(idx));
-        }
-        return (null);
-    }
-
-    /**
-     * Return the estimated Procedure parameter index
-     * 
-     * @param catalog_type
-     * @param proc_name
-     * @param param_name
-     * @return
-     */
-    public static Integer getProcParameterIndex(ProjectType project_type, String proc_name, String param_name) {
-        ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
-        assert (map != null) : "Invalid catalog type '" + project_type + "'";
-        if (map.containsKey(proc_name)) {
-            DefaultParameterMapping param_map = map.get(proc_name);
-            return (param_map.getProcParamIndex(param_name));
-        }
-        return (null);
-    }
 
     /**
      * Convert a ParameterCorrelations object into a map
@@ -289,7 +198,7 @@ public class ParametersUtil {
 
                 for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
                     String stmt_param_name = catalog_stmt_param.getName();
-                    Set<ParameterMapping> m = mappings.get(catalog_stmt, catalog_stmt_param);
+                    Collection<ParameterMapping> m = mappings.get(catalog_stmt, catalog_stmt_param);
 
                     if (m.isEmpty()) {
                         if (debug.get()) LOG.debug("No ParameterMapping found for " + CatalogUtil.getDisplayName(catalog_stmt_param) + ". Skipping...");
@@ -361,521 +270,63 @@ public class ParametersUtil {
         } // FOR
         return;
     }
-
-    // -------------------------------------------------------
-    // TPC-C Parameter Mapping
-    // -------------------------------------------------------
-    public final Map<String, DefaultParameterMapping> TPCC_PARAMS = new HashMap<String, DefaultParameterMapping>();
-    {
-        String proc_name;
-        String stmt_name;
-        DefaultParameterMapping map;
-
-        //
-        // NEWORDER:
-        // w_id, [0]
-        // d_id, [1]
-        // c_id, [2]
-        // timestamp, [3]
-        // item_id[], [4]
-        // supware[], [5]
-        // quantity[] [6]
-        //
-        proc_name = "neworder";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "getWarehouseTaxRate";
-        map.add(stmt_name, 0, "w_id", 0, "w_id");
-
-        stmt_name = "getDistrict";
-        map.add(stmt_name, 0, "d_id", 1, "d_id");
-        map.add(stmt_name, 1, "w_id", 0, "w_id");
-
-        stmt_name = "incrementNextOrderId";
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-        map.add(stmt_name, 2, "w_id", 0, "w_id");
-
-        stmt_name = "getCustomer";
-        map.add(stmt_name, 0, "w_id", 0, "w_id");
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-        map.add(stmt_name, 2, "c_id", 2, "c_id");
-
-        stmt_name = "createOrder";
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-        map.add(stmt_name, 2, "w_id", 0, "w_id");
-        map.add(stmt_name, 3, "c_id", 2, "c_id");
-        map.add(stmt_name, 4, "timestamp", 3, "timestamp");
-
-        stmt_name = "createNewOrder";
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-        map.add(stmt_name, 2, "w_id", 0, "w_id");
-
-        stmt_name = "getItemInfo";
-        map.add(stmt_name, 0, "ol_i_id", 4, "item_id");
-
-        for (int i = 1; i <= 10; i++) {
-            stmt_name = String.format("getStockInfo%02d", i);
-            map.add(stmt_name, 0, "ol_i_id", 4, "item_id");
-            map.add(stmt_name, 1, "ol_supply_w_id", 5, "supware");
-        } // FOR
-
-        stmt_name = "updateStock";
-        map.add(stmt_name, 4, "ol_i_id", 4, "item_id");
-        map.add(stmt_name, 5, "ol_supply_w_id", 5, "supware");
-
-        stmt_name = "createOrderLine";
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-        map.add(stmt_name, 2, "w_id", 0, "w_id");
-        map.add(stmt_name, 4, "ol_i_id", 4, "item_id");
-        map.add(stmt_name, 5, "ol_supply_w_id", 5, "supware");
-
-        this.TPCC_PARAMS.put(proc_name, map);
-
-        //
-        // SLEV:
-        // w_id, [0]
-        // d_id, [1]
-        // threshold [2]
-        //
-        proc_name = "slev";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "GetOId";
-        map.add(stmt_name, 0, "d_w_id", 0, "w_id");
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-
-        stmt_name = "GetStockCount";
-        map.add(stmt_name, 0, "ol_w_id", 0, "w_id");
-        map.add(stmt_name, 1, "ol_d_id", 1, "d_id");
-        map.add(stmt_name, 4, "s_w_id", 0, "w_id");
-        map.add(stmt_name, 5, "s_quantity", 2, "threshold");
-
-        this.TPCC_PARAMS.put(proc_name, map);
-
-        //
-        // DELIVERY:
-        // w_id, [0]
-        // o_carrier_id, [1]
-        // timestamp [2]
-        //
-        proc_name = "delivery";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "getNewOrder";
-        map.add(stmt_name, 1, "no_w_id", 0, "w_id");
-
-        stmt_name = "deleteNewOrder";
-        map.add(stmt_name, 1, "no_w_id", 0, "w_id");
-
-        stmt_name = "getCId";
-        map.add(stmt_name, 2, "o_w_id", 0, "w_id");
-
-        stmt_name = "updateOrders";
-        map.add(stmt_name, 0, "o_carrier_id", 1, "o_carrier_id");
-        map.add(stmt_name, 3, "o_w_id", 0, "w_id");
-
-        stmt_name = "updateOrderLine";
-        map.add(stmt_name, 0, "ol_delivery_d", 2, "timestamp");
-        map.add(stmt_name, 3, "ol_w_id", 0, "w_id");
-
-        stmt_name = "sumOLAmount";
-        map.add(stmt_name, 2, "ol_w_id", 0, "w_id");
-
-        stmt_name = "updateCustomer";
-        map.add(stmt_name, 3, "c_w_id", 0, "w_id");
-
-        this.TPCC_PARAMS.put(proc_name, map);
-
-        //
-        // ostatByCustomerId:
-        // w_id, [0]
-        // d_id, [1]
-        // c_id [2]
-        //
-        proc_name = "ostatByCustomerId";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "getCustomerByCustomerId";
-        map.add(stmt_name, 0, "w_id", 0, "c_w_id");
-        map.add(stmt_name, 1, "d_id", 1, "c_d_id");
-        map.add(stmt_name, 2, "c_id", 2, "c_id");
-
-        stmt_name = "getLastOrder";
-        map.add(stmt_name, 0, "w_id", 0, "o_w_id");
-        map.add(stmt_name, 1, "d_id", 1, "o_d_id");
-        map.add(stmt_name, 2, "c_id", 2, "o_c_id");
-
-        stmt_name = "getOrderLines";
-        map.add(stmt_name, 0, "w_id", 0, "ol_w_id");
-        map.add(stmt_name, 1, "d_id", 1, "ol_d_id");
-        map.add(stmt_name, 2, "c_id", 2, "ol_c_id");
-
-        this.TPCC_PARAMS.put(proc_name, map);
-
-        //
-        // ostatByCustomerName
-        // w_id [0]
-        // d_id [1]
-        // c_last [2]
-        //
-        proc_name = "ostatByCustomerName";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "getCustomersByLastName";
-        map.add(stmt_name, 0, "w_id", 0, "c_w_id");
-        map.add(stmt_name, 1, "d_id", 1, "c_d_id");
-        map.add(stmt_name, 2, "c_last", 2, "c_last");
-
-        stmt_name = "getLastOrder";
-        map.add(stmt_name, 0, "w_id", 0, "o_w_id");
-        map.add(stmt_name, 1, "d_id", 1, "o_d_id");
-
-        stmt_name = "getOrderLines";
-        map.add(stmt_name, 0, "w_id", 0, "ol_w_id");
-        map.add(stmt_name, 1, "d_id", 1, "ol_d_id");
-
-        this.TPCC_PARAMS.put(proc_name, map);
-
-        //
-        // paymentByCustomerIdC
-        // w_id [0]
-        // d_id [1]
-        // h_amount [2]
-        // c_w_id [3]
-        // c_d_id [4]
-        // c_id [5]
-        // timestamp [6]
-        //
-        proc_name = "paymentByCustomerIdC";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "getCustomersByCustomerId";
-        map.add(stmt_name, 0, "c_id", 5, "c_id");
-        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-        map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
-
-        stmt_name = "updateBCCustomer";
-        map.add(stmt_name, 0, "c_w_id", 3, "c_w_id");
-        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-        map.add(stmt_name, 2, "c_id", 5, "c_id");
-        this.TPCC_PARAMS.put(proc_name, map);
-
-        //
-        // paymentByCustomerName
-        // w_id [0]
-        // d_id [1]
-        // h_amount [2]
-        // c_w_id [3]
-        // c_d_id [4]
-        // c_last [5]
-        // timestamp [6]
-        //
-        proc_name = "paymentByCustomerName";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "getWarehouse";
-        map.add(stmt_name, 0, "w_id", 0, "w_id");
-
-        stmt_name = "updateWarehouseBalance";
-        map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
-        map.add(stmt_name, 1, "w_id", 0, "w_id");
-
-        stmt_name = "getDistrict";
-        map.add(stmt_name, 0, "d_w_id", 0, "w_id");
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-
-        stmt_name = "updateDistrictBalance";
-        map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
-        map.add(stmt_name, 1, "d_w_id", 0, "w_id");
-        map.add(stmt_name, 2, "d_id", 1, "d_id");
-
-        stmt_name = "insertHistory";
-        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-        map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
-        map.add(stmt_name, 3, "d_id", 1, "d_id");
-        map.add(stmt_name, 4, "w_id", 0, "w_id");
-        map.add(stmt_name, 5, "timestamp", 6, "timestamp");
-        map.add(stmt_name, 6, "h_amount", 2, "h_amount");
-
-        this.TPCC_PARAMS.put(proc_name, map);
-
-        //
-        // paymentByCustomerNameW
-        // w_id [0]
-        // d_id [1]
-        // h_amount [2]
-        // c_w_id [3]
-        // c_d_id [4]
-        // c_id [5]
-        // timestamp [6]
-        //
-        // proc_name = "paymentByCustomerNameW";
-        // map = new ParameterMapping();
-        //
-        // stmt_name = "getWarehouse";
-        // map.add(stmt_name, 0, "w_id", 0, "w_id");
-        //
-        // stmt_name = "updateWarehouseBalance";
-        // map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
-        // map.add(stmt_name, 1, "w_id", 0, "w_id");
-        //
-        // stmt_name = "getDistrict";
-        // map.add(stmt_name, 0, "d_w_id", 0, "w_id");
-        // map.add(stmt_name, 1, "d_id", 1, "d_id");
-        //
-        // stmt_name = "updateDistrictBalance";
-        // map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
-        // map.add(stmt_name, 1, "d_w_id", 0, "w_id");
-        // map.add(stmt_name, 2, "d_id", 1, "d_id");
-        //
-        // stmt_name = "insertHistory";
-        // map.add(stmt_name, 0, "c_id", 5, "c_id");
-        // map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-        // map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
-        // map.add(stmt_name, 3, "d_id", 1, "d_id");
-        // map.add(stmt_name, 4, "w_id", 0, "w_id");
-        // map.add(stmt_name, 5, "timestamp", 6, "timestamp");
-        // map.add(stmt_name, 6, "h_amount", 2, "h_amount");
-        //
-        // this.TPCC_PARAMS.put(proc_name, map);
-
-        //
-        // paymentByCustomerId
-        // w_id [0]
-        // d_id [1]
-        // h_amount [2]
-        // c_w_id [3]
-        // c_d_id [4]
-        // c_id [5]
-        // timestamp [6]
-        //
-        proc_name = "paymentByCustomerId";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "getCustomersByCustomerId";
-        map.add(stmt_name, 0, "c_id", 5, "c_id");
-        map.add(stmt_name, 0, "c_d_id", 4, "c_d_id");
-        map.add(stmt_name, 0, "c_w_id", 3, "c_w_id");
-
-        stmt_name = "getWarehouse";
-        map.add(stmt_name, 0, "w_id", 0, "w_id");
-
-        stmt_name = "updateWarehouseBalance";
-        map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
-        map.add(stmt_name, 1, "w_id", 0, "w_id");
-
-        stmt_name = "getDistrict";
-        map.add(stmt_name, 0, "d_w_id", 0, "w_id");
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-
-        stmt_name = "updateDistrictBalance";
-        map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
-        map.add(stmt_name, 1, "d_w_id", 0, "w_id");
-        map.add(stmt_name, 2, "d_id", 1, "d_id");
-
-        stmt_name = "updateBCCustomer";
-        map.add(stmt_name, 4, "c_w_id", 3, "c_w_id");
-        map.add(stmt_name, 5, "c_d_id", 4, "c_d_id");
-        map.add(stmt_name, 6, "c_id", 5, "c_id");
-
-        stmt_name = "updateGCCustomer";
-        map.add(stmt_name, 3, "c_w_id", 3, "c_w_id");
-        map.add(stmt_name, 4, "c_d_id", 4, "c_d_id");
-        map.add(stmt_name, 5, "c_id", 5, "c_id");
-
-        stmt_name = "insertHistory";
-        map.add(stmt_name, 0, "c_id", 5, "c_id");
-        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-        map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
-        map.add(stmt_name, 3, "d_id", 1, "d_id");
-        map.add(stmt_name, 4, "w_id", 0, "w_id");
-        map.add(stmt_name, 5, "timestamp", 6, "timestamp");
-        map.add(stmt_name, 6, "h_amount", 2, "h_amount");
-
-        this.TPCC_PARAMS.put(proc_name, map);
-
-        //
-        // paymentByCustomerIdW
-        // w_id [0]
-        // d_id [1]
-        // h_amount [2]
-        // c_w_id [3]
-        // c_d_id [4]
-        // c_id [5]
-        // timestamp [6]
-        //
-        // proc_name = "paymentByCustomerIdW";
-        // map = new ParameterMapping();
-        //
-        // stmt_name = "getWarehouse";
-        // map.add(stmt_name, 0, "w_id", 0, "w_id");
-        //
-        // stmt_name = "updateWarehouseBalance";
-        // map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
-        // map.add(stmt_name, 1, "w_id", 0, "w_id");
-        //
-        // stmt_name = "getDistrict";
-        // map.add(stmt_name, 0, "d_w_id", 0, "w_id");
-        // map.add(stmt_name, 1, "d_id", 1, "d_id");
-        //
-        // stmt_name = "updateDistrictBalance";
-        // map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
-        // map.add(stmt_name, 1, "d_w_id", 0, "w_id");
-        // map.add(stmt_name, 2, "d_id", 1, "d_id");
-        //
-        // stmt_name = "insertHistory";
-        // map.add(stmt_name, 0, "c_id", 5, "c_id");
-        // map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-        // map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
-        // map.add(stmt_name, 3, "d_id", 1, "d_id");
-        // map.add(stmt_name, 4, "w_id", 0, "w_id");
-        // map.add(stmt_name, 5, "timestamp", 6, "timestamp");
-        // map.add(stmt_name, 6, "h_amount", 2, "h_amount");
-        //
-        // this.TPCC_PARAMS.put(proc_name, map);
-
-    } // STATIC
-
-    // -------------------------------------------------------
-    // TM1 Parameter Mapping
-    // -------------------------------------------------------
-    public final Map<String, DefaultParameterMapping> TM1_PARAMS = new HashMap<String, DefaultParameterMapping>();
-    {
-        String proc_name;
-        String stmt_name;
-        DefaultParameterMapping map;
-
-        //
-        // DeleteCallForwarding
-        // sub_nbr [0]
-        // sf_type [1]
-        // start_time [2]
-        //
-        proc_name = "DeleteCallForwarding";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "query";
-        map.add(stmt_name, 0, "sub_nbr", 0, "sub_nbr");
-        stmt_name = "update";
-        map.add(stmt_name, 1, "sf_type", 1, "sf_type");
-        map.add(stmt_name, 2, "start_time", 2, "start_time");
-
-        this.TM1_PARAMS.put(proc_name, map);
-
-        //
-        // GetAccessData
-        // s_id [0]
-        // ai_type [1]
-        //
-        proc_name = "GetAccessData";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "GetData";
-        map.add(stmt_name, 0, "s_id", 0, "s_id");
-        map.add(stmt_name, 1, "ai_type", 1, "ai_type");
-
-        this.TM1_PARAMS.put(proc_name, map);
-
-        //
-        // GetNewDestination
-        // s_id [0]
-        // sf_type [1]
-        // start_time [2]
-        // end_time [3]
-        //
-        proc_name = "GetNewDestination";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "GetData";
-        map.add(stmt_name, 0, "s_id", 0, "s_id");
-        map.add(stmt_name, 1, "sf_type", 1, "sf_type");
-        map.add(stmt_name, 2, "start_time", 2, "start_time");
-        map.add(stmt_name, 3, "end_time", 3, "end_time");
-
-        this.TM1_PARAMS.put(proc_name, map);
-
-        //
-        // GetSubscriberData
-        // s_id [0]
-        //
-        proc_name = "GetSubscriberData";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "GetData";
-        map.add(stmt_name, 0, "s_id", 0, "s_id");
-
-        this.TM1_PARAMS.put(proc_name, map);
-
-        //
-        // InsertCallForwarding
-        // sub_nbr [0]
-        // sf_type [1]
-        // start_time [2]
-        // end_time [3]
-        // numberx [4]
-        //
-        proc_name = "InsertCallForwarding";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "query1";
-        map.add(stmt_name, 0, "sub_nbr", 0, "sub_nbr");
-
-        stmt_name = "query2";
-        // Nothing
-
-        stmt_name = "update";
-        map.add(stmt_name, 1, "sf_type", 1, "sf_type");
-        map.add(stmt_name, 2, "start_time", 2, "start_time");
-        map.add(stmt_name, 3, "end_time", 3, "end_time");
-        map.add(stmt_name, 4, "numberx", 4, "numberx");
-
-        stmt_name = "check";
-        map.add(stmt_name, 1, "sf_type", 1, "sf_type");
-        map.add(stmt_name, 2, "start_time", 2, "start_time");
-
-        this.TM1_PARAMS.put(proc_name, map);
-
-        //
-        // UpdateLocation
-        // location [0]
-        // sub_nbr [1]
-        //
-        proc_name = "UpdateLocation";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "update";
-        map.add(stmt_name, 0, "location", 0, "location");
-        map.add(stmt_name, 1, "sub_nbr", 1, "sub_nbr");
-
-        //
-        // UpdateSubscriberData
-        // bit_1 [0]
-        // s_id [1]
-        // data_a [2]
-        // sf_type [3]
-        //
-        proc_name = "UpdateSubscriberData";
-        map = new DefaultParameterMapping();
-
-        stmt_name = "update1";
-        map.add(stmt_name, 0, "bit_1", 0, "bit_1");
-        map.add(stmt_name, 1, "s_id", 1, "s_id");
-
-        stmt_name = "update2";
-        map.add(stmt_name, 0, "data_a", 2, "data_a");
-        map.add(stmt_name, 1, "s_id", 1, "s_id");
-        map.add(stmt_name, 2, "sf_type", 3, "sf_type");
-
-        this.TM1_PARAMS.put(proc_name, map);
-    };
-
-    //
-    // Mappings between param names and procparam->stmtparam
-    // Nasty I know, but what else can I do?
-    //
-    public final Map<ProjectType, Map<String, DefaultParameterMapping>> PARAMETER_MAPS = new HashMap<ProjectType, Map<String, DefaultParameterMapping>>();
-    {
-        PARAMETER_MAPS.put(ProjectType.TPCC, TPCC_PARAMS);
-        PARAMETER_MAPS.put(ProjectType.TM1, TM1_PARAMS);
+    
+    public static Object getValue(ParameterSet params, ParameterMapping pm) {
+        Object val = null;
+        Object orig = params.toArray()[pm.procedure_parameter.getIndex()];
+        VoltType vtype = VoltType.get(pm.procedure_parameter.getType());
+        if (pm.procedure_parameter.getIsarray()) {
+            assert(pm.procedure_parameter_index != ParametersUtil.NULL_PROC_PARAMETER_OFFSET);
+            switch (vtype) {
+                case TINYINT: {
+                    if (orig instanceof byte[])
+                        val = ((byte[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Byte[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case SMALLINT: {
+                    if (orig instanceof short[])
+                        val = ((short[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Short[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case INTEGER: {
+                    if (orig instanceof int[])
+                        val = ((int[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Integer[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case BIGINT: {
+                    if (orig instanceof long[])
+                        val = ((long[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Long[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case FLOAT: {
+                    if (orig instanceof float[])
+                        val = ((float[])orig)[pm.procedure_parameter_index];
+                    else if (orig instanceof double[])
+                        val = ((double[])orig)[pm.procedure_parameter_index];
+                    else if (orig instanceof Float[])
+                        val = ((Float[])orig)[pm.procedure_parameter_index];
+                    else
+                        val = ((Double[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                case TIMESTAMP: {
+                    val = ((TimestampType[])orig)[pm.procedure_parameter_index];
+                    break;
+                }
+                default:
+                    val = ((Object[])orig)[pm.procedure_parameter_index];
+            } // SWITCH
+        } else {
+            val = params.toArray()[pm.procedure_parameter.getIndex()];
+        }
+        return (val);
     }
 }

@@ -30,7 +30,7 @@ public class DatabaseDump extends VoltSystemProcedure {
     }
     
     @Override
-    public DependencySet executePlanFragment(long txn_id, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, SystemProcedureExecutionContext context) {
+    public DependencySet executePlanFragment(Long txn_id, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, SystemProcedureExecutionContext context) {
         final boolean debug = LOG.isDebugEnabled();
         
         // need to return something ..

@@ -29,7 +29,9 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -38,29 +40,36 @@ import junit.framework.TestCase;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltProcedure;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltType;
-import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.utils.JarReader;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.benchmark.auctionmark.AuctionMarkProjectBuilder;
-import edu.brown.benchmark.markov.MarkovProjectBuilder;
-import edu.brown.benchmark.seats.SEATSProjectBuilder;
-import edu.brown.benchmark.tm1.TM1ProjectBuilder;
-import edu.brown.benchmark.tpce.TPCEProjectBuilder;
-import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
-import edu.brown.benchmark.voter.VoterProjectBuilder; 
-import edu.brown.benchmark.wikipedia.WikipediaProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
+import edu.brown.hstore.HStore;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.mappings.ParametersUtil;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -68,10 +77,6 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.hstore.HStore;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.HStoreThreadManager;
-import edu.brown.hstore.conf.HStoreConf;
 
 /**
  * Base class that provides a lot of the common functionality that our HStore test cases need
@@ -112,12 +117,11 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected static Catalog catalog;
     protected static Database catalog_db;
     private static final Map<ProjectType, CatalogContext> project_catalogs = new HashMap<ProjectType, CatalogContext>();
+    private static final Set<ProjectType> needs_reset = new HashSet<ProjectType>(); 
     
     protected static PartitionEstimator p_estimator;
     private static final Map<ProjectType, PartitionEstimator> project_p_estimators = new HashMap<ProjectType, PartitionEstimator>();
 
-    private static final Map<ProjectType, AbstractProjectBuilder> project_builders = new HashMap<ProjectType, AbstractProjectBuilder>();
-    
     private static Boolean is_first = null;
     
     /**
@@ -155,7 +159,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             String catalogJar = new File(projectBuilder.getJarName(true)).getAbsolutePath();
             try {
                 boolean status = projectBuilder.compile(catalogJar);
-                assert (status);
+                assert(status) : "Failed to compile " + catalogJar;
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to create " + projectBuilder.getProjectName() + " catalog [" + catalogJar + "]", ex);
             }
@@ -195,9 +199,14 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         
         if (catalogContext == null) {
             CatalogContext cc = null;
-            AbstractProjectBuilder projectBuilder = AbstractProjectBuilder.getProjectBuilder(type);
+            AbstractProjectBuilder projectBuilder = getProjectBuilder(type);
+            
             if (ENABLE_JAR_REUSE) {
                 File jar_path = projectBuilder.getJarPath(true);
+                if (needs_reset.contains(type)) {
+                    jar_path.delete();
+                    needs_reset.remove(type);
+                }
                 if (jar_path.exists()) {
                     LOG.debug("LOAD CACHE JAR: " + jar_path.getAbsolutePath());
                     cc = CatalogUtil.loadCatalogContextFromJar(jar_path);
@@ -207,7 +216,6 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             }
             if (cc == null) {
                 File jarPath = projectBuilder.getJarPath(true);
-                
                 Catalog c = null;
                 switch (type) {
                     case TPCE:
@@ -232,6 +240,17 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     }
     
     /**
+     * Reset all cached objects for this project type, including
+     * removing any jars that many already exist.
+     * @param type
+     */
+    protected void reset(ProjectType type) {
+        project_catalogs.remove(type);
+        project_p_estimators.remove(type);
+        needs_reset.add(type);
+    }
+    
+    /**
      * Store the catalog for this ProjectType and generate the supporting classes
      * @param type
      * @param catalog
@@ -249,41 +268,11 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     }
 
     public static AbstractProjectBuilder getProjectBuilder(ProjectType type) {
-        AbstractProjectBuilder projectBuilder = project_builders.get(type);
-        if (projectBuilder == null) {
-            switch (type) {
-                case TPCC:
-                    projectBuilder = new TPCCProjectBuilder();
-                    break;
-                case TPCE:
-                    projectBuilder = new TPCEProjectBuilder();
-                    break;
-                case TM1:
-                    projectBuilder = new TM1ProjectBuilder();
-                    break;
-                case SEATS:
-                    projectBuilder = new SEATSProjectBuilder();
-                    break;
-                case AUCTIONMARK:
-                    projectBuilder = new AuctionMarkProjectBuilder();
-                    break;
-                case MARKOV:
-                    projectBuilder = new MarkovProjectBuilder();
-                    break;
-				case YCSB: 
-					projectBuilder = new YCSBProjectBuilder(); 
-					break; 
-				case VOTER: 
-					projectBuilder = new VoterProjectBuilder(); 
-					break; 
-                case WIKIPEDIA:
-                    projectBuilder = new WikipediaProjectBuilder();
-                    break;
-                default:
-                    assert(false) : "Invalid project type - " + type;
-            } // SWITCH
-            project_builders.put(type, projectBuilder);
-        }
+        AbstractProjectBuilder projectBuilder = AbstractProjectBuilder.getProjectBuilder(type);
+        // 2012-10-11: We have to disable any replicated secondary indexes
+        // because it will screw up a bunch of tests that we already have setup
+        projectBuilder.enableReplicatedSecondaryIndexes(false);
+        projectBuilder.removeReplicatedSecondaryIndexes();
         assert(projectBuilder != null);
         return (projectBuilder);
     }
@@ -408,11 +397,18 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected final Procedure getProcedure(String proc_name) {
         return getProcedure(catalog_db, proc_name);
     }
+    @SuppressWarnings("unchecked")
     protected final Procedure getProcedure(Database catalog_db, Class<? extends VoltProcedure> proc_class) {
-        return getProcedure(catalog_db, proc_class.getSimpleName());
+        String procName;
+        if (ClassUtil.getSuperClasses(proc_class).contains(VoltSystemProcedure.class)) {
+            procName = VoltSystemProcedure.procCallName((Class<? extends VoltSystemProcedure>)proc_class);
+        } else {
+            procName = proc_class.getSimpleName();
+        }
+        return getProcedure(catalog_db, procName);
     }
     protected final Procedure getProcedure(Class<? extends VoltProcedure> proc_class) {
-        return getProcedure(catalog_db, proc_class.getSimpleName());
+        return getProcedure(catalog_db, proc_class);        
     }
     
     protected final ProcParameter getProcParameter(Database catalog_db, Procedure catalog_proc, int idx) {
@@ -433,11 +429,15 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected final Statement getStatement(Database catalog_db, Procedure catalog_proc, String stmt_name) {
         assertNotNull(catalog_db);
         assertNotNull(catalog_proc);
-        Statement catalog_stmt = catalog_proc.getStatements().get(stmt_name);
+        Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmt_name);
         assert(catalog_stmt != null) : "Failed to retrieve Statement '" + stmt_name + "' from Procedure '" + catalog_proc.getName() + "'";
         return (catalog_stmt);
     }
     protected final Statement getStatement(Procedure catalog_proc, String stmt_name) {
+        return getStatement(catalog_db, catalog_proc, stmt_name);
+    }
+    protected final Statement getStatement(Class<? extends VoltProcedure> proc_class, String stmt_name) {
+        Procedure catalog_proc = getProcedure(proc_class);
         return getStatement(catalog_db, catalog_proc, stmt_name);
     }
     
@@ -576,7 +576,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     }
     
     public File getWorkloadFile(ProjectType type, String suffix) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "workloads", suffix+".trace"));
+        return (type.getProjectFile(new File(".").getCanonicalFile(), "workloads", suffix+".trace"));
     }
     
     /**
@@ -587,7 +587,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * @throws IOException
      */
     public File getStatsFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "stats", ".stats"));
+        return (type.getProjectFile(new File(".").getCanonicalFile(), "stats", ".stats"));
     }
     
     /**
@@ -619,36 +619,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
 //        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "markovs", ".markovs"));
 //    }
     
-    /**
-     * 
-     * @param current
-     * @param type
-     * @return
-     * @throws IOException
-     */
-    private File getProjectFile(File current, ProjectType type, String target_dir, String target_ext) throws IOException {
-        boolean has_svn = false;
-        for (File file : current.listFiles()) {
-            if (file.getCanonicalPath().endsWith("files") && file.isDirectory()) {
-                // Look for either a .<target_ext> or a .<target_ext>.gz file
-                String file_name = type.name().toLowerCase() + target_ext;
-                for (int i = 0; i < 2; i++) {
-                    if (i > 0) file_name += ".gz";
-                    File target_file = new File(file + File.separator + target_dir + File.separator + file_name);
-                    if (target_file.exists() && target_file.isFile()) {
-                        return (target_file);
-                    }
-                } // FOR
-                assert(false) : "Unable to find '" + file_name + "' for '" + type + "' in directory '" + file + "'";
-            // Make sure that we don't go to far down...
-            } else if (file.getCanonicalPath().endsWith("/.svn")) {
-                has_svn = true;
-            }
-        } // FOR
-        assert(has_svn) : "Unable to find files directory [last_dir=" + current.getAbsolutePath() + "]";  
-        File next = new File(current.getCanonicalPath() + File.separator + "..");
-        return (this.getProjectFile(next, type, target_dir, target_ext));
-    }
+    
  
     /**
      * Generate an array of random input parameters for a given Statement
@@ -664,8 +635,6 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         } // FOR
         return (params);
     }
-    
-    
     
     @Override
     public void uncaughtException(Thread t, Throwable e) {

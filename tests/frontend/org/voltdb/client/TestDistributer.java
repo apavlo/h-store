@@ -45,6 +45,7 @@ import org.voltdb.network.QueueMonitor;
 import org.voltdb.network.VoltNetwork;
 import org.voltdb.network.VoltProtocolHandler;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 
 public class TestDistributer extends TestCase {
@@ -363,7 +364,7 @@ public class TestDistributer extends TestCase {
             volt.start();
 
             Client clt = ClientFactory.createClient();
-            clt.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "", "");
+            clt.createConnection(null, "localhost", HStoreConstants.DEFAULT_PORT, "", "");
 
             // this call blocks for a result!
             clt.callProcedure("Foo", new Integer(1));

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -21,22 +22,28 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
-import org.voltdb.utils.Pair;
 
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
-public class ParameterMappingsSet extends TreeSet<ParameterMapping> implements JSONSerializable {
+public class ParameterMappingsSet extends HashSet<ParameterMapping> implements JSONSerializable {
     private static final long serialVersionUID = 1L;
-//    private static final Logger LOG = Logger.getLogger(ParameterCorrelations.class.getName());
 
     /**
      * Dear son,
      * This right here is nasty old boy! Don't do what Daddy did...
      **/
-    private final transient HashMap<Statement, SortedMap<Integer, SortedMap<StmtParameter, SortedSet<ParameterMapping>>>> stmt_correlations = new HashMap<Statement, SortedMap<Integer,SortedMap<StmtParameter, SortedSet<ParameterMapping>>>>();
-    private final transient HashMap<Procedure, SortedMap<ProcParameter, SortedSet<ParameterMapping>>> proc_correlations = new HashMap<Procedure, SortedMap<ProcParameter,SortedSet<ParameterMapping>>>();
+    private final transient HashMap<Statement, StatementMappings> stmtIndex = new HashMap<Statement, StatementMappings>();
+    private final transient HashMap<Procedure, ProcedureMappings> procIndex = new HashMap<Procedure, ProcedureMappings>();
+    private final transient HashMap<ProcParameter, ProcParameterMappings> procParamIndex = new HashMap<ProcParameter, ProcParameterMappings>();
+    
+    @SuppressWarnings("serial")
+    protected static class StatementMappings extends TreeMap<Integer, SortedMap<StmtParameter, SortedSet<ParameterMapping>>> { }
+    @SuppressWarnings("serial")
+    protected static class ProcedureMappings extends TreeMap<ProcParameter, SortedSet<ParameterMapping>> { }
+    @SuppressWarnings("serial")
+    protected static class ProcParameterMappings extends HashMap<Column, SortedSet<ParameterMapping>> { }
     
     /**
      * Constructor
@@ -52,13 +59,14 @@ public class ParameterMappingsSet extends TreeSet<ParameterMapping> implements J
      */
     @Override
     public void clear() {
-        this.stmt_correlations.clear();
-        this.proc_correlations.clear();
+        this.stmtIndex.clear();
+        this.procIndex.clear();
+        this.procParamIndex.clear();
         super.clear();
     }
 
     /**
-     * Add a new Correlation object for the given StmtParameter
+     * Add a new ParameterMapping object for the given StmtParameter
      * @param c
      */
     @Override
@@ -71,66 +79,110 @@ public class ParameterMappingsSet extends TreeSet<ParameterMapping> implements J
         Procedure catalog_proc = catalog_stmt.getParent();
         assert(catalog_proc != null);
         ProcParameter catalog_proc_param = c.getProcParameter();
+        Column catalog_col = c.getColumn();
         
         // Procedure Index
-        if (!this.proc_correlations.containsKey(catalog_proc)) {
-            this.proc_correlations.put(catalog_proc, new TreeMap<ProcParameter, SortedSet<ParameterMapping>>());
+        if (!this.procIndex.containsKey(catalog_proc)) {
+            this.procIndex.put(catalog_proc, new ProcedureMappings());
         }
-        if (!this.proc_correlations.get(catalog_proc).containsKey(catalog_proc_param)) {
-            this.proc_correlations.get(catalog_proc).put(catalog_proc_param, new TreeSet<ParameterMapping>());
+        if (!this.procIndex.get(catalog_proc).containsKey(catalog_proc_param)) {
+            this.procIndex.get(catalog_proc).put(catalog_proc_param, new TreeSet<ParameterMapping>());
         }
-        this.proc_correlations.get(catalog_proc).get(catalog_proc_param).add(c);
+        this.procIndex.get(catalog_proc).get(catalog_proc_param).add(c);
+        
+        // ProcParameter->Column Index
+        if (catalog_col != null) {
+            ProcParameterMappings m = this.procParamIndex.get(catalog_proc_param);
+            if (m == null) {
+                m = new ProcParameterMappings();
+                this.procParamIndex.put(catalog_proc_param, m);
+            }
+            if (m.containsKey(catalog_col) == false) {
+                m.put(catalog_col, new TreeSet<ParameterMapping>());
+            }
+            m.get(catalog_col).add(c);
+        }
         
         // Statement Index
-        if (!this.stmt_correlations.containsKey(catalog_stmt)) {
-            this.stmt_correlations.put(catalog_stmt, new TreeMap<Integer, SortedMap<StmtParameter, SortedSet<ParameterMapping>>>());
+        if (!this.stmtIndex.containsKey(catalog_stmt)) {
+            this.stmtIndex.put(catalog_stmt, new StatementMappings());
         }
-        if (!this.stmt_correlations.get(catalog_stmt).containsKey(c.getStatementIndex())) {
-            this.stmt_correlations.get(catalog_stmt).put(c.getStatementIndex(), new TreeMap<StmtParameter, SortedSet<ParameterMapping>>());
+        if (!this.stmtIndex.get(catalog_stmt).containsKey(c.getStatementIndex())) {
+            this.stmtIndex.get(catalog_stmt).put(c.getStatementIndex(), new TreeMap<StmtParameter, SortedSet<ParameterMapping>>());
         }
-        if (!this.stmt_correlations.get(catalog_stmt).get(c.getStatementIndex()).containsKey(catalog_stmt_param)) {
-            this.stmt_correlations.get(catalog_stmt).get(c.getStatementIndex()).put(catalog_stmt_param, new TreeSet<ParameterMapping>());
+        if (!this.stmtIndex.get(catalog_stmt).get(c.getStatementIndex()).containsKey(catalog_stmt_param)) {
+            this.stmtIndex.get(catalog_stmt).get(c.getStatementIndex()).put(catalog_stmt_param, new TreeSet<ParameterMapping>());
         }
-        this.stmt_correlations.get(catalog_stmt).get(c.getStatementIndex()).get(catalog_stmt_param).add(c);
+        this.stmtIndex.get(catalog_stmt).get(c.getStatementIndex()).get(catalog_stmt_param).add(c);
         
         // Now add it to our internal set
         return (super.add(c));
     }
 
     /**
-     * Return the stored Correlation for the StmtParameter in the Statement executed at the provided index 
+     * Return the ParameterMappings for the StmtParameter in the Statement 
+     * executed at the provided offset 
      * @param catalog_stmt
-     * @param catalog_stmt_index
+     * @param catalog_stmt_index The # of times that this Statement has already been executed
      * @param catalog_stmt_param
      * @return
      */
-    public SortedSet<ParameterMapping> get(Statement catalog_stmt, int catalog_stmt_index, StmtParameter catalog_stmt_param) {
+    public Collection<ParameterMapping> get(Statement catalog_stmt, int catalog_stmt_index, StmtParameter catalog_stmt_param) {
         assert(catalog_stmt != null);
         assert(catalog_stmt_index >= 0);
         assert(catalog_stmt_param != null);
         
-        SortedSet<ParameterMapping> set = new TreeSet<ParameterMapping>();
-        if (this.stmt_correlations.containsKey(catalog_stmt)) {
-            if (this.stmt_correlations.get(catalog_stmt).containsKey(catalog_stmt_index)) {
-                set.addAll(this.stmt_correlations.get(catalog_stmt).get(catalog_stmt_index).get(catalog_stmt_param));
-            }
+        Collection<ParameterMapping> ret = null;
+        StatementMappings mappings = this.stmtIndex.get(catalog_stmt);
+        if (mappings != null) {
+            ret = mappings.get(catalog_stmt_index).get(catalog_stmt_param);
         }
-        return (set);
+        return (ret);
+    }
+
+    /**
+     * Return the ParameterMappings for the StmtParameter offset in the Statement 
+     * @param catalog_stmt
+     * @param catalog_stmt_index The # of times that this Statement has already been executed
+     * @param catalog_stmt_param_index
+     * @return
+     */
+    public Collection<ParameterMapping> get(Statement catalog_stmt, int catalog_stmt_index, int catalog_stmt_param_index) {
+        assert(catalog_stmt != null);
+        assert(catalog_stmt_index >= 0);
+        assert(catalog_stmt_param_index < catalog_stmt.getParameters().size());
+        return (this.get(catalog_stmt, catalog_stmt_index, catalog_stmt.getParameters().values()[catalog_stmt_param_index]));
+    }
+    
+    
+    /**
+     * Return a mapping from StmtParameters to ParameterMapping
+     * @param catalog_stmt The Statement to retrieve the mappings for
+     * @param catalog_stmt_index The # of times that this Statement has already been executed
+     * @return
+     */
+    public Map<StmtParameter, SortedSet<ParameterMapping>> get(Statement catalog_stmt, Integer catalog_stmt_index) {
+        StatementMappings mappings = this.stmtIndex.get(catalog_stmt);
+        if (mappings != null) {
+            return (mappings.get(catalog_stmt_index));
+        }
+        return (null);
     }
     
     /**
-     * Get all of the Correlations for this StmtParameter, regardless of the catalog_stmt_index
+     * Get all of the ParameterMapping for this StmtParameter, regardless of the catalog_stmt_index
      * @param catalog_stmt
      * @param catalog_stmt_param
      * @return
      */
-    public SortedSet<ParameterMapping> get(Statement catalog_stmt, StmtParameter catalog_stmt_param) {
+    protected Collection<ParameterMapping> get(Statement catalog_stmt, StmtParameter catalog_stmt_param) {
         assert(catalog_stmt != null);
         assert(catalog_stmt_param != null);
         
-        SortedSet<ParameterMapping> set = new TreeSet<ParameterMapping>();
-        if (this.stmt_correlations.containsKey(catalog_stmt)) {
-            for (SortedMap<StmtParameter, SortedSet<ParameterMapping>> m : this.stmt_correlations.get(catalog_stmt).values()) {
+        Collection<ParameterMapping> set = new TreeSet<ParameterMapping>();
+        StatementMappings mappings = this.stmtIndex.get(catalog_stmt);
+        if (mappings != null) {
+            for (SortedMap<StmtParameter, SortedSet<ParameterMapping>> m : mappings.values()) {
                 if (m.containsKey(catalog_stmt_param)) {
                     set.addAll(m.get(catalog_stmt_param));
                 }
@@ -140,63 +192,41 @@ public class ParameterMappingsSet extends TreeSet<ParameterMapping> implements J
     }
     
     /**
-     * Return a sorted list of the Correlations for this ProcParameter regardless of ProcParameter index
+     * Return a sorted list of the ParameterMapping for this ProcParameter regardless of ProcParameter index
      * @param catalog_proc_param
      * @return
      */
-    public SortedSet<ParameterMapping> get(ProcParameter catalog_proc_param) {
+    public Collection<ParameterMapping> get(ProcParameter catalog_proc_param) {
         assert(catalog_proc_param != null);
         Procedure catalog_proc = catalog_proc_param.getParent();
         assert(catalog_proc != null);
         
-        SortedSet<ParameterMapping> set = new TreeSet<ParameterMapping>();
-        if (this.proc_correlations.containsKey(catalog_proc) && this.proc_correlations.get(catalog_proc).containsKey(catalog_proc_param)) {
-            set.addAll(this.proc_correlations.get(catalog_proc).get(catalog_proc_param));
+        Collection<ParameterMapping> ret = null;
+        ProcedureMappings mappings = this.procIndex.get(catalog_proc);
+        if (mappings != null && mappings.containsKey(catalog_proc_param)) {
+            ret = this.procIndex.get(catalog_proc).get(catalog_proc_param);
         }
-        return (set);
+        return (ret);
     }
     
     /**
-     * Return all of the Correlation objects for the given ProcParameter that are mapped to 
-     * a particular Column via the StmtParameter. If you have to ask, then you probably don't need
-     * this method...
+     * Return all of the ParameterMappings for the given ProcParameter that are mapped to 
+     * a particular Column via the StmtParameter.
+     * <B>NOTE:</B> If you have to ask, then you probably don't need this method...
      * @param catalog_proc_param
      * @param catalog_col
      * @return
      */
-    public SortedSet<ParameterMapping> get(ProcParameter catalog_proc_param, Column catalog_col) {
+    public Collection<ParameterMapping> get(ProcParameter catalog_proc_param, Column catalog_col) {
         assert(catalog_proc_param != null);
         assert(catalog_col != null);
-        
-        Pair<ProcParameter, Column> p = Pair.of(catalog_proc_param, catalog_col);
-        SortedSet<ParameterMapping> set = CACHE_ProcParameter_Column.get(p);
-        if (set == null) {
-            Procedure catalog_proc = catalog_proc_param.getParent();
-            assert(catalog_proc != null);
-            set = new TreeSet<ParameterMapping>();
-            if (this.proc_correlations.containsKey(catalog_proc) && this.proc_correlations.get(catalog_proc).containsKey(catalog_proc_param)) {
-                for (ParameterMapping c : this.proc_correlations.get(catalog_proc).get(catalog_proc_param)) {
-                    if (c.getColumn().equals(catalog_col)) set.add(c);
-                } // FOR
-            }
-            CACHE_ProcParameter_Column.put(p, set);
-        }
-        return (set);
-    }
-    private final Map<Pair<ProcParameter, Column>, SortedSet<ParameterMapping>> CACHE_ProcParameter_Column = new HashMap<Pair<ProcParameter,Column>, SortedSet<ParameterMapping>>();
 
-    /**
-     * Return all of the correlation objects where the StmtParameter in the Statement
-     * references the given column
-     * @param catalog_col
-     * @return
-     */
-    public SortedSet<ParameterMapping> get(Column catalog_col) {
-        SortedSet<ParameterMapping> set = new TreeSet<ParameterMapping>();
-        for (ParameterMapping c : this) {
-            if (c.getColumn().equals(catalog_col)) set.add(c);
-        } // FOR
-        return (set);
+        Collection<ParameterMapping> ret = null;
+        ProcParameterMappings mappings = this.procParamIndex.get(catalog_proc_param);
+        if (mappings != null) {
+            ret = mappings.get(catalog_col);
+        }
+        return (ret);
     }
 
     /**
@@ -204,25 +234,13 @@ public class ParameterMappingsSet extends TreeSet<ParameterMapping> implements J
      * @param catalog_stmt
      * @return
      */
-    public SortedMap<Integer, SortedMap<StmtParameter, SortedSet<ParameterMapping>>> get(Statement catalog_stmt) {
-        return (this.stmt_correlations.get(catalog_stmt));
+    protected StatementMappings get(Statement catalog_stmt) {
+        return (this.stmtIndex.get(catalog_stmt));
     }
-    
-    /**
-     * Return a mapping from StmtParameters to Correlations
-     * @param catalog_stmt
-     * @param catalog_stmt_index
-     * @return
-     */
-    public SortedMap<StmtParameter, SortedSet<ParameterMapping>> get(Statement catalog_stmt, Integer catalog_stmt_index) {
-        if (this.stmt_correlations.containsKey(catalog_stmt)) {
-            return (this.stmt_correlations.get(catalog_stmt).get(catalog_stmt_index));
-        }
-        return (null);
-    }
+
     
     public String debug() {
-        return (this.debug(this.stmt_correlations.keySet()));
+        return (this.debug(this.stmtIndex.keySet()));
     }
     
     public String debug(Statement...catalog_stmts) {
@@ -232,14 +250,14 @@ public class ParameterMappingsSet extends TreeSet<ParameterMapping> implements J
     public String debug(Collection<Statement> catalog_stmts) {
         StringBuilder sb = new StringBuilder();
         for (Statement catalog_stmt : catalog_stmts) {
-            if (this.stmt_correlations.containsKey(catalog_stmt)) {
-                int num_instances = this.stmt_correlations.get(catalog_stmt).size();
+            if (this.stmtIndex.containsKey(catalog_stmt)) {
+                int num_instances = this.stmtIndex.get(catalog_stmt).size();
                 sb.append(catalog_stmt.getName() + " [# of Instances=" + num_instances + "]\n");
-                for (Integer catalog_stmt_index : this.stmt_correlations.get(catalog_stmt).keySet()) {
+                for (Integer catalog_stmt_index : this.stmtIndex.get(catalog_stmt).keySet()) {
                     if (num_instances > 1) sb.append(String.format("   Instance #%02d:\n", catalog_stmt_index));
     
-                    if (this.stmt_correlations.get(catalog_stmt).containsKey(catalog_stmt_index)) {
-                        SortedMap<StmtParameter, SortedSet<ParameterMapping>> params = this.stmt_correlations.get(catalog_stmt).get(catalog_stmt_index);
+                    if (this.stmtIndex.get(catalog_stmt).containsKey(catalog_stmt_index)) {
+                        SortedMap<StmtParameter, SortedSet<ParameterMapping>> params = this.stmtIndex.get(catalog_stmt).get(catalog_stmt_index);
                         for (StmtParameter catalog_stmt_param : params.keySet()) {
                             for (ParameterMapping c : params.get(catalog_stmt_param)) {
                                 sb.append("   " + c + "\n");

@@ -23,6 +23,7 @@
 
 package org.voltdb.regressionsuites;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -131,5 +132,15 @@ public abstract class VoltServerConfig {
             "Invalid HStoreConf parameter '" + name + "'";
         this.confParams.put(name, (value != null ? value.toString() : null));
         HStoreConf.singleton(true).set(name, value);
+    }
+    
+    // ---------------------------------------------------------------------------
+    
+    public static String getPathToCatalogForTest(String jarname) {
+        String answer = jarname;
+        if (System.getenv("TEST_DIR") != null) {
+            answer = System.getenv("TEST_DIR") + File.separator + jarname;
+        }
+        return answer;
     }
 }

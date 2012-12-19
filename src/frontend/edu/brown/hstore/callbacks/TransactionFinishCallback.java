@@ -9,7 +9,15 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-public class TransactionFinishCallback extends AbstractTransactionCallback<TransactionFinishResponse, TransactionFinishResponse> {
+/**
+ * This callback waits until we have heard back from all of the partitions
+ * that they have finished processing our transaction. Once we get all of the
+ * acknowledgments that we need (including any local partitions), then
+ * we will queue this transaction up for deletion. If the <b>needs_requeue</b> flag
+ * is set to true, then we will requeue it first before deleting 
+ * @author pavlo
+ */
+public class TransactionFinishCallback extends AbstractTransactionCallback<LocalTransaction, TransactionFinishResponse, TransactionFinishResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionFinishCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -29,9 +37,9 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Trans
     }
 
     public void init(LocalTransaction ts, Status status) {
-        super.init(ts, ts.getPredictTouchedPartitions().size(), null);
         this.status = status;
         this.needs_requeue = false;
+        super.init(ts, ts.getPredictTouchedPartitions().size(), null);
     }
     
     /**
@@ -45,12 +53,17 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Trans
     }
     
     @Override
-    protected boolean unblockTransactionCallback() {
-        this.setFinishStatus(this.status);
+    protected void unblockTransactionCallback() {
         if (this.needs_requeue) {
             this.hstore_site.transactionRequeue(this.ts, this.status);
         }
-        return (true);
+        try {
+            this.hstore_site.queueDeleteTransaction(this.txn_id, this.status);
+        } catch (Throwable ex) {
+            String msg = String.format("Failed to queue %s for deletion from %s",
+                                       ts, this.getClass().getSimpleName());
+            throw new RuntimeException(msg, ex);
+        }
     }
     
     @Override

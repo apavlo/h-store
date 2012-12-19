@@ -66,6 +66,8 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
+import edu.brown.catalog.conflicts.ConflictGraph;
+import edu.brown.graphs.GraphvizExport;
 import edu.brown.gui.catalog.AttributesNode;
 import edu.brown.gui.catalog.CatalogAttributeText;
 import edu.brown.gui.catalog.CatalogSummaryText;
@@ -74,6 +76,8 @@ import edu.brown.gui.catalog.PlanTreeCatalogNode;
 import edu.brown.gui.catalog.ProcedureConflictGraphNode;
 import edu.brown.gui.catalog.WrapperNode;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.FileUtil;
+import edu.brown.utils.IOFileFilter;
 
 /**
  * Graphical Catalog Viewer Tool
@@ -119,6 +123,7 @@ public class CatalogViewer extends AbstractViewer {
         CATALOG_OPEN_FILE,
         CATALOG_OPEN_JAR,
         CATALOG_SAVE,
+        CONFLICTGRAPH_EXPORT,
         QUIT,
     };
     
@@ -179,7 +184,7 @@ public class CatalogViewer extends AbstractViewer {
     }
     
     private void generateCatalogTree(Catalog catalog, String catalog_path) {
-        this.catalogTreeModel = new CatalogTreeModel(catalog, catalog_path);
+        this.catalogTreeModel = new CatalogTreeModel(this.args, catalog, catalog_path);
         this.catalogTree.setModel(this.catalogTreeModel);
         this.catalog = catalog;
         this.catalog_path = catalog_path;
@@ -225,6 +230,15 @@ public class CatalogViewer extends AbstractViewer {
         menuItem.getAccessibleContext().setAccessibleDescription("Open Catalog From Project Jar");
         menuItem.addActionListener(this.menuHandler);
         menuItem.putClientProperty(MenuHandler.MENU_ID, MenuOptions.CATALOG_OPEN_JAR);
+        menu.add(menuItem);
+         
+        menu.addSeparator();
+        
+        menuItem = new JMenuItem("Export ConflictGraph"); 
+        // menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, ActionEvent.CTRL_MASK | ActionEvent.SHIFT_MASK));
+        menuItem.getAccessibleContext().setAccessibleDescription("Export ConflictGraph to a Graphviz Dot File");
+        menuItem.addActionListener(this.menuHandler);
+        menuItem.putClientProperty(MenuHandler.MENU_ID, MenuOptions.CONFLICTGRAPH_EXPORT);
         menu.add(menuItem);
          
         menu.addSeparator();
@@ -513,6 +527,26 @@ public class CatalogViewer extends AbstractViewer {
         }
     } // END CLASS
     
+    
+    protected String exportConflictGraph() {
+        IOFileFilter filter = new IOFileFilter("Graphviz Dot File", "dot");
+        File defaultFile = new File(String.format("%s-conflict.dot", args.catalogContext.database.getProject()));
+        String path = null;
+        try {
+            path = showSaveDialog("Export ConflictGraph", ".", filter, defaultFile);
+            if (path != null) {
+                ConflictGraph graph = this.catalogTreeModel.getProcedureConflictGraphNode().getConflictGraph();
+                assert(graph != null) : "Unexpected null ConflictGraph";
+                String serialized = GraphvizExport.export(graph, args.catalogContext.database.getProject());
+                FileUtil.writeStringToFile(new File(path), serialized);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showErrorDialog("Failed to export ConflictGraph file", ex.getMessage());
+        }
+        return (path);
+    }
+    
     protected class MenuHandler extends AbstractMenuHandler {
         /**
          * 
@@ -545,6 +579,17 @@ public class CatalogViewer extends AbstractViewer {
                     }
                     break;
                 }
+                // --------------------------------------------------------
+                // EXPORT CONFLICT GRAPH
+                // --------------------------------------------------------
+                case CONFLICTGRAPH_EXPORT: {
+                    String path = exportConflictGraph();
+                    if (path != null) {
+                        LOG.info("Exported ConflictGraph to '" + path + "'");
+                    }
+                    break;
+                }
+                
                 // --------------------------------------------------------
                 // QUIT
                 // --------------------------------------------------------

@@ -7,6 +7,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.utils.StringUtil;
 import edu.uci.ics.jung.graph.DelegateForest;
 
 /**
@@ -32,6 +33,7 @@ public class AbstractVertex extends AbstractGraphElement {
     }
     
     public AbstractVertex(CatalogType catalog_item) {
+        assert(catalog_item != null);
         this.catalog_item = catalog_item;
         this.catalog_key = CatalogKey.createKey(this.catalog_item);
         this.catalog_class = this.catalog_item.getClass();
@@ -67,12 +69,12 @@ public class AbstractVertex extends AbstractGraphElement {
         return (this.catalog_item.getName());
     }
     
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public String debug(IGraph<?, ?> graph) {
         String ret = super.debug(graph);
         if (graph instanceof DelegateForest) {
-            ret += DEBUG_SPACER + DEBUG_SPACER + "PARENT: " + ((DelegateForest)graph).getParent(this) + "\n";
+            ret += StringUtil.SPACER + StringUtil.SPACER + "PARENT: " + ((DelegateForest)graph).getParent(this) + "\n";
         }
         return (ret);
     }

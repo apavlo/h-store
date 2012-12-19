@@ -27,6 +27,8 @@
  ***************************************************************************/
 package edu.brown.utils;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -93,5 +95,37 @@ public enum ProjectType {
 
     public static ProjectType get(String name) {
         return (ProjectType.name_lookup.get(name.toLowerCase().intern()));
+    }
+    
+    /**
+     * Attempt to find a specific file from the supplemental files directory.
+     * @param current
+     * @param target_dir
+     * @param target_ext
+     * @return
+     * @throws IOException
+     */
+    public File getProjectFile(File current, String target_dir, String target_ext) throws IOException {
+        boolean has_svn = false;
+        for (File file : current.listFiles()) {
+            if (file.getCanonicalPath().endsWith("files") && file.isDirectory()) {
+                // Look for either a .<target_ext> or a .<target_ext>.gz file
+                String file_name = this.name().toLowerCase() + target_ext;
+                for (int i = 0; i < 2; i++) {
+                    if (i > 0) file_name += ".gz";
+                    File target_file = new File(file + File.separator + target_dir + File.separator + file_name);
+                    if (target_file.exists() && target_file.isFile()) {
+                        return (target_file);
+                    }
+                } // FOR
+                assert(false) : "Unable to find '" + file_name + "' for '" + this + "' in directory '" + file + "'";
+            // Make sure that we don't go to far down...
+            } else if (file.getCanonicalPath().endsWith("/.svn")) {
+                has_svn = true;
+            }
+        } // FOR
+        assert(has_svn) : "Unable to find files directory [last_dir=" + current.getAbsolutePath() + "]";  
+        File next = new File(current.getCanonicalPath() + File.separator + "..");
+        return (this.getProjectFile(next, target_dir, target_ext));
     }
 }

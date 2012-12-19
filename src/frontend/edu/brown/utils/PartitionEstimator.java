@@ -48,7 +48,6 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
@@ -60,6 +59,7 @@ import org.voltdb.types.ExpressionType;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
@@ -70,6 +70,7 @@ import edu.brown.designer.ColumnSet;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -83,7 +84,7 @@ import edu.brown.workload.TransactionTrace;
  * calculations. 
  * @author pavlo
  */
-public class PartitionEstimator {
+public class PartitionEstimator implements Loggable {
     private static final Logger LOG = Logger.getLogger(PartitionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -99,7 +100,7 @@ public class PartitionEstimator {
     private PartitionSet all_partitions = new PartitionSet();
     private int num_partitions;
 
-    private final HashMap<Procedure, ProcParameter> cache_procPartitionParameters = new HashMap<Procedure, ProcParameter>();
+    private final Map<Procedure, ProcParameter> cache_procPartitionParameters = new HashMap<Procedure, ProcParameter>();
     private final Map<Table, Column> cache_tablePartitionColumns = new HashMap<Table, Column>();
     
     /**
@@ -123,7 +124,7 @@ public class PartitionEstimator {
     private final Map<String, Set<CacheEntry>> table_cache_xref = new HashMap<String, Set<CacheEntry>>();
 
     /**
-     * CacheEntry ColumnKey -> Set<StmtParameterIndex>
+     * CacheEntry ColumnKey -> StmtParameter Offset Array
      */
     private class CacheEntry extends HashMap<Column, int[]> {
         private static final long serialVersionUID = 1L;
@@ -318,18 +319,16 @@ public class PartitionEstimator {
     // BASE DATA MEMBERS METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * Return the current CatalogContext used in this instance
+     * @return
+     */
     public CatalogContext getCatalogContext() {
         return (this.catalogContext);
     }
     
-    @Deprecated
-    public Database getDatabase() {
-        return catalogContext.database;
-    }
-
     /**
-     * Return the hasher used in this estimator instance
-     * 
+     * Return the hasher used in this instance
      * @return
      */
     public AbstractHasher getHasher() {
@@ -338,7 +337,6 @@ public class PartitionEstimator {
 
     /**
      * Initialize a new catalog for this PartitionEstimator
-     * 
      * @param new_catalog_db
      */
     public void initCatalog(CatalogContext newCatalogContext) {
@@ -414,6 +412,12 @@ public class PartitionEstimator {
         this.cache_fragmentEntries.clear();
         this.cache_statementEntries.clear();
         this.cache_stmtPartitionParameters.clear();
+    }
+    
+    @Override
+    public void updateLogging() {
+        debug.set(LOG.isDebugEnabled());
+        trace.set(LOG.isTraceEnabled());
     }
 
     // ----------------------------------------------------------------------------
@@ -537,7 +541,7 @@ public class PartitionEstimator {
                 } else {
                     // First go through all the entries and add any mappings from
                     // Columns to StmtParameters to our stmt_cache
-                    for (ColumnSet.Entry entry : cset) {
+                    for (CatalogPair entry : cset) {
                         if (trace.get())
                             LOG.trace("Examining extracted ColumnSetEntry: " + entry);
 
@@ -647,7 +651,7 @@ public class PartitionEstimator {
                             // this guy was used against a StmtParameter some where else in the Statement
                             // If this is the case, then we can substitute that mofo in it's place
                             if (stmt_cache.containsKey(catalog_col)) {
-                                for (Integer param_idx : stmt_cache.get(catalog_col)) {
+                                for (int param_idx : stmt_cache.get(catalog_col)) {
                                     if (trace.get())
                                         LOG.trace("Linking " + CatalogUtil.getDisplayName(other_col) + " to parameter #" + param_idx + " because of " + catalog_col.fullName());
                                     stmt_cache.put(other_col, param_idx, (Table) other_col.getParent());
@@ -692,7 +696,7 @@ public class PartitionEstimator {
                     CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalogContext.database, update_cset, root_node, true, tables);
 
                     boolean found = false;
-                    for (ColumnSet.Entry entry : update_cset) {
+                    for (CatalogPair entry : update_cset) {
                         Column catalog_col = null;
                         StmtParameter catalog_param = null;
 
@@ -825,7 +829,7 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Integer getBasePartition(final TransactionTrace txn_trace) throws Exception {
+    public int getBasePartition(final TransactionTrace txn_trace) throws Exception {
         if (debug.get())
             LOG.debug("Calculating base partition for " + txn_trace.toString());
         return (this.getBasePartition(txn_trace.getCatalogItem(this.catalogContext.database), txn_trace.getParams(), true));
@@ -907,6 +911,7 @@ public class PartitionEstimator {
         else {
             if (debug.get())
                 LOG.debug("Calculating base partition using " + catalog_param.fullName() + ": " + params[catalog_param.getIndex()]);
+            assert(catalog_param.getIndex() >= 0) : "Invalid parameter offset " + catalog_param.fullName();
             partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
         }
         return (partition);
@@ -1112,7 +1117,7 @@ public class PartitionEstimator {
                                          Integer base_partition) throws Exception {
         // Loop through this Statement's plan fragments and get the partitions
         for (PlanFragment catalog_frag : fragments) {
-            assert(catalog_frag != null);
+            assert(catalog_frag != null) : "Unexpected null PlanFragment";
             PartitionSet partitions = null;
 
             // If we have a FragPartion map, then use an entry from that

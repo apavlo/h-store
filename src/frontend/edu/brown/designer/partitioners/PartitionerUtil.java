@@ -28,6 +28,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.DependencyUtil;
 import edu.brown.catalog.special.MultiColumn;
@@ -160,8 +161,8 @@ public abstract class PartitionerUtil {
     public static ListOrderedSet<String> generateProcParameterOrder(final DesignerInfo info, final Database catalog_db, final Procedure catalog_proc, final DesignerHints hints) throws Exception {
         // HACK: Reload the correlations file so that we can get the proper
         // catalog objects
-        ParameterMappingsSet correlations = info.getMappings();
-        assert (correlations != null);
+        ParameterMappingsSet mappings = info.getMappings();
+        assert (mappings != null);
         // ParameterCorrelations correlations = new ParameterCorrelations();
         // assert(info.getCorrelationsFile() != null) :
         // "The correlations file path was not set";
@@ -197,15 +198,21 @@ public abstract class PartitionerUtil {
                         for (ProcParameter inner : mpp) {
                             // Divide the values by the number of attributes in
                             // mpp so that we take the average
-                            for (ParameterMapping c : correlations.get(inner, catalog_col)) {
-                                param_correlations.get(catalog_proc_param).add(c.getCoefficient() / (double) mpp.size());
-                            } // FOR (Correlation)
+                            Collection<ParameterMapping> pms = mappings.get(inner, catalog_col);
+                            if (pms != null) {
+                                for (ParameterMapping c : pms) {
+                                    param_correlations.get(catalog_proc_param).add(c.getCoefficient() / (double) mpp.size());
+                                } // FOR (ParameterMapping)
+                            }
                         } // FOR
                     }
                 } else {
-                    for (ParameterMapping c : correlations.get(catalog_proc_param, catalog_col)) {
-                        param_correlations.get(catalog_proc_param).add(c.getCoefficient());
-                    } // FOR (Correlation)
+                    Collection<ParameterMapping> pms = mappings.get(catalog_proc_param, catalog_col);
+                    if (pms != null) {
+                        for (ParameterMapping c : pms) {
+                            param_correlations.get(catalog_proc_param).add(c.getCoefficient());
+                        } // FOR (Correlation)
+                    }
                 }
             } // FOR (ProcParameter)
         } // FOR (Table)
@@ -264,7 +271,7 @@ public abstract class PartitionerUtil {
         if (hints.force_replication_size_limit != null) {
             final Map<Table, Double> replication_weights = new HashMap<Table, Double>();
             final TreeSet<Table> temp_list = new TreeSet<Table>(new PartitionerUtil.CatalogWeightComparator<Table>(replication_weights));
-            for (Table catalog_tbl : info.catalog_db.getTables()) {
+            for (Table catalog_tbl : info.catalogContext.database.getTables()) {
                 TableStatistics ts = info.stats.getTableStatistics(catalog_tbl);
                 assert (ts != null);
                 double size_ratio = ts.tuple_size_total / (double) hints.max_memory_per_partition;
@@ -430,8 +437,8 @@ public abstract class PartitionerUtil {
 
                 // Skip any ColumnSets that were used only for INSERTs
                 ColumnSet cset = new ColumnSet();
-                for (ColumnSet.Entry entry : orig_cset) {
-                    if (!(entry.getQueryTypes().contains(QueryType.INSERT) && entry.getQueryTypes().size() == 1)) {
+                for (CatalogPair entry : orig_cset) {
+                    if (!(entry.containsQueryType(QueryType.INSERT) && entry.getQueryTypeCount() == 1)) {
                         cset.add(entry);
                     }
                 } // FOR

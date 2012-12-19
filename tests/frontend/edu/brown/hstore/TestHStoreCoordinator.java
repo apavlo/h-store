@@ -3,10 +3,13 @@ package edu.brown.hstore;
 import java.io.IOException;
 import java.lang.Thread.State;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -14,9 +17,18 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
+import org.voltdb.exceptions.SerializableException;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.BaseTestCase;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
+import edu.brown.hstore.Hstoreservice.ShutdownPrepareResponse;
+import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
@@ -34,10 +46,10 @@ public class TestHStoreCoordinator extends BaseTestCase {
     private final HStoreSite hstore_sites[] = new HStoreSite[NUM_SITES_PER_HOST];
     private final HStoreCoordinator coordinators[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
     
-    private final VoltTable.ColumnInfo columns[] = {
-        new VoltTable.ColumnInfo("key", VoltType.STRING),
-        new VoltTable.ColumnInfo("value", VoltType.BIGINT),
-    };
+//    private final VoltTable.ColumnInfo columns[] = {
+//        new VoltTable.ColumnInfo("key", VoltType.STRING),
+//        new VoltTable.ColumnInfo("value", VoltType.BIGINT),
+//    };
 //    private final VoltTable fragment = new VoltTable(columns);
     
     @Before
@@ -88,6 +100,10 @@ public class TestHStoreCoordinator extends BaseTestCase {
             }
         } // FOR
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
     
     /**
      * To keep track out how many threads fail
@@ -146,6 +162,73 @@ public class TestHStoreCoordinator extends BaseTestCase {
             }
         } // FOR
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testPrepareShutdownSerializeError
+     */
+    @Test
+    public void testPrepareShutdownSerializeError() throws Exception {
+        String errorMsg = "XXXXXXXXX";
+        Throwable error = null;
+        try {
+            throw new RuntimeException(errorMsg);
+        } catch (Throwable ex) {
+            error = ex;
+        }
+        assertNotNull(error);
+        SerializableException sError = new SerializableException(error);
+        ByteBuffer buffer = sError.serializeToBuffer();
+        buffer.rewind();
+        
+        ShutdownPrepareRequest.Builder builder = ShutdownPrepareRequest.newBuilder()
+                                                        .setSenderSite(0)
+                                                        .setError(ByteString.copyFrom(buffer));
+        ShutdownPrepareRequest request = builder.build();
+        
+        assertTrue(request.hasError());
+        buffer = request.getError().asReadOnlyByteBuffer();
+        SerializableException clone = SerializableException.deserializeFromBuffer(buffer);
+        assertTrue(clone.getMessage(), clone.getMessage().contains(errorMsg));
+    }
+    
+//    /**
+//     * testPrepareShutdown
+//     */
+//    @Test
+//    public void testPrepareShutdown() throws Exception {
+
+//        
+//        // Attach an EventObserver to each HStoreSite
+//        @SuppressWarnings("unchecked")
+//        final EventObserver<Object> observers[] = new EventObserver[this.hstore_sites.length];
+//        final Object observerValues[] = new Object[observers.length];
+//        final CountDownLatch observerLatches[] = new CountDownLatch[observers.length];
+//        for (int i = 0; i < hstore_sites.length; i++) {
+//            final int offset = i;
+//            observerLatches[i] = new CountDownLatch(1);
+//            observers[i] = new EventObserver<Object>() {
+//                @Override
+//                public void update(EventObservable<Object> o, Object arg) {
+//                    observerValues[offset] = arg;
+//                    observerLatches[offset].countDown();
+//                }
+//            };
+//            this.hstore_sites[i].getPrepareShutdownObservable().addObserver(observers[i]);
+//        } // FOR
+//        
+//        // Now tell the first HStoreCoordinator that we want to prepare
+//        // to shutdown the cluster. Make sure that everybody got the 
+//        // proper error message
+//        this.coordinators[0].prepareShutdownCluster(error);
+//        for (int i = 1; i < hstore_sites.length; i++) {
+//            boolean ret = observerLatches[i].await(1000, TimeUnit.MILLISECONDS);
+//            assertTrue("Latch " + i, ret);
+//        } // FOR
+//    }
     
     /**
      * testStartConnection

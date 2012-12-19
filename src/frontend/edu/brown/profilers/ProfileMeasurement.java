@@ -277,6 +277,13 @@ public class ProfileMeasurement implements JSONSerializable {
     public ProfileMeasurement stop() {
         return (this.stop(getTime()));
     }
+    
+    public ProfileMeasurement stopIfStarted() {
+        if (this.isStarted()) {
+            this.stop(getTime());
+        }
+        return (this);
+    }
 
     public synchronized void addStopObserver(EventObserver<ProfileMeasurement> observer) {
         if (this.stop_observable == null) {
@@ -314,17 +321,38 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.appendTime(other, false));
     }
 
-    public void addThinkTime(long start, long stop, int invocations) {
-        assert(this.marker == NULL_MARKER) : this.type;
+    /**
+     * Append the think time without locking the marker. This is the preferred
+     * way to update the ProfileMeasurement when multiple threads are using it.
+     * @param start
+     * @param stop
+     * @param invocations
+     */
+    public synchronized void appendTime(long start, long stop, int invocations) {
+        assert(start >= 0);
+        assert(stop >= 0);
         this.total_time += (stop - start);
         this.invocations += invocations;
     }
 
-    public void addThinkTime(long start, long stop) {
-        this.addThinkTime(start, stop, 0);
+    /**
+     * Append the think time without locking the marker. This is the preferred
+     * way to update the ProfileMeasurement when multiple threads are using it.
+     * @param start
+     * @param stop
+     */
+    public void appendTime(long start, long stop) {
+        this.appendTime(start, stop, 1);
     }
 
-
+    /**
+     * Append the think time without locking the marker. This is the preferred
+     * way to update the ProfileMeasurement when multiple threads are using it.
+     * @param start
+     */
+    public void appendTime(long start) {
+        this.appendTime(start, getTime(), 1);
+    }
     
     /**
      * Return the current time in nano-seconds
@@ -416,14 +444,13 @@ public class ProfileMeasurement implements JSONSerializable {
     @Override
     public String toString() {
         return (this.debug(false));
-//        return (this.debug(false));
     }
 
     public String debug() {
         return this.debug(true);
     }
 
-    public String debug(boolean verbose) {
+    private String debug(boolean verbose) {
         String prefix = this.type + "/" + this.hashCode();
         if (verbose) {
             return (String.format("%s[total=%d, marker=%s, invocations=%d, avg=%.2f ms]",

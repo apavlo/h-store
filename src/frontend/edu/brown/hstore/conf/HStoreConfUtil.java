@@ -26,7 +26,7 @@ public abstract class HStoreConfUtil {
     static final String REGEX_URL_REPLACE = "<a href=\"$1\">$1</a>";
     
     static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
-    static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">\\${$1.$2}</a>";
+    static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">$1.$2</a>";
 
     // ----------------------------------------------------------------------------
     // HTML OUTPUT METHODS

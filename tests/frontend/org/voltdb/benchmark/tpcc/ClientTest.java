@@ -65,12 +65,13 @@ public class ClientTest extends TestCase {
     MockVoltClient mockClient;
     MockRandomGenerator generator;
     TPCCClient client;
+    TPCCConfig config = TPCCConfig.defaultConfig();
 
     public void setUp() {
         mockClient = new MockVoltClient();
         generator = new MockRandomGenerator();
         client = new TPCCClient(mockClient, generator, new Clock.Mock(),
-                ScaleParameters.makeDefault((int) WAREHOUSES));
+                ScaleParameters.makeDefault((int) WAREHOUSES), this.config);
         mockClient.nextResult = new VoltTable[0];
         mockClient.resetAfterCall = false;
     }
@@ -80,7 +81,7 @@ public class ClientTest extends TestCase {
     private static final int SMALL_CUSTOMERS = 20;
     private void makeSmallWarehouseClient() {
         client = new TPCCClient(mockClient, generator, new Clock.Mock(),
-                new ScaleParameters(SMALL_ITEMS, 1, 1, SMALL_DISTRICTS, SMALL_CUSTOMERS, 0));
+                new ScaleParameters(SMALL_ITEMS, 1, 1, SMALL_DISTRICTS, SMALL_CUSTOMERS, 0), this.config);
     }
 
     public void testStockLevel() throws IOException {

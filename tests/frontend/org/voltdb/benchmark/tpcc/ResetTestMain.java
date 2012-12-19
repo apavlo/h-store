@@ -29,7 +29,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.voltdb.BackendTarget;
-import org.voltdb.ClientInterface;
+
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltProcedure;
@@ -45,7 +46,6 @@ public class ResetTestMain {
         //noisy!
         //Logger.getLogger(VoltProcedure.class.getName()).setLevel(Level.SEVERE);
         Logger.getLogger(Client.class.getName()).setLevel(Level.SEVERE);
-        Logger.getLogger(ClientInterface.class.getName()).setLevel(Level.SEVERE);
         Logger.getLogger(ExecutionEngine.class.getName()).setLevel(Level.SEVERE);
         Logger.getLogger(PartitionExecutor.class.getName()).setLevel(Level.SEVERE);
         Logger.getLogger(VoltProcedure.class.getName()).setLevel(Level.SEVERE);
@@ -67,7 +67,7 @@ public class ResetTestMain {
         server.start();
         server.waitForInitialization();
         Client client = ClientFactory.createClient();
-        client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
+        client.createConnection(null, "localhost", HStoreConstants.DEFAULT_PORT, "program", "none");
 
         Date generationDateTime = new Date();
         long tm = System.currentTimeMillis();

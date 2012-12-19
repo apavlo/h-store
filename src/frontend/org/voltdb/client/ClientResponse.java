@@ -17,6 +17,7 @@
 
 package org.voltdb.client;
 
+import org.voltdb.ClientResponseDebug;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.Status;
@@ -118,4 +119,7 @@ public interface ClientResponse extends Poolable {
      * @return The number of times this transaction has been restarted.
      */
     public int getRestartCounter();
+    
+    public boolean hasDebug();
+    public ClientResponseDebug getDebug();
 }

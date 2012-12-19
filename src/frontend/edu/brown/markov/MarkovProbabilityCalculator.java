@@ -5,13 +5,18 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.hstore.estimators.DynamicTransactionEstimate;
+import edu.brown.hstore.estimators.EstimatorUtil;
+import edu.brown.hstore.estimators.markov.MarkovEstimate;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovVertex.Type;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, MarkovEdge> {
@@ -23,7 +28,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
     }
     
     private final Set<MarkovEdge> visited_edges = new HashSet<MarkovEdge>();
-    private final Collection<Integer> all_partitions;
+    private final PartitionSet all_partitions;
     private MarkovEstimate markov_est;
     
     public MarkovProbabilityCalculator(MarkovGraph markov) {
@@ -143,9 +148,24 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                     // This vertex doesn't access the partition, but successor vertices might so
                     // the probability is based on the edge probabilities 
                     } else {
-                        est.addFinishProbability(partition, (e.getProbability() * successor.getFinishProbability(partition)));
-                        est.addWriteProbability(partition, (e.getProbability() * successor.getWriteProbability(partition)));
-                        est.addReadOnlyProbability(partition, (e.getProbability() * successor.getReadOnlyProbability(partition)));
+                        try {
+                            est.addFinishProbability(partition, (e.getProbability() * successor.getFinishProbability(partition)));
+                        } catch (Throwable ex) {
+                            LOG.warn(String.format("Failed to set FINISH probability for %s [partition=%d / edge=%s / successor=%s]",
+                                                   est, partition, e, successor), ex);
+                        }
+                        try {
+                            est.addWriteProbability(partition, (e.getProbability() * successor.getWriteProbability(partition)));
+                        } catch (Throwable ex) {
+                            LOG.warn(String.format("Failed to set WRITE probability for %s [partition=%d / edge=%s / successor=%s]",
+                                                   est, partition, e, successor), ex);
+                        }
+                        try {
+                            est.addReadOnlyProbability(partition, (e.getProbability() * successor.getReadOnlyProbability(partition)));
+                        } catch (Throwable ex) {
+                            LOG.warn(String.format("Failed to set READ-ONLY probability for %s [partition=%d / edge=%s / successor=%s]",
+                                                   est, partition, e, successor), ex);
+                        }
                     }
                 } // FOR (PartitionId)
             } // FOR (Edge)
@@ -161,11 +181,11 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
         this.markov_est = null;
     }
     
-    public static MarkovEstimate generate(MarkovGraph markov, MarkovVertex v) {
+    public static MarkovEstimate generate(CatalogContext catalogContext, MarkovGraph markov, MarkovVertex v) {
         MarkovProbabilityCalculator calc = new MarkovProbabilityCalculator(markov);
         calc.stopAtElement(v);
-        MarkovEstimate est = new MarkovEstimate(calc.all_partitions.size());
-        est.init(v, MarkovEstimate.INITIAL_ESTIMATE_BATCH);
+        MarkovEstimate est = new MarkovEstimate(catalogContext);
+        est.init(v, EstimatorUtil.INITIAL_ESTIMATE_BATCH);
         calc.calculate(est);
 //        LOG.info("MarkovEstimate:\n" + est);
 //        System.exit(1);

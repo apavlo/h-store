@@ -29,6 +29,7 @@ import org.voltdb.messaging.FastSerializer;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -53,22 +54,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private boolean singlepartition = true;
     private int basePartition = -1;
     private int restartCounter = 0;
+    private ClientResponseDebug debug = null;
 
     /** opaque data optionally provided by and returned to the client */
     private long clientHandle = -1;
     
     public ClientResponseImpl() {}
-
-    /**
-     * Used in the successful procedure invocation case.
-     * @param client_handle TODO
-     * @param status
-     * @param results
-     * @param extra
-     */
-    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString) {
-        this(txn_id, client_handle, basePartition, status, appStatus, appStatusString, results, statusString, null);
-    }
 
     /**
      * 
@@ -94,25 +85,11 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, e);
     }
 
-    /**
-     * Use this when generating an error response in VoltProcedure
-     * @param status
-     * @param results
-     * @param extra
-     * @param e
-     */
-    public ClientResponseImpl(long txn_id, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable results[], String extra, SerializableException e) {
-        this(txn_id, -1, basePartition, status, appStatus, appStatusString, results, extra, e);
-    }
-
     public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
         this.init(txn_id, client_handle, basePartition, status, appStatus, appStatusString, results, statusString, e);
     }
-    
-    public void init(Long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString, SerializableException e) {
-        this.init(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, e);
-    }
-    
+
+    @Deprecated
     public void init(Long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
         this.txn_id = txn_id.longValue();
         this.clientHandle = client_handle;
@@ -120,6 +97,27 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.appStatus = appStatus;
         this.appStatusString = appStatusString;
         setResults(status, results, statusString, e);
+    }
+    
+    public void init(LocalTransaction ts, Status status, VoltTable[] results, String statusString) {
+        this.init(ts, status, Byte.MIN_VALUE, null, results, statusString, ts.getPendingError());
+    }
+    
+    public void init(LocalTransaction ts,
+                     Status status,
+                     byte appStatus,
+                     String appStatusString,
+                     VoltTable[] results,
+                     String statusString,
+                     SerializableException e) {
+        this.txn_id = ts.getTransactionId().longValue();
+        this.clientHandle = ts.getClientHandle();
+        this.basePartition = ts.getBasePartition();
+        this.appStatus = appStatus;
+        this.appStatusString = appStatusString;
+        this.restartCounter = ts.getRestartCounter();
+        this.singlepartition = ts.isPredictSinglePartition();
+        this.setResults(status, results, statusString, e);
     }
     
     @Override
@@ -253,6 +251,25 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         restartCounter = restarts;
     }
     
+    // ----------------------------------------------------------------------------
+    // SPECIAL DEBUG HANDLE
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public ClientResponseDebug getDebug() {
+        return (this.debug);
+    }
+    @Override
+    public boolean hasDebug() {
+        return (this.debug != null);
+    }
+    public void setDebug(ClientResponseDebug debug) {
+        this.debug = debug;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // ----------------------------------------------------------------------------
     
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
@@ -284,6 +301,11 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         }
         results = (VoltTable[]) in.readArray(VoltTable.class);
         setProperly = true;
+        
+        if (in.readBoolean()) {
+            this.debug = new ClientResponseDebug();
+            this.debug.readExternal(in);
+        }
     }
 
     @Override
@@ -323,6 +345,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             out.write(b.array());
         }
         out.writeArray(results);
+        
+        // DEBUG HANDLE
+        out.writeBoolean(this.debug != null);
+        if (this.debug != null) {
+            this.debug.writeExternal(out);
+        }
     }
     
     @Override
@@ -342,6 +370,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         if (this.clusterRoundTripTime > 0) {
             m.put("Cluster RoundTrip Time", this.clusterRoundTripTime + " ms");
         }
+        m.put("Debug", this.debug);
         
         Map<String, Object> inner = new LinkedHashMap<String, Object>();
         for (int i = 0; i < results.length; i++) {
@@ -389,7 +418,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Status status) {
-        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 = 23 
+        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 = 23
     }
     
     // ----------------------------------------------------------------------------

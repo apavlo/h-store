@@ -61,16 +61,10 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             LOG.debug(String.format("Got %s for txn #%d [partitionFragments=%d]",
                                    request.getClass().getSimpleName(), txn_id, request.getFragmentsCount()));
         
-        // If this is the first time we've been here, then we need to create a RemoteTransaction handle
         RemoteTransaction ts = hstore_site.getTransaction(txn_id);
-        if (ts == null) {
-            ts = hstore_site.getTransactionInitializer()
-                            .createRemoteTransaction(txn_id,
-                                                     request.getSourcePartition(),
-                                                     request.getProcedureId());
-            if (debug.get())
-                LOG.debug(String.format("Created new transaction handke %s", ts));
-        }
+        assert(ts != null);
+        assert(txn_id.equals(ts.getTransactionId())) :
+            String.format("Mismatched %s - Expected[%d] != Actual[%s]", ts, txn_id, ts.getTransactionId());
         
         // Deserialize embedded ParameterSets and store it in the RemoteTransaction handle
         // This way we only do it once per HStoreSite. This will also force us to avoid having
@@ -145,9 +139,6 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             hstore_site.transactionWork(ts, work);
             first = false;
         } // FOR
-        assert(ts != null);
-        assert(txn_id.equals(ts.getTransactionId())) :
-            String.format("Mismatched %s - Expected[%d] != Actual[%s]", ts, txn_id, ts.getTransactionId());
         
         // We don't need to send back a response right here.
         // TransactionWorkCallback will wait until it has results from all of the partitions 

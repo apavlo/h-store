@@ -25,7 +25,13 @@
  ***************************************************************************/
 package edu.brown.hstore.txns;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
@@ -34,6 +40,7 @@ import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -64,27 +71,32 @@ public class RemoteTransaction extends AbstractTransaction {
     
     public RemoteTransaction init(long txnId,
                                   int base_partition,
+                                  ParameterSet parameters,
                                   Procedure catalog_proc,
+                                  PartitionSet partitions,
                                   boolean predict_abortable) {
-        int proc_id = catalog_proc.getId();
-        boolean sysproc = catalog_proc.getSystemproc();
+        super.init(txnId,              // TxnId
+                   -1,                 // ClientHandle
+                   base_partition,     // BasePartition
+                   parameters,         // Procedure Parameters
+                   catalog_proc,       // Procedure
+                   partitions,         // Partitions
+                   true,               // ReadOnly (???)
+                   predict_abortable,  // Abortable
+                   false               // ExecLocal
+        );
         
-        return ((RemoteTransaction)super.init(
-                            txnId,              // TxnId
-                            -1,                 // ClientHandle
-                            base_partition,     // BasePartition
-                            proc_id,            // ProcedureId
-                            sysproc,            // SysProc
-                            false,              // SinglePartition 
-                            true,               // ReadOnly (???)
-                            predict_abortable,  // Abortable
-                            false               // ExecLocal
-        ));
+        // Initialize TransactionCleanupCallback
+        // NOTE: This must come *after* our call to AbstractTransaction.init()
+        this.cleanup_callback.init(this, partitions);
+        
+        return (this);
     }
     
     @Override
     public void finish() {
         super.finish();
+        this.work_callback.finish();
         this.cleanup_callback.finish();
         
         for (int i = 0; i < this.rpc_transactionPrefetch.length; i++) {
@@ -105,15 +117,30 @@ public class RemoteTransaction extends AbstractTransaction {
         super.startRound(partition);
     }
     
-    /**
-     * Return the previously stored callback for a WorkFragment
-     * @return
-     */
+    @Override
+    public boolean isDeletable() {
+        if (this.cleanup_callback.allCallbacksFinished() == false) {
+            if (debug.get()) LOG.warn(String.format("%s - %s is not finished", this,
+                                      this.cleanup_callback.getClass().getSimpleName()));
+            return (false);
+        }
+        // XXX: Do we care about the TransactionWorkCallback?
+        return (super.isDeletable());
+    }
+    
     public TransactionWorkCallback getWorkCallback() {
         return (this.work_callback);
     }
     
+    /**
+     * Get the TransactionCleanupCallback for this txn.
+     * <B>Note:</B> You must call initCleanupCallback() first
+     * @return
+     */
     public TransactionCleanupCallback getCleanupCallback() {
+        assert(this.cleanup_callback.isInitialized()) :
+            String.format("Trying to grab the %s for %s before it has been initialized",
+                          this.cleanup_callback.getClass().getSimpleName(), this);
         return (this.cleanup_callback);
     }
 
@@ -133,15 +160,34 @@ public class RemoteTransaction extends AbstractTransaction {
         }
         return (this.rpc_transactionPrefetch[offset]);
     }
-    
+
     @Override
     public String toStringImpl() {
-        return String.format("REMOTE #%d/%d", this.txn_id, this.base_partition);
+        return String.format("%s-REMOTE #%d/%d", this.getProcedure().getName(),
+                             this.txn_id,
+                             this.base_partition);
     }
     
     @Override
     public String debug() {
-        return (StringUtil.formatMaps(this.getDebugMap()));
+        List<Map<String, Object>> maps = new ArrayList<Map<String,Object>>();
+        
+        // Base Class Info
+        for (Map<String, Object> m : super.getDebugMaps()) {
+            maps.add(m);
+        } // FOR
+        
+        Map<String, Object> m;
+        
+        // Additional Info
+        m = new LinkedHashMap<String, Object>();
+        m.put("InitQueue Callback", this.initQueue_callback);
+        m.put("PrepareWrapper Callback", this.prepareWrapper_callback);
+        m.put("Work Callback", this.work_callback);
+        m.put("CleanUp Callback", this.cleanup_callback);
+        maps.add(m);
+        
+        return (StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()])));
     }
 }
 

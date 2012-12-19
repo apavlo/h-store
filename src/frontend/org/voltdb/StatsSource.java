@@ -20,8 +20,9 @@ import org.voltdb.VoltTable.ColumnInfo;
 import edu.brown.hstore.HStore;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Abstract superclass of all sources of statistical information inside the Java frontend.
@@ -45,13 +46,13 @@ public abstract class StatsSource {
     /**
      * Column schema for statistical result rows
      */
-    private final ArrayList<ColumnInfo> columns = new ArrayList<ColumnInfo>();
+    protected final ArrayList<ColumnInfo> columns = new ArrayList<ColumnInfo>();
 
     /**
      * Map from the name of a column to its index in the a result row. In order to decouple the contributions of each class
      * in the inheritance hierarchy from the integer index in the result row this map is used for lookups instead of hard coding an index.
      */
-    protected final HashMap<String, Integer> columnNameToIndex = new HashMap<String, Integer>();
+    protected final Map<String, Integer> columnNameToIndex = new LinkedHashMap<String, Integer>();
 
     /**
      * Initialize this source of statistical information with the specified name. Populate the column schema by calling populateColumnSchema

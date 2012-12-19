@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 import org.voltdb.client.Client;
@@ -20,14 +21,14 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 public class ControlPipe implements Runnable {
     private static final Logger LOG = Logger.getLogger(ControlPipe.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.setupLogging();
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
-    final InputStream in;
-    final BenchmarkComponent cmp;
+    private final InputStream in;
+    private final BenchmarkComponent cmp;
+    private boolean stop = false;
     
     /**
      * If this is set to true, then we will not wait for the START command
@@ -45,7 +46,9 @@ public class ControlPipe implements Runnable {
         final Thread self = Thread.currentThread();
         self.setName(String.format("client-%02d", cmp.getClientId()));
 
-        final boolean profile = cmp.getHStoreConf().client.profiling;
+        boolean profile = cmp.getHStoreConf().client.profiling;
+        if (profile) cmp.worker.enableProfiling(true);
+        
         final Client client = cmp.getClientHandle();
         final Thread workerThread = new Thread(cmp.worker);
         workerThread.setDaemon(true);
@@ -60,20 +63,20 @@ public class ControlPipe implements Runnable {
         }
         
         final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
+        final Pattern p = Pattern.compile(" ");
         ControlCommand command = null;
-        while (true) {
+        while (this.stop == false) {
             if (this.autoStart) {
                 command = ControlCommand.START;
                 this.autoStart = false;
             } else {
                 try {
-                    command = ControlCommand.get(in.readLine());
+                    command = ControlCommand.get(p.split(in.readLine())[0]);
                     if (debug.get()) 
                         LOG.debug(String.format("Recieved Message: '%s'", command));
                 } catch (final IOException e) {
                     // Hm. quit?
-                    LOG.fatal("Error on standard input", e);
-                    System.exit(-1);
+                    throw new RuntimeException("Error on standard input", e);
                 }
             }
             if (command == null) continue;
@@ -87,7 +90,7 @@ public class ControlPipe implements Runnable {
             switch (command) {
                 case START: {
                     if (cmp.m_controlState != ControlState.READY) {
-                        cmp.setState(ControlState.ERROR, "START when not READY.");
+                        cmp.setState(ControlState.ERROR, command + " when not " + ControlState.READY);
                         cmp.answerWithError();
                         continue;
                     }
@@ -99,11 +102,14 @@ public class ControlPipe implements Runnable {
                 }
                 case POLL: {
                     if (cmp.m_controlState != ControlState.RUNNING) {
-                        cmp.setState(ControlState.ERROR, "POLL when not RUNNING.");
+                        cmp.setState(ControlState.ERROR, command + " when not " + ControlState.RUNNING);
                         cmp.answerWithError();
                         continue;
                     }
                     cmp.answerPoll();
+                    
+                    // Dump Profiling Info
+                    if (profile) System.err.println(this.getProfileInfo());
                     
                     // Call tick on the client if we're not polling ourselves
                     if (cmp.m_tickInterval < 0) {
@@ -116,8 +122,17 @@ public class ControlPipe implements Runnable {
                                                 client.getQueueTime().getAverageThinkTimeMS()));
                     break;
                 }
+                case DUMP_TXNS: {
+                    if (cmp.m_controlState != ControlState.PAUSED) {
+                        cmp.setState(ControlState.ERROR, command + " when not " + ControlState.PAUSED);
+                        cmp.answerWithError();
+                        continue;
+                    }
+                    if (debug.get()) LOG.debug("DUMP TRANSACTIONS!");
+                    cmp.answerDumpTxns();
+                    break;
+                }
                 case CLEAR: {
-                    cmp.m_txnStats.clear(true);
                     cmp.invokeClearCallback();
                     cmp.answerOk();
                     break;
@@ -131,13 +146,14 @@ public class ControlPipe implements Runnable {
                         cmp.m_pauseLock.acquire();
                     } catch (InterruptedException ex) {
                         LOG.fatal("Unexpected interuption!", ex);
-                        System.exit(1);
+                        throw new RuntimeException(ex);
                     }
                     cmp.m_controlState = ControlState.PAUSED;
                     break;
                 }
                 case SHUTDOWN: {
                     if (debug.get()) LOG.debug("Shutting down client + cluster");
+                    this.stop = true;
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
                         cmp.invokeStopCallback();
                         try {
@@ -148,17 +164,14 @@ public class ControlPipe implements Runnable {
                             ex.printStackTrace();
                         }
                     }
-                    System.exit(0);
+                    
                     break;
                 }
                 case STOP: {
+                    this.stop = true;
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
                         if (debug.get()) LOG.debug("Stopping client");
                         cmp.invokeStopCallback();
-                        
-                        if (profile) {
-                            System.err.println("ExecuteTime: " + cmp.worker.getExecuteTime().debug(true));
-                        }
                         
                         try {
                             if (cmp.m_sampler != null) {
@@ -170,23 +183,23 @@ public class ControlPipe implements Runnable {
                                 cmp.checkTables();
                             }
                         } catch (InterruptedException e) {
-                            System.exit(0);
-                        } finally {
-                            System.exit(0);
+                            // Ignore...
                         }
+                    } else {
+                        LOG.fatal("STOP when not RUNNING");
                     }
-                    LOG.fatal("STOP when not RUNNING");
-                    System.exit(-1);
                     break;
                 }
                 default: {
-                    LOG.fatal("Error on standard input: unknown command " + command);
-                    System.exit(-1);
+                    throw new RuntimeException("Error on standard input: unknown command " + command);
                 }
             } // SWITCH
         }
     }
-
     
+    private String getProfileInfo() {
+        return (String.format("Client #%02d - %s / %s",
+                cmp.getClientId(), cmp.worker.getExecuteTime().debug(), cmp.worker.getBlockedTime().debug()));
+    }
 
 }

@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import edu.brown.hstore.internal.FinishTxnMessage;
+import edu.brown.hstore.internal.InitializeRequestMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
+import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 
 public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage> {
@@ -35,7 +37,7 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
         
         while ((msg = this.poll()) != null) {
             // All new transaction requests must be put in the new collection
-            if (msg instanceof InitializeTxnMessage) {
+            if (msg instanceof InitializeRequestMessage) {
                 c.add(msg);
                 ctr++;
             // Everything else will get added back in afterwards 
@@ -47,48 +49,60 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
         return (ctr);
     }
     
+    @Override
+    public InternalMessage poll() {
+        return super.poll();
+    }
+    
     private static final Comparator<InternalMessage> WORK_COMPARATOR = new Comparator<InternalMessage>() {
+        @SuppressWarnings("unchecked")
+        private final Class<? extends InternalMessage> compareOrder[] = (Class<? extends InternalMessage>[])new Class<?>[]{
+            InitializeTxnMessage.class,
+            PrepareTxnMessage.class,
+            FinishTxnMessage.class,
+            WorkFragmentMessage.class,
+        };
+        
         @Override
         public int compare(InternalMessage msg0, InternalMessage msg1) {
-            assert(msg0 != null);
-            assert(msg1 != null);
+            assert(msg0 != null) : "Unexpected null message [msg0]";
+            assert(msg1 != null) : "Unexpected null message [msg1]";
 
             Class<?> class0 = msg0.getClass();
             Class<?> class1 = msg1.getClass();
             
-            // (1) Always let the FinishTaskMessage go first so that we can release locks
-            boolean isFinish0 = class0.equals(FinishTxnMessage.class);
-            boolean isFinish1 = class1.equals(FinishTxnMessage.class);
-            if (isFinish0 && !isFinish1) return (-1);
-            else if (!isFinish0 && isFinish1) return (1);
-            
-            // (2) Then let a WorkFragmentMessage go before anything else
-            boolean isWork0 = class0.equals(WorkFragmentMessage.class);
-            boolean isWork1 = class1.equals(WorkFragmentMessage.class);
-            if (isWork0 && !isWork1) return (-1);
-            else if (!isWork0 && isWork1) return (1);
-            
-            // (3) Compare Transaction Ids
+            // Always compare Transaction Ids first
             boolean isTxn0 = (msg0 instanceof InternalTxnMessage);
             boolean isTxn1 = (msg1 instanceof InternalTxnMessage);
-            if (isTxn0) {
-                assert(((InternalTxnMessage)msg0).getTransactionId() != null) :
-                    "Unexpected null txnId for " + msg0;
-                if (isTxn1) {
-                    assert(((InternalTxnMessage)msg1).getTransactionId() != null) :
-                        "Unexpected null txnId for " + msg1;
-                    return ((InternalTxnMessage)msg0).getTransactionId().compareTo(
-                                ((InternalTxnMessage)msg1).getTransactionId());
+            if (isTxn0 && isTxn1) {
+                // If they're both for the same txn, then use the compareOrder
+                Long txnId0 = ((InternalTxnMessage)msg0).getTransactionId();
+                assert(txnId0 != null) : "Unexpected null txnId for " + msg0;
+                Long txnId1 = ((InternalTxnMessage)msg1).getTransactionId();
+                assert(txnId1 != null) : "Unexpected null txnId for " + msg1;
+
+                // Compare TxnIds
+                int result = txnId0.compareTo(txnId1);
+                if (result != 0) return (result);
+                
+                // Rank them based on their message type
+                // This prevents us from removing a txn before it's been added 
+                if (class0.equals(class1) == false) {
+                    for (Class<? extends InternalMessage> clazz : compareOrder) {
+                        boolean isMatch0 = class0.equals(clazz);
+                        boolean isMatch1 = class1.equals(clazz);
+                        if (isMatch0 && !isMatch1) return (-1);
+                        else if (!isMatch0 && isMatch1) return (1);                    
+                    } // FOR
                 }
+            }
+            else if (isTxn0) {
                 return (-1); 
             } else if (isTxn1) {
-                assert(((InternalTxnMessage)msg1).getTransactionId() != null) :
-                    "Unexpected null txnId for " + msg1;
                 return (1);
             }
-            
-            // (4) They must be the same!
-            // assert(false) : String.format("%s <-> %s", class0, class1);
+
+            // Last Resort: Just use hashCode
             return msg0.hashCode() - msg1.hashCode();
         }
     };

@@ -236,20 +236,20 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             // Skip if we're explicitly force to ignore this guy
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) {
-                LOG.warn(String.format("Ignoring %s - Set to be ignored by the DesignerHints.", catalog_proc));
+                if (debug.get()) LOG.warn(String.format("Ignoring %s - Set to be ignored by the DesignerHints.", catalog_proc));
                 this.ignore_procs.add(catalog_proc);
                 continue;
             }
             // Or if there are not transactions in the sample workload
             else if (workloadHistogram.get(CatalogKey.createKey(catalog_proc), 0) == 0) {
-                LOG.warn(String.format("Ignoring %s - No transaction records in sample workload.", catalog_proc));
+                if (debug.get()) LOG.warn(String.format("Ignoring %s - No transaction records in sample workload.", catalog_proc));
                 this.ignore_procs.add(catalog_proc);
                 continue;
             }
 
             Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
             if (columns.isEmpty()) {
-                LOG.warn(String.format("Ignoring %s - Does not reference any columns in its queries.", catalog_proc));
+                if (debug.get()) LOG.warn(String.format("Ignoring %s - Does not reference any columns in its queries.", catalog_proc));
                 this.ignore_procs.add(catalog_proc);
                 continue;
             }
@@ -895,9 +895,12 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                     param_weights.put(catalog_proc_param, new ArrayList<Double>());
                 }
                 List<Double> weights_list = param_weights.get(catalog_proc_param);
-                for (ParameterMapping c : mappings.get(catalog_proc_param, catalog_col)) {
-                    weights_list.add(c.getCoefficient() * col_access_cnt);
-                } // FOR
+                Collection<ParameterMapping> pms = mappings.get(catalog_proc_param, catalog_col);
+                if (pms != null) {
+                    for (ParameterMapping c : pms) {
+                        weights_list.add(c.getCoefficient() * col_access_cnt);
+                    } // FOR
+                }
                 if (debug.get())
                     LOG.debug("  " + catalog_proc_param + ": " + weights_list);
             } // FOR
@@ -1051,7 +1054,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         m[0].put("Remaining Time", (hints.limit_total_time != null ? (hints.limit_total_time - this.total_search_time.getTotalThinkTimeSeconds()) + " sec" : "-"));
         m[0].put("Cost Model", info.getCostModel().getClass().getSimpleName());
         m[0].put("# of Transactions", info.workload.getTransactionCount());
-        m[0].put("# of Partitions", CatalogUtil.getNumberOfPartitions(info.catalogContext.database));
+        m[0].put("# of Partitions", info.catalogContext.numberOfPartitions);
         m[0].put("# of Intervals", info.getArgs().num_intervals);
         m[0].put("# of Restarts", (this.restart_ctr != null ? this.restart_ctr : "-"));
         m[0].put("Database Total Size", StringUtil.formatSize(info.getMemoryEstimator().estimateTotalSize(info.catalogContext.database)));

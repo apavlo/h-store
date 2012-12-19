@@ -26,7 +26,9 @@ public class Quiesce extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(Quiesce.class);
 
     private static final ColumnInfo ResultsColumns[] = {
-        new ColumnInfo("PARTITION", VoltType.STRING),
+        new ColumnInfo(VoltSystemProcedure.CNAME_HOST_ID, VoltSystemProcedure.CTYPE_ID),
+        new ColumnInfo("HOSTNAME", VoltType.STRING),
+        new ColumnInfo("PARTITION", VoltType.INTEGER),
         new ColumnInfo("STATUS", VoltType.STRING),
         new ColumnInfo("CREATED", VoltType.TIMESTAMP),
     };
@@ -38,7 +40,7 @@ public class Quiesce extends VoltSystemProcedure {
     }
 
     @Override
-    public DependencySet executePlanFragment(long txn_id,
+    public DependencySet executePlanFragment(Long txn_id,
                                              Map<Integer, List<VoltTable>> dependencies,
                                              int fragmentId,
                                              ParameterSet params,
@@ -51,14 +53,17 @@ public class Quiesce extends VoltSystemProcedure {
                 
                 // Clear out the QueueManager too if this is the first partition
                 // at this site
-                if (this.isFirstLocalPartition()) {
-                    hstore_site.getTransactionQueueManager().clearQueues();
-                }
+                hstore_site.getTransactionQueueManager().clearQueues(executor.getPartitionId());
                 
                 VoltTable vt = new VoltTable(ResultsColumns);
-                vt.addRow(this.executor.getHStoreSite().getSiteName(),
-                          Status.OK.name(),
-                          new TimestampType());
+                Object row[] = {
+                    this.hstore_site.getSiteId(),
+                    this.hstore_site.getSiteName(),
+                    this.executor.getPartitionId(),
+                    Status.OK.name(),
+                    new TimestampType(),
+                };
+                vt.addRow(row);
                 result = new DependencySet(SysProcFragmentId.PF_quiesceDistribute, vt);
                 break;
             }

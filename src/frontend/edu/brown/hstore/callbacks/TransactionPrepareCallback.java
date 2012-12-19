@@ -11,17 +11,16 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
- * This callback is invoked at the base partition once the tnx gets all of
+ * This callback is invoked at the base partition once the txn gets all of
  * the 2PC:PREPARE acknowledgments. This is where we will invoke the HStoreSite
  * to send the ClientResponse back to the client.
  * @author pavlo
  */
-public class TransactionPrepareCallback extends AbstractTransactionCallback<ClientResponseImpl, TransactionPrepareResponse> {
+public class TransactionPrepareCallback extends AbstractTransactionCallback<LocalTransaction, ClientResponseImpl, TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
     /**
@@ -38,7 +37,8 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
     }
     
     @Override
-    public boolean unblockTransactionCallback() {
+    public void unblockTransactionCallback() {
+        if (debug.get()) LOG.debug(String.format("%s - Unblocking callback and sending back ClientResponse", this.ts));
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
             if (debug.get()) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + Status.OK);
             this.ts.profiler.stopPostPrepare();
@@ -58,11 +58,11 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
         assert(cresponse.isInitialized()) :
             "Trying to send back ClientResponse for " + ts + " before it was set!";
         this.hstore_site.responseSend(this.ts, cresponse);
-        return (false);
     }
     
     @Override
     protected boolean abortTransactionCallback(Status status) {
+        if (debug.get()) LOG.debug(String.format("%s - Aborting callback and sending back %s ClientResponse", this.ts, status));
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
             if (debug.get()) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + status);
             this.ts.profiler.stopPostPrepare();

@@ -73,9 +73,15 @@ import edu.brown.profilers.ProfileMeasurement;
  */
 public interface Client {
 
-    // default port number for volt cluster instances.
-    public static final int VOLTDB_SERVER_PORT = 21212;
-
+    /**
+     * Create a connection to another VoltDB node.
+     * @param host hostname or IP address of the host to connect to
+     * @param port the port number that the host is listening on
+     * @throws UnknownHostException
+     * @throws IOException
+     */
+    public void createConnection(String host, int port) throws UnknownHostException, IOException;
+    
     /**
      * Create a connection to another VoltDB node.
      * @param siteId TODO

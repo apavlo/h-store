@@ -192,14 +192,17 @@ public enum VoltType {
      * @param val A byte representing an enum value
      * @return The appropriate enum value
      */
-    public static VoltType get(byte val) {
+//    public static VoltType get(byte val) {
+//        assert(val < idx_lookup.length) : "Unknown type: " + val;
+//        VoltType type = idx_lookup[val];
+//        assert(type != null) : "Unknown type: " + val;
+//        return (type);
+//    }
+    public static VoltType get(int val) {
         assert(val < idx_lookup.length) : "Unknown type: " + val;
         VoltType type = idx_lookup[val];
         assert(type != null) : "Unknown type: " + val;
         return (type);
-    }
-    public static VoltType get(int val) {
-        return (get((byte)val));
     }
 
     private boolean matchesString(String str) {

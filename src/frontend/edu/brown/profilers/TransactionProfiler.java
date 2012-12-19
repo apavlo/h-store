@@ -149,9 +149,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
             assert (pm != null);
             if (debug.get())
                 LOG.debug("STOP " + pm.getType());
-            assert (pm.isStarted()) : pm.debug(true);
+            assert (pm.isStarted()) : pm.debug();
             pm.stop(timestamp);
-            assert (pm.isStarted() == false) : pm.debug(true);
+            assert (pm.isStarted() == false) : pm.debug();
         } // WHILE
         assert (this.stack.isEmpty());
         assert (this.isStopped());
@@ -456,7 +456,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         } // WHILE
         assert (current == this.pm_exec_total) : "Unexpected " + current;
         if (trace.get())
-            LOG.trace("STATUS: " + current.debug(true) + "[" + current.hashCode() + "]");
+            LOG.trace("STATUS: " + current.debug() + "[" + current.hashCode() + "]");
         if (current.isStarted() == false) {
             this.pm_post_total.start();
         } else {

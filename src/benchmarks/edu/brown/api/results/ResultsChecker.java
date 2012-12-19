@@ -41,9 +41,15 @@ public class ResultsChecker extends EventObservable<String> implements Benchmark
     }
 
     private long lastDelta = -1;
+    private boolean stop = false;
     
     public ResultsChecker(EventObserver<String> failure_observer) {
         this.addObserver(failure_observer);
+    }
+    
+    @Override
+    public void stop() {
+        this.stop = true;
     }
     
     @Override
@@ -54,6 +60,8 @@ public class ResultsChecker extends EventObservable<String> implements Benchmark
     
     @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
+        if (this.stop) return;
+        
         Pair<Long, Long> p = results.computeTotalAndDelta();
         assert(p != null);
         long txnDelta = p.getSecond();
@@ -63,7 +71,7 @@ public class ResultsChecker extends EventObservable<String> implements Benchmark
         
         if (this.lastDelta == 0 && txnDelta == 0) {
             int pollIndex = results.getCompletedIntervalCount();
-            String error = String.format("The results at poll interval %d are zero", pollIndex);
+            String error = String.format("The results at poll interval %d are zero. Halting benchmark...", pollIndex);
             LOG.error(error);
             this.notifyObservers(error);
         }

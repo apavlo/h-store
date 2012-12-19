@@ -27,7 +27,6 @@
  ***************************************************************************/
 package edu.brown.utils;
 
-import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -96,8 +95,24 @@ public abstract class CollectionUtil {
         int ret[] = new int[items.size()];
         int idx = 0;
         for (Number n : items) {
-            assert (n != null);
-            ret[idx++] = n.intValue();
+            if (n != null) ret[idx] = n.intValue();
+            idx += 1;
+        } // FOR
+        return (ret);
+    }
+    
+    /**
+     * Convert a Collection of Numbers to an array of primitive longs
+     * Null values will be skipped in the array 
+     * @param items
+     * @return
+     */
+    public static long[] toLongArray(Collection<? extends Number> items) {
+        long ret[] = new long[items.size()];
+        int idx = 0;
+        for (Number n : items) {
+            if (n != null) ret[idx] = n.longValue();
+            idx += 1;
         } // FOR
         return (ret);
     }
@@ -112,8 +127,8 @@ public abstract class CollectionUtil {
         double ret[] = new double[items.size()];
         int idx = 0;
         for (Number n : items) {
-            assert (n != null);
-            ret[idx++] = n.doubleValue();
+            if (n != null) ret[idx] = n.doubleValue();
+            idx += 1;
         } // FOR
         return (ret);
     }
@@ -388,15 +403,18 @@ public abstract class CollectionUtil {
      * @return
      */
     public static <T> T get(Iterable<T> items, int idx) {
-        if (items instanceof AbstractList<?>) {
-            return ((AbstractList<T>) items).get(idx);
-        } else if (items instanceof ListOrderedSet<?>) {
+        if (items == null) {
+            return (null);
+        }
+        else if (items instanceof List<?>) {
+            return ((List<T>) items).get(idx);
+        }
+        else if (items instanceof ListOrderedSet<?>) {
             return ((ListOrderedSet<T>) items).get(idx);
         }
         int ctr = 0;
         for (T t : items) {
-            if (ctr++ == idx)
-                return (t);
+            if (ctr++ == idx) return (t);
         }
         return (null);
     }
@@ -410,8 +428,8 @@ public abstract class CollectionUtil {
      */
     public static <T> T last(Iterable<T> items) {
         T last = null;
-        if (items instanceof AbstractList<?>) {
-            AbstractList<T> list = (AbstractList<T>) items;
+        if (items instanceof List<?>) {
+            List<T> list = (List<T>) items;
             last = (list.isEmpty() ? null : list.get(list.size() - 1));
         } else {
             for (T t : items) {

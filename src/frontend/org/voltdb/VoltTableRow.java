@@ -222,7 +222,7 @@ public abstract class VoltTableRow {
         return true;
     }
     
-    public final Object get(int columnIndex) {
+    public Object get(int columnIndex) {
         return (this.get(columnIndex, this.getColumnType(columnIndex)));
     }
     
@@ -236,7 +236,7 @@ public abstract class VoltTableRow {
      * @return The value or <tt>null</tt> if the value is not set.
      * @see #wasNull()
      */
-    public final Object get(int columnIndex, VoltType type) {
+    public Object get(int columnIndex, VoltType type) {
         Object ret = null;
         switch (type) {
         case TINYINT:
@@ -286,7 +286,7 @@ public abstract class VoltTableRow {
      * @return The value or <tt>null</tt> if the value is not set.
      * @see #wasNull()
      */
-    public final Object get(String columnName, VoltType type) {
+    public Object get(String columnName, VoltType type) {
         Object ret = null;
         switch (type) {
         case TINYINT:
@@ -322,11 +322,11 @@ public abstract class VoltTableRow {
         return ret;
     }
 
-    public final boolean getBoolean(int columnIndex) {
+    public boolean getBoolean(int columnIndex) {
         return (this.getLong(columnIndex) != 0);
     }
     
-    public final boolean getBoolean(String columnName) {
+    public boolean getBoolean(String columnName) {
         return (this.getLong(columnName) != 0);
     }
     
@@ -340,7 +340,7 @@ public abstract class VoltTableRow {
      * @return <tt>long</tt> value stored in the specified column
      * @see #wasNull()
      */
-    public final long getLong(int columnIndex) {
+    public long getLong(int columnIndex) {
         if ((columnIndex >= getColumnCount()) || (columnIndex < 0)) {
             throw new IndexOutOfBoundsException("Column index " + columnIndex + " is type greater than the number of columns");
         }
@@ -382,7 +382,7 @@ public abstract class VoltTableRow {
      * @see #wasNull()
      * @see #getLong(int)
      */
-    public final long getLong(String columnName) {
+    public long getLong(String columnName) {
         final int colIndex = getColumnIndex(columnName);
         return getLong(colIndex);
     }
@@ -393,7 +393,7 @@ public abstract class VoltTableRow {
      * in our system.
      * @return <tt>true</tt> if the value was <tt>null</tt>, false otherwise.
      */
-    public final boolean wasNull() {
+    public boolean wasNull() {
         return m_wasNull;
     }
 
@@ -405,7 +405,7 @@ public abstract class VoltTableRow {
      * @return <tt>double</tt> value stored in the specified column
      * @see #wasNull()
      */
-    public final double getDouble(int columnIndex) {
+    public double getDouble(int columnIndex) {
         validateColumnType(columnIndex, VoltType.FLOAT);
         final double value = m_buffer.getDouble(getOffset(columnIndex));
         m_wasNull = (value <= VoltType.NULL_FLOAT); // see value.h
@@ -423,7 +423,7 @@ public abstract class VoltTableRow {
      * @see #wasNull()
      * @see #getDouble(int)
      */
-    public final double getDouble(String columnName) {
+    public double getDouble(String columnName) {
         final int colIndex = getColumnIndex(columnName);
         return getDouble(colIndex);
     }
@@ -437,7 +437,7 @@ public abstract class VoltTableRow {
      * @return {@link java.lang.String String} value stored in the specified column
      * @see #wasNull()
      */
-    public final String getString(int columnIndex) {
+    public String getString(int columnIndex) {
         validateColumnType(columnIndex, VoltType.STRING);
         String retval = readString(getOffset(columnIndex), VoltTable.ROWDATA_ENCODING);
         m_wasNull = (retval == null);
@@ -456,7 +456,7 @@ public abstract class VoltTableRow {
      * @see #wasNull()
      * @see #getString(int)
      */
-    public final String getString(String columnName) {
+    public String getString(String columnName) {
         final int colIndex = getColumnIndex(columnName);
         return getString(colIndex);
     }
@@ -470,7 +470,7 @@ public abstract class VoltTableRow {
      * @return <tt>string</tt> value stored in the specified column as a <tt>byte[]</tt>
      * @see #wasNull()
      */
-    public final byte[] getStringAsBytes(int columnIndex) {
+    public byte[] getStringAsBytes(int columnIndex) {
         validateColumnType(columnIndex, VoltType.STRING);
         int pos = m_buffer.position();
         m_buffer.position(getOffset(columnIndex));
@@ -499,7 +499,7 @@ public abstract class VoltTableRow {
      * @see #wasNull()
      * @see #getStringAsBytes(int)
      */
-    public final byte[] getStringAsBytes(String columnName) {
+    public byte[] getStringAsBytes(String columnName) {
         final int colIndex = getColumnIndex(columnName);
         return getStringAsBytes(colIndex);
     }
@@ -514,7 +514,7 @@ public abstract class VoltTableRow {
      * @see #wasNull()
      * @see #getTimestampAsTimestamp(int)
      */
-    public final long getTimestampAsLong(int columnIndex) {
+    public long getTimestampAsLong(int columnIndex) {
         validateColumnType(columnIndex, VoltType.TIMESTAMP);
         final long value = m_buffer.getLong(getOffset(columnIndex));
         m_wasNull = (value == Long.MIN_VALUE); // see value.h
@@ -534,7 +534,7 @@ public abstract class VoltTableRow {
      * @see #getTimestampAsLong(int)
      * @see #getTimestampAsTimestamp(String)
      */
-    public final long getTimestampAsLong(String columnName) {
+    public long getTimestampAsLong(String columnName) {
         final int colIndex = getColumnIndex(columnName);
         return getTimestampAsLong(colIndex);
     }
@@ -550,7 +550,7 @@ public abstract class VoltTableRow {
      * value stored in the specified column
      * @see #wasNull()
      */
-    public final TimestampType getTimestampAsTimestamp(int columnIndex) {
+    public TimestampType getTimestampAsTimestamp(int columnIndex) {
         final long timestamp = getTimestampAsLong(columnIndex);
         if (m_wasNull) return null;
         return new TimestampType(timestamp);
@@ -569,7 +569,7 @@ public abstract class VoltTableRow {
      * @see #wasNull()
      * @see #getTimestampAsTimestamp(int)
      */
-    public final TimestampType getTimestampAsTimestamp(String columnName) {
+    public TimestampType getTimestampAsTimestamp(String columnName) {
         final int colIndex = getColumnIndex(columnName);
         return getTimestampAsTimestamp(colIndex);
     }
@@ -582,7 +582,7 @@ public abstract class VoltTableRow {
      * @return BigDecimal representation.
      * @see #wasNull()
      */
-    public final BigDecimal getDecimalAsBigDecimal(int columnIndex) {
+    public BigDecimal getDecimalAsBigDecimal(int columnIndex) {
         validateColumnType(columnIndex, VoltType.DECIMAL);
         final int position = m_buffer.position();
         m_buffer.position(getOffset(columnIndex));

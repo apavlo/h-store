@@ -35,6 +35,9 @@ class Field:
 
     def has_comment(self):
         return self.comment != None and len(self.comment) > 0
+    
+    def __str__(self):
+        return str((self.name, self.type))
 
 class CatalogDefn:
     def __init__(self, name, fields, comment):
@@ -54,7 +57,7 @@ def parse(text):
 
     while len(text):
         line = text.pop(0).split(None, 2)
-        if len(line) == 0:
+        if len(line) == 0 or line[0].strip().startswith("#"):
             continue
         if line.pop(0) != "begin":
             raise Exception("Didn't find expected \"begin\" token.")
@@ -69,9 +72,11 @@ def parse(text):
             typetoken = fieldline.pop(0)
             nametoken = fieldline.pop(0)
             fieldcomment = None
+            
             if len(fieldline):
                 fieldcomment = fieldline.pop(0).strip("\"")
-            fields.append(Field(nametoken, typetoken, fieldcomment))
+            if not typetoken.startswith("#"):
+                fields.append(Field(nametoken, typetoken, fieldcomment))
             fieldline = text.pop(0).split(None, 2)
         retval.append(CatalogDefn(name, fields, comment))
 

@@ -96,6 +96,7 @@ import org.voltdb.sysprocs.Quiesce;
 import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Shutdown;
+import org.voltdb.sysprocs.Sleep;
 import org.voltdb.sysprocs.SnapshotDelete;
 import org.voltdb.sysprocs.SnapshotRestore;
 import org.voltdb.sysprocs.SnapshotSave;
@@ -112,7 +113,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.ConflictSetCalculator;
+import edu.brown.catalog.conflicts.ConflictSetCalculator;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
@@ -1263,6 +1264,7 @@ public class VoltCompiler {
             {MarkovUpdate.class,                    true,       true},
             {Shutdown.class,                        false,      true},
             {NoOp.class,                            true,       false},
+            {Sleep.class,                           true,       true},
             {AdHoc.class,                           false,      false},
             {GetConfiguration.class,                true,       false},
             {SetConfiguration.class,                true,       true},

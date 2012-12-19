@@ -18,6 +18,7 @@ public final class TPCCConfig {
     public boolean warehouse_per_partition = false;
     public boolean warehouse_affinity = false;
     public boolean warehouse_debug = false;
+    public boolean warehouse_pairing = false;
     public boolean reset_on_clear = false;
     
     public int num_loadthreads = 1;
@@ -37,7 +38,7 @@ public final class TPCCConfig {
     public boolean payment_multip = true;
     public boolean payment_multip_remote = false;
     /** Percentage of neworder txns that are forced to be multi-partitioned */
-    public int payment_multip_mix = 15;
+    public int payment_multip_mix = -1;
 
     /** If set to true, then we will use temporal skew for generating warehouse ids */
     public boolean temporal_skew = false;
@@ -68,6 +69,10 @@ public final class TPCCConfig {
             // WAREHOUSE AFFINITY
             else if (key.equalsIgnoreCase("warehouse_affinity") && !val.isEmpty()) {
                 warehouse_affinity = Boolean.parseBoolean(val);
+            }
+            // WAREHOUSE PAIRING
+            else if (key.equalsIgnoreCase("warehouse_pairing") && !val.isEmpty()) {
+                warehouse_pairing = Boolean.parseBoolean(val);
             }
             // ENABLE WAREHOUSE DEBUGGING
             else if (key.equalsIgnoreCase("warehouse_debug") && !val.isEmpty()) {

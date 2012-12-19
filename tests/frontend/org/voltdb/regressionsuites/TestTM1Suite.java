@@ -5,7 +5,6 @@ import junit.framework.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
@@ -14,7 +13,6 @@ import org.voltdb.sysprocs.AdHoc;
 import edu.brown.benchmark.tm1.TM1Client;
 import edu.brown.benchmark.tm1.TM1Client.Transaction;
 import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.benchmark.tm1.TM1Loader;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.hstore.Hstoreservice.Status;
 
@@ -24,13 +22,10 @@ import edu.brown.hstore.Hstoreservice.Status;
  */
 public class TestTM1Suite extends RegressionSuite {
     
+    private static final String PREFIX = "tm1";
     private static final double SCALEFACTOR = 0.0001;
     private static final long NUM_SUBSCRIBERS = (long)(SCALEFACTOR * TM1Constants.SUBSCRIBER_SIZE);
     
-    private static final String args[] = {
-        "NOCONNECTIONS=true",
-    };
-
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
      * @param name The name of the method to test. This is just passed to the superclass.
@@ -39,26 +34,12 @@ public class TestTM1Suite extends RegressionSuite {
         super(name);
     }
     
-    private void initializeDatabase(final Client client) throws Exception {
-        TM1Loader loader = new TM1Loader(args) {
-            {
-                this.setCatalog(TestTM1Suite.this.getCatalog());
-                this.setClientHandle(client);
-            }
-            @Override
-            public Catalog getCatalog() {
-                return TestTM1Suite.this.getCatalog();
-            }
-        };
-        loader.load();
-    }
-
     /**
      * testInitialize
      */
     public void testInitialize() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         
         String procName = VoltSystemProcedure.procCallName(AdHoc.class);
         for (String tableName : TM1Constants.TABLENAMES) {
@@ -82,7 +63,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testDeleteCallForwarding() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         
@@ -105,7 +86,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testGetAccessData() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         TM1Client.Transaction txn = Transaction.GET_ACCESS_DATA;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = client.callProcedure(txn.callName, params);
@@ -118,7 +99,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testGetNewDestination() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         TM1Client.Transaction txn = Transaction.DELETE_CALL_FORWARDING;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = null;
@@ -138,7 +119,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testGetSubscriberData() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         TM1Client.Transaction txn = Transaction.GET_SUBSCRIBER_DATA;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = client.callProcedure(txn.callName, params);
@@ -150,7 +131,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testInsertCallForwarding() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         TM1Client.Transaction txn = Transaction.INSERT_CALL_FORWARDING;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = null;
@@ -169,7 +150,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testUpdateLocation() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = client.callProcedure(txn.callName, params);
@@ -182,7 +163,7 @@ public class TestTM1Suite extends RegressionSuite {
      */
     public void testUpdateSubscriberData() throws Exception {
         Client client = this.getClient();
-        this.initializeDatabase(client);
+        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
         TM1Client.Transaction txn = Transaction.UPDATE_SUBSCRIBER_DATA;
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = null;
@@ -211,7 +192,7 @@ public class TestTM1Suite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("tm1-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -219,7 +200,7 @@ public class TestTM1Suite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("tm1-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX+"-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -227,7 +208,7 @@ public class TestTM1Suite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-        config = new LocalCluster("tm1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);

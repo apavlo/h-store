@@ -675,7 +675,7 @@ public class TestRollbackSuite extends RegressionSuite {
             fail();
         }
     }
-//
+// FIXME
 //    public void testOverflowMatView() throws IOException {
 //        Client client = getClient();
 //
@@ -954,7 +954,10 @@ public class TestRollbackSuite extends RegressionSuite {
 
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestRollbackSuite.class);
-
+        builder.setGlobalConfParameter("site.exec_adhoc_sql", true);
+        builder.setGlobalConfParameter("site.status_show_executor_info", true);
+        builder.setGlobalConfParameter("site.status_show_txn_info", true);
+        
         // build up a project builder for the workload
         TPCCProjectBuilder project = new TPCCProjectBuilder();
         project.addSchema(SinglePartitionJavaError.class.getResource("tpcc-extraview-ddl.sql"));
@@ -970,13 +973,8 @@ public class TestRollbackSuite extends RegressionSuite {
 
         // get a server config for the native backend with one sites/partitions
         config = new LocalSingleProcessServer("rollback-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
-        // make it possible to run AdHoc Queries
-        config.setConfParameter("site.exec_adhoc_sql", true);
-        // build the jarfile
         success = config.compile(project);
         assert(success);
-
-        // add this config to the set of tests to run
         builder.addServerConfig(config);
 
         /////////////////////////////////////////////////////////////
@@ -985,12 +983,8 @@ public class TestRollbackSuite extends RegressionSuite {
 
         // get a server config for the native backend with two sites/partitions
         config = new LocalSingleProcessServer("rollback-twosites.jar", 2, BackendTarget.NATIVE_EE_JNI);
-
-        // build the jarfile (note the reuse of the TPCC project)
         success = config.compile(project);
         assert(success);
-
-        // add this config to the set of tests to run
         builder.addServerConfig(config);
 
         /////////////////////////////////////////////////////////////

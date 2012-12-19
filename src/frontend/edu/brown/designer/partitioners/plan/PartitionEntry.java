@@ -3,7 +3,6 @@ package edu.brown.designer.partitioners.plan;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
@@ -18,7 +17,6 @@ import edu.brown.utils.JSONUtil;
  * 
  */
 public abstract class PartitionEntry<T extends CatalogType> implements JSONSerializable {
-    private static final Logger LOG = Logger.getLogger(PartitionEntry.class);
 
     /**
      * 
@@ -88,10 +86,10 @@ public abstract class PartitionEntry<T extends CatalogType> implements JSONSeria
         if (this == obj)
             return true;
 
-        if (!(obj instanceof PartitionEntry)) {
+        if (!(obj instanceof PartitionEntry<?>)) {
             return (false);
         }
-        PartitionEntry other = (PartitionEntry) obj;
+        PartitionEntry<?> other = (PartitionEntry<?>) obj;
 
         // Method
         if (this.method != other.method) {

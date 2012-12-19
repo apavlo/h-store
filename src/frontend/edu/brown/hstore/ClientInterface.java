@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,9 +52,11 @@ import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.DumpManager;
 
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -65,7 +67,7 @@ import edu.brown.utils.EventObserver;
  * <code>ClientConnection</code> instances.
  *
  */
-public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
+public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Configurable {
     private static final Logger LOG = Logger.getLogger(ClientInterface.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -85,10 +87,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     
     
     // TODO: Move this into HStoreConf
-    private final int MAX_DESIRED_PENDING_BYTES = 67108864;
+    private int MAX_DESIRED_PENDING_BYTES = 67108864;
     private final double MAX_DESIRED_PENDING_BYTES_RELEASE = 0.8;
     
-    private final int MAX_DESIRED_PENDING_TXNS; //  = 15000;
+    private int MAX_DESIRED_PENDING_TXNS; //  = 15000;
     private final double MAX_DESIRED_PENDING_TXNS_RELEASE = 0.8;
     
     // ----------------------------------------------------------------------------
@@ -257,17 +259,17 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
                                         socket.configureBlocking(false);
                                         socket.socket().setTcpNoDelay(false);
                                         socket.socket().setKeepAlive(true);
-
-                                        synchronized (m_connections){
-                                            Connection c = null;
-                                            if (!m_hasDTXNBackPressure) {
-                                                c = m_network.registerChannel(socket, handler, SelectionKey.OP_READ);
-                                            }
-                                            else {
-                                                c = m_network.registerChannel(socket, handler, 0);
-                                            }
-                                            m_connections.add(c);
+                                        
+                                        Connection c = null;
+                                        if (!m_hasDTXNBackPressure) {
+                                            c = m_network.registerChannel(socket, handler, SelectionKey.OP_READ);
                                         }
+                                        else {
+                                            c = m_network.registerChannel(socket, handler, 0);
+                                        }
+                                        synchronized (m_connections){
+                                            m_connections.add(c);
+                                        } // SYNCH
                                         success = true;
                                     }
                                 } catch (IOException e) {
@@ -473,9 +475,9 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
 
         @Override
         public void handleMessage(ByteBuffer message, Connection c) {
-            if (network_processing != null) network_processing.start();
+            if (profiler != null) profiler.network_processing.start();
             hstore_site.invocationQueue(message, this, c);
-            if (network_processing != null) network_processing.stop();
+            if (profiler != null) profiler.network_processing.stop();
         }
 
         @Override
@@ -589,6 +591,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
      */
     private boolean m_hadBackPressure = false;
     
+    private int m_backpressureCounter = 0;
+    
     private final AtomicLong m_pendingTxnBytes = new AtomicLong(0);
     private final AtomicInteger m_pendingTxnCount = new AtomicInteger(0);
 
@@ -597,21 +601,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
      */
     private long m_tickCounter = 0;
     
-    // ----------------------------------------------------------------------------
-    // PROFILING DATA
-    // ----------------------------------------------------------------------------
-    
-    private final ProfileMeasurement network_processing;
-    
-    /**
-     * How much time the site spends with backup pressure blocking disabled
-     */
-    private final ProfileMeasurement network_backup_off;
-    
-    /**
-     * How much time the site spends with backup pressure blocking enabled
-     */
-    private final ProfileMeasurement network_backup_on;
+    private final HStoreSiteProfiler profiler;
+
     
     // ----------------------------------------------------------------------------
     // BACKPRESSURE OBSERVERS
@@ -625,8 +616,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
             if (debug.get()) LOG.debug("Had back pressure disabling read selection");
             synchronized (m_connections) {
-                if (network_backup_off != null) {
-                    ProfileMeasurement.swap(network_backup_off, network_backup_on);
+                if (profiler != null) {
+                    ProfileMeasurement.swap(profiler.network_backup_off, profiler.network_backup_on);
                 }
                 m_hasDTXNBackPressure = true;
                 for (final Connection c : m_connections) {
@@ -644,8 +635,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
             if (debug.get()) LOG.debug("No more back pressure attempting to enable read selection");
             synchronized (m_connections) {
-                if (network_backup_off != null) {
-                    ProfileMeasurement.swap(network_backup_on, network_backup_off);
+                if (profiler != null) {
+                    ProfileMeasurement.swap(profiler.network_backup_on, profiler.network_backup_off);
                 }
                 m_hasDTXNBackPressure = false;
                 if (m_hasGlobalClientBackPressure) {
@@ -709,8 +700,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         DumpManager.register(m_dumpId, this);
 
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        int queues_total = (hstore_conf.site.queue_dtxn_increase_max + hstore_conf.site.queue_incoming_increase_max); 
-        this.MAX_DESIRED_PENDING_TXNS = (int)(queues_total * hstore_site.getLocalPartitionIds().size() * 1.5);
+        int num_partitions = hstore_site.getLocalPartitionIds().size();
+        this.MAX_DESIRED_PENDING_TXNS = (int)(hstore_conf.site.network_incoming_max_per_partition * num_partitions);
         
         // Backpressure EventObservers
         this.onBackPressure.addObserver(this.onBackPressureObserver);
@@ -718,19 +709,22 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         
         m_acceptor = new ClientAcceptor(port, network);
         
-        if (hstore_site.getHStoreConf().site.network_profiling) {
-            network_processing = new ProfileMeasurement("PROCESSING");
-            network_backup_off = new ProfileMeasurement("BACKUP-OFF");
-            network_backup_on = new ProfileMeasurement("BACKUP-ON");
+        if (hstore_conf.site.profiling) {
+            this.profiler = hstore_site.getProfiler();
         } else {
-            network_processing = null;
-            network_backup_off = null;
-            network_backup_on = null;
+            this.profiler = null;
         }
     }
     
+
+    @Override
+    public void updateConf(HStoreConf hstore_conf) {
+        int num_partitions = hstore_site.getLocalPartitionIds().size();
+        this.MAX_DESIRED_PENDING_TXNS = (int)(hstore_conf.site.network_incoming_max_per_partition * num_partitions);
+    }
+    
     public void startAcceptingConnections() throws IOException {
-        if (this.network_backup_off != null) this.network_backup_off.start(); 
+        if (profiler != null) profiler.network_backup_off.start(); 
         m_acceptor.start();
     }
     
@@ -766,39 +760,50 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         return m_numConnections.get();
     }
     
-    public ProfileMeasurement getNetworkProcessing() {
-        return network_processing;
+    public int getBackPressureCount() {
+        return (m_backpressureCounter);
     }
     
-    public ProfileMeasurement getNetworkBackPressureOn() {
-        return network_backup_on;
+    public EventObservable<HStoreSite> getOnBackPressureObservable() {
+        return (this.onBackPressure);
     }
     
-    public ProfileMeasurement getNetworkBackPressureOff() {
-        return network_backup_off;
+    public EventObservable<HStoreSite> getOffBackPressureObservable() {
+        return (this.offBackPressure);
     }
-    
     
     public void increaseBackpressure(int messageSize) {
-        if (debug.get()) LOG.debug("Increasing Backpressure: " + messageSize);
-        
         long pendingBytes = m_pendingTxnBytes.addAndGet(messageSize);
         int pendingTxns = m_pendingTxnCount.incrementAndGet();
+        if (debug.get()) 
+            LOG.debug(String.format("Increased Backpressure by %d bytes " +
+            		  "[BYTES: %d/%d] [TXNS: %d/%d]%s",
+                      messageSize,
+                      pendingBytes, MAX_DESIRED_PENDING_BYTES,
+                      pendingTxns, MAX_DESIRED_PENDING_TXNS,
+                      (m_hadBackPressure ? " *THROTTLED*" : "")));
+        
         if (pendingBytes > MAX_DESIRED_PENDING_BYTES || pendingTxns > MAX_DESIRED_PENDING_TXNS) {
             if (!m_hadBackPressure) {
                 if (trace.get()) LOG.trace("DTXN back pressure began");
                 m_hadBackPressure = true;
+                m_backpressureCounter += 1;
                 onBackPressure.notifyObservers(hstore_site);
             }
         }
     }
 
     public void reduceBackpressure(final int messageSize) {
-        if (debug.get()) 
-            LOG.debug("Reducing Backpressure: " + messageSize);
-        
         long pendingBytes = m_pendingTxnBytes.addAndGet(-1 * messageSize);
         int pendingTxns = m_pendingTxnCount.decrementAndGet();
+        if (debug.get())
+            LOG.debug(String.format("Reduced Backpressure by %d bytes " +
+                      "[BYTES: %d/%d] [TXNS: %d/%d]%s",
+                      messageSize,
+                      pendingBytes, MAX_DESIRED_PENDING_BYTES,
+                      pendingTxns, MAX_DESIRED_PENDING_TXNS,
+                      (m_hadBackPressure ? " *THROTTLED*" : "")));
+        
         if (pendingBytes < (MAX_DESIRED_PENDING_BYTES * MAX_DESIRED_PENDING_BYTES_RELEASE) &&
             pendingTxns < (MAX_DESIRED_PENDING_TXNS * MAX_DESIRED_PENDING_TXNS_RELEASE))
         {
@@ -824,19 +829,22 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         Connection connectionsToCheck[];
         synchronized (m_connections) {
             connectionsToCheck = m_connections.toArray(new Connection[m_connections.size()]);
-        }
+        } // SYNCH
 
-        final ArrayList<Connection> connectionsToRemove = new ArrayList<Connection>();
+        ArrayList<Connection> connectionsToRemove = null;
         for (final Connection c : connectionsToCheck) {
             final int delta = c.writeStream().calculatePendingWriteDelta(now);
             if (delta > 4000) {
+                if (connectionsToRemove == null) 
+                    connectionsToRemove = new ArrayList<Connection>();
                 connectionsToRemove.add(c);
             }
-        }
-
-        for (final Connection c : connectionsToRemove) {
-            LOG.warn("Closing connection to " + c + " at " + now + " because it refuses to read responses");
-            c.unregister();
+        } // FOR
+        if (connectionsToRemove != null) {
+            for (final Connection c : connectionsToRemove) {
+                LOG.warn("Closing connection to " + c + " at " + now + " because it refuses to read responses");
+                c.unregister();
+            } // FOR
         }
     }
 

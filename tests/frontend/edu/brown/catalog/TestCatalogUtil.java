@@ -54,52 +54,45 @@ public class TestCatalogUtil extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
     }
     
-    /**
-     * testGetReadWriteConflicts
-     */
-    public void testGetConflictProcedures() throws Exception {
-        // We expect there to be a conflict between slev and neworder
-        Procedure proc0 = this.getProcedure(neworder.class);
-        Procedure proc1 = this.getProcedure(slev.class);
+    public void testCatalogMapValues() {
+        Database catalog_db = CatalogUtil.getDatabase(CatalogCloner.cloneBaseCatalog(this.getCatalog()));
+        Procedure catalog_proc = this.getProcedure(catalog_db, neworder.class);
+        CatalogMap<Statement> stmts = catalog_proc.getStatements();
+        List<Statement> orig = new ArrayList<Statement>(stmts);
+        assertFalse(stmts.isEmpty());
+        int expected = stmts.size();
+        assertEquals(expected, stmts.values().length);
+        assertEquals(orig.size(), stmts.values().length);
         
-        // slev doesn't write anything, so there should be no READ-WRITE conflict
-        Collection<Procedure> conflicts = CatalogUtil.getReadWriteConflicts(proc0);
-        assertNotNull(conflicts);
-        assertFalse(proc0+": "+conflicts.toString(), conflicts.contains(proc1));
+        stmts.clear();
         
-        // But it's not symmetrical, because neworder writes some stuff out
-        conflicts = CatalogUtil.getReadWriteConflicts(proc1);
-        assertNotNull(conflicts);
-        assertFalse(conflicts.contains(proc1));
-        assertTrue(conflicts.contains(proc0));
+        // Check that we can still iterate
+        int ctr = 0;
+        for (Statement stmt : stmts) {
+            assertNotNull(stmt);
+            ctr++;
+        }
+        assertEquals(0, ctr);
+        for (Statement stmt : stmts.values()) {
+            assertNotNull(stmt);
+            ctr++;
+        }
+        assertEquals(0, ctr);
+        
+        assertEquals(0, stmts.size());
+        assertEquals(0, stmts.values().length);
+
+        // Add them back
+        stmts.addAll(orig);
+        assertEquals(expected, stmts.size());
+        assertEquals(expected, stmts.values().length);
     }
     
-    /**
-     * testGetWriteWriteConflicts
-     */
-    public void testGetWriteWriteConflicts() throws Exception {
-        // For each Procedure that is marked as conflicting with another,
-        // make sure that they each know about each other
-        for (Procedure proc0 : catalog_db.getProcedures()) {
-            Collection<Procedure> conflicts0 = CatalogUtil.getWriteWriteConflicts(proc0);
-            
-            // If the proc is read-only, then it should never have a write-write conflict
-            if (proc0.getReadonly()) {
-                assertEquals(proc0.getName(), 0, conflicts0.size());
-            }
-            
-            for (Procedure proc1 : conflicts0) {
-                Collection<Procedure> conflicts1 = CatalogUtil.getWriteWriteConflicts(proc1);
-                assertTrue(proc0 + "<->" + proc1, conflicts1.contains(proc0));
-            } // FOR
-        } // FOR
-    }
-
     /**
      * testGetPlanFragment
      */
     public void testGetPlanFragment() throws Exception {
-        Procedure catalog_proc = getProcedure(neworder.class);
+        Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         assert (catalog_stmt != null);
 
@@ -475,8 +468,8 @@ public class TestCatalogUtil extends BaseTestCase {
         } // FOR
 
         for (Host catalog_host : catalog_clus.getHosts()) {
-            List<Site> sites = CatalogUtil.getSitesForHost(catalog_host);
-            List<Site> expected = host_sites.get(catalog_host);
+            Collection<Site> sites = CatalogUtil.getSitesForHost(catalog_host);
+            Collection<Site> expected = host_sites.get(catalog_host);
             assertEquals(expected.size(), sites.size());
             assert (sites.containsAll(expected));
         } // FOR
@@ -535,7 +528,7 @@ public class TestCatalogUtil extends BaseTestCase {
      * @param expected
      */
     private void checkColumnSet(ColumnSet cset, Collection<Pair<Column, Integer>> expected) {
-        for (ColumnSet.Entry entry : cset) {
+        for (CatalogPair entry : cset) {
             int column_idx = (entry.getFirst() instanceof StmtParameter ? 1 : 0);
             int param_idx = (column_idx == 0 ? 1 : 0);
 

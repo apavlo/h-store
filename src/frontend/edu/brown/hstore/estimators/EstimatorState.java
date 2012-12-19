@@ -2,37 +2,42 @@ package edu.brown.hstore.estimators;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Statement;
 import org.voltdb.utils.EstTime;
 
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.pools.Poolable;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 public abstract class EstimatorState implements Poolable {
 
-    protected final int num_partitions;
-    
+    protected final CatalogContext catalogContext;
+    protected final PartitionSet touched_partitions = new PartitionSet();
+    protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
+    protected final List<CountedStatement> prefetchable_stmts = new ArrayList<CountedStatement>();
+
     protected Long txn_id = null;
     protected int base_partition;
     protected long start_time;
     
-    protected final PartitionSet touched_partitions = new PartitionSet();
-    protected final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
-    
-    protected final List<Statement> prefetch = new ArrayList<Statement>();
+    private Estimate initialEstimate;
+    private final List<Estimate> estimates = new ArrayList<Estimate>();
+    private boolean disableUpdates = false;
     
     /**
      * Constructor
      * @param markov - the graph that this txn is using
      * @param estimated_path - the initial path estimation from MarkovPathEstimator
      */
-    protected EstimatorState(int num_partitions) {
-        this.num_partitions = num_partitions;
+    protected EstimatorState(CatalogContext catalogContext) {
+        this.catalogContext = catalogContext;
     }
     
     public void init(Long txn_id, int base_partition, long start_time) {
@@ -48,34 +53,105 @@ public abstract class EstimatorState implements Poolable {
     
     @Override
     public void finish() {
+        this.initialEstimate = null;
+        this.disableUpdates = false;
+        for (Estimate estimate : this.estimates) {
+            if (estimate != null) estimate.finish();
+        } // FOR
+        this.estimates.clear();
+        
         this.touched_partitions.clear();
         this.query_instance_cnts.clear();
+        this.prefetchable_stmts.clear();
         this.txn_id = null;
-        this.prefetch.clear();
     }
     
-    public Long getTransactionId() {
+    public final Long getTransactionId() {
         return (this.txn_id);
     }
-    public int getBasePartition() {
+    public final int getBasePartition() {
         return (this.base_partition);
     }
-    public long getStartTime() {
+    public final long getStartTime() {
         return (this.start_time);
     }
     public PartitionSet getTouchedPartitions() {
         return (this.touched_partitions);
     }
-    public List<Statement> getPrefetch() {
-        return (this.prefetch);
+    public List<CountedStatement> getPrefetchableStatements() {
+        return (this.prefetchable_stmts);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // TRANSACTION ESTIMATES
+    // ----------------------------------------------------------------------------
+    
+    public final void disableUpdates() {
+        this.disableUpdates = true;
+    }
+    
+    public final boolean updatesEnabled() {
+        return (this.disableUpdates == false);
+    }
+    
+    protected void addInitialEstimate(Estimate estimate) {
+        assert(this.initialEstimate == null);
+        this.initialEstimate = estimate;
+    }
+
+    protected Estimate addEstimate(Estimate est) {
+//        assert(this.initialEstimate != null) : 
+//            "Trying to add a new estimate before the initial estimate";
+        assert(est.isInitialized());
+        this.estimates.add(est);
+        return (est);
     }
     
     /**
-     * Return the initial Estimate made for this transaction before it began execution
+     * Get the number of TransactionEstimates generated for this transaction
+     * This count does <B>not</B> include the initial estimate
      * @return
      */
-    public abstract TransactionEstimate getInitialEstimate();
-    public abstract TransactionEstimate getLastEstimate();
+    public int getEstimateCount() {
+        return (this.estimates.size());
+    }
+    
+    /**
+     * Return the full list of estimates generated for this transaction
+     * <B>NOTE:</B> This should only be used for testing 
+     * @return
+     */
+    public List<Estimate> getEstimates() {
+        return (this.estimates);
+    }
+    
+    /**
+     * Return the initial TransactionEstimate made for this transaction 
+     * before it began execution
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public final <T extends Estimate> T getInitialEstimate() {
+        return ((T)this.initialEstimate);
+    }
+
+    /**
+     * Return the last TransactionEstimate made for this transaction
+     * If no new estimate has been made, then it should return the
+     * initial estimate
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public final <T extends Estimate> T getLastEstimate() {
+        if (this.estimates.isEmpty()) {
+            return (T)this.initialEstimate;
+        }
+        return ((T)CollectionUtil.last(this.estimates));
+    }
+    
+    // ----------------------------------------------------------------------------
+    // API METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Get the number of milli-seconds that have passed since the txn started
@@ -103,10 +179,11 @@ public abstract class EstimatorState implements Poolable {
         m0.put("Base Partition", this.base_partition);
         m0.put("Touched Partitions", this.touched_partitions);
         m0.put("Start Time", this.start_time);
+        m0.put("Prefetchable Statements", this.prefetchable_stmts);
         return StringUtil.formatMaps(m0);
     }
 
-    public void addPrefetchStatement(Statement statement) {
-        this.prefetch.add(statement);
+    public void addPrefetchableStatement(CountedStatement cntStmt) {
+        this.prefetchable_stmts.add(cntStmt);
     }
 }

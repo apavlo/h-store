@@ -86,6 +86,8 @@ class Distributer {
     private final DBBPool m_pool;
 
     private final boolean m_useMultipleThreads;
+    
+    private final boolean m_nanoseconds;
 
     private final String m_hostname;
     
@@ -316,8 +318,8 @@ class Distributer {
                     }
 
                 } else {
-                    LOG.warn(String.format("Failed to get callback for client handle #%d from %s\n%s\n%s",
-                                           clientHandle, this, response.toString(), m_callbacks.keySet())); 
+                    LOG.warn(String.format("Failed to get callback for client handle #%d from %s\n%s",
+                                           clientHandle, this, response.toString())); 
                 }
             } // SYNCH
 
@@ -329,7 +331,11 @@ class Distributer {
                     m_invocationErrors++;
                     error = true;
                 }
-                updateStats(stuff.name, delta, response.getClusterRoundtrip(), abort, error, restart_counter);
+                int clusterRoundTrip = response.getClusterRoundtrip();
+                if (m_nanoseconds) clusterRoundTrip /= 1000000; 
+                if (clusterRoundTrip < 0) clusterRoundTrip = 0;
+                
+                updateStats(stuff.name, delta, clusterRoundTrip, abort, error, restart_counter);
             }
 
             if (cb != null) {
@@ -482,21 +488,23 @@ class Distributer {
     }
 
     Distributer() {
-        this( 128, null, false, null);
+        this( 128, null, false, false, null);
     }
     
     Distributer(
             int expectedOutgoingMessageSize,
             int arenaSizes[],
             boolean useMultipleThreads,
+            boolean nanoseconds,
             StatsUploaderSettings statsSettings) {
-        this(expectedOutgoingMessageSize, arenaSizes, useMultipleThreads, statsSettings, 100);
+        this(expectedOutgoingMessageSize, arenaSizes, useMultipleThreads, nanoseconds, statsSettings, 100);
     }
 
     Distributer(
             int expectedOutgoingMessageSize,
             int arenaSizes[],
             boolean useMultipleThreads,
+            boolean nanoseconds,
             StatsUploaderSettings statsSettings,
             int backpressureWait) {
         if (statsSettings != null) {
@@ -516,6 +524,7 @@ class Distributer {
         } catch (java.net.UnknownHostException uhe) {
         }
         m_hostname = hostname;
+        m_nanoseconds = nanoseconds;
         
         if (debug.get())
             LOG.debug(String.format("Created new Distributer for %s [multiThread=%s]",
@@ -685,6 +694,8 @@ class Distributer {
                 cxn = null;
             }
         }
+        
+        if (trace.get()) LOG.trace(invocation.toString() + " ::: ignoreBackpressure->" + ignoreBackpressure);
         
         // If we didn't get a direct site connection then we'll grab the next 
         // connection in our round-robin look up

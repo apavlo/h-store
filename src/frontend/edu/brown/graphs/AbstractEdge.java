@@ -7,6 +7,7 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
+import edu.brown.utils.StringUtil;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
 /**
@@ -114,7 +115,7 @@ public class AbstractEdge extends AbstractGraphElement {
     @Override
     public String debug() {
         String ret = super.debug() + "\n";
-        ret += DEBUG_SPACER + " GRAPH: " + this.graph;
+        ret += StringUtil.SPACER + " GRAPH: " + this.graph;
         return (ret);
     }
     

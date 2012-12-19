@@ -164,7 +164,7 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
     public T[] values() {
         if (m_fastArray != null) return (m_fastArray);
         int capacity = this.size();
-        m_fastArray =(T[])Array.newInstance(this.m_cls, capacity);
+        m_fastArray = (T[])Array.newInstance(this.m_cls, capacity);
         int i = 0;
         for (T t : m_items.values()) {
             m_fastArray[i++] = t;
@@ -340,6 +340,7 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
 
     @Override
     public void clear() {
+        m_fastArray = null;
         this.m_items.clear();
     }
 

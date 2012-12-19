@@ -139,7 +139,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         if (isFirstSetup()) {
             this.addPartitions(10);
             loader = new MockAuctionMarkLoader(LOADER_ARGS);
-            loader.setCatalog(catalog);
+            loader.setCatalogContext(catalogContext);
             
             for (String tableName : AuctionMarkConstants.TABLENAMES) {
                 initTable(tableName);

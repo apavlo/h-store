@@ -436,7 +436,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
      * @param index Index of the column
      * @return Name of the column with the specified index.
      */
-    public final String getColumnName(int index) {
+    public String getColumnName(int index) {
         assert(verifyTableInvariants());
         if ((index < 0) || (index >= m_colCount))
             throw new IllegalArgumentException("Not a valid column index.");
@@ -464,7 +464,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
     }
 
     @Override
-    public final VoltType getColumnType(int index) {
+    public VoltType getColumnType(int index) {
         assert(verifyTableInvariants());
         assert(index < m_colCount);
         // move to the right place
@@ -474,7 +474,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
     }
 
     @Override
-    public final int getColumnIndex(String name) {
+    public int getColumnIndex(String name) {
         assert(verifyTableInvariants());
         for (int i = 0; i < m_colCount; i++) {
             if (getColumnName(i).equalsIgnoreCase(name))
@@ -503,7 +503,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
      * @return The requested {@link VoltTableRow Row}.
      * @throws IndexOutOfBoundsException if no row exists at the given index.
      */
-    public final VoltTableRow fetchRow(int index) {
+    public VoltTableRow fetchRow(int index) {
         assert(verifyTableInvariants());
         if ((index < 0) || (index >= m_rowCount)) {
             throw new IndexOutOfBoundsException("index = " + index + "; rows = " + m_rowCount);
@@ -523,7 +523,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
      * Returns the active row
      * @return
      */
-    public final VoltTableRow getRow() {
+    public VoltTableRow getRow() {
         int idx = this.getActiveRowIndex();
         return (this.fetchRow(idx));
     }
@@ -532,7 +532,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
      * Returns the active row as a read-only array
      * @return
      */
-    public final Object[] getRowArray() {
+    public Object[] getRowArray() {
         VoltTableRow row = this.getRow();
         Object arr[] = new Object[row.getColumnCount()];
         for (int i = 0; i < arr.length; i++) {
@@ -545,7 +545,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
      * Returns the active row as a read-only string array
      * @return
      */
-    public final String[] getRowStringArray() {
+    public String[] getRowStringArray() {
         VoltTableRow row = this.getRow();
         String arr[] = new String[row.getColumnCount()];
         for (int i = 0; i < arr.length; i++) {
@@ -1155,12 +1155,12 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
     }
 
     @Override
-    public final int getRowCount() {
+    public int getRowCount() {
         return m_rowCount;
     }
 
     @Override
-    protected final int getRowStart() {
+    protected int getRowStart() {
         return m_rowStart;
     }
     
@@ -1172,7 +1172,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
     }
 
     @Override
-    public final int getColumnCount() {
+    public int getColumnCount() {
         return m_colCount;
     }
 

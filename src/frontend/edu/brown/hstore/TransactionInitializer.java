@@ -41,9 +41,9 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.estimators.TransactionEstimate;
+import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
-import edu.brown.hstore.estimators.MarkovEstimatorState;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
@@ -57,6 +57,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
 
 /**
  * This class is responsible for figuring out everything about a txn before it 
@@ -88,6 +89,7 @@ public class TransactionInitializer {
     private final HStoreObjectPools objectPools;
     private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
+    private final PartitionSet local_partitions;
     private final TransactionEstimator t_estimators[];
     private EstimationThresholds thresholds;
     
@@ -113,6 +115,7 @@ public class TransactionInitializer {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.objectPools = hstore_site.getObjectPools();
+        this.local_partitions = hstore_site.getLocalPartitionIds();
         this.catalogContext = hstore_site.getCatalogContext();
         this.inflight_txns = hstore_site.getInflightTxns();
         
@@ -141,7 +144,7 @@ public class TransactionInitializer {
                                       int base_partition) {
         
         // Simple sanity check to make sure that we're not being told a bad partition
-        if (base_partition < 0 || base_partition >= hstore_site.local_partitions_arr.length) {
+        if (base_partition < 0 || base_partition >= this.local_partitions.size()) {
             base_partition = HStoreConstants.NULL_PARTITION_ID;
         }
         
@@ -184,8 +187,8 @@ public class TransactionInitializer {
         if (base_partition == HStoreConstants.NULL_PARTITION_ID) {
             if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
                                            catalog_proc.getName(), hstore_conf.site.exec_force_localexecution));
-            int idx = (int)(Math.abs(client_handle) % hstore_site.local_partitions_arr.length);
-            base_partition = hstore_site.local_partitions_arr[idx].intValue();
+            int idx = (int)(Math.abs(client_handle) % this.local_partitions.size());
+            base_partition = this.local_partitions.values()[idx];
         }
         
         return (base_partition);
@@ -194,83 +197,6 @@ public class TransactionInitializer {
     // ----------------------------------------------------------------------------
     // TRANSACTION HANDLE CREATION METHODS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * Create a MapReduceTransaction handle. This should only be invoked on a remote site.
-     * @param txn_id
-     * @param invocation
-     * @param base_partition
-     * @return
-     */
-    public MapReduceTransaction createMapReduceTransaction(Long txn_id,
-                                                           long initiateTime,
-                                                           long client_handle,
-                                                           int base_partition,
-                                                           int procId,
-                                                           ByteBuffer paramsBuffer) {
-        Procedure catalog_proc = this.catalogContext.getProcedureById(procId);
-        if (catalog_proc == null) {
-            throw new RuntimeException("Unknown procedure id '" + procId + "'");
-        }
-        
-        // Initialize the ParameterSet
-        FastDeserializer incomingDeserializer = new FastDeserializer();
-        ParameterSet procParams = new ParameterSet();
-        try {
-            incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(paramsBuffer));
-            procParams.readExternal(incomingDeserializer);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        } 
-        assert(procParams != null) :
-            "The parameters object is null for new txn from client #" + client_handle;
-        
-        MapReduceTransaction ts = null;
-        try {
-            ts = objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
-            assert(ts.isInitialized() == false);
-        } catch (Throwable ex) {
-            LOG.fatal(String.format("Failed to instantiate new MapReduceTransaction state for %s txn #%s",
-                                    catalog_proc.getName(), txn_id));
-            throw new RuntimeException(ex);
-        }
-        // We should never already have a transaction handle for this txnId
-        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
-        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
-
-        ts.init(txn_id, initiateTime, client_handle, base_partition, catalog_proc, procParams);
-        if (d) LOG.debug(String.format("Created new MapReduceTransaction state %s from remote partition %d",
-                                       ts, base_partition));
-        return (ts);
-    }
-    
-    
-    /**
-     * Create a RemoteTransaction handle. This obviously only for a remote site.
-     * @param txn_id
-     * @param request
-     * @return
-     */
-    public RemoteTransaction createRemoteTransaction(Long txn_id, int base_partition, int proc_id) {
-        RemoteTransaction ts = null;
-        Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
-        try {
-            // Remote Transaction
-            ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();
-            ts.init(txn_id, base_partition, catalog_proc, true);
-            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [singlePartitioned=%s, hashCode=%d]",
-                                           ts, base_partition, false, ts.hashCode()));
-        } catch (Exception ex) {
-            LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
-            throw new RuntimeException(ex);
-        }
-        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
-        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
-        
-        if (t) LOG.trace(String.format("Stored new transaction state for %s", ts));
-        return (ts);
-    }
-    
     
     /**
      * Create and initialize a LocalTransaction from a serialized StoredProcedureInvocation
@@ -304,19 +230,28 @@ public class TransactionInitializer {
         LocalTransaction ts = null;
         try {
             if (catalog_proc.getMapreduce()) {
-                ts = this.objectPools.getMapReduceTransactionPool(base_partition)
-                                .borrowObject();
+                if (hstore_conf.site.pool_txn_enable) {
+                    ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
+                } else {
+                    ts = new MapReduceTransaction(hstore_site);
+                }
             } else {
-                ts = this.objectPools.getLocalTransactionPool(base_partition)
-                                .borrowObject();
+                if (hstore_conf.site.pool_txn_enable) {
+                    ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
+                } else {
+                    ts = new LocalTransaction(hstore_site);
+                }
             }
+            assert(ts.isInitialized() == false);
         } catch (Throwable ex) {
-            LOG.fatal("Failed to instantiate new LocalTransactionState for " + catalog_proc.getName());
-            throw new RuntimeException(ex);
+            String msg = "Failed to instantiate new local transaction handle for " + catalog_proc.getName();
+            throw new RuntimeException(msg, ex);
         }
         
         // Initialize our LocalTransaction handle
+        Long txn_id = this.registerTransaction(ts, base_partition);
         this.populateProperties(ts,
+                                txn_id,
                                 initiateTime,
                                 client_handle,
                                 base_partition,
@@ -324,9 +259,11 @@ public class TransactionInitializer {
                                 procParams,
                                 clientCallback);
         // Check whether this guy has already been restarted before
-        int restartCounter = StoredProcedureInvocation.getRestartCounter(serializedRequest);
-        if (restartCounter > 0) {
-            ts.setRestartCounter(restartCounter);
+        if (serializedRequest != null) {
+            int restartCounter = StoredProcedureInvocation.getRestartCounter(serializedRequest);
+            if (restartCounter > 0) {
+                ts.setRestartCounter(restartCounter);
+            }
         }
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) {
@@ -337,7 +274,6 @@ public class TransactionInitializer {
         }
         // Notify anybody that cares about this new txn
         this.newTxnObservable.notifyObservers(ts);
-        
         
         assert(ts.isSysProc() == catalog_proc.getSystemproc()) :
             "Unexpected sysproc mismatch for " + ts;
@@ -361,11 +297,15 @@ public class TransactionInitializer {
         
         LocalTransaction new_ts = null;
         try {
-            new_ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
-        } catch (Exception ex) {
-            LOG.fatal(String.format("Failed to instantiate new %s for mispredicted %s",
-                      orig_ts.getClass().getSimpleName(), orig_ts));
-            throw new RuntimeException(ex);
+            if (hstore_conf.site.pool_txn_enable) {
+                new_ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
+            } else {
+                new_ts = new LocalTransaction(hstore_site);
+            }
+            assert(new_ts.isInitialized() == false);
+        } catch (Throwable ex) {
+            String msg = String.format("Failed to instantiate new %s for mispredicted %s", orig_ts.getClass().getSimpleName(), orig_ts);
+            throw new RuntimeException(msg, ex);
         }
         
         // Setup TransactionProfiler
@@ -407,9 +347,102 @@ public class TransactionInitializer {
         // Increase the restart counter in the new transaction
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
+        // Notify anybody that cares about this new txn
+        this.newTxnObservable.notifyObservers(new_ts);
+        
         return (new_ts);
     }
-                                
+    
+    
+    /**
+     * Create a RemoteTransaction handle. This obviously only for a remote site.
+     * @param txn_id
+     * @param request
+     * @return
+     */
+    public RemoteTransaction createRemoteTransaction(Long txn_id,
+                                                     PartitionSet partitions,
+                                                     int base_partition,
+                                                     int proc_id) {
+        RemoteTransaction ts = null;
+        Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
+        try {
+            if (hstore_conf.site.pool_txn_enable) {
+                ts = this.objectPools.getRemoteTransactionPool(base_partition).borrowObject();
+            } else {
+                ts = new RemoteTransaction(hstore_site);
+            }
+            assert(ts.isInitialized() == false);
+            ts.init(txn_id, base_partition, null, catalog_proc, partitions, true);
+            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [partitions=%s, hashCode=%d]",
+                             ts, base_partition, partitions, ts.hashCode()));
+        } catch (Throwable ex) {
+            String msg = "Failed to instantiate new remote transaction handle for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+            throw new RuntimeException(msg, ex);
+        }
+        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
+        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
+        
+        if (t) LOG.trace(String.format("Stored new transaction state for %s", ts));
+        return (ts);
+    }
+    
+    /**
+     * Create a MapReduceTransaction handle. This should only be invoked on a remote site.
+     * @param txn_id
+     * @param invocation
+     * @param base_partition
+     * @return
+     */
+    public MapReduceTransaction createMapReduceTransaction(Long txn_id,
+                                                           long initiateTime,
+                                                           long client_handle,
+                                                           int base_partition,
+                                                           int procId,
+                                                           ByteBuffer paramsBuffer) {
+        Procedure catalog_proc = this.catalogContext.getProcedureById(procId);
+        if (catalog_proc == null) {
+            throw new RuntimeException("Unknown procedure id '" + procId + "'");
+        }
+        
+        // Initialize the ParameterSet
+        FastDeserializer incomingDeserializer = new FastDeserializer();
+        ParameterSet procParams = new ParameterSet();
+        try {
+            incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(paramsBuffer));
+            procParams.readExternal(incomingDeserializer);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        } 
+        assert(procParams != null) :
+            "The parameters object is null for new txn from client #" + client_handle;
+        
+        MapReduceTransaction ts = null;
+        try {
+            if (hstore_conf.site.pool_txn_enable) {
+                ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
+            } else {
+                ts = new MapReduceTransaction(hstore_site);
+            }
+            assert(ts.isInitialized() == false);
+        } catch (Throwable ex) {
+            String msg = "Failed to instantiate new MapReduce transaction handle for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+            throw new RuntimeException(msg, ex);
+        }
+        // We should never already have a transaction handle for this txnId
+        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
+        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
+
+        ts.init(txn_id, initiateTime, client_handle, base_partition, catalog_proc, procParams);
+        if (d) LOG.debug(String.format("Created new MapReduceTransaction state %s from remote partition %d",
+                                       ts, base_partition));
+        return (ts);
+    }
+   
+    // ----------------------------------------------------------------------------
+    // TRANSACTION HANDLE INITIALIZATION METHODS
+    // These don't normally need to be invoked from outside of this class
+    // ----------------------------------------------------------------------------
     
     /**
      * Register a new LocalTransaction handle with this HStoreSite
@@ -445,7 +478,14 @@ public class TransactionInitializer {
     }
 
     /**
-     * Initialize the execution properties for a new tansaction
+     * Initialize the execution properties for a new transaction.
+     * This is the important part where we try to figure out:
+     * <ol>
+     *   <li> Where should we execute the transaction (base partition).
+     *   <li> What partitions the transaction will touch.
+     *   <li> Whether the transaction could abort.
+     *   <li> Whether the transaction is read-only.
+     * </ol>
      * @param ts
      * @param client_handle
      * @param base_partition
@@ -453,15 +493,15 @@ public class TransactionInitializer {
      * @param params
      * @param client_callback
      */
-    protected void populateProperties(LocalTransaction ts,
-                                      long initiateTime,
-                                      long client_handle,
-                                      int base_partition,
-                                      Procedure catalog_proc,
-                                      ParameterSet params,
-                                      RpcCallback<ClientResponseImpl> client_callback) {
+    private void populateProperties(LocalTransaction ts,
+                                    Long txn_id,
+                                    long initiateTime,
+                                    long client_handle,
+                                    int base_partition,
+                                    Procedure catalog_proc,
+                                    ParameterSet params,
+                                    RpcCallback<ClientResponseImpl> client_callback) {
         
-        Long txn_id = this.registerTransaction(ts, base_partition);
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
         PartitionSet predict_partitions = null;
@@ -522,6 +562,7 @@ public class TransactionInitializer {
         // TRANSACTION ESTIMATORS
         // -------------------------------
         else if (hstore_conf.site.markov_enable || hstore_conf.site.markov_fixed) {
+            if (d) LOG.debug("Setting EstimatorState@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
             if (d) LOG.debug(String.format("%s - Using TransactionEstimator to check whether txn is single-partitioned " +
             		         "[clientHandle=%d]",
             		         AbstractTransaction.formatTxnName(catalog_proc, txn_id), ts.getClientHandle()));
@@ -534,21 +575,30 @@ public class TransactionInitializer {
                 t_estimator = this.hstore_site.getPartitionExecutor(base_partition).getTransactionEstimator();
                 this.t_estimators[base_partition] = t_estimator;
             }
+            if (d && t_estimator instanceof MarkovEstimator) {
+                LOG.debug("We are in fact using a MarkovEstimator@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            }
             
             try {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitEstimation();
-                t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
+                if (t_estimator != null) {
+                    t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
+                }
+                else if (d) {
+                    LOG.debug("t_estimator is null@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                }
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
+                    if (d) LOG.debug("No EstimationState was returned. Using default estimate@@@@@@@@@@");
                     if (d) LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
-                    
+                }
                 // We have a TransactionEstimator, so let's see what it says...
-                } else {
+                else {
                     if (t) LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
-                    TransactionEstimate t_estimate = t_state.getInitialEstimate();
+                    Estimate t_estimate = t_state.getInitialEstimate();
                     
                     // Bah! We didn't get back a Estimation for some reason...
                     if (t_estimate == null) {
@@ -572,6 +622,19 @@ public class TransactionInitializer {
                         predict_partitions = t_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = t_estimate.isReadOnlyAllPartitions(this.thresholds);
                         predict_abortable = (predict_partitions.size() == 1 || t_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+                        
+                        if (predict_partitions.size() == 1) {
+                            if (hstore_conf.site.markov_singlep_updates == false) t_state.disableUpdates();
+                        }
+                        else if (hstore_conf.site.markov_dtxn_updates == false) {
+                            t_state.disableUpdates();
+                        }
+                        
+                        if (d && predict_partitions.isEmpty()) {
+                            LOG.warn(String.format("%s - Unexpected empty predicted PartitonSet from %s\n%s",
+                            		AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                            		t_estimator, t_estimate));
+                        }
                     }
                 }
             } catch (Throwable ex) {
@@ -590,7 +653,7 @@ public class TransactionInitializer {
             }
         }
         
-        if (predict_partitions == null) {
+        if (predict_partitions == null || predict_partitions.isEmpty()) {
             // -------------------------------
             // FORCE SINGLE-PARTITIONED
             // -------------------------------
@@ -624,6 +687,7 @@ public class TransactionInitializer {
                 params,
                 client_callback);
         if (t_state != null) ts.setEstimatorState(t_state);
+        else if (d) LOG.debug("EstimatorState was not set on the transaction@@@@@@@@@@@@@@@@@@@@@@@@@@@");
         if (hstore_conf.site.txn_profiling && ts.profiler != null) 
             ts.profiler.setSingledPartitioned(ts.isPredictSinglePartition());
         

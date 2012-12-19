@@ -23,7 +23,6 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.types.TimestampType;
 
 import java.util.ArrayList; 
 import java.util.Random; 
@@ -32,7 +31,8 @@ import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
 @ProcInfo(
-    partitionInfo = "PAGE.PAGE_TITLE: 3"
+    partitionInfo = "PAGE.PAGE_ID: 0",
+    singlePartition = true
 )
 public class GetPageAnonymous extends VoltProcedure {
 	
@@ -44,7 +44,6 @@ public class GetPageAnonymous extends VoltProcedure {
         "SELECT * FROM " + WikipediaConstants.TABLENAME_PAGE_RESTRICTIONS +
         " WHERE pr_page = ?"
     );
-	// XXX this is hard for translation
 	public SQLStmt selectIpBlocks = new SQLStmt(
         "SELECT * FROM " + WikipediaConstants.TABLENAME_IPBLOCKS + 
         " WHERE ipb_address = ?"
@@ -55,18 +54,18 @@ public class GetPageAnonymous extends VoltProcedure {
     
 	public SQLStmt selectPageRevision = new SQLStmt(
         "SELECT * " +
-	    "  FROM " + WikipediaConstants.TABLENAME_PAGE + ", " +
-	                WikipediaConstants.TABLENAME_REVISION +
-	    " WHERE page_id = rev_page " +
-        "   AND rev_page = ? " +
-	    "   AND page_id = ? " +
-        "   AND rev_id = page_latest LIMIT 1"
+	    "  FROM " + WikipediaConstants.TABLENAME_REVISION +
+	    " WHERE rev_page = ? " +
+        "   AND rev_id = ? "
     );
 	public SQLStmt selectPage = new SQLStmt(
-	        "SELECT page_latest " +
-	        " FROM " + WikipediaConstants.TABLENAME_PAGE  +
-	        " WHERE page_id = ?"
+	        "SELECT page_title, page_latest, page_restrictions " +
+	        "  FROM " + WikipediaConstants.TABLENAME_PAGE  +
+	        " WHERE page_id = ? " +
+	        "   AND page_namespace = ?"
 	);
+
+/*
 	public SQLStmt selectRevision = new SQLStmt(
             "SELECT * " +
             " FROM " + WikipediaConstants.TABLENAME_REVISION +
@@ -83,10 +82,12 @@ public class GetPageAnonymous extends VoltProcedure {
         "   AND page_id = ? " +
         "   AND rev_id = ? LIMIT 1"
     );
-	
+*/
+
 	public SQLStmt selectText = new SQLStmt(
         "SELECT old_text, old_flags FROM " + WikipediaConstants.TABLENAME_TEXT +
-        " WHERE old_id = ? LIMIT 1"
+        " WHERE old_page = ? " +
+        "   AND old_id = ? "
     );
     
     private final Random rnd = new Random(); 
@@ -101,14 +102,19 @@ public class GetPageAnonymous extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public VoltTable run(int pageId, boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
-
+	public VoltTable run(long pageId, int pageNamespace, String userIp, boolean forSelect) {		
+	    VoltTable rs[] = null;
+	    
         voltQueueSQL(selectPageRestriction, pageId);
         voltQueueSQL(selectIpBlocks, userIp);
+/*
         //voltQueueSQL(selectPageRevision, pageId, pageId);
         VoltTable rs[] = voltExecuteSQL();
         //assert(rs.length == 3):"length expected is:3, but is:" + rs.length;
         assert(rs.length == 2):"length expected is:2, but is:" + rs.length;
+*/
+        voltQueueSQL(selectPage, pageId, pageNamespace);
+        rs = voltExecuteSQL();
         
         // Grab Page Restrictions
         while (rs[0].advanceRow()) {
@@ -122,7 +128,8 @@ public class GetPageAnonymous extends VoltProcedure {
             String ipb_expiry = rs[1].getString(10);
             assert(ipb_expiry != null);
         } // WHILE
-        
+
+ /*      
         int revisionId, textId;
         if (flipCoin(WikipediaConstants.PAST_REV_CHECK_PROB)) {
             
@@ -194,25 +201,47 @@ public class GetPageAnonymous extends VoltProcedure {
             
             assert !rs[0].advanceRow();
         }
+*/
+        // Check that we have a page
+        if (rs[2].advanceRow() == false) {
+            String msg = String.format("Invalid pageId %d", pageId);
+            throw new VoltAbortException(msg);
+        }
+        int col = 0;
+        String pageTitle = rs[2].getString(col++);
+        long pageLatest = rs[2].getLong(col++);
+        
+        // Grab Page Revision + Text
+        voltQueueSQL(selectPageRevision, pageId, pageLatest);
+        voltQueueSQL(selectText, pageId, pageLatest);
+        rs = voltExecuteSQL(true);
+        if (rs[0].advanceRow() == false) {
+            String msg = String.format("No such revision revId=%d exists for pageId:%d / pageNamespace:%d",
+                                       pageLatest, pageId, pageNamespace);
+            throw new VoltAbortException(msg);
+        }
+        long revisionId = rs[0].getLong(0);
+        long textId = rs[0].getLong(2);
+        String user_text = rs[0].getString(5);
+        assert(rs[0].advanceRow() == false);
 
         // NOTE: the following is our variation of wikipedia... the original did
         // not contain old_page column!
-        // "SELECT old_text,old_flags FROM `text` WHERE old_id = '"+textId+"' AND old_page = '"+pageId+"' LIMIT 1";
-        // For now we run the original one, which works on the data we have
-        voltQueueSQL(selectText, textId);
-        rs = voltExecuteSQL();
-        if (!rs[0].advanceRow()) {
-            String msg = "No such text: " + textId + " for page_id:" + pageId + " page_namespace: " + pageNamespace + " page_title:" + pageTitle;
+        if (rs[1].advanceRow() == false) {
+            String msg = String.format("No such textId=%d exists for pageId:%d / pageNamespace:%d",
+                                       textId, pageId, pageNamespace);
             throw new VoltAbortException(msg);
         }
+        String old_text = rs[1].getString(0);
         
         VoltTable result = new VoltTable(WikipediaConstants.GETPAGE_OUTPUT_COLS);
         if (forSelect == false) {
-            result.addRow(userIp,
-                          pageId,
-                          rs[0].getString("old_text"),
-                          textId,
-                          revisionId);
+            result.addRow(pageId,       // PAGE_ID
+                          pageTitle,    // PAGE_TITLE
+                          old_text,     // OLD_TEXT
+                          textId,       // TEXT_ID
+                          revisionId,   // REVISION_ID
+                          user_text);   // USER_TEXT
         }
         assert !rs[0].advanceRow();
         return (result);

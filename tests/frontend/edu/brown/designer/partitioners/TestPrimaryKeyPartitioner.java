@@ -12,8 +12,8 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
-import edu.brown.designer.partitioners.plan.PartitionEntry;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.designer.partitioners.plan.TableEntry;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
@@ -65,7 +65,7 @@ public class TestPrimaryKeyPartitioner extends BaseTestCase {
 
         for (Table catalog_tbl : pplan.getTableEntries().keySet()) {
             if (catalog_tbl.getSystable()) continue;
-            PartitionEntry pentry = pplan.getTableEntries().get(catalog_tbl);
+            TableEntry pentry = pplan.getTableEntries().get(catalog_tbl);
             assertNotNull("Null PartitionEntry for " + catalog_tbl, pentry);
             Collection<Column> pkey_columns = CatalogUtil.getPrimaryKeyColumns(catalog_tbl);
             PartitionMethodType expected = (pkey_columns.isEmpty() ? PartitionMethodType.REPLICATION : PartitionMethodType.HASH);

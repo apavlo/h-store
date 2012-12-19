@@ -53,7 +53,9 @@ public abstract class VoltTableUtil {
     }
     
     /**
-     * Pretty-printer for an array of VoltTables
+     * Pretty-printer for an array of VoltTables. This will reset
+     * each VoltTable's row position both before and after generating the
+     * formatted output
      * @param results
      * @return
      */
@@ -71,6 +73,7 @@ public abstract class VoltTableUtil {
             if (result_idx > 0) sb.append("\n\n");
             
             VoltTable vt = results[result_idx];
+            vt.resetRowPosition();
             String header[] = new String[vt.getColumnCount()];
             for (int i = 0; i < header.length; i++) {
                 String colName = vt.getColumnName(i);
@@ -88,7 +91,7 @@ public abstract class VoltTableUtil {
                 for (int j = 0; j < header.length; j++) {
                     rows[i][j] = vt.get(j);
                     if (vt.wasNull()) {
-                        rows[i][j] = null;    
+                        rows[i][j] = null;
                     }
                 } // FOR (cols)
                 
@@ -103,6 +106,7 @@ public abstract class VoltTableUtil {
                                          null,
                                          StringBoxUtil.UNICODE_BOX_CORNERS);
             sb.append(StringUtil.prefix(resultTable, "  "));
+            vt.resetRowPosition();
         } // FOR
         return (sb.toString());
     }

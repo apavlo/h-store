@@ -154,7 +154,7 @@ public class BlockingClient extends Semaphore implements Client {
     @Override
     public void close() throws InterruptedException {
         this.inner.close();
-        if (LOG.isDebugEnabled()) LOG.debug("Client Idle Time: " + this.idle.debug(true));
+        if (LOG.isDebugEnabled()) LOG.debug("Client Idle Time: " + this.idle.debug());
     }
 
     /* (non-Javadoc)
@@ -163,6 +163,11 @@ public class BlockingClient extends Semaphore implements Client {
     @Override
     public void configureBlocking(boolean blocking) {
         this.inner.configureBlocking(blocking);
+    }
+    
+    @Override
+    public void createConnection(String host, int port) throws UnknownHostException, IOException {
+        this.inner.createConnection(host, port);
     }
 
     /* (non-Javadoc)

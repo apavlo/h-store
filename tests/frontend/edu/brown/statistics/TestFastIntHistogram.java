@@ -28,6 +28,7 @@
 package edu.brown.statistics;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Random;
 
 import org.json.JSONObject;
@@ -53,13 +54,36 @@ public class TestFastIntHistogram extends BaseTestCase {
         for (int i = 0; i < NUM_SAMPLES; i++) {
             int val = rand.nextInt(min) + min; 
             h.put(val);
-            fast_h.fastPut(val);
+            fast_h.put(val);
         }
         for (int i = 0; i < NUM_SAMPLES; i++) {
             int val = rand.nextInt(RANGE); 
             h.put(val);
-            fast_h.fastPut(val);
+            fast_h.put(val);
         }
+    }
+
+    /**
+     * testGrowing
+     */
+    public void testGrowing() throws Exception {
+        Histogram<Integer> origH = new Histogram<Integer>();
+        FastIntHistogram fastH = new FastIntHistogram(1);
+        for (int i = 0; i < 100; i++) {
+            fastH.put(i);
+            origH.put(i);
+        } // FOR
+        assertEquals(origH.getValueCount(), origH.getValueCount());
+        assertEquals(origH.getSampleCount(), fastH.getSampleCount());
+        assertEquals(new HashSet<Integer>(origH.values()), new HashSet<Integer>(fastH.values()));
+        
+        for (int i = 100; i < 500; i+=19) {
+            fastH.put(i);
+            origH.put(i);
+        } // FOR
+        assertEquals(origH.getValueCount(), origH.getValueCount());
+        assertEquals(origH.getSampleCount(), fastH.getSampleCount());
+        assertEquals(new HashSet<Integer>(origH.values()), new HashSet<Integer>(fastH.values()));
     }
     
     /**
@@ -73,9 +97,9 @@ public class TestFastIntHistogram extends BaseTestCase {
         JSONObject jsonObj = new JSONObject(json);
         clone.fromJSON(jsonObj, null);
         
-        assertEquals(fast_h.fastSize(), clone.fastSize());
-        for (int i = 0, cnt = fast_h.fastSize(); i < cnt; i++) {
-            assertEquals(fast_h.fastGet(i), clone.fastGet(i));
+        assertEquals(fast_h.size(), clone.size());
+        for (int i = 0, cnt = fast_h.size(); i < cnt; i++) {
+            assertEquals(fast_h.get(i), clone.get(i));
         } // FOR
     }
     
@@ -99,7 +123,7 @@ public class TestFastIntHistogram extends BaseTestCase {
         for (Integer val : h.values()) {
             assertEquals(val.toString(), 0, h.get(val).intValue());
             assertEquals(h.get(val), fast_h.get(val));
-            assertEquals(h.get(val).intValue(), fast_h.fastGet(val));
+            assertEquals(h.get(val).intValue(), fast_h.get(val.intValue()));
         } // FOR
     }
     
@@ -122,7 +146,7 @@ public class TestFastIntHistogram extends BaseTestCase {
         
         for (Integer val : h.values()) {
             assertEquals(h.get(val), fast_h.get(val));
-            assertEquals(h.get(val).intValue(), fast_h.fastGet(val));
+            assertEquals(h.get(val).intValue(), fast_h.get(val.intValue()));
         } // FOR
     }
     

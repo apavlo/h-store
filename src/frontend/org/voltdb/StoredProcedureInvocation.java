@@ -231,15 +231,15 @@ public class StoredProcedureInvocation implements FastSerializable {
 
     @Override
     public String toString() {
-        String retval = "Invocation: " + procName + "(";
-        if (params != null)
-            for (Object o : params.toArray()) {
-                retval += o.toString() + ", ";
-            }
-        else
-            retval += "null";
-        retval += ")";
-        return retval;
+        String extra = "";
+        if (this.params != null) {
+            extra += String.format("<%d Params>", this.params.toArray().length);
+        }
+        if (this.base_partition != HStoreConstants.NULL_PARTITION_ID) {
+            if (extra.isEmpty() == false) extra += " / ";
+            extra += String.format("<%d BasePartition>", this.base_partition);
+        }
+        return String.format("%s(%s) / %d", this.procName, extra, this.clientHandle);
     }
 
     public void getDumpContents(StringBuilder sb) {

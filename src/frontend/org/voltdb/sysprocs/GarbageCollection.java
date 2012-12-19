@@ -27,7 +27,7 @@ public class GarbageCollection extends VoltSystemProcedure {
 
     public static final ColumnInfo nodeResultsColumns[] = {
         new ColumnInfo("SITE", VoltType.STRING),
-        new ColumnInfo("STATUS", VoltType.STRING),
+        new ColumnInfo("ELAPSED", VoltType.INTEGER),
         new ColumnInfo("CREATED", VoltType.TIMESTAMP),
     };
     
@@ -40,7 +40,7 @@ public class GarbageCollection extends VoltSystemProcedure {
     }
 
     @Override
-    public DependencySet executePlanFragment(long txn_id,
+    public DependencySet executePlanFragment(Long txn_id,
                                              Map<Integer, List<VoltTable>> dependencies,
                                              int fragmentId,
                                              ParameterSet params,
@@ -52,16 +52,16 @@ public class GarbageCollection extends VoltSystemProcedure {
                 LOG.debug("Invoking garbage collector");
                 this.gcTime.clear();
                 this.gcTime.start();
-                System.gc();
+                // System.gc();
                 this.gcTime.stop();
                 
                 if (LOG.isDebugEnabled())
                     LOG.debug(String.format("Performed Garbage Collection at %s: %s",
                               this.executor.getHStoreSite().getSiteName(),
-                              this.gcTime.debug(true)));
+                              this.gcTime.debug()));
                 VoltTable vt = new VoltTable(nodeResultsColumns);
                 vt.addRow(this.executor.getHStoreSite().getSiteName(),
-                          this.gcTime.getTotalThinkTimeMS() + " ms",
+                          (int)this.gcTime.getTotalThinkTimeMS(),
                           new TimestampType());
                 result = new DependencySet(SysProcFragmentId.PF_gcDistribute, vt);
                 break;

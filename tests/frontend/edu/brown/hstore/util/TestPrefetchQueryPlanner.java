@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.voltdb.ParameterSet;
+import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.ProcParameter;
@@ -15,11 +16,14 @@ import org.voltdb.catalog.StmtParameter;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.seats.procedures.NewReservation;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -78,7 +82,12 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
             stmtParams.get(m[0]).setProcparameter(procParams.get(m[1]));
         } // FOR
 
+        assertNotNull(catalogContext.paramMappings);
+        
         this.prefetcher = new PrefetchQueryPlanner(catalogContext, p_estimator);
+        SQLStmt[] batchStmts = {new SQLStmt(catalog_stmt)};
+        this.prefetcher.addPlanner(batchStmts, catalog_proc, p_estimator, true);
+        
         for (int i = 0; i < NUM_SITES; i++) {
             this.hstore_sites[i] = new MockHStoreSite(i, catalogContext, HStoreConf.singleton());
             this.coordinators[i] = this.hstore_sites[i].initHStoreCoordinator();
@@ -96,10 +105,17 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
         } // FOR
 
         final ParameterSet params = new ParameterSet(this.proc_params);
+        final EstimatorState estimator = new MarkovEstimatorState.Factory(catalogContext).makeObject();
+        estimator.addPrefetchableStatement(new CountedStatement(catalog_stmt, 0));
+        
         this.ts = new LocalTransaction(this.hstore_sites[LOCAL_SITE]) {
             @Override
             public org.voltdb.ParameterSet getProcedureParameters() {
                 return (params);
+            }
+            @Override
+            public edu.brown.hstore.estimators.EstimatorState getEstimatorState() {
+                return (estimator);
             }
         };
 
@@ -112,7 +128,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
             partitions.add(p);
         } // FOR
 
-        this.ts.testInit(TXN_ID, LOCAL_PARTITION, partitions, this.getProcedure(TARGET_PREFETCH_PROCEDURE));
+        this.ts.testInit(TXN_ID, LOCAL_PARTITION, null, partitions, this.getProcedure(TARGET_PREFETCH_PROCEDURE));
 
         this.partition_site_xref = new int[catalogContext.numberOfPartitions];
         for (Partition catalog_part : catalogContext.getAllPartitions()) {

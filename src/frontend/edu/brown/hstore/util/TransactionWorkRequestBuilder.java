@@ -13,8 +13,6 @@ import edu.brown.hstore.txns.LocalTransaction;
 
 public class TransactionWorkRequestBuilder {
 
-    private TransactionWorkRequest.Builder builder;
-    
     /**
      * Set of ParameterSet indexes that this TransactionWorkRequest needs
      */
@@ -24,6 +22,8 @@ public class TransactionWorkRequestBuilder {
      * Set of input DependencyIds needed by this TransactionWorkRequest
      */
     private final Set<Integer> inputs = new HashSet<Integer>();
+
+    private TransactionWorkRequest.Builder builder;
 
     /**
      * Get the TransactionWorkRequest.Builder
@@ -36,13 +36,9 @@ public class TransactionWorkRequestBuilder {
             this.builder = TransactionWorkRequest.newBuilder()
                                         .setTransactionId(ts.getTransactionId().longValue())
                                         .setSourcePartition(ts.getBasePartition())
-                                        .setProcedureId(ts.getProcedureId());
+                                        .setProcedureId(ts.getProcedure().getId());
             if (ts.hasDonePartitions()) {
-                BitSet donePartitions = ts.getDonePartitions();
-                for (int i = 0; i < donePartitions.length(); i++) {
-                    if (donePartitions.get(i)) 
-                        this.builder.addDonePartition(i);
-                } // FOR
+                this.builder.addAllDonePartition(ts.getDonePartitions());
             }
             this.param_indexes.clear();
             this.inputs.clear();

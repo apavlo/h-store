@@ -106,7 +106,7 @@ public abstract class ClassUtil {
     public static String getCurrentMethodName() {
         StackTraceElement stack[] = Thread.currentThread().getStackTrace();
         assert(stack[2] != null);
-        return (stack[2].getMethodName());
+        return String.format("%s.%s", stack[2].getClassName(), stack[2].getMethodName());
     }
     
     /**

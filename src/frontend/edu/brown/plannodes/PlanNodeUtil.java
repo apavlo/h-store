@@ -151,6 +151,27 @@ public abstract class PlanNodeUtil {
         assert (types.size() > 0);
         return (types);
     }
+    
+    /**
+     * Returns true if the AbstractPlanNode contains a range query
+     * @param rootNode
+     * @return
+     */
+    public static boolean isRangeQuery(Database catalog_db, AbstractPlanNode rootNode) {
+        for (ExpressionType expType : getScanExpressionTypes(catalog_db, rootNode)) {
+            switch (expType) {
+                case COMPARE_GREATERTHAN:
+                case COMPARE_GREATERTHANOREQUALTO:
+                case COMPARE_IN:
+                case COMPARE_LESSTHAN:
+                case COMPARE_LESSTHANOREQUALTO:
+                case COMPARE_LIKE:
+                case CONJUNCTION_OR:
+                    return (true);
+            } // SWITCH
+        } // FOR
+        return (false);
+    }
 
     /**
      * Returns true if the tree at the given root node is for a distributed
@@ -191,9 +212,9 @@ public abstract class PlanNodeUtil {
         } // FOR
 
         switch (node_type) {
-        // ---------------------------------------------------
-        // SCANS
-        // ---------------------------------------------------
+            // ---------------------------------------------------
+            // SCANS
+            // ---------------------------------------------------
             case INDEXSCAN: {
                 IndexScanPlanNode idx_node = (IndexScanPlanNode) node;
                 if (idx_node.getEndExpression() != null)
@@ -281,8 +302,7 @@ public abstract class PlanNodeUtil {
     }
 
     /**
-     * Return all the ExpressionTypes used for scan predicates in the given
-     * PlanNode
+     * Return all the ExpressionTypes used for scan predicates in the given PlanNode
      * 
      * @param catalog_db
      * @param node
@@ -295,7 +315,7 @@ public abstract class PlanNodeUtil {
             protected void callback(AbstractPlanNode node) {
                 Set<AbstractExpression> exps = new HashSet<AbstractExpression>();
                 switch (node.getPlanNodeType()) {
-                // SCANS
+                    // SCANS
                     case INDEXSCAN: {
                         IndexScanPlanNode idx_node = (IndexScanPlanNode) node;
                         exps.add(idx_node.getEndExpression());
@@ -814,7 +834,7 @@ public abstract class PlanNodeUtil {
             }
             assert (cset != null);
             // System.err.println(cset.debug());
-            Set<Column> matches = cset.findAllForOther(Column.class, catalog_stmt_param);
+            Collection<Column> matches = cset.findAllForOther(Column.class, catalog_stmt_param);
             // System.err.println("MATCHES: " + matches);
             if (matches.isEmpty()) {
                 LOG.warn("Unable to find any column with param #" + catalog_stmt_param.getIndex() + " in " + catalog_stmt);

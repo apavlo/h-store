@@ -29,7 +29,7 @@
 namespace catalog {
 
 class Procedure;
-class TableRef;
+class ConflictPair;
 /**
  * A set of conflicts with another procedures
  */
@@ -40,8 +40,8 @@ class ConflictSet : public CatalogType {
 protected:
     ConflictSet(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
     CatalogType* m_procedure;
-    CatalogMap<TableRef> m_readWriteConflicts;
-    CatalogMap<TableRef> m_writeWriteConflicts;
+    CatalogMap<ConflictPair> m_readWriteConflicts;
+    CatalogMap<ConflictPair> m_writeWriteConflicts;
 
     virtual void update();
 
@@ -54,10 +54,10 @@ public:
 
     /** GETTER: The other procedure that this conflict set is for */
     const Procedure * procedure() const;
-    /** GETTER: Tables that the parent Procedure has a read-write conflict with the target procedure */
-    const CatalogMap<TableRef> & readWriteConflicts() const;
-    /** GETTER: Tables that the parent Procedure has a write-write conflict with the target procedure */
-    const CatalogMap<TableRef> & writeWriteConflicts() const;
+    /** GETTER: ConflictPairs that the parent Procedure has a read-write conflict with the target procedure */
+    const CatalogMap<ConflictPair> & readWriteConflicts() const;
+    /** GETTER: ConflictPairs that the parent Procedure has a write-write conflict with the target procedure */
+    const CatalogMap<ConflictPair> & writeWriteConflicts() const;
 };
 
 } // namespace catalog

@@ -33,7 +33,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -132,10 +132,28 @@ final class ClientImpl implements Client {
                 expectedOutgoingMessageSize,
                 maxArenaSizes,
                 heavyweight,
+                m_hstoreConf.global.nanosecond_latencies,
                 statsSettings);
         m_distributer.addClientStatusListener(new CSL());
     }
 
+    /**
+     * Create a connection to another VoltDB node.
+     * @param host
+     * @param password
+     * @param program
+     * @throws UnknownHostException
+     * @throws IOException
+     */
+    public void createConnection(String host, int port) throws UnknownHostException, IOException {
+        if (m_isShutdown) {
+            throw new IOException("Client instance is shutdown");
+        }
+        String subProgram = "default";
+        String subPassword = "password";
+        m_distributer.createConnection(null, host, port, subProgram, subPassword);
+    }
+    
     /**
      * Create a connection to another VoltDB node.
      * @param host
@@ -194,7 +212,7 @@ final class ClientImpl implements Client {
                 m_expectedOutgoingMessageSize,
                 true,
                 site_id);
-        m_queueTime.addThinkTime(start, ProfileMeasurement.getTime());
+        m_queueTime.appendTime(start, ProfileMeasurement.getTime());
 
         try {
             if (trace.get())
@@ -204,7 +222,7 @@ final class ClientImpl implements Client {
         } catch (final InterruptedException e) {
             throw new java.io.InterruptedIOException("Interrupted while waiting for response");
         }
-        if (cb.getResponse().getStatus() != Hstoreservice.Status.OK) {
+        if (cb.getResponse().getStatus() != Status.OK) {
             throw new ProcCallException(cb.getResponse(), cb.getResponse().getStatusString(), cb.getResponse().getException());
         }
         // cb.result() throws ProcCallException if procedure failed
@@ -263,9 +281,7 @@ final class ClientImpl implements Client {
 
         Integer site_id = null;
         if (m_catalog != null) {
-
-            Procedure catalog_proc = m_catalogContext.database.getProcedures().getIgnoreCase(procName);
-            
+            Procedure catalog_proc = m_catalogContext.procedures.getIgnoreCase(procName);
             if (catalog_proc != null) {
                 // OPTIMIZATION: If we have the the catalog, then we'll send just 
                 // the procId. This reduces the number of strings that we need to 
@@ -275,7 +291,7 @@ final class ClientImpl implements Client {
                 // OPTIMIZATION: If this isn't a sysproc, then we can tell them
                 // what the base partition for this request will be
                 if (catalog_proc.getSystemproc() == false) {
-            try {
+                    try {
                         int partition = m_pEstimator.getBasePartition(invocation);
                         if (partition != HStoreConstants.NULL_PARTITION_ID) {
                             site_id = m_partitionSiteXref[partition];
@@ -284,9 +300,9 @@ final class ClientImpl implements Client {
                     } catch (Exception ex) {
                         throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
                     }
+                }
             }
         }
-            }
 
         if (m_blockingQueue) {
             long start = ProfileMeasurement.getTime();
@@ -297,12 +313,12 @@ final class ClientImpl implements Client {
                     throw new java.io.InterruptedIOException("Interrupted while invoking procedure asynchronously");
                 }
             }
-            m_queueTime.addThinkTime(start, ProfileMeasurement.getTime(), 1);
+            m_queueTime.appendTime(start, ProfileMeasurement.getTime(), 1);
             return true;
         } else {
             long start = ProfileMeasurement.getTime();
             boolean ret = m_distributer.queue(invocation, callback, expectedSerializedSize, false, site_id);
-            m_queueTime.addThinkTime(start, ProfileMeasurement.getTime(), 1);
+            m_queueTime.appendTime(start, ProfileMeasurement.getTime(), 1);
             return ret;
         }
     }
@@ -342,8 +358,8 @@ final class ClientImpl implements Client {
         if (m_backpressure) {
             synchronized (m_backpressureLock) {
                 while (m_backpressure && !m_isShutdown) {
-//                    if (debug.get())
-                        LOG.info(String.format("Blocking client due to backup pressure [backPressure=%s, #connections=%d]",
+                    if (debug.get())
+                        LOG.debug(String.format("Blocking client due to backup pressure [backPressure=%s, #connections=%d]",
                                                 m_backpressure, m_distributer.getConnectionCount()));
                     m_backpressureLock.wait();
                     m_backpressure = false;
@@ -396,11 +412,11 @@ final class ClientImpl implements Client {
     private final Distributer m_distributer;                             // de/multiplexes connections to a cluster
     private final Object m_backpressureLock = new Object();
     private boolean m_backpressure = false;
-
-    private boolean m_blockingQueue = true;
+    private boolean m_blockingQueue = false;
 
     @Override
     public void configureBlocking(boolean blocking) {
+        LOG.info("Set Blocking Queue: " + blocking);
         m_blockingQueue = blocking;
     }
 

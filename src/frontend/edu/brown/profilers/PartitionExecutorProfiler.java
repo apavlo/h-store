@@ -63,6 +63,11 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
      */
     public final ProfileMeasurement util_time = new ProfileMeasurement("UTILITY");
     
+    /**
+     * How much time did this PartitionExecutor spend in the spec exec conflict checker
+     */
+    public final ProfileMeasurement conflicts_time = new ProfileMeasurement("CONFLICTS");
+    
     @Override
     public void reset() {
         super.reset();

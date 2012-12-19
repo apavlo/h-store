@@ -28,7 +28,6 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
-import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.ConstantValue;
 import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.Database;
@@ -143,10 +142,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          */
         private final Map<Statement, Set<Column>> STATEMENT_ORDERBY_COLUMNS = new HashMap<Statement, Set<Column>>();
         /**
-         * Statement -> Set
-         * <Table>
+         * Statement -> Set<Table>
          */
-        private final Map<Statement, Set<Table>> STATEMENT_TABLES = new HashMap<Statement, Set<Table>>();
+        private final Map<Statement, Collection<Table>> STATEMENT_TABLES = new HashMap<Statement, Collection<Table>>();
         /**
          * Procedure -> Set<Column>
          */
@@ -481,72 +479,18 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // ------------------------------------------------------------
 
     /**
-     * Get the Procedure handles that are marked as Read-Write conflicting for the
-     * given Procedure
-     * @param catalog_proc
-     * @return
-     */
-    public static Collection<Procedure> getReadWriteConflicts(Procedure catalog_proc) {
-        List<Procedure> conflicts = new ArrayList<Procedure>();
-        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
-        for (ConflictSet cs : catalog_proc.getConflicts().values()) {
-            if (cs.getReadwriteconflicts().isEmpty() == false) {
-                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
-            }
-        } // FOR
-        return (conflicts);
-    }
-    
-    /**
-     * Get the Procedure handles that are marked as Write-Write conflicting for the
-     * given Procedure
-     * @param catalog_proc
-     * @return
-     */
-    public static Collection<Procedure> getWriteWriteConflicts(Procedure catalog_proc) {
-        List<Procedure> conflicts = new ArrayList<Procedure>();
-        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
-        for (String procName : catalog_proc.getConflicts().keySet()) {
-            ConflictSet cs = catalog_proc.getConflicts().get(procName);
-            if (cs.getWritewriteconflicts().isEmpty() == false) {
-                conflicts.add(catalog_db.getProcedures().get(procName));
-            }
-        } // FOR
-        return (conflicts);
-    }
-    
-    /**
-     * Get the Procedure handles that have any conflict with the given Procedure
-     * @param catalog_proc
-     * @return
-     */
-    public static Collection<Procedure> getAllConflicts(Procedure catalog_proc) {
-        List<Procedure> conflicts = new ArrayList<Procedure>();
-        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
-        for (ConflictSet cs : catalog_proc.getConflicts().values()) {
-            if (cs.getReadwriteconflicts().isEmpty() == false) {
-                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
-            }
-            if (cs.getWritewriteconflicts().isEmpty() == false) {
-                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
-            }
-        } // FOR
-        return (conflicts);
-    }
-    
-    /**
      * Return all of the internal system Procedures for the database
      */
     @Deprecated
     public static Collection<Procedure> getSysProcedures(Database catalog_db) {
-        List<Procedure> sysprocs = new ArrayList<Procedure>();
+        Collection<Procedure> procs = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc()) {
-                assert(sysprocs.contains(catalog_proc) == false);
-                sysprocs.add(catalog_proc);
+                assert(procs.contains(catalog_proc) == false);
+                procs.add(catalog_proc);
             }
         }
-        return (sysprocs);
+        return (procs);
     }
 
     /**
@@ -554,12 +498,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     @Deprecated
     public static Collection<Procedure> getMapReduceProcedures(Database catalog_db) {
-        Set<Procedure> mrprocs = new ListOrderedSet<Procedure>();
+        Collection<Procedure> procs = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getMapreduce())
-                mrprocs.add(catalog_proc);
+                procs.add(catalog_proc);
         }
-        return (mrprocs);
+        return (procs);
     }
 
     /**
@@ -570,7 +514,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Collection<Statement> getAllStatements(CatalogType catalog_obj) {
         Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
-        Set<Statement> ret = new HashSet<Statement>();
+        Collection<Statement> ret = new ArrayList<Statement>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             ret.addAll(catalog_proc.getStatements());
         } // FOR
@@ -675,9 +619,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Copy the query plans from Statement to another This will overwrite both
-     * the existing single-partition and multi-partition query plans
-     * 
+     * Copy the query plans from Statement to another.
+     * This will overwrite both the existing single-partition and
+     * multi-partition query plans.
      * @param copy_src
      * @param copy_dest
      */
@@ -921,13 +865,15 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_host
      * @return
      */
-    public static List<Site> getSitesForHost(Host catalog_host) {
+    public static Collection<Site> getSitesForHost(Host catalog_host) {
         List<Site> sites = new ArrayList<Site>();
         Cluster cluster = (Cluster) catalog_host.getParent();
         for (Site catalog_site : cluster.getSites()) {
             if (catalog_site.getHost().getName().equals(catalog_host.getName()))
                 sites.add(catalog_site);
         } // FOR
+        // Sort them by id
+        Collections.sort(sites, new CatalogFieldComparator<Site>("id"));
         return (sites);
     }
     
@@ -983,8 +929,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_db
      * @return
      */
-    public static Set<Integer> getLocalPartitionIds(Site catalog_site) {
-        Set<Integer> partition_ids = new HashSet<Integer>();
+    public static PartitionSet getLocalPartitionIds(Site catalog_site) {
+        PartitionSet partition_ids = new PartitionSet();
         for (Partition catalog_proc : catalog_site.getPartitions()) {
             partition_ids.add(catalog_proc.getId());
         } // FOR
@@ -996,8 +942,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param base_partition
      * @return
      */
-    public static Set<Integer> getLocalPartitionIds(Database catalog_db, int base_partition) {
-        Set<Integer> partition_ids = new ListOrderedSet<Integer>();
+    public static PartitionSet getLocalPartitionIds(Database catalog_db, int base_partition) {
+        PartitionSet partition_ids = new PartitionSet();
         for (Partition catalog_proc : CatalogUtil.getLocalPartitions(catalog_db, base_partition)) {
             partition_ids.add(catalog_proc.getId());
         } // FOR
@@ -1055,7 +1001,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the internal system tables for the database
      */
-    @Deprecated
     public static Collection<Table> getSysTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1068,7 +1013,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the user-defined data tables for the database
      */
-    @Deprecated
     public static Collection<Table> getDataTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1083,7 +1027,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the materialized view tables for the database
      */
-    @Deprecated
     public static Collection<Table> getViewTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1096,7 +1039,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the MapReduce input data tables for the database
      */
-    @Deprecated
     public static Collection<Table> getMapReduceTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1109,7 +1051,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the replicated tables for the database
      */
-    @Deprecated
     public static Collection<Table> getReplicatedTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1121,7 +1062,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the evictable tables for the database
      */
-    @Deprecated
     public static Collection<Table> getEvictableTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1441,17 +1381,17 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Collection<Table> getReferencedTables(Statement catalog_stmt) throws Exception {
+    public static Collection<Table> getReferencedTables(Statement catalog_stmt) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
-        Set<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
+        Collection<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
         if (ret == null) {
-            Set<Table> tables = new ListOrderedSet<Table>();
+            Collection<Table> tables = new ArrayList<Table>();
             tables.addAll(getAllTables(catalog_stmt));
 //            for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
 //                tables.add((Table) catalog_col.getParent());
 //            } // FOR
-            ret = Collections.unmodifiableSet(tables);
-            cache.STATEMENT_TABLES.put(catalog_stmt, ret);
+            ret = Collections.unmodifiableCollection(tables);
+            // cache.STATEMENT_TABLES.put(catalog_stmt, ret);
         }
         return (ret);
     }
@@ -1841,7 +1781,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static ColumnSet extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params) throws Exception {
+    public static ColumnSet extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params) {
         Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
         Table tables[] = catalog_db.getTables().values();
         return (CatalogUtil.extractStatementColumnSet(catalog_stmt, convert_params, tables));
@@ -1859,7 +1799,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static ColumnSet extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params, final Table... catalog_tables) throws Exception {
+    public static ColumnSet extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params, final Table... catalog_tables) {
         final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
         final Set<Table> tables = new HashSet<Table>();
         final Collection<String> table_keys = new HashSet<String>();
@@ -1880,18 +1820,22 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             cset = new ColumnSet();
             AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
 
-            // WHERE Clause
-            if (catalog_stmt.getExptree() != null && !catalog_stmt.getExptree().isEmpty()) {
-                AbstractExpression root_exp = ExpressionUtil.deserializeExpression(catalog_db, catalog_stmt.getExptree());
-                CatalogUtil.extractExpressionColumnSet(catalog_stmt, catalog_db, cset, root_exp, convert_params, tables);
-            }
-            // INSERT
-            if (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) {
-                CatalogUtil.extractInsertColumnSet(catalog_stmt, cset, root_node, convert_params, catalog_tables);
-                // UPDATE
-                // XXX: Should we be doing this?
-            } else if (catalog_stmt.getQuerytype() == QueryType.UPDATE.getValue()) {
-                CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
+            try {
+                // WHERE Clause
+                if (catalog_stmt.getExptree() != null && !catalog_stmt.getExptree().isEmpty()) {
+                    AbstractExpression root_exp = ExpressionUtil.deserializeExpression(catalog_db, catalog_stmt.getExptree());
+                    CatalogUtil.extractExpressionColumnSet(catalog_stmt, catalog_db, cset, root_exp, convert_params, tables);
+                }
+                // INSERT
+                if (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) {
+                    CatalogUtil.extractInsertColumnSet(catalog_stmt, cset, root_node, convert_params, catalog_tables);
+                    // UPDATE
+                    // XXX: Should we be doing this?
+                } else if (catalog_stmt.getQuerytype() == QueryType.UPDATE.getValue()) {
+                    CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
+                }
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to extract ColumnSet for " + catalog_stmt, ex);
             }
 
             cache.EXTRACTED_COLUMNSETS.put(key, cset);
@@ -2010,10 +1954,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                                             LOG.warn("ERROR: Unable to find Parameter object in catalog [" + ((ParameterValueExpression) exp).getParameterId() + "]");
                                             this.stop();
                                         }
-                                        // We want to use the ProcParameter
-                                        // instead of the StmtParameter
-                                        // It's not an error if the
-                                        // StmtParameter is not mapped to a
+                                        // We want to use the ProcParameter instead of the StmtParameter
+                                        // It's not an error if the StmtParameter is not mapped to a
                                         // ProcParameter
                                         if (convert_params && ((StmtParameter) element).getProcparameter() != null) {
                                             LOG.debug(element + "(" + element + ") --> ProcParameter[" + element.getField("procparameter") + "]");
@@ -2631,25 +2573,37 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             // Format: <Parent>.<Item>
             if (item instanceof Column || item instanceof Statement || item instanceof Constraint || item instanceof Index) {
                 ret = String.format("%s.%s", item.getParent().getName(), item.getName());
-
-                // ProcParameter/StmtParameter
-                // Format: <Parent>.<Item>
-            } else if (item instanceof ProcParameter || item instanceof StmtParameter) {
-                ret = String.format("%s.%s", item.getParent().getName(), (include_class ? item : item.getName()));
-
-                // PlanFragment
-                // Format: <Procedure>.<Statement>.[Fragment #XYZ]
-            } else if (item instanceof PlanFragment) {
+            }
+            // StmtParameter
+            // Format: <Procedure>.<Statement>.<Item>
+            else if (item instanceof StmtParameter) {
+                ret = String.format("%s{%s.%s.#%02d}",
+                                    item.getClass().getSimpleName(),
+                                    item.getParent().getParent().getName(),
+                                    item.getParent().getName(),
+                                    ((StmtParameter)item).getIndex());
+            }    
+            // ProcParameter
+            // Format: <Parent>.<Item>
+            else if (item instanceof ProcParameter) {
+                ret = String.format("%s{%s.#%02d}",
+                                    item.getClass().getSimpleName(),
+                                    item.getParent().getName(),
+                                    ((ProcParameter)item).getIndex());
+            }
+            // PlanFragment
+            // Format: <Procedure>.<Statement>.[Fragment #XYZ]
+            else if (item instanceof PlanFragment) {
                 ret = String.format("%s.%s.[Fragment #%s]", item.getParent().getParent().getName(), item.getParent().getName(), item.getName());
-
-                // ConstantValue
-                // Format: ConstantValue{XYZ}
-            } else if (item instanceof ConstantValue) {
+            }
+            // ConstantValue
+            // Format: ConstantValue{XYZ}
+            else if (item instanceof ConstantValue) {
                 ret = String.format("%s{%s}", item.getClass().getSimpleName(), ((ConstantValue) item).getValue());
-
-                // Everything Else
-                // Format: <OptionalClassName>.<Item>
-            } else {
+            }
+            // Everything Else
+            // Format: <OptionalClassName>.<Item>
+            else {
                 ret = String.format("%s%s", (include_class ? item.getClass().getSimpleName() + ":" : ""), item.getName());
             }
             return (ret);

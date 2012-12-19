@@ -69,10 +69,11 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
 
             // Testing Procedures
             // InsertSubscriber.class,
-            GetTableCounts.class, };
-
-    // Transaction Frequencies
+            GetTableCounts.class,
+    };
+    
     {
+        // Transaction Frequencies
         addTransactionFrequency(DeleteCallForwarding.class, TM1Constants.FREQUENCY_DELETE_CALL_FORWARDING);
         addTransactionFrequency(GetAccessData.class, TM1Constants.FREQUENCY_GET_ACCESS_DATA);
         addTransactionFrequency(GetNewDestination.class, TM1Constants.FREQUENCY_GET_NEW_DESTINATION);
@@ -80,15 +81,17 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(InsertCallForwarding.class, TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING);
         addTransactionFrequency(UpdateLocation.class, TM1Constants.FREQUENCY_UPDATE_LOCATION);
         addTransactionFrequency(UpdateSubscriberData.class, TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA);
+
+        // Replicates Secondary Indexes
+        addReplicatedSecondaryIndex(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
     }
 
-    // Vertical Partitions
-    {
-        // addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID",
-        // "SUB_NBR");
-    }
-
-    public static final String PARTITIONING[][] = new String[][] { { "SUBSCRIBER", "S_ID" }, { "ACCESS_INFO", "S_ID" }, { "SPECIAL_FACILITY", "S_ID" }, { "CALL_FORWARDING", "S_ID" }, };
+    public static final String PARTITIONING[][] = new String[][] {
+        { "SUBSCRIBER", "S_ID" },
+        { "ACCESS_INFO", "S_ID" },
+        { "SPECIAL_FACILITY", "S_ID" },
+        { "CALL_FORWARDING", "S_ID" },
+    };
 
     public TM1ProjectBuilder() {
         super("tm1", TM1ProjectBuilder.class, PROCEDURES, PARTITIONING);

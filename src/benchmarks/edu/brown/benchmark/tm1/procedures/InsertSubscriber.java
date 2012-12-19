@@ -11,14 +11,18 @@ import edu.brown.benchmark.tm1.TM1Constants;
 public class InsertSubscriber extends VoltProcedure {
     private final Random rand = new Random();
 
-    public SQLStmt insert = new SQLStmt("INSERT INTO " + TM1Constants.TABLENAME_SUBSCRIBER + " VALUES (" + "?, " + // S_ID
+    public SQLStmt insert = new SQLStmt(
+        "INSERT INTO " + TM1Constants.TABLENAME_SUBSCRIBER +
+        " VALUES (" +
+            "?, " + // S_ID
             "?, " + // SUB_NBR
             "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " + // BIT_#
             "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " + // HEX_#
             "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " + // BYTE2_#
             "?, " + // MSC_LOCATION
             "? " + // VLR_LOCATION
-            ")");
+            ")"
+    );
 
     public VoltTable[] run(long s_id, String sub_nbr) {
         Object args[] = new Object[34];
@@ -36,7 +40,7 @@ public class InsertSubscriber extends VoltProcedure {
 
         voltQueueSQL(insert, args);
 
-        return (voltExecuteSQL());
+        return (voltExecuteSQL(true));
     }
 
 }

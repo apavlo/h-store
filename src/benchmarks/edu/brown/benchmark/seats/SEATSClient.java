@@ -72,6 +72,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.seats.procedures.DeleteReservation;
@@ -102,12 +103,12 @@ public class SEATSClient extends BenchmarkComponent {
      * Airline Benchmark Transactions
      */
     public static enum Transaction {
-        DELETE_RESERVATION          (DeleteReservation.class,   SEATSConstants.FREQUENCY_DELETE_RESERVATION),
-        FIND_FLIGHTS                (FindFlights.class,         SEATSConstants.FREQUENCY_FIND_FLIGHTS),
-        FIND_OPEN_SEATS             (FindOpenSeats.class,       SEATSConstants.FREQUENCY_FIND_OPEN_SEATS),
-        NEW_RESERVATION             (NewReservation.class,      SEATSConstants.FREQUENCY_NEW_RESERVATION),
-        UPDATE_CUSTOMER             (UpdateCustomer.class,      SEATSConstants.FREQUENCY_UPDATE_CUSTOMER),
-        UPDATE_RESERVATION          (UpdateReservation.class,   SEATSConstants.FREQUENCY_UPDATE_RESERVATION);
+        DELETE_RESERVATION  (DeleteReservation.class,   SEATSConstants.FREQUENCY_DELETE_RESERVATION),
+        FIND_FLIGHTS        (FindFlights.class,         SEATSConstants.FREQUENCY_FIND_FLIGHTS),
+        FIND_OPEN_SEATS     (FindOpenSeats.class,       SEATSConstants.FREQUENCY_FIND_OPEN_SEATS),
+        NEW_RESERVATION     (NewReservation.class,      SEATSConstants.FREQUENCY_NEW_RESERVATION),
+        UPDATE_CUSTOMER     (UpdateCustomer.class,      SEATSConstants.FREQUENCY_UPDATE_CUSTOMER),
+        UPDATE_RESERVATION  (UpdateReservation.class,   SEATSConstants.FREQUENCY_UPDATE_RESERVATION);
         
         private Transaction(Class<? extends VoltProcedure> proc_class, int weight) {
             this.proc_class = proc_class;
@@ -261,6 +262,7 @@ public class SEATSClient extends BenchmarkComponent {
     // -----------------------------------------------------------------
     
     private final SEATSProfile profile;
+    private final SEATSConfig config;
     private final RandomGenerator rng;
     private final AtomicBoolean first = new AtomicBoolean(true);
     private final RandomDistribution.FlatHistogram<Transaction> xacts;
@@ -317,6 +319,7 @@ public class SEATSClient extends BenchmarkComponent {
         super(args);
 
         this.rng = new RandomGenerator(0); // FIXME
+        this.config = SEATSConfig.createConfig(this.getCatalog(), m_extraParams);
         this.profile = new SEATSProfile(this.getCatalog(), this.rng);
     
         if (this.noClientConnections() == false) {
@@ -346,6 +349,10 @@ public class SEATSClient extends BenchmarkComponent {
         this.xacts = new RandomDistribution.FlatHistogram<Transaction>(rng, weights);
         assert(weights.getSampleCount() == 100) : "The total weight for the transactions is " + this.xacts.getSampleCount() + ". It needs to be 100";
         if (debug.get()) LOG.debug("Transaction Execution Distribution:\n" + weights);
+    }
+    
+    protected SEATSProfile getProfile() {
+        return this.profile;
     }
         
     @Override
@@ -388,49 +395,55 @@ public class SEATSClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
         if (this.first.compareAndSet(true, false)) {
             // Fire off a FindOpenSeats so that we can prime ourselves
-            try {
-                boolean ret = this.executeFindOpenSeats(Transaction.FIND_OPEN_SEATS);
-                assert(ret);
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
+            Pair<Object[], ProcedureCallback> ret = this.getFindOpenSeatsParams(Transaction.FIND_OPEN_SEATS);
+            assert(ret != null);
+            Object params[] = ret.getFirst();
+            ProcedureCallback callback = ret.getSecond();
+            this.getClientHandle().callProcedure(callback, Transaction.FIND_OPEN_SEATS.getExecName(), params);
         }
         
         int tries = 10;
-        boolean ret = false;
-        while (tries-- > 0 && ret == false) {
-            Transaction txn = this.xacts.nextValue();
+        Pair<Object[], ProcedureCallback> ret = null;
+        Transaction txn = null;
+        while (tries-- > 0 && ret == null) {
+            txn = this.xacts.nextValue();
             if (debug.get()) LOG.debug("Attempting to execute " + txn);
             switch (txn) {
                 case DELETE_RESERVATION: {
-                    ret = this.executeDeleteReservation(txn);
+                    ret = this.getDeleteReservationParams();
                     break;
                 }
                 case FIND_FLIGHTS: {
-                    ret = this.executeFindFlights(txn);
+                    ret = this.getFindFlightsParams();
                     break;
                 }
                 case FIND_OPEN_SEATS: {
-                    ret = this.executeFindOpenSeats(txn);
+                    ret = this.getFindOpenSeatsParams(txn);
                     break;
                 }
                 case NEW_RESERVATION: {
-                    ret = this.executeNewReservation(txn);
+                    ret = this.getNewReservationParams();
                     break;
                 }
                 case UPDATE_CUSTOMER: {
-                    ret = this.executeUpdateCustomer(txn);
+                    ret = this.getUpdateCustomerParams(txn);
                     break;
                 }
                 case UPDATE_RESERVATION: {
-                    ret = this.executeUpdateReservation(txn);
+                    ret = this.getUpdateReservationParams(txn);
                     break;
                 }
                 default:
                     assert(false) : "Unexpected transaction: " + txn; 
             } // SWITCH
-            if (ret && debug.get()) LOG.debug("Executed a new invocation of " + txn);
+            if (ret != null && debug.get()) LOG.debug("Executed a new invocation of " + txn);
         }
+        if (ret != null) {
+            Object params[] = ret.getFirst();
+            ProcedureCallback callback = ret.getSecond();
+            this.getClientHandle().callProcedure(callback, txn.getExecName(), params);
+        }
+        
         if (tries == 0 && debug.get()) LOG.warn("I have nothing to do!");
         return (tries > 0);
     }
@@ -490,17 +503,26 @@ public class SEATSClient extends BenchmarkComponent {
             }
         }
     }
-
-    private boolean executeDeleteReservation(Transaction txn) throws IOException {
+    
+    protected Pair<Object[], ProcedureCallback> getDeleteReservationParams() {
+        Transaction txn = Transaction.DELETE_RESERVATION;
         this.startComputeTime(txn.displayName);
         
         // Pull off the first cached reservation and drop it on the cluster...
         Reservation r = CACHE_RESERVATIONS.get(CacheType.PENDING_DELETES).poll();
         if (r == null) {
             this.stopComputeTime(txn.displayName);
-            return (false);
+            return (null);
         }
-        int rand = rng.number(1, 100);
+        int rand;
+        if (config.force_all_distributed) {
+            rand = SEATSConstants.PROB_DELETE_WITH_CUSTOMER_ID_STR + 1;
+        }
+        else if (config.force_all_singlepartition) {
+            rand = 100;
+        } else {
+            rand = rng.number(1, 100);
+        }
         
         // Parameters
         long f_id = r.flight_id.encode();
@@ -534,12 +556,10 @@ public class SEATSClient extends BenchmarkComponent {
         
         if (trace.get()) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
-        this.getClientHandle().callProcedure(new DeleteReservationCallback(r),
-                                             txn.getExecName(),
-                                             params);
-        return (true);
+
+        return new Pair<Object[], ProcedureCallback>(params, new DeleteReservationCallback(r));
     }
-    
+
     // ----------------------------------------------------------------
     // FindFlights
     // ----------------------------------------------------------------
@@ -569,7 +589,8 @@ public class SEATSClient extends BenchmarkComponent {
      * @param txn
      * @throws IOException
      */
-    private boolean executeFindFlights(Transaction txn) throws IOException {
+    protected Pair<Object[], ProcedureCallback> getFindFlightsParams() {
+        Transaction txn = Transaction.FIND_FLIGHTS;
         this.startComputeTime(txn.displayName);
         
         long depart_airport_id;
@@ -619,11 +640,7 @@ public class SEATSClient extends BenchmarkComponent {
         };
         if (trace.get()) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
-        this.getClientHandle().callProcedure(new FindFlightsCallback(),
-                                             txn.getExecName(),
-                                             params);
-        
-        return (true);
+        return new Pair<Object[], ProcedureCallback>(params, new FindFlightsCallback());
     }
 
     // ----------------------------------------------------------------
@@ -707,7 +724,7 @@ public class SEATSClient extends BenchmarkComponent {
      * Execute the FindOpenSeat procedure
      * @throws IOException
      */
-    private boolean executeFindOpenSeats(Transaction txn) throws IOException {
+    protected Pair<Object[], ProcedureCallback> getFindOpenSeatsParams(Transaction txn) {
         this.startComputeTime(txn.displayName);
         FlightId flight_id = profile.getRandomFlightId();
         assert(flight_id != null);
@@ -717,10 +734,7 @@ public class SEATSClient extends BenchmarkComponent {
         };
         if (trace.get()) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
-        this.getClientHandle().callProcedure(new FindOpenSeatsCallback(flight_id),
-                                             txn.execName,
-                                             params);
-        return (true);
+        return new Pair<Object[], ProcedureCallback>(params, new FindOpenSeatsCallback(flight_id));
     }
     
     // ----------------------------------------------------------------
@@ -800,7 +814,8 @@ public class SEATSClient extends BenchmarkComponent {
         }
     }
     
-    private boolean executeNewReservation(Transaction txn) throws IOException {
+    protected Pair<Object[], ProcedureCallback> getNewReservationParams() {
+        Transaction txn = Transaction.DELETE_RESERVATION;
         this.startComputeTime(txn.displayName);
         Reservation reservation = null;
         BitSet seats = null;
@@ -844,7 +859,7 @@ public class SEATSClient extends BenchmarkComponent {
         if (reservation == null) {
             if (debug.get()) LOG.debug("Failed to find a valid pending insert Reservation\n" + this.toString());
             this.stopComputeTime(txn.displayName);
-            return (false);
+            return (null);
         }
         
         // Generate a random price for now
@@ -857,9 +872,11 @@ public class SEATSClient extends BenchmarkComponent {
             attributes[i] = rng.nextLong();
         } // FOR
         
+        boolean updateCustomer = (rng.nextInt(100) < SEATSConstants.PROB_UPDATE_CUSTOMER_NEW_RESERVATION);
+        
         Object params[] = new Object[] {
             reservation.id,
-            reservation.customer_id.encode(),
+            (updateCustomer ? reservation.customer_id.encode() : VoltType.NULL_BIGINT),
             reservation.flight_id.encode(),
             reservation.seatnum,
             price,
@@ -867,10 +884,7 @@ public class SEATSClient extends BenchmarkComponent {
         };
         if (trace.get()) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
-        this.getClientHandle().callProcedure(new NewReservationCallback(reservation),
-                                             txn.getExecName(),
-                                             params);
-        return (true);
+        return new Pair<Object[], ProcedureCallback>(params, new NewReservationCallback(reservation));
     }
 
     // ----------------------------------------------------------------
@@ -894,7 +908,7 @@ public class SEATSClient extends BenchmarkComponent {
         }
     }
         
-    private boolean executeUpdateCustomer(Transaction txn) throws IOException {
+    protected Pair<Object[], ProcedureCallback> getUpdateCustomerParams(Transaction txn) {
         this.startComputeTime(txn.displayName);
         
         // Pick a random customer and then have at it!
@@ -905,6 +919,7 @@ public class SEATSClient extends BenchmarkComponent {
         long attr0 = this.rng.nextLong();
         long attr1 = this.rng.nextLong();
         long update_ff = (this.rng.number(1, 100) <= SEATSConstants.PROB_UPDATE_FREQUENT_FLYER ? 1 : 0);
+        if (config.force_all_distributed) update_ff = 1;
         
         // Update with the Customer's id as a string 
         if (rng.nextInt(100) < SEATSConstants.PROB_UPDATE_WITH_CUSTOMER_ID_STR) {
@@ -925,10 +940,7 @@ public class SEATSClient extends BenchmarkComponent {
 
         if (trace.get()) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
-        this.getClientHandle().callProcedure(new UpdateCustomerCallback(customer_id),
-                                             txn.getExecName(),
-                                             params);
-        return (true);
+        return new Pair<Object[], ProcedureCallback>(params, new UpdateCustomerCallback(customer_id));
     }
 
     // ----------------------------------------------------------------
@@ -952,7 +964,7 @@ public class SEATSClient extends BenchmarkComponent {
         }
     }
 
-    private boolean executeUpdateReservation(Transaction txn) throws IOException {
+    protected Pair<Object[], ProcedureCallback> getUpdateReservationParams(Transaction txn) {
         this.startComputeTime(txn.displayName);
         
         LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_UPDATES);
@@ -970,7 +982,7 @@ public class SEATSClient extends BenchmarkComponent {
         }
         if (r == null) {
             this.stopComputeTime(txn.displayName);
-            return (false);
+            return (null);
         }
         
         long value = rng.number(1, 1 << 20);
@@ -988,10 +1000,7 @@ public class SEATSClient extends BenchmarkComponent {
         
         if (trace.get()) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
-        this.getClientHandle().callProcedure(new UpdateReservationCallback(r),
-                                             txn.getExecName(), 
-                                             params);
-        return (true);
+        return new Pair<Object[], ProcedureCallback>(params, new UpdateReservationCallback(r));
     }
 
 }

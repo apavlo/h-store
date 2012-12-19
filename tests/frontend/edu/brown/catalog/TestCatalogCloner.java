@@ -14,6 +14,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.ConflictPair;
 import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
@@ -179,18 +180,35 @@ public class TestCatalogCloner extends BaseTestCase {
             assertNotNull(cs1);
             
             assertEquals(cs0.getReadwriteconflicts().size(), cs1.getReadwriteconflicts().size());
-            for (TableRef ref0 : cs0.getReadwriteconflicts()) {
-                TableRef ref1 = cs1.getReadwriteconflicts().get(ref0.getName());
-                assertNotNull(ref1);
-                assertEquals(ref0.getTable().getName(), ref1.getTable().getName());
+            for (ConflictPair conflict0 : cs0.getReadwriteconflicts()) {
+                ConflictPair conflict1 = cs1.getReadwriteconflicts().get(conflict0.getName());
+                assertNotNull(conflict0.fullName(), conflict1);
+                assertEquals(conflict0.fullName(), conflict0.getStatement0().getName(), conflict1.getStatement0().getName());
+                assertEquals(conflict0.fullName(), conflict0.getStatement1().getName(), conflict1.getStatement1().getName());
+                assertEquals(conflict0.fullName(), conflict0.getAlwaysconflicting(), conflict1.getAlwaysconflicting());
+                assertEquals(conflict0.fullName(), conflict0.getConflicttype(), conflict1.getConflicttype());
+                for (TableRef ref0 : conflict0.getTables()) {
+                    TableRef ref1 = conflict1.getTables().get(ref0.getName());
+                    assertNotNull(ref0.fullName(), ref1);
+                    assertEquals(ref0.fullName(), ref0.getTable().getName(), ref1.getTable().getName());
+                } // FOR
             } // FOR
             
             assertEquals(cs0.getWritewriteconflicts().size(), cs1.getWritewriteconflicts().size());
-            for (TableRef ref0 : cs0.getWritewriteconflicts()) {
-                TableRef ref1 = cs1.getWritewriteconflicts().get(ref0.getName());
-                assertNotNull(ref1);
-                assertEquals(ref0.getTable().getName(), ref1.getTable().getName());
+            for (ConflictPair conflict0 : cs0.getWritewriteconflicts()) {
+                ConflictPair conflict1 = cs1.getWritewriteconflicts().get(conflict0.getName());
+                assertNotNull(conflict0.fullName(), conflict1);
+                assertEquals(conflict0.fullName(), conflict0.getStatement0().getName(), conflict1.getStatement0().getName());
+                assertEquals(conflict0.fullName(), conflict0.getStatement1().getName(), conflict1.getStatement1().getName());
+                assertEquals(conflict0.fullName(), conflict0.getAlwaysconflicting(), conflict1.getAlwaysconflicting());
+                assertEquals(conflict0.fullName(), conflict0.getConflicttype(), conflict1.getConflicttype());
+                for (TableRef ref0 : conflict0.getTables()) {
+                    TableRef ref1 = conflict1.getTables().get(ref0.getName());
+                    assertNotNull(ref0.fullName(), ref1);
+                    assertEquals(ref0.fullName(), ref0.getTable().getName(), ref1.getTable().getName());
+                } // FOR
             } // FOR
+
         } // FOR
     }
 
@@ -198,8 +216,8 @@ public class TestCatalogCloner extends BaseTestCase {
      * testCloneDatabase
      */
     public void testCloneDatabase() throws Exception {
-        assertEquals(NUM_PARTITIONS, CatalogUtil.getNumberOfPartitions(catalog_db));
-        Collection<Integer> all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+        assertEquals(NUM_PARTITIONS, catalogContext.numberOfPartitions);
+        Collection<Integer> all_partitions = catalogContext.getAllPartitionIds();
         assertNotNull(all_partitions);
 
         // We want to make sure that it clones MultiProcParameters too!

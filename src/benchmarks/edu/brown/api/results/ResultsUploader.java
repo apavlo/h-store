@@ -44,11 +44,12 @@ public class ResultsUploader implements BenchmarkInterest {
     final HStoreConf hstore_conf;
     final BenchmarkConfig m_config;
     final String m_benchmarkName;
-    String m_benchmarkOptions;
+    final String m_benchmarkOptions;
     final HashMap<String, String> m_hostIdCache = new HashMap<String, String>();
     final HashMap<String, String[]> m_hostDistroCache = new HashMap<String, String[]>();
     final HashMap<String, String> m_clientArgs = new HashMap<String, String>();
     final HashMap<String, String> m_hostArgs = new HashMap<String, String>();
+    private boolean stop = false;
 
     public ResultsUploader(String benchmarkName, BenchmarkConfig config) {
         assert(config != null);
@@ -56,10 +57,15 @@ public class ResultsUploader implements BenchmarkInterest {
         hstore_conf = config.hstore_conf; // XXX
         m_benchmarkName = benchmarkName;
 
-        m_benchmarkOptions = "";
+        String opts = "";
         for (Entry<String, String> param : config.clientParameters.entrySet())
-            m_benchmarkOptions += param.getKey() + "=" + param.getValue() + " ";
-        m_benchmarkOptions = m_benchmarkOptions.trim();
+            opts += param.getKey() + "=" + param.getValue() + " ";
+        m_benchmarkOptions = opts.trim();
+    }
+    
+    @Override
+    public void stop() {
+        this.stop = true;
     }
 
     public void setCommandLineForClient(String clientAndIndex, String commandLine) {
@@ -96,6 +102,8 @@ public class ResultsUploader implements BenchmarkInterest {
     
     @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
+        if (stop) return;
+        
         int pollIndex = results.getCompletedIntervalCount();
         long duration = results.getTotalDuration();
         long interval = results.getIntervalDuration();

@@ -65,7 +65,7 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
     
     @SuppressWarnings("unchecked")
     @Override
-    public QueryTrace cloneImpl() {
+    protected QueryTrace cloneImpl() {
         QueryTrace clone = new QueryTrace(this.catalog_item_name, this.params, this.batch_id);
         return (clone);
     }

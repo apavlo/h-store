@@ -136,12 +136,13 @@ public abstract class MathUtil {
     
     public static <T extends Number> double weightedMean(Histogram<T> h) {
         double values[] = new double[h.getValueCount()];
-        double weights[] = new double[h.getValueCount()];
+        double weights[] = new double[values.length];
         int i = 0;
         for (T val : h.values()) {
             values[i] = val.doubleValue();
             weights[i] = h.get(val, 0l); 
             i++;
+            if (i >= values.length) break; // HACK
         } // FOR
         return (MathUtil.weightedMean(values, weights));
     }
@@ -197,18 +198,29 @@ public abstract class MathUtil {
      * @return
      */
     public static double stdev(double...data) {
-        final int n = data.length;
-        if (n < 2) {
+        if (data.length < 2) {
             return Double.NaN;
         }
-        double avg = data[0];
+        double mean = MathUtil.arithmeticMean(data);
         double sum = 0;
-        for (int i = 1; i < data.length; i++) {
-            double newavg = avg + (data[i] - avg) / (i + 1);
-            sum += (data[i] - avg) * (data[i] - newavg);
-            avg = newavg;
-        }
-        return Math.sqrt(sum / n);
+        for (double d : data) {
+            sum += Math.pow((d - mean), 2);
+        } // FOR
+        return Math.sqrt(sum / (data.length - 1));
+    }
+    
+    public static <T extends Number> double stdev(Histogram<T> h) {
+        double values[] = new double[h.getSampleCount()];
+        int idx = 0;
+        for (T val : h.values()) {
+            double value = val.doubleValue();
+            long weight = h.get(val, 0l);
+            for (int i = 0; i < weight; i++) {
+                values[idx++] = value;
+            }
+        } // FOR
+        assert(idx == values.length) : idx + "!=" + values.length;
+        return (MathUtil.stdev(values));
     }
     
     /** Compute the sum of the given array */

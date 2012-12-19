@@ -9,7 +9,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -32,7 +31,7 @@ public final class HStoreObjectPools implements Configurable {
     /**
      * TransactionInitQueueCallback Pool
      */
-    public final TypedObjectPool<TransactionInitQueueCallback> CALLBACKS_TXN_INITQUEUE;
+//    public final TypedObjectPool<TransactionInitQueueCallback> CALLBACKS_TXN_INITQUEUE;
     
     /**
      * ForwardTxnRequestCallback Pool
@@ -89,9 +88,6 @@ public final class HStoreObjectPools implements Configurable {
         // -------------------------------
         // GLOBAL CALLBACK POOLS
         // -------------------------------
-        this.CALLBACKS_TXN_INITQUEUE = TypedObjectPool.factory(TransactionInitQueueCallback.class,
-                (int)(hstore_conf.site.pool_txninitqueue_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling, hstore_site);
         this.CALLBACKS_TXN_REDIRECT_REQUEST = TypedObjectPool.factory(TransactionRedirectCallback.class,
                 (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);

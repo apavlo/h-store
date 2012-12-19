@@ -30,9 +30,7 @@ import java.util.List;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.ServerThread;
-import org.voltdb.VoltDB.Configuration;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Site;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.jni.ExecutionEngineIPC;
 
@@ -60,7 +58,7 @@ public class LocalSingleProcessServer extends VoltServerConfig {
         assert(jarFileName != null);
         assert(partitionCount > 0);
         final String buildType = System.getenv().get("BUILD");
-        m_jarFileName = new File(Configuration.getPathToCatalogForTest(jarFileName));
+        m_jarFileName = new File(VoltServerConfig.getPathToCatalogForTest(jarFileName));
         m_partitionCount = partitionCount;
         if (buildType == null) {
             m_target = target;

@@ -211,8 +211,9 @@ public class VoltProjectBuilder {
      * Replicated SecondaryIndex Info
      * TableName -> Pair<CreateIndex, ColumnNames>
      */
-    final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_verticalpartitionInfos = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
-
+    private final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_replicatedSecondaryIndexes = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
+    private boolean m_replicatedSecondaryIndexesEnabled = true;
+    
     /**
      * Evictable Tables
      */
@@ -247,7 +248,6 @@ public class VoltProjectBuilder {
     private boolean m_elenabled;      // true if enabled; false if disabled
     List<String> m_elAuthUsers;       // authorized users
     List<String> m_elAuthGroups;      // authorized groups
-    private boolean m_verticalPartitionOptimizations = true;
 
     BackendTarget m_target = BackendTarget.NATIVE_EE_JNI;
     PrintStream m_compilerDebugPrintStream = null;
@@ -602,33 +602,39 @@ public class VoltProjectBuilder {
     }
     
     public void addTablePartitionInfo(final String tableName, final String partitionColumnName) {
-        assert(m_partitionInfos.containsKey(tableName) == false);
+        assert(m_partitionInfos.containsKey(tableName) == false) :
+            String.format("Already contains table partitioning info for '%s': %s",
+                          tableName, m_partitionInfos.get(tableName));
         m_partitionInfos.put(tableName, partitionColumnName);
     }
     
     // -------------------------------------------------------------------
-    // VERTICAL PARTITONS (AKA REPLICATED SECONDARY INDEXES)
+    // REPLICATED SECONDARY INDEXES
     // -------------------------------------------------------------------
     
-    public void addVerticalPartitionInfo(final String tableName, final String...partitionColumnNames) {
-        this.addVerticalPartitionInfo(tableName, true, partitionColumnNames);
+    public void removeReplicatedSecondaryIndexes() {
+        m_replicatedSecondaryIndexes.clear();
     }
     
-    public void addVerticalPartitionInfo(final String tableName, final boolean createIndex, final String...partitionColumnNames) {
+    public void addReplicatedSecondaryIndex(final String tableName, final String...partitionColumnNames) {
+        this.addReplicatedSecondaryIndexInfo(tableName, true, partitionColumnNames);
+    }
+    
+    public void addReplicatedSecondaryIndexInfo(final String tableName, final boolean createIndex, final String...partitionColumnNames) {
         ArrayList<String> columns = new ArrayList<String>();
         for (String col : partitionColumnNames) {
             columns.add(col);
         }
-        this.addVerticalPartitionInfo(tableName, createIndex, columns);
+        this.addReplicatedSecondaryIndexInfo(tableName, createIndex, columns);
     }
     
-    public void addVerticalPartitionInfo(final String tableName, final boolean createIndex, final Collection<String> partitionColumnNames) {
-        assert(m_verticalpartitionInfos.containsKey(tableName) == false);
-        m_verticalpartitionInfos.put(tableName, Pair.of(createIndex, partitionColumnNames));
+    public void addReplicatedSecondaryIndexInfo(final String tableName, final boolean createIndex, final Collection<String> partitionColumnNames) {
+        assert(m_replicatedSecondaryIndexes.containsKey(tableName) == false);
+        m_replicatedSecondaryIndexes.put(tableName, Pair.of(createIndex, partitionColumnNames));
     }
     
-    public void setEnableVerticalPartitionOptimizations(boolean val) { 
-        m_verticalPartitionOptimizations = val;
+    public void enableReplicatedSecondaryIndexes(boolean val) { 
+        m_replicatedSecondaryIndexesEnabled = val;
     }
 
     public void setSecurityEnabled(final boolean enabled) {
@@ -696,7 +702,9 @@ public class VoltProjectBuilder {
                            final int replication, final String leaderAddress)
     {
         VoltCompiler compiler = new VoltCompiler();
-        if (m_verticalPartitionOptimizations) compiler.enableVerticalPartitionOptimizations();
+        if (m_replicatedSecondaryIndexesEnabled) {
+            compiler.enableVerticalPartitionOptimizations();
+        }
         return compile(compiler, jarPath, sitesPerHost, hostCount, replication,
                        leaderAddress);
     }
@@ -858,31 +866,25 @@ public class VoltProjectBuilder {
         ParametersUtil.applyParameterMappings(catalog_db, mappings);
     }
 
-    // Do we want to put this above to save doing the traversal all over again?
     private void applyPrefetchableFlags(Database catalog_db) {
-        for (String procName : m_paramMappings.keySet()) {
-            Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
-            assert(catalog_proc != null) :
-                "Invalid Procedure name for ParameterMappings '" + procName + "'";
-            for (Integer procParamIdx : m_paramMappings.get(procName).keySet()) {
-                ProcParameter catalog_procParam = catalog_proc.getParameters().get(procParamIdx.intValue());
-                assert(catalog_procParam != null) :
-                    "Invalid ProcParameter for '" + procName + "' at offset " + procParamIdx;
-                Pair<String, Integer> stmtPair = m_paramMappings.get(procName).get(procParamIdx);
-                assert(stmtPair != null);
-                
-                Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmtPair.getFirst());
-                assert(catalog_stmt != null) :
-                    "Invalid Statement name '" + stmtPair.getFirst() + "' for ParameterMappings " +
-                    "for Procedure '" + procName + "'";
-                StmtParameter catalog_stmtParam = catalog_stmt.getParameters().get(stmtPair.getSecond().intValue());
-                assert(catalog_stmtParam != null) :
-                    "Invalid StmtParameter for '" + catalog_stmt.fullName() + "' at offset " + stmtPair.getSecond();
-                
-                if (catalog_stmtParam.getProcparameter() != null) {
-                    catalog_stmt.setPrefetchable(true);
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            boolean proc_prefetchable = false;
+            for (Statement statement : catalog_proc.getStatements()) {
+                boolean stmt_prefetchable = true;
+                for (StmtParameter stmtParam : statement.getParameters()) {
+                    if (stmtParam.getProcparameter() == null) {
+                        stmt_prefetchable = false;
+                        break;
+                    }
+                } // FOR (StmtParameter)
+                if (stmt_prefetchable) {
+                    statement.setPrefetchable(true);
+                    proc_prefetchable = true;
                 }
-            } // FOR (ProcParameter)
+            } // FOR (Statement)
+            if (proc_prefetchable) {
+                catalog_proc.setPrefetchable(true);
+            }
         } // FOR (Procedure)
     }
     
@@ -1071,14 +1073,14 @@ public class VoltProjectBuilder {
         }
         
         // Vertical Partitions
-        if (m_verticalpartitionInfos.size() > 0) {
+        if (m_replicatedSecondaryIndexes.size() > 0) {
             // /project/database/partitions
             final Element verticalpartitions = doc.createElement("verticalpartitions");
             database.appendChild(verticalpartitions);
 
             // partitions/table
-            for (String tableName : m_verticalpartitionInfos.keySet()) {
-                Pair<Boolean, Collection<String>> p = m_verticalpartitionInfos.get(tableName);
+            for (String tableName : m_replicatedSecondaryIndexes.keySet()) {
+                Pair<Boolean, Collection<String>> p = m_replicatedSecondaryIndexes.get(tableName);
                 Boolean createIndex = p.getFirst();
                 Collection<String> columnNames = p.getSecond(); 
                 

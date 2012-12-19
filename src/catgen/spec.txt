@@ -238,8 +238,17 @@ begin SnapshotSchedule          "A schedule for the database to follow when crea
     string prefix                 "Prefix for snapshot filenames"
 end
 
+begin ConflictPair              "A pair of Statements that have a conflict"
+    Statement? statement0       "The source Statement"
+    Statement? statement1       "The destination Statement"
+    TableRef* tables            "The list of tables that caused this conflict"
+    bool alwaysConflicting      "If true, then this ConflictPair will always cause a conflict"
+    int conflictType           "Type of conflict (ConflictType)"
+end
+
 begin ConflictSet               "A set of conflicts with another procedures"
     Procedure? procedure        "The other procedure that this conflict set is for"
-    TableRef* readWriteConflicts  "Tables that the parent Procedure has a read-write conflict with the target procedure"
-    TableRef* writeWriteConflicts "Tables that the parent Procedure has a write-write conflict with the target procedure"
+    ConflictPair* readWriteConflicts  "ConflictPairs that the parent Procedure has a read-write conflict with the target procedure"
+    ConflictPair* writeWriteConflicts "ConflictPairs that the parent Procedure has a write-write conflict with the target procedure"
 end
+

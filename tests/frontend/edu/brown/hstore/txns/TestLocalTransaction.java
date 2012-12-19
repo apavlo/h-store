@@ -98,7 +98,7 @@ public class TestLocalTransaction extends BaseTestCase {
      * testStartRound
      */
     public void testStartRound() throws Exception {
-        this.ts.testInit(TXN_ID, BASE_PARTITION, new PartitionSet(BASE_PARTITION), this.catalog_proc);
+        this.ts.testInit(TXN_ID, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), this.catalog_proc);
         ExecutionState state = new ExecutionState(this.executor);
         this.ts.setExecutionState(state);
         this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);
@@ -116,16 +116,16 @@ public class TestLocalTransaction extends BaseTestCase {
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
-        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-        plan.getWorkFragments(TXN_ID, fragments);
-        assertFalse(fragments.isEmpty());
+        List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
+        plan.getWorkFragmentsBuilders(TXN_ID, builders);
+        assertFalse(builders.isEmpty());
         
-        List<WorkFragment> ready = new ArrayList<WorkFragment>();
-        for (WorkFragment pf : fragments) {
-            boolean blocked = this.ts.addWorkFragment(pf);
+        List<WorkFragment.Builder> ready = new ArrayList<WorkFragment.Builder>();
+        for (WorkFragment.Builder builder : builders) {
+            boolean blocked = this.ts.addWorkFragment(builder);
             if (blocked == false) {
-                assertFalse(pf.toString(), ready.contains(pf));
-                ready.add(pf);
+                assertFalse(builder.toString(), ready.contains(builder));
+                ready.add(builder);
             }
         } // FOR
         assertFalse(ready.isEmpty());
@@ -139,7 +139,7 @@ public class TestLocalTransaction extends BaseTestCase {
     public void testReadWriteSets() throws Exception {
         ExecutionState state = new ExecutionState(this.executor);
         this.ts.setExecutionState(state);
-        this.ts.fastInitRound(BASE_PARTITION, UNDO_TOKEN);
+        this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);
         
         int tableIds[] = null;
         for (Statement catalog_stmt : catalog_proc.getStatements()) {

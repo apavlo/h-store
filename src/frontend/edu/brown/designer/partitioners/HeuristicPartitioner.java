@@ -733,7 +733,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                     // parent
                     //
                     ColumnSet cset = (ColumnSet) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
-                    Set<Column> entries = cset.findAllForOther(Column.class, parent_attribute);
+                    Collection<Column> entries = cset.findAllForOther(Column.class, parent_attribute);
                     if (!entries.isEmpty()) {
                         next_to_visit.add(child);
                         assert (entries.size() == 1) : "Multiple entries from " + parent + " to " + child + ": " + entries;
@@ -797,7 +797,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             } // FOR
             if (partition_edge != null) {
                 ColumnSet cset = (ColumnSet) partition_edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
-                Set<Column> attributes = cset.findAllForParent(Column.class, parent_table);
+                Collection<Column> attributes = cset.findAllForParent(Column.class, parent_table);
                 parent.setAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name(), CollectionUtil.first(attributes));
                 parent.setAttribute(ptree, PartitionTree.VertexAttributes.METHOD.name(), PartitionMethodType.HASH);
                 LOG.debug(parent + parent.debug(ptree));

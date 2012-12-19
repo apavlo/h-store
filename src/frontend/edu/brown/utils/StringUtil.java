@@ -27,6 +27,8 @@
  ***************************************************************************/
 package edu.brown.utils;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -40,11 +42,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
-import org.voltdb.client.Client;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
+
+import edu.brown.hstore.HStoreConstants;
 
 /**
  * @author pavlo
@@ -62,6 +65,9 @@ public abstract class StringUtil {
     private static Integer CACHE_REPEAT_SIZE = null;
     private static String CACHE_REPEAT_RESULT = null;
 
+    public static final String SET_PLAIN_TEXT = "\033[0;0m";
+    public static final String SET_BOLD_TEXT = "\033[0;1m";
+    
     private static final double BASE = 1024, KB = BASE, MB = KB * BASE, GB = MB * BASE;
     private static final DecimalFormat df = new DecimalFormat("#.##");
 
@@ -74,9 +80,27 @@ public abstract class StringUtil {
     /** Unicode Down Arrow Character */
     public static final String UNICODE_DOWN_ARROW = "\u25BC";
     
+    
+    /**
+     * Return the given Exception's stacktrace as a string 
+     * @param ex
+     */
+    public static String stacktrace(Throwable ex) {
+        StringWriter writer = new StringWriter();
+        ex.printStackTrace(new PrintWriter(writer));
+        return (writer.toString());
+    }
+    
+    /**
+     * Wrap the given string with the control characters
+     * to make the text appear bold in the console
+     */
+    public static String bold(String str) {
+        return (SET_BOLD_TEXT + str + SET_PLAIN_TEXT);
+    }
+    
     /**
      * http://ubuntuforums.org/showpost.php?p=10215516&postcount=5
-     * 
      * @param bytes
      * @return
      */
@@ -112,7 +136,7 @@ public abstract class StringUtil {
         // Microseconds
         } else if (nanoseconds > 1000) {
             time /= 1000d;
-            unit = "µs";
+            unit = "\u00B5s";
         }
         return String.format(f, time) + unit;
     }
@@ -609,7 +633,7 @@ public abstract class StringUtil {
      * @return
      */
     public static Pair<String, Integer> getHostPort(String hostnport) {
-        return (getHostPort(hostnport, Client.VOLTDB_SERVER_PORT));
+        return (getHostPort(hostnport, HStoreConstants.DEFAULT_PORT));
     }
 
     public static Pair<String, Integer> getHostPort(String hostnport, int port) {

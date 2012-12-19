@@ -403,7 +403,7 @@ public abstract class TableUtil {
                 sb.append("\n");
 
             // Add row delimiter if necessary
-            if (format.delimiter_rows != null && format.delimiter_rows[row_idx] != null) {
+            if (format.delimiter_rows != null && row_idx < format.delimiter_rows.length && format.delimiter_rows[row_idx] != null) {
                 sb.append(StringUtil.repeat(format.delimiter_rows[row_idx], total_width)).append("\n");
             }
 

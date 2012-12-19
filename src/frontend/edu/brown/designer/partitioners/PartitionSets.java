@@ -1,5 +1,6 @@
 package edu.brown.designer.partitioners;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -34,7 +35,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
 
         private final Map<Table, Set<ColumnSet>> table_cset_xref = new HashMap<Table, Set<ColumnSet>>();
         private final Map<Table, Set<DesignerEdge>> table_edge_xref = new HashMap<Table, Set<DesignerEdge>>();
-        private final Map<Table, Set<Column>> table_partition_xref = new HashMap<Table, Set<Column>>();
+        private final Map<Table, Collection<Column>> table_partition_xref = new HashMap<Table, Collection<Column>>();
 
         /**
          * @param other
@@ -105,7 +106,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
          * @param child_table
          * @return
          */
-        public Set<Column> getChildAttributes(Table child_table) {
+        public Collection<Column> getChildAttributes(Table child_table) {
             return (this.table_partition_xref.get(child_table));
         }
 

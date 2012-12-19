@@ -67,15 +67,16 @@
 #include <sched.h>
 #endif
 
+// Print an error if trying to compile on 32-bit systemes.
 #ifdef LINUX
 #if __SIZEOF_POINTER__ == 4
-#error VoltDB server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
-#endif
+#error H-Store server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
+#endif // __SIZEOF_POINTER__ == 4
 #else
 #ifndef __x86_64
-#error VoltDB server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
-#endif
-#endif
+#error H-Store server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
+#endif // __x86_64
+#endif // LINUX
 
 //#include <google/profiler.h>
 
@@ -325,7 +326,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeLoadC
         e.serialize(engine->getExceptionOutputSerializer());
     }
 
-    VOLT_ERROR("loadCatalog failed");
+    VOLT_DEBUG("loadCatalog failed");
     return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
 }
 

@@ -39,15 +39,27 @@ import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 
-@ProcInfo(singlePartition = false)
+@ProcInfo(
+    partitionParam = 0,
+    singlePartition = false
+)
 public class InsertCallForwarding extends VoltProcedure {
-    public final SQLStmt query1 = new SQLStmt("SELECT s_id FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE sub_nbr = ?");
+    public final SQLStmt query1 = new SQLStmt(
+        "SELECT s_id FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE sub_nbr = ?"
+    );
 
-    public final SQLStmt query2 = new SQLStmt("SELECT sf_type FROM " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " WHERE s_id = ?");
+    public final SQLStmt query2 = new SQLStmt(
+        "SELECT sf_type FROM " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " WHERE s_id = ?"
+    );
 
-    public final SQLStmt update = new SQLStmt("INSERT INTO " + TM1Constants.TABLENAME_CALL_FORWARDING + " VALUES (?, ?, ?, ?, ?)");
+    public final SQLStmt update = new SQLStmt(
+        "INSERT INTO " + TM1Constants.TABLENAME_CALL_FORWARDING + " VALUES (?, ?, ?, ?, ?)"
+    );
 
-    public final SQLStmt check = new SQLStmt("SELECT s_id FROM " + TM1Constants.TABLENAME_CALL_FORWARDING + " WHERE s_id = ? AND sf_type = ? AND start_time = ?");
+    public final SQLStmt check = new SQLStmt(
+        "SELECT s_id FROM " + TM1Constants.TABLENAME_CALL_FORWARDING +
+        " WHERE s_id = ? AND sf_type = ? AND start_time = ?"
+    );
 
     /**
      * If this is set to true, then we will use the "check" query to look
@@ -83,11 +95,11 @@ public class InsertCallForwarding extends VoltProcedure {
         // whether the insert failed from inside of the xact
         if (NO_CONSTRAINT_ABORT) {
             voltQueueSQL(check, s_id, sf_type, start_time);
-            result = voltExecuteSQL();
+            result = voltExecuteSQL(true);
         }
         if (result == null || result.length == 0 || result[0].getRowCount() == 0) {
             voltQueueSQL(update, s_id, sf_type, start_time, end_time, numberx);
-            result = voltExecuteSQL();
+            result = voltExecuteSQL(true);
             assert result.length == 1;
             return result[0].asScalarLong();
         }

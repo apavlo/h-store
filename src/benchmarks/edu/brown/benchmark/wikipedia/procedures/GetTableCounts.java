@@ -23,7 +23,6 @@ public class GetTableCounts extends VoltProcedure {
     public final SQLStmt text = new SQLStmt("SELECT COUNT(*) FROM TEXT");
     public final SQLStmt revision = new SQLStmt("SELECT COUNT(*) FROM REVISION");
     public final SQLStmt user_groups = new SQLStmt("SELECT COUNT(*) FROM USER_GROUPS");
-    public final SQLStmt value_backup = new SQLStmt("SELECT COUNT(*) FROM VALUE_BACKUP ");
     public final SQLStmt watchlist = new SQLStmt("SELECT COUNT(*) FROM WATCHLIST");
     
     private final HashMap<String, SQLStmt> table_map = new HashMap<String, SQLStmt>();
@@ -37,7 +36,6 @@ public class GetTableCounts extends VoltProcedure {
         this.table_map.put("TEXT", text);
         this.table_map.put("REVISION", revision);
         this.table_map.put("USER_GROUPS", user_groups);
-        this.table_map.put("VALUE_BACKUP", value_backup);
         this.table_map.put("WATCHLIST", watchlist);
     }
     

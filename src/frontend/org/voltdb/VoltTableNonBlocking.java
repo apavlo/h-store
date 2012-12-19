@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.Semaphore;
 
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.profilers.TransactionProfiler;
 
@@ -25,9 +26,13 @@ public class VoltTableNonBlocking extends VoltTable {
         this.profiler = profiler;
     }
     
+    /**
+     * Block the current thread until the real VoltTable
+     * has been added into this wrapper.
+     */
     private void block() {
+        if (this.profiler != null) this.profiler.markRemoteQueryAccess();
         if (this.realTable == null) {
-            if (this.profiler != null) this.profiler.markRemoteQueryAccess();
             this.lock.acquireUninterruptibly();
         }
     }
@@ -36,6 +41,66 @@ public class VoltTableNonBlocking extends VoltTable {
         if (this.profiler != null) this.profiler.markRemoteQueryResult();
         this.realTable = vt;
         this.lock.release();
+    }
+
+    @Override
+    public int getRowCount() {
+        this.block();
+        return this.realTable.getRowCount();
+    }
+
+    @Override
+    protected int getRowStart() {
+        this.block();
+        return this.realTable.getRowStart();
+    }
+
+    @Override
+    public int getColumnCount() {
+        this.block();
+        return this.realTable.getColumnCount();
+    }
+
+    @Override
+    public String getColumnName(int index) {
+        this.block();
+        return this.realTable.getColumnName(index);
+    }
+
+    @Override
+    public VoltType getColumnType(int index) {
+        this.block();
+        return this.realTable.getColumnType(index);
+    }
+
+    @Override
+    public int getColumnIndex(String name) {
+        this.block();
+        return this.realTable.getColumnIndex(name);
+    }
+
+    @Override
+    public VoltTableRow fetchRow(int index) {
+        this.block();
+        return this.realTable.fetchRow(index);
+    }
+
+    @Override
+    public VoltTableRow getRow() {
+        this.block();
+        return this.realTable.getRow();
+    }
+
+    @Override
+    public Object[] getRowArray() {
+        this.block();
+        return this.realTable.getRowArray();
+    }
+
+    @Override
+    public String[] getRowStringArray() {
+        this.block();
+        return this.realTable.getRowStringArray();
     }
 
     @Override
@@ -80,12 +145,14 @@ public class VoltTableNonBlocking extends VoltTable {
         return this.realTable.hasSameContents(other);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public boolean equals(Object o) {
         this.block();
         return this.realTable.equals(o);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public int hashCode() {
         this.block();
@@ -164,4 +231,117 @@ public class VoltTableNonBlocking extends VoltTable {
         return this.realTable.getDecimalAsBigDecimal(columnName);
     }
 
+    @Override
+    public Object get(int columnIndex) {
+        this.block();
+        return this.realTable.get(columnIndex);
+    }
+
+    @Override
+    public Object get(int columnIndex, VoltType type) {
+        this.block();
+        return this.realTable.get(columnIndex, type);
+    }
+
+    @Override
+    public Object get(String columnName, VoltType type) {
+        this.block();
+        return this.realTable.get(columnName, type);
+    }
+
+    @Override
+    public boolean getBoolean(int columnIndex) {
+        this.block();
+        return this.realTable.getBoolean(columnIndex);
+    }
+
+    @Override
+    public boolean getBoolean(String columnName) {
+        this.block();
+        return this.realTable.getBoolean(columnName);
+    }
+
+    @Override
+    public long getLong(int columnIndex) {
+        this.block();
+        return this.realTable.getLong(columnIndex);
+    }
+
+    @Override
+    public long getLong(String columnName) {
+        this.block();
+        return this.realTable.getLong(columnName);
+    }
+
+    @Override
+    public boolean wasNull() {
+        this.block();
+        return this.realTable.wasNull();
+    }
+
+    @Override
+    public double getDouble(int columnIndex) {
+        this.block();
+        return this.realTable.getDouble(columnIndex);
+    }
+
+    @Override
+    public double getDouble(String columnName) {
+        this.block();
+        return this.realTable.getDouble(columnName);
+    }
+
+    @Override
+    public String getString(int columnIndex) {
+        this.block();
+        return this.realTable.getString(columnIndex);
+    }
+
+    @Override
+    public String getString(String columnName) {
+        this.block();
+        return this.realTable.getString(columnName);
+    }
+
+    @Override
+    public byte[] getStringAsBytes(int columnIndex) {
+        this.block();
+        return this.realTable.getStringAsBytes(columnIndex);
+    }
+
+    @Override
+    public byte[] getStringAsBytes(String columnName) {
+        this.block();
+        return this.realTable.getStringAsBytes(columnName);
+    }
+
+    @Override
+    public long getTimestampAsLong(int columnIndex) {
+        this.block();
+        return this.realTable.getTimestampAsLong(columnIndex);
+    }
+
+    @Override
+    public long getTimestampAsLong(String columnName) {
+        this.block();
+        return this.realTable.getTimestampAsLong(columnName);
+    }
+
+    @Override
+    public TimestampType getTimestampAsTimestamp(int columnIndex) {
+        this.block();
+        return this.realTable.getTimestampAsTimestamp(columnIndex);
+    }
+
+    @Override
+    public TimestampType getTimestampAsTimestamp(String columnName) {
+        this.block();
+        return this.realTable.getTimestampAsTimestamp(columnName);
+    }
+
+    @Override
+    public BigDecimal getDecimalAsBigDecimal(int columnIndex) {
+        this.block();
+        return this.realTable.getDecimalAsBigDecimal(columnIndex);
+    }
 }

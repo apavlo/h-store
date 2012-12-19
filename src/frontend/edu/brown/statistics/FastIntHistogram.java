@@ -28,20 +28,41 @@ public class FastIntHistogram extends Histogram<Integer> {
     private long histogram[];
     private int value_count = 0;
     
+    public FastIntHistogram(boolean keepZeroEntries) {
+        this(keepZeroEntries, 10); // HACK
+    }
+    
     public FastIntHistogram() {
-        // Deserialization
+        this(false, 10); // HACK
     }
     
     public FastIntHistogram(int size) {
+        this(false, size);
+    }
+    
+    public FastIntHistogram(boolean keepZeroEntries, int size) {
+        this.keep_zero_entries = keepZeroEntries;
         this.histogram = new long[size];
         this.clearValues();
+    }
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL METHODS
+    // ----------------------------------------------------------------------------
+    
+    private void grow(int newSize) {
+        assert(newSize >= this.histogram.length);
+        long temp[] = new long[newSize+10];
+        Arrays.fill(temp, this.histogram.length, temp.length, NULL_COUNT);
+        System.arraycopy(this.histogram, 0, temp, 0, this.histogram.length);
+        this.histogram = temp;
     }
     
     // ----------------------------------------------------------------------------
     // FAST ACCESS METHODS
     // ----------------------------------------------------------------------------
     
-    public int fastSize() {
+    public int size() {
         return (this.histogram.length);
     }
     public int[] fastValues() {
@@ -59,10 +80,16 @@ public class FastIntHistogram extends Histogram<Integer> {
         } // FOR
         return (values);
     }
-    public long fastGet(int value) {
+    public long get(int value) {
+        if (value >= this.histogram.length) {
+            return (0);
+        }
         return (this.histogram[value] != NULL_COUNT ? this.histogram[value] : 0);
     }
-    public void fastPut(int idx) {
+    public long put(int idx) {
+        if (idx >= this.histogram.length) {
+            this.grow(idx);
+        }
         if (this.histogram[idx] == NULL_COUNT) {
             this.histogram[idx] = 1;
             this.value_count++;
@@ -70,9 +97,13 @@ public class FastIntHistogram extends Histogram<Integer> {
             this.histogram[idx]++;
         }
         this.num_samples++;
+        return (this.histogram[idx]);
     }
-    public void fastPut(FastIntHistogram fast) {
+    public void put(FastIntHistogram fast) {
         assert(fast.histogram.length <= this.histogram.length);
+        if (fast.histogram.length >= this.histogram.length) {
+            this.grow(fast.histogram.length);
+        }
         for (int i = 0; i < fast.histogram.length; i++) {
             if (fast.histogram[i] != NULL_COUNT) {
                 if (this.histogram[i] == NULL_COUNT) {
@@ -84,12 +115,18 @@ public class FastIntHistogram extends Histogram<Integer> {
             }
         } // FOR
     }
-    
-    public void fastDec(int idx) {
-        this.fastDec(idx, 1);
+    public long remove(int value) {
+        if (value < this.histogram.length) {
+            this.histogram[value] = NULL_COUNT;
+        }
+        return (0);
     }
-    public void fastDec(int idx, long count) {
-        if (this.histogram[idx] == NULL_COUNT) {
+    
+    public long fastDec(int idx) {
+        return this.fastDec(idx, 1);
+    }
+    public long fastDec(int idx, long count) {
+        if (this.histogram[idx] == NULL_COUNT || this.histogram.length <= idx) {
             throw new IllegalArgumentException("No value exists for " + idx);
         } else if (this.histogram[idx] < count) {
             throw new IllegalArgumentException("Count for " + idx + " cannot be negative");
@@ -100,6 +137,7 @@ public class FastIntHistogram extends Histogram<Integer> {
             this.value_count--;
         }
         this.num_samples -= count;
+        return (this.histogram[idx]);
     }
     
     // ----------------------------------------------------------------------------
@@ -108,7 +146,7 @@ public class FastIntHistogram extends Histogram<Integer> {
 
     @Override
     public Long get(Integer value) {
-        return Long.valueOf(this.fastGet(value.intValue()));
+        return Long.valueOf(this.get(value.intValue()));
     }
 
     @Override
@@ -122,12 +160,12 @@ public class FastIntHistogram extends Histogram<Integer> {
     }
 
     @Override
-    public void put(Integer value) {
-        this.fastPut(value.intValue());
+    public long put(Integer value) {
+        return this.put(value.intValue());
     }
         
     @Override
-    public synchronized void put(Integer value, long i) {
+    public synchronized long put(Integer value, long i) {
         int idx = value.intValue();
         if (this.histogram[idx] == NULL_COUNT) {
             this.histogram[idx] = i;
@@ -136,6 +174,7 @@ public class FastIntHistogram extends Histogram<Integer> {
             this.histogram[idx] += i;
         }
         this.num_samples += i;
+        return (this.histogram[idx]);
     }
 
     @Override
@@ -153,7 +192,7 @@ public class FastIntHistogram extends Histogram<Integer> {
     @Override
     public synchronized void put(Histogram<Integer> other) {
         if (other instanceof FastIntHistogram) {
-            this.fastPut((FastIntHistogram)other);
+            this.put((FastIntHistogram)other);
         } else {
             for (Integer v : other.values()) {
                 this.put(v, other.get(v));
@@ -162,18 +201,18 @@ public class FastIntHistogram extends Histogram<Integer> {
     }
 
     @Override
-    public synchronized void dec(Integer value) {
-        this.dec(value, 1);
+    public synchronized long dec(Integer value) {
+        return this.dec(value, 1);
     }
 
     @Override
-    public synchronized void dec(Integer value, long count) {
-        this.fastDec(value.intValue(), count);
+    public synchronized long dec(Integer value, long count) {
+        return this.fastDec(value.intValue(), count);
     }
 
     @Override
-    public synchronized void remove(Integer value) {
-        super.remove(value);
+    public synchronized long remove(Integer value) {
+        return this.remove(value.intValue());
     }
 
     @Override
@@ -375,5 +414,16 @@ public class FastIntHistogram extends Histogram<Integer> {
             }
         }
     }
-
+    
+    @Override
+    public String toString() {
+        // HACK HACK HACK
+        super.histogram.clear();
+        for (int i = 0; i < this.histogram.length; i++) {
+            if (this.histogram[i] != -1) {
+                super.put(i, this.histogram[i]);
+            }
+        } // FOR
+        return super.toString();
+    }
 }

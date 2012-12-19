@@ -6,6 +6,7 @@ package edu.brown.hstore.util;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -26,34 +27,50 @@ public enum TransactionCounter {
     REDIRECTED,
     /** The number of transactions that we executed locally */
     EXECUTED,
+    /** The number of transactions that were completed (committed or aborted) */
+    COMPLETED,
     /** Of the locally executed transactions, how many were single-partitioned */
     SINGLE_PARTITION,
     /** Of the locally executed transactions, how many were multi-partitioned */
     MULTI_PARTITION,
+    /** Speculative Execution **/
+    SPECULATIVE,
     /** The number of sysprocs that we executed */
     SYSPROCS,
-    /** The number of transactions that were completed (committed or aborted) */
-    COMPLETED,
-    /** Of the locally executed transactions, how many were abort */
+    /** The number of transactions that were mispredicted (and thus re-executed) */
+    MISPREDICTED,
+    /** Of the locally executed transactions, how many were aborted by the user */
     ABORTED,
     /** The number of transactions that were unexpectedly aborted (e.g., because of an assert) */
     ABORT_UNEXPECTED,
     /** The number of transactions that were gracefully aborted  */
     ABORT_GRACEFUL,
+    /** The number of transactions that were aborted while being speculatively executed */
+    ABORT_SPECULATIVE,
     /** The number of transactions that were speculative and had to be restarted */
     RESTARTED,
-    /** The number of transactions that were mispredicted (and thus re-executed) */
-    MISPREDICTED,
     /** The number of transactions that were aborted because they tried to access evicted data */
     EVICTEDACCESS,
-    /** Speculative Execution **/
-    SPECULATIVE,
     /** No undo buffers! Naked transactions! */
     NO_UNDO,
     /** The number of transactions that were blocked due to the local partition's timestamps */
     BLOCKED_LOCAL,
     /** The number of transactions that were blocked due to a remote partition's timestamps */
     BLOCKED_REMOTE,
+    /** The number of transactions that were sent out with prefetch queries */
+    PREFETCH_LOCAL,
+    /** The number of transactions with prefetch queries that were received and prefetched before needed by the sender */
+    PREFETCH_REMOTE,
+    
+    // --------------------------------------------------------
+    // Speculative Execution Stall Points
+    // --------------------------------------------------------
+    SPECULATIVE_SP1,
+    SPECULATIVE_SP2_BEFORE,
+    SPECULATIVE_SP2_AFTER,
+    SPECULATIVE_SP3_LOCAL,
+    SPECULATIVE_SP3_REMOTE,
+
     ;
     
     private final Histogram<String> h = new Histogram<String>();
@@ -126,6 +143,8 @@ public enum TransactionCounter {
             case THROTTLED:
             case BLOCKED_LOCAL:
             case BLOCKED_REMOTE:
+            case PREFETCH_LOCAL:
+            case PREFETCH_REMOTE:
                 total = RECEIVED.get();
                 break;
             case COMPLETED:
@@ -149,5 +168,17 @@ public enum TransactionCounter {
     }
     public static TransactionCounter get(String name) {
         return TransactionCounter.name_lookup.get(name.toLowerCase());
+    }
+    public static void resetAll() {
+        for (TransactionCounter tc : EnumSet.allOf(TransactionCounter.class)) {
+            tc.clear(); 
+        } // FOR
+    }
+    public static String debug() {
+        Map<String, Integer> m = new LinkedHashMap<String, Integer>();
+        for (TransactionCounter tc : EnumSet.allOf(TransactionCounter.class)) {
+            m.put(tc.name(), tc.get()); 
+        } // FOR
+        return (StringUtil.formatMaps(m));
     }
 }

@@ -116,7 +116,7 @@ public class UpdateReservation extends VoltProcedure {
        
         // Update the seat reservation for the customer
         voltQueueSQL(ReserveSeats[(int)attr_idx], seatnum, attr_val, r_id, c_id, f_id);
-        final VoltTable[] results = voltExecuteSQL();
+        final VoltTable[] results = voltExecuteSQL(true);
         assert results.length == 1;
         for (int i = 0; i < results.length - 1; i++) {
             if (results[i].getRowCount() != 1) {
@@ -133,10 +133,9 @@ public class UpdateReservation extends VoltProcedure {
         } // FOR
         
         if (debug) {
-            LOG.debug(this.getTransactionState().debug());
+            if (LOG.isTraceEnabled()) LOG.trace(this.getTransactionState().debug());
+            LOG.debug(String.format("Updated reservation on flight %d for customer %d", f_id, c_id));
         }
-        
-        if (debug) LOG.debug(String.format("Updated reservation on flight %d for customer %d", f_id, c_id));
         return results;
     } 
 }

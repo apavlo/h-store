@@ -36,6 +36,10 @@ public class TestPartitionEstimator extends BaseTestCase {
     
     private final PartitionSet partitions = new PartitionSet();
     
+    {
+        // super.reset(ProjectType.TPCC);
+    }
+    
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
@@ -43,6 +47,11 @@ public class TestPartitionEstimator extends BaseTestCase {
         if (hasher == null) {
             hasher = new DefaultHasher(catalog_db, NUM_PARTITIONS); // CatalogUtil.getNumberOfPartitions(catalog_db));
         }
+        p_estimator.updateLogging();
+        
+        Table catalog_tbl = this.getTable("WAREHOUSE");
+        Column catalog_col = this.getColumn(catalog_tbl, "W_ID");
+        catalog_tbl.setPartitioncolumn(catalog_col);
     }
     
     /**
@@ -99,6 +108,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         assertEquals(1, stmt_partitions.size());
         assert(stmt_partitions.containsKey(table_key));
         assertEquals(1, stmt_partitions.get(table_key).size());
+        assertFalse(stmt_partitions.get(table_key).contains(HStoreConstants.NULL_PARTITION_ID));
         assertEquals(stmt_partitions.get(table_key).toString(), proc_partition, CollectionUtil.first(stmt_partitions.get(table_key)).intValue());
     }
     
@@ -376,10 +386,14 @@ public class TestPartitionEstimator extends BaseTestCase {
         // First calculate the partitions for the query using the original catalog
         // We should get back exactly one partition id (base_partition)
         Object params[] = new Object[] { new Long(BASE_PARTITION) };
-        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
-        assertNotNull(partitions);
-        assertEquals(1, partitions.size());
-        assertEquals(BASE_PARTITION, CollectionUtil.first(partitions).intValue());
+        for (int i = 0; i < 10000; i++) {
+            String debug = String.format("Attempt #%05d", i); 
+            this.partitions.clear();
+            p_estimator.getAllPartitions(this.partitions, catalog_stmt, params, BASE_PARTITION);
+            assertEquals(debug + " -> " + this.partitions.toString(), 1, this.partitions.size());
+            assertEquals(debug, BASE_PARTITION, CollectionUtil.first(this.partitions).intValue());
+            assertFalse(debug, this.partitions.contains(HStoreConstants.NULL_PARTITION_ID));
+        } // FOR
         
         // Then reset the catalog in p_estimator and run the estimation again
         // The new catalog has a different partition column for WAREHOUSE, so we should get
@@ -393,6 +407,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         PartitionSet all_partitions = new_catalogContext.getAllPartitionIds();
         assertNotNull(partitions);
         assertEquals(all_partitions.size(), partitions.size());
+        assertFalse(partitions.contains(HStoreConstants.NULL_PARTITION_ID));
     }
     
     /**

@@ -22,7 +22,7 @@ public class ServerFaultException extends SerializableException {
      * @param txn_id
      */
     public ServerFaultException(String message, Long txn_id) {
-        super();
+        super(new Exception(message));
         this.errorMessage = message;
         this.txn_id = txn_id;
     }

@@ -28,7 +28,7 @@ public class MultiPartitionTxnFilter extends Filter {
     public MultiPartitionTxnFilter(PartitionEstimator p_estimator, boolean singlepartition) {
         super();
         this.p_estimator = p_estimator;
-        this.catalog_db = p_estimator.getDatabase();
+        this.catalog_db = p_estimator.getCatalogContext().database;
         this.singlepartition = singlepartition;
     }
 

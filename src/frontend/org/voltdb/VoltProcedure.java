@@ -51,29 +51,20 @@ import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.graphs.GraphvizExport;
-import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.MarkovEstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.MarkovEdge;
-import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovUtil;
-import edu.brown.markov.MarkovVertex;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.StringUtil;
 
 /**
  * Wraps the stored procedure object created by the user
@@ -191,8 +182,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     private byte m_statusCode = Byte.MIN_VALUE;
     private String m_statusString = null;
     
-    private BatchPlanner planner = null; // TODO: Remove!
-    
     /**
      * End users should not instantiate VoltProcedure instances.
      * Constructor does nothing. All actual initialization is done in the
@@ -220,7 +209,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 
     /**
      * Get the Transaction state handle for the current invocation
-     * This should only be used for debugging
+     * <B>NOTE:</B> This should only be used for debugging/testing.
      * @return
      */
     protected final AbstractTransaction getTransactionState() {
@@ -268,8 +257,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
         
         this.p_estimator = p_estimator;
-        
-        if (d) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.partitionId));
         
         if (catalog_proc.getHasjava()) {
             int tempParamTypesLength = 0;
@@ -420,6 +407,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 paramTypeComponentType[param.getIndex()] = null;
             }
         }
+        if (t) LOG.trace(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.partitionId));
     }
     
     protected SQLStmt getSQLStmt(String name) {
@@ -716,10 +704,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             status_msg = "UNEXPECTED ERROR IN " + this.m_localTxnState;
         } finally {
             this.m_localTxnState.markAsExecuted();
-            if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + status + "]");
+            if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + this.status + "]");
 
             // Workload Trace - Stop the transaction trace record.
-            if (this.workloadTraceEnable && workloadTxnHandle != null && this.status == Status.OK) {
+            if (this.workloadTraceEnable && this.workloadTxnHandle != null && this.status == Status.OK) {
                 if (hstore_conf.site.trace_txn_output) {
                     ProcedureProfiler.workloadTrace.stopTransaction(this.workloadTxnHandle, this.results);
                 } else {
@@ -745,9 +733,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 //        }
         
         response = new ClientResponseImpl();
-        response.init(this.m_currentTxnState.getTransactionId().longValue(),
-                      this.m_currentTxnState.getClientHandle(),
-                      this.partitionId,
+        response.init(this.m_localTxnState,
                       this.status,
                       this.m_statusCode,
                       this.m_statusString,
@@ -755,10 +741,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                       this.status_msg,
                       this.error
         );
-        if (this.m_localTxnState.isPredictSinglePartition() == false) {
-            response.setSinglePartition(false);
+        if (hstore_conf.site.txn_client_debug) {
+            ClientResponseDebug responseDebug = new ClientResponseDebug(m_localTxnState);
+            response.setDebug(responseDebug);
         }
-                      
+
         if (this.observable != null) this.observable.notifyObservers(response);
         if (t) LOG.trace(response);
         return (response);
@@ -871,7 +858,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             return param;
         }
         throw new Exception(
-                "tryToMakeCompatible: Unable to match parameters:"
+                "tryToMakeCompatible: Unable to match parameters: "
                 + slot.getName() + " to provided " + pclass.getName());
     }
 
@@ -925,20 +912,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                               String tableName, VoltTable data, int allowELT) throws VoltAbortException {
         if (data == null || data.getRowCount() == 0) return;
         assert(m_currentTxnState != null);
-        voltLoadTable(m_currentTxnState, clusterName, databaseName, tableName, data, allowELT);
-    }
-    
-    public void voltLoadTable(AbstractTransaction ts, String clusterName, String databaseName,
-                              String tableName, VoltTable data, int allowELT) throws VoltAbortException {
-        if (data == null || data.getRowCount() == 0) return;
         try {
             assert(executor != null);
-            executor.loadTable(ts, clusterName, databaseName, tableName, data, allowELT);
+            executor.loadTable(m_currentTxnState, clusterName, databaseName, tableName, data, allowELT);
         } catch (EEException e) {
             throw new VoltAbortException("Failed to load table: " + tableName);
         }
     }
-
+    
     /**
      * Get the time that this procedure was accepted into the VoltDB cluster. This is the
      * effective, but not always actual, moment in time this procedure executes. Use this
@@ -1141,6 +1122,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         } catch (SerializableException ex) {
             throw ex;
         } catch (Throwable ex) {
+            ex.printStackTrace();
             throw new ServerFaultException("Unexpected error", ex, m_localTxnState.getTransactionId());
         } finally {
             this.batchId++;
@@ -1460,151 +1442,4 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         m_statusString = statusString;
     }
 
-    /**
-     *
-     * @param e
-     * @return A ClientResponse containing error information
-     */
-    @SuppressWarnings("unused")
-    private ClientResponseImpl getErrorResponse(Throwable e) {
-        StackTraceElement[] stack = e.getStackTrace();
-        ArrayList<StackTraceElement> matches = new ArrayList<StackTraceElement>();
-        for (StackTraceElement ste : stack) {
-            if (ste.getClassName().equals(getClass().getName()))
-                matches.add(ste);
-        }
-
-        Status status = Status.ABORT_UNEXPECTED;
-        StringBuilder msg = new StringBuilder();
-
-        if (e.getClass() == VoltAbortException.class) {
-            status = Status.ABORT_USER;
-            msg.append("USER ABORT\n");
-        }
-        else if (e.getClass() == org.voltdb.exceptions.ConstraintFailureException.class) {
-            status = Status.ABORT_GRACEFUL;
-            msg.append("CONSTRAINT VIOLATION\n");
-        }
-        else if (e.getClass() == org.voltdb.exceptions.SQLException.class) {
-            status = Status.ABORT_GRACEFUL;
-            msg.append("SQL ERROR\n");
-        }
-        else if (e.getClass() == org.voltdb.ExpectedProcedureException.class) {
-            msg.append("HSQL-BACKEND ERROR\n");
-            if (e.getCause() != null)
-                e = e.getCause();
-        }
-        else {
-            msg.append("UNEXPECTED FAILURE:\n");
-        }
-
-        String exMsg = e.getMessage();
-        if (exMsg == null)
-            if (e.getClass() == NullPointerException.class) {
-                exMsg = "Null Pointer Exception";
-            }
-            else {
-                exMsg = "Possible Null Pointer Exception (";
-                exMsg += e.getClass().getSimpleName() + ")";
-                e.printStackTrace();
-            }
-
-        msg.append("  ").append(exMsg);
-
-        for (StackTraceElement ste : matches) {
-            msg.append("\n    at ");
-            msg.append(ste.getClassName()).append(".").append(ste.getMethodName());
-            msg.append("(").append(ste.getFileName()).append(":");
-            msg.append(ste.getLineNumber()).append(")");
-        }
-
-        return getErrorResponse(
-                status, msg.toString(),
-                e instanceof SerializableException ? (SerializableException)e : null);
-    }
-
-    private ClientResponseImpl getErrorResponse(Status status, String msg, SerializableException e) {
-
-        StringBuilder msgOut = new StringBuilder();
-        msgOut.append("\n===============================================================================\n");
-        msgOut.append("VOLTDB ERROR: ");
-        msgOut.append(msg);
-        msgOut.append("\n===============================================================================\n");
-
-        LOG.trace(msgOut);
-
-        return new ClientResponseImpl(
-                this.m_currentTxnState.getTransactionId(),
-                this.partitionId,
-                status,
-                m_statusCode,
-                m_statusString,
-                new VoltTable[0],
-                msgOut.toString(), e);
-    }
-    
-    @SuppressWarnings("unused")
-    private String mispredictDebug(SQLStmt batchStmts[],
-                                   ParameterSet params[],
-                                   MarkovGraph markov,
-                                   MarkovEstimatorState s,
-                                   Exception ex,
-                                   int batchSize) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Caught " + ex.getClass().getSimpleName() + "!\n")
-          .append(StringUtil.SINGLE_LINE);
-        
-        // BATCH PLAN
-        sb.append("CURRENT BATCH\n");
-        for (int i = 0; i < batchSize; i++) {
-            sb.append(String.format("[%02d] %s <==> %s\n     %s\n     %s\n",
-                                    i,
-                                    batchStmts[i].catStmt.fullName(),
-                                    planner.getStatements()[i].fullName(),
-                                    batchStmts[i].catStmt.getSqltext(),
-                                    Arrays.toString(params[i].toArray())));
-        } // FOR
-        
-        // PARAMETERS
-        sb.append(String.format("\n%s PARAMS:\n%s", this.m_currentTxnState, sb.toString()));
-        ParameterMangler pm = new ParameterMangler(catalog_proc);
-        Object mangled[] = pm.convert(this.procParams); 
-        for (int i = 0; i < mangled.length; i++) {
-            sb.append(String.format("  [%02d] ", i));
-            if (i < this.paramTypeIsArray.length && this.paramTypeIsArray[i]) {
-                sb.append(Arrays.toString((Object[])mangled[i]));
-            } else {
-                sb.append(mangled[i]);
-            }
-            sb.append("\n");
-        } // FOR
-        
-        sb.append("\nTRANSACTION STATE\n").append(this.m_localTxnState.debug());
-        
-        sb.append("\nESTIMATOR STATE:\n");
-        if (s != null) {
-            sb.append(s.toString());
-            try {
-                GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getInitialPath()));
-                gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
-                
-                LOG.info("PARTITION: " + this.executor.getPartitionId());
-                LOG.info("GRAPH: " + gv.writeToTempFile(procedure_name));
-            } catch (Exception ex2) {
-                LOG.fatal("???????????????????????", ex2);
-            }
-        } else {
-            sb.append("No TransactionEstimator.State! Can't dump out MarkovGraph!\n");
-        }
-        
-        sb.append("\nPLANNER\n");
-        for (int i = 0; i < batchSize; i++) {
-            Statement stmt0 = planner.getStatements()[i];
-            Statement stmt1 = batchStmts[i].catStmt;
-            assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
-            sb.append(String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName()));
-        } // FOR
-        
-        return (sb.toString());
-    }
 }

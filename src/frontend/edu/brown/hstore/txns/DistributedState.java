@@ -6,7 +6,6 @@ import org.voltdb.CatalogContext;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.pools.Poolable;
 import edu.brown.protorpc.ProtoRpcController;
@@ -33,16 +32,17 @@ public class DistributedState implements Poolable {
      */
     protected boolean is_all_local = true;
     
+    
+    /**
+     * If this is a distributed transaction and we are doing aggressive spec exec,
+     * then this bit map is used to keep track whether we have sent the Procedure
+     * ParameterSet to a remote site.
+     */
+    protected final BitSet sent_parameters; 
+    
     // ----------------------------------------------------------------------------
     // CALLBACKS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * This callback is used to release the transaction once we get
-     * the acknowledgments back from all of the partitions that we're going to access.
-     * This is only needed for distributed transactions. 
-     */
-    protected final TransactionInitCallback init_callback;
     
     /**
      * This callback is used to keep track of what partitions have replied that they are 
@@ -78,8 +78,8 @@ public class DistributedState implements Poolable {
     public DistributedState(HStoreSite hstore_site) {
         CatalogContext catalogContext = hstore_site.getCatalogContext();
         this.notified_prepare = new BitSet(catalogContext.numberOfPartitions);
+        this.sent_parameters = new BitSet(catalogContext.numberOfSites);
         
-        this.init_callback = new TransactionInitCallback(hstore_site);
         this.prepare_callback = new TransactionPrepareCallback(hstore_site);
         this.finish_callback = new TransactionFinishCallback(hstore_site);
         
@@ -87,7 +87,6 @@ public class DistributedState implements Poolable {
         this.rpc_transactionWork = new ProtoRpcController[catalogContext.numberOfSites];
         this.rpc_transactionPrepare = new ProtoRpcController[catalogContext.numberOfSites];
         this.rpc_transactionFinish = new ProtoRpcController[catalogContext.numberOfSites];
-        
     }
     
     public DistributedState init(LocalTransaction ts) {
@@ -110,10 +109,11 @@ public class DistributedState implements Poolable {
 
     @Override
     public void finish() {
-        this.init_callback.finish();
         this.prepare_callback.finish();
         this.finish_callback.finish();
         this.is_all_local = true;
+        this.notified_prepare.clear();
+        this.sent_parameters.clear();
         this.ts = null;
     }
     

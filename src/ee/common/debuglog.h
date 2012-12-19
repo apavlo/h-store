@@ -70,7 +70,7 @@
 
 // #define VOLT_LOG_TIME_FORMAT "%Y-%m-%d %H:%M:%S"
 // #define VOLT_LOG_TIME_FORMAT "%X,XXX"
-#define VOLT_LOG_TIME_FORMAT "%d:%02d:%02d,%03d"
+#define VOLT_LOG_TIME_FORMAT "%02d:%02d:%02d,%03d"
 #define VOLT_LOG_OUTPUT_STREAM stdout
 #define VOLT_LOG_TIME_MILLISECONDS 1
 

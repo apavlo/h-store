@@ -39,9 +39,9 @@ import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
 
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.estimators.FixedEstimator;
-import edu.brown.hstore.estimators.MarkovEstimator;
 import edu.brown.hstore.estimators.TransactionEstimator;
+import edu.brown.hstore.estimators.fixed.AbstractFixedEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
@@ -134,7 +134,7 @@ public abstract class HStore {
                 long start = System.currentTimeMillis();
                 try {
                     markovs = MarkovGraphContainersUtil.loadIds(catalogContext.database,
-                                                                path.getAbsolutePath(), 
+                                                                path, 
                                                                 singleton.getLocalPartitionIds());
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
@@ -167,7 +167,7 @@ public abstract class HStore {
         // PartitionExecutor Initialization
         // ----------------------------------------------------------------------------
         boolean first = true;
-        for (int local_partition : singleton.getLocalPartitionIdArray()) {
+        for (int local_partition : singleton.getLocalPartitionIds().values()) {
             MarkovGraphsContainer local_markovs = null;
             if (markovs != null) {
                 if (markovs.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) {
@@ -185,13 +185,16 @@ public abstract class HStore {
             // stick them into the HStoreSite
             if (debug.get()) LOG.debug("Creating TransactionEstimator for " + singleton.getSiteName());
             TransactionEstimator t_estimator = null;
-            if (hstore_conf.site.markov_fixed == false && markovs != null) {
-                t_estimator = new MarkovEstimator(p_estimator, mappings, local_markovs);
-            } else if (hstore_conf.site.markov_fixed) {
-                t_estimator = FixedEstimator.factory(p_estimator, singleton.getCatalogContext());
+            if (hstore_conf.site.markov_enable) {
+                if (hstore_conf.site.markov_fixed == false && markovs != null) {
+                    t_estimator = new MarkovEstimator(catalogContext, p_estimator, local_markovs);
+                } else if (hstore_conf.site.markov_fixed) {
+                    t_estimator = AbstractFixedEstimator.factory(p_estimator, singleton.getCatalogContext());
+                }
             }
             if (first && t_estimator != null) {
-                LOG.info("All requests will be processed with " + t_estimator.getClass().getSimpleName());
+                LOG.info(String.format("All incoming txn requests will be processed with %s at this site",
+                         t_estimator.getClass().getSimpleName()));
             }
 
             // setup the EE

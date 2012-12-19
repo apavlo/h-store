@@ -39,8 +39,8 @@ import org.hsqldb.ErrorCode;
 import org.hsqldb.Types;
 import org.hsqldb.persist.HsqlProperties;
 import org.hsqldb.result.ResultMetaData;
-import org.hsqldb.types.Type;
 import org.hsqldb.types.CharacterType;
+import org.hsqldb.types.Type;
 
 /* $Id: JDBCResultSetMetaData.java 2980 2009-05-02 14:38:05Z fredt $ */
 

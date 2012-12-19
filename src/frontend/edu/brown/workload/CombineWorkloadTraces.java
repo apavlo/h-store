@@ -71,7 +71,7 @@ public class CombineWorkloadTraces {
             
             // Update txn ids so that we don't get duplicates
             // Fix the timestamps so that they are all the same
-            xact.txn_id = new_txn_id++;
+            xact.setTransactionId(new_txn_id++);
             xact.start_timestamp -= relative_starts[min_idx];
             xact.stop_timestamp -= relative_starts[min_idx];
 //            if (next_idxs[min_idx] == 0) System.err.println(xact.debug(catalog_db));

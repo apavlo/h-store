@@ -30,6 +30,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
 
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -56,13 +57,15 @@ public class BenchmarkResults {
     }
 
     public static class Result {
-        public Result(long benchmarkTimeDelta, long transactionCount, long dtxnCount) {
+        public Result(long benchmarkTimeDelta, long transactionCount, long specexecCount, long dtxnCount) {
             this.benchmarkTimeDelta = benchmarkTimeDelta;
             this.transactionCount = transactionCount;
+            this.specexecCount = specexecCount;
             this.dtxnCount = dtxnCount;
         }
         public final long benchmarkTimeDelta;
         public final long transactionCount;
+        public final long specexecCount;
         public final long dtxnCount;
         public final Histogram<Integer> latencies = new Histogram<Integer>();
         
@@ -79,16 +82,14 @@ public class BenchmarkResults {
     private final SortedMap<String, SortedMap<String, List<Result>>> m_data = new TreeMap<String, SortedMap<String, List<Result>>>();
     private final Set<Error> m_errors = new HashSet<Error>();
 
-    private final long m_durationInMillis;
-    final long m_pollIntervalInMillis;
-    private final int m_clientCount;
-    
-    private boolean enableLatencies = false;
+    protected final long m_durationInMillis;
+    protected final long m_pollIntervalInMillis;
+    protected final int m_clientCount;
+    protected boolean enableNanoseconds = false;
     
     private boolean enableBasePartitions = false;
     private final Histogram<Integer> basePartitions = new Histogram<Integer>();
     
-    private boolean enableResponseStatuses = false;
     private final Histogram<String> responseStatuses = new Histogram<String>();
     
     private int completedIntervals = 0;
@@ -106,16 +107,24 @@ public class BenchmarkResults {
         m_durationInMillis = durationInMillis;
         m_pollIntervalInMillis = pollIntervalInMillis;
         m_clientCount = clientCount;
+        
+        Map<Integer, String> statusLabels = new HashMap<Integer, String>();
+        for (Status s : Status.values()) {
+            statusLabels.put(s.ordinal(), s.name());
+        }
+        this.responseStatuses.setDebugLabels(statusLabels);
+    }
+
+    /**
+     * Process latency results as nanoseconds instead of milliseconds  
+     * @param val
+     */
+    public void setEnableNanoseconds(boolean val) {
+        this.enableNanoseconds = val;
     }
     
-    public void setEnableLatencies(boolean val) {
-        this.enableLatencies = val;
-    }
     public void setEnableBasePartitions(boolean val) {
         this.enableBasePartitions = val;
-    }
-    public void setEnableResponsesStatuses(boolean val) {
-        this.enableResponseStatuses = val;
     }
 
     public Set<Error> getAnyErrors() {
@@ -160,8 +169,13 @@ public class BenchmarkResults {
     }
 
 
-    public Set<String> getTransactionNames() {
-        return (m_transactionNames.keySet());
+    public String[] getTransactionNames() {
+        String txnNames[] = new String[m_transactionNames.size()];
+        for (String txnName : m_transactionNames.keySet()) {
+            int offset = m_transactionNames.get(txnName).intValue();
+            txnNames[offset] = txnName;
+        }
+        return (txnNames);
     }
 
     public Set<String> getClientNames() {
@@ -232,12 +246,14 @@ public class BenchmarkResults {
                           txnName, clientName, StringUtil.formatMaps(txnResults));
         
         long txnsTillNow = 0;
+        long specexecsTillNow = 0;
         long dtxnsTillNow = 0;
         Result[] retval = new Result[intervals];
         for (int i = 0; i < intervals; i++) {
             Result r = results.get(i);
             retval[i] = new Result(r.benchmarkTimeDelta,
                                    r.transactionCount - txnsTillNow,
+                                   r.specexecCount - specexecsTillNow,
                                    r.dtxnCount - dtxnsTillNow);
             txnsTillNow = r.transactionCount;
             dtxnsTillNow = r.dtxnCount;
@@ -328,9 +344,10 @@ public class BenchmarkResults {
         if (this.enableBasePartitions) {
             this.basePartitions.put(cmpResults.basePartitions);
         }
-        if (this.enableResponseStatuses) {
-            this.responseStatuses.put(cmpResults.responseStatuses);
-        }
+        for (Status s : Status.values()) {
+            long cnt = cmpResults.responseStatuses.get(s.ordinal(), 0);
+            if (cnt > 0) this.responseStatuses.put(s.name(), cnt);
+        } // FOR
         
         BenchmarkResults finishedIntervalClone = null;
         synchronized (this) {
@@ -360,9 +377,10 @@ public class BenchmarkResults {
                 
                 Integer offset = m_transactionNames.get(txnName);
                 Result r = new Result(offsetTime,
-                                      cmpResults.transactions.fastGet(offset.intValue()),
-                                      cmpResults.dtxns.fastGet(offset.intValue()));
-                if (this.enableLatencies && cmpResults.latencies != null) {
+                                      cmpResults.transactions.get(offset.intValue()),
+                                      cmpResults.specexecs.get(offset.intValue()),
+                                      cmpResults.dtxns.get(offset.intValue()));
+                if (cmpResults.latencies != null) {
                     Histogram<Integer> latencies = cmpResults.latencies.get(offset);
                     if (latencies != null) {
                         synchronized (latencies) {
@@ -392,9 +410,7 @@ public class BenchmarkResults {
         if (this.enableBasePartitions) {
             clone.basePartitions.put(basePartitions);
         }
-        if (this.enableResponseStatuses) {
-            clone.responseStatuses.put(responseStatuses);
-        }
+        clone.responseStatuses.put(responseStatuses);
         clone.m_errors.addAll(m_errors);
         clone.m_transactionNames.putAll(m_transactionNames);
         clone.completedIntervals = this.completedIntervals;
@@ -420,14 +436,11 @@ public class BenchmarkResults {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction Names", StringUtil.join("\n", m_transactionNames.keySet()));
         m.put("Transaction Data", m_data);
+        m.put("Responses Statuses", basePartitions);
         
         if (this.enableBasePartitions) {
             m.put("Base Partitions", basePartitions);
         }
-        if (this.enableResponseStatuses) {
-            m.put("Responses Statuses", basePartitions);
-        }
-        
         return "BenchmarkResults\n" + StringUtil.formatMaps(m);
     }
 }

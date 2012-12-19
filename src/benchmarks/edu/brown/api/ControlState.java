@@ -12,6 +12,7 @@ public enum ControlState {
     PREPARING,
     READY,
     RUNNING,
+    DUMPING,
     PAUSED,
     ERROR;
 

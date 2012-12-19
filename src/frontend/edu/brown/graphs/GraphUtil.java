@@ -2,6 +2,7 @@ package edu.brown.graphs;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -18,10 +19,12 @@ import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
+import edu.uci.ics.jung.graph.util.Pair;
 
 public abstract class GraphUtil {
     private static final Logger LOG = Logger.getLogger(GraphUtil.class);
@@ -38,7 +41,72 @@ public abstract class GraphUtil {
         EDGE_CLASS,
         EDGES,
     }
+
+    /**
+     * Remove all of the edges that are not incident to the given vertex
+     * @param graph
+     * @param v
+     * @return Returns the set of edges that were removed
+     */
+    public static <V extends AbstractVertex, E extends AbstractEdge> Collection<E> removeEdgesWithoutVertex(IGraph<V, E> graph, V...vertices) {
+        if (debug.get()) LOG.debug("Removing edges that are not incident to " + Arrays.toString(vertices));
+        Set<E> toRemove = new HashSet<E>();
+        for (E e : graph.getEdges()) {
+            boolean found = false;
+            for (V v : vertices) {
+                if (graph.isIncident(v, e)) {
+                    found = true;
+                    break;
+                }
+            } // FOR
+            if (found == false) toRemove.add(e);
+        } // FOR
+        for (E e : toRemove) {
+            graph.removeEdge(e);
+        } // FOR
+        return (toRemove);
+    }
     
+    /**
+     * Remove any edges where the source and destination are the same vertex
+     * @param graph
+     * @return Returns the set of edges that were removed
+     */
+    public static <V extends AbstractVertex, E extends AbstractEdge> Collection<E> removeLoopEdges(IGraph<V, E> graph) {
+        Set<E> toRemove = new HashSet<E>();
+        for (E e : graph.getEdges()) {
+            Collection<V> vertices = graph.getIncidentVertices(e);
+            if (vertices == null) continue;
+            if (vertices.size() == 1) {
+                toRemove.add(e);
+            }
+            else if (CollectionUtil.first(vertices) == CollectionUtil.get(vertices, 1)) {
+                toRemove.add(e);
+            }
+        } // FOR
+        for (E e : toRemove) {
+            graph.removeEdge(e);
+        } // FOR
+        return (toRemove);
+    }
+    
+    /**
+     * 
+     * @param graph
+     * @return Returns the set of vertices that were removed
+     */
+    public static <V extends AbstractVertex, E extends AbstractEdge> Collection<V> removeDisconnectedVertices(IGraph<V, E> graph) {
+        Set<V> toRemove = new HashSet<V>();
+        for (V v : graph.getVertices()) {
+            if (graph.getIncidentEdges(v).isEmpty()) {
+                toRemove.add(v);
+            }
+        } // FOR
+        for (V v : toRemove) {
+            graph.removeVertex(v);
+        }
+        return (toRemove);
+    }
     
     /**
      * Remove duplicate edges between every unique pair of vertices
@@ -205,8 +273,16 @@ public abstract class GraphUtil {
                 // Thread synchronization issue
                 // This is an attempt to prevent us from writing out edges that have vertices
                 // that were added in between the time that we originally wrote out the list of vertices
-                final V v0 = graph.getSource(e);
-                final V v1 = graph.getDest(e);
+                V v0 = graph.getSource(e);
+                V v1 = graph.getDest(e);
+                if (v0 == null) {
+                    Pair<V> pair = graph.getEndpoints(e);
+                    v0 = pair.getFirst();
+                    v1 = pair.getSecond();
+                }
+                assert(v0 != null) : e; 
+                assert(v1 != null) : e; 
+                
                 if (ignore_v != null && (ignore_v.contains(v0) || ignore_v.contains(v1))) continue;
                 if (all_vertices.contains(v0.getElementId()) && all_vertices.contains(v1.getElementId())) {
                     if (trace.get()) LOG.trace(String.format("E [%d] %d => %d", e.getElementId(), v0.getElementId(), v1.getElementId()));

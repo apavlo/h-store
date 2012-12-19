@@ -42,18 +42,20 @@ public class ExecutorStatus extends VoltSystemProcedure {
     }
 
     @Override
-    public DependencySet executePlanFragment(long txn_id,
+    public DependencySet executePlanFragment(Long txn_id,
                                              Map<Integer, List<VoltTable>> dependencies,
                                              int fragmentId,
                                              ParameterSet params,
                                              PartitionExecutor.SystemProcedureExecutionContext context) {
+        // System.exit(0); // Love, Jon
+        
         assert(fragmentId == SysProcFragmentId.PF_execStatus);
         
         // Hit up all of the PartitionExecutors at this HStore and figure out what
         // they got going on
         VoltTable vt = new VoltTable(nodeResultsColumns);
-        for (Integer p : hstore_site.getLocalPartitionIdArray()) {
-            PartitionExecutor es = hstore_site.getPartitionExecutor(p.intValue());
+        for (int p : hstore_site.getLocalPartitionIds().values()) {
+            PartitionExecutor es = hstore_site.getPartitionExecutor(p);
             PartitionExecutor.Debug dbg = es.getDebugContext();
             Queue<?> es_queue = dbg.getWorkQueue();
                 
@@ -66,8 +68,8 @@ public class ExecutorStatus extends VoltSystemProcedure {
                       es.getPartitionId(),
                       es_queue.size(),
                       dbg.getWorkQueueSize(),
-                      dbg.getBlockedQueueSize(),
-                      dbg.getWaitingQueueSize(),
+                      dbg.getBlockedWorkCount(),
+                      dbg.getBlockedSpecExecCount(),
                       (currentTxnId != null  ? currentTxnId.longValue()  : VoltType.NULL_BIGINT),
                       (currentDtxnId != null ? currentDtxnId.longValue() : VoltType.NULL_BIGINT),
                       (lastExecuted != null  ? lastExecuted.longValue()  : VoltType.NULL_BIGINT),

@@ -29,6 +29,9 @@ public abstract class HStoreConstants {
     // NETWORK STUFF
     // ----------------------------------------------------------------------------
     
+    /**
+     * The default port number for H-Store cluster instances.
+     */
     public static final int DEFAULT_PORT = 21212;
     
     public static final int MESSENGER_PORT_OFFSET = 10000;
@@ -38,6 +41,7 @@ public abstract class HStoreConstants {
     // ----------------------------------------------------------------------------
     
     public static final String THREAD_NAME_PERIODIC = "periodic";
+    public static final String THREAD_NAME_CLEANUP = "cleanup";
     public static final String THREAD_NAME_LISTEN = "listen";
     public static final String THREAD_NAME_COORDINATOR = "coord";
     public static final String THREAD_NAME_PREPROCESSOR = "pre";
@@ -92,5 +96,6 @@ public abstract class HStoreConstants {
     // MISCELLANEOUS STUFF
     // ----------------------------------------------------------------------------
     
-    public static final String HSTORE_WEBSITE = "http://hstore.cs.brown.edu"; 
+    public static final String HSTORE_WEBSITE = "http://hstore.cs.brown.edu";
+
 }

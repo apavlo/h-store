@@ -3,36 +3,50 @@
  */
 package edu.brown.hstore;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
+import org.junit.Test;
 import org.voltdb.DependencySet;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.sysprocs.Statistics;
+import org.voltdb.utils.VoltTableUtil;
 import org.voltdb.utils.VoltTypeUtil;
 
 import com.google.protobuf.ByteString;
 
 import edu.brown.BaseTestCase;
+import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
+import edu.brown.benchmark.tm1.procedures.GetAccessData;
+import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.RemoteTransaction;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.RemoteTransaction;
 
 /**
  * @author pavlo
@@ -40,38 +54,18 @@ import edu.brown.hstore.txns.RemoteTransaction;
  */
 public class TestPartitionExecutor extends BaseTestCase {
 
+    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = GetAccessData.class;
     private static final int NUM_PARTITONS = 10;
     private static final int PARTITION_ID = 1;
-    private static final int CLIENT_HANDLE = 1001;
-    private static final long LAST_SAFE_TXN = -1;
-
-    private static final String TARGET_PROCEDURE = "GetAccessData";
-    private static final Object TARGET_PARAMS[] = new Object[] { new Long(1), new Long(1) };
+    private static final int NOTIFY_TIMEOUT = 2500; // ms
     
     private HStoreSite hstore_site;
+    private HStoreConf hstore_conf;
+    private Client client;
     private PartitionExecutor executor;
     
     private final Random rand = new Random(1); 
-    
-//    private class MockCallback implements RpcCallback<Dtxn.FragmentResponse> {
-//        @Override
-//        public void run(FragmentResponse parameter) {
-//            // Nothing!
-//        }
-//    }
-    
-    @Override
-    protected void setUp() throws Exception {
-        super.setUp(ProjectType.TM1);
-        this.addPartitions(NUM_PARTITONS);
-        
-        Site catalog_site = CollectionUtil.first(catalogContext.sites);
-        HStoreConf hstore_conf = HStoreConf.singleton();
-        hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, hstore_conf);
-        executor = hstore_site.getPartitionExecutor(PARTITION_ID);
-        assertNotNull(executor);
-    }
-    
+
     protected class BlockingObserver extends EventObserver<ClientResponse> {
         public final LinkedBlockingDeque<ClientResponse> lock = new LinkedBlockingDeque<ClientResponse>(1);
         
@@ -87,183 +81,118 @@ public class TestPartitionExecutor extends BaseTestCase {
         }
     }
     
+    @Override
+    protected void setUp() throws Exception {
+        super.setUp(ProjectType.TM1);
+        this.addPartitions(NUM_PARTITONS);
+        
+        this.hstore_conf = HStoreConf.singleton();
+        Site catalog_site = CollectionUtil.first(catalogContext.sites);
+        this.hstore_site = this.createHStoreSite(catalog_site, hstore_conf);
+        this.client = createClient();
+        this.executor = hstore_site.getPartitionExecutor(PARTITION_ID);
+        assertNotNull(this.executor);
+    }
+    
+    @Override
+    protected void tearDown() throws Exception {
+        if (this.client != null) this.client.close();
+        if (this.hstore_site != null) this.hstore_site.shutdown();
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
+    
     /**
-     * testGetProcedure
+     * testProfiling
      */
-    public void testGetProcedure() {
-        VoltProcedure volt_proc0 = executor.getVoltProcedure(TARGET_PROCEDURE);
+    @Test
+    public void testProfiling() throws Exception {
+        hstore_conf.site.exec_profiling = true;
+        hstore_conf.site.exec_force_allpartitions = true;
+        
+        int num_txns = 10;
+        LatchableProcedureCallback callback = new LatchableProcedureCallback(num_txns);
+        Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
+        for (int i = 0; i < num_txns; i++) {
+            Object params[] = { i, Integer.toString(i) };
+            boolean queued = this.client.callProcedure(callback, catalog_proc.getName(), params);
+            assertTrue(queued);
+        } // FOR
+        
+        // Wait until they all finish, then build a histogram of their base partitions
+        boolean result = callback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SP LATCH --> " + callback.latch, result);
+        assertEquals(num_txns, callback.responses.size());
+        Histogram<Integer> basePartitions = new Histogram<Integer>(); 
+        for (ClientResponse cresponse : callback.responses) {
+            assertEquals(Status.OK, cresponse.getStatus());
+            basePartitions.put(cresponse.getBasePartition());
+        } // FOR
+        
+        // Now invoke the @Statistics sysproc to get back what we want
+        catalog_proc = this.getProcedure(Statistics.class);
+        Object params[] = { SysProcSelector.EXECPROFILER.name(), 0 };
+        ClientResponse cresponse = this.client.callProcedure(catalog_proc.getName(), params);
+        assertEquals(Status.OK, cresponse.getStatus());
+        assertEquals(1, cresponse.getResults().length);
+        basePartitions.put(cresponse.getBasePartition());
+        
+        // Examine the stats output. 
+        VoltTable vt = cresponse.getResults()[0];
+        System.err.println(VoltTableUtil.format(vt));
+        assertEquals(NUM_PARTITONS, vt.getRowCount());
+        while (vt.advanceRow()) {
+            int partition = (int)vt.getLong("PARTITION");
+            assertTrue(partition >= 0);
+            assertTrue(partition < NUM_PARTITONS);
+            
+            // We expect the following things:
+            //  (1) Each partition should have waited for dtxn info the same # of txns 
+            //      that we executed in the entire cluster
+            //  (2) Each partition should have waited for 2PC for the same # of txns
+            //      that we executed on it.
+            Map<String, Long> expected = new HashMap<String, Long>();
+            expected.put("TRANSACTIONS", basePartitions.get(partition, 0l));
+            expected.put("IDLE_WAITING_DTXN_CNT", num_txns+1l);
+            expected.put("IDLE_DTXN_QUERY_CNT", basePartitions.get(partition, 0l)+1);
+            expected.put("IDLE_TWO_PHASE_LOCAL_CNT", Math.min(basePartitions.get(partition, 0l), 1));
+            expected.put("NETWORK_CNT", Math.min(basePartitions.get(partition, 0l), 1));
+            
+            for (String colName : expected.keySet()) {
+                assertTrue(colName, vt.hasColumn(colName));
+                long val = vt.getLong(colName);
+                assertEquals(partition + " - " + colName, expected.get(colName).longValue(), val);
+            } // FOR
+        } // WHILE
+    }
+    
+    /**
+     * testGetVoltProcedure
+     */
+    @Test
+    public void testGetVoltProcedure() {
+        VoltProcedure volt_proc0 = executor.getVoltProcedure(TARGET_PROCEDURE.getSimpleName());
         assertNotNull(volt_proc0);
     }
     
     /**
-     * testRunClientResponse
+     * testMultipleGetVoltProcedure
      */
-//    public void testRunClientResponse() throws Exception {
-//        Thread thread = new Thread(site);
-//        thread.start();
-//        
-//        VoltProcedure volt_proc = site.getProcedure(TARGET_PROCEDURE);
-//        assertNotNull(volt_proc);
-//        assertFalse(site.proc_pool.get(TARGET_PROCEDURE).contains(volt_proc));
-//        
-//        // For now just check whether our VoltProcedure goes back in the pool
-//        site.callback.update(null, new Pair<VoltProcedure, ClientResponse>(volt_proc, new ClientResponseImpl()));
-//        
-//        int tries = 5;
-//        boolean found = false;
-//        while (tries-- > 0) {
-//            if (site.proc_pool.get(TARGET_PROCEDURE).contains(volt_proc)) {
-//                found = true;
-//                break;
-//            }
-//            Thread.sleep(1000);
-//        } // WHILE
-//        assertTrue(found);
-//        
-//        thread.interrupt();
-//    }
-    
-    /**
-     * testRunInitiateTaskMessage
-     */
-//    public void testRunInitiateTaskMessage() throws Exception {
-//        Thread thread = new Thread(site);
-//        thread.start();
-//        
-//        // Use this callback to attach to the VoltProcedure and get the ClientResponse
-//        BlockingObserver observer = new BlockingObserver();
-//        
-//        // Create an InitiateTaskMessage and shove that to the ExecutionSite
-//        StoredProcedureInvocation invocation = new StoredProcedureInvocation();
-//        invocation.setProcName(TARGET_PROCEDURE);
-//        invocation.setParams(TARGET_PARAMS);
-//        invocation.setClientHandle(CLIENT_HANDLE);
-//        
-//        Long txn_id = new Long(rand.nextInt());
-//        InitiateTaskMessage init_task = new InitiateTaskMessage(PARTITION_ID, PARTITION_ID, txn_id, true, true, invocation, LAST_SAFE_TXN); 
-//        site.doWork(init_task, new MockCallback());
-//        
-//        int tries = 10000;
-//        boolean found = false;
-//        while (tries-- > 0) {
-//            VoltProcedure running_volt_proc = site.getRunningVoltProcedure(txn_id);
-//            if (running_volt_proc != null) {
-//                assertEquals(TARGET_PROCEDURE, running_volt_proc.getProcedureName());
-//                running_volt_proc.registerCallback(observer);
-//                found = true;
-//                break;
-//            }
-//            Thread.sleep(1);
-//        } // WHILE
-//        assertTrue(found);
-//        
-//        // Now check whether we got the ClientResponse
-//        ClientResponse response = observer.poll();
-//        assertNotNull(response);
-//        assertEquals(1, response.getResults().length);
-//        Logger.getRootLogger().info("Finished checking transaction information");
-//        
-//        thread.interrupt();
-//        thread.join();
-//    }
-    
-    /**
-     * testMultipleTransactions
-     */
-//    public void testMultipleTransactions() throws Exception {
-//        final Thread thread = new Thread(site);
-//        thread.setPriority(Thread.MIN_PRIORITY);
-//        thread.start();
-//        
-//        //
-//        // Fire up a bunch of transactions and make sure that they don't get the same VoltProcedure
-//        //
-//        final int num_xacts = 4;
-//        final InitiateTaskMessage tasks[] = new InitiateTaskMessage[num_xacts];
-//        final BlockingObserver observers[] = new BlockingObserver[num_xacts];
-//        final VoltProcedure volt_procs[] = new VoltProcedure[num_xacts];
-//        final long xact_ids[] = new long[num_xacts];
-//        final boolean found[] = new boolean[num_xacts];
-//        final boolean started[] = new boolean[num_xacts];
-//        Thread check_threads[] = new Thread[num_xacts];
-//        for (int i = 0; i < num_xacts; i++) {
-//            xact_ids[i] = rand.nextLong();
-//            found[i] = false;
-//            started[i] = false;
-//            
-//            // Peek in the VoltProcedure pool and register a callback
-//            int ii = 0;
-//            for (VoltProcedure volt_proc : site.proc_pool.get(TARGET_PROCEDURE)) {
-//                volt_procs[i] = volt_proc;
-//                if (ii++ == i) break; 
-//            } // FOR
-//            assertNotNull(volt_procs[i]);
-//            observers[i] = new BlockingObserver();
-//            volt_procs[i].registerCallback(observers[i]);
-//        
-//            // Create an InitiateTaskMessage and shove that to the ExecutionSite
-//            StoredProcedureInvocation invocation = new StoredProcedureInvocation();
-//            invocation.setProcName(TARGET_PROCEDURE);
-//            invocation.setParams(TARGET_PARAMS);
-//            tasks[i] = new InitiateTaskMessage(PARTITION_ID, PARTITION_ID, xact_ids[i], CLIENT_HANDLE, true, true, invocation, LAST_SAFE_TXN);
-//            
-//            final int idx = i;
-//            check_threads[i] = new Thread() {
-//                public void run() {
-//                    int tries = 1000;
-//                    boolean done = false;
-//                    started[idx] = true;
-//                    site.doWork(tasks[idx]);
-//                    while (tries-- > 0 && !done) {
-//                        // Try to grab the running VoltProcedure handle
-//                        VoltProcedure running_volt_proc = site.getRunningVoltProcedure(xact_ids[idx]);
-//                        if (!found[idx] && running_volt_proc != null) {
-//                            assert(volt_procs[idx] == running_volt_proc) : "Expected to get VoltProcedure " + volt_procs[idx] + " but got " + running_volt_proc;
-//                            assertEquals(TARGET_PROCEDURE, running_volt_proc.getProcedureName());
-//                            Logger.getRootLogger().info("Got running VoltProcedure handle for txn #" + xact_ids[idx] + " [" + idx + "]");
-//                            found[idx] = true;
-//                        }
-//                        done = done && found[idx];
-//                        if (!done) {
-//                            try {
-//                                Thread.sleep(1);
-//                            } catch (InterruptedException ex) {
-//                                return;
-//                            }
-//                        }
-//                    } // WHILE
-//                    return;
-//                }
-//            };
-//        } // WHILE
-//        for (Thread t : check_threads) {
-//            t.start();
-//            Thread.sleep(10);
-//        }
-//        for (Thread t : check_threads) t.join();
-//        
-//        
-//        //
-//        // Check to make sure that we got what we were looking for 
-//        //
-//        for (int i = 0; i < num_xacts; i++) {
-//            assert(found[i]) : "Failed to running VoltProcedure for txn #" + xact_ids[i] + " [" + i + "]";
-//            
-//            // Make sure that it didn't execute with the same VoltProcedure
-//            for (int ii = 0; ii < num_xacts; ii++) {
-//                if (i == ii) continue;
-//                assertTrue(volt_procs[i] != volt_procs[ii]);
-//            } // FOR
-//        
-//            // Now check whether we got the ClientResponse
-//            ClientResponse response = observers[i].poll();
-//            assertNotNull(response);
-//            assertEquals(1, response.getResults().length);
-//        } // FOR
-//        
-//        thread.interrupt();
-//        thread.join();
-//    }
+    @Test
+    public void testMultipleGetVoltProcedure() {
+        // Invoke getVoltProcedure() multiple times and make sure that we never get back the same handle
+        int count = 10;
+        Set<VoltProcedure> procs = new HashSet<VoltProcedure>();
+        for (int i = 0; i < count; i++) {
+            VoltProcedure volt_proc = executor.getVoltProcedure(TARGET_PROCEDURE.getSimpleName());
+            assertNotNull(volt_proc);
+            assertFalse(procs.contains(volt_proc));
+            procs.add(volt_proc);
+        } // FOR
+        assertEquals(count, procs.size());
+    }
     
     /**
      * testBuildPartitionResult

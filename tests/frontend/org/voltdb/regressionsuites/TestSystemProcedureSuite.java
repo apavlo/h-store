@@ -30,11 +30,13 @@ import junit.framework.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.utils.VoltTableUtil;
+
+import edu.brown.hstore.Hstoreservice.Status;
 
 public class TestSystemProcedureSuite extends RegressionSuite {
 
@@ -48,38 +50,10 @@ public class TestSystemProcedureSuite extends RegressionSuite {
             client.callProcedure("@SomeInvalidSysProcName", "1", "2");
         }
         catch (Exception e2) {
-            assertEquals("Procedure @SomeInvalidSysProcName was not found", e2.getMessage());
+            assertTrue(e2.getMessage(), e2.getMessage().toLowerCase().contains("unknown"));
             return;
         }
         fail("Expected exception.");
-    }
-
-    private final String m_loggingConfig =
-        "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>" +
-        "<!DOCTYPE log4j:configuration SYSTEM \"log4j.dtd\">" +
-        "<log4j:configuration xmlns:log4j=\"http://jakarta.apache.org/log4j/\">" +
-            "<appender name=\"Console\" class=\"org.apache.log4j.ConsoleAppender\">" +
-                "<param name=\"Target\" value=\"System.out\" />" +
-                "<layout class=\"org.apache.log4j.TTCCLayout\">" +
-                "</layout>" +
-            "</appender>" +
-            "<appender name=\"Async\" class=\"org.apache.log4j.AsyncAppender\">" +
-                "<param name=\"Blocking\" value=\"true\" />" +
-                "<appender-ref ref=\"Console\" /> " +
-            "</appender>" +
-            "<root>" +
-               "<priority value=\"info\" />" +
-               "<appender-ref ref=\"Async\" />" +
-            "</root>" +
-        "</log4j:configuration>";
-
-    public void testUpdateLogging() throws Exception {
-        Client client = getClient();
-        VoltTable results[] = null;
-        results = client.callProcedure("@UpdateLogging", m_loggingConfig).getResults();
-        for (VoltTable result : results) {
-            assertEquals( 0, result.asScalarLong());
-        }
     }
 
     public void testStatistics_Table() throws Exception {
@@ -94,14 +68,14 @@ public class TestSystemProcedureSuite extends RegressionSuite {
         System.out.println("Test statistics table: " + results[0].toString());
     }
 
-    public void testStatistics_Procedure() throws Exception {
-        Client client  = getClient();
-        VoltTable results[] = null;
-        results = client.callProcedure("@Statistics", "procedure", 0).getResults();
-        // one aggregate table returned
-        assertTrue(results.length == 1);
-        System.out.println("Test procedures table: " + results[0].toString());
-    }
+//    public void testStatistics_Procedure() throws Exception {
+//        Client client  = getClient();
+//        VoltTable results[] = null;
+//        results = client.callProcedure("@Statistics", "procedure", 0).getResults();
+//        // one aggregate table returned
+//        assertTrue(results.length == 1);
+//        System.out.println("Test procedures table: " + results[0].toString());
+//    }
 
     public void testStatistics_iostats() throws Exception {
         Client client  = getClient();
@@ -110,21 +84,6 @@ public class TestSystemProcedureSuite extends RegressionSuite {
         // one aggregate table returned
         assertTrue(results.length == 1);
         System.out.println("Test iostats table: " + results[0].toString());
-    }
-
-    public void testStatistics_Initiator() throws Exception {
-        Client client  = getClient();
-        VoltTable results[] = null;
-        results = client.callProcedure("@Statistics", "INITIATOR", 0).getResults();
-        results = client.callProcedure("@Statistics", "INITIATOR", 0).getResults();
-        // one aggregate table returned
-        assertTrue(results.length == 1);
-        System.out.println("Test initiators table: " + results[0].toString());
-        assertEquals(1, results[0].getRowCount());
-        VoltTableRow resultRow = results[0].fetchRow(0);
-        assertNotNull(resultRow);
-        assertEquals("@Statistics", resultRow.getString("PROCEDURE_NAME"));
-        assertEquals( 1, resultRow.getLong("INVOCATIONS"));
     }
 
     public void testStatistics_InvalidSelector() throws IOException {
@@ -170,12 +129,12 @@ public class TestSystemProcedureSuite extends RegressionSuite {
     //    not sure how to test this.
     // }
 
-    public void testSystemInformation() throws IOException, ProcCallException {
-        Client client = getClient();
-        VoltTable results[] = client.callProcedure("@SystemInformation").getResults();
-        assertEquals(1, results.length);
-        System.out.println(results[0]);
-    }
+//    public void testSystemInformation() throws IOException, ProcCallException {
+//        Client client = getClient();
+//        VoltTable results[] = client.callProcedure("@SystemInformation").getResults();
+//        assertEquals(1, results.length);
+//        System.out.println(results[0]);
+//    }
 
     // Pretty lame test but at least invoke the procedure.
     // "@Quiesce" is used more meaningfully in TestELTSuite.
@@ -183,8 +142,12 @@ public class TestSystemProcedureSuite extends RegressionSuite {
         Client client = getClient();
         VoltTable results[] = client.callProcedure("@Quiesce").getResults();
         assertEquals(1, results.length);
-        results[0].advanceRow();
-        assertEquals(results[0].get(0, VoltType.BIGINT), new Long(0));
+        System.err.println(VoltTableUtil.format(results[0]));
+        assertEquals(results[0].getRowCount(), this.getServerConfig().getPartitionCount());
+        while (results[0].advanceRow()) {
+            String status = results[0].getString("STATUS");
+            assertEquals(Status.OK.toString(), status);    
+        } // WHILE
     }
 
     public void testLoadMulipartitionTable_InvalidTableName() throws IOException, ProcCallException {
@@ -245,10 +208,8 @@ public class TestSystemProcedureSuite extends RegressionSuite {
         }
 
         try {
-            client.callProcedure("@LoadMultipartitionTable", "WAREHOUSE",
-                                 partitioned_table, 1);
-            client.callProcedure("@LoadMultipartitionTable", "ITEM",
-                                 replicated_table, 1);
+            client.callProcedure("@LoadMultipartitionTable", "WAREHOUSE", partitioned_table);
+            client.callProcedure("@LoadMultipartitionTable", "ITEM", replicated_table);
             VoltTable results[] = client.callProcedure("@Statistics", "table", 0).getResults();
 
             int foundItem = 0;
@@ -262,15 +223,15 @@ public class TestSystemProcedureSuite extends RegressionSuite {
                 if (results[0].getString("TABLE_NAME").equals("WAREHOUSE")) {
                     ++foundWarehouse;
                     //Different values depending on local cluster vs. single process hence ||
-                    assertTrue(5 == results[0].getLong("TABLE_ACTIVE_TUPLE_COUNT") ||
-                            10 == results[0].getLong("TABLE_ACTIVE_TUPLE_COUNT"));
+                    assertTrue(5 == results[0].getLong("TUPLE_COUNT") ||
+                            10 == results[0].getLong("TUPLE_COUNT"));
                 }
                 if (results[0].getString("TABLE_NAME").equals("ITEM"))
                 {
                     ++foundItem;
                     //Different values depending on local cluster vs. single process hence ||
-                    assertTrue(10 == results[0].getLong("TABLE_ACTIVE_TUPLE_COUNT") ||
-                            20 == results[0].getLong("TABLE_ACTIVE_TUPLE_COUNT"));
+                    assertTrue(10 == results[0].getLong("TUPLE_COUNT") ||
+                            20 == results[0].getLong("TUPLE_COUNT"));
                 }
             }
             // make sure both warehouses were located

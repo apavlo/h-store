@@ -28,7 +28,7 @@ public class GetConfiguration extends VoltSystemProcedure {
         new ColumnInfo("SITE", VoltType.INTEGER),
         new ColumnInfo("NAME", VoltType.STRING),
         new ColumnInfo("VALUE", VoltType.STRING),
-        new ColumnInfo("TIMESTAMP", VoltType.TIMESTAMP)
+        new ColumnInfo("CREATED", VoltType.TIMESTAMP)
     };
 
     @Override
@@ -37,7 +37,7 @@ public class GetConfiguration extends VoltSystemProcedure {
     }
 
     @Override
-    public DependencySet executePlanFragment(long txn_id,
+    public DependencySet executePlanFragment(Long txn_id,
                                              Map<Integer, List<VoltTable>> dependencies,
                                              int fragmentId,
                                              ParameterSet params,

@@ -11,11 +11,13 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.geom.Point2D;
 import java.lang.reflect.Method;
+import java.util.concurrent.CountDownLatch;
 
 import javax.swing.JFrame;
 
 import org.apache.commons.collections15.Transformer;
 
+import edu.brown.catalog.conflicts.ConflictGraph;
 import edu.brown.designer.PartitionTree;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.markov.MarkovGraph;
@@ -25,6 +27,7 @@ import edu.brown.utils.EventObserver;
 import edu.uci.ics.jung.algorithms.layout.CircleLayout;
 import edu.uci.ics.jung.algorithms.layout.DAGLayout;
 import edu.uci.ics.jung.algorithms.layout.FRLayout;
+import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.algorithms.layout.Layout;
 import edu.uci.ics.jung.algorithms.layout.TreeLayout;
 import edu.uci.ics.jung.graph.DelegateForest;
@@ -114,6 +117,23 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         }
     }
     
+    public static <V, E> void show(final Graph<V, E> graph) throws InterruptedException {
+        final CountDownLatch latch = new CountDownLatch(1);
+        Thread t = new Thread() {
+            @SuppressWarnings("unchecked")
+            public void run() {
+                try {
+                    GraphVisualizationPanel.createFrame(graph).setVisible(true);
+                } finally {
+                    latch.countDown();
+                }
+            }
+        };
+        t.setDaemon(true);
+        t.start();
+        latch.await();
+    }
+        
     /**
      * Convenience method for creating a JFrame that displays the graph
      * @param <V>
@@ -158,7 +178,9 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         if (graph instanceof DelegateForest) { 
             layout = new TreeLayout<V, E>((Forest<V, E>) graph);
         } else if (graph instanceof MarkovGraph){
-            layout = new FRLayout<V,E>( graph);
+            layout = new FRLayout<V,E>(graph);
+        } else if (graph instanceof ConflictGraph){
+            layout = new KKLayout<V, E>(graph);
         } else if (graph instanceof AbstractDirectedGraph) {
             layout = new DAGLayout<V, E>(graph);
         } else {

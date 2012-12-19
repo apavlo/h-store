@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -20,6 +21,7 @@ import org.voltdb.messaging.FastSerializer;
 import com.google.protobuf.ByteString;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
@@ -28,6 +30,9 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParametersUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 
@@ -44,7 +49,8 @@ public class PrefetchQueryPlanner implements Loggable {
     }
 
     // private final Database catalog_db;
-    private final Map<Procedure, BatchPlanner> planners = new HashMap<Procedure, BatchPlanner>();
+    private final Map<Integer, BatchPlanner> planners = new HashMap<Integer, BatchPlanner>();
+    private final PartitionEstimator p_estimator;
     private final int[] partitionSiteXref;
     private final CatalogContext catalogContext;
     private final BitSet touched_sites;
@@ -58,6 +64,7 @@ public class PrefetchQueryPlanner implements Loggable {
     public PrefetchQueryPlanner(CatalogContext catalogContext, PartitionEstimator p_estimator) {
         this.catalogContext = catalogContext;
         this.touched_sites = new BitSet(this.catalogContext.numberOfSites);
+        this.p_estimator = p_estimator;
 
         // Initialize a BatchPlanner for each Procedure if it has the
         // prefetch flag set to true. We generate an array of the SQLStmt
@@ -82,14 +89,7 @@ public class PrefetchQueryPlanner implements Loggable {
                 if (valid) prefetchStmts.add(new SQLStmt(catalog_stmt));
             } // FOR
             if (prefetchStmts.isEmpty() == false) {
-                BatchPlanner planner = new BatchPlanner(prefetchStmts.toArray(new SQLStmt[0]),
-                                                        prefetchStmts.size(),
-                                                        catalog_proc,
-                                                        p_estimator);
-                planner.setPrefetchFlag(true);
-                this.planners.put(catalog_proc, planner);
-                if (debug.get()) LOG.debug(String.format("%s Prefetch Statements: %s",
-                                                         catalog_proc.getName(), prefetchStmts));
+//                addPlanner(prefetchStmts.toArray(new SQLStmt[0]), catalog_proc, p_estimator, true);
             } else {
                 LOG.warn("There are no prefetchable Statements available for " + catalog_proc);
                 catalog_proc.setPrefetchable(false);
@@ -105,6 +105,15 @@ public class PrefetchQueryPlanner implements Loggable {
         }
     }
 
+    public BatchPlanner addPlanner(SQLStmt[] prefetchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, boolean prefetch) {
+        BatchPlanner planner = new BatchPlanner(prefetchStmts, prefetchStmts.length, catalog_proc, p_estimator);
+        planner.setPrefetchFlag(prefetch);
+        // Are the prefetchStmts always going to be sorted the same way? (Does it matter for the hash code?)
+        this.planners.put(VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length), planner);
+        if (debug.get()) LOG.debug(String.format("%s Prefetch Statements: %s", catalog_proc.getName(), prefetchStmts));
+        return planner;
+    }
+    
     /**
      * @param ts
      * @return
@@ -121,20 +130,39 @@ public class PrefetchQueryPlanner implements Loggable {
         assert (ts.getProcedureParameters() != null) : 
             "Unexpected null ParameterSet for " + ts;
         Object proc_params[] = ts.getProcedureParameters().toArray();
-
+        
+        CountedStatement[] countedStmts = ts.getEstimatorState().getPrefetchableStatements().toArray(new CountedStatement[0]);
+        
+        if (countedStmts.length < 1) {
+            return (null);
+        }
+        
+        SQLStmt[] prefetchStmts = new SQLStmt[countedStmts.length];
+        for (int i = 0; i < prefetchStmts.length; ++i) {
+            prefetchStmts[i] = new SQLStmt(countedStmts[i].statement);
+        }
+        
         // Use the StmtParameter mappings for the queries we
         // want to prefetch and extract the ProcParameters
         // to populate an array of ParameterSets to use as the batchArgs
-        BatchPlanner planner = this.planners.get(catalog_proc);
+        int hashcode = VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length);
+        
+        // Check if we've used this planner in the past. If not, then create it.
+        BatchPlanner planner = this.planners.get(hashcode);
+        if (planner == null) {
+            planner = addPlanner(prefetchStmts, catalog_proc, p_estimator, true);
+        }
+        
         assert (planner != null) : "Missing BatchPlanner for " + catalog_proc;
         ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
         ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
-
+        
         // Makes a list of ByteStrings containing the ParameterSets that we need
         // to send over to the remote sites so that they can execute our
         // prefetchable queries
         for (int i = 0; i < prefetchParams.length; i++) {
             Statement catalog_stmt = planner.getStatement(i);
+            CountedStatement counted_stmt = countedStmts[i];
             if (debug.get()) LOG.debug(String.format("%s - Building ParameterSet for prefetchable query %s",
                                                      ts, catalog_stmt.fullName()));
             Object stmt_params[] = new Object[catalog_stmt.getParameters().size()];
@@ -144,9 +172,16 @@ public class PrefetchQueryPlanner implements Loggable {
             // ParameterMapping already being installed in the catalog
             // TODO: Precompute this as arrays (it will be much faster)
             for (StmtParameter catalog_param : catalog_stmt.getParameters().values()) {
-                ProcParameter catalog_proc_param = catalog_param.getProcparameter();
-                assert(catalog_proc_param != null) : "Missing mapping from " + catalog_param.fullName() + " to ProcParameter";
-                stmt_params[catalog_param.getIndex()] = proc_params[catalog_proc_param.getIndex()];
+                ParameterMapping pm = CollectionUtil.first(this.catalogContext.paramMappings.get(
+                        counted_stmt.statement, counted_stmt.counter, catalog_param));
+                if (pm.procedure_parameter.getIsarray()) {
+                    stmt_params[catalog_param.getIndex()] = ParametersUtil.getValue(ts.getProcedureParameters(), pm);
+                }
+                else {
+                    ProcParameter catalog_proc_param = pm.procedure_parameter;
+                    assert(catalog_proc_param != null) : "Missing mapping from " + catalog_param.fullName() + " to ProcParameter";
+                    stmt_params[catalog_param.getIndex()] = proc_params[catalog_proc_param.getIndex()];
+                }
             } // FOR (StmtParameter)
             prefetchParams[i] = new ParameterSet(stmt_params);
 
@@ -172,19 +207,19 @@ public class PrefetchQueryPlanner implements Loggable {
                                       ts.isPredictSinglePartition(),
                                       ts.getTouchedPartitions(),
                                       prefetchParams);
-        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-        plan.getWorkFragments(ts.getTransactionId(), fragments);
+        List<WorkFragment.Builder> fragmentBuilders = new ArrayList<WorkFragment.Builder>();
+        plan.getWorkFragmentsBuilders(ts.getTransactionId(), fragmentBuilders);
 
         // Loop through the fragments and check whether at least one of
         // them needs to be executed at the base (local) partition. If so, we need a
         // separate TransactionInitRequest per site. Group the WorkFragments by siteID.
         // If we have a prefetchable query for the base partition, it means that
         // we will try to execute it before we actually need it whenever the
-        // PartitionExecutor is idle That means, we don't want to serialize all this
+        // PartitionExecutor is idle. That means, we don't want to serialize all this
         // if it's only going to the base partition.
         TransactionInitRequest.Builder[] builders = new TransactionInitRequest.Builder[this.catalogContext.numberOfSites];
-        for (WorkFragment frag : fragments) {
-            int site_id = this.partitionSiteXref[frag.getPartitionId()];
+        for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
+            int site_id = this.partitionSiteXref[fragmentBuilder.getPartitionId()];
             if (builders[site_id] == null) {
                 builders[site_id] = TransactionInitRequest.newBuilder()
                                             .setTransactionId(ts.getTransactionId().longValue())
@@ -195,7 +230,7 @@ public class PrefetchQueryPlanner implements Loggable {
                     builders[site_id].addPrefetchParams(bs);
                 } // FOR
             }
-            builders[site_id].addPrefetchFragments(frag);
+            builders[site_id].addPrefetchFragments(fragmentBuilder);
         } // FOR (WorkFragment)
 
         Collection<Integer> touched_partitions = ts.getPredictTouchedPartitions();

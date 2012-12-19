@@ -1,5 +1,6 @@
 package edu.brown.logging;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -18,6 +19,7 @@ import org.apache.log4j.spi.LoggerRepository;
 import org.apache.log4j.spi.LoggingEvent;
 
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * An appender that stores LoggingEvents in a ringbuffer (in-memory)
@@ -286,5 +288,15 @@ public class RingBufferAppender extends AppenderSkeleton {
             messages.add(layout.format(event));
         } // FOR
         return (messages);
+    }
+    
+    public void dump(PrintStream out) {
+        int width = 100;
+        out.println(StringUtil.header(this.getClass().getSimpleName(), "=", width));
+        for (String log : this.getLogMessages()) {
+            out.println(log.trim());
+        }
+        out.println(StringUtil.repeat("=", width));
+        out.flush();
     }
 }

@@ -2,13 +2,11 @@ package edu.brown.catalog;
 
 import java.io.File;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
@@ -18,7 +16,6 @@ import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 
@@ -37,7 +34,9 @@ public abstract class FixCatalog {
     static {
         LOCALHOST_TYPOS.add("locahost");
         LOCALHOST_TYPOS.add("localhst");
-        LOCALHOST_TYPOS.add("localhst");
+        LOCALHOST_TYPOS.add("locahlost");
+        LOCALHOST_TYPOS.add("loclhost");
+        LOCALHOST_TYPOS.add("loclhst");
     };
     
     /**
@@ -83,11 +82,12 @@ public abstract class FixCatalog {
         catalog_clus.getSites().clear();
         for (String host : cc.getHosts()) {
             if (LOCALHOST_TYPOS.contains(host)) {
-                String msg = StringBoxUtil.box(String.format("POSSIBLE TYPO IN HOSTNAME '%s'. " +
-                		                                  "DID YOU MEAN 'localhost'?", host));
+                String msg = String.format("POSSIBLE TYPO IN HOSTNAME '%s'. " +
+                                           "DID YOU MEAN 'localhost'?", host);
+                msg = StringBoxUtil.box(msg);
                 LOG.warn("");
                 for (String line : StringUtil.splitLines(msg)) {
-                    LOG.warn(line);
+                    LOG.warn(StringUtil.bold(line));
                 } // FOR
                 LOG.warn("");
             }
@@ -138,43 +138,6 @@ public abstract class FixCatalog {
     public static Catalog updateCatalog(Catalog orig_catalog, String hostname_format, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
         ClusterConfiguration cc = new ClusterConfiguration(hostname_format, num_hosts, num_sites_per_host, num_partitions_per_site);
         return (FixCatalog.updateCatalog(orig_catalog, cc));
-    }
-
-
-    /**
-     * @param catalog_db
-     * @throws Exception
-     */
-    public static void populateCatalog(Database catalog_db, ProjectType type) throws Exception {
-        //
-        // Foreign Keys
-        //
-        Map<String, ForeignKeysUtil.ForeignKeyMapping> foreign_keys = ForeignKeysUtil.FOREIGN_KEYS.get(type);
-        if (foreign_keys != null) {
-            try {
-                ForeignKeysUtil.populateCatalog(catalog_db, foreign_keys);
-                LOG.info("Updated foreign key dependencies in catalog for schema type '" + type + "'");
-            } catch (RuntimeException ex) {
-                // Ignore these...
-                LOG.warn(ex.getLocalizedMessage());
-            }
-        }
-
-        //
-        // StmtParameter->ProcParameter Mapping
-        //
-        Map<String, ParametersUtil.DefaultParameterMapping> param_map = ParametersUtil.getParameterMapping(type);
-        if (param_map != null) {
-            try {
-                ParametersUtil.populateCatalog(catalog_db, param_map);
-                LOG.info("Updated parameter mapping information in catalog for schema type '" + type + "'");
-            } catch (RuntimeException ex) {
-                // Ignore these...
-                LOG.warn(ex.getLocalizedMessage());
-            }
-        }
-
-        return;
     }
 
     /**

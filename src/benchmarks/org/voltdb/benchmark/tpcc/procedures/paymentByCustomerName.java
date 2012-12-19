@@ -200,7 +200,7 @@ public class paymentByCustomerName extends VoltProcedure {
 
         // Create the history record
         voltQueueSQL(insertHistory, c_id, c_d_id, c_w_id, d_id, w_id, timestamp, h_amount, h_data);
-        voltExecuteSQL();
+        voltExecuteSQL(true);
 
         // TPC-C 2.5.3.3: Must display the following fields:
         // W_ID, D_ID, C_ID, C_D_ID, C_W_ID, W_STREET_1, W_STREET_2, W_CITY, W_STATE, W_ZIP,

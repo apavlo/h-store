@@ -81,7 +81,7 @@ public abstract class AbstractProfiler {
     protected final void populateTuple(long tuple[], int offset, ProfileMeasurement pms[]) {
         for (ProfileMeasurement pm : pms) {
             tuple[offset++] = pm.getTotalThinkTime();
-            if (offset == 1) assert(tuple[0] > 0) : "Missing data " + pm.debug(true);
+            if (offset == 1) assert(tuple[0] > 0) : "Missing data " + pm.debug();
             tuple[offset++] = pm.getInvocations();
         } // FOR
     }
@@ -95,7 +95,7 @@ public abstract class AbstractProfiler {
         // FIELDS
         for (ProfileMeasurement pm : this.getProfileMeasurements()) {
             String label = pm.getType();
-            String debug = pm.debug(true).replace(label, "");
+            String debug = pm.debug().replace(label, "");
             m.put(label, debug);
         } // FOR
         

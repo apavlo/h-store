@@ -36,6 +36,8 @@ import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.ByteBuilder;
 import org.voltdb.utils.BuildDirectoryUtils;
+
+import edu.brown.hstore.HStoreConstants;
 import junit.framework.TestCase;
 
 public class TPCCDebugTest extends TestCase {
@@ -81,7 +83,7 @@ public class TPCCDebugTest extends TestCase {
 
         client = ClientFactory.createClient();
         // connect
-        client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
+        client.createConnection(null, "localhost", HStoreConstants.DEFAULT_PORT, "program", "none");
     }
 
     public void waitUntilDone() throws InterruptedException {

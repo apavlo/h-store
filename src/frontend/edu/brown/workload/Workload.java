@@ -399,7 +399,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         
         long stop = System.currentTimeMillis();
         LOG.info(String.format("Loaded %d txns / %d queries from '%s' in %.1f seconds using %d threads",
-                               this.xact_trace.size(), counters[1].get(), this.input_path.getName(), (stop - start) / 1000d, num_threads));
+                               this.xact_trace.size(), counters[2].get(), this.input_path.getName(), (stop - start) / 1000d, num_threads));
         if (counters[1].get() != counters[3].get() || counters[2].get() != counters[4].get()) {
             LOG.info(String.format("Weighted Workload: %d txns / %d queries", counters[3].get(), counters[4].get()));
         }

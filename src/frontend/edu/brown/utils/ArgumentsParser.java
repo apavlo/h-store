@@ -136,6 +136,11 @@ public class ArgumentsParser {
     public static final String PARAM_MARKOV_SPLIT_TRAINING = PARAM_MARKOV_SPLIT + ".training";
     public static final String PARAM_MARKOV_SPLIT_VALIDATION = PARAM_MARKOV_SPLIT + ".validation";
     public static final String PARAM_MARKOV_SPLIT_TESTING = PARAM_MARKOV_SPLIT + ".testing";
+    
+    private static final String PARAM_CONFLICTS = "conflicts";
+    public static final String PARAM_CONFLICTS_EXCLUDE_PROCEDURES = PARAM_CONFLICTS + ".exclude_procedures";
+    public static final String PARAM_CONFLICTS_EXCLUDE_STATEMENTS = PARAM_CONFLICTS + ".exclude_statements";
+    public static final String PARAM_CONFLICTS_FOCUS_PROCEDURE = PARAM_CONFLICTS + ".focus";
 
     public static final String PARAM_DESIGNER = "designer";
     public static final String PARAM_DESIGNER_PARTITIONER = PARAM_DESIGNER + ".partitioner";

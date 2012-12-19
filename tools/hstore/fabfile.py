@@ -52,7 +52,7 @@ if not os.path.exists(realpath):
     basename = os.path.basename(realpath)
     if os.path.exists(os.path.join(cwd, basename)):
         basedir = cwd
-sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
+sys.path.append(os.path.realpath(os.path.join(basedir, "../../third_party/python")))
 from fabric.api import *
 from fabric.contrib.files import *
 
@@ -89,7 +89,7 @@ ALL_PACKAGES = [
     'subversion',
     'gcc',
     'g++',
-    'openjdk-6-jdk',
+    'openjdk-7-jdk',
     'valgrind',
     'ant',
     'make',
@@ -121,9 +121,9 @@ env.port = 22
 ENV_DEFAULT = {
     ## EC2 Options
     "ec2.site_type":               "m2.4xlarge",
-    "ec2.site_ami":                "ami-39a81d50",
+    "ec2.site_ami":                "ami-9c78c0f5",
     "ec2.client_type":             "m1.xlarge",
-    "ec2.client_ami":              "ami-39a81d50",
+    "ec2.client_ami":              "ami-9c78c0f5",
     "ec2.placement_group":         None,
     "ec2.security_group":          "hstore",
     "ec2.keypair":                 "hstore",
@@ -152,7 +152,7 @@ ENV_DEFAULT = {
     "hstore.partitions":            6,
     "hstore.sites_per_host":        1,
     "hstore.partitions_per_site":   7,
-    "hstore.num_hosts_round_robin": 2,
+    "hstore.round_robin_partitions": True,
 }
 
 has_rcfile = os.path.exists(env.rcfile)
@@ -166,7 +166,8 @@ for k, v in ENV_DEFAULT.items():
 ## FOR
 
 ## H-Store Directory
-HSTORE_DIR = os.path.join("/home", env.user, env["hstore.basedir"], "h-store")
+INSTALL_DIR = os.path.join("/vol", env["hstore.basedir"]) 
+HSTORE_DIR = os.path.join(INSTALL_DIR, "h-store")
 
 ## Setup EC2 Connection
 ec2_conn = boto.connect_ec2(env["ec2.access_key_id"], env["ec2.secret_access_key"])
@@ -461,8 +462,11 @@ def setup_env():
                  "deb-src http://archive.canonical.com/ubuntu %s partner" % releaseName ], use_sudo=True)
         sudo("apt-get update")
     ## WITH
-    sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
+    
+    # Make sure that we pick openjdk-7-jdk
+    sudo("update-alternatives --set java /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java")
+    
     __syncTime__()
     
     # Upgrade and clean up packages
@@ -525,10 +529,11 @@ def setup_env():
     ## WITH
     
     with settings(warn_only=True):
-        # Install the real H-Store directory in /home/
-        if run("test -d %s" % env["hstore.basedir"]).failed:
-            run("mkdir " + env["hstore.basedir"])
-        sudo("chown --quiet -R %s %s" % (env.user, env["hstore.basedir"]))
+        # Install the real H-Store directory in HSTORE_DIR
+        install_dir = os.path.dirname(HSTORE_DIR)
+        if run("test -d %s" % install_dir).failed:
+            run("mkdir " + install_dir)
+        sudo("chown --quiet %s %s" % (env.user, install_dir))
     ## WITH
     
     return (first_setup)
@@ -611,7 +616,7 @@ def deploy_hstore(build=True, update=True):
     
     with settings(warn_only=True):
         if run("test -d %s" % HSTORE_DIR).failed:
-            with cd(env["hstore.basedir"]):
+            with cd(INSTALL_DIR):
                 LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
                 run("git clone --branch %s %s %s" % (env["hstore.git_branch"], \
                                                      env["hstore.git_options"], \
@@ -627,22 +632,19 @@ def deploy_hstore(build=True, update=True):
             run("git pull %s" % env["hstore.git_options"])
         
         ## Checkout Extra Files
-        if need_files:
-            LOG.debug("Initializing H-Store research files directory for branch '%s'" %  env["hstore.git_branch"])
-            
-            # 2012-08-20 - Create a symlink into /mnt/h-store so that we store 
-            #              the larger files out in EBS
-            ebsDir = "/mnt/h-store"
-            with settings(warn_only=True):
-                if run("test -d %s" % ebsDir).failed:
-                    sudo("mkdir -p " + ebsDir)
-                sudo("chown --quiet -R %s %s" % (env.user, ebsDir))
-            ## WITH
-            run("ant junit-getfiles -Dsymlink=%s" % ebsDir)
-        elif update:
-            LOG.debug("Pulling in latest research files for branch '%s'" % env["hstore.git_branch"])
-            # run("ant junit-getfiles")
-        ## IF
+        with settings(warn_only=True):
+            if run("test -d %s" % "files").failed:
+                LOG.debug("Initializing H-Store research files directory for branch '%s'" %  env["hstore.git_branch"])
+                
+                # 2012-08-20 - Create a symlink into /mnt/h-store so that we store 
+                #              the larger files out in EBS
+                sudo("ant junit-getfiles")
+                sudo("chown --quiet -R %s files" % (env.user))
+            elif update:
+                LOG.debug("Pulling in latest research files for branch '%s'" % env["hstore.git_branch"])
+                run("ant junit-getfiles-update")
+            ## IF
+        ## WITH
             
         if build:
             LOG.debug("Building H-Store from source code")
@@ -651,7 +653,7 @@ def deploy_hstore(build=True, update=True):
             run("ant build")
         ## WITH
     ## WITH
-    run("cd %s" % env["hstore.basedir"])
+    run("cd %s" % HSTORE_DIR)
 ## DEF
 
 ## ----------------------------------------------
@@ -669,6 +671,25 @@ def get_version():
     rev_date = datetime.fromtimestamp(int(data[2])) 
     LOG.info("Revision: %s / %s" % (rev_id, rev_date))
     return (rev_id, rev_date)
+## DEF
+
+## ----------------------------------------------
+## get_running
+## ----------------------------------------------
+@task
+def get_running(exitIfRunning=False):
+    """Print a list of all of the running instances"""
+    __getInstances__()
+    
+    if len(env["ec2.running_instances"]) == 0:
+        return
+        
+    print "Found %d Running Instances:" % len(env["ec2.running_instances"])
+    i = 0
+    for inst in env["ec2.running_instances"]:
+        print "  [%02d] %s (%s)" % (i, inst.public_dns_name, __getInstanceType__(inst))
+        i += 1
+    if exitIfRunning: sys.exit(1)
 ## DEF
 
 ## ----------------------------------------------
@@ -696,8 +717,10 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     LOG.debug("Partitions Per Site: %d" % env["hstore.partitions_per_site"])
     site_hosts = set()
     
-    if "hstore.num_hosts_round_robin" in env and env["hstore.num_hosts_round_robin"] != None:
-        partitions_per_site = math.ceil(env["hstore.partitions"] / float(env["hstore.num_hosts_round_robin"]))
+    ## Attempt to assign the same number of partitions to nodes
+    if "hstore.round_robin_partitions" in env and env["hstore.round_robin_partitions"]:
+        sites_needed = math.ceil(env["hstore.partitions"] / float(partitions_per_site))
+        partitions_per_site = math.ceil(env["hstore.partitions"] / float(sites_needed))
     
     for inst in __getRunningSiteInstances__():
         site_hosts.add(inst.private_dns_name)
@@ -737,7 +760,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
-        "client.host":                  ",".join(clients),
+        "client.hosts":                 ",".join(clients),
         "client.count":                 env["client.count"],
         "client.threads_per_host":      env["client.threads_per_host"],
         "project":                      project,
@@ -844,6 +867,7 @@ def write_conf(project, removals=[ ], revertFirst=False):
 ## ----------------------------------------------
 @task
 def get_file(filePath):
+    """Retrieve and print the file from the cluster for the given path"""
     sio = StringIO()
     if get(filePath, local_path=sio).failed:
         raise Exception("Failed to retrieve remote file '%s'" % filePath)
@@ -935,6 +959,7 @@ def enable_debugging(debug=[], trace=[]):
 ## ----------------------------------------------
 @task
 def stop_cluster(terminate=False):
+    """Stop all instances in the cluster"""
     __getInstances__()
     
     waiting = [ ]
@@ -961,6 +986,7 @@ def stop_cluster(terminate=False):
 ## ----------------------------------------------
 @task
 def clear_logs():
+    """Remove all of the log files on the remote cluster"""
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         if TAG_NFSTYPE in inst.tags and inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
@@ -968,7 +994,7 @@ def clear_logs():
             ## below 'and' changed from comma by ambell
             with settings(host_string=inst.public_dns_name), settings(warn_only=True):
                 LOG.info("Clearning H-Store log files [%s]" % env["hstore.git_branch"])
-                log_dir = os.path.join(env["hstore.basedir"], "obj/release/logs")
+                log_dir = env.get("site.log_dir", os.path.join(HSTORE_DIR, "obj/logs/sites"))
                 run("rm -rf %s/*" % log_dir)
             break
         ## IF
@@ -980,6 +1006,7 @@ def clear_logs():
 ## ----------------------------------------------
 @task
 def sync_time():
+    """Invoke NTP synchronization on each instance"""
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         with settings(host_string=inst.public_dns_name):
@@ -992,7 +1019,6 @@ def sync_time():
 ## ----------------------------------------------
 def __syncTime__():
     with settings(warn_only=True):
-        sudo("echo 1 > /proc/sys/xen/independent_wallclock")
         sudo("ntpdate-debian -b")
     ## WITH
 ## DEF
@@ -1003,20 +1029,20 @@ def __syncTime__():
 def __startInstances__(instances_count, ec2_ami, ec2_type, instance_tags):
     LOG.info("Attemping to start %d instances." % (instances_count))
     try:
-        reservation = ec2_conn.run_instances(ec2_ami,
-                                            instance_type=ec2_type,
-                                            key_name=env["ec2.keypair"],
-                                            min_count=instances_count,
-                                            max_count=instances_count,
-                                            security_groups=[ env["ec2.security_group"] ],
-                                            placement=env["ec2.region"],
-                                            placement_group=env["ec2.placement_group"])
+        resv = ec2_conn.run_instances(ec2_ami,
+                                      instance_type=ec2_type,
+                                      key_name=env["ec2.keypair"],
+                                      min_count=instances_count,
+                                      max_count=instances_count,
+                                      security_groups=[ env["ec2.security_group"] ],
+                                      placement=env["ec2.region"],
+                                      placement_group=env["ec2.placement_group"])
     except:
         LOG.error("Failed to start %s instances [%s]" % (ec2_type, ec2_ami))
         raise
-    LOG.info("Started %d execution nodes. Waiting for them to come online" % len(reservation.instances))
+    LOG.info("Started %d execution nodes. Waiting for them to come online" % len(resv.instances))
     i = 0
-    for inst in reservation.instances:
+    for inst in resv.instances:
         env["ec2.running_instances"].append(inst)
         env["ec2.all_instances"].append(inst)
         time.sleep(env["ec2.reboot_wait_time"])
@@ -1031,7 +1057,7 @@ def __startInstances__(instances_count, ec2_ami, ec2_type, instance_tags):
         i += 1
     ## FOR
     time.sleep(env["ec2.reboot_wait_time"])
-    LOG.info("Started %d instances." % len(reservation.instances))
+    LOG.info("Started %d instances." % len(resv.instances))
 ## DEF
 
 ## ----------------------------------------------
@@ -1150,6 +1176,9 @@ def __getInstanceTypeCounts__():
     """Return a tuple of the number hosts/sites/partitions/clients that we need"""
     partitionCount = env["hstore.partitions"]
     clientCount = env["client.count"] 
+    
+    LOG.debug("Partitions Needed: %d" % env["hstore.partitions"])
+    LOG.debug("Partitions Per Site: %d" % env["hstore.partitions_per_site"])
     
     if "hstore.num_hosts_round_robin" in env and env["hstore.num_hosts_round_robin"] != None:
         hostCount = int(env["hstore.num_hosts_round_robin"])

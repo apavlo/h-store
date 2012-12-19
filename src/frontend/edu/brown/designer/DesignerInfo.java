@@ -7,7 +7,6 @@ import java.util.Map;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Database;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.DependencyUtil;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
@@ -152,14 +151,14 @@ public class DesignerInfo {
         this.indexer_class = args.indexer_class;
         this.num_threads = args.max_concurrent;
         this.num_intervals = args.num_intervals;
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
-        this.dependencies = DependencyUtil.singleton(this.catalog_db);
+        this.num_partitions = this.catalogContext.numberOfPartitions;
+        this.dependencies = DependencyUtil.singleton(this.catalogContext.database);
         this.costmodel_class = args.costmodel_class;
         this.costmodel = args.costmodel;
         this.checkpoint = args.designer_checkpoint;
 
         // Memory Estimator
-        this.m_estimator = new MemoryEstimator(this.stats, new DefaultHasher(this.catalog_db, this.num_partitions));
+        this.m_estimator = new MemoryEstimator(this.stats, new DefaultHasher(this.catalogContext.database, this.num_partitions));
 
         // Correlations (smoke 'em if you got 'em)
         if (args.param_mappings != null) {
@@ -167,17 +166,17 @@ public class DesignerInfo {
             this.correlations_file = args.getFileParam(ArgumentsParser.PARAM_MAPPINGS);
         }
 
-        if (!DesignerInfo.DGRAPH_CACHE.containsKey(this.catalog_db)) {
-            this.dgraph = new DependencyGraph(this.catalog_db);
+        if (!DesignerInfo.DGRAPH_CACHE.containsKey(this.catalogContext.database)) {
+            this.dgraph = new DependencyGraph(this.catalogContext.database);
             try {
                 new DependencyGraphGenerator(this).generate(this.dgraph);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 System.exit(1);
             }
-            DesignerInfo.DGRAPH_CACHE.put(this.catalog_db, this.dgraph);
+            DesignerInfo.DGRAPH_CACHE.put(this.catalogContext.database, this.dgraph);
         } else {
-            this.dgraph = DesignerInfo.DGRAPH_CACHE.get(this.catalog_db);
+            this.dgraph = DesignerInfo.DGRAPH_CACHE.get(this.catalogContext.database);
         }
     }
 

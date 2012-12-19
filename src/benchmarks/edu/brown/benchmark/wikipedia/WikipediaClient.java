@@ -20,7 +20,6 @@
 package edu.brown.benchmark.wikipedia;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
@@ -32,10 +31,10 @@ import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
-import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
-import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
@@ -44,21 +43,20 @@ import edu.brown.utils.StringUtil;
 
 public class WikipediaClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WikipediaClient.class);
-	//private final TransactionGenerator<WikipediaOperation> generator;
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
-//	final Flat usersRng;
-//	final int num_users;
 	private Random randGenerator = new Random();
-	private int nextRevId;
-	public static HashMap<Integer, Object[]> m_titleMap = new HashMap<Integer, Object[]>();
-	public Flat z_users = null;
-	public Zipf z_pages = null;
-	
-	// TODO:(xin)
-	// Change from hashMap to array in order to make it faster
-	// Right now it is fine to use
-	public Object [] m_titleArr; 
+	private final WikipediaUtil util;
 
+	
+	private final Flat flat_users;
+	private final Zipf zipf_pages;
+	private final Flat flat_pages;
+	
     /**
      * Set of transactions structs with their appropriate parameters
      */
@@ -107,7 +105,7 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            //LOG.info(clientResponse);
+            //if (debug.get()) LOG.debug(clientResponse);
             
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
@@ -141,7 +139,7 @@ public class WikipediaClient extends BenchmarkComponent {
      * @param args
      */
     
-    public WikipediaClient ( String[] args ) {
+    public WikipediaClient(String[] args) {
         super(args);
         
         // Initialize the sampling table
@@ -152,10 +150,8 @@ public class WikipediaClient extends BenchmarkComponent {
             txns.put(t, weight);
         } // FOR
         assert(txns.getSampleCount() == 100) : txns;
-        Random rand = new Random(); // FIXME
-        this.txnWeights = new FlatHistogram<Transaction>(rand, txns);
-        if (LOG.isDebugEnabled())
-            LOG.debug("Transaction Workload Distribution:\n" + txns);
+        this.txnWeights = new FlatHistogram<Transaction>(this.randGenerator, txns);
+        if (debug.get()) LOG.debug("Transaction Workload Distribution:\n" + txns);
         
         // Setup callbacks
         int num_txns = Transaction.values().length;
@@ -164,7 +160,11 @@ public class WikipediaClient extends BenchmarkComponent {
             this.callbacks[i] = new WikipediaCallback(i);
         } // FOR
         
-        this.nextRevId = (this.getClientId()+1) * WikipediaConstants.CLIENT_NEXT_ID_OFFSET;
+        this.util = new WikipediaUtil(this.randGenerator, this.getScaleFactor());
+        
+        this.flat_users = new Flat(this.randGenerator, 1, util.num_users);
+        this.zipf_pages = new Zipf(this.randGenerator, 1, util.num_pages, WikipediaConstants.USER_ID_SIGMA);
+        this.flat_pages = new Flat(this.randGenerator, 1, util.num_pages);
     }
     
     /**
@@ -224,7 +224,7 @@ public class WikipediaClient extends BenchmarkComponent {
      */
     @Override
     public void runLoop() {
-        LOG.info("Starting runLoop()");
+        if (debug.get()) LOG.debug("Starting runLoop()");
         Client client = this.getClientHandle();
         try {
             while (true) {
@@ -239,15 +239,11 @@ public class WikipediaClient extends BenchmarkComponent {
     
     @Override
 	protected boolean runOnce() throws IOException {
-        
-        int user_id = this.z_users.nextInt();
-        int page_id = this.z_pages.nextInt();
         Transaction target = this.selectTransaction();
-
         this.startComputeTime(target.displayName);
         Object params[] = null;
         try {
-            params = this.generateParams(target, user_id, page_id);
+            params = this.generateParams(target);
         } catch (Throwable ex) {
             throw new RuntimeException("Unexpected error when generating params for " + target, ex);
         } finally {
@@ -258,7 +254,7 @@ public class WikipediaClient extends BenchmarkComponent {
                                                            target.callName,
                                                            params);
 
-        //LOG.info("Executing txn:" + target.callName + ",with params:" + params);
+        //if (debug.get()) LOG.debug("Executing txn:" + target.callName + ",with params:" + params);
         return ret;
 	}
  
@@ -279,63 +275,60 @@ public class WikipediaClient extends BenchmarkComponent {
         return (procNames);
     }
 
-    protected Object[] generateParams(Transaction txn, int user_id, int page_id) throws VoltAbortException {
-        assert(WikipediaClient.m_titleMap.containsKey(page_id)):"m_titleMap should contain page_id:" + page_id;
-        Object data[] = WikipediaClient.m_titleMap.get(page_id);
-        assert(data != null):"data should not be null";
+    protected Object[] generateParams(Transaction txn) {
         Object params[] = null;
-        
         switch (txn) {
-            // AddWatchList
-            case ADD_WATCHLIST:    
+            case ADD_WATCHLIST:
+            case REMOVE_WATCHLIST: {
+                long pageId = this.flat_pages.nextLong();
+                int nameSpace = util.getPageNameSpace(pageId);
+                int userId = this.flat_users.nextInt();
                 params = new Object[]{
-                        user_id, 
-                        data[0], 
-                        data[1]
+                        userId, 
+                        nameSpace, 
+                        pageId
                 };
                 break;
-            case REMOVE_WATCHLIST:
+            }
+            case GET_PAGE_ANONYMOUS: {
+                String userIp = this.generateUserIP();
+                long pageId = this.zipf_pages.nextLong();
+                int nameSpace = util.getPageNameSpace(pageId);
                 params = new Object[]{
-                        user_id, 
-                        data[0], 
-                        data[1]
-                };
-                break;
-            case GET_PAGE_ANONYMOUS:
-                params = new Object[]{
-                        page_id,
+                        pageId,
+                        nameSpace,
+                        userIp,
                         true,
-                        this.generateUserIP(),
-                        data[0], 
-                        data[1]
                 };
                 break;
-            case GET_PAGE_AUTHENTICATED:
+            }
+            case GET_PAGE_AUTHENTICATED: {
+                int userId = this.flat_users.nextInt();
+                String userIp = this.generateUserIP();
+                long pageId = this.zipf_pages.nextLong();
+                int nameSpace = util.getPageNameSpace(pageId);
                 params = new Object[]{
-                        page_id,
+                        pageId,
+                        nameSpace,
+                        userId, 
+                        userIp,
                         true,
-                        this.generateUserIP(),
-                        user_id, 
-                        data[0], 
-                        data[1]
                 };
                 break;
-            case UPDATE_PAGE:
+            }
+            case UPDATE_PAGE: {
+                int userId = this.flat_users.nextInt();
+                long pageId = this.zipf_pages.nextLong();
+                int nameSpace = util.getPageNameSpace(pageId);
                 String user_ip = this.generateUserIP();
-                int namespace = (Integer) data[0];
-                String pageTitle = (String) data[1];
                 params = new Object[]{
-                        page_id,
-                        false,
+                        pageId,
+                        nameSpace,
                         user_ip,
-                        namespace,
-                        pageTitle
+                        false,
                 };
-                //String procedureName = "GetPageAnonymous";
-                //Transaction target = Transaction.getTransaction(procedureName);
-                //assert(target != null):"can not find procedure: " + procedureName;
                 ClientResponse cr = null;
-                //LOG.info("Invoking GetPageAnonymous before executing UpdatePage");
+                if (debug.get()) LOG.debug("Invoking GetPageAnonymous before executing UpdatePage");
                 try {
                     cr = this.getClientHandle().callProcedure(GetPageAnonymous.class.getSimpleName(), params);
                 } catch (Exception e) {
@@ -355,29 +348,29 @@ public class WikipediaClient extends BenchmarkComponent {
                     throw new VoltAbortException(msg);
                 }
 
-                String vt_userText = vt.getString(0);
-                int vt_pageId = (int) vt.getLong(1);
-                String vt_oldText = vt.getString(2);
-                int vt_textId = (int) vt.getLong(3);
-                int vt_revisionId = (int) vt.getLong(4);
-                
-                assert(!vt.advanceRow()):"This assert should be false, vt has only one row";
+                String vt_userText = vt.getString("USER_TEXT");
+                long vt_pageId = vt.getLong("PAGE_ID");
+                String vt_pageTitle = vt.getString("PAGE_TITLE");
+                String vt_oldText = vt.getString("OLD_TEXT");
+                int vt_textId = (int) vt.getLong("TEXT_ID");
+                int vt_revisionId = (int) vt.getLong("REVISION_ID");
+
+                assert(vt_pageId == pageId) : String.format("pageId=%d / pageTitle=%d", vt_pageId, vt_pageTitle);
+                assert(vt.advanceRow() == false) : "This assert should be false, vt has only one row";
+
                 // Permute the original text of the article
                 // Important: We have to make sure that we fill in the entire array
-                char[] newText = WikipediaUtil.generateRevisionText(vt_oldText.toCharArray());
-                int revCommentLen = WikipediaUtil.commentLength.nextValue().intValue();
-                String revComment = TextGenerator.randomStr(new Random(), revCommentLen);
-                int revMinorEdit = WikipediaUtil.minorEdit.nextValue().intValue();
+                String newText = new String(util.generateRevisionText(vt_oldText.toCharArray()));
+                int revCommentLen = util.h_commentLength.nextValue().intValue();
+                String revComment = TextGenerator.randomStr(this.randGenerator, revCommentLen);
+                int revMinorEdit = util.h_minorEdit.nextValue().intValue();
                 
-                this.nextRevId++;
                 params = new Object[]{
-                        this.nextRevId,
-                        vt_textId,
                         vt_pageId,
-                        pageTitle,
-                        namespace,
-                        new String(newText),
-                        user_id,
+                        vt_textId,
+                        nameSpace,
+                        newText,
+                        userId,
                         user_ip,
                         vt_userText,
                         vt_revisionId, 
@@ -385,13 +378,13 @@ public class WikipediaClient extends BenchmarkComponent {
                         revMinorEdit
                 };
                 break;
-             default:
+            }
+            default:
                  assert(false):"Should not come to this point";
         }
         assert(params != null);
         
-        if (LOG.isDebugEnabled())
-            LOG.info(txn + " Params:\n" + StringUtil.join("\n", params));
+        if (debug.get()) LOG.debug(txn + " Params:\n" + StringUtil.join("\n", params));
         return params;
     }
 }

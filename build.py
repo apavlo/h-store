@@ -150,6 +150,11 @@ if CTX.PLATFORM == "Darwin":
     if int(CTX.PLATFORM_VERSION.split(".")[0]) < 11:
         CTX.CPPFLAGS += " -arch x86_64"
     
+    # 2012-12-18
+    # Disable sign conversion warnings for Mountain Lion
+    if int(CTX.PLATFORM_VERSION.split(".")[0]) >= 12:
+        CTX.CPPFLAGS += " -Wno-sign-conversion"
+    
     CTX.JNIEXT = "jnilib"
     CTX.JNILIBFLAGS = " -bundle"
     CTX.JNIBINFLAGS = " -framework JavaVM,1.6"
@@ -385,6 +390,10 @@ if ENABLE_ANTICACHE:
 # BUILD THE MAKEFILE
 ###############################################################################
 
+print "TARGET PLATFORM: ", CTX.PLATFORM, "-", CTX.PLATFORM_VERSION
+print "CPPFLAGS: ", CTX.CPPFLAGS
+print sys.stdout.flush()
+
 # this function (in buildtools.py) generates the makefile
 # it's currently a bit ugly but it'll get cleaned up soon
 buildMakefile(CTX)
@@ -393,6 +402,7 @@ buildMakefile(CTX)
 # RUN THE MAKEFILE
 ###############################################################################
 numHardwareThreads = 4
+
 if CTX.PLATFORM == "Darwin":
     numHardwareThreads = 0
     output = commands.getstatusoutput("sysctl hw.ncpu")
@@ -406,8 +416,11 @@ elif CTX.PLATFORM == "Linux":
         name,value = name_value
         if name == "processor":
             numHardwareThreads = numHardwareThreads + 1
+else:
+    print "WARNING: Unsupported platform type '%s'" % CTX.PLATFORM
 print "Detected %d hardware threads to use during the build" % (numHardwareThreads)
 
+print 
 retval = os.system("make --directory=%s -j%d nativelibs/libvoltdb.sym" % (CTX.OUTPUT_PREFIX, numHardwareThreads))
 print "Make returned: ", retval
 if retval != 0:

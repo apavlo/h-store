@@ -68,7 +68,7 @@ public class FindOpenSeats extends VoltProcedure {
     };
     
     public final SQLStmt GetFlight = new SQLStmt(
-        "SELECT F_STATUS, F_BASE_PRICE, F_SEATS_TOTAL, F_SEATS_LEFT, " +
+        "SELECT F_BASE_PRICE, F_SEATS_TOTAL, F_SEATS_LEFT, " +
         "       (F_BASE_PRICE + (F_BASE_PRICE * (1 - (F_SEATS_LEFT / F_SEATS_TOTAL)))) AS F_PRICE " +
         "  FROM " + SEATSConstants.TABLENAME_FLIGHT +
         " WHERE F_ID = ?"
@@ -99,18 +99,17 @@ public class FindOpenSeats extends VoltProcedure {
         
         voltQueueSQL(GetFlight, f_id);
         voltQueueSQL(GetSeats, f_id);
-        final VoltTable[] results = voltExecuteSQL();
+        final VoltTable[] results = voltExecuteSQL(true);
         assert (results.length == 2);
         
         // First calculate the seat price using the flight's base price
         // and the number of seats that remaining
         boolean adv = results[0].advanceRow();
         assert(adv);
-        // long status = results[0].getLong(0);
-        double base_price = results[0].getDouble(1);
-        long seats_total = results[0].getLong(2);
-        long seats_left = results[0].getLong(3);
-        double seat_price = results[0].getDouble(4);
+        double base_price = results[0].getDouble(0);
+        long seats_total = results[0].getLong(1);
+        long seats_left = results[0].getLong(2);
+        double seat_price = results[0].getDouble(3);
         
         // TODO: Figure out why this doesn't match the SQL
         double _seat_price = base_price + (base_price * (1.0 - (seats_left/(double)seats_total)));
