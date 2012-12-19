@@ -150,6 +150,11 @@ if CTX.PLATFORM == "Darwin":
     if int(CTX.PLATFORM_VERSION.split(".")[0]) < 11:
         CTX.CPPFLAGS += " -arch x86_64"
     
+    # 2012-12-18
+    # Disable sign conversion warnings for Mountain Lion
+    if int(CTX.PLATFORM_VERSION.split(".")[0]) >= 12:
+        CTX.CPPFLAGS += " -Wno-sign-conversion"
+    
     CTX.JNIEXT = "jnilib"
     CTX.JNILIBFLAGS = " -bundle"
     CTX.JNIBINFLAGS = " -framework JavaVM,1.6"
