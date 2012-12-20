@@ -316,12 +316,13 @@ public class RandomDistribution {
 		int warm_data_size; 
 
 		// the max of the hot/warm/cold ranges, where hot_data_max < warm_data_max < max
+		int min; 
 		int max; 
 		int hot_data_max; 	// integers in the range 0 < x < hot_data_max will represent the "hot" numbers getting hot_data_access_skew% of the accesses 
 		int warm_data_max;  // integers in the range hot_data_max < x < warm_data_max will represent the "warm" numbers
 		
-		public HotWarmCold(Random r, int _max, int _hot_data_access_skew, int _hot_data_size, int _warm_data_access_skew, int _warm_data_size) {
-			super(r, 0, _max); 
+		public HotWarmCold(Random r, int _min, int _max, int _hot_data_access_skew, int _hot_data_size, int _warm_data_access_skew, int _warm_data_size) {
+			super(r, _min, _max); 
 			
 			assert(_hot_data_access_skew + _warm_data_access_skew <= 100) : "Workload skew cannot be more than 100%."; 
 
@@ -330,6 +331,7 @@ public class RandomDistribution {
 			hot_data_size = _hot_data_size; 
 			warm_data_size = _warm_data_size;
 
+			min = _min; 
 			max = _max;  
 
 			hot_data_max = (int)(max * (hot_data_size / (double)100)); 

@@ -114,6 +114,7 @@ public class TPCCSimulation {
     
     protected static long lastAssignedWarehouseId = 1;
     
+	private RandomDistribution.HotWarmCold custom_skew; 
     private RandomDistribution.Zipf zipf;
     
     private int tick_counter = 0;
@@ -138,6 +139,12 @@ public class TPCCSimulation {
                                                     parameters.starting_warehouse,
                                                     parameters.last_warehouse+1,
                                                     Math.max(1.001d, this.skewFactor));
+
+			this.custom_skew = new RandomDistribution.HotWarmCold(new Random(), 
+																  parameters.starting_warehouse,
+																  parameters.last_warehouse+1,
+																  TPCCConstants.HOT_DATA_WORKLOAD_SKEW, TPCCConstants.HOT_DATA_SIZE, 
+																  TPCCConstants.WARM_DATA_WORKLOAD_SKEW, TPCCConstants.WARM_DATA_SIZE);
         }
         if (config.warehouse_debug) {
             LOG.info("Enabling WAREHOUSE debug mode");
@@ -251,7 +258,8 @@ public class TPCCSimulation {
         // ZIPFIAN SKEWED WAREHOUSE ID
         else if (config.neworder_skew_warehouse) {
             assert(this.zipf != null);
-            w_id = (short)this.zipf.nextInt();
+            //w_id = (short)this.zipf.nextInt();
+			w_id = (short)this.custom_skew.nextInt(); 
         }
         // GAUSSIAN SKEWED WAREHOUSE ID
         else if (skewFactor > 0.0d) {

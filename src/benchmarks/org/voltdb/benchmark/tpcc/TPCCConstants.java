@@ -95,6 +95,12 @@ public final class TPCCConstants {
     // 2 digits after the decimal point for money types
     public static final int MONEY_DECIMALS = 2;
 
+	// skew constants
+	public static final int HOT_DATA_SIZE = 20; 
+	public static final int HOT_DATA_WORKLOAD_SKEW = 80; 
+	public static final int WARM_DATA_SIZE = 20; 
+	public static final int WARM_DATA_WORKLOAD_SKEW = 10;
+
     // Item constants
     public static final int NUM_ITEMS = 100000;
     public static final int MIN_IM = 1;

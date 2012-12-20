@@ -2659,14 +2659,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_MISPREDICT:
                 case ABORT_RESTART:
                 case ABORT_EVICTEDACCESS:
-<<<<<<< HEAD
-
-					if (status == Status.ABORT_EVICTEDACCESS) {
-						LOG.info("status is ABORT_EVICTEDACCESS");
-                    }
-=======
                 case ABORT_SPECULATIVE:
->>>>>>> upstream/master
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
                         t_estimator.abort(t_state, status);

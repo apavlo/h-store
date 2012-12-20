@@ -179,46 +179,6 @@ public class WikipediaClient extends BenchmarkComponent {
         return this.txnWeights.nextValue();
     }
     
-    @Override
-    public void startCallback() {
-        Client client = this.getClientHandle();
-        ClientResponse cr = null;
-        try {
-            cr = client.callProcedure(GetPagesInfo.class.getSimpleName());
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to get pages info", ex);
-        }
-        assert(cr != null);
-        assert(cr.getStatus() == Status.OK);
-        
-        // Execute GetArticles stored procedure and get back the list
-        // of pageIds and pageTitles.
-        // Build a HashMap<Long, String[]> that gives you the pageTitle for a pageId
-        // Where first element is namespace, second is title
-        VoltTable res[] = cr.getResults();
-        VoltTable vt = res[0];
-        LOG.info("vt:\n"+ vt);
-        while (vt.advanceRow()) {
-            int page_id = (int) vt.getLong(0);
-            int namespace = (int) vt.getLong(1);
-            String title = vt.getString(2);
-            Object data[] = { namespace, title};
-            if (!WikipediaClient.m_titleMap.containsKey(page_id)) {
-                WikipediaClient.m_titleMap.put(page_id, data);
-            } else {
-                //assert(false):"There should not have duplicate page_ids";
-            }
-        } // WHILE
-        double m_scalefactor = 1.0;
-        int num_users = (int) Math.round(WikipediaConstants.USERS * m_scalefactor);
-        //int num_pages = (int) Math.round(WikipediaConstants.PAGES * m_scalefactor);
-        this.z_users = new Flat(this.randGenerator, 1, num_users);
-        this.z_pages = new Zipf(this.randGenerator, 1, WikipediaClient.m_titleMap.size(), WikipediaConstants.USER_ID_SIGMA);
-        assert(z_users!=null && z_pages!=null):"null users or pages";
-        
-        
-    }
- 
     /**
      * Benchmark execution loop
      */
