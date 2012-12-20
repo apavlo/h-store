@@ -390,9 +390,9 @@ if ENABLE_ANTICACHE:
 # BUILD THE MAKEFILE
 ###############################################################################
 
-print "TARGET PLATFORM: ", CTX.PLATFORM, "-", CTX.PLATFORM_VERSION
-print "CPPFLAGS: ", CTX.CPPFLAGS
-print sys.stdout.flush()
+#print "TARGET PLATFORM: ", CTX.PLATFORM, "-", CTX.PLATFORM_VERSION
+#print "CPPFLAGS: ", CTX.CPPFLAGS
+#print sys.stdout.flush()
 
 # this function (in buildtools.py) generates the makefile
 # it's currently a bit ugly but it'll get cleaned up soon
