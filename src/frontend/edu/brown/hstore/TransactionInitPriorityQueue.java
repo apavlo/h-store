@@ -202,9 +202,10 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             if (txnId.compareTo(this.newestCandidateTransaction) > 0) {
                 newState = QueueState.BLOCKED_ORDERING;
             }
-            else if (this.lastSafeTxnId != null && txnId.compareTo(this.lastSafeTxnId) > 0) {
+            else if (txnId.compareTo(this.lastSafeTxnId) > 0) {
                 newState = QueueState.BLOCKED_SAFETY;
             }
+            if (t) LOG.trace(String.format("Partition %d :: NewState=%s\n%s", this.partitionId, newState, this.debug()));
         }
         if (newState != this.state) {
             // note if we get non-empty but blocked
