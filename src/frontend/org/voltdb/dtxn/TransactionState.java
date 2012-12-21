@@ -37,6 +37,7 @@ import edu.brown.hstore.PartitionExecutor;
  * ultimately it will return true from finished().
  *
  */
+@Deprecated
 public abstract class TransactionState implements Comparable<TransactionState> {
 
     public final long txnId;

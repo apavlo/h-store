@@ -473,7 +473,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // was released but then it was deleted and cleaned-up. This means that its txn id
         // might be null. A better way to do this is to only have each PartitionExecutor
         // insert the new transaction into its queue. 
-        Long next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSeen(ts);
+        Long next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSeen(txn_id);
         
         // The next txnId that we're going to try to execute is already greater
         // than this new txnId that we were given! Rejection!

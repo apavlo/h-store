@@ -233,7 +233,7 @@ public class SpecExecScheduler implements Loggable {
             if (this.profiling) profiler.success++;
             if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
                 this.lastIterator.remove();
-                this.work_queue.clear(next);
+                // FIXME this.work_queue.clear(next);
             } else {
                 this.work_queue.remove(next);
             }
