@@ -231,6 +231,12 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                               this.waitTime, debug));
                 }
             }
+            else if (newState == QueueState.UNBLOCKED) {
+                if (this.blockTime > EstTime.currentTimeMillis()) {
+                    newState = QueueState.BLOCKED_SAFETY;
+                }
+            }
+            
             // Sanity Check
             if ((this.state == QueueState.BLOCKED_ORDERING) || (this.state == QueueState.BLOCKED_SAFETY)) {
                 assert(this.state != QueueState.BLOCKED_EMPTY);
