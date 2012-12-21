@@ -315,6 +315,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             this.lockQueueInsert(next_init, partition, wrapper);
         } // WHILE
         if (hstore_conf.site.queue_profiling) profilers[partition].init_queue.stop();
+        if (this.checkFlag.availablePermits() == 0)
+            this.checkFlag.release();
     }
     
     protected void initTransaction(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
@@ -324,6 +326,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.initQueues[partition].add(ts);      
             }
         } // FOR
+        if (this.checkFlag.availablePermits() == 0)
+            this.checkFlag.release();
     }
     
     
