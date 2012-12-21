@@ -89,7 +89,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     @Override
     public AbstractTransaction poll() {
         AbstractTransaction retval = null;
-        if (this.state == QueueState.UNBLOCKED) {
+        if (this.state == QueueState.UNBLOCKED || 
+            (this.state == QueueState.BLOCKED_SAFETY && this.blockTime < EstTime.currentTimeMillis())) {
             assert(checkQueueState() == QueueState.UNBLOCKED);
             retval = super.poll();
             assert(retval != null);

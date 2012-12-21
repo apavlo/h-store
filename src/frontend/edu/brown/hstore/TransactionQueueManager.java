@@ -216,8 +216,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug("Starting distributed transaction queue manager thread");
         
         while (this.stop == false) {
-            EstTimeUpdater.update(System.currentTimeMillis());
-            
             // if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
                 this.checkFlag.tryAcquire(this.wait_time, TimeUnit.MILLISECONDS);

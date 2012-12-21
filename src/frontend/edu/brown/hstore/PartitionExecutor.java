@@ -207,10 +207,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
          */
         DISABLED,
         /**
-         * TODO:
-         */
-        DISABLED_SINGLE_PARTITION,
-        /**
          * Reject any transaction that tries to get added
          */
         DISABLED_REJECT,
@@ -958,10 +954,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // TODO: If we get something back here, it should be come our
         // current distributed transaction.
         // XXX this.queueManager.checkInitQueue(this.partitionId, 10);
+        EstTimeUpdater.update(System.currentTimeMillis());
         AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
         if (next != null && next.isPredictSinglePartition() == false) {
             this.setCurrentDtxn(next);
-            this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
+            this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
             if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
             // return (null); // FIXME
         }
@@ -1978,9 +1975,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // HACK: If we are currently under DISABLED mode when we get this, then we just 
                 // need to block the transaction and return back to the queue. This is easier than 
                 // having to set all sorts of crazy locks
-                if (this.currentExecMode == ExecutionMode.DISABLED 
-                		|| this.currentExecMode == ExecutionMode.DISABLED_SINGLE_PARTITION 
-                		|| hstore_conf.site.specexec_enable == false) {
+                if (this.currentExecMode == ExecutionMode.DISABLED || hstore_conf.site.specexec_enable == false) {
                     if (d) LOG.debug(String.format("%s - Blocking single-partition %s until dtxn finishes [mode=%s]",
                                      this.currentDtxn, ts, this.currentExecMode));
                     this.blockTransaction(ts);
