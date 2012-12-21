@@ -23,6 +23,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.TransactionInitPriorityQueue.QueueState;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -235,7 +236,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             
             // Release transactions for initialization
             for (int partition : this.localPartitions.values()) {
-                this.checkInitQueue(partition);
+                int added = this.checkInitQueue(partition);
+                if (added == 0) {
+                    QueueState state = this.lockQueues[partition].checkQueueState();
+                    if (t) LOG.trace(String.format("Partition %d :: State=%s", partition, state));
+                }
             } // FOR
             
             // Release blocked distributed transactions
@@ -304,15 +309,19 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // INIT QUEUES
     // ----------------------------------------------------------------------------
 
-    protected void checkInitQueue(int partition) {
+    protected int checkInitQueue(int partition) {
         if (hstore_conf.site.queue_profiling) profilers[partition].init_queue.start();
         // Process initialization queue
         AbstractTransaction next_init = null;
+        int added = 0;
         while ((next_init = this.initQueues[partition].poll()) != null) {
             TransactionInitQueueCallback wrapper = next_init.getTransactionInitQueueCallback();
-            this.lockQueueInsert(next_init, partition, wrapper);
+            if (this.lockQueueInsert(next_init, partition, wrapper)) {
+                added++;
+            }
         } // WHILE
         if (hstore_conf.site.queue_profiling) profilers[partition].init_queue.stop();
+        return (added);
     }
     
     protected void initTransaction(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {

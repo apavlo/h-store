@@ -89,9 +89,9 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     @Override
     public AbstractTransaction poll() {
         AbstractTransaction retval = null;
-        if (this.state == QueueState.UNBLOCKED || 
-            (this.state == QueueState.BLOCKED_SAFETY && this.blockTime < EstTime.currentTimeMillis())) {
-            assert(checkQueueState() == QueueState.UNBLOCKED);
+        if (this.state == QueueState.UNBLOCKED) {
+            assert(this.checkQueueState() == QueueState.UNBLOCKED) : 
+                "Unexpected state\n" + this.debug();
             retval = super.poll();
             assert(retval != null);
             this.txnsPopped++;
@@ -188,7 +188,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         return this.lastSeenTxnId;
     }
 
-    protected QueueState checkQueueState() {
+    protected synchronized QueueState checkQueueState() {
         QueueState newState = QueueState.UNBLOCKED;
         AbstractTransaction ts = super.peek();
         if (ts == null) {
@@ -226,9 +226,9 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                         m.put("Block Time Remaining", (this.blockTime - timestamp));
                         debug = "\n" + StringUtil.formatMaps(m);
                     }
-                    LOG.debug(String.format("Partition %d :: Blocking %s for %d ms [maxWait=%d]%s",
+                    LOG.debug(String.format("Partition %d :: Blocking %s for %d ms [maxWait=%d, newState=%s]%s",
                               this.partitionId, ts, (this.blockTime - timestamp),
-                              this.waitTime, debug));
+                              this.waitTime, newState, debug));
                 }
             }
             else if (newState == QueueState.UNBLOCKED) {
@@ -253,6 +253,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     public String debug() {
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("PartitionId", this.partitionId);
+        m.put("Current State", this.state);
         m.put("# of Elements", this.size());
         m.put("Wait Time", this.waitTime);
         m.put("Next Time Remaining", Math.max(0, EstTime.currentTimeMillis() - this.blockTime));
