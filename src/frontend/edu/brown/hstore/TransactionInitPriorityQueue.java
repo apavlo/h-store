@@ -90,13 +90,15 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     public AbstractTransaction poll() {
         AbstractTransaction retval = null;
         if (this.state == QueueState.UNBLOCKED) {
-            assert(this.checkQueueState() == QueueState.UNBLOCKED) : 
-                "Unexpected state\n" + this.debug();
+            // 2012-12-21
+            // So this is allow to be null because there is a race condition 
+            // if another thread removes the txn from the queue.
             retval = super.poll();
-            assert(retval != null);
-            this.txnsPopped++;
-            this.lastTxnPopped = retval.getTransactionId();
-            // call this again to check
+            if (retval != null) {
+                this.txnsPopped++;
+                this.lastTxnPopped = retval.getTransactionId();
+            }
+            // call this again to prime the next txn
             this.checkQueueState();
         }
         if (d && retval != null)
