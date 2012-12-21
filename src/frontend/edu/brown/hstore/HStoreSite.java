@@ -1878,13 +1878,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         TransactionInitQueueCallback wrapper = ts.initTransactionInitQueueCallback(callback);
         assert(wrapper.isInitialized());
-        for (int partition : ts.getPredictTouchedPartitions().values()) {
-            if (this.isLocalPartition(partition)) {
-                this.executors[partition].queueInit(ts);
-            }
-        } // FOR
+        this.txnQueueManager.initTransaction(ts, callback);
         
-        // this.txnQueueManager.initTransaction(ts, callback);
+//        for (int partition : ts.getPredictTouchedPartitions().values()) {
+//            if (this.isLocalPartition(partition)) {
+//                this.executors[partition].queueInit(ts);
+//            }
+//        } // FOR
+        
+        
     }
 
     /**

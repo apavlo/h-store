@@ -2020,8 +2020,8 @@ UTILITIES
     <java fork="yes" classname="edu.brown.catalog.conflicts.ConflictSetTableDumper">
         <jvmarg value="-Xmx512m" />
         <arg value="catalog.jar=${jar}" />
-        <arg value="conflicts.exclude_procedures=${excludeProcedures}" />
-        <arg value="conflicts.exclude_statements=${excludeStatements}" />
+        <arg value="conflicts.exclude_procedures=${excludeProcs}" />
+        <arg value="conflicts.exclude_statements=${excludeStmts}" />
         <arg value="conflicts.focus=${focus}" />
         <arg line="${output}" />
         <classpath refid='project.classpath' />

@@ -720,7 +720,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      */
     public final TransactionInitQueueCallback initTransactionInitQueueCallback(RpcCallback<TransactionInitResponse> callback) {
         assert(this.isInitialized());
-        assert(this.initQueue_callback.isInitialized() == false);
+        assert(this.initQueue_callback.isInitialized() == false) : 
+            String.format("Trying to initialize %s for %s more than once",
+                          this.initQueue_callback.getClass().getSimpleName(), this);
         this.initQueue_callback.init(this, this.predict_touchedPartitions, callback);
         return (this.initQueue_callback);
     }

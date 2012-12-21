@@ -16,9 +16,13 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
+import com.google.protobuf.RpcCallback;
+
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -137,7 +141,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * A queue of transactions that need to be added to the lock queues at the partitions 
      * at this site.
      */
-//    private final Queue<AbstractTransaction> initQueues[];// = new ConcurrentLinkedQueue<AbstractTransaction>(); 
+    private final Queue<AbstractTransaction> initQueues[];// = new ConcurrentLinkedQueue<AbstractTransaction>(); 
     
     // ----------------------------------------------------------------------------
     // TRANSACTIONS THAT NEED TO BE REQUEUED
@@ -169,7 +173,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
         this.lockQueuesBlocked = new boolean[this.lockQueues.length];
         this.lockQueuesLastTxn = new Long[this.lockQueues.length];
-//        this.initQueues = new Queue[num_partitions];
+        this.initQueues = new Queue[num_partitions];
         this.profilers = new TransactionQueueManagerProfiler[num_partitions];
         
         this.updateConf(this.hstore_conf);
@@ -180,7 +184,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             if (this.hstore_site.isLocalPartition(partition)) {
                 this.lockQueues[partition] = new TransactionInitPriorityQueue(hstore_site, partition, this.wait_time);
                 this.lockQueuesBlocked[partition] = false;
-//                this.initQueues[partition] = new ConcurrentLinkedQueue<AbstractTransaction>();
+                this.initQueues[partition] = new ConcurrentLinkedQueue<AbstractTransaction>();
                 this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
             }
         } // FOR
@@ -212,9 +216,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug("Starting distributed transaction queue manager thread");
         
         while (this.stop == false) {
+            EstTimeUpdater.update(System.currentTimeMillis());
+            
             // if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
-                this.checkFlag.tryAcquire(this.wait_time*2, TimeUnit.MILLISECONDS);
+                this.checkFlag.tryAcquire(this.wait_time, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 // Nothing...
             } finally {
@@ -230,9 +236,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
 //            if (hstore_conf.site.queue_profiling && profiler.lock_queue.isStarted()) profiler.lock_queue.stop();
             
             // Release transactions for initialization
-//            if (hstore_conf.site.queue_profiling) profiler.init_queue.start();
-//            this.checkInitQueue();
-//            if (hstore_conf.site.queue_profiling && profiler.init_queue.isStarted()) profiler.init_queue.stop();
+            for (int partition : this.localPartitions.values()) {
+                this.checkInitQueue(partition);
+            } // FOR
             
             // Release blocked distributed transactions
 //            if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
@@ -300,19 +306,26 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // INIT QUEUES
     // ----------------------------------------------------------------------------
 
-    @Deprecated
-    protected void checkInitQueue(int partition, int max) {
+    protected void checkInitQueue(int partition) {
         if (hstore_conf.site.queue_profiling) profilers[partition].init_queue.start();
         // Process initialization queue
-//        int added = 0;
-//        AbstractTransaction next_init = null;
-//        while ((next_init = this.initQueues[partition].poll()) != null) {
-//            TransactionInitQueueCallback wrapper = next_init.getTransactionInitQueueCallback();
-//            this.lockQueueInsert(next_init, partition, wrapper);
-//            if (++added > max) break;
-//        } // WHILE
+        AbstractTransaction next_init = null;
+        while ((next_init = this.initQueues[partition].poll()) != null) {
+            TransactionInitQueueCallback wrapper = next_init.getTransactionInitQueueCallback();
+            this.lockQueueInsert(next_init, partition, wrapper);
+        } // WHILE
         if (hstore_conf.site.queue_profiling) profilers[partition].init_queue.stop();
     }
+    
+    protected void initTransaction(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
+        // Initialize their TransactionInitQueueCallback
+        for (int partition : ts.getPredictTouchedPartitions().values()) {
+            if (this.localPartitions.contains(partition)) {
+                this.initQueues[partition].add(ts);      
+            }
+        } // FOR
+    }
+    
     
     /**
      * Check whether there are any transactions that need to be released for execution
@@ -559,20 +572,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
     }
 
-//    @Deprecated
-//    protected void initTransaction(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
-//        // Initialize their TransactionInitQueueCallback
-//        TransactionInitQueueCallback wrapper = ts.initTransactionInitQueueCallback(callback);
-//        assert(wrapper.isInitialized());
-//        // this.lockQueueInsert(ts, ts.getPredictTouchedPartitions(), wrapper);
-//        
-//        for (int partition : ts.getPredictTouchedPartitions().values()) {
-//            if (this.localPartitions.contains(partition)) {
-//                this.initQueues[partition].add(ts);      
-//            }
-//        } // FOR
-//    }
-    
     // ----------------------------------------------------------------------------
     // INTERNAL METHODS
     // ----------------------------------------------------------------------------

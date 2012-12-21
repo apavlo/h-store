@@ -121,8 +121,8 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
+import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
@@ -954,6 +954,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     protected InternalMessage getNext() {
         InternalMessage work = null;
+        
+        // TODO: If we get something back here, it should be come our
+        // current distributed transaction.
+        // XXX this.queueManager.checkInitQueue(this.partitionId, 10);
+        AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
+        if (next != null && next.isPredictSinglePartition() == false) {
+            this.setCurrentDtxn(next);
+            this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
+            if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
+            // return (null); // FIXME
+        }
+        
+        // TODO: We need to consolidate the polls on the work queue here
+        // We should always be checking utilityWork as long as we don't have real work
+        // for the current txn at this partition
+        
         while ((work = this.work_queue.poll()) == null) {
             // See if there is anything else that we can do while we wait
             if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
@@ -998,20 +1014,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         // Poll Lock Queue
         // -------------------------------
-
-        // TODO: If we get something back here, it should be come our
-        // current distributed transaction.
-        // XXX this.queueManager.checkInitQueue(this.partitionId, 10);
-        if (this.currentDtxn == null) {
-            EstTimeUpdater.update(System.currentTimeMillis());
-            AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
-            if (next != null && next.isPredictSinglePartition() == false) {
-                this.setCurrentDtxn(next);
-                this.setExecutionMode(this.currentDtxn, ExecutionMode.DISABLED_SINGLE_PARTITION);
-                if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
-                return (false);
-            }
-        }
 
         LocalTransaction spec_ts = null;
         InternalMessage work = null;
