@@ -203,6 +203,13 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         } // FOR
         return (true);
     }
+    public boolean containsAll(PartitionSet partitions) {
+        if (this.contains_null != partitions.contains_null) return (false);
+        for (int partition = 0, cnt = partitions.inner.size(); partition < cnt; partition++) {
+            if (partitions.inner.get(partition) && this.inner.get(partition) == false) return (false);
+        } // FOR
+        return (true);
+    }
     @Override
     public boolean addAll(Collection<? extends Integer> partitions) {
         boolean ret = true;
@@ -227,7 +234,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
             } else {
                 ret = false;
             }
-        }
+        } // FOR
         return (ret);
     }
     @Override
@@ -236,15 +243,15 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
             if (c.contains(partition) == false) {
                 this.remove(partition);
             }
-        }
+        } // FOR
         return (true);
     }
     public boolean retainAll(PartitionSet partitions) {
-        for (Integer partition : this) {
-            if (partitions.contains(partition.intValue()) == false) {
-                this.remove(partition.intValue());
+        for (int partition = 0, cnt = partitions.inner.size(); partition < cnt; partition++) {
+            if (partitions.inner.get(partition) == false) {
+                this.remove(partition);
             }
-        }
+        } // FOR
         return (true);
     }
     @Override
