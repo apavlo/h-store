@@ -155,7 +155,7 @@ public class TestPartitionExecutor extends BaseTestCase {
             //      that we executed on it.
             Map<String, Long> expected = new HashMap<String, Long>();
             expected.put("TRANSACTIONS", basePartitions.get(partition, 0l));
-            expected.put("IDLE_WAITING_DTXN_CNT", num_txns+1l);
+            // expected.put("IDLE_WAITING_DTXN_CNT", num_txns+1l);
             expected.put("IDLE_DTXN_QUERY_CNT", basePartitions.get(partition, 0l)+1);
             expected.put("IDLE_TWO_PHASE_LOCAL_CNT", Math.min(basePartitions.get(partition, 0l), 1));
             expected.put("NETWORK_CNT", Math.min(basePartitions.get(partition, 0l), 1));
