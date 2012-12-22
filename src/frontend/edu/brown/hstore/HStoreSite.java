@@ -88,6 +88,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
+import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.SlowTransactionInitCallback;
@@ -1859,13 +1860,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // This callback prevents us from making additional requests to the Dtxn.Coordinator until
         // we get hear back about our our initialization request
-        SlowTransactionInitCallback callback = ts.initTransactionInitCallback();
+        // SlowTransactionInitCallback callback = ts.initTransactionInitCallback();
         if (ts.isPredictSinglePartition()) {
             this.transactionInit(ts);
         }
         else {
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitDtxn();
-            this.hstore_coordinator.transactionInit(ts, callback);
+            LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getTransactionInitQueueCallback();
+            this.hstore_coordinator.transactionInit(ts, initCallback);
         }
     }
     

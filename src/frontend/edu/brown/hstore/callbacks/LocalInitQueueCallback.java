@@ -5,15 +5,19 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.TransactionQueueManager;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-public class MultiPartitionInitQueueCallback extends PartitionCountingCallback<LocalTransaction> implements RpcCallback<TransactionInitResponse> {
-    private static final Logger LOG = Logger.getLogger(MultiPartitionInitQueueCallback.class);
+/**
+ * 
+ * @author pavlo
+ */
+public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTransaction> implements RpcCallback<TransactionInitResponse> {
+    private static final Logger LOG = Logger.getLogger(LocalInitQueueCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -26,7 +30,7 @@ public class MultiPartitionInitQueueCallback extends PartitionCountingCallback<L
     // INTIALIZATION
     // ----------------------------------------------------------------------------
     
-    public MultiPartitionInitQueueCallback(HStoreSite hstore_site) {
+    public LocalInitQueueCallback(HStoreSite hstore_site) {
         super(hstore_site);
         this.txnQueueManager = hstore_site.getTransactionQueueManager();
     }
@@ -71,6 +75,5 @@ public class MultiPartitionInitQueueCallback extends PartitionCountingCallback<L
         for (Integer partition : parameter.getPartitionsList()) {
             this.run(partition.intValue());
         } // FOR
-        
     }
 }

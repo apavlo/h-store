@@ -740,7 +740,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
             
             TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
             if (requests == null) {
-                sendDefaultTransactionInitRequests(ts, callback);
+                this.sendDefaultTransactionInitRequests(ts, callback);
                 return;
             }
             int sent_ctr = 0;
@@ -751,10 +751,11 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
                 if (requests[site_id] == null) continue;
                 
                 if (site_id == this.local_site_id) {
-                    this.transactionInit_handler.sendLocal(ts.getTransactionId(),
-                                                           requests[site_id],
-                                                           ts.getPredictTouchedPartitions(),
-                                                           callback);
+                    this.hstore_site.transactionInit(ts);
+//                    this.transactionInit_handler.sendLocal(ts.getTransactionId(),
+//                                                           requests[site_id],
+//                                                           ts.getPredictTouchedPartitions(),
+//                                                           callback);
                 }
                 else {
                     ProtoRpcController controller = ts.getTransactionInitController(site_id);
@@ -773,7 +774,7 @@ public class HStoreCoordinator implements Shutdownable, Loggable {
         }
         // Otherwise we will send the same TransactionInitRequest to all of the remote sites 
         else {
-            sendDefaultTransactionInitRequests(ts, callback);
+            this.sendDefaultTransactionInitRequests(ts, callback);
         }
         
         // TODO(pavlo): Add the ability to allow a partition that rejects a InitRequest to send notifications

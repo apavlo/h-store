@@ -228,6 +228,7 @@ public class RemoteTransaction extends AbstractTransaction {
         
         // Additional Info
         m = new LinkedHashMap<String, Object>();
+        m.put("InitQueue Callback", this.getTransactionInitQueueCallback());
         m.put("PrepareWrapper Callback", this.prepareWrapper_callback);
         m.put("Work Callback", this.work_callback);
         m.put("CleanUp Callback", this.cleanup_callback);

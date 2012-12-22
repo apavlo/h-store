@@ -76,7 +76,13 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         if (ts instanceof LocalTransaction) {
             partitions = ((LocalTransaction)ts).getPredictTouchedPartitions();
         } else {
-            partitions = new PartitionSet(request.getPartitionsList());
+            partitions = new PartitionSet();
+            // Remove non-local partitions
+            for (Integer partition : request.getPartitionsList()) {
+                if (hstore_site.isLocalPartition(partition.intValue())) {
+                    partitions.add(partition.intValue());
+                }
+            } // FOR
         }
         
         // If we don't have a handle, we need to make one so that we can stick in the

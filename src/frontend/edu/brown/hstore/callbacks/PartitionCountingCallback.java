@@ -9,6 +9,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionSet;
@@ -118,6 +119,13 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     }
     
     /**
+     * Return the current state of this callback's internal counter
+     */
+    public final int getCounter() {
+        return (this.counter.get());
+    }
+    
+    /**
      * Return all of the partitions involved in this callback.
      */
     public PartitionSet getPartitions() {
@@ -129,6 +137,34 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      */
     public PartitionSet getReceivedPartitions() {
        return (this.receivedPartitions); 
+    }
+    
+    /**
+     * Tell the HStoreCoordinator to invoke the TransactionFinish process
+     * @param status
+     */
+    protected final void finishTransaction(Status status) {
+        assert(this.ts != null) :
+            "Null transaction handle for txn #" + this.orig_txn_id;
+        if (debug.get()) LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
+                                   this.ts, this.getClass().getSimpleName(), status));
+        
+        // Let everybody know that the party is over!
+        if (this.ts instanceof LocalTransaction) {
+            LocalTransaction local_ts = (LocalTransaction)this.ts;
+            TransactionFinishCallback finish_callback = local_ts.initTransactionFinishCallback(status);
+            this.hstore_site.getCoordinator().transactionFinish(local_ts, status, finish_callback);
+        }
+    }
+    
+    protected final Long getOrigTransactionId() {
+        return (this.orig_txn_id);
+    }
+    protected final int getOrigCounter() {
+        return (this.orig_counter);
+    }
+    protected final void clearCounter() {
+        this.counter.set(0);
     }
     
     
@@ -230,14 +266,13 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
             // Note that we do this *even* if we haven't heard back from the remote
             // HStoreSite that they've acknowledged our transaction
             // We don't care when we get the response for this
-//            if (finish && this.ts.isPredictSinglePartition() == false) {
-//                if (this.ts instanceof LocalTransaction) {
-//                    this.finishTransaction(status);
-//                } else {
-//                    // FIXME
-//                }
-//            }
-            
+            if (this.ts.isPredictSinglePartition() == false) {
+                if (this.ts instanceof LocalTransaction) {
+                    this.finishTransaction(status);
+                } else {
+                    // FIXME
+                }
+            }
             this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), status);
         }
     }
