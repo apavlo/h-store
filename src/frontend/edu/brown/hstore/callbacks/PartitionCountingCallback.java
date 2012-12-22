@@ -11,10 +11,9 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
 
-public abstract class PartitionCountingCallback<X extends AbstractTransaction> implements Poolable {
+public abstract class PartitionCountingCallback<X extends AbstractTransaction> implements TransactionCallback {
     private static final Logger LOG = Logger.getLogger(PartitionCountingCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -30,7 +29,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     protected final HStoreConf hstore_conf;
     private final AtomicInteger counter = new AtomicInteger(0);
     private final PartitionSet partitions = new PartitionSet();
-    private final PartitionSet recievedPartitions = new PartitionSet();
+    private final PartitionSet receivedPartitions = new PartitionSet();
     
     /**
      * The current transaction handle that this callback is assigned to
@@ -94,7 +93,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param ts - The transaction handle for this callback
      * @param partitions - The partitions that we expected to get notifications for
      */
-    protected void init(X ts, PartitionSet partitions) {
+    public void init(X ts, PartitionSet partitions) {
         if (debug.get()) LOG.debug(String.format("%s - Initialized new %s with partitions %s counter = %d hashCode=%d]",
                                    ts, this.getClass().getSimpleName(), partitions, this.hashCode()));
         int counter_val = partitions.size();
@@ -118,13 +117,27 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         return (this.ts);
     }
     
+    /**
+     * Return all of the partitions involved in this callback.
+     */
+    public PartitionSet getPartitions() {
+        return (this.partitions);
+    }
+    
+    /**
+     * Return all of the partitions that this callback has received.
+     */
+    public PartitionSet getReceivedPartitions() {
+       return (this.receivedPartitions); 
+    }
+    
     
     // ----------------------------------------------------------------------------
     // RUN
     // ----------------------------------------------------------------------------
     
     public final void run(int partition) {
-        int delta = this.runImpl(partition);
+        int delta = 1; // XXX this.runImpl(partition);
         int new_count = this.counter.addAndGet(-1 * delta);
         if (debug.get()) LOG.debug(String.format("%s - %s.run() / COUNTER: %d - %d = %d%s",
                                    this.ts, this.getClass().getSimpleName(),
@@ -158,7 +171,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param parameter Needs to be >=0
      * @return
      */
-    protected abstract int runImpl(int partition);
+    // protected abstract int runImpl(int partition);
     
     // ----------------------------------------------------------------------------
     // SUCCESSFUL UNBLOCKING
@@ -195,9 +208,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     // ABORT
     // ----------------------------------------------------------------------------
     
-    /**
-     * 
-     */
+    @Override
     public final void abort(Status status) {
         assert(this.ts != null) :
             String.format("Null transaction handle for txn #%s in %s [counter=%d/%d]",
@@ -231,9 +242,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         }
     }
     
-    /**
-     * Returns true if this callback has invoked the abortCallback() method
-     */
+    @Override
     public final boolean isAborted() {
         return (this.abortInvoked.get());
     }
@@ -248,17 +257,11 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     // CANCEL
     // ----------------------------------------------------------------------------
     
-    /**
-     * Mark this callback as canceled. No matter what happens in the future,
-     * this callback will not invoke either the run or abort callbacks
-     */
+    @Override
     public void cancel() {
         this.canceled.set(true);
     }
-        
-    /**
-     * Returns true if this callback has been cancelled
-     */
+    @Override
     public final boolean isCanceled() {
         return (this.canceled.get());
     }
@@ -277,7 +280,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         this.canceled.lazySet(false);
         this.finishImpl();
         this.partitions.clear();
-        this.recievedPartitions.clear();
+        this.receivedPartitions.clear();
         this.ts = null;
     }
     
