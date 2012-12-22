@@ -1232,7 +1232,7 @@ public class PartitionEstimator implements Loggable {
      * @return
      */
     private void calculatePartitionsForCache(Map<String, PartitionSet> entry_table_partitions,
-                                             Collection<Integer> entry_all_partitions,
+                                             PartitionSet entry_all_partitions,
                                              PartitionEstimator.CacheEntry cache_entry,
                                              Object params[],
                                              Integer base_partition) throws Exception {
