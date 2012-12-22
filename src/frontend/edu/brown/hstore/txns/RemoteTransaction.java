@@ -35,6 +35,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.logging.LoggerUtil;
@@ -56,12 +57,33 @@ public class RemoteTransaction extends AbstractTransaction {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    // ----------------------------------------------------------------------------
+    // CALLBACKS
+    // ----------------------------------------------------------------------------
+    
+    private final PartitionCountingCallback<RemoteTransaction> init_callback;
     private final TransactionWorkCallback work_callback;
     private final TransactionCleanupCallback cleanup_callback;
+    
+    // ----------------------------------------------------------------------------
+    // PREFETCH
+    // ----------------------------------------------------------------------------
+    
     private final ProtoRpcController rpc_transactionPrefetch[];
     
+    // ----------------------------------------------------------------------------
+    // INITIALIZATION
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Constructor
+     * This does not fully initialize this transaction.
+     * You must call init() before this can be used
+     * @param hstore_site
+     */
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
+        this.init_callback = null;
         this.work_callback = new TransactionWorkCallback(hstore_site);
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
         
@@ -69,6 +91,16 @@ public class RemoteTransaction extends AbstractTransaction {
         this.rpc_transactionPrefetch = new ProtoRpcController[num_localPartitions];
     }
     
+    /**
+     * Main initialization method for RemoteTransaction
+     * @param txnId
+     * @param base_partition
+     * @param parameters
+     * @param catalog_proc
+     * @param partitions
+     * @param predict_abortable
+     * @return
+     */
     public RemoteTransaction init(long txnId,
                                   int base_partition,
                                   ParameterSet parameters,
@@ -128,6 +160,17 @@ public class RemoteTransaction extends AbstractTransaction {
         return (super.isDeletable());
     }
     
+    // ----------------------------------------------------------------------------
+    // CALLBACK METHODS
+    // ----------------------------------------------------------------------------
+    
+    @SuppressWarnings("unchecked")
+    @Override
+    public PartitionCountingCallback<RemoteTransaction> getTransactionInitQueueCallback() {
+        // FIXME
+        return (null);
+    }
+    
     public TransactionWorkCallback getWorkCallback() {
         return (this.work_callback);
     }
@@ -160,6 +203,10 @@ public class RemoteTransaction extends AbstractTransaction {
         }
         return (this.rpc_transactionPrefetch[offset]);
     }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG STUFF
+    // ----------------------------------------------------------------------------
 
     @Override
     public String toStringImpl() {
@@ -181,7 +228,6 @@ public class RemoteTransaction extends AbstractTransaction {
         
         // Additional Info
         m = new LinkedHashMap<String, Object>();
-        m.put("InitQueue Callback", this.initQueue_callback);
         m.put("PrepareWrapper Callback", this.prepareWrapper_callback);
         m.put("Work Callback", this.work_callback);
         m.put("CleanUp Callback", this.cleanup_callback);

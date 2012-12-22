@@ -88,8 +88,9 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.TransactionInitCallback;
+import edu.brown.hstore.callbacks.SlowTransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -1858,9 +1859,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // This callback prevents us from making additional requests to the Dtxn.Coordinator until
         // we get hear back about our our initialization request
-        TransactionInitCallback callback = ts.initTransactionInitCallback();
+        SlowTransactionInitCallback callback = ts.initTransactionInitCallback();
         if (ts.isPredictSinglePartition()) {
-            this.transactionInit(ts, callback);
+            this.transactionInit(ts);
         }
         else {
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitDtxn();
@@ -1871,22 +1872,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Queue the given transaction to be initialized
      * @param ts
-     * @param callback
      */
-    public void transactionInit(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
+    public void transactionInit(AbstractTransaction ts) {
         assert(ts.isInitialized()) : "Uninitialized transaction handle [" + ts + "]";
-        
-        TransactionInitQueueCallback wrapper = ts.initTransactionInitQueueCallback(callback);
-        assert(wrapper.isInitialized());
-        this.txnQueueManager.initTransaction(ts, callback);
+        this.txnQueueManager.initTransaction(ts);
         
 //        for (int partition : ts.getPredictTouchedPartitions().values()) {
 //            if (this.isLocalPartition(partition)) {
 //                this.executors[partition].queueInit(ts);
 //            }
 //        } // FOR
-        
-        
     }
 
     /**

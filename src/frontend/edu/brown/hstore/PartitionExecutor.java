@@ -121,6 +121,7 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.callbacks.TransactionCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
@@ -1336,7 +1337,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             if (msg instanceof InitializeTxnMessage) {
                 InitializeTxnMessage initMsg = (InitializeTxnMessage)msg;
                 AbstractTransaction ts = initMsg.getTransaction();
-                TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
+                TransactionCallback callback = ts.getTransactionInitQueueCallback();
                 callback.abort(Status.ABORT_REJECT);
             }
             // -------------------------------

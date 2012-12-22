@@ -51,6 +51,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -153,7 +154,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     // CALLBACKS
     // ----------------------------------------------------------------------------
     
-    protected final TransactionInitQueueCallback initQueue_callback;
+    // protected final TransactionInitQueueCallback initQueue_callback;
     protected final TransactionPrepareWrapperCallback prepareWrapper_callback;
     
     // ----------------------------------------------------------------------------
@@ -274,7 +275,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numLocalPartitions];
         
-        this.initQueue_callback = new TransactionInitQueueCallback(hstore_site);
         this.prepareWrapper_callback = new TransactionPrepareWrapperCallback(hstore_site);
         
         this.readTables = new BitSet[numLocalPartitions];
@@ -349,7 +349,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.predict_readOnly = false;
         this.predict_tState = null;
         
-        this.initQueue_callback.finish();
         this.prepareWrapper_callback.finish();
         
         this.pending_error = null;
@@ -623,11 +622,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         if (this.isInitialized() == false) {
             return (false);
         }
-        if (this.initQueue_callback.allCallbacksFinished() == false) {
-            if (d) LOG.warn(String.format("%s - %s is not finished", this,
-                            this.initQueue_callback.getClass().getSimpleName()));
-            return (false);
-        }
         if (this.prepareWrapper_callback.allCallbacksFinished() == false) {
             if (d) LOG.warn(String.format("%s - %s is not finished", this,
                             this.prepareWrapper_callback.getClass().getSimpleName()));
@@ -718,23 +712,24 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     /**
      * Return this handle's TransactionInitQueueCallback
      */
-    public final TransactionInitQueueCallback initTransactionInitQueueCallback(RpcCallback<TransactionInitResponse> callback) {
-        assert(this.isInitialized());
-        assert(this.initQueue_callback.isInitialized() == false) : 
-            String.format("Trying to initialize %s for %s more than once",
-                          this.initQueue_callback.getClass().getSimpleName(), this);
-        this.initQueue_callback.init(this, this.predict_touchedPartitions, callback);
-        return (this.initQueue_callback);
-    }
+//    public final TransactionInitQueueCallback initTransactionInitQueueCallback(RpcCallback<TransactionInitResponse> callback) {
+//        assert(this.isInitialized());
+//        assert(this.initQueue_callback.isInitialized() == false) : 
+//            String.format("Trying to initialize %s for %s more than once",
+//                          this.initQueue_callback.getClass().getSimpleName(), this);
+//        this.initQueue_callback.init(this, this.predict_touchedPartitions, callback);
+//        return (this.initQueue_callback);
+//    }
     
     /**
      * Return this handle's TransactionInitQueueCallback
      */
-    public final TransactionInitQueueCallback getTransactionInitQueueCallback() {
-        return (this.initQueue_callback);
-    }
-    
-    
+    public abstract <T extends AbstractTransaction> PartitionCountingCallback<T> getTransactionInitQueueCallback();
+
+    /**
+     * Return the TransactionPrepareCallback
+     * @return
+     */
     public final TransactionPrepareWrapperCallback getPrepareWrapperCallback() {
         return (this.prepareWrapper_callback);
     }

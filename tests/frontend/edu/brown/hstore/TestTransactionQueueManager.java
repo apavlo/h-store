@@ -17,6 +17,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -38,15 +39,29 @@ public class TestTransactionQueueManager extends BaseTestCase {
     private TransactionQueueManager.Debug dbg;
     private final Map<Long, AbstractTransaction> txns = new HashMap<Long, AbstractTransaction>();
     
-    class MockCallback implements RpcCallback<TransactionInitResponse> {
-        Semaphore lock = new Semaphore(0);
+    class MockCallback extends PartitionCountingCallback<LocalTransaction> {
+        final Semaphore lock = new Semaphore(0);
         boolean invoked = false;
-        
+
+        protected MockCallback() {
+            super(TestTransactionQueueManager.this.hstore_site);
+        }
         @Override
-        public void run(TransactionInitResponse parameter) {
+        public boolean isInitialized() {
+            return (true);
+        }
+        @Override
+        protected void unblockCallback() {
             assertFalse(invoked);
-            lock.release();
-            invoked = true;
+            this.lock.release();
+            this.invoked = true;
+        }
+        protected void abortCallback(Status status) {
+            
+        }
+        @Override
+        protected void finishImpl() {
+            // Nothing
         }
     }
     
@@ -77,10 +92,16 @@ public class TestTransactionQueueManager extends BaseTestCase {
     // UTILITY METHODS
     // --------------------------------------------------------------------------------------------
     
-    private LocalTransaction createTransaction(Long txn_id, PartitionSet partitions) {
-        LocalTransaction ts = new LocalTransaction(this.hstore_site);
+    private LocalTransaction createTransaction(Long txn_id, PartitionSet partitions, final MockCallback callback) {
+        LocalTransaction ts = new LocalTransaction(this.hstore_site) {
+            @Override
+            public PartitionCountingCallback<LocalTransaction> getTransactionInitQueueCallback() {
+                return (callback);
+            }
+        };
         Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         ts.testInit(txn_id, 0, partitions, catalog_proc);
+        callback.init(ts, partitions);
         this.txns.put(txn_id, ts);
         return (ts);
     }
@@ -89,6 +110,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         EstTimeUpdater.update(System.currentTimeMillis());
         boolean ret = false; 
         for (int partition : catalogContext.getAllPartitionIds().values()) {
+            queue.getInitQueue(partition).checkQueueState();
             AbstractTransaction ts = queue.checkLockQueue(partition);
             // if (ts != null) System.err.printf("Partition %d => %s\n", partition, ts);
             ret = (ts != null) || ret;
@@ -97,10 +119,9 @@ public class TestTransactionQueueManager extends BaseTestCase {
     }
     
     private boolean addToQueue(LocalTransaction txn, MockCallback callback) {
-        TransactionInitQueueCallback wrapper = txn.initTransactionInitQueueCallback(callback);
         boolean ret = true;
         for (int partition : txn.getPredictTouchedPartitions()) {
-            boolean result = this.queueManager.lockQueueInsert(txn, partition, wrapper);
+            boolean result = this.queueManager.lockQueueInsert(txn, partition, callback);
             ret = ret && result;
         } // FOR
         return (ret);
@@ -118,8 +139,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
     @Test
     public void testSingleTransaction() throws InterruptedException {
         Long txn_id = this.idManager.getNextUniqueTransactionId();
-        LocalTransaction txn0 = this.createTransaction(txn_id, catalogContext.getAllPartitionIds());
         MockCallback inner_callback = new MockCallback();
+        LocalTransaction txn0 = this.createTransaction(txn_id, catalogContext.getAllPartitionIds(), inner_callback);
         
         // Insert the txn into our queue and then call check
         // This should immediately release our transaction and invoke the inner_callback
@@ -149,8 +170,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final PartitionSet partitions1 = catalogContext.getAllPartitionIds();
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
-        final LocalTransaction txn0 = this.createTransaction(txn_id0, partitions0);
-        final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1);
+        final LocalTransaction txn0 = this.createTransaction(txn_id0, partitions0, inner_callback0);
+        final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1, inner_callback1);
         
         // insert the higher ID first but make sure it comes out second
         assertFalse(this.queueManager.toString(), this.checkAllQueues(queueManager));
@@ -158,7 +179,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertTrue(this.queueManager.toString(), this.addToQueue(txn0, inner_callback0));
         
         ThreadUtil.sleep(hstore_conf.site.txn_incoming_delay*2);
-        assertTrue(this.checkAllQueues(this.queueManager));
+        assertTrue(this.queueManager.toString(), this.checkAllQueues(this.queueManager));
         
         assertTrue("callback0", inner_callback0.lock.tryAcquire());
         assertFalse("callback1", inner_callback1.lock.tryAcquire());
@@ -194,12 +215,12 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final PartitionSet partitions0 = new PartitionSet(0, 2);
         final PartitionSet partitions1 = new PartitionSet(1, 3);
         final PartitionSet partitions2 = catalogContext.getAllPartitionIds();
-        final LocalTransaction txn0 = this.createTransaction(txn_id0, partitions0);
-        final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1);
-        final LocalTransaction txn2 = this.createTransaction(txn_id2, partitions2);
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
         final MockCallback inner_callback2 = new MockCallback();
+        final LocalTransaction txn0 = this.createTransaction(txn_id0, partitions0, inner_callback0);
+        final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1, inner_callback1);
+        final LocalTransaction txn2 = this.createTransaction(txn_id2, partitions2, inner_callback2);
         
 //        System.err.println("txn_id0: " + txn_id0);
 //        System.err.println("txn_id1: " + txn_id1);
@@ -247,10 +268,10 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final Long txn_id1 = this.idManager.getNextUniqueTransactionId();
         final PartitionSet partitions0 = new PartitionSet(0, 1, 2);
         final PartitionSet partitions1 = new PartitionSet(2, 3);
-        final LocalTransaction txn0 = this.createTransaction(txn_id0, partitions0);
-        final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1);
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
+        final LocalTransaction txn0 = this.createTransaction(txn_id0, partitions0, inner_callback0);
+        final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1, inner_callback1);
         
         this.addToQueue(txn0, inner_callback0);
         this.addToQueue(txn1, inner_callback1);

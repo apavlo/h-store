@@ -44,7 +44,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
-import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableNonBlocking;
 import org.voltdb.catalog.CatalogType;
@@ -61,12 +60,13 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
+import edu.brown.hstore.callbacks.SinglePartitionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.TransactionInitCallback;
+import edu.brown.hstore.callbacks.SlowTransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
@@ -155,11 +155,20 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public TransactionProfiler profiler;
     
+    // ----------------------------------------------------------------------------
+    // CALLBACKS
+    // ----------------------------------------------------------------------------
+    
+    protected final PartitionCountingCallback<LocalTransaction> dtxn_initCallback;
+    
+    protected final SinglePartitionInitQueueCallback singlep_initCallback;
+    
     /**
      * This callback is used to release the transaction once we get
      * the acknowledgments back from all of the partitions that we're going to access.
      */
-    protected final TransactionInitCallback init_callback;
+    @Deprecated
+    protected final SlowTransactionInitCallback init_callback;
     
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
@@ -208,7 +217,10 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public LocalTransaction(HStoreSite hstore_site) {
         super(hstore_site);
-        this.init_callback = new TransactionInitCallback(hstore_site);
+        this.singlep_initCallback = new SinglePartitionInitQueueCallback(hstore_site);
+        this.dtxn_initCallback = null;
+        
+        this.init_callback = new SlowTransactionInitCallback(hstore_site);
         // CatalogContext catalogContext = hstore_site.getCatalogContext(); 
         // this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
     }
@@ -265,6 +277,11 @@ public class LocalTransaction extends AbstractTransaction {
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
             }
+            this.dtxn_initCallback.init(this, this.predict_touchedPartitions);
+        }
+        // Initialize stuff needed for single-partition transactions
+        else {
+            this.singlep_initCallback.init(this, this.predict_touchedPartitions);
         }
         
         return (this);
@@ -625,14 +642,24 @@ public class LocalTransaction extends AbstractTransaction {
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
     
-    public TransactionInitCallback initTransactionInitCallback() {
+    @SuppressWarnings("unchecked")
+    @Override
+    public PartitionCountingCallback<LocalTransaction> getTransactionInitQueueCallback() {
+        if (this.isPredictSinglePartition()) {
+            return (this.singlep_initCallback);
+        } else {
+            return (this.dtxn_initCallback);
+        }
+    }
+    
+    public SlowTransactionInitCallback initTransactionInitCallback() {
         assert(this.init_callback.isInitialized() == false) :
             String.format("Trying initialize the %s for %s more than once",
                           this.init_callback.getClass().getSimpleName(), this);
         this.init_callback.init(this);
         return (this.init_callback);
     }
-    public TransactionInitCallback getTransactionInitCallback() {
+    public SlowTransactionInitCallback getTransactionInitCallback() {
         assert(this.init_callback.isInitialized()) :
             String.format("Trying to use %s for %s before it was initialized",
                           this.init_callback.getClass().getSimpleName(), this);
@@ -744,6 +771,8 @@ public class LocalTransaction extends AbstractTransaction {
                             this.init_callback.getClass().getSimpleName()));
             return (false);
         }
+        
+        
         if (this.dtxnState != null) {
             if (this.dtxnState.prepare_callback.allCallbacksFinished() == false) {
                 if (t) LOG.warn(String.format("%s - %s is not finished", this,
@@ -753,6 +782,19 @@ public class LocalTransaction extends AbstractTransaction {
             if (this.dtxnState.finish_callback.allCallbacksFinished() == false) {
                 if (t) LOG.warn(String.format("%s - %s is not finished", this,
                                 this.dtxnState.finish_callback.getClass().getSimpleName()));
+                return (false);
+            }
+            if (this.dtxn_initCallback.allCallbacksFinished() == false) {
+                if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                                this.dtxn_initCallback.getClass().getSimpleName()));
+                return (false);
+            }
+            
+        }
+        else {
+            if (this.singlep_initCallback.allCallbacksFinished() == false) {
+                if (d) LOG.warn(String.format("%s - %s is not finished", this,
+                                this.singlep_initCallback.getClass().getSimpleName()));
                 return (false);
             }
         }
@@ -1451,7 +1493,7 @@ public class LocalTransaction extends AbstractTransaction {
         m = new LinkedHashMap<String, Object>();
         m.put("Client Callback", this.client_callback);
         m.put("Init Callback", this.init_callback);
-        m.put("InitQueue Callback", this.initQueue_callback);
+        m.put("InitQueue Callback", this.getTransactionInitCallback());
         m.put("PrepareWrapper Callback", this.prepareWrapper_callback);
         if (this.dtxnState != null) {
             m.put("Prepare Callback", this.dtxnState.prepare_callback);

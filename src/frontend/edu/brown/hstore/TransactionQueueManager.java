@@ -16,15 +16,11 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.exceptions.ServerFaultException;
-import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
-import com.google.protobuf.RpcCallback;
-
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.TransactionInitPriorityQueue.QueueState;
-import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -315,8 +311,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         AbstractTransaction next_init = null;
         int added = 0;
         while ((next_init = this.initQueues[partition].poll()) != null) {
-            TransactionInitQueueCallback wrapper = next_init.getTransactionInitQueueCallback();
-            if (this.lockQueueInsert(next_init, partition, wrapper)) {
+            PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
+            if (this.lockQueueInsert(next_init, partition, callback)) {
                 added++;
             }
         } // WHILE
@@ -324,8 +320,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         return (added);
     }
     
-    protected void initTransaction(AbstractTransaction ts, RpcCallback<TransactionInitResponse> callback) {
-        // Initialize their TransactionInitQueueCallback
+    protected void initTransaction(AbstractTransaction ts) {
         for (int partition : ts.getPredictTouchedPartitions().values()) {
             if (this.localPartitions.contains(partition)) {
                 this.initQueues[partition].add(ts);      
@@ -354,7 +349,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
         
         if (t) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
-        TransactionInitQueueCallback callback = null;
+        PartitionCountingCallback<AbstractTransaction> callback = null;
         AbstractTransaction nextTxn = null;
         // Long nextTxnId = null;
         while (nextTxn == null) {
@@ -440,7 +435,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     protected boolean lockQueueInsert(AbstractTransaction ts,
                                       int partition,
-                                      TransactionInitQueueCallback wrapper) {
+                                      PartitionCountingCallback<? extends AbstractTransaction> callback) {
         assert(ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
@@ -448,8 +443,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
 
         // This is actually bad and should never happen. But for the sake of trying
         // to get the experiments working, we're just going to ignore it...
-        if (wrapper.isInitialized() == false) {
-            LOG.warn(String.format("Unexpected uninitialized %s for %s [partition=%d]", wrapper.getClass().getSimpleName(), ts, partition));
+        if (callback.isInitialized() == false) {
+            LOG.warn(String.format("Unexpected uninitialized %s for %s [partition=%d]", callback.getClass().getSimpleName(), ts, partition));
             return (false);
         }
         
@@ -569,7 +564,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // been rejected yet). That means we will want to decrement the counter its Transaction
         if (removed && status != Status.OK) {
             if (d) LOG.debug(String.format("Removed %s from partition %d queue", ts, partition));
-            TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
+            PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
             try {
                 if (callback.isAborted() == false) callback.abort(status);
             } catch (Throwable ex) {
@@ -611,7 +606,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                       ts, reject_partition, reject_txnId, status, is_valid));
         }
         
-        TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
+        PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
         
         // First send back an ABORT message to the initiating HStoreSite (if we haven't already)
         if (callback.isAborted() == false && callback.isUnblocked() == false) {
@@ -619,11 +614,12 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             assert(ts.getTransactionId().equals(reject_txnId) == false) :
                 String.format("Aborted txn %s's rejection txnId is also %d [status=%s]", ts, reject_txnId, status);
             try {
-                if (status == Status.ABORT_RESTART || status == Status.ABORT_REJECT) {
-                    callback.abort(status, reject_partition, reject_txnId);    
-                } else {
-                    callback.abort(status);
-                }
+                callback.abort(status);
+//                if (status == Status.ABORT_RESTART || status == Status.ABORT_REJECT) {
+//                    callback.abort(status, reject_partition, reject_txnId);    
+//                } else {
+//                    callback.abort(status);
+//                }
             } catch (Throwable ex) {
                 String msg = String.format("Unexpected error when trying to abort txn %s " +
                                            "[status=%s, rejectPartition=%d, rejectTxnId=%s]",

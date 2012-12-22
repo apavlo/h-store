@@ -18,8 +18,8 @@ import edu.brown.utils.PartitionSet;
  * This is created at the base partition's site.
  * @author pavlo
  */
-public class TransactionInitCallback extends AbstractTransactionCallback<LocalTransaction, TransactionInitResponse, TransactionInitResponse> {
-    private static final Logger LOG = Logger.getLogger(TransactionInitCallback.class);
+public class SlowTransactionInitCallback extends AbstractTransactionCallback<LocalTransaction, TransactionInitResponse, TransactionInitResponse> {
+    private static final Logger LOG = Logger.getLogger(SlowTransactionInitCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -39,7 +39,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<LocalTr
      * Constructor
      * @param hstore_site
      */
-    public TransactionInitCallback(HStoreSite hstore_site) {
+    public SlowTransactionInitCallback(HStoreSite hstore_site) {
         super(hstore_site);
         this.txnQueueManager = this.hstore_site.getTransactionQueueManager();
     }

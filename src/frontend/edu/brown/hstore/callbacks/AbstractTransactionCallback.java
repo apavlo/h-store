@@ -19,7 +19,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * @param <T> The message type of the original RpcCallback
  * @param <U> The message type that we will accumulate before invoking the original RpcCallback
  */
-@Deprecated
 public abstract class AbstractTransactionCallback<X extends AbstractTransaction, T, U> extends BlockingRpcCallback<T, U> {
     private static final Logger LOG = Logger.getLogger(AbstractTransactionCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());

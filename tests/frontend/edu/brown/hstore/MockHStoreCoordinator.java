@@ -109,7 +109,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
                                                                       partitions,
                                                                       request.getBasePartition(),
                                                                       request.getProcedureId());
-            hstore_site.transactionInit(ts, done);
+            // FIXME hstore_site.transactionInit(ts, done);
         }
 
         @Override

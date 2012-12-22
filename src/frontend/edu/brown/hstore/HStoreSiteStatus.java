@@ -23,7 +23,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -501,13 +501,13 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             if (txn_id != null) {
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);
                 if (ts != null) {
-                    TransactionInitQueueCallback callback = ts.getTransactionInitQueueCallback();
+                    PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
                     status += ts;
                     String spacer = StringUtil.repeat(" ", 5);
                     if (callback != null) {
                         status += "\n" + spacer;
-                        status += String.format("Partitions=%s / Remaining=%d",
-                                                callback.getPartitions(), callback.getCounter());
+                        status += String.format("NotifiedPartitions=%s / AllPartitions=%d",
+                                                callback.getReceivedPartitions(), callback.getPartitions());
                     }
                     // FULL TXN DEBUG
                     // status += "\n" + StringUtil.prefix(ts.debug(), spacer);
