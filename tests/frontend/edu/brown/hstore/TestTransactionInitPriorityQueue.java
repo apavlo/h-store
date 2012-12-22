@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -18,12 +19,14 @@ import org.voltdb.utils.EstTimeUpdater;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
+import edu.brown.hstore.TransactionInitPriorityQueue.QueueState;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 public class TestTransactionInitPriorityQueue extends BaseTestCase {
@@ -31,6 +34,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     private static final int NUM_TXNS = 10;
     private static final int TXN_DELAY = 1000;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = DeleteCallForwarding.class;
+    private static final Random random = new Random(0);
     
     HStoreSite hstore_site;
     HStoreConf hstore_conf;
@@ -98,15 +102,22 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             added.add(txn);
         } // FOR
         List<AbstractTransaction> shuffled = new ArrayList<AbstractTransaction>(added);
-        Collections.shuffle(shuffled);
+        Collections.shuffle(shuffled, random);
+        
+        System.err.println(StringUtil.columns(
+                "Expected Order:\n" + StringUtil.join("\n", added),
+                "Insertion Order:\n" + StringUtil.join("\n", shuffled)
+        ));
+        System.err.flush();
         
         for (AbstractTransaction txn : shuffled) {
             this.queue.noteTransactionRecievedAndReturnLastSeen(txn.getTransactionId());
             boolean ret = this.queue.offer(txn);
             assert(ret);
-            // assertNull(this.queue.poll());
+            assertNull(this.queue.poll());
         } // FOR
         assertEquals(added.size(), this.queue.size());
+        assertEquals(QueueState.BLOCKED_SAFETY, this.queue.getQueueState());
 
         // Now we should be able to remove the first of these mofos
         Iterator<AbstractTransaction> it = added.iterator();
@@ -115,6 +126,8 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             EstTimeUpdater.update(System.currentTimeMillis());
             AbstractTransaction expected = it.next();
             assertNotNull(expected);
+            
+            if (i == 0) this.queue.checkQueueState();
             assertEquals(expected, this.queue.poll());
         } // FOR
     }
@@ -137,6 +150,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         for (int i = 0; i < NUM_TXNS-1; i++) {
             ThreadUtil.sleep(TXN_DELAY);
             EstTimeUpdater.update(System.currentTimeMillis());
+            if (i == 0) this.queue.checkQueueState();
             assertEquals(it.next(), this.queue.poll());
         } // FOR
         assertTrue(this.queue.isEmpty());
@@ -253,6 +267,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         for (int i = 0; i < NUM_TXNS; i++) {
             ThreadUtil.sleep(TXN_DELAY);
             EstTimeUpdater.update(System.currentTimeMillis());
+            if (i == 0) this.queue.checkQueueState();
             assertEquals(it.next(), this.queue.poll());
         } // FOR
     }
@@ -263,19 +278,22 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     @Test
     public void testPollTooEarly() throws Exception {
         // Try polling *before* the appropriate wait time
-        Collection<AbstractTransaction> added = this.loadQueue(NUM_TXNS);
-        assertEquals(added.size(), this.queue.size());
+        Collection<AbstractTransaction> added = this.loadQueue(1);
         ThreadUtil.sleep(TXN_DELAY);
+        added.addAll(this.loadQueue(1));
+        assertEquals(added.size(), this.queue.size());
+        EstTimeUpdater.update(System.currentTimeMillis());
         
         Iterator<AbstractTransaction> it = added.iterator();
         for (int i = 0; i < NUM_TXNS; i++) {
-            AbstractTransaction ts = this.queue.poll();
             // Our first poll should return back a txn
             if (i == 0) {
-                assertEquals(it.next(), ts);
+                this.queue.checkQueueState();
+                assertEquals(it.next(), this.queue.poll());
             }
             // The second time should be null
             else {
+                AbstractTransaction ts = this.queue.poll();
                 assertNull("Unexpected txn returned: " + ts, ts);
                 break;
             }
