@@ -36,7 +36,6 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
     private final boolean prefetch;
     private final FastDeserializer fd = new FastDeserializer(new byte[0]);
     private TransactionInitResponse.Builder builder = null;
-    private PartitionSet partitions = null;
     private RpcCallback<TransactionInitResponse> origCallback;
     
     
@@ -82,6 +81,19 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
                                         this.origCallback.getClass().getSimpleName(),
                                         this.builder.getStatus()));
             }
+            
+            // Ok so where's what going on here. We need to send back
+            // an abort message, so we're going use the builder that we've been 
+            // working on and send out the bomb back to the base partition tells it that this
+            // transaction is kaput at this HStoreSite.
+            this.builder.setStatus(status);
+            this.builder.clearPartitions();
+            PartitionSet partitions = this.getPartitions();
+            for (int partition : partitions.values()) {
+                assert(this.hstore_site.isLocalPartition(partition));
+                this.builder.addPartitions(partition);
+            } // FOR
+
             assert(this.builder.getPartitionsList() != null) :
                 String.format("The %s for %s has no results but it was suppose to have %d.",
                               builder.getClass().getSimpleName(), this.ts, this.getOrigCounter());
@@ -90,18 +102,6 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
                               builder.getClass().getSimpleName(), this.ts, builder.getPartitionsCount(), this.getOrigCounter());
             assert(this.origCallback != null) :
                 String.format("The original callback for %s is null!", this.ts);
-
-            
-            // Ok so where's what going on here. We need to send back
-            // an abort message, so we're going use the builder that we've been 
-            // working on and send out the bomb back to the base partition tells it that this
-            // transaction is kaput at this HStoreSite.
-            this.builder.setStatus(status);
-            this.builder.clearPartitions();
-            for (int partition : this.partitions.values()) {
-                assert(this.hstore_site.isLocalPartition(partition));
-                this.builder.addPartitions(partition);
-            } // FOR
             
             this.origCallback.run(this.builder.build());
             this.builder = null;
@@ -110,7 +110,7 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
             // start profile idle_waiting_dtxn_time on remote paritions
             if (this.hstore_conf.site.exec_profiling) {
                 for (int p : this.hstore_site.getLocalPartitionIds().values()) {
-                    if (this.partitions.contains(p)) {
+                    if (partitions.contains(p)) {
                         PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
                         assert (pep != null);
                         if (pep.idle_waiting_dtxn_time.isStarted()) pep.idle_waiting_dtxn_time.stop();
