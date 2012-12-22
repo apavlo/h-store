@@ -220,9 +220,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     }
     public boolean addAll(PartitionSet partitions) {
         if (partitions.contains_null) this.contains_null = true;
-        for (int partition = 0, cnt = partitions.inner.size(); partition < cnt; partition++) {
-            if (partitions.inner.get(partition)) this.inner.set(partition);
-        } // FOR
+        this.inner.or(partitions.inner);
         return (true);
     }
     @Override
