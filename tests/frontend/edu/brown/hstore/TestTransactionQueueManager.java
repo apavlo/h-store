@@ -14,7 +14,7 @@ import org.voltdb.utils.EstTimeUpdater;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.callbacks.PartitionCountingCallback;
+import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -35,7 +35,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     private TransactionQueueManager.Debug dbg;
     private final Map<Long, AbstractTransaction> txns = new HashMap<Long, AbstractTransaction>();
     
-    class MockCallback extends PartitionCountingCallback<LocalTransaction> {
+    class MockCallback extends LocalInitQueueCallback {
         final Semaphore lock = new Semaphore(0);
         boolean invoked = false;
 
@@ -91,7 +91,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     private LocalTransaction createTransaction(Long txn_id, PartitionSet partitions, final MockCallback callback) {
         LocalTransaction ts = new LocalTransaction(this.hstore_site) {
             @Override
-            public PartitionCountingCallback<LocalTransaction> getTransactionInitQueueCallback() {
+            public MockCallback getTransactionInitQueueCallback() {
                 return (callback);
             }
         };

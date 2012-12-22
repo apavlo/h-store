@@ -94,7 +94,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param ts - The transaction handle for this callback
      * @param partitions - The partitions that we expected to get notifications for
      */
-    public void init(X ts, PartitionSet partitions) {
+    protected void init(X ts, PartitionSet partitions) {
         if (debug.get()) LOG.debug(String.format("%s - Initialized new %s with partitions %s counter = %d hashCode=%d]",
                                    ts, this.getClass().getSimpleName(), partitions, this.hashCode()));
         int counter_val = partitions.size();

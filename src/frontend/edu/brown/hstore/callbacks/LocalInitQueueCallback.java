@@ -11,6 +11,7 @@ import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.PartitionSet;
 
 /**
  * 
@@ -34,6 +35,15 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
         super(hstore_site);
         this.txnQueueManager = hstore_site.getTransactionQueueManager();
     }
+    
+    @Override
+    public void init(LocalTransaction ts, PartitionSet partitions) {
+        super.init(ts, partitions);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // CALLBACK METHODS
+    // ----------------------------------------------------------------------------
 
     @Override
     protected void unblockCallback() {

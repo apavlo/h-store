@@ -63,7 +63,6 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
-import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
@@ -631,7 +630,7 @@ public class LocalTransaction extends AbstractTransaction {
     
     @SuppressWarnings("unchecked")
     @Override
-    public PartitionCountingCallback<LocalTransaction> getTransactionInitQueueCallback() {
+    public LocalInitQueueCallback getTransactionInitQueueCallback() {
         return (this.init_callback);
     }
     

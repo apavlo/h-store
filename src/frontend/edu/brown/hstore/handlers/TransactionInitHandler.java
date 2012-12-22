@@ -10,9 +10,11 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
@@ -83,20 +85,21 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
                     partitions.add(partition.intValue());
                 }
             } // FOR
-        }
-        
-        // If we don't have a handle, we need to make one so that we can stick in the
-        // things that we need to keep track of at this site. At this point we know that we're on
-        // a remote site from the txn's base partition
-        if (ts == null) {
+
+            // If we don't have a handle, we need to make one so that we can stick in the
+            // things that we need to keep track of at this site. At this point we know that we're on
+            // a remote site from the txn's base partition
             int base_partition = request.getBasePartition();
             ts = this.hstore_site.getTransactionInitializer()
                                  .createRemoteTransaction(txn_id,
                                                           partitions,
                                                           base_partition,
                                                           request.getProcedureId());
+            
+            // Make sure that we initialize the RemoteTransactionInitCallback too!
+            RemoteInitQueueCallback initCallback = ts.getTransactionInitQueueCallback();
+            initCallback.init((RemoteTransaction)ts, partitions, callback);
         }
-        
         
         // If (request.getPrefetchFragmentsCount() > 0), then we need to
         // make a RemoteTransaction handle for ourselves so that we can keep track of 
@@ -111,7 +114,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         }
 
         // We don't need to send back a response right here.
-        // TransactionInitWrapperCallback will wait until it has results from all of the partitions 
+        // The init callback will wait until it has results from all of the partitions 
         // the tasks were sent to and then send back everything in a single response message
         this.hstore_site.transactionInit(ts);
     }

@@ -724,7 +724,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     /**
      * Return this handle's TransactionInitQueueCallback
      */
-    public abstract <T extends AbstractTransaction> PartitionCountingCallback<T> getTransactionInitQueueCallback();
+    public abstract <T extends PartitionCountingCallback<? extends AbstractTransaction>> T getTransactionInitQueueCallback();
 
     /**
      * Return the TransactionPrepareCallback

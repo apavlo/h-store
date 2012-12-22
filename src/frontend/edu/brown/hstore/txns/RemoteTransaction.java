@@ -36,6 +36,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
+import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.logging.LoggerUtil;
@@ -61,7 +62,7 @@ public class RemoteTransaction extends AbstractTransaction {
     // CALLBACKS
     // ----------------------------------------------------------------------------
     
-    private final PartitionCountingCallback<RemoteTransaction> init_callback;
+    private final RemoteInitQueueCallback init_callback;
     private final TransactionWorkCallback work_callback;
     private final TransactionCleanupCallback cleanup_callback;
     
@@ -83,7 +84,7 @@ public class RemoteTransaction extends AbstractTransaction {
      */
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
-        this.init_callback = null;
+        this.init_callback = new RemoteInitQueueCallback(hstore_site);
         this.work_callback = new TransactionWorkCallback(hstore_site);
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
         
@@ -128,6 +129,7 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public void finish() {
         super.finish();
+        this.init_callback.finish();
         this.work_callback.finish();
         this.cleanup_callback.finish();
         
@@ -151,6 +153,11 @@ public class RemoteTransaction extends AbstractTransaction {
     
     @Override
     public boolean isDeletable() {
+        if (this.init_callback.allCallbacksFinished() == false) {
+            if (debug.get()) LOG.warn(String.format("%s - %s is not finished", this,
+                                      this.init_callback.getClass().getSimpleName()));
+            return (false);
+        }
         if (this.cleanup_callback.allCallbacksFinished() == false) {
             if (debug.get()) LOG.warn(String.format("%s - %s is not finished", this,
                                       this.cleanup_callback.getClass().getSimpleName()));
@@ -166,9 +173,8 @@ public class RemoteTransaction extends AbstractTransaction {
     
     @SuppressWarnings("unchecked")
     @Override
-    public PartitionCountingCallback<RemoteTransaction> getTransactionInitQueueCallback() {
-        // FIXME
-        return (null);
+    public RemoteInitQueueCallback getTransactionInitQueueCallback() {
+        return (this.init_callback);
     }
     
     public TransactionWorkCallback getWorkCallback() {
