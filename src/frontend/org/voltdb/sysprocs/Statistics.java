@@ -18,6 +18,7 @@
 package org.voltdb.sysprocs;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -381,7 +382,9 @@ public class Statistics extends VoltSystemProcedure {
             final long delta = endTime - now;
             if (debug.get()) HOST_LOG.debug("Statistics invocation of MANAGEMENT selector took " + delta + " milliseconds");
         } else {
-            throw new VoltAbortException(String.format("Invalid Statistics selector %s.", selector));
+            String msg = String.format("Invalid Statistics selector %s.\nValid Options: %s",
+                                       selector, Arrays.toString(SysProcSelector.values()));
+            throw new VoltAbortException(msg);
         }
 
         return results;
