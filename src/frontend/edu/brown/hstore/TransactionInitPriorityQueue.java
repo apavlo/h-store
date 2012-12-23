@@ -2,12 +2,10 @@ package edu.brown.hstore;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.dtxn.RestrictedPriorityQueue.QueueState;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -179,11 +177,11 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         }
 
         this.lastSeenTxnId = txnId;
-        if (d) LOG.debug(String.format("Partition %d :: SET lastSeenTxnId = %d",
+        if (t) LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
                          this.partitionId, this.lastSeenTxnId));
         if (this.lastSafeTxnId == null || txnId.compareTo(this.lastSafeTxnId) < 0) {
             this.lastSafeTxnId = txnId;
-            if (d) LOG.debug(String.format("Partition %d :: SET lastSafeTxnId = %d",
+            if (t) LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
                              this.partitionId, this.lastSafeTxnId));
         }
 
@@ -210,7 +208,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             // that the lastSafeTxnId has been polled. That means that we need to 
             // wait for an appropriate amount of time before we're allow to be executed.
             if (txnId.compareTo(this.lastSafeTxnId) > 0) {
-                newState = QueueState.BLOCKED_SAFETY;
+                newState = QueueState.BLOCKED_ORDERING;
                 if (d) LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
                                  this.partitionId, txnId, this.lastSafeTxnId));
             }
@@ -230,7 +228,16 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             if ((newState == QueueState.BLOCKED_ORDERING) || (newState == QueueState.BLOCKED_SAFETY)) {
                 long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(ts.getTransactionId().longValue());
                 long timestamp = EstTime.currentTimeMillis();
-                long waitTime = Math.max(0, this.waitTime - (timestamp - txnTimestamp));
+                
+                // Calculate how long we need to wait before this txn is safe to run
+                // If we're blocking on "safety", then we can use an offset based 
+                // on when the txnId was created. If we're blocking for "ordering",
+                // then we'll want to wait for the full wait time.
+                long waitTime = this.waitTime;
+                if (newState == QueueState.BLOCKED_SAFETY) {
+                    waitTime = Math.max(0, this.waitTime - (timestamp - txnTimestamp));
+                }
+                
                 this.blockTime = timestamp + waitTime;
                 newState = (waitTime > 0 ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
                 if (this.lastTxnPopped != null && this.lastTxnPopped.equals(this.lastSafeTxnId)) {

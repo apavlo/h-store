@@ -95,8 +95,8 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param partitions - The partitions that we expected to get notifications for
      */
     protected void init(X ts, PartitionSet partitions) {
-        if (debug.get()) LOG.debug(String.format("%s - Initialized new %s with partitions %s counter = %d hashCode=%d]",
-                                   ts, this.getClass().getSimpleName(), partitions, this.hashCode()));
+        if (debug.get()) LOG.debug(String.format("%s - Initialized new %s with partitions %s [counter=%d, hashCode=%d]",
+                                   ts, this.getClass().getSimpleName(), partitions, partitions.size(), this.hashCode()));
         int counter_val = partitions.size();
         this.orig_counter = counter_val;
         this.counter.set(counter_val);
@@ -175,6 +175,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     public final void run(int partition) {
         int delta = 1; // XXX this.runImpl(partition);
         int new_count = this.counter.addAndGet(-1 * delta);
+        this.receivedPartitions.add(partition);
         if (debug.get()) LOG.debug(String.format("%s - %s.run() / COUNTER: %d - %d = %d%s",
                                    this.ts, this.getClass().getSimpleName(),
                                    new_count+delta, delta, new_count,
@@ -191,15 +192,15 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param delta
      * @return Returns the new value of the counter
      */
-    public final int decrementCounter(int delta) {
-        int new_count = this.counter.addAndGet(-1 * delta); 
-        if (debug.get()) LOG.debug(String.format("%s - Decremented %s / COUNTER: %d - %d = %s",
-                                   this.ts, this.getClass().getSimpleName(), new_count+delta, delta, new_count));
-        assert(new_count >= 0) :
-            "Invalid negative " + this.getClass().getSimpleName() + " counter for " + this.ts;
-        if (new_count == 0) this.unblock();
-        return (new_count);
-    }
+//    public final int decrementCounter(int delta) {
+//        int new_count = this.counter.addAndGet(-1 * delta); 
+//        if (debug.get()) LOG.debug(String.format("%s - Decremented %s / COUNTER: %d - %d = %s",
+//                                   this.ts, this.getClass().getSimpleName(), new_count+delta, delta, new_count));
+//        assert(new_count >= 0) :
+//            "Invalid negative " + this.getClass().getSimpleName() + " counter for " + this.ts;
+//        if (new_count == 0) this.unblock();
+//        return (new_count);
+//    }
     
     /**
      * The implementation of the run method to process a new entry for this callback

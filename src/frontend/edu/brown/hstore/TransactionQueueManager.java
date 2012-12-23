@@ -232,11 +232,12 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             
             // Release transactions for initialization
             for (int partition : this.localPartitions.values()) {
-                int added = this.checkInitQueue(partition);
-                if (added == 0) {
-                    QueueState state = this.lockQueues[partition].checkQueueState();
-                    if (t) LOG.trace(String.format("Partition %d :: State=%s", partition, state));
-                }
+                this.checkInitQueue(partition);
+//                int added = this.checkInitQueue(partition);
+//                if (added == 0) {
+//                    QueueState state = this.lockQueues[partition].checkQueueState();
+//                    if (t) LOG.trace(String.format("Partition %d :: State=%s", partition, state));
+//                }
             } // FOR
             
             // Release blocked distributed transactions
@@ -362,6 +363,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 if (t) LOG.trace(String.format("Partition %d initQueue does not have a transaction ready to run. Skipping... " +
                 		         "[queueSize=%d]",
                                  partition, this.lockQueues[partition].size()));
+                this.lockQueues[partition].checkQueueState();
                 break;
             }
             
@@ -451,12 +453,12 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug(String.format("Adding %s into lockQueue for partition %d [allPartitions=%s]",
                          ts, partition, ts.getPredictTouchedPartitions()));
         
-        Long txn_id = ts.getTransactionId();
         // We can preemptively check whether this txnId is greater than
         // the largest one that we know about at a partition
         // We don't need to acquire the lock on last_txns at this partition because 
         // all that we care about is that whatever value is in there now is greater than
         // the what the transaction was trying to use.
+        Long txn_id = ts.getTransactionId();
         if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
             if (d) LOG.debug(String.format("The last lockQueue txnId for remote partition is #%d but this " +
             		         "is greater than %s. Rejecting...",

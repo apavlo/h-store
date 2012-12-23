@@ -81,8 +81,11 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     // ----------------------------------------------------------------------------
 
     @Override
-    public void run(TransactionInitResponse parameter) {
-        for (Integer partition : parameter.getPartitionsList()) {
+    public void run(TransactionInitResponse response) {
+        if (debug.get()) LOG.debug(String.format("%s - Got %s with status %s from partitions %s",
+                                   this.ts, response.getClass().getSimpleName(),
+                                   response.getStatus(), response.getPartitionsList()));
+        for (Integer partition : response.getPartitionsList()) {
             this.run(partition.intValue());
         } // FOR
     }

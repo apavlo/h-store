@@ -35,8 +35,10 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
 
     private final boolean prefetch;
     private final FastDeserializer fd = new FastDeserializer(new byte[0]);
+    private final PartitionSet localPartitions = new PartitionSet();
     private TransactionInitResponse.Builder builder = null;
     private RpcCallback<TransactionInitResponse> origCallback;
+    
     
     
     // ----------------------------------------------------------------------------
@@ -53,23 +55,22 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
                             .setTransactionId(ts.getTransactionId().longValue())
                             .setStatus(Status.OK);
         this.origCallback = origCallback;
-        super.init(ts, partitions);
+        
+        // Remove non-local partitions
+        this.localPartitions.clear();
+        this.localPartitions.addAll(partitions);
+        this.localPartitions.retainAll(this.hstore_site.getLocalPartitionIds());
+        super.init(ts, this.localPartitions);
     }
     
     @Override
     protected void finishImpl() {
         this.origCallback = null;
+        this.builder = null;
     }
 
     @Override
     protected void unblockCallback() {
-        assert(this.isAborted() == false);
-        if (debug.get()) LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
-        
-    }
-
-    @Override
-    protected void abortCallback(Status status) {
         if (debug.get()) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
                                    this.ts, TransactionInitResponse.class.getSimpleName(),
                                    (this.builder != null ? this.builder.getStatus() : "???")));
@@ -86,7 +87,6 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
             // an abort message, so we're going use the builder that we've been 
             // working on and send out the bomb back to the base partition tells it that this
             // transaction is kaput at this HStoreSite.
-            this.builder.setStatus(status);
             this.builder.clearPartitions();
             PartitionSet partitions = this.getPartitions();
             for (int partition : partitions.values()) {
@@ -151,7 +151,35 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
             }
         }
         else if (debug.get()) {
-            LOG.debug(String.format("%s - No builder is available? Unable to send back %s",
+            LOG.warn(String.format("%s - No builder is available? Unable to send back %s",
+                      this.ts, TransactionInitResponse.class.getSimpleName()));
+        }
+    }
+    
+    @Override
+    protected void abortCallback(Status status) {
+        // Uh... this might have already been sent out?
+        if (this.builder != null) {
+            if (debug.get()) LOG.debug(String.format("%s - Aborting %s with status %s",
+                                       this.ts, this.getClass().getSimpleName(), status));
+            
+            // Ok so where's what going on here. We need to send back
+            // an abort message, so we're going use the builder that we've been 
+            // working on and send out the bomb back to the base partition tells it that this
+            // transaction is kaput at this HStoreSite.
+            this.builder.setStatus(status);
+            this.builder.clearPartitions();
+            this.builder.addAllPartitions(this.getPartitions());
+            
+            assert(this.origCallback != null) :
+                String.format("The original callback for %s is null!", this.ts);
+            
+            this.origCallback.run(this.builder.build());
+            this.builder = null;
+            this.clearCounter();
+        }
+        else if (debug.get()) {
+            LOG.warn(String.format("%s - No builder is available? Unable to send back %s",
                       this.ts, TransactionInitResponse.class.getSimpleName()));
         }
     }

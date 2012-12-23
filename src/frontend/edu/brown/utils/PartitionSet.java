@@ -245,11 +245,8 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         return (true);
     }
     public boolean retainAll(PartitionSet partitions) {
-        for (int partition = 0, cnt = partitions.inner.size(); partition < cnt; partition++) {
-            if (partitions.inner.get(partition) == false) {
-                this.remove(partition);
-            }
-        } // FOR
+        if (this.contains_null != partitions.contains_null) this.contains_null = false;
+        this.inner.and(partitions.inner);
         return (true);
     }
     @Override

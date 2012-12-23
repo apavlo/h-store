@@ -81,7 +81,8 @@ public class TransactionRedirectResponseCallback implements RpcCallback<ClientRe
                                                               .build();
         this.orig_callback.run(response);
         if (debug.get()) LOG.debug(String.format("Sent back ClientResponse for txn #%d to %s [bytes=%d]",
-                                   parameter.getTransactionId(), HStoreThreadManager.formatSiteName(this.destSiteId)));
+                                   parameter.getTransactionId(), HStoreThreadManager.formatSiteName(this.destSiteId),
+                                   bs.size()));
         
         // IMPORTANT: Since we're the only one that knows that we're finished (and actually even
         // cares), we need to be polite and clean-up after ourselves...

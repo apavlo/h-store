@@ -506,7 +506,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     String spacer = StringUtil.repeat(" ", 5);
                     if (callback != null) {
                         status += "\n" + spacer;
-                        status += String.format("NotifiedPartitions=%s / AllPartitions=%d",
+                        status += String.format("ReceivedPartitions=%s / AllPartitions=%s",
                                                 callback.getReceivedPartitions(), callback.getPartitions());
                     }
                     // FULL TXN DEBUG
