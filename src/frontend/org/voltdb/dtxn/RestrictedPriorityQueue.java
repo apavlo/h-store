@@ -42,9 +42,11 @@ import org.voltdb.messaging.MessagingException;
  *
  * <p>This class manages all that state.</p>
  */
+@Deprecated
 public class RestrictedPriorityQueue extends PriorityQueue<TransactionState> {
     private static final long serialVersionUID = 1L;
 
+    @Deprecated
     public enum QueueState {
         UNBLOCKED,
         BLOCKED_EMPTY,

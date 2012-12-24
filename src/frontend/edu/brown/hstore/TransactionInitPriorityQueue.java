@@ -99,6 +99,10 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     protected Long getLastTransactionId() {
         return (this.lastTxnPopped);
     }
+    
+    protected long getBlockedTimestamp() {
+        return (this.blockTime);
+    }
 
     /**
      * Only return transaction state objects that are ready to run.
@@ -112,6 +116,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             // if another thread removes the txn from the queue.
             retval = super.poll();
             if (retval != null) {
+                if (d) LOG.debug(String.format("Partition %d :: poll() -> %s", this.partitionId, retval));
                 this.txnsPopped++;
                 this.blockTime = -1;
                 this.lastTxnPopped = retval.getTransactionId();
@@ -119,8 +124,6 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             // call this again to prime the next txn
             this.checkQueueState();
         }
-        if (d && retval != null)
-            LOG.debug(String.format("Partition %d :: poll() -> %s", this.partitionId, retval));
         return retval;
     }
 
@@ -148,9 +151,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         assert(ts.isInitialized());
         
         boolean retval = super.offer(ts);
-        // update the queue state
-        if (d) LOG.debug(String.format("Partition %d :: offer(%s) -> %s",
-                         this.partitionId, ts, retval));
+        if (d) LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
         if (retval) this.checkQueueState();
         return retval;
     }
@@ -162,9 +163,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         // Sanity Check
         assert(super.contains(txn) == false) :
             "Failed to remove " + txn + "???\n" + this.debug();
-        if (d) LOG.warn(String.format("Partition %d :: remove(%s) -> %s",
-                        this.partitionId, txn, retval));
-        this.checkQueueState();
+        if (d) LOG.warn(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
+        if (retval) this.checkQueueState();
         return retval;
     }
     
@@ -220,12 +220,15 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             // If this txnId is greater than the last safe one that we've seen, then we know
             // that the lastSafeTxnId has been polled. That means that we need to 
             // wait for an appropriate amount of time before we're allow to be executed.
-            if (txnId.compareTo(this.lastSafeTxnId) > 0 &&
-                (this.lastTxnPopped == null) ||
-                (this.lastTxnPopped != null && this.lastTxnPopped.equals(this.lastSafeTxnId) == false)) {
+            if (txnId.compareTo(this.lastSafeTxnId) > 0 && (
+                (this.lastTxnPopped == null) || 
+                (this.lastTxnPopped != null && this.lastTxnPopped.equals(this.lastSafeTxnId) == false))
+               ) {
                 newState = QueueState.BLOCKED_ORDERING;
-                if (d) LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
-                                 this.partitionId, txnId, this.lastSafeTxnId));
+                if (d) LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d] / " +
+                		         "lastTxnPopped[%d] <=> lastSafeTxnId[%d]",
+                                 this.partitionId, txnId, this.lastSafeTxnId,
+                                 this.lastTxnPopped, this.lastSafeTxnId));
             }
             // If our current block time is negative, then we know that we're the first txnId
             // that's been in the system. We'll also want to wait a bit before we're
@@ -249,7 +252,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                           this.partitionId, txnId));
             }
             
-            if (d) LOG.debug(String.format("Partition %d :: NewState=%s\n%s", this.partitionId, newState, this.debug()));
+            if (t) LOG.trace(String.format("Partition %d :: NewState=%s\n%s", this.partitionId, newState, this.debug()));
         }
         if (newState != this.state) {
             // note if we get non-empty but blocked

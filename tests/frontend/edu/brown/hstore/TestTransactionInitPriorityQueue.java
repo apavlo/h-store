@@ -48,7 +48,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         super.setUp(ProjectType.TM1);
         
         this.hstore_conf = HStoreConf.singleton();
-        hstore_conf.site.txn_incoming_delay = TXN_DELAY;
+        this.hstore_conf.site.txn_incoming_delay = TXN_DELAY;
         
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         assertNotNull(catalog_site);
@@ -85,6 +85,51 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testQueueState
+     */
+    @Test
+    public void testQueueState() throws Exception {
+        // Always start off as empty
+        QueueState state = this.queue.checkQueueState();
+        assertEquals(QueueState.BLOCKED_EMPTY, state);
+        
+        // Insert a bunch of txns that all have the same initiating timestamp
+        Collection<AbstractTransaction> added = this.loadQueue(NUM_TXNS);
+        assertEquals(added.size(), this.queue.size());
+        
+        // Because we haven't moved the current time up, we know that none of
+        // the txns should be released now
+        state = this.queue.checkQueueState();
+        assertEquals(QueueState.BLOCKED_SAFETY, state);
+        
+        // Sleep for a little bit to make the current time move forward 
+        ThreadUtil.sleep(TXN_DELAY);
+        EstTimeUpdater.update(System.currentTimeMillis());
+
+        Iterator<AbstractTransaction> it = added.iterator();
+        for (int i = 0; i < NUM_TXNS; i++) {
+            // No matter how many times that we call checkQueueState, our 
+            // blocked timestamp should not change since we haven't released
+            // a transaction
+            Long lastBlockTime = null;
+            long nextBlockTime;
+            for (int j = 0; j < 10; j++) {
+                String debug = String.format("i=%d / j=%d", i, j);
+                state = this.queue.checkQueueState();
+                nextBlockTime = this.queue.getBlockedTimestamp();
+                // System.err.printf("%s => state=%s / lastBlock=%d\n", debug, state, lastBlockTime);
+                
+                assertEquals(debug, QueueState.UNBLOCKED, state);
+                if (lastBlockTime != null) {
+                    assertEquals(debug, lastBlockTime.longValue(), nextBlockTime);
+                }
+                lastBlockTime = nextBlockTime;
+            } // FOR
+            assertEquals("i="+i, it.next(), this.queue.poll());
+        } // FOR
+    }
     
     /**
      * testOutOfOrderInsertion
