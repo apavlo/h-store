@@ -880,7 +880,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.specExecScheduler != null);
         assert(this.queueManager != null);
         
-        
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
         this.hstore_site.getThreadManager().registerEEThread(partition);

@@ -253,8 +253,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
         StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
          
-        for (Integer p : hstore_site.getLocalPartitionIdArray()) {
-            invocation.getParams().toArray()[0] = p.intValue();
+        for (int p : hstore_site.getLocalPartitionIds().values()) {
+            invocation.getParams().toArray()[0] = p;
             ByteBuffer b = null;
             try {
                 b = ByteBuffer.wrap(FastSerializer.serialize(invocation));

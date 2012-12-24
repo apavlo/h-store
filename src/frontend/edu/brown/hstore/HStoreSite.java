@@ -85,14 +85,10 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.ClientInterface.ClientInputHandler;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
-import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.SlowTransactionInitCallback;
-import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -374,11 +370,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final PartitionSet local_partitions = new PartitionSet();
     
     /**
-     * Integer list of all local partitions managed at this HStoreSite
-     */
-    private final Integer local_partitions_arr[];
-    
-    /**
      * PartitionId -> Internal Offset
      * This is so that we don't have to keep long arrays of local partition information
      */
@@ -448,7 +439,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // **IMPORTANT**
         // We have to setup the partition offsets before we do anything else here
-        this.local_partitions_arr = new Integer[num_local_partitions];
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
         
@@ -490,7 +480,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int partition : this.local_partitions) {
             this.local_partition_offsets[partition] = offset;
             this.local_partition_reverse[offset] = partition; 
-            this.local_partitions_arr[offset] = partition;
             offset++;
         } // FOR
         
@@ -793,20 +782,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.local_partitions);
     }
     /**
-     * Return an immutable array of the local partition ids managed by this HStoreSite
-     * Use this array is prefable to the PartitionSet if you must iterate of over them.
-     * This avoids having to create a new Iterator instance each time.
-     */
-    @Deprecated
-    public Integer[] getLocalPartitionIdArray() {
-        return (this.local_partitions_arr);
-    }
-    /**
      * Returns true if the given partition id is managed by this HStoreSite
      * @param partition
      * @return
      */
     public boolean isLocalPartition(int partition) {
+        assert(partition >= 0);
+        assert(partition < this.local_partition_offsets.length);
         return (this.local_partition_offsets[partition] != -1);
     }
     /**
