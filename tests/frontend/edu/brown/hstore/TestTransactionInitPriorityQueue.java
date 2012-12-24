@@ -32,7 +32,7 @@ import edu.brown.utils.ThreadUtil;
 public class TestTransactionInitPriorityQueue extends BaseTestCase {
 
     private static final int NUM_TXNS = 10;
-    private static final int TXN_DELAY = 1000;
+    private static final int TXN_DELAY = 500;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = DeleteCallForwarding.class;
     private static final Random random = new Random(0);
     
@@ -93,7 +93,6 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     public void testOutOfOrderInsertion() throws Exception {
         // Create a bunch of txns and then insert them in the wrong order
         // We should be able to get them back in the right order
-        // List<AbstractTransaction> added = new ArrayList<AbstractTransaction>();
         Collection<AbstractTransaction> added = new TreeSet<AbstractTransaction>();
         for (long i = 0; i < NUM_TXNS; i++) {
             LocalTransaction txn = new LocalTransaction(this.hstore_site);
@@ -126,9 +125,8 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             EstTimeUpdater.update(System.currentTimeMillis());
             AbstractTransaction expected = it.next();
             assertNotNull(expected);
-            
             if (i == 0) this.queue.checkQueueState();
-            assertEquals(expected, this.queue.poll());
+            assertEquals("i="+i, expected, this.queue.poll());
         } // FOR
     }
     
