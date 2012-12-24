@@ -149,7 +149,7 @@ public class TransactionIdManager {
             counterValue = 0;
         }
 
-        this.lastTxnId = Long.valueOf(makeIdFromComponents(currentTime + time_delta, counterValue, initiatorId));
+        this.lastTxnId = new Long(makeIdFromComponents(currentTime + time_delta, counterValue, initiatorId));
         return (this.lastTxnId);
     }
 
