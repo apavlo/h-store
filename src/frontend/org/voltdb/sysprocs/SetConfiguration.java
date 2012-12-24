@@ -34,13 +34,13 @@ public class SetConfiguration extends VoltSystemProcedure {
 
     public static final ColumnInfo nodeResultsColumns[] = {
         new ColumnInfo("SITE", VoltType.INTEGER),
-        new ColumnInfo("NAME", VoltType.STRING),
-        new ColumnInfo("VALUE", VoltType.STRING),
+        new ColumnInfo("CONFNAME", VoltType.STRING),
+        new ColumnInfo("CONFVALUE", VoltType.STRING),
     };
     
     public static final ColumnInfo aggregateResultsColumns[] = {
-        new ColumnInfo("NAME", VoltType.STRING),
-        new ColumnInfo("VALUE", VoltType.STRING),
+        new ColumnInfo("CONFNAME", VoltType.STRING),
+        new ColumnInfo("CONFVALUE", VoltType.STRING),
         new ColumnInfo("UPDATED", VoltType.TIMESTAMP),
     };
     
