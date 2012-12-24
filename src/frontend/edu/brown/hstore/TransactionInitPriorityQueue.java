@@ -172,7 +172,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public synchronized Long noteTransactionRecievedAndReturnLastSeen(Long txnId) {
+    public Long noteTransactionRecievedAndReturnLastSeen(Long txnId) {
         assert(txnId != null);
         if (t) LOG.trace(String.format("Partition %d :: noteTransactionRecievedAndReturnLastSeen(%d)",
                          this.partitionId, txnId));
