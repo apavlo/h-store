@@ -108,7 +108,6 @@ public class TestHStoreSite extends BaseTestCase {
         this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.status_interval = 4000;
         this.hstore_conf.site.anticache_enable = false;
-        this.hstore_conf.site.network_txn_initialization = true;
         this.hstore_conf.site.txn_incoming_delay = 5;
         this.hstore_conf.site.exec_voltdb_procinfo = true;
         

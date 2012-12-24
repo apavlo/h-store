@@ -169,7 +169,6 @@ public class TestMarkovSuite extends RegressionSuite {
         builder.setGlobalConfParameter("client.scalefactor", RegressionSuiteUtil.SCALEFACTOR);
         builder.setGlobalConfParameter("site.specexec_enable", true);
         builder.setGlobalConfParameter("site.specexec_ignore_all_local", false);
-        builder.setGlobalConfParameter("site.network_txn_initialization", true);
         builder.setGlobalConfParameter("site.markov_enable", true);
         builder.setGlobalConfParameter("site.markov_profiling", true);
         builder.setGlobalConfParameter("site.markov_path_caching", false);

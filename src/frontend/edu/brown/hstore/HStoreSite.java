@@ -1642,54 +1642,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        PartitionExecutor executor = this.executors[base_partition];
-        boolean success = true;
-        
-        // We will initialize the transaction right here if the configuration parameter
-        // is set to true. 
-        // TODO: We need to measure whether it is faster to do it this way (with and without
-        // the models) or whether it is faster to queue things up in the PartitionExecutor
-        // and let it be responsible for sorting things out
-        if (hstore_conf.site.network_txn_initialization) {
-            if (t) LOG.trace("Initializing transaction request using network processing thread");
-            LocalTransaction ts = this.txnInitializer.createLocalTransaction(
-                                            buffer,
-                                            timestamp,
-                                            client_handle,
-                                            base_partition,
-                                            catalog_proc,
-                                            procParams,
-                                            clientCallback);
-            this.transactionQueue(ts);
-        }
-        // We should queue the txn at the proper partition
-        // The PartitionExecutor thread will be responsible for creating
-        // the LocalTransaction handle and figuring out whatever else we need to
-        // about this txn...
-        else {
-            success = executor.queueNewTransaction(buffer,
-                                                   timestamp,
-                                                   catalog_proc,
-                                                   procParams,
-                                                   clientCallback);
-            if (success == false) {
-                Status status = Status.ABORT_REJECT;
-                if (d) LOG.debug(String.format("Hit with a %s response from partition %d " +
-                                 "[queueSize=%d]",
-                                 status, base_partition, executor.getDebugContext().getWorkQueueSize()));
-                this.responseError(client_handle,
-                                   status,
-                                   REJECTION_MESSAGE + " - [1]",
-                                   clientCallback,
-                                   timestamp);
-            }
-        }
-
-        if (hstore_conf.site.txn_counters && success == false) {
-            TransactionCounter.REJECTED.inc(catalog_proc);
-        }
-        
-        if (t) LOG.trace(String.format("Finished initial processing of new txn. [success=%s]", success));
+        // 2012-12-24 - We always want the network threads to do the initialization
+        if (t) LOG.trace("Initializing transaction request using network processing thread");
+        LocalTransaction ts = this.txnInitializer.createLocalTransaction(
+                                        buffer,
+                                        timestamp,
+                                        client_handle,
+                                        base_partition,
+                                        catalog_proc,
+                                        procParams,
+                                        clientCallback);
+        this.transactionQueue(ts);
+        if (t) LOG.trace(String.format("Finished initial processing of new txn."));
         EstTimeUpdater.update(System.currentTimeMillis());
 //        if (hstore_conf.site.network_profiling) {
 //            ProfileMeasurement.swap(this.profiler.network_processing_time, this.profiler.network_idle_time);

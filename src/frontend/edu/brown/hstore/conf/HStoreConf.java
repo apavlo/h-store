@@ -612,17 +612,6 @@ public final class HStoreConf {
         public int network_startup_retries;
         
         @ConfigProperty(
-            description="If set to true, then incoming transaction requests will be processed " +
-                        "using the TransactionInitializer using the same thread that processed " +
-                        "network messages from the client. Otherwise, the transactions will be " +
-                        "processed using the PartitionExecutor's thread. " +
-                        "It is not clear which approach is better.",
-            defaultBoolean=true,
-            experimental=true
-        )
-        public boolean network_txn_initialization;
-        
-        @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will block the network connections.",
             defaultInt=400,

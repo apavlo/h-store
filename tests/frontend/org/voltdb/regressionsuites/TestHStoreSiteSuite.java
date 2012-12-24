@@ -46,21 +46,10 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         // Test transaction execution where the network processing threads are 
         // responsible for initializing the transactions.
         Client client = this.getClient();
-        RegressionSuiteUtil.setHStoreConf(client, "site.network_txn_initialization", true);
+        // RegressionSuiteUtil.setHStoreConf(client, "site.network_txn_initialization", true);
         this.executeTestWorkload(client);
     }
     
-    /**
-     * testPartitionExecutorInitialization
-     */
-    public void testPartitionExecutorInitialization() throws Exception {
-        // Test transaction execution where the PartitionExecutor is responsible 
-        // for initializing the transactions.
-        Client client = this.getClient();
-        RegressionSuiteUtil.setHStoreConf(client, "site.network_txn_initialization", false);
-        this.executeTestWorkload(client);
-    }
-
     public static Test suite() {
         VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
