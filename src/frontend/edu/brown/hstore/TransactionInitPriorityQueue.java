@@ -36,8 +36,6 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    private static boolean d = debug.get();
-    private static boolean t = trace.get();
     
     // ----------------------------------------------------------------------------
     // STATIC MEMBERS
@@ -143,7 +141,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             // if another thread removes the txn from the queue.
             retval = super.poll();
             if (retval != null) {
-                if (d) LOG.debug(String.format("Partition %d :: poll() -> %s", this.partitionId, retval));
+                if (debug.val) LOG.debug(String.format("Partition %d :: poll() -> %s", this.partitionId, retval));
                 this.lastTxnPopped = retval.getTransactionId();
                 this.txnsPopped++;
             }
@@ -165,7 +163,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             retval = super.peek();
             assert(retval != null);
         }
-        if (d) LOG.debug(String.format("Partition %d :: peek() -> %s", this.partitionId, retval));
+        if (debug.val) LOG.debug(String.format("Partition %d :: peek() -> %s", this.partitionId, retval));
         return retval;
     }
     
@@ -179,7 +177,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         assert(ts.isInitialized());
         
         boolean retval = super.offer(ts);
-        if (d) LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
+        if (debug.val) LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
         if (retval) this.checkQueueState(false);
         return retval;
     }
@@ -191,7 +189,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         // Sanity Check
         assert(super.contains(txn) == false) :
             "Failed to remove " + txn + "???\n" + this.debug();
-        if (d) LOG.warn(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
+        if (debug.val) LOG.warn(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
         if (retval) this.checkQueueState(false);
         return retval;
     }
@@ -202,11 +200,11 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
      */
     public Long noteTransactionRecievedAndReturnLastSeen(Long txnId) {
         assert(txnId != null);
-        if (t) LOG.trace(String.format("Partition %d :: noteTransactionRecievedAndReturnLastSeen(%d)",
+        if (trace.val) LOG.trace(String.format("Partition %d :: noteTransactionRecievedAndReturnLastSeen(%d)",
                          this.partitionId, txnId));
 
         // we've decided that this can happen, and it's fine... just ignore it
-        if (d) {
+        if (debug.val) {
             if (this.lastTxnPopped != null && this.lastTxnPopped.compareTo(txnId) > 0) {
                 LOG.warn(String.format("Txn ordering deadlock at Partition %d ::> LastTxn: %d / NewTxn: %d",
                                        this.partitionId, this.lastTxnPopped, txnId));
@@ -216,13 +214,13 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         }
 
         this.lastSeenTxnId = txnId;
-        if (t) LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
+        if (trace.val) LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
                          this.partitionId, this.lastSeenTxnId));
         if (txnId.compareTo(this.lastSafeTxnId) < 0) {
             synchronized (this) {
                 if (txnId.compareTo(this.lastSafeTxnId) < 0) {
                     this.lastSafeTxnId = txnId;
-                    if (t) LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
+                    if (trace.val) LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
                                      this.partitionId, this.lastSafeTxnId));
                 }
             } // SYNCH
@@ -252,13 +250,13 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
      * @return
      */
     private synchronized QueueState checkQueueState(boolean afterPoll) {
-        if (t) LOG.trace(String.format("Partition %d :: checkQueueState(afterPoll=%s) [current=%s]",
+        if (trace.val) LOG.trace(String.format("Partition %d :: checkQueueState(afterPoll=%s) [current=%s]",
                          this.partitionId, afterPoll, this.state));
         QueueState newState = (afterPoll ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
         AbstractTransaction ts = super.peek();
         Long txnId = null;
         if (ts == null) {
-            if (t) LOG.trace(String.format("Partition %d :: Queue is empty.", this.partitionId));
+            if (trace.val) LOG.trace(String.format("Partition %d :: Queue is empty.", this.partitionId));
             newState = QueueState.BLOCKED_EMPTY;
         }
         // Check whether can unblock now
@@ -272,7 +270,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             // wait for an appropriate amount of time before we're allow to be executed.
             if (txnId.compareTo(this.lastSafeTxnId) > 0 && afterPoll == false) {
                 newState = QueueState.BLOCKED_ORDERING;
-                if (d) LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
+                if (debug.val) LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
                                  this.partitionId, txnId, this.lastSafeTxnId));
             }
             // If our current block time is negative, then we know that we're the first txnId
@@ -280,19 +278,19 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             // allowed to be executed.
             else if (this.blockTimestamp == NULL_BLOCK_TIMESTAMP) {
                 newState = QueueState.BLOCKED_SAFETY;
-                if (d) LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime=%d)",
+                if (debug.val) LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime=%d)",
                                  this.partitionId, txnId, newState, this.blockTimestamp));
             }
             // Check whether it's safe to unblock this mofo
             else if (EstTime.currentTimeMillis() < this.blockTimestamp) {
                 newState = QueueState.BLOCKED_SAFETY;
-                if (d) LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime[%d] - current[%d] = %d)",
+                if (debug.val) LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime[%d] - current[%d] = %d)",
                                  this.partitionId, txnId, newState,
                                  this.blockTimestamp, EstTime.currentTimeMillis(),
                                  Math.max(0, this.blockTimestamp - EstTime.currentTimeMillis())));
             }
             // We didn't find any reason to block this txn, so it's sail yo for it...
-            else if (d) {
+            else if (debug.val) {
                 LOG.debug(String.format("Partition %d :: Safe to Execute %d",
                           this.partitionId, txnId));
             }
@@ -301,7 +299,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         if (newState != this.state) {
             // note if we get non-empty but blocked
             if ((newState == QueueState.BLOCKED_ORDERING) || (newState == QueueState.BLOCKED_SAFETY)) {
-                if (t) LOG.trace(String.format("Partition %d :: NewState=%s --> %s",
+                if (trace.val) LOG.trace(String.format("Partition %d :: NewState=%s --> %s",
                                         this.partitionId, newState, ts));
                 
                 
@@ -318,7 +316,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                 }
                 
                 this.blockTimestamp = currentTimestamp + waitTime;
-                if (d) LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
+                if (debug.val) LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
                                            this.partitionId, this.blockTimestamp, ts));
                 
                 newState = (waitTime > 0 ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
@@ -329,12 +327,12 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                 // the id up above. This is actually probably the only part of this entire method
                 // that needs to be protected...
                 this.lastSafeTxnId = txnId;
-                if (d) LOG.debug(String.format("Partition %d :: SET lastSafeTxnId = %d --> %s",
+                if (debug.val) LOG.debug(String.format("Partition %d :: SET lastSafeTxnId = %d --> %s",
                                  this.partitionId, this.lastSafeTxnId, ts));
                 
-                if (d) {
+                if (debug.val) {
                     String debug = "";
-                    if (t) {
+                    if (trace.val) {
                         Map<String, Object> m = new LinkedHashMap<String, Object>();
                         m.put("Txn Init Timestamp", txnTimestamp);
                         m.put("Current Timestamp", currentTimestamp);
@@ -359,7 +357,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             }
         }
         if (newState != this.state) {
-            if (d) LOG.debug(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
+            if (debug.val) LOG.debug(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
                              this.partitionId, this.state, newState, this.lastSafeTxnId));
             this.state = newState;
         }

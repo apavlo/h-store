@@ -37,7 +37,7 @@ public abstract class LoggerUtil {
     private static HStoreThreadManager THREAD_MANAGER;
     
     public static class LoggerBoolean {
-        private boolean val;
+        public boolean val;
     
         public LoggerBoolean(boolean val) {
             this.val = val;

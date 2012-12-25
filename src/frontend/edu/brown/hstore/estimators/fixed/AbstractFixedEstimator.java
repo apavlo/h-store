@@ -70,10 +70,6 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         public DefaultFixedEstimator(PartitionEstimator p_estimator) {
             super(p_estimator);
         }
-        @Override
-        public void updateLogging() {
-            // Nothing to do...
-        }
         @SuppressWarnings("unchecked")
         @Override
         protected <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {

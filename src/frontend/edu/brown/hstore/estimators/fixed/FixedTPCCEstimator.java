@@ -110,9 +110,4 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
                       base_partition, touchedPartitions));
         return (touchedPartitions);        
     }
-
-    @Override
-    public void updateLogging() {
-        // TODO Auto-generated method stub
-    }
 }

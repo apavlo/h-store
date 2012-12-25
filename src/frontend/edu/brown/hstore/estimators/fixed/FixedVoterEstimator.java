@@ -31,9 +31,4 @@ public class FixedVoterEstimator extends AbstractFixedEstimator {
         ret.createInitialEstimate(partitions, readonly, EMPTY_PARTITION_SET);
         return ((T)ret);
     }
-
-    @Override
-    public void updateLogging() {
-        // TODO Auto-generated method stub
-    }
 }

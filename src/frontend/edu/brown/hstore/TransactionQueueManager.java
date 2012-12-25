@@ -19,7 +19,6 @@ import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.TransactionInitPriorityQueue.QueueState;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -27,7 +26,6 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
-import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -40,15 +38,13 @@ import edu.brown.utils.StringUtil;
  * 
  * @author pavlo
  */
-public class TransactionQueueManager implements Runnable, Loggable, Shutdownable, Configurable {
+public class TransactionQueueManager implements Runnable, Shutdownable, Configurable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    private static boolean d = debug.get();
-    private static boolean t = trace.get();
     
     /**
      * the site that will send init requests to this coordinator
@@ -186,14 +182,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
         } // FOR
         
-        if (d) LOG.debug(String.format("Created %d TransactionInitQueues for %s",
+        if (debug.val) LOG.debug(String.format("Created %d TransactionInitQueues for %s",
                          num_partitions, hstore_site.getSiteName()));
-    }
-    
-    @Override
-    public void updateLogging() {
-        d = debug.get();
-        t = trace.get();
     }
     
     /**
@@ -210,7 +200,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_TXNQUEUE));
         this.hstore_site.getThreadManager().registerProcessingThread();
         
-        if (d) LOG.debug("Starting distributed transaction queue manager thread");
+        if (debug.val) LOG.debug("Starting distributed transaction queue manager thread");
         
         while (this.stop == false) {
             // if (hstore_conf.site.queue_profiling) profiler.idle.start();
@@ -222,7 +212,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 // if (hstore_conf.site.queue_profiling && profiler.idle.isStarted()) profiler.idle.stop();
             }
             
-//            if (t) LOG.trace("Checking partition queues for dtxns to release!");
+//            if (trace.val) LOG.trace("Checking partition queues for dtxns to release!");
 //            if (hstore_conf.site.queue_profiling) profiler.lock_queue.start();
 //            while (this.checkLockQueues()) {
 //                // Keep checking the queue as long as they have more stuff in there
@@ -236,7 +226,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
 //                int added = this.checkInitQueue(partition);
 //                if (added == 0) {
 //                    QueueState state = this.lockQueues[partition].checkQueueState();
-//                    if (t) LOG.trace(String.format("Partition %d :: State=%s", partition, state));
+//                    if (trace.val) LOG.trace(String.format("Partition %d :: State=%s", partition, state));
 //                }
             } // FOR
             
@@ -272,7 +262,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // Long txnId = null;
         
         
-        if (d) LOG.debug("Clearing out lock queue for partition " + partition);
+        if (debug.val) LOG.debug("Clearing out lock queue for partition " + partition);
         // LOCK QUEUES
         synchronized (this.lockQueues[partition]) {
             while ((ts = this.lockQueues[partition].poll()) != null) {
@@ -339,17 +329,17 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     protected AbstractTransaction checkLockQueue(int partition) {
         if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.start();
-        if (t) LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
+        if (trace.val) LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
                          partition, this.lockQueues[partition].size()));
         
         if (this.lockQueuesBlocked[partition] != false) {
-            if (t) LOG.warn(String.format("Partition %d is already executing transaction %d. Skipping...",
+            if (trace.val) LOG.warn(String.format("Partition %d is already executing transaction %d. Skipping...",
                             partition, this.lockQueuesLastTxn[partition]));
             if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.stop();
             return (null);
         }
         
-        if (t) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
+        if (trace.val) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
         PartitionCountingCallback<AbstractTransaction> callback = null;
         AbstractTransaction nextTxn = null;
         // Long nextTxnId = null;
@@ -360,7 +350,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // If null, then there is nothing that is ready to run at this partition,
             // so we'll just skip to the next one
             if (nextTxn == null) {
-                if (t) LOG.trace(String.format("Partition %d initQueue does not have a transaction ready to run. Skipping... " +
+                if (trace.val) LOG.trace(String.format("Partition %d initQueue does not have a transaction ready to run. Skipping... " +
                 		         "[queueSize=%d]",
                                  partition, this.lockQueues[partition].size()));
                 this.lockQueues[partition].checkQueueState();
@@ -375,7 +365,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // If this callback has already been aborted, then there is nothing we need to
             // do. Somebody else will make sure that this txn is removed from the queue
             if (callback.isAborted()) {
-                if (d) LOG.debug(String.format("The next id for partition %d is %s but its callback is marked as aborted. " +
+                if (debug.val) LOG.debug(String.format("The next id for partition %d is %s but its callback is marked as aborted. " +
                 		         "[queueSize=%d]",
                                  partition, nextTxn, this.lockQueuesLastTxn[partition],
                                  this.lockQueues[partition].size()));
@@ -387,7 +377,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // We don't need to acquire lock here because we know that our partition isn't doing
             // anything at this moment. 
             else if (this.lockQueuesLastTxn[partition].compareTo(nextTxn.getTransactionId()) > 0) {
-                if (d) LOG.debug(String.format("The next id for partition %d is %s but this is less than the previous txn #%d. Rejecting... " +
+                if (debug.val) LOG.debug(String.format("The next id for partition %d is %s but this is less than the previous txn #%d. Rejecting... " +
                 		         "[queueSize=%d]",
                                  partition, nextTxn, this.lockQueuesLastTxn[partition],
                                  this.lockQueues[partition].size()));
@@ -400,7 +390,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 continue;
             }
 
-            if (d) LOG.debug(String.format("Good news! Partition %d is ready to execute %s! Invoking initQueue callback!",
+            if (debug.val) LOG.debug(String.format("Good news! Partition %d is ready to execute %s! Invoking initQueue callback!",
                              partition, nextTxn));
             this.lockQueuesLastTxn[partition] = nextTxn.getTransactionId();
             this.lockQueuesBlocked[partition] = true; 
@@ -410,7 +400,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 callback.run(partition);
             } catch (NullPointerException ex) {
                 // HACK: Ignore...
-                if (d) LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
+                if (debug.val) LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
                                 callback.getClass().getSimpleName(), nextTxn, partition), ex);
             } catch (Throwable ex) {
                 String msg = String.format("Failed to invoke %s for %s at partition %d",
@@ -419,7 +409,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
         } // WHILE
         
-        if (d && nextTxn != null && nextTxn.isPredictSinglePartition() == false)
+        if (debug.val && nextTxn != null && nextTxn.isPredictSinglePartition() == false)
             LOG.debug(String.format("Finished processing lock queue for partition %d [next=%s]",
                       partition, nextTxn));
         if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.stop();
@@ -450,7 +440,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             return (false);
         }
         
-        if (d) LOG.debug(String.format("Adding %s into lockQueue for partition %d [allPartitions=%s]",
+        if (debug.val) LOG.debug(String.format("Adding %s into lockQueue for partition %d [allPartitions=%s]",
                          ts, partition, ts.getPredictTouchedPartitions()));
         
         // We can preemptively check whether this txnId is greater than
@@ -460,7 +450,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // the what the transaction was trying to use.
         Long txn_id = ts.getTransactionId();
         if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
-            if (d) LOG.debug(String.format("The last lockQueue txnId for remote partition is #%d but this " +
+            if (debug.val) LOG.debug(String.format("The last lockQueue txnId for remote partition is #%d but this " +
             		         "is greater than %s. Rejecting...",
                              partition, this.lockQueuesLastTxn[partition], ts));
             this.rejectTransaction(ts,
@@ -482,7 +472,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // The next txnId that we're going to try to execute is already greater
         // than this new txnId that we were given! Rejection!
         if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
-            if (d) LOG.debug(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
+            if (debug.val) LOG.debug(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
             		         "is greater than our new txn %s. Rejecting...",
                              partition, this.lockQueuesLastTxn[partition], ts));
             this.rejectTransaction(ts,
@@ -493,7 +483,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
         // Our queue is overloaded. We have to reject the txnId!
         else if (this.lockQueues[partition].offer(ts) == false) {
-            if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
+            if (debug.val) LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
             		        "Throttling %s until id is greater than %s " +
             		        "[locked=%s, queueSize=%d]",
                              partition, ts, next_safe_id,
@@ -504,7 +494,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                    next_safe_id);
             return (false);
         }
-        if (t) LOG.trace(String.format("Added %s to initQueue for partition %d [locked=%s, queueSize=%d]",
+        if (trace.val) LOG.trace(String.format("Added %s to initQueue for partition %d [locked=%s, queueSize=%d]",
                          ts, partition,
                          this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
         return (true);
@@ -522,7 +512,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             String.format("Unexpected uninitialized transaction %s [status=%s, partition=%d]", ts, status, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + ts + " as finished on remote partition #" + partition;
-        if (d) LOG.debug(String.format("%s is finished on partition %d. Checking whether to update queues " +
+        if (debug.val) LOG.debug(String.format("%s is finished on partition %d. Checking whether to update queues " +
         		         "[status=%s]",
         		         ts, partition, status));
         
@@ -533,7 +523,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         boolean checkQueue = true;
         if (this.lockQueuesBlocked[partition] != false &&
             this.lockQueuesLastTxn[partition].equals(ts.getTransactionId())) {
-            if (d) LOG.debug(String.format("Unlocking partition %d because %s is finished " +
+            if (debug.val) LOG.debug(String.format("Unlocking partition %d because %s is finished " +
             		         "[status=%s]",
                              partition, ts, status));
             this.lockQueuesBlocked[partition] = false;
@@ -565,14 +555,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // This is a local transaction that is still waiting for this partition (i.e., it hasn't
         // been rejected yet). That means we will want to decrement the counter its Transaction
         if (removed && status != Status.OK) {
-            if (d) LOG.debug(String.format("Removed %s from partition %d queue", ts, partition));
+            if (debug.val) LOG.debug(String.format("Removed %s from partition %d queue", ts, partition));
             PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
             try {
                 if (callback.isAborted() == false) callback.abort(status);
             } catch (Throwable ex) {
                 String msg = String.format("Unexpected error when trying to abort %s on partition %d [status=%s]",
                                            ts, partition, status);
-                if (d) LOG.warn(msg, ex);
+                if (debug.val) LOG.warn(msg, ex);
                 throw new RuntimeException(msg, ex);
             }
         }
@@ -600,7 +590,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         assert(reject_txnId != null) :
             String.format("Null reject txn id for %s [status=%s, rejectPartition=%d]",
                           ts, status, reject_partition);
-        if (d) {
+        if (debug.val) {
             Long txnId = ts.getTransactionId();
             boolean is_valid = (reject_txnId == null || txnId.compareTo(reject_txnId) > 0);
             LOG.debug(String.format("Rejecting %s on partition %d. Blocking until a txnId greater than #%d " +
@@ -626,7 +616,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 String msg = String.format("Unexpected error when trying to abort txn %s " +
                                            "[status=%s, rejectPartition=%d, rejectTxnId=%s]",
                                            ts, status, reject_partition, reject_txnId);
-                if (d) LOG.warn(msg, ex); 
+                if (debug.val) LOG.warn(msg, ex); 
                 throw new RuntimeException(msg, ex);
             }
         }
@@ -649,7 +639,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // at partitions very often.
         synchronized (this.lockQueuesLastTxn[partition]) {
             if (this.lockQueuesLastTxn[partition].compareTo(txn_id) < 0) {
-                if (d) LOG.debug(String.format("Marking txn #%d as last txnId for remote partition %d", txn_id, partition));
+                if (debug.val) LOG.debug(String.format("Marking txn #%d as last txnId for remote partition %d", txn_id, partition));
                 this.lockQueuesLastTxn[partition] = txn_id;
             }
         } // SYNCH
@@ -663,7 +653,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param last_txnId
      */
     public void blockTransaction(LocalTransaction ts, int partition, Long last_txnId) {
-        if (d) LOG.debug(String.format("%s - Blocking transaction until after a txnId greater than %d " +
+        if (debug.val) LOG.debug(String.format("%s - Blocking transaction until after a txnId greater than %d " +
                          "is created for partition %d",
                          ts, last_txnId, partition));
        
@@ -698,14 +688,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param last_txn_id
      */
     private void checkBlockedQueue() {
-        if (t) LOG.trace(String.format("Checking whether we can release %d blocked dtxns",
-                                       this.blockedQueue.size()));
+        if (trace.val) LOG.trace(String.format("Checking whether we can release %d blocked dtxns",
+                                 this.blockedQueue.size()));
         
         while (this.blockedQueue.isEmpty() == false) {
             LocalTransaction ts = this.blockedQueue.peek();
             Long releaseTxnId = this.blockedQueueTransactions.get(ts);
             if (releaseTxnId == null) {
-                if (d) LOG.warn("Missing release TxnId for " + ts);
+                if (debug.val) LOG.warn("Missing release TxnId for " + ts);
                 try {
                     this.blockedQueue.remove(ts);
                 } catch (NullPointerException ex) {
@@ -719,7 +709,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             TransactionIdManager txnIdManager = hstore_site.getTransactionIdManager(ts.getBasePartition());
             Long last_txn_id = txnIdManager.getLastTxnId();
             if (releaseTxnId.compareTo(last_txn_id) < 0) {
-                if (d) LOG.debug(String.format("Releasing blocked %s because the lastest txnId was #%d [release=%d]",
+                if (debug.val) LOG.debug(String.format("Releasing blocked %s because the lastest txnId was #%d [release=%d]",
                                                ts, last_txn_id, releaseTxnId));
                 this.blockedQueue.remove();
                 this.blockedQueueTransactions.remove(ts);
@@ -743,17 +733,17 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param status
      */
     public void restartTransaction(LocalTransaction ts, Status status) {
-        if (d) LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
+        if (debug.val) LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
         ts.markNeedsRestart();
         
         if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
-            if (d) LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));
+            if (debug.val) LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
             ts.unmarkNeedsRestart();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
             return;
         }
-        if (d) LOG.debug(String.format("%s - Successfully added txn to restart queue.", ts));
+        if (debug.val) LOG.debug(String.format("%s - Successfully added txn to restart queue.", ts));
         if (this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();
     }
@@ -764,9 +754,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             LocalTransaction ts = pair.getFirst();
             Status status = pair.getSecond();
             
-            if (d) LOG.debug(String.format("%s - Ready to restart transaction [status=%s]", ts, status));
+            if (debug.val) LOG.debug(String.format("%s - Ready to restart transaction [status=%s]", ts, status));
             Status ret = this.hstore_site.transactionRestart(ts, status);
-            if (d) LOG.debug(String.format("%s - Got return result %s after restarting", ts, ret));
+            if (debug.val) LOG.debug(String.format("%s - Got return result %s after restarting", ts, ret));
             
             ts.unmarkNeedsRestart();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);

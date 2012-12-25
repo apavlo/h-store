@@ -27,7 +27,6 @@ import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
@@ -40,7 +39,7 @@ import edu.brown.utils.StringUtil;
  * @author pavlo
  * @author cjl6
  */
-public class PrefetchQueryPlanner implements Loggable {
+public class PrefetchQueryPlanner {
     private static final Logger LOG = Logger.getLogger(PrefetchQueryPlanner.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -97,7 +96,7 @@ public class PrefetchQueryPlanner implements Loggable {
         } // FOR (procedure)
 
         this.partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(catalogContext.database);
-        if (debug.get()) LOG.debug(String.format("Initialized QueryPrefetchPlanner for %d " +
+        if (debug.val) LOG.debug(String.format("Initialized QueryPrefetchPlanner for %d " +
         		                                 "Procedures with prefetchable Statements",
         		                                 this.planners.size()));
         if (this.catalogContext.paramMappings == null) {
@@ -110,7 +109,7 @@ public class PrefetchQueryPlanner implements Loggable {
         planner.setPrefetchFlag(prefetch);
         // Are the prefetchStmts always going to be sorted the same way? (Does it matter for the hash code?)
         this.planners.put(VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length), planner);
-        if (debug.get()) LOG.debug(String.format("%s Prefetch Statements: %s", catalog_proc.getName(), prefetchStmts));
+        if (debug.val) LOG.debug(String.format("%s Prefetch Statements: %s", catalog_proc.getName(), prefetchStmts));
         return planner;
     }
     
@@ -124,7 +123,7 @@ public class PrefetchQueryPlanner implements Loggable {
             return (null);
         }
         
-        if (debug.get()) LOG.debug(ts + " - Generating prefetch WorkFragments");
+        if (debug.val) LOG.debug(ts + " - Generating prefetch WorkFragments");
         
         Procedure catalog_proc = ts.getProcedure();
         assert (ts.getProcedureParameters() != null) : 
@@ -163,7 +162,7 @@ public class PrefetchQueryPlanner implements Loggable {
         for (int i = 0; i < prefetchParams.length; i++) {
             Statement catalog_stmt = planner.getStatement(i);
             CountedStatement counted_stmt = countedStmts[i];
-            if (debug.get()) LOG.debug(String.format("%s - Building ParameterSet for prefetchable query %s",
+            if (debug.val) LOG.debug(String.format("%s - Building ParameterSet for prefetchable query %s",
                                                      ts, catalog_stmt.fullName()));
             Object stmt_params[] = new Object[catalog_stmt.getParameters().size()];
 
@@ -185,7 +184,7 @@ public class PrefetchQueryPlanner implements Loggable {
             } // FOR (StmtParameter)
             prefetchParams[i] = new ParameterSet(stmt_params);
 
-            if (debug.get()) LOG.debug(String.format("%s - [%02d] Prefetch %s -> %s",
+            if (debug.val) LOG.debug(String.format("%s - [%02d] Prefetch %s -> %s",
                                                      ts, i, catalog_stmt.getName(), prefetchParams[i]));
 
             // Serialize this ParameterSet for the TransactionInitRequests
@@ -254,7 +253,7 @@ public class PrefetchQueryPlanner implements Loggable {
                                                 .addAllPartitions(ts.getPredictTouchedPartitions()).build();
                     }
                     init_requests[site_id] = default_request;
-                    if (debug.get()) LOG.debug(ts + " - Sending default TransactionInitRequest to site " + site_id);
+                    if (debug.val) LOG.debug(ts + " - Sending default TransactionInitRequest to site " + site_id);
                 }
                 // and no other WorkFragments, set the TransactionInitRequest to
                 // null.
@@ -265,18 +264,11 @@ public class PrefetchQueryPlanner implements Loggable {
             // Otherwise, just build it.
             else {
                 init_requests[site_id] = builders[site_id].build();
-                if (debug.get()) LOG.debug(ts + " - Sending prefetch WorkFragments to site " + site_id);
+                if (debug.val) LOG.debug(ts + " - Sending prefetch WorkFragments to site " + site_id);
             }
         } // FOR (Site)
 
-        if (trace.get()) LOG.trace(ts + " - TransactionInitRequests\n" + StringUtil.join("\n", init_requests));
+        if (trace.val) LOG.trace(ts + " - TransactionInitRequests\n" + StringUtil.join("\n", init_requests));
         return (init_requests);
     }
-
-    @Override
-    public void updateLogging() {
-        // TODO Auto-generated method stub
-
-    }
-
 }

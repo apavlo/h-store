@@ -71,9 +71,4 @@ public class FixedSEATSEstimator extends AbstractFixedEstimator {
         
         return null;
     }
-
-    @Override
-    public void updateLogging() {
-        // TODO Auto-generated method stub
-    }
 }

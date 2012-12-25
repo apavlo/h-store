@@ -44,23 +44,19 @@ import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
-import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
-import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.Estimate;
+import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
-import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -69,13 +65,12 @@ import edu.brown.utils.PartitionSet;
 /**
  * @author pavlo
  */
-public abstract class AbstractTransaction implements Poolable, Loggable, Comparable<AbstractTransaction> {
+public abstract class AbstractTransaction implements Poolable, Comparable<AbstractTransaction> {
     private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
-    private static boolean d = debug.get();
     
     /**
      * Internal state for the transaction
@@ -382,7 +377,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
             this.writeTables[i].clear();
         } // FOR
 
-        if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
+        if (debug.val) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         
         this.deletable.lazySet(false);
@@ -391,12 +386,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         this.txn_id = null;
     }
     
-    @Override
-    public void updateLogging() {
-        d = debug.get();
-//        t = trace.get();
-    }
-
     // ----------------------------------------------------------------------------
     // DATA STORAGE
     // ----------------------------------------------------------------------------
@@ -445,7 +434,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
-        if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d / first=%d / last=%d]",
+        if (debug.val) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d / first=%d / last=%d]",
                          this, this.round_ctr[offset], partition,
                          undoToken, this.exec_firstUndoToken[offset],  this.exec_lastUndoToken[offset]));
     }
@@ -461,7 +450,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
                           this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
         this.round_state[offset] = RoundState.STARTED;
-        if (d) LOG.debug(String.format("%s - Starting batch ROUND #%d on partition %d",
+        if (debug.val) LOG.debug(String.format("%s - Starting batch ROUND #%d on partition %d",
                          this, this.round_ctr[offset], partition));
     }
     
@@ -475,7 +464,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
             String.format("Invalid batch round state %s for %s at partition %d",
                           this.round_state[offset], this, partition);
         
-        if (d) LOG.debug(String.format("%s - Finishing batch ROUND #%d on partition %d",
+        if (debug.val) LOG.debug(String.format("%s - Finishing batch ROUND #%d on partition %d",
                          this, this.round_ctr[offset], partition));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
@@ -623,7 +612,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
             return (false);
         }
         if (this.prepareWrapper_callback.allCallbacksFinished() == false) {
-            if (d) LOG.warn(String.format("%s - %s is not finished", this,
+            if (debug.val) LOG.warn(String.format("%s - %s is not finished", this,
                             this.prepareWrapper_callback.getClass().getSimpleName()));
             return (false);
         }
@@ -763,7 +752,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
     public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (d) LOG.warn(String.format("%s - Got %s error for txn: %s",
+            if (debug.val) LOG.warn(String.format("%s - Got %s error for txn: %s",
                             this, error.getClass().getSimpleName(), error.getMessage()));
             this.pending_error = error;
         }
@@ -819,7 +808,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * Should be called whenever the txn submits work to the EE 
      */
     public void markQueuedWork(int partition) {
-        if (d) LOG.debug(String.format("%s - Marking as having queued work on partition %d [exec_queueWork=%s]",
+        if (debug.val) LOG.debug(String.format("%s - Marking as having queued work on partition %d [exec_queueWork=%s]",
                          this, partition, Arrays.toString(this.exec_queueWork)));
         this.exec_queueWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
@@ -836,7 +825,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * Should be called whenever the txn submits work to the EE 
      */
     public void markExecutedWork(int partition) {
-        if (d) LOG.debug(String.format("%s - Marking as having submitted to the EE on partition %d [exec_eeWork=%s]",
+        if (debug.val) LOG.debug(String.format("%s - Marking as having submitted to the EE on partition %d [exec_eeWork=%s]",
                          this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
@@ -918,7 +907,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * @param partition - The partition to mark this txn as "prepared"
      */
     public boolean markPrepared(int partition) {
-        if (d) LOG.debug(String.format("%s - Marking as prepared on partition %d %s [hashCode=%d, offset=%d]",
+        if (debug.val) LOG.debug(String.format("%s - Marking as prepared on partition %d %s [hashCode=%d, offset=%d]",
                                        this, partition, Arrays.toString(this.prepared),
                                        this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
         boolean orig = false;
@@ -941,7 +930,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable, Compara
      * Mark this txn as finished (and thus ready for clean-up)
      */
     public void markFinished(int partition) {
-        if (d) LOG.debug(String.format("%s - Marking as finished on partition %d " +
+        if (debug.val) LOG.debug(String.format("%s - Marking as finished on partition %d " +
         		                       "[finished=%s / hashCode=%d / offset=%d]",
                                        this, partition, Arrays.toString(this.finished),
                                        this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));

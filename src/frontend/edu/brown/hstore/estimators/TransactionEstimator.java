@@ -14,7 +14,6 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
@@ -29,7 +28,7 @@ import edu.brown.utils.StringUtil;
  * @param <S> An EstimationState for the txn
  * @param <E> The current Estimation generated for the txn
  */
-public abstract class TransactionEstimator implements Loggable {
+public abstract class TransactionEstimator {
     private static final Logger LOG = Logger.getLogger(TransactionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -62,7 +61,7 @@ public abstract class TransactionEstimator implements Loggable {
             this.singlePartitionSets.put(p, catalogContext.getPartitionSetSingleton(p));
         } // FOR
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Initialized fixed transaction estimator -> " + this.getClass().getSimpleName());
     }
     
@@ -102,7 +101,7 @@ public abstract class TransactionEstimator implements Loggable {
      * @return
      */
     public final <T extends EstimatorState> T startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
-        if (debug.get()) LOG.debug(String.format("Checking %s input parameters:\nARGS: %s",
+        if (debug.val) LOG.debug(String.format("Checking %s input parameters:\nARGS: %s",
                                    catalog_proc.getName(),
                                    StringUtil.toString(args, true, true)));
 

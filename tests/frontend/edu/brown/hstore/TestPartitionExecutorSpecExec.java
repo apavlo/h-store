@@ -86,10 +86,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
             return (true);
         }
-        @Override
-        public void updateLogging() {
-            // Nothing
-        }
     };
     
     // --------------------------------------------------------------------------------------------

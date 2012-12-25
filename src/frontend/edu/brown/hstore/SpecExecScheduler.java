@@ -15,7 +15,6 @@ import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.DebugContext;
-import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.SpecExecProfiler;
@@ -25,16 +24,12 @@ import edu.brown.profilers.SpecExecProfiler;
  * to speculatively execute at a partition based on the current distributed transaction 
  * @author pavlo
  */
-public class SpecExecScheduler implements Loggable {
+public class SpecExecScheduler {
     private static final Logger LOG = Logger.getLogger(SpecExecScheduler.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
-    private static boolean d;
-    private static boolean t;
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
-        d = debug.get();
-        t = trace.get();
     }
     
     private final int partitionId;
@@ -133,11 +128,11 @@ public class SpecExecScheduler implements Loggable {
             profiler.total_time.start();
         }
         
-        if (d) {
+        if (debug.val) {
             LOG.debug(String.format("%s - Checking queue for transaction to speculatively execute " +
         		      "[specType=%s, queueSize=%d, policy=%s]",
                       dtxn, specType, this.work_queue.size(), this.policyType));
-            if (t) LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
+            if (trace.val) LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
                              dtxn, this.lastDtxn, this.lastSpecType, this.lastIterator));
         }
         
@@ -145,7 +140,7 @@ public class SpecExecScheduler implements Loggable {
         // on the same site, then we won't bother with trying to pick something out
         // because there is going to be very small wait times.
         if (this.ignore_all_local && dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
-            if (d) LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
+            if (debug.val) LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
                              "it is using are on the same HStoreSite [%s]", dtxn, dtxn.getProcedure()));
             if (this.profiling) profiler.total_time.stop();
             return (null);
@@ -176,22 +171,22 @@ public class SpecExecScheduler implements Loggable {
 
             // Skip any distributed or non-local transactions
             if ((txn instanceof LocalTransaction) == false || singlePartition == false) {
-                if (t) LOG.trace(String.format("%s - Skipping non-speculative candidate %s", dtxn, txn));
+                if (trace.val) LOG.trace(String.format("%s - Skipping non-speculative candidate %s", dtxn, txn));
                 continue;
             }
             LocalTransaction localTxn = (LocalTransaction)txn;
             
             // Skip anything already speculatively executed
             if (localTxn.isSpeculative()) {
-                if (t) LOG.trace(String.format("%s - Skipping %s because it was already executed", dtxn, txn));
+                if (trace.val) LOG.trace(String.format("%s - Skipping %s because it was already executed", dtxn, txn));
                 continue;
             }
 
             // Let's check it out!
             if (this.profiling) profiler.compute_time.start();
-            if (d) LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", localTxn, dtxn));
+            if (debug.val) LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", localTxn, dtxn));
             if (singlePartition == false) {
-                if (t) LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, localTxn));
+                if (trace.val) LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, localTxn));
                 continue;
             }
             try {
@@ -213,7 +208,7 @@ public class SpecExecScheduler implements Loggable {
                                 (this.policyType == SpecExecSchedulerPolicyType.LONGEST && remaining > best_time)) {
                                 best_time = remaining;
                                 next = localTxn;
-                                if (d) LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
+                                if (debug.val) LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
                                                  this.policyType, this.window_size, next, remaining));
                              }
                         }
@@ -237,9 +232,9 @@ public class SpecExecScheduler implements Loggable {
             } else {
                 this.work_queue.remove(next);
             }
-            if (d) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
+            if (debug.val) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
-        else if (d && this.work_queue.isEmpty() == false) {
+        else if (debug.val && this.work_queue.isEmpty() == false) {
             LOG.debug(String.format("%s - Failed to find non-conflicting speculative txn [txnCtr=%d, examinedCtr=%d]",
                       dtxn, txn_ctr, examined_ctr));
         }
@@ -250,12 +245,6 @@ public class SpecExecScheduler implements Loggable {
         else if (this.ignore_queue_size_change == false) this.lastSize = this.work_queue.size();
         if (this.profiling) profiler.total_time.stop();
         return (next);
-    }
-    
-    @Override
-    public void updateLogging() {
-        d = debug.get();
-        t = trace.get();
     }
     
     // ----------------------------------------------------------------------------

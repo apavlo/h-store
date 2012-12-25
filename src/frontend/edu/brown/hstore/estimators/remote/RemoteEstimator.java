@@ -26,25 +26,17 @@ public class RemoteEstimator extends TransactionEstimator {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    private static boolean d = debug.get();
-    private static boolean t = trace.get();
     
     private final TypedObjectPool<RemoteEstimatorState> statesPool;
     
     public RemoteEstimator(PartitionEstimator p_estimator) {
         super(p_estimator);
         
-        if (d) LOG.debug("Creating MarkovEstimatorState Object Pool");
+        if (debug.val) LOG.debug("Creating MarkovEstimatorState Object Pool");
         TypedPoolableObjectFactory<RemoteEstimatorState> s_factory = new RemoteEstimatorState.Factory(this.catalogContext); 
         this.statesPool = new TypedObjectPool<RemoteEstimatorState>(s_factory, hstore_conf.site.pool_estimatorstates_idle);
     }
 
-    @Override
-    public void updateLogging() {
-        d = debug.get();
-        t = trace.get();
-    }
-    
     public void processQueryEstimate(RemoteEstimatorState state, QueryEstimate query_est, int partition) {
         RemoteEstimate est = state.createNextEstimate(query_est);
         est.addQueryEstimate(query_est, partition);

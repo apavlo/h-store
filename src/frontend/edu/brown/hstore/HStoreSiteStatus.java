@@ -166,7 +166,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<HStoreSite>() {
             @Override
             public void update(EventObservable<HStoreSite> arg0, HStoreSite arg1) {
-//                if (debug.get())
+//                if (debug.val)
                 LOG.info(arg1.getSiteName() + " - " +HStoreConstants.SITE_FIRST_TXN);
                 startTime = System.currentTimeMillis();
             }
@@ -186,7 +186,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_DEBUGSTATUS));
         // this.hstore_site.getThreadManager().registerProcessingThread();
 
-        if (debug.get()) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
+        if (debug.val) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
         try {
             // Out we go!
             this.printStatus();
@@ -692,7 +692,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             j++;
         } // FOR
         
-        if (debug.get()) {
+        if (debug.val) {
             for (i = 0; i < rows.length; i++) {
                 LOG.debug("ROW[" + i + "]: " + Arrays.toString(rows[i]));
             }
@@ -781,7 +781,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             j++;
         } // FOR
         
-//        if (debug.get()) {
+//        if (debug.val) {
 //            for (i = 0; i < rows.length; i++) {
 //                LOG.debug("ROW[" + i + "]: " + Arrays.toString(rows[i]));
 //            }
@@ -947,7 +947,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     row[col_idx++] = (totals[i] > 0 ? String.format("%.02f", totals[i] / 1000000d) : null);
                 }
             } // FOR
-            if (debug.get()) LOG.debug("ROW[" + rows.size() + "] " + Arrays.toString(row));
+            if (debug.val) LOG.debug("ROW[" + rows.size() + "] " + Arrays.toString(row));
             rows.add(row);
         } // FOR
         if (rows.isEmpty()) return (null);
@@ -967,7 +967,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Object rows[][] = this.generateTxnProfileSnapshot();
         if (rows == null) return (null);
         
-        if (debug.get()) {
+        if (debug.val) {
             for (int i = 0; i < rows.length; i++) {
                 if (i == 0) LOG.debug("HEADER: " + Arrays.toString(this.txn_profiler_header));
                 LOG.debug("ROW[" + i + "] " + Arrays.toString(rows[i]));

@@ -70,7 +70,6 @@ import edu.brown.designer.ColumnSet;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -84,7 +83,7 @@ import edu.brown.workload.TransactionTrace;
  * calculations. 
  * @author pavlo
  */
-public class PartitionEstimator implements Loggable {
+public class PartitionEstimator {
     private static final Logger LOG = Logger.getLogger(PartitionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -216,7 +215,7 @@ public class PartitionEstimator implements Loggable {
                 // entries we need or the catalog has changed
                 synchronized (this) {
                     if (this.cache_valid == false) {
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace("Generating list of tables used by cache entry");
                         
                         this.tables = new Table[this.table_keys.size()];
@@ -311,7 +310,7 @@ public class PartitionEstimator implements Loggable {
         this.hasher = hasher;
         this.initCatalog(catalogContext);
         
-        if (trace.get())
+        if (trace.val)
             LOG.trace("Created a new PartitionEstimator with a " + hasher.getClass() + " hasher!");
     }
 
@@ -361,7 +360,7 @@ public class PartitionEstimator implements Loggable {
                     catalog_param = catalog_proc.getParameters().get(param_idx);
                 }
                 this.cache_procPartitionParameters.put(catalog_proc, catalog_param);
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(catalog_proc + " ProcParameter Cache: " + (catalog_param != null ? catalog_param.fullName() : catalog_param));
             }
         } // FOR
@@ -381,7 +380,7 @@ public class PartitionEstimator implements Loggable {
                 assert ((catalog_col instanceof VerticalPartitionColumn) == false) : catalog_col;
             }
             this.cache_tablePartitionColumns.put(catalog_tbl, catalog_col);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("%s Partition Column Cache: %s", catalog_tbl.getName(), catalog_col));
         } // FOR
         for (CacheEntry entry : this.cache_fragmentEntries.values()) {
@@ -397,7 +396,7 @@ public class PartitionEstimator implements Loggable {
             this.all_partitions = this.catalogContext.getAllPartitionIds();
             this.num_partitions = this.all_partitions.size();
             assert (this.hasher.getNumPartitions() == this.num_partitions);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Initialized PartitionEstimator with %d partitions using the %s hasher", this.num_partitions, this.hasher.getClass().getSimpleName()));
         }
     }
@@ -414,12 +413,6 @@ public class PartitionEstimator implements Loggable {
         this.cache_stmtPartitionParameters.clear();
     }
     
-    @Override
-    public void updateLogging() {
-        debug.set(LOG.isDebugEnabled());
-        trace.set(LOG.isTraceEnabled());
-    }
-
     // ----------------------------------------------------------------------------
     // INTERNAL CACHE METHODS
     // ----------------------------------------------------------------------------
@@ -447,7 +440,7 @@ public class PartitionEstimator implements Loggable {
             stmt_cache.setValid();
         }
         Collection<Table> stmt_tables = CatalogUtil.getReferencedTables(catalog_stmt);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Generating partitioning cache for " + catalog_stmt);
 
         // IMPORTANT: Work through the fragments in reverse so that we go from
@@ -465,7 +458,7 @@ public class PartitionEstimator implements Loggable {
                 continue;
             CatalogMap<PlanFragment> fragments = (CatalogMap<PlanFragment>) fragment_sets[i];
             boolean singlesited = (i == 0);
-            if (trace.get())
+            if (trace.val)
                 LOG.trace("Analyzing " + fragments.size() + " " + (singlesited ? "single" : "multi") + "-sited fragments for " + catalog_stmt.fullName());
 
             // Examine each fragment and pick apart how the tables are referenced
@@ -487,7 +480,7 @@ public class PartitionEstimator implements Loggable {
                 // Table tables_arr[] = new Table[frag_tables.size()];
                 // tables_arr = frag_tables.toArray(tables_arr);
                 // assert (tables_arr.length == frag_tables.size());
-                if (trace.get())
+                if (trace.val)
                     LOG.trace("Analyzing fragment #" + catalog_frag);
 
                 // Check whether the predicate expression in this PlanFragment contains an OR
@@ -495,7 +488,7 @@ public class PartitionEstimator implements Loggable {
                 // XXX: Why does this matter??
                 Collection<ExpressionType> exp_types = PlanNodeUtil.getScanExpressionTypes(catalogContext.database, root);
                 if (exp_types.contains(ExpressionType.CONJUNCTION_OR)) {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.warn(CatalogUtil.getDisplayName(catalog_frag) + " contains OR conjunction. Cannot be used with multi-column partitioning");
                     stmt_cache.markContainsOR(true);
                     frag_cache.markContainsOR(true);
@@ -514,10 +507,10 @@ public class PartitionEstimator implements Loggable {
                         }
                         throw new Exception(msg + " but the non-transactional flag is not set");
                     }
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace(msg);
                 }
-                if (trace.get())
+                if (trace.val)
                     LOG.trace("Fragment Tables: " + frag_tables);
 
                 // We only need to find where the partition column is referenced
@@ -527,12 +520,12 @@ public class PartitionEstimator implements Loggable {
                 ColumnSet cset = CatalogUtil.extractFragmentColumnSet(catalog_frag, false, frag_tables);
                 assert (cset != null);
                 Map<Column, Set<Column>> column_joins = new TreeMap<Column, Set<Column>>();
-                if (trace.get())
+                if (trace.val)
                     LOG.trace("Extracted Column Set for " + frag_tables + ":\n" + cset.debug());
 
                 // If there are no columns, then this fragment is doing a full table scan
                 if (cset.isEmpty() && frag_tables.size() > 0) {
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace("No columns accessed in " + catalog_frag + " despite reading " + frag_tables.size() + " tables");
                     stmt_cache.markAsBroadcast(frag_tables);
                     frag_cache.markAsBroadcast(frag_tables);
@@ -542,7 +535,7 @@ public class PartitionEstimator implements Loggable {
                     // First go through all the entries and add any mappings from
                     // Columns to StmtParameters to our stmt_cache
                     for (CatalogPair entry : cset) {
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace("Examining extracted ColumnSetEntry: " + entry);
 
                         // Column = Column
@@ -560,7 +553,7 @@ public class PartitionEstimator implements Loggable {
                             }
 
                             if (!entry.getComparisonExp().equals(ExpressionType.COMPARE_EQUAL)) {
-                                if (debug.get()) LOG.warn("Unsupported non-equality join in " + catalog_stmt.fullName() + ": " + entry);
+                                if (debug.val) LOG.warn("Unsupported non-equality join in " + catalog_stmt.fullName() + ": " + entry);
                             } else {
                                 if (!column_joins.containsKey(col0))
                                     column_joins.put(col0, new TreeSet<Column>());
@@ -576,7 +569,7 @@ public class PartitionEstimator implements Loggable {
                         for (Table catalog_tbl : frag_tables) {
                             Column catalog_col = null;
                             StmtParameter catalog_param = null;
-//                             if (trace.get()) {
+//                             if (trace.val) {
 //                                 LOG.trace("Current Table: " + catalog_tbl.hashCode());
 //                            
 //                                 if (entry.getFirst() != null) {
@@ -616,11 +609,11 @@ public class PartitionEstimator implements Loggable {
                                 // If this table is a view, then we need to check whether 
                                 // we have to point the column down to the origin column
                                 if (catalog_col.getMatviewsource() != null) {
-                                    if (debug.get())
+                                    if (debug.val)
                                         LOG.debug("Found View Column: " + catalog_col.fullName() + " -> " + catalog_col.getMatviewsource().fullName());
                                     catalog_col = catalog_col.getMatviewsource();
                                 }
-                                if (trace.get())
+                                if (trace.val)
                                     LOG.trace(String.format("[%s] Adding cache entry for %s: %s -> %s",
                                                             CatalogUtil.getDisplayName(catalog_tbl),
                                                             CatalogUtil.getDisplayName(catalog_frag),
@@ -630,7 +623,7 @@ public class PartitionEstimator implements Loggable {
                                 frag_cache.put(catalog_col, catalog_param.getIndex(), catalog_tbl);
                             }
                         } // FOR (tables)
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace("-------------------");
                     } // FOR (entry)
 
@@ -643,7 +636,7 @@ public class PartitionEstimator implements Loggable {
                     for (Column catalog_col : column_joins.keySet()) {
                         // Otherwise, we have to examine the the ColumnSet and
                         // look for any reference to this column
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace("Trying to find all references to " + CatalogUtil.getDisplayName(catalog_col));
                         for (Column other_col : column_joins.get(catalog_col)) {
                             // IMPORTANT: If the other entry is a column from another table and we don't
@@ -652,7 +645,7 @@ public class PartitionEstimator implements Loggable {
                             // If this is the case, then we can substitute that mofo in it's place
                             if (stmt_cache.containsKey(catalog_col)) {
                                 for (int param_idx : stmt_cache.get(catalog_col)) {
-                                    if (trace.get())
+                                    if (trace.val)
                                         LOG.trace("Linking " + CatalogUtil.getDisplayName(other_col) + " to parameter #" + param_idx + " because of " + catalog_col.fullName());
                                     stmt_cache.put(other_col, param_idx, (Table) other_col.getParent());
                                     frag_cache.put(other_col, param_idx, (Table) other_col.getParent());
@@ -661,7 +654,7 @@ public class PartitionEstimator implements Loggable {
                         } // FOR (Column)
                     } // FOR (Column)
                 }
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(frag_cache);
 
                 // Loop through all of our tables and make sure that there is an entry in the PlanFragment CacheEntrry
@@ -669,7 +662,7 @@ public class PartitionEstimator implements Loggable {
                 // must be broadcast to all partitions (unless it is replicated)
                 for (Table catalog_tbl : frag_tables) {
                     if (!frag_cache.hasTable(catalog_tbl)) {
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace("No column predicate for " + CatalogUtil.getDisplayName(catalog_tbl) + ". " + "Marking as broadcast for " + CatalogUtil.getDisplayName(catalog_frag) + ": "
                                     + frag_cache.getTables());
                         frag_cache.markAsBroadcast(catalog_tbl);
@@ -708,7 +701,7 @@ public class PartitionEstimator implements Loggable {
                             catalog_param = (StmtParameter) entry.getSecond();
                             catalog_col = (Column) entry.getFirst();
                         } else {
-                            if (trace.get())
+                            if (trace.val)
                                 LOG.trace("Skipping entry " + entry + " when examing the update information for " + catalog_tbl);
                             continue;
                         }
@@ -758,7 +751,7 @@ public class PartitionEstimator implements Loggable {
      */
     public int getTableRowPartition(final Table catalog_tbl, final VoltTableRow row) throws Exception {
         assert (!catalog_tbl.getIsreplicated()) : "Trying to partition replicated table: " + catalog_tbl;
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Calculating partition for VoltTableRow from " + catalog_tbl);
 
         int partition = -1;
@@ -769,7 +762,7 @@ public class PartitionEstimator implements Loggable {
         // Multi-Column Partitioning
         if (catalog_col instanceof MultiColumn) {
             MultiColumn mc = (MultiColumn) catalog_col;
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(catalog_tbl.getName() + " MultiColumn: " + mc);
 
             Object values[] = new Object[mc.size()];
@@ -785,7 +778,7 @@ public class PartitionEstimator implements Loggable {
             VoltType type = VoltType.get(catalog_col.getType());
             Object value = row.get(catalog_col.getIndex(), type);
             partition = this.hasher.hash(value, catalog_col);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("%s SingleColumn: Value=%s / Partition=%d", catalog_col.fullName(), value, partition));
         }
         assert (partition >= 0) : "Invalid partition for " + catalog_tbl;
@@ -830,7 +823,7 @@ public class PartitionEstimator implements Loggable {
      * @throws Exception
      */
     public int getBasePartition(final TransactionTrace txn_trace) throws Exception {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Calculating base partition for " + txn_trace.toString());
         return (this.getBasePartition(txn_trace.getCatalogItem(this.catalogContext.database), txn_trace.getParams(), true));
     }
@@ -863,21 +856,21 @@ public class PartitionEstimator implements Loggable {
                     catalog_param = catalog_proc.getParameters().get(idx);
                 }
                 this.cache_procPartitionParameters.put(catalog_proc, catalog_param);
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("Added cached " + catalog_param + " for " + catalog_proc);
             } else {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(catalog_proc + " has no parameters. No base partition for you!");
                 return (HStoreConstants.NULL_PARTITION_ID);
             }
         }
 
         if (force == false && (catalog_param == null || catalog_param instanceof NullProcParameter)) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(catalog_proc + " does not have a pre-defined partition parameter. No base partition!");
             return (HStoreConstants.NULL_PARTITION_ID);
             // } else if (!force && !catalog_proc.getSinglepartition()) {
-            // if (debug.get()) LOG.debug(catalog_proc +
+            // if (debug.val) LOG.debug(catalog_proc +
             // " is not marked as single-partitioned. Executing as multi-partition");
             // return (null);
         }
@@ -891,7 +884,7 @@ public class PartitionEstimator implements Loggable {
         // Special Case: MultiProcParameter
         else if (catalog_param instanceof MultiProcParameter) {
             MultiProcParameter mpp = (MultiProcParameter) catalog_param;
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(catalog_proc.getName() + " MultiProcParameter: " + mpp);
             int hashes[] = new int[mpp.size()];
             for (int i = 0; i < hashes.length; i++) {
@@ -900,16 +893,16 @@ public class PartitionEstimator implements Loggable {
                 assert (mpp_param_idx < params.length) : CatalogUtil.getDisplayName(mpp) + " < " + params.length;
                 int hash = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
                 hashes[i] = (hash == HStoreConstants.NULL_PARTITION_ID ? 0 : hash);
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(mpp.get(i) + " value[" + params[mpp_param_idx] + "] => hash[" + hashes[i] + "]");
             } // FOR
             partition = this.hasher.multiValueHash(hashes);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(Arrays.toString(hashes) + " => " + partition);
         }
         // Single ProcParameter
         else {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Calculating base partition using " + catalog_param.fullName() + ": " + params[catalog_param.getIndex()]);
             assert(catalog_param.getIndex() >= 0) : "Invalid parameter offset " + catalog_param.fullName();
             partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
@@ -1042,7 +1035,7 @@ public class PartitionEstimator implements Loggable {
 
             // Assume single-partition
             if (catalog_stmt.getHas_singlesited() == false) {
-                if (debug.get())
+                if (debug.val)
                     LOG.warn("There is no single-partition query plan for " + catalog_stmt.fullName());
                 return (null);
             }
@@ -1058,7 +1051,7 @@ public class PartitionEstimator implements Loggable {
                 // If this PlanFragment has a broadcast, then this statment
                 // can't be used for fast look-ups
                 if (cache_entry.hasBroadcast()) {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.warn(String.format("%s contains an operation that must be broadcast. Cannot be used for fast look-ups", catalog_frag.fullName()));
                     return (null);
                 }
@@ -1066,7 +1059,7 @@ public class PartitionEstimator implements Loggable {
                 for (Table catalog_tbl : cache_entry.getTables()) {
                     Column partition_col = catalog_tbl.getPartitioncolumn();
                     if (partition_col instanceof MultiColumn) {
-                        if (debug.get())
+                        if (debug.val)
                             LOG.warn(String.format("%s references %s, which is partitioned on %s. Cannot be used for fast look-ups", catalog_frag.fullName(), catalog_tbl.getName(),
                                     partition_col.fullName()));
                         return (null);
@@ -1188,7 +1181,7 @@ public class PartitionEstimator implements Loggable {
                                                 PlanFragment catalog_frag,
                                                 Object params[],
                                                 Integer base_partition) throws Exception {
-        if (trace.get())
+        if (trace.val)
             LOG.trace("Estimating partitions for PlanFragment #" + catalog_frag.fullName());
         PartitionEstimator.CacheEntry cache_entry = this.getFragmentCacheEntry(catalog_frag);
         this.calculatePartitionsForCache(entry_partitions,
@@ -1196,7 +1189,7 @@ public class PartitionEstimator implements Loggable {
                                          cache_entry,
                                          params,
                                          base_partition);
-        if (debug.get()) {
+        if (debug.val) {
             if (entry_partitions != null)
                 LOG.debug(String.format("%s Table Partitions: %s", catalog_frag.fullName(), entry_partitions));
             if (all_partitions != null)
@@ -1257,7 +1250,7 @@ public class PartitionEstimator implements Loggable {
         // from other PlanFragments), then won't return anything because it is up to whoever
         // to figure out where to send this PlanFragment (it may be at the coordinator)
         Table tables[] = cache_entry.getTables();
-        if (trace.get()) {
+        if (trace.val) {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("CacheEntry", cache_entry.toString());
             m.put("Tables", tables);
@@ -1277,12 +1270,12 @@ public class PartitionEstimator implements Loggable {
             // a delete, then we know it's not single-sited.
             if (is_replicated) {
                 if (stmt_type == QueryType.SELECT) {
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace("Cache entry " + cache_entry + " will execute on the local partition");
                     if (base_partition != null)
                         table_partitions.add(base_partition);
                 } else if (stmt_type == QueryType.INSERT || stmt_type == QueryType.UPDATE || stmt_type == QueryType.DELETE) {
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace("Cache entry " + cache_entry + " must be broadcast to all partitions");
                     table_partitions.addAll(this.all_partitions);
                 } else {
@@ -1293,7 +1286,7 @@ public class PartitionEstimator implements Loggable {
             else {
                 // Grab the parameter mapping for this column
                 Column catalog_col = cache_tablePartitionColumns.get(catalog_tbl);
-                if (trace.get())
+                if (trace.val)
                     LOG.trace("Partitioning Column: " + (catalog_col != null ? catalog_col.fullName() : catalog_col));
 
                 // Special Case: Multi-Column Partitioning
@@ -1302,14 +1295,14 @@ public class PartitionEstimator implements Loggable {
                     // HACK: All multi-column look-ups on queries with an OR
                     // must be broadcast
                     if (cache_entry.isMarkedContainsOR()) {
-                        if (debug.get())
+                        if (debug.val)
                             LOG.warn("Trying to use multi-column partitioning [" + catalog_col.fullName() + "] on query that contains an 'OR': " + cache_entry);
                         table_partitions.addAll(this.all_partitions);
                     } else {
                         MultiColumn mc = (MultiColumn) catalog_col;
                         PartitionSet mc_partitions[] = this.mcPartitionSetPool.borrowObject();
 
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace("Calculating columns for multi-partition colunmn: " + mc);
                         boolean is_valid = true;
                         for (int i = 0, mc_cnt = mc.size(); i < mc_cnt; i++) {
@@ -1327,13 +1320,13 @@ public class PartitionEstimator implements Loggable {
                             // Unless we have partition values for both keys,
                             // then it has to be a broadcast
                             if (mc_partitions[i].isEmpty()) {
-                                if (debug.get())
+                                if (debug.val)
                                     LOG.warn(String.format("No partitions for %s from %s. Cache entry %s must be broadcast to all partitions", mc_column.fullName(), mc.fullName(), cache_entry));
                                 table_partitions.addAll(this.all_partitions);
                                 is_valid = false;
                                 break;
                             }
-                            if (trace.get())
+                            if (trace.val)
                                 LOG.trace(CatalogUtil.getDisplayName(mc_column) + ": " + mc_partitions[i]);
                         } // FOR
 
@@ -1346,7 +1339,7 @@ public class PartitionEstimator implements Loggable {
                                 for (int part1 : mc_partitions[1]) {
                                     int partition = this.hasher.multiValueHash(part0, part1);
                                     table_partitions.add(partition);
-                                    if (trace.get())
+                                    if (trace.val)
                                         LOG.trace(String.format("MultiColumn Partitions[%d, %d] => %d", part0, part1, partition));
                                 } // FOR
                             } // FOR
@@ -1355,13 +1348,13 @@ public class PartitionEstimator implements Loggable {
                     }
                 } else {
                     int param_idxs[] = cache_entry.get(catalog_col);
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace("Param Indexes: " + param_idxs);
 
                     // Important: If there is no entry for this partitioning
                     // column, then we have to broadcast this mofo
                     if (param_idxs == null || param_idxs.length == 0) {
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug(String.format("No parameter mapping for %s. Fragment must be broadcast to all partitions",
                                                     CatalogUtil.getDisplayName(catalog_col)));
                         table_partitions.addAll(this.all_partitions);
@@ -1369,7 +1362,7 @@ public class PartitionEstimator implements Loggable {
                         // If there is nothing special, just shove off and have
                         // this method figure things out for us
                     } else {
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace("Calculating partitions normally for " + cache_entry);
                         this.calculatePartitions(table_partitions, params, cache_entry.is_array, param_idxs, catalog_col);
                     }
@@ -1416,19 +1409,19 @@ public class PartitionEstimator implements Loggable {
             // loop through and get the hash of all of the values
             if (is_array[param_idx]) {
                 int num_elements = Array.getLength(params[param_idx]);
-                if (trace.get())
+                if (trace.val)
                     LOG.trace("Parameter #" + param_idx + " is an array. Calculating multiple partitions...");
                 for (int i = 0; i < num_elements; i++) {
                     Object value = Array.get(params[param_idx], i);
                     int partition_id = this.hasher.hash(value, catalog_col);
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace(CatalogUtil.getDisplayName(catalog_col) + " HASHING PARAM ARRAY[" + param_idx + "][" + i + "]: " + value + " -> " + partition_id);
                     partitions.add(partition_id);
                 } // FOR
                 // Primitive
             } else {
                 int partition_id = this.hasher.hash(params[param_idx], catalog_col);
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(CatalogUtil.getDisplayName(catalog_col) + " HASHING PARAM[" + param_idx + "]: " + params[param_idx] + " -> " + partition_id);
                 partitions.add(partition_id);
             }
@@ -1449,14 +1442,14 @@ public class PartitionEstimator implements Loggable {
         if (is_array) {
             int num_elements = Array.getLength(partition_param_val);
             if (num_elements == 0) {
-                if (debug.get())
+                if (debug.val)
                     LOG.warn("Empty partitioning parameter array for " + catalog_proc);
                 return (HStoreConstants.NULL_PARTITION_ID);
             } else {
                 partition_param_val = Array.get(partition_param_val, 0);
             }
         } else if (partition_param_val == null) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("Null ProcParameter value: " + catalog_proc);
             return (HStoreConstants.NULL_PARTITION_ID);
         }

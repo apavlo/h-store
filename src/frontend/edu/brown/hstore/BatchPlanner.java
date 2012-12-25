@@ -51,7 +51,6 @@ import org.voltdb.exceptions.MispredictionException;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -66,15 +65,13 @@ import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 /**
  * @author pavlo
  */
-public class BatchPlanner implements Loggable {
+public class BatchPlanner {
     private static final Logger LOG = Logger.getLogger(BatchPlanner.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    private static boolean d = debug.get();
-    private static boolean t = trace.get();
 
     // ----------------------------------------------------------------------------
     // STATIC DATA MEMBERS
@@ -479,7 +476,7 @@ public class BatchPlanner implements Loggable {
                                              batchStmts[i].getStatement().getSecondaryindex();
             
             if (this.stmt_is_replicatedonly[i] == false) nonReplicatedStmtCnt++;
-            if (t) LOG.trace(String.format("INIT %s -> isReplicatedOnly[%s]",
+            if (trace.val) LOG.trace(String.format("INIT %s -> isReplicatedOnly[%s]",
                              batchStmts[i].getStatement().fullName(), this.stmt_is_replicatedonly[i]));
 
             // CACHING
@@ -547,12 +544,6 @@ public class BatchPlanner implements Loggable {
         return (this.profiler);
     }
 
-    @Override
-    public void updateLogging() {
-        d = debug.get();
-        t = trace.get();
-    }
-
     /**
      * Generate a new BatchPlan for a batch of queries requested by the txn
      * 
@@ -573,11 +564,11 @@ public class BatchPlanner implements Loggable {
                 this.profiler = new BatchPlannerProfiler();
             this.profiler.time_plan.start();
         }
-        if (d) {
+        if (debug.val) {
             LOG.debug(String.format("Constructing a new %s BatchPlan for %s txn #%d",
                       this.catalog_proc.getName(),
                       (predict_singlePartitioned ? "single-partition" : "distributed"), txn_id));
-            if (t) {
+            if (trace.val) {
                 Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("Batch Size", this.batchSize);
                 for (int i = 0; i < this.batchSize; i++) {
@@ -600,11 +591,11 @@ public class BatchPlanner implements Loggable {
             if (this.force_singlePartition == false) {
                 for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
                     if (cache_fastLookups[stmt_index] == null) {
-                        if (d) LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
+                        if (debug.val) LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
                                          txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
                         cache_isSinglePartition[stmt_index] = false;
                     } else {
-                        if (d) LOG.debug(String.format("[#%d-%02d] Using fast-lookup caching for %s: %s", txn_id,
+                        if (debug.val) LOG.debug(String.format("[#%d-%02d] Using fast-lookup caching for %s: %s", txn_id,
                                          stmt_index, this.catalog_stmts[stmt_index].fullName(),
                                          Arrays.toString(cache_fastLookups[stmt_index])));
                         Object params[] = batchArgs[stmt_index].toArray();
@@ -616,18 +607,18 @@ public class BatchPlanner implements Loggable {
                             }
                         } // FOR
                     }
-                    if (t) LOG.trace(String.format("[#%d-%02d] cache_isSinglePartition[%s] = %s", txn_id, stmt_index,
+                    if (trace.val) LOG.trace(String.format("[#%d-%02d] cache_isSinglePartition[%s] = %s", txn_id, stmt_index,
                                      this.catalog_stmts[stmt_index].fullName(), cache_isSinglePartition[stmt_index]));
                     is_allSinglePartition = is_allSinglePartition && cache_isSinglePartition[stmt_index];
                 } // FOR (Statement)
             }
-            if (t) LOG.trace(String.format("[#%d] is_allSinglePartition=%s", txn_id, is_allSinglePartition));
+            if (trace.val) LOG.trace(String.format("[#%d] is_allSinglePartition=%s", txn_id, is_allSinglePartition));
 
             // If all of the Statements are single-partition, then we can use
             // the cached BatchPlan if we already have one.
             // This saves a lot of trouble
             if (is_allSinglePartition && cache_singlePartitionPlans[base_partition] != null) {
-                if (d) LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id,
+                if (debug.val) LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id,
                                  base_partition, Arrays.toString(this.catalog_stmts)));
                 if (hstore_conf.site.planner_profiling && profiler != null)
                     profiler.time_plan.stop();
@@ -650,7 +641,7 @@ public class BatchPlanner implements Loggable {
                 String.format("The Statement at index %d is null for %s",
                               stmt_index, this.catalog_proc);
             final Object params[] = batchArgs[stmt_index].toArray();
-            if (t) LOG.trace(String.format("[#%d-%02d] Calculating touched partitions plans for %s",
+            if (trace.val) LOG.trace(String.format("[#%d-%02d] Calculating touched partitions plans for %s",
                              txn_id, stmt_index, catalog_stmt.fullName()));
 
             Map<PlanFragment, PartitionSet> frag_partitions = plan.frag_partitions[stmt_index];
@@ -669,7 +660,7 @@ public class BatchPlanner implements Loggable {
             // OPTIMIZATION: If we're force to be single-partitioned, pretend
             // that the table is replicated
             if (cache_isSinglePartition[stmt_index] || (is_replicated_only && is_read_only) || this.force_singlePartition) {
-                if (t) {
+                if (trace.val) {
                     if (cache_isSinglePartition[stmt_index]) {
                         LOG.trace(String.format("[#%d-%02d] Using fast-lookup for %s. Skipping PartitionEstimator",
                                 txn_id, stmt_index, catalog_stmt.fullName()));
@@ -704,7 +695,7 @@ public class BatchPlanner implements Loggable {
             // Otherwise figure out whether the query can execute as
             // single-partitioned or not
             else {
-                if (d) LOG.debug(String.format("[#%d-%02d] Computing touched partitions %s in txn #%d", txn_id,
+                if (debug.val) LOG.debug(String.format("[#%d-%02d] Computing touched partitions %s in txn #%d", txn_id,
                                  stmt_index, catalog_stmt.fullName(), txn_id));
 
                 if (plan.stmt_partitions_swap[stmt_index] != null) {
@@ -730,7 +721,7 @@ public class BatchPlanner implements Loggable {
                     while (true) {
                         if (is_singlePartition == false) stmt_all_partitions.clear();
                         fragments = (is_singlePartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-                        if (d) LOG.debug(String.format("[#%d-%02d] Estimating for %d %s-partition fragments",
+                        if (debug.val) LOG.debug(String.format("[#%d-%02d] Estimating for %d %s-partition fragments",
                                          txn_id, stmt_index, fragments.size(),
                                          (is_singlePartition ? "single" : "multi")));
 
@@ -747,7 +738,7 @@ public class BatchPlanner implements Loggable {
                             // If this was suppose to be multi-partitioned, then
                             // we want to stop right here!!
                             if (predict_singlePartitioned) {
-                                if (t) LOG.trace(String.format("Mispredicted txn #%d - Multiple Partitions %s",
+                                if (trace.val) LOG.trace(String.format("Mispredicted txn #%d - Multiple Partitions %s",
                                                  txn_id, stmt_all_partitions));
                                 mispredict = true;
                                 break;
@@ -760,13 +751,13 @@ public class BatchPlanner implements Loggable {
                         is_local = (stmt_all_partitions_size == 1 && stmt_all_partitions.contains(base_partition));
                         if (is_local == false && predict_singlePartitioned) {
                             // Again, this is not what was suppose to happen!
-                            if (t) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions %s",
+                            if (trace.val) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions %s",
                                              txn_id, stmt_all_partitions));
                             mispredict = true;
                             break;
                         } else if (predict_partitions.containsAll(stmt_all_partitions) == false) {
                             // Again, this is not what was suppose to happen!
-                            if (t) LOG.trace(String.format("Mispredicted txn #%d - Unallocated Partitions %s / %s",
+                            if (trace.val) LOG.trace(String.format("Mispredicted txn #%d - Unallocated Partitions %s / %s",
                                              txn_id, stmt_all_partitions, predict_partitions));
                             mispredict = true;
                             break;
@@ -785,7 +776,7 @@ public class BatchPlanner implements Loggable {
                     throw new RuntimeException("Unexpected error when planning " + catalog_stmt.fullName(), ex);
                 }
             }
-            if (d)
+            if (debug.val)
                 LOG.debug(String.format("[#%d-%02d] is_singlepartition=%s, partitions=%s",
                           txn_id, stmt_index, is_singlePartition, stmt_all_partitions));
 
@@ -840,7 +831,7 @@ public class BatchPlanner implements Loggable {
                     start_idx = 0;
                 }
                 for (int i = start_idx; i <= stmt_index; i++) {
-                    if (d) LOG.debug(String.format("Pending mispredict for txn #%d. " +
+                    if (debug.val) LOG.debug(String.format("Pending mispredict for txn #%d. " +
             		                               "Checking whether to add partitions for batch statement %02d",
             		                               txn_id, i));
 
@@ -848,7 +839,7 @@ public class BatchPlanner implements Loggable {
                     // was reading a replicated table.
                     if (this.stmt_is_replicatedonly[i] == false || 
                         (this.stmt_is_replicatedonly[i] && this.stmt_is_readonly[i] == false)) {
-                        if (t) LOG.trace(String.format("%s touches non-replicated table. " +
+                        if (trace.val) LOG.trace(String.format("%s touches non-replicated table. " +
                         		                       "Including %d partitions in mispredict histogram for txn #%d",
                         		                       this.catalog_stmts[i].fullName(), plan.stmt_partitions[i].size(), txn_id));
                         mispredict_h.put(plan.stmt_partitions[i]);
@@ -860,7 +851,7 @@ public class BatchPlanner implements Loggable {
             // ----------------------
             // DEBUG DUMP
             // ----------------------
-            if (d) {
+            if (debug.val) {
                 List<PlanFragment> _fragments = null;
                 if (is_singlePartition && this.sorted_singlep_fragments[stmt_index] != null) {
                     _fragments = this.sorted_singlep_fragments[stmt_index];
@@ -931,7 +922,7 @@ public class BatchPlanner implements Loggable {
             return this.cache_singlePartitionPlans[base_partition];
         }
 
-        if (d)
+        if (debug.val)
             LOG.debug(String.format("Created BatchPlan for txn #%d:\n%s", txn_id, this.plan.toString()));
         return (this.plan);
     }
@@ -948,7 +939,7 @@ public class BatchPlanner implements Loggable {
 
         if (hstore_conf.site.planner_profiling && profiler != null)
             profiler.time_partitionFragments.start();
-        if (d) LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]",
+        if (debug.val) LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]",
                          txn_id, plan.base_partition));
 
         for (PlanVertex v : graph.sorted_vertices) {
@@ -960,9 +951,9 @@ public class BatchPlanner implements Loggable {
 
         // The main idea of what we're trying to do here is to group together
         // all of the PlanFragments with the same input dependency ids into a single WorkFragment
-        if (t) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #" + txn_id);
+        if (trace.val) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #" + txn_id);
         for (int round = 0; round < plan.rounds_length; round++) {
-            if (t) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round));
+            if (trace.val) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round));
             for (int partition = 0; partition < this.num_partitions; partition++) {
                 Collection<PlanVertex> vertices = plan.rounds[round][partition];
                 if (vertices.isEmpty()) continue;
@@ -1001,7 +992,7 @@ public class BatchPlanner implements Loggable {
                     // Prefetch
                     if (this.prefetch) partitionBuilder.setPrefetch(true);
 
-                    if (t) LOG.trace(String.format("Fragment Grouping %d => " +
+                    if (trace.val) LOG.trace(String.format("Fragment Grouping %d => " +
                     		         "[txnId=#%d, partition=%d, fragDd=%d, input=%d, output=%d, stmtIndex=%d]",
                     		         partitionBuilder.getFragmentIdCount(),
                     		         txn_id, partition, v.frag_id,
@@ -1011,7 +1002,7 @@ public class BatchPlanner implements Loggable {
 
                 for (WorkFragment.Builder partitionBuilder : this.round_builders.values()) {
                     if (partitionBuilder.getFragmentIdCount() == 0) {
-                        if (t) {
+                        if (trace.val) {
                             LOG.warn("For some reason we thought it would be a good idea to construct a WorkFragment with no fragments! [txn_id=#"
                                     + txn_id + "]");
                             LOG.warn("In case you were wondering, this is a terrible idea, which is why we didn't do it!");
@@ -1021,21 +1012,21 @@ public class BatchPlanner implements Loggable {
                     builders.add(partitionBuilder);
                 } // FOR
 
-                // if (d) {
+                // if (debug.val) {
                 // LOG.debug(String.format("New WorkFragment to run at partition #%d with %d fragments for txn #%d "
                 // +
                 // "[ids=%s, inputs=%s, outputs=%s]",
                 // partition, num_frags, txn_id,
                 // Arrays.toString(frag_ids), Arrays.toString(input_ids),
                 // Arrays.toString(output_ids)));
-                // if (t)
+                // if (trace.val)
                 // LOG.trace("Fragment Contents: [txn_id=#" + txn_id + "]\n" +
                 // task.toString());
                 // }
             } // PARTITION
         } // ROUND
         assert (builders.size() > 0) : "Failed to generate any WorkFragments in this BatchPlan for txn #" + txn_id;
-        if (d)
+        if (debug.val)
             LOG.debug("Created " + builders.size() + " WorkFragment(s) for txn #" + txn_id);
         if (hstore_conf.site.planner_profiling && profiler != null)
             profiler.time_partitionFragments.stop();
