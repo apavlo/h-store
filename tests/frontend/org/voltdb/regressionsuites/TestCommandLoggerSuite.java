@@ -55,17 +55,26 @@ public class TestCommandLoggerSuite extends RegressionSuite {
         Client client = this.getClient();
         this.initializeDatabase(client);
         
-        final int num_txns = 1000;
+        final int num_txns = 500;
         final CountDownLatch latch = new CountDownLatch(num_txns);
+        final AtomicInteger numTotal = new AtomicInteger(0);
         final AtomicInteger numCompleted = new AtomicInteger(0);
+        final AtomicInteger numFailed = new AtomicInteger(0);
         
         ProcedureCallback callback = new ProcedureCallback() {
             @Override
             public void clientCallback(ClientResponse cr) {
-                if (cr.getStatus() == Status.OK &&
-                    cr.getResults()[0].asScalarLong() == VoterConstants.VOTE_SUCCESSFUL) { 
-                    numCompleted.incrementAndGet();
-                }
+                switch (cr.getStatus()) {
+                    case OK:
+                        if (cr.getResults()[0].asScalarLong() == VoterConstants.VOTE_SUCCESSFUL) { 
+                            numCompleted.incrementAndGet();
+                        }
+                        break;
+                    default:
+                        numFailed.incrementAndGet();
+                        System.err.printf("UNEXPECTED: %s [%d]\n", cr.getStatus(), numFailed.get());
+                } // SWITCH
+                numTotal.incrementAndGet();
                 latch.countDown();
             }
         };
@@ -80,8 +89,17 @@ public class TestCommandLoggerSuite extends RegressionSuite {
             client.callProcedure(callback, Vote.class.getSimpleName(), params);
         } // FOR
         System.err.printf("Invoked %d txns. Waiting for responses...\n", num_txns);
-        boolean result = latch.await(20, TimeUnit.SECONDS);
+        boolean result = latch.await(15, TimeUnit.SECONDS);
+        System.err.println("LATCH RESULT: " + result);
+        System.err.println("TOTAL:        " + numTotal.get() + " / " + num_txns);
+        System.err.println("COMPLETED:    " + numCompleted.get());
+        System.err.println("FAILED:       " + numFailed.get());
+        if (result == false) {
+            System.err.println("BAD MOJO");
+        }
+        
         assertTrue("Timed out [latch="+latch.getCount() + "]", result);
+        assertEquals(0, numFailed.get());
         
         // At this point we know that all of our txns have been committed to disk
         // Make sure that our vote is actually in the real table and materialized views
@@ -104,6 +122,8 @@ public class TestCommandLoggerSuite extends RegressionSuite {
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestCommandLoggerSuite.class);
         builder.setGlobalConfParameter("site.commandlog_enable", true);
         builder.setGlobalConfParameter("site.commandlog_timeout", 1000);
+        builder.setGlobalConfParameter("site.status_enable", true);
+        builder.setGlobalConfParameter("site.status_show_executor_info", true);
         
         VoterProjectBuilder project = new VoterProjectBuilder();
         project.addAllDefaults();
@@ -113,10 +133,10 @@ public class TestCommandLoggerSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
         
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
@@ -129,10 +149,10 @@ public class TestCommandLoggerSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
 
         return builder;
     }

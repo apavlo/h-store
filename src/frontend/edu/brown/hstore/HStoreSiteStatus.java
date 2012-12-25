@@ -524,7 +524,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             if (queueManagerDebug.getRestartQueueSize() > 0) {
                 status += "\nRequeues: " + queueManagerDebug.getRestartQueueSize();
             }
-            m.put("DTXN Queue", status);
+            m.put("Lock Queue", status);
             
             
 //            if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
