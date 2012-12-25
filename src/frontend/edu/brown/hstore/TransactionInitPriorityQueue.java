@@ -61,8 +61,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     private QueueState state = QueueState.BLOCKED_EMPTY;
     
     private long txnsPopped = 0;
-    private Long lastSeenTxnId = null;
-    private Long lastSafeTxnId = null;
+    private Long lastSeenTxnId = -1l;
+    private Long lastSafeTxnId = -1l;
     private Long lastTxnPopped = null;
     
     // private AbstractTransaction nextTxn = null;
@@ -190,7 +190,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         this.lastSeenTxnId = txnId;
         if (t) LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
                          this.partitionId, this.lastSeenTxnId));
-        if (this.lastSafeTxnId == null || txnId.compareTo(this.lastSafeTxnId) < 0) {
+        if (txnId.compareTo(this.lastSafeTxnId) < 0) {
             this.lastSafeTxnId = txnId;
             if (t) LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
                              this.partitionId, this.lastSafeTxnId));
@@ -216,14 +216,12 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         else {
             assert(ts.isInitialized());
             txnId = ts.getTransactionId();
+            assert(txnId != null) : "Null transaction id from " + txnId;
             
             // If this txnId is greater than the last safe one that we've seen, then we know
             // that the lastSafeTxnId has been polled. That means that we need to 
             // wait for an appropriate amount of time before we're allow to be executed.
-            if (txnId.compareTo(this.lastSafeTxnId) > 0 && (
-                (this.lastTxnPopped == null) || 
-                (this.lastTxnPopped != null && this.lastTxnPopped.equals(this.lastSafeTxnId) == false))
-               ) {
+            if (txnId.compareTo(this.lastSafeTxnId) > 0 && this.lastTxnPopped.equals(this.lastSafeTxnId) == false) {
                 newState = QueueState.BLOCKED_ORDERING;
                 if (d) LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d] / " +
                 		         "lastTxnPopped[%d] <=> lastSafeTxnId[%d]",
