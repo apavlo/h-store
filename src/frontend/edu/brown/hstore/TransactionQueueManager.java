@@ -155,6 +155,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
      * Constructor
      * @param hstore_site
      */
+    @SuppressWarnings("unchecked")
     public TransactionQueueManager(HStoreSite hstore_site) {
         CatalogContext catalogContext = hstore_site.getCatalogContext();
         PartitionSet allPartitions = catalogContext.getAllPartitionIds();

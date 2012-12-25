@@ -185,12 +185,18 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     @Override
     public boolean remove(Object obj) {
         AbstractTransaction txn = (AbstractTransaction)obj;
+        
+        // We have to check whether we are the first txn in the queue,
+        // because we will need to reset the blockTimestamp after 
+        // delete ourselves so that the next guy can get executed
+        // This is not thread-safe...
+        boolean reset = txn.equals(super.peek());
         boolean retval = super.remove(txn);
         // Sanity Check
         assert(super.contains(txn) == false) :
             "Failed to remove " + txn + "???\n" + this.debug();
         if (debug.val) LOG.warn(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
-        if (retval) this.checkQueueState(false);
+        if (retval) this.checkQueueState(reset);
         return retval;
     }
     

@@ -135,6 +135,57 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     }
     
     /**
+     * testQueueStateAfterRemove
+     */
+    @Test
+    public void testQueueStateAfterRemove() throws Exception {
+        // Always start off as empty
+        QueueState state = this.queue.checkQueueState();
+        assertEquals(QueueState.BLOCKED_EMPTY, state);
+        
+        // Insert a bunch of txns that all have the same initiating timestamp
+        Collection<AbstractTransaction> added = this.loadQueue(NUM_TXNS);
+        assertEquals(added.size(), this.queue.size());
+        System.err.println(StringUtil.join("\n", added));
+        
+        // Because we haven't moved the current time up, we know that none of
+        // the txns should be released now
+        state = this.queue.checkQueueState();
+        assertEquals(QueueState.BLOCKED_SAFETY, state);
+        
+        // Sleep for a little bit to make the current time move forward 
+        ThreadUtil.sleep(TXN_DELAY);
+        EstTimeUpdater.update(System.currentTimeMillis());
+
+        TransactionInitPriorityQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
+        Iterator<AbstractTransaction> it = added.iterator();
+        for (int i = 0; i < NUM_TXNS; i++) {
+            String debug = String.format("i=%d", i);
+            
+            // Ok so what we're going to do here is peek into the
+            // queue and make sure that that our expected txn 
+            // is the next one that's suppose to pop out
+            AbstractTransaction to_remove = it.next();
+            state = this.queue.checkQueueState();
+            assertEquals(debug, QueueState.UNBLOCKED, state);
+            assertEquals(debug, to_remove, this.queue.peek());
+
+            // Then we're going to delete it and make sure that the next txn
+            // queued up is not the one that we just removed
+            boolean result = this.queue.remove(to_remove);
+            assertTrue(debug, result);
+            if (i + 1 < NUM_TXNS) {
+                assertFalse(debug, this.queue.isEmpty());
+                assertEquals(debug, QueueState.UNBLOCKED, this.queue.getQueueState());
+            }
+            else {
+                assertTrue(debug, this.queue.isEmpty());
+            }
+            TransactionInitPriorityQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
+        } // FOR
+    }
+    
+    /**
      * testOutOfOrderInsertion
      */
     @Test
