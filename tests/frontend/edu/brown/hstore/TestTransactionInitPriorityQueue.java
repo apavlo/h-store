@@ -98,6 +98,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         // Insert a bunch of txns that all have the same initiating timestamp
         Collection<AbstractTransaction> added = this.loadQueue(NUM_TXNS);
         assertEquals(added.size(), this.queue.size());
+        System.err.println(StringUtil.join("\n", added));
         
         // Because we haven't moved the current time up, we know that none of
         // the txns should be released now
@@ -116,6 +117,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             Long lastBlockTime = null;
             long nextBlockTime;
             for (int j = 0; j < 10; j++) {
+                if (j != 0) TransactionInitPriorityQueue.LOG.info(StringUtil.SINGLE_LINE.trim());
                 String debug = String.format("i=%d / j=%d", i, j);
                 state = this.queue.checkQueueState();
                 nextBlockTime = this.queue.getBlockedTimestamp();
@@ -128,6 +130,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
                 lastBlockTime = nextBlockTime;
             } // FOR
             assertEquals("i="+i, it.next(), this.queue.poll());
+            TransactionInitPriorityQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
         } // FOR
     }
     

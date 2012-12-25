@@ -30,7 +30,7 @@ import edu.brown.utils.StringUtil;
  */
 public class TransactionInitPriorityQueue extends PriorityBlockingQueue<AbstractTransaction> {
     private static final long serialVersionUID = 573677483413142310L;
-    private static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
+    protected static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -66,11 +66,13 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     /**
      * This is the timestamp (in milliseconds) when we can unblock
      * the next transaction in the queue.
+     * <B>Note:</B> Do not manipulate this outside of a synchronized block.
      */
     private long blockTimestamp = NULL_BLOCK_TIMESTAMP;
 
     /**
      * The current state of the queue
+     * <B>Note:</B> Do not manipulate this outside of a synchronized block.
      */
     private QueueState state = QueueState.BLOCKED_EMPTY;
     
@@ -130,6 +132,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     
     /**
      * Only return transaction state objects that are ready to run.
+     * <B>Note:</B> This should only be allowed to be called by one thread.
      */
     @Override
     public AbstractTransaction poll() {
@@ -141,24 +144,24 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             retval = super.poll();
             if (retval != null) {
                 if (debug.get()) LOG.debug(String.format("Partition %d :: poll() -> %s", this.partitionId, retval));
-                this.txnsPopped++;
-                this.blockTimestamp = NULL_BLOCK_TIMESTAMP;
                 this.lastTxnPopped = retval.getTransactionId();
+                this.txnsPopped++;
             }
             // call this again to prime the next txn
-            this.checkQueueState();
+            this.checkQueueState(true);
         }
         return retval;
     }
 
     /**
      * Only return transaction state objects that are ready to run.
+     * It is safe to call this from any thread if you need to (but you probably don't)
      */
     @Override
     public AbstractTransaction peek() {
         AbstractTransaction retval = null;
         if (this.state == QueueState.UNBLOCKED) {
-            assert(checkQueueState() == QueueState.UNBLOCKED);
+            assert(checkQueueState(false) == QueueState.UNBLOCKED);
             retval = super.peek();
             assert(retval != null);
         }
@@ -167,7 +170,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     }
     
     /**
-     * Drop data for unknown initiators. This is the only valid add interface.
+     * Add in a transaction to the queue.
+     * It is safe to call this from any thread if you need to
      */
     @Override
     public boolean offer(AbstractTransaction ts) {
@@ -176,7 +180,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         
         boolean retval = super.offer(ts);
         if (debug.get()) LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
-        if (retval) this.checkQueueState();
+        if (retval) this.checkQueueState(false);
         return retval;
     }
 
@@ -188,7 +192,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         assert(super.contains(txn) == false) :
             "Failed to remove " + txn + "???\n" + this.debug();
         if (debug.get()) LOG.warn(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
-        if (retval) this.checkQueueState();
+        if (retval) this.checkQueueState(false);
         return retval;
     }
     
@@ -215,13 +219,17 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         if (trace.get()) LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
                          this.partitionId, this.lastSeenTxnId));
         if (txnId.compareTo(this.lastSafeTxnId) < 0) {
-            this.lastSafeTxnId = txnId;
-            if (trace.get()) LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
-                             this.partitionId, this.lastSafeTxnId));
+            synchronized (this) {
+                if (txnId.compareTo(this.lastSafeTxnId) < 0) {
+                    this.lastSafeTxnId = txnId;
+                    if (trace.get()) LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
+                                     this.partitionId, this.lastSafeTxnId));
+                }
+            } // SYNCH
         }
 
         // this will update the state of the queue if needed
-        this.checkQueueState();
+        this.checkQueueState(false);
 
         return this.lastSafeTxnId;
     }
@@ -231,17 +239,22 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     // INTERNAL STATE CALCULATION
     // ----------------------------------------------------------------------------
     
+    protected QueueState checkQueueState() {
+        return this.checkQueueState(false);
+    }
+    
     /**
      * This is the most important method of the queue.
      * This will figure out the next state and how long we must wait until we 
      * can release the next transaction.
      * <B>Note:</B> I believe that this is the only thing that needs to be synchronized
+     * @param afterPoll TODO
      * @return
      */
-    protected synchronized QueueState checkQueueState() {
-        if (trace.get()) LOG.trace(String.format("Partition %d :: checkQueueState() [current=%s]",
-                         this.partitionId, this.state));
-        QueueState newState = QueueState.UNBLOCKED;
+    private synchronized QueueState checkQueueState(boolean afterPoll) {
+        if (trace.get()) LOG.trace(String.format("Partition %d :: checkQueueState(afterPoll=%s) [current=%s]",
+                         this.partitionId, afterPoll, this.state));
+        QueueState newState = (afterPoll ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
         AbstractTransaction ts = super.peek();
         Long txnId = null;
         if (ts == null) {
@@ -257,12 +270,10 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             // If this txnId is greater than the last safe one that we've seen, then we know
             // that the lastSafeTxnId has been polled. That means that we need to 
             // wait for an appropriate amount of time before we're allow to be executed.
-            if (txnId.compareTo(this.lastSafeTxnId) > 0 && this.lastTxnPopped.equals(this.lastSafeTxnId) == false) {
+            if (txnId.compareTo(this.lastSafeTxnId) > 0 && afterPoll == false) {
                 newState = QueueState.BLOCKED_ORDERING;
-                if (debug.get()) LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d] / " +
-                		         "lastTxnPopped[%d] <=> lastSafeTxnId[%d]",
-                                 this.partitionId, txnId, this.lastSafeTxnId,
-                                 this.lastTxnPopped, this.lastSafeTxnId));
+                if (debug.get()) LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
+                                 this.partitionId, txnId, this.lastSafeTxnId));
             }
             // If our current block time is negative, then we know that we're the first txnId
             // that's been in the system. We'll also want to wait a bit before we're
@@ -285,12 +296,16 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                 LOG.debug(String.format("Partition %d :: Safe to Execute %d",
                           this.partitionId, txnId));
             }
-            
-            if (trace.get()) LOG.trace(String.format("Partition %d :: NewState=%s\n%s", this.partitionId, newState, this.debug()));
         }
+        // if (trace.get()) LOG.trace(String.format("Partition %d :: NewState=%s\n%s", this.partitionId, newState, this.debug()));
+        
         if (newState != this.state) {
             // note if we get non-empty but blocked
             if ((newState == QueueState.BLOCKED_ORDERING) || (newState == QueueState.BLOCKED_SAFETY)) {
+                if (trace.get()) LOG.trace(String.format("Partition %d :: NewState=%s --> %s",
+                                        this.partitionId, newState, ts));
+                
+                
                 long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(ts.getTransactionId().longValue());
                 long currentTimestamp = EstTime.currentTimeMillis();
                 
@@ -304,12 +319,19 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                 }
                 
                 this.blockTimestamp = currentTimestamp + waitTime;
+                if (debug.get()) LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
+                                           this.partitionId, this.blockTimestamp, ts));
+                
                 newState = (waitTime > 0 ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
-                if (this.lastTxnPopped != null && this.lastTxnPopped.equals(this.lastSafeTxnId)) {
-                    this.lastSafeTxnId = txnId;
-                    if (debug.get()) LOG.debug(String.format("Partition %d :: SET lastSafeTxnId = %d",
-                                     this.partitionId, this.lastSafeTxnId));
-                }
+                
+                // This txn becomes our next safeTxnId. This is essentially the next txn
+                // that should be executed, but somebody *could* come along and add in 
+                // a new txn with a lower id. But that's ok because we've synchronized setting
+                // the id up above. This is actually probably the only part of this entire method
+                // that needs to be protected...
+                this.lastSafeTxnId = txnId;
+                if (debug.get()) LOG.debug(String.format("Partition %d :: SET lastSafeTxnId = %d --> %s",
+                                 this.partitionId, this.lastSafeTxnId, ts));
                 
                 if (debug.get()) {
                     String debug = "";
@@ -342,6 +364,13 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                              this.partitionId, this.state, newState, this.lastSafeTxnId));
             this.state = newState;
         }
+        // Make sure that we're always in a valid state to avoid livelock problems
+        assert(this.state != QueueState.BLOCKED_SAFETY || 
+              (this.state == QueueState.BLOCKED_SAFETY && this.blockTimestamp != NULL_BLOCK_TIMESTAMP)) :
+              String.format("Invalid state %s with NULL blocked timestamp", this.state);
+        assert(this.state != QueueState.BLOCKED_ORDERING ||
+              (this.state == QueueState.BLOCKED_ORDERING && this.blockTimestamp != NULL_BLOCK_TIMESTAMP)) :
+            String.format("Invalid state %s with NULL blocked timestamp", this.state);
         return this.state;
     }
     
