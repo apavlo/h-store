@@ -63,7 +63,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     private long txnsPopped = 0;
     private Long lastSeenTxnId = -1l;
     private Long lastSafeTxnId = -1l;
-    private Long lastTxnPopped = null;
+    private Long lastTxnPopped = -1l;
     
     // private AbstractTransaction nextTxn = null;
     
