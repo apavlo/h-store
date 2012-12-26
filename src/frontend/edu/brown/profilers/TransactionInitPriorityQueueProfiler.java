@@ -1,6 +1,6 @@
 package edu.brown.profilers;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import edu.brown.hstore.TransactionInitPriorityQueue.QueueState;
@@ -18,7 +18,7 @@ public class TransactionInitPriorityQueueProfiler extends AbstractProfiler {
      * The number of times that we spent in the different
      * states in our queue
      */
-    public final Map<QueueState, ProfileMeasurement> queueStates = new HashMap<QueueState, ProfileMeasurement>();
+    public final Map<QueueState, ProfileMeasurement> queueStates = new LinkedHashMap<QueueState, ProfileMeasurement>();
     
     {
         for (QueueState s : QueueState.values()) {
