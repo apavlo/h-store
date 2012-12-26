@@ -48,8 +48,15 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     @Override
     protected void unblockCallback() {
         assert(this.isAborted() == false);
-        if (debug.get()) LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
-        this.hstore_site.transactionStart((LocalTransaction)this.ts, this.ts.getBasePartition());
+        
+        // HACK: If this is a single-partition txn, then we don't
+        // need to submit it for execution because the PartitionExecutor
+        // will fire it off right away
+        if (this.ts.isPredictSinglePartition() == false) {
+            if (debug.get()) LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
+            this.hstore_site.transactionStart((LocalTransaction)this.ts,
+                                              this.ts.getBasePartition());
+        }
     }
 
     @Override

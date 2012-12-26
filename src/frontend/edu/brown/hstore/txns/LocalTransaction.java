@@ -69,6 +69,7 @@ import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -162,6 +163,12 @@ public class LocalTransaction extends AbstractTransaction {
      * the acknowledgments back from all of the partitions that we're going to access.
      */
     protected final LocalInitQueueCallback init_callback;
+
+    // ----------------------------------------------------------------------------
+    // INTERNAL MESSAGE WRAPPERS
+    // ----------------------------------------------------------------------------
+    
+    private final StartTxnMessage start_msg;
     
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
@@ -211,6 +218,9 @@ public class LocalTransaction extends AbstractTransaction {
     public LocalTransaction(HStoreSite hstore_site) {
         super(hstore_site);
         this.init_callback = new LocalInitQueueCallback(hstore_site);
+        
+        this.start_msg = new StartTxnMessage(this);
+        
         // CatalogContext catalogContext = hstore_site.getCatalogContext(); 
         // this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
     }
@@ -690,6 +700,14 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public RpcCallback<ClientResponseImpl> getClientCallback() {
         return (this.client_callback);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL MESSAGES
+    // ----------------------------------------------------------------------------
+    
+    public StartTxnMessage getStartTxnMessage() {
+        return (this.start_msg);
     }
     
     // ----------------------------------------------------------------------------

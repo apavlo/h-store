@@ -55,7 +55,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
@@ -304,7 +303,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * This is the queue for utility work that the PartitionExecutor can perform
      * whenever it has some idle time.
      */
-    private final ConcurrentLinkedQueue<InternalMessage> utility_queue;
+    // private final ConcurrentLinkedQueue<InternalMessage> utility_queue;
 
     // ----------------------------------------------------------------------------
     // Internal Execution State
@@ -583,7 +582,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     protected PartitionExecutor() {
         this.catalogContext = null;
         this.work_queue = null;
-        this.utility_queue = null;
+//        this.utility_queue = null;
         this.ee = null;
         this.hsql = null;
         this.specExecChecker = null;
@@ -724,7 +723,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
         
         // Utility Work Queue
-        this.utility_queue = new ConcurrentLinkedQueue<InternalMessage>();
+//        this.utility_queue = new ConcurrentLinkedQueue<InternalMessage>();
     }
     
     protected void initializeVoltProcedures() {
@@ -942,14 +941,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // TODO: If we get something back here, it should be come our
         // current distributed transaction.
         // XXX this.queueManager.checkInitQueue(this.partitionId, 10);
-        EstTimeUpdater.update(System.currentTimeMillis());
         AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
-        if (next != null && next.isPredictSinglePartition() == false) {
-            this.setCurrentDtxn(next);
-            this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
-            if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
-            // return (null); // FIXME
+        if (next != null) {
+            // If this a single-partition txn, then we'll want to execute it
+            // right away
+            if (next.isPredictSinglePartition() == false) {
+                return ((LocalTransaction)next).getStartTxnMessage();
+            }
+            else {
+                this.setCurrentDtxn(next);
+                this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
+                // if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
+            }
         }
+        EstTimeUpdater.update(System.currentTimeMillis());
         
         // TODO: We need to consolidate the polls on the work queue here
         // We should always be checking utilityWork as long as we don't have real work
@@ -1049,14 +1054,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       this.currentDtxn, this.partitionId));
         }
         // Check whether we have anything in our non-blocking queue
-        if (spec_ts == null) {
-            work = this.utility_queue.poll();
-            // Smoke 'em if you got 'em
-            if (work != null) {
-                if (trace.val) LOG.trace(String.format("Found utility work at partition %d - %s", this.partitionId, work));
-                this.processInternalMessage(work);
-            }
-        }
+//        if (spec_ts == null) {
+//            work = this.utility_queue.poll();
+//            // Smoke 'em if you got 'em
+//            if (work != null) {
+//                if (trace.val) LOG.trace(String.format("Found utility work at partition %d - %s", this.partitionId, work));
+//                this.processInternalMessage(work);
+//            }
+//        }
         
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
         return (spec_ts != null || work != null);
@@ -1675,16 +1680,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * not have to be this txn's base partition/
      * @param ts
      */
-    public boolean queueInit(AbstractTransaction ts) {
-        assert(ts != null) : "Unexpected null transaction handle!";
-        InitializeTxnMessage work = ts.getInitializeTxnMessage();
-        if (debug.val) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
-                         "[currentDtxn=%s, queueSize=%d, mode=%s]",
-                         work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
-                         this.currentDtxn, this.work_queue.size(), this.currentExecMode));
-        // return (this.work_queue.offer(work));
-        return (this.utility_queue.offer(work));
-    }
+//    public boolean queueInit(AbstractTransaction ts) {
+//        assert(ts != null) : "Unexpected null transaction handle!";
+//        InitializeTxnMessage work = ts.getInitializeTxnMessage();
+//        if (debug.val) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
+//                         "[currentDtxn=%s, queueSize=%d, mode=%s]",
+//                         work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
+//                         this.currentDtxn, this.work_queue.size(), this.currentExecMode));
+//        // return (this.work_queue.offer(work));
+//        return (this.utility_queue.offer(work));
+//    }
     
     /**
      * New work from the coordinator that this local site needs to execute (non-blocking)
@@ -1709,11 +1714,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Add a new work message to our utility queue 
      * @param work
      */
-    public void queueUtilityWork(InternalMessage work) {
-        if (debug.get()) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
-                                   this.partitionId, work));
-        this.utility_queue.offer(work);
-    }
+//    public void queueUtilityWork(InternalMessage work) {
+//        if (debug.get()) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
+//                                   this.partitionId, work));
+//        this.utility_queue.offer(work);
+//    }
     
     /**
      * Put the prepare request for the transaction into the queue
@@ -1795,7 +1800,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             return (false);
         }
         
-        StartTxnMessage work = new StartTxnMessage(ts);
+        StartTxnMessage work = ts.getStartTxnMessage();
         if (debug.val) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
                          "[currentDtxn=%s, queueSize=%d, mode=%s]",
                          work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
