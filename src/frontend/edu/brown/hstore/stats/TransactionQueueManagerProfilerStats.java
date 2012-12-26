@@ -74,7 +74,8 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         
         // Add in TransactionInitPriorityQueueProfiler stats
         TransactionInitPriorityQueueProfiler initProfiler = new TransactionInitPriorityQueueProfiler();
-        for (ProfileMeasurement pm : initProfiler.state.values()) {
+        columns.add(new VoltTable.ColumnInfo("AVG_TXN_WAIT", VoltType.FLOAT));
+        for (ProfileMeasurement pm : initProfiler.queueStates.values()) {
             String name = pm.getType().toUpperCase();
             columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
             columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
@@ -99,7 +100,8 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         // TransactionInitPriorityQueue
         TransactionInitPriorityQueue initQueue = this.queue_manager.getInitQueue(partition);
         TransactionInitPriorityQueueProfiler initProfiler = initQueue.getDebugContext().getProfiler();
-        for (ProfileMeasurement pm : initProfiler.state.values()) {
+        rowValues[offset++] = MathUtil.weightedMean(initProfiler.waitTimes);
+        for (ProfileMeasurement pm : initProfiler.queueStates.values()) {
             rowValues[offset++] = pm.getTotalThinkTime();
             rowValues[offset++] = pm.getInvocations();
         } // FOR

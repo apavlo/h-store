@@ -61,7 +61,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
     /**
      * 
      */
-    private long wait_time;
+    private int wait_time;
     
     // ----------------------------------------------------------------------------
     // TRANSACTION PARTITION LOCKS QUEUES

@@ -62,7 +62,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     // ----------------------------------------------------------------------------
 
     private final int partitionId;
-    private final long waitTime;
+    private final int waitTime;
     
     /**
      * This is the timestamp (in milliseconds) when we can unblock
@@ -94,7 +94,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
      * @param partitionId
      * @param wait
      */
-    public TransactionInitPriorityQueue(int partitionId, long wait) {
+    public TransactionInitPriorityQueue(int partitionId, int wait) {
         super();
         this.partitionId = partitionId;
         this.waitTime = wait;
@@ -319,9 +319,9 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                         // If we're blocking on "safety", then we can use an offset based 
                         // on when the txnId was created. If we're blocking for "ordering",
                         // then we'll want to wait for the full wait time.
-                        long waitTime = this.waitTime;
+                        int waitTime = this.waitTime;
                         if (newState == QueueState.BLOCKED_SAFETY) {
-                            waitTime = Math.max(0, this.waitTime - (currentTimestamp - txnTimestamp));
+                            waitTime = (int)Math.max(0, this.waitTime - (currentTimestamp - txnTimestamp));
                         }
                         
                         this.blockTimestamp = currentTimestamp + waitTime;
@@ -329,6 +329,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                                                  this.partitionId, this.blockTimestamp, ts));
                         
                         newState = (waitTime > 0 ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
+                        if (this.profiler != null) this.profiler.waitTimes.put(waitTime);
                         
                         // This txn becomes our next safeTxnId. This is essentially the next txn
                         // that should be executed, but somebody *could* come along and add in 
@@ -365,8 +366,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                         if (debug.val) LOG.debug(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
                                                  this.partitionId, this.state, newState, this.lastSafeTxnId));
                         if (this.profiler != null) {
-                            this.profiler.state.get(this.state).stopIfStarted();
-                            this.profiler.state.get(newState).start();
+                            this.profiler.queueStates.get(this.state).stopIfStarted();
+                            this.profiler.queueStates.get(newState).start();
                         }
                         this.state = newState;
                     }
