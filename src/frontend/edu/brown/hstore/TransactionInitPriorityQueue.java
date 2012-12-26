@@ -8,9 +8,12 @@ import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.EstTime;
 
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.TransactionInitPriorityQueueProfiler;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -79,6 +82,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     private Long lastSafeTxnId = -1l;
     private Long lastTxnPopped = -1l;
     
+    private final TransactionInitPriorityQueueProfiler profiler;
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -89,10 +94,16 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
      * @param partitionId
      * @param wait
      */
-    public TransactionInitPriorityQueue(HStoreSite hstore_site, int partitionId, long wait) {
+    public TransactionInitPriorityQueue(int partitionId, long wait) {
         super();
         this.partitionId = partitionId;
         this.waitTime = wait;
+        
+        if (HStoreConf.singleton().site.queue_profiling) {
+            this.profiler = new TransactionInitPriorityQueueProfiler();
+        } else {
+            this.profiler = null;
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -112,18 +123,6 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         return (this.partitionId);
     }
     
-    protected long getTransactionsPopped() {
-        return (this.txnsPopped);
-    }
-    
-    protected Long getLastTransactionId() {
-        return (this.lastTxnPopped);
-    }
-    
-    protected long getBlockedTimestamp() {
-        return (this.blockTimestamp);
-    }
-
     // ----------------------------------------------------------------------------
     // QUEUE OPERATION METHODS
     // ----------------------------------------------------------------------------
@@ -141,7 +140,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             // if another thread removes the txn from the queue.
             retval = super.poll();
             if (retval != null) {
-                if (debug.val) LOG.debug(String.format("Partition %d :: poll() -> %s", this.partitionId, retval));
+                if (debug.val) LOG.debug(String.format("Partition %d :: poll() -> %s",
+                                         this.partitionId, retval));
                 this.lastTxnPopped = retval.getTransactionId();
                 this.txnsPopped++;
             }
@@ -163,7 +163,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             retval = super.peek();
             assert(retval != null);
         }
-        if (debug.val) LOG.debug(String.format("Partition %d :: peek() -> %s", this.partitionId, retval));
+        if (debug.val) LOG.debug(String.format("Partition %d :: peek() -> %s",
+                                 this.partitionId, retval));
         return retval;
     }
     
@@ -195,7 +196,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         // Sanity Check
         assert(super.contains(txn) == false) :
             "Failed to remove " + txn + "???\n" + this.debug();
-        if (debug.val) LOG.warn(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
+        if (debug.val) LOG.warn(String.format("Partition %d :: remove(%s) -> %s",
+                                this.partitionId, txn, retval));
         if (retval) this.checkQueueState(reset);
         return retval;
     }
@@ -207,7 +209,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     public Long noteTransactionRecievedAndReturnLastSeen(Long txnId) {
         assert(txnId != null);
         if (trace.val) LOG.trace(String.format("Partition %d :: noteTransactionRecievedAndReturnLastSeen(%d)",
-                         this.partitionId, txnId));
+                                 this.partitionId, txnId));
 
         // we've decided that this can happen, and it's fine... just ignore it
         if (debug.val) {
@@ -221,13 +223,13 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
 
         this.lastSeenTxnId = txnId;
         if (trace.val) LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
-                         this.partitionId, this.lastSeenTxnId));
+                                 this.partitionId, this.lastSeenTxnId));
         if (txnId.compareTo(this.lastSafeTxnId) < 0) {
             synchronized (this) {
                 if (txnId.compareTo(this.lastSafeTxnId) < 0) {
                     this.lastSafeTxnId = txnId;
                     if (trace.val) LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
-                                     this.partitionId, this.lastSafeTxnId));
+                                             this.partitionId, this.lastSafeTxnId));
                 }
             } // SYNCH
         }
@@ -262,7 +264,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         AbstractTransaction ts = super.peek();
         Long txnId = null;
         if (ts == null) {
-            if (trace.val) LOG.trace(String.format("Partition %d :: Queue is empty.", this.partitionId));
+            if (trace.val) LOG.trace(String.format("Partition %d :: Queue is empty.",
+                                     this.partitionId));
             newState = QueueState.BLOCKED_EMPTY;
         }
         // Check whether can unblock now
@@ -277,7 +280,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             if (txnId.compareTo(this.lastSafeTxnId) > 0 && afterPoll == false) {
                 newState = QueueState.BLOCKED_ORDERING;
                 if (debug.val) LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
-                                 this.partitionId, txnId, this.lastSafeTxnId));
+                                         this.partitionId, txnId, this.lastSafeTxnId));
             }
             // If our current block time is negative, then we know that we're the first txnId
             // that's been in the system. We'll also want to wait a bit before we're
@@ -285,15 +288,15 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             else if (this.blockTimestamp == NULL_BLOCK_TIMESTAMP) {
                 newState = QueueState.BLOCKED_SAFETY;
                 if (debug.val) LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime=%d)",
-                                 this.partitionId, txnId, newState, this.blockTimestamp));
+                                         this.partitionId, txnId, newState, this.blockTimestamp));
             }
             // Check whether it's safe to unblock this mofo
             else if (EstTime.currentTimeMillis() < this.blockTimestamp) {
                 newState = QueueState.BLOCKED_SAFETY;
                 if (debug.val) LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime[%d] - current[%d] = %d)",
-                                 this.partitionId, txnId, newState,
-                                 this.blockTimestamp, EstTime.currentTimeMillis(),
-                                 Math.max(0, this.blockTimestamp - EstTime.currentTimeMillis())));
+                                         this.partitionId, txnId, newState,
+                                         this.blockTimestamp, EstTime.currentTimeMillis(),
+                                         Math.max(0, this.blockTimestamp - EstTime.currentTimeMillis())));
             }
             // We didn't find any reason to block this txn, so it's sail yo for it...
             else if (debug.val) {
@@ -361,6 +364,10 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                     if (newState != this.state) {
                         if (debug.val) LOG.debug(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
                                                  this.partitionId, this.state, newState, this.lastSafeTxnId));
+                        if (this.profiler != null) {
+                            this.profiler.state.get(this.state).stopIfStarted();
+                            this.profiler.state.get(newState).start();
+                        }
                         this.state = newState;
                     }
                 }
@@ -378,6 +385,34 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
               (this.state == QueueState.BLOCKED_ORDERING && this.blockTimestamp != NULL_BLOCK_TIMESTAMP)) :
               String.format("Invalid state %s with NULL blocked timestamp", this.state);
         return this.state;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    public class Debug implements DebugContext {
+        public long getTransactionsPopped() {
+            return (txnsPopped);
+        }
+        public Long getLastTransactionId() {
+            return (lastTxnPopped);
+        }
+        public long getBlockedTimestamp() {
+            return (blockTimestamp);
+        }
+        public TransactionInitPriorityQueueProfiler getProfiler() {
+            return (profiler);
+        }
+    }
+    
+    private TransactionInitPriorityQueue.Debug cachedDebugContext;
+    public TransactionInitPriorityQueue.Debug getDebugContext() {
+        if (cachedDebugContext == null) {
+            // We don't care if we're thread-safe here...
+            this.cachedDebugContext = new Debug();
+        }
+        return (cachedDebugContext);
     }
     
     public String debug() {

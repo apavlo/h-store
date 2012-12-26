@@ -41,6 +41,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     TransactionIdManager idManager;
     TransactionQueueManager queueManager;
     TransactionInitPriorityQueue queue;
+    TransactionInitPriorityQueue.Debug queueDbg;
     Procedure catalog_proc;
     
     @Override
@@ -56,6 +57,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         this.idManager = hstore_site.getTransactionIdManager(0);
         this.queueManager = this.hstore_site.getTransactionQueueManager();
         this.queue = this.queueManager.getInitQueue(0);
+        this.queueDbg = this.queue.getDebugContext();
         assertTrue(this.queue.isEmpty());
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
@@ -120,7 +122,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
                 if (j != 0) TransactionInitPriorityQueue.LOG.info(StringUtil.SINGLE_LINE.trim());
                 String debug = String.format("i=%d / j=%d", i, j);
                 state = this.queue.checkQueueState();
-                nextBlockTime = this.queue.getBlockedTimestamp();
+                nextBlockTime = this.queueDbg.getBlockedTimestamp();
                 // System.err.printf("%s => state=%s / lastBlock=%d\n", debug, state, lastBlockTime);
                 
                 assertEquals(debug, QueueState.UNBLOCKED, state);

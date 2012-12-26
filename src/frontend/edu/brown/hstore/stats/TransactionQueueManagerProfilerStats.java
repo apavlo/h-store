@@ -11,10 +11,12 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.TransactionInitPriorityQueue;
 import edu.brown.hstore.TransactionQueueManager;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.TransactionInitPriorityQueueProfiler;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
 import edu.brown.utils.MathUtil;
 
@@ -66,9 +68,14 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("AVG_CONCURRENT", VoltType.FLOAT));
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             String name = pm.getType().toUpperCase();
-            // We need two columns per ProfileMeasurement
-            //  (1) The total think time in nanoseconds
-            //  (2) The number of invocations
+            columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
+            columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
+        } // FOR
+        
+        // Add in TransactionInitPriorityQueueProfiler stats
+        TransactionInitPriorityQueueProfiler initProfiler = new TransactionInitPriorityQueueProfiler();
+        for (ProfileMeasurement pm : initProfiler.state.values()) {
+            String name = pm.getType().toUpperCase();
             columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
             columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
         } // FOR
@@ -88,6 +95,15 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
             rowValues[offset++] = pm.getTotalThinkTime();
             rowValues[offset++] = pm.getInvocations();
         } // FOR
+        
+        // TransactionInitPriorityQueue
+        TransactionInitPriorityQueue initQueue = this.queue_manager.getInitQueue(partition);
+        TransactionInitPriorityQueueProfiler initProfiler = initQueue.getDebugContext().getProfiler();
+        for (ProfileMeasurement pm : initProfiler.state.values()) {
+            rowValues[offset++] = pm.getTotalThinkTime();
+            rowValues[offset++] = pm.getInvocations();
+        } // FOR
+        
         super.updateStatsRow(rowKey, rowValues);
     }
 }

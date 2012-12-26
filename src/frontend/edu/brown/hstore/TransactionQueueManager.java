@@ -176,7 +176,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         for (int partition : allPartitions.values()) {
             this.lockQueuesLastTxn[partition] = Long.valueOf(-1);
             if (this.hstore_site.isLocalPartition(partition)) {
-                this.lockQueues[partition] = new TransactionInitPriorityQueue(hstore_site, partition, this.wait_time);
+                this.lockQueues[partition] = new TransactionInitPriorityQueue(partition, this.wait_time);
                 this.lockQueuesBlocked[partition] = false;
                 this.initQueues[partition] = new ConcurrentLinkedQueue<AbstractTransaction>();
                 this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
@@ -184,7 +184,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         } // FOR
         
         if (debug.val) LOG.debug(String.format("Created %d TransactionInitQueues for %s",
-                         num_partitions, hstore_site.getSiteName()));
+                                 num_partitions, hstore_site.getSiteName()));
     }
     
     /**
@@ -768,7 +768,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
-    protected TransactionInitPriorityQueue getInitQueue(int partition) {
+    public TransactionInitPriorityQueue getInitQueue(int partition) {
         return (this.lockQueues[partition]);
     }
     
