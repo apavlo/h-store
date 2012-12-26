@@ -945,7 +945,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (next != null) {
             // If this a single-partition txn, then we'll want to execute it
             // right away
-            if (next.isPredictSinglePartition() == false) {
+            if (next.isPredictSinglePartition()) {
                 return ((LocalTransaction)next).getStartTxnMessage();
             }
             else {
