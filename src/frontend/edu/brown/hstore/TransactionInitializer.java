@@ -104,8 +104,7 @@ public class TransactionInitializer {
      * the object pools.
      * It is only used for debugging+testing 
      */
-    protected final EventObservable<LocalTransaction> newTxnObservable = 
-                    new EventObservable<LocalTransaction>(); 
+    private EventObservable<LocalTransaction> newTxnObservable; 
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -122,6 +121,13 @@ public class TransactionInitializer {
         this.thresholds = hstore_site.getThresholds();
         this.p_estimator = hstore_site.getPartitionEstimator();
         this.t_estimators = new TransactionEstimator[catalogContext.numberOfPartitions];
+    }
+    
+    protected synchronized EventObservable<LocalTransaction> getNewTxnObservable() {
+        if (this.newTxnObservable == null) {
+            this.newTxnObservable = new EventObservable<LocalTransaction>();
+        }
+        return (this.newTxnObservable);
     }
 
     // ----------------------------------------------------------------------------
@@ -273,7 +279,7 @@ public class TransactionInitializer {
             }
         }
         // Notify anybody that cares about this new txn
-        this.newTxnObservable.notifyObservers(ts);
+        if (this.newTxnObservable != null) this.newTxnObservable.notifyObservers(ts);
         
         assert(ts.isSysProc() == catalog_proc.getSystemproc()) :
             "Unexpected sysproc mismatch for " + ts;
@@ -348,7 +354,7 @@ public class TransactionInitializer {
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
         // Notify anybody that cares about this new txn
-        this.newTxnObservable.notifyObservers(new_ts);
+        if (this.newTxnObservable != null) this.newTxnObservable.notifyObservers(new_ts);
         
         return (new_ts);
     }

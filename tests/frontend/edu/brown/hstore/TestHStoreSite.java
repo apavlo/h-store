@@ -389,7 +389,7 @@ public class TestHStoreSite extends BaseTestCase {
                 copiedHandles.put(ts.getTransactionId(), copy);
             }
         };
-        hstore_site.getTransactionInitializer().newTxnObservable.addObserver(newTxnObserver);
+        hstore_site.getTransactionInitializer().getNewTxnObservable().addObserver(newTxnObserver);
         
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
         Object params[] = { 1234l, "XXXX" };
