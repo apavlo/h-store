@@ -38,6 +38,7 @@ import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionProfiler;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -587,7 +588,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         // Incoming Partition Distribution
         if (siteDebug.getProfiler() != null) {
-            ObjectHistogram<Integer> incoming = siteDebug.getProfiler().network_incoming_partitions;
+            Histogram<Integer> incoming = siteDebug.getProfiler().network_incoming_partitions;
             if (incoming.isEmpty() == false) {
                 incoming.setDebugLabels(partitionLabels);
                 incoming.enablePercentages();

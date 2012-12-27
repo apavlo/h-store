@@ -6,10 +6,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
@@ -17,7 +15,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
-import org.voltdb.VoltType;
 import org.voltdb.catalog.Database;
 
 import edu.brown.utils.CollectionUtil;
@@ -98,16 +95,6 @@ public class FastIntHistogram implements Histogram<Integer> {
         return (false);
     }
     
-    @Override
-    public String toString() {
-        return HistogramUtil.toString(this);
-    }
-    
-    @Override
-    public String toString(Integer max_chars) {
-        return HistogramUtil.toString(this, max_chars);
-    }
-    
     // ----------------------------------------------------------------------------
     // FAST ACCESS METHODS
     // ----------------------------------------------------------------------------
@@ -131,24 +118,6 @@ public class FastIntHistogram implements Histogram<Integer> {
         return (values);
     }
 
-    public long fastDec(int idx) {
-        return this.fastDec(idx, 1);
-    }
-    public long fastDec(int idx, long count) {
-        if (this.histogram[idx] == NULL_COUNT || this.histogram.length <= idx) {
-            throw new IllegalArgumentException("No value exists for " + idx);
-        } else if (this.histogram[idx] < count) {
-            throw new IllegalArgumentException("Count for " + idx + " cannot be negative");
-        }
-        this.histogram[idx] -= count;
-        if (this.histogram[idx] == 0 && this.keep_zero_entries == false) {
-            this.histogram[idx] = NULL_COUNT;
-            this.value_count--;
-        }
-        this.num_samples -= count;
-        return (this.histogram[idx]);
-    }
-    
     // ----------------------------------------------------------------------------
     // INTERNAL DATA CONTROL METHODS
     // ----------------------------------------------------------------------------
@@ -289,10 +258,37 @@ public class FastIntHistogram implements Histogram<Integer> {
             }
         }
     }
+    @Override
+    public void putAll() {
+        for (int i = 0; i < this.histogram.length; i++) {
+            if (this.histogram[i] != NULL_COUNT) {
+                this.histogram[i]++;
+                this.num_samples++;
+            }
+        } // FOR
+    }
     
     // ----------------------------------------------------------------------------
     // DECREMENT METHODS
     // ----------------------------------------------------------------------------
+    
+    public long fastDec(int idx) {
+        return this.fastDec(idx, 1);
+    }
+    public long fastDec(int idx, long count) {
+        if (this.histogram[idx] == NULL_COUNT || this.histogram.length <= idx) {
+            throw new IllegalArgumentException("No value exists for " + idx);
+        } else if (this.histogram[idx] < count) {
+            throw new IllegalArgumentException("Count for " + idx + " cannot be negative");
+        }
+        this.histogram[idx] -= count;
+        if (this.histogram[idx] == 0 && this.keep_zero_entries == false) {
+            this.histogram[idx] = NULL_COUNT;
+            this.value_count--;
+        }
+        this.num_samples -= count;
+        return (this.histogram[idx]);
+    }
     
     @Override
     public long dec(Integer value) {
@@ -422,6 +418,10 @@ public class FastIntHistogram implements Histogram<Integer> {
     // ----------------------------------------------------------------------------
     
     @Override
+    public long set(Integer value, long i) {
+        return (this.histogram[value.intValue()] = i);
+    }
+    @Override
     public boolean contains(Integer value) {
         return (this.histogram[value.intValue()] != NULL_COUNT);
     }
@@ -430,6 +430,20 @@ public class FastIntHistogram implements Histogram<Integer> {
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
 
+    
+    @Override
+    public String toString() {
+        return HistogramUtil.toString(this);
+    }
+    @Override
+    public String toString(int max_chars) {
+        return HistogramUtil.toString(this, max_chars);
+    }
+    @Override
+    public String toString(int max_chars, int max_len) {
+        return HistogramUtil.toString(this, max_chars, max_len);
+    }
+    
     @Override
     public Histogram<Integer> setDebugLabels(Map<?, String> names_map) {
         if (this.debug_names == null) {

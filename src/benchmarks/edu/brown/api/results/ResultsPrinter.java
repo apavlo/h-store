@@ -33,6 +33,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkInterest;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.statistics.HistogramUtil;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
@@ -235,9 +236,9 @@ public class ResultsPrinter implements BenchmarkInterest {
         long totalTxnCount = p.getFirst();
         long txnDelta = p.getSecond();
         
-        Collection<Integer> latencies = results.getLastLatencies().weightedValues();
+        Collection<Integer> latencies = HistogramUtil.weightedValues(results.getLastLatencies());
         double intervalLatency = MathUtil.sum(latencies) / (double)latencies.size();
-        latencies = results.getAllLatencies().weightedValues();
+        latencies = HistogramUtil.weightedValues(results.getAllLatencies());
         double totalLatency = MathUtil.sum(latencies) / (double)latencies.size();
 
         int pollIndex = results.getCompletedIntervalCount();

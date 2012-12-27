@@ -16,6 +16,7 @@ import org.voltdb.catalog.Database;
 import edu.brown.api.results.BenchmarkResults.Result;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.HistogramUtil;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
@@ -125,7 +126,7 @@ public class FinalResult implements JSONSerializable {
             this.txnResults.put(txnName, er);
             latencies.put(l);
         } // FOR
-        Collection<Integer> allLatencies = latencies.weightedValues();
+        Collection<Integer> allLatencies = HistogramUtil.weightedValues(latencies);
         if (allLatencies.isEmpty() == false) {
             this.totalMinLatency = latencies.getMinValue().doubleValue();
             this.totalMaxLatency = latencies.getMaxValue().doubleValue();

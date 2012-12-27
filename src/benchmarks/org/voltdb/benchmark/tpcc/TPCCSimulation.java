@@ -72,6 +72,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
 
@@ -213,7 +214,7 @@ public class TPCCSimulation {
     public synchronized void tick(int counter) {
         this.tick_counter = counter;
         if (config.warehouse_debug) {
-            Map<String, ObjectHistogram<Integer>> m = new ListOrderedMap<String, ObjectHistogram<Integer>>();
+            Map<String, Histogram<Integer>> m = new ListOrderedMap<String, Histogram<Integer>>();
             m.put(String.format("LAST ROUND\n - SampleCount=%d", this.lastWarehouseHistory.getSampleCount()),
                   this.lastWarehouseHistory);
             m.put(String.format("TOTAL\n - SampleCount=%d", this.totalWarehouseHistory.getSampleCount()),

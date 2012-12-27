@@ -548,41 +548,29 @@ public class ObjectHistogram<X> implements Histogram<X> {
     public synchronized long dec(X value) {
         return this._put(value, -1);
     }
-    
-    /**
-     * For each value in the given collection, decrement their count by one for each
-     * @param <T>
-     * @param values
-     */
     @Override
     public synchronized void dec(Collection<X> values) {
         this.dec(values, 1);
     }
-
-    /**
-     * For each value in the given collection, decrement their count by the given delta
-     * @param values
-     * @param delta
-     */
     @Override
     public synchronized void dec(Collection<X> values, long delta) {
         for (X v : values) {
             this._put(v, -1 * delta);
         } // FOR
     }
-    
-    /**
-     * Decrement all the entries in the other histogram by their counter
-     * @param <T>
-     * @param values
-     */
     @Override
     public synchronized void dec(Histogram<X> other) {
         if (other instanceof ObjectHistogram) {
-            for (Entry<X, Long> e : other.histogram.entrySet()) {
+            ObjectHistogram<X> objHistogram = (ObjectHistogram<X>)other;
+            for (Entry<X, Long> e : objHistogram.histogram.entrySet()) {
                 if (e.getValue().longValue() > 0) {
                     this._put(e.getKey(), -1 * e.getValue().longValue());
                 }
+            } // FOR
+        }
+        else {
+            for (X value : other.values()) {
+                this._put(value, -1 * other.get(value));
             } // FOR
         }
     }
@@ -591,11 +579,7 @@ public class ObjectHistogram<X> implements Histogram<X> {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
-    /**
-     * Set the number of occurrences of this particular value i
-     * @param value the value to be added to the histogram
-     * @return the new count for value
-     */
+    @Override
     public synchronized long set(X value, long i) {
         Long orig = this.get(value);
         if (orig != null && orig != i) {
@@ -603,12 +587,7 @@ public class ObjectHistogram<X> implements Histogram<X> {
         }
         return this._put(value, i);
     }
-    
-    /**
-     * Remove the entire count for the given value
-     * @param value
-     * @return the new count for value
-     */
+    @Override
     public synchronized long remove(X value) {
         Long cnt = this.histogram.get(value);
         if (cnt != null && cnt.longValue() > 0) {
@@ -755,11 +734,13 @@ public class ObjectHistogram<X> implements Histogram<X> {
         return HistogramUtil.toString(this);
     }
     @Override
-    public String toString(Integer max_chars) {
+    public String toString(int max_chars) {
         return HistogramUtil.toString(this, max_chars);
     }
-        
-
+    @Override
+    public String toString(int max_chars, int max_len) {
+        return HistogramUtil.toString(this, max_chars, max_len);
+    }
     
     // ----------------------------------------------------------------------------
     // SERIALIZATION METHODS

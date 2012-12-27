@@ -9,6 +9,7 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
+import edu.brown.statistics.HistogramUtil;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
@@ -45,7 +46,7 @@ public class EntityResult implements JSONSerializable {
                 this.txnMinLatency = latencies.getMinValue().doubleValue();
             if (latencies.getMaxValue() != null)
                 this.txnMaxLatency = latencies.getMaxValue().doubleValue();
-            Collection<Integer> allLatencies = latencies.weightedValues();
+            Collection<Integer> allLatencies = HistogramUtil.weightedValues(latencies);
             if (allLatencies.size() > 0) {
                 this.txnAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
                 this.txnStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));

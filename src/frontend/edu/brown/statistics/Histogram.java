@@ -254,7 +254,15 @@ public interface Histogram<X> extends JSONSerializable {
      * @param max_chars size of the bars
      * @return
      */
-    public String toString(Integer max_chars);
+    public String toString(int max_chars);
+    
+    /**
+     * Histogram Pretty Print
+     * @param max_chars size of the bars
+     * @param max_len size of the value labels
+     * @return
+     */
+    public String toString(int max_chars, int max_len);
     
     /**
      * Helper method used for replacing the object's toString() output with labels
