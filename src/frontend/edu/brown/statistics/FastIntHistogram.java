@@ -204,6 +204,17 @@ public class FastIntHistogram implements Histogram<Integer> {
         this.num_samples++;
         return (this.histogram[idx]);
     }
+    public long put(int idx, long i) {
+        if (this.histogram[idx] == NULL_COUNT) {
+            this.histogram[idx] = i;
+            this.value_count++;
+        } else {
+            this.histogram[idx] += i;
+        }
+        this.num_samples += i;
+        return (this.histogram[idx]);
+    }
+    
     public void put(FastIntHistogram fast) {
         assert(fast.histogram.length <= this.histogram.length);
         if (fast.histogram.length >= this.histogram.length) {
@@ -226,27 +237,17 @@ public class FastIntHistogram implements Histogram<Integer> {
     }
     @Override
     public long put(Integer value, long i) {
-        int idx = value.intValue();
-        if (this.histogram[idx] == NULL_COUNT) {
-            this.histogram[idx] = i;
-            this.value_count++;
-        } else {
-            this.histogram[idx] += i;
-        }
-        this.num_samples += i;
-        return (this.histogram[idx]);
+        return this.put(value.intValue(), i);
     }
-
     @Override
     public void put(Collection<Integer> values) {
         for (Integer v : values)
-            this.put(v);
+            this.put(v.intValue());
     }
-
     @Override
     public void put(Collection<Integer> values, long count) {
         for (Integer v : values)
-            this.put(v, count);
+            this.put(v.intValue(), count);
     }
     @Override
     public void put(Histogram<Integer> other) {
@@ -254,8 +255,8 @@ public class FastIntHistogram implements Histogram<Integer> {
             this.put((FastIntHistogram)other);
         } else {
             for (Integer v : other.values()) {
-                this.put(v, other.get(v));
-            }
+                this.put(v.intValue(), other.get(v, NULL_COUNT));
+            } // FOR
         }
     }
     @Override
@@ -272,10 +273,10 @@ public class FastIntHistogram implements Histogram<Integer> {
     // DECREMENT METHODS
     // ----------------------------------------------------------------------------
     
-    public long fastDec(int idx) {
-        return this.fastDec(idx, 1);
+    public long dec(int idx) {
+        return this.dec(idx, 1);
     }
-    public long fastDec(int idx, long count) {
+    public long dec(int idx, long count) {
         if (this.histogram[idx] == NULL_COUNT || this.histogram.length <= idx) {
             throw new IllegalArgumentException("No value exists for " + idx);
         } else if (this.histogram[idx] < count) {
@@ -296,7 +297,7 @@ public class FastIntHistogram implements Histogram<Integer> {
     }
     @Override
     public long dec(Integer value, long count) {
-        return this.fastDec(value.intValue(), count);
+        return this.dec(value.intValue(), count);
     }
     @Override
     public void dec(Collection<Integer> values) {

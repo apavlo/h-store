@@ -40,7 +40,7 @@ import edu.brown.utils.CollectionUtil;
  * 
  * @author pavlo
  */
-public class TestHistogram extends BaseTestCase {
+public class TestObjectHistogram extends BaseTestCase {
 
     public static final int NUM_PARTITIONS = 100;
     public static final int NUM_SAMPLES = 100;
@@ -300,12 +300,12 @@ public class TestHistogram extends BaseTestCase {
         assertNotNull(json);
         JSONObject jsonObject = new JSONObject(json);
         
-        Histogram<Long> copy = new ObjectHistogram<Long>();
+        ObjectHistogram<Long> copy = new ObjectHistogram<Long>();
         copy.fromJSON(jsonObject, null);
         assertEquals(h.getValueCount(), copy.getValueCount());
         for (ObjectHistogram.Members element : ObjectHistogram.Members.values()) {
             String field_name = element.toString().toLowerCase();
-            Field field = Histogram.class.getDeclaredField(field_name);
+            Field field = ObjectHistogram.class.getDeclaredField(field_name);
             assertNotNull(field);
             
             Object orig_value = field.get(h);

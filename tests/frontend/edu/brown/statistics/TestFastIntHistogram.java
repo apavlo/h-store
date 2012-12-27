@@ -44,7 +44,7 @@ public class TestFastIntHistogram extends BaseTestCase {
     private static final int NUM_SAMPLES = 1000;
     private static final int RANGE = 32;
     
-    private Histogram<Integer> h = new ObjectHistogram<Integer>();
+    private ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
     private FastIntHistogram fast_h = new FastIntHistogram(RANGE);
     private Random rand = new Random(1);
     
@@ -140,7 +140,7 @@ public class TestFastIntHistogram extends BaseTestCase {
             int val = rand.nextInt(RANGE);
             if (h.get(val) != null) {
                 h.dec(val);
-                fast_h.fastDec(val);
+                fast_h.dec(val);
             }
         } // FOR
         
