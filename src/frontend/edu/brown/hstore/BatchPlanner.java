@@ -57,6 +57,7 @@ import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.BatchPlannerProfiler;
 import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
@@ -477,14 +478,18 @@ public class BatchPlanner {
                                              batchStmts[i].getStatement().getSecondaryindex();
             
             if (this.stmt_is_replicatedonly[i] == false) nonReplicatedStmtCnt++;
-            if (trace.val) LOG.trace(String.format("INIT %s -> isReplicatedOnly[%s]",
-                             batchStmts[i].getStatement().fullName(), this.stmt_is_replicatedonly[i]));
+            if (trace.val)
+                LOG.trace(String.format("INIT[%d] %s -> isReplicatedOnly[%s]",
+                          i, this.catalog_stmts[i].fullName(), this.stmt_is_replicatedonly[i]));
 
             // CACHING
             // Since most batches are going to be single-partition, we will cache the
             // parameter offsets on how to determine whether a Statement is multi-partition or not
             if (this.enable_caching) {
                 this.cache_fastLookups[i] = p_estimator.getStatementEstimationParameters(this.catalog_stmts[i]);
+                if (trace.val) 
+                    LOG.trace(String.format("INIT[%d] %s Cached Fast-Lookup at Offset %d: %s",
+                              i, this.catalog_stmts[i].fullName(), Arrays.toString(this.cache_fastLookups[i])));
             }
         } // FOR
         this.nonReplicatedStmtCount = nonReplicatedStmtCnt;
@@ -592,12 +597,24 @@ public class BatchPlanner {
             // suppose to be single-partitioned
             if (this.force_singlePartition == false) {
                 for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
+                    // If we don't have a cached fast-lookup here, then we need to check
+                    // whether the statement is accessing only replicated tables and is read-only
                     if (this.cache_fastLookups[stmt_index] == null) {
-                        if (debug.val)
-                            LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
-                                      txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
-                        cache_isSinglePartition[stmt_index] = false;
-                    } else {
+                        if (this.stmt_is_replicatedonly[stmt_index] && this.stmt_is_readonly[stmt_index]) {
+                            if (debug.val)
+                                LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s but stmt is replicated + read-only.",
+                                          txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
+                        }
+                        else {
+                            if (debug.val)
+                                LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
+                                          txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
+                            cache_isSinglePartition[stmt_index] = false;
+                        }
+                    }
+                    // Otherwise, we'll use our fast look-ups to check to make sure that the 
+                    // statement's input parameters match the txn's base partition
+                    else {
                         if (debug.val)
                             LOG.debug(String.format("[#%d-%02d] Using fast-lookup caching for %s: %s", txn_id,
                                       stmt_index, this.catalog_stmts[stmt_index].fullName(),
@@ -605,7 +622,13 @@ public class BatchPlanner {
                         Object params[] = batchArgs[stmt_index].toArray();
                         cache_isSinglePartition[stmt_index] = true;
                         for (int idx : this.cache_fastLookups[stmt_index]) {
-                            if (this.hasher.hash(params[idx]) != base_partition) {
+                            int hash = this.hasher.hash(params[idx]); 
+                            if (hash != base_partition) {
+                                if (debug.val)
+                                    LOG.debug(String.format("[#%d-%02d] Failed to match cached partition info for %s at idx=%d: " +
+                                    		 "hash[%d] != basePartition[%d]",
+                                              txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName(), idx,
+                                              hash, base_partition));
                                 cache_isSinglePartition[stmt_index] = false;
                                 break;
                             }
@@ -641,7 +664,7 @@ public class BatchPlanner {
 
         // Only maintain the histogram of what partitions were touched if we
         // know that we're going to throw a MispredictionException
-        ObjectHistogram<Integer> mispredict_h = null;
+        Histogram<Integer> mispredict_h = null;
         boolean mispredict = false;
 
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {

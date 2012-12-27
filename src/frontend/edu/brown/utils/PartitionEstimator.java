@@ -655,7 +655,7 @@ public class PartitionEstimator {
                     } // FOR (Column)
                 }
                 if (trace.val)
-                    LOG.trace(frag_cache);
+                    LOG.trace(frag_cache.toString());
 
                 // Loop through all of our tables and make sure that there is an entry in the PlanFragment CacheEntrry
                 // If there isn't, then that means there was no predicate on the table and therefore the PlanFragment
@@ -1029,6 +1029,9 @@ public class PartitionEstimator {
      * @return
      */
     public int[] getStatementEstimationParameters(Statement catalog_stmt) {
+        if (debug.val)
+            LOG.debug("Retrieving estimation parameter offsets for " + catalog_stmt.fullName());
+        
         int[] all_param_idxs = this.cache_stmtPartitionParameters.get(catalog_stmt);
         if (all_param_idxs == null) {
             List<Integer> idxs = new ArrayList<Integer>();

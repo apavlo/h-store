@@ -180,15 +180,15 @@ public class CatalogInfo {
 //        }
         
         // DUMP SYSPROCS
-        for (Procedure proc : args.catalogContext.getSysProcedures()) {
-            System.out.println(proc.getName());
-            int ctr = 0;
-            for (ProcParameter param : CatalogUtil.getSortedCatalogItems(proc.getParameters(), "index")) {
-                System.out.printf("  [%02d] %s%s\n", ctr++,
-                                  VoltType.get(param.getType()),
-                                  (param.getIsarray() ? " <array>" : "")); 
-            } // FOR
-        } // FOR
+//        for (Procedure proc : args.catalogContext.getSysProcedures()) {
+//            System.out.println(proc.getName());
+//            int ctr = 0;
+//            for (ProcParameter param : CatalogUtil.getSortedCatalogItems(proc.getParameters(), "index")) {
+//                System.out.printf("  [%02d] %s%s\n", ctr++,
+//                                  VoltType.get(param.getType()),
+//                                  (param.getIsarray() ? " <array>" : "")); 
+//            } // FOR
+//        } // FOR
     }
 
 }
