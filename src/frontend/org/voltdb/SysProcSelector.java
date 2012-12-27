@@ -32,5 +32,6 @@ public enum SysProcSelector {
     MARKOVPROFILER, // markov estimation profiler information
     SPECEXECPROFILER, // speculative execution profiler information
     SITEPROFILER, // network profiler information
+    PLANNERPROFILER, // batch planner profiler information
     POOL,           // info about how object pools
 }

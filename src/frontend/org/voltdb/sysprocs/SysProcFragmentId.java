@@ -57,6 +57,8 @@ public class SysProcFragmentId {
     public static final int PF_specexecProfilerDataAggregator = 33;
     public static final int PF_siteProfilerData = 34;
     public static final int PF_siteProfilerDataAggregator = 35;
+    public static final int PF_plannerProfilerData = 36;
+    public static final int PF_plannerProfilerDataAggregator = 37;
 
     // @Shutdown
     public static final int PF_shutdownCommand = 50;

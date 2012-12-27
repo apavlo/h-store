@@ -95,6 +95,7 @@ import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimatorState;
+import edu.brown.hstore.stats.BatchPlannerProfilerStats;
 import edu.brown.hstore.stats.MarkovEstimatorProfilerStats;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
 import edu.brown.hstore.stats.PoolCounterStats;
@@ -1164,6 +1165,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // CLIENT INTERFACE PROFILER
         statsSource = new SiteProfilerStats(this);
         this.statsAgent.registerStatsSource(SysProcSelector.SITEPROFILER, 0, statsSource);
+        
+        // BATCH PLANNER PROFILER
+        statsSource = new BatchPlannerProfilerStats(this, this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.PLANNERPROFILER, 0, statsSource);
         
         // OBJECT POOL COUNTERS
         statsSource = new PoolCounterStats(this.objectPools);
