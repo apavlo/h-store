@@ -140,6 +140,7 @@ import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.TableStatsRequestMessage;
+import edu.brown.hstore.internal.UtilityWorkMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.MarkovConflictChecker;
@@ -186,6 +187,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     private static final int WORK_QUEUE_POLL_TIME = 1; // milliseconds
+    private static final UtilityWorkMessage UTIL_WORK = new UtilityWorkMessage();
     
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
@@ -676,8 +678,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
                 
                 eeTemp.loadCatalog(catalogContext.catalog.serialize());
-                lastTickTime = System.currentTimeMillis();
-                eeTemp.tick( lastTickTime, 0);
+                this.lastTickTime = System.currentTimeMillis();
+                eeTemp.tick(this.lastTickTime, 0);
                 
                 snapshotter = new SnapshotSiteProcessor(new Runnable() {
                     final PotentialSnapshotWorkMessage msg = new PotentialSnapshotWorkMessage();
@@ -697,8 +699,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                 "localhost",
                                                 target);
                 eeTemp.loadCatalog(catalogContext.catalog.serialize());
-                lastTickTime = System.currentTimeMillis();
-                eeTemp.tick( lastTickTime, 0);
+                this.lastTickTime = System.currentTimeMillis();
+                eeTemp.tick(this.lastTickTime, 0);
             }
         }
         // just print error info an bail if we run into an error here
@@ -886,7 +888,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Poll Work Queue
                 // -------------------------------
                 work = this.getNext();
-                if (work == null) continue;
+                if (work == null) {
+                    Thread.sleep(WORK_QUEUE_POLL_TIME);
+                    continue;
+                }
+                else if (work instanceof UtilityWorkMessage) {
+                    continue;
+                }
+                
                 if (trace.val)
                     LOG.trace("Next Work: " + work);
                 
@@ -970,10 +979,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Check if we have any utility work to do while we wait
         if (trace.val)
             LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
-        if (this.utilityWork()) return (null);
+        if (this.utilityWork()) return (UTIL_WORK);
         
         // This is the bare minimum that we can do here...
         EstTimeUpdater.update(System.currentTimeMillis());
+        this.tick();
         return (null);
     }
     
@@ -988,8 +998,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private boolean utilityWork() {
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.start();
         if (trace.val) LOG.trace("Entering utilityWork");
-        
-        this.tick();
         
         // -------------------------------
         // Poll Lock Queue
