@@ -86,7 +86,7 @@ public class BatchPlannerProfilerStats extends StatsSource {
         
         // Find all of the BatchPlanners for each partition for our target procedure
         for (BatchPlanner planner : this.getBatchPlanners(proc)) {
-            BatchPlannerProfiler profiler = planner.getProfiler();
+            BatchPlannerProfiler profiler = planner.getDebugContext().getProfiler();
             if (profiler == null) continue;
             
             ProfileMeasurement profilerPMs[] = profiler.getProfileMeasurements();

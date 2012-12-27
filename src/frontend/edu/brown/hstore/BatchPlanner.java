@@ -51,6 +51,7 @@ import org.voltdb.exceptions.MispredictionException;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -517,18 +518,14 @@ public class BatchPlanner {
         } // FOR
     }
 
-    public BatchPlan getBatchPlan() {
-        return (this.plan);
-    }
+    
 
     public Procedure getProcedure() {
         return this.catalog_proc;
     }
-
     public Statement[] getStatements() {
         return this.catalog_stmts;
     }
-
     public void setPrefetchFlag(boolean val) {
         this.prefetch = val;
     }
@@ -544,10 +541,6 @@ public class BatchPlanner {
 
     public int getBatchSize() {
         return (this.batchSize);
-    }
-
-    public BatchPlannerProfiler getProfiler() {
-        return (this.profiler);
     }
 
     /**
@@ -1173,4 +1166,39 @@ public class BatchPlanner {
             return (o1.frag_id - o2.frag_id);
         }
     };
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    public class Debug implements DebugContext {
+        public BatchPlan getBatchPlan() {
+            return (plan);
+        }
+        public BatchPlannerProfiler getProfiler() {
+            return (profiler);
+        }
+        public boolean isCachedReplicatedOnly(int stmt_index) {
+            return (stmt_is_replicatedonly[stmt_index]);
+        }
+        public boolean isCachedReadOnly(int stmt_index) {
+            return (stmt_is_readonly[stmt_index]);
+        }
+        public int[] getCachedLookup(int stmt_index) {
+            return (cache_fastLookups[stmt_index]);
+        }
+        public BatchPlan getCachedSinglePartitionPlan(int stmt_index) {
+            return (cache_singlePartitionPlans[stmt_index]);
+        }
+        
+    }
+    
+    private Debug cachedDebugContext;
+    public Debug getDebugContext() {
+        if (this.cachedDebugContext == null) {
+            // We don't care if we're thread-safe here...
+            this.cachedDebugContext = new Debug();
+        }
+        return this.cachedDebugContext;
+    }
 }
