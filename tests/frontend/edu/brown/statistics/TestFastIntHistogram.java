@@ -63,6 +63,25 @@ public class TestFastIntHistogram extends BaseTestCase {
         }
     }
 
+    // ----------------------------------------------------------------------------
+    // BASE METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * testCopyConstructor
+     */
+    public void testCopyConstructor() {
+        FastIntHistogram clone = new FastIntHistogram(fast_h);
+        assertEquals(fast_h.getSampleCount(), clone.getSampleCount());
+        assertEquals(fast_h.getValueCount(), clone.getValueCount());
+        for (int val : fast_h.values()) {
+            assertEquals(fast_h.get(val), clone.get(val));
+        } // FOR
+        assertEquals(fast_h.hasDebugLabels(), clone.hasDebugLabels());
+        assertEquals(fast_h.hasDebugPercentages(), clone.hasDebugPercentages());
+        assertEquals(fast_h.getDebugLabels(), clone.getDebugLabels());
+    }
+    
     /**
      * testGrowing
      */
@@ -87,20 +106,13 @@ public class TestFastIntHistogram extends BaseTestCase {
     }
     
     /**
-     * testSerialization
+     * testIfEmpty
      */
-    public void testSerialization() throws Exception {
-        String json = fast_h.toJSONString();
-        assertFalse(json.isEmpty());
-        
-        FastIntHistogram clone = new FastIntHistogram();
-        JSONObject jsonObj = new JSONObject(json);
-        clone.fromJSON(jsonObj, null);
-        
-        assertEquals(fast_h.size(), clone.size());
-        for (int i = 0, cnt = fast_h.size(); i < cnt; i++) {
-            assertEquals(fast_h.get(i), clone.get(i));
-        } // FOR
+    public void testIfEmpty() {
+        h.clear();
+        fast_h.clear();
+        assertTrue(h.isEmpty());
+        assertTrue(fast_h.isEmpty());
     }
     
     /**
@@ -126,8 +138,123 @@ public class TestFastIntHistogram extends BaseTestCase {
             assertEquals(h.get(val).intValue(), fast_h.get(val.intValue()));
         } // FOR
     }
+
     
+    // ----------------------------------------------------------------------------
+    // VALUE METHODS
+    // ----------------------------------------------------------------------------
     
+    /**
+     * testGet
+     */
+    public void testGet() {
+        int val = rand.nextInt(RANGE);
+        h.put(val);
+        fast_h.put(val);
+        
+        Long hCnt = h.get(val);
+        Long fastCnt = fast_h.get(val);
+        assertEquals(Integer.toString(val), hCnt, fastCnt);
+    }
+
+    /**
+     * testGetIfNull
+     */
+    public void testGetIfNull() {
+        long expected = 99999;
+        int val = 12345;
+        long hCnt = h.get(val, expected);
+        long fastCnt = fast_h.get(val, expected);
+        assertEquals(Integer.toString(val), hCnt, fastCnt);
+    }
+
+    /**
+     * testValues
+     */
+    public void testValues() {
+        Collection<Integer> vals0 = h.values();
+        Collection<Integer> vals1 = fast_h.values();
+        assertEquals(vals0.size(), vals1.size());
+        assertTrue(vals0.containsAll(vals1));
+    }
+    
+    /**
+     * testGetValueCount
+     */
+    public void testGetValueCount() {
+        assertEquals(h.getValueCount(), fast_h.getValueCount());
+    }
+    
+    // ----------------------------------------------------------------------------
+    // PUT METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * testPutWithDelta
+     */
+    public void testPutWithDelta() {
+        long expected = 999;
+        int val = RANGE+1;
+        h.put(val, expected);
+        fast_h.put(val, expected);
+        assertEquals(expected, h.get(val).longValue());
+        assertEquals(expected, fast_h.get(val));
+    }
+    
+    /**
+     * testPutAll
+     */
+    public void testPutAll() {
+        h = new ObjectHistogram<Integer>();
+        fast_h = new FastIntHistogram();
+        for (int val = 0; val < RANGE; val++) {
+            h.put(val);
+            assertEquals(1, h.get(val).longValue());
+            fast_h.put(val);
+            assertEquals(1, fast_h.get(val));
+        } // FOR
+        
+        h.putAll();
+        fast_h.putAll();
+        
+        for (int val = 0; val < RANGE; val++) {
+            assertEquals(2, h.get(val).longValue());
+            assertEquals(2, fast_h.get(val));
+        } // FOR
+    }
+    
+    /**
+     * testPutHistogram
+     */
+    public void testPutHistogram() {
+        FastIntHistogram clone = new FastIntHistogram();
+        clone.put(h);
+        
+        assertEquals(h.getSampleCount(), clone.getSampleCount());
+        assertEquals(h.getValueCount(), clone.getValueCount());
+        for (int val : h.values()) {
+            assertEquals(fast_h.get(val), clone.get(val));
+        } // FOR
+    }
+    
+    /**
+     * testPutFastIntHistogram
+     */
+    public void testPutFastIntHistogram() {
+        FastIntHistogram clone = new FastIntHistogram();
+        clone.put(fast_h);
+
+        assertEquals(fast_h.getSampleCount(), clone.getSampleCount());
+        assertEquals(fast_h.getValueCount(), clone.getValueCount());
+        for (int val : fast_h.values()) {
+            assertEquals(fast_h.get(val), clone.get(val));
+        } // FOR
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DECREMENT METHODS
+    // ----------------------------------------------------------------------------
+
     /**
      * testDec
      */
@@ -149,6 +276,67 @@ public class TestFastIntHistogram extends BaseTestCase {
             assertEquals(h.get(val).intValue(), fast_h.get(val.intValue()));
         } // FOR
     }
+    
+    /**
+     * testDecHistogram
+     */
+    public void testDecHistogram() {
+        FastIntHistogram clone = new FastIntHistogram(fast_h);
+        assertEquals(h.getSampleCount(), clone.getSampleCount());
+        assertEquals(h.getValueCount(), clone.getValueCount());
+
+        clone.put(h);
+        clone.dec(h);
+        
+        assertEquals(h.getSampleCount(), clone.getSampleCount());
+        assertEquals(h.getValueCount(), clone.getValueCount());
+        for (int val : h.values()) {
+            assertEquals(fast_h.get(val), clone.get(val));
+        } // FOR
+    }
+    
+    /**
+     * testDecFastIntHistogram
+     */
+    public void testDecFastIntHistogram() {
+        FastIntHistogram clone = new FastIntHistogram(fast_h);
+        assertEquals(h.getSampleCount(), clone.getSampleCount());
+        assertEquals(h.getValueCount(), clone.getValueCount());
+        
+        clone.put(fast_h);
+        clone.dec(fast_h);
+
+        assertEquals(fast_h.getSampleCount(), clone.getSampleCount());
+        assertEquals(fast_h.getValueCount(), clone.getValueCount());
+        for (int val : fast_h.values()) {
+            assertEquals(fast_h.get(val), clone.get(val));
+        } // FOR
+    }
+
+    // ----------------------------------------------------------------------------
+    // CLEAR METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * testRemove
+     */
+    public void testRemove() {
+        int to_remove = rand.nextInt(RANGE);
+        h.put(to_remove);
+        fast_h.put(to_remove);
+        assertEquals(h.get(to_remove).longValue(), fast_h.get(to_remove));
+        
+        h.remove(to_remove);
+        fast_h.remove(to_remove);
+        
+        assertNull(h.get(to_remove));
+        assertEquals(-1, fast_h.get(to_remove));
+        assertFalse(fast_h.contains(to_remove));
+    }
+
+    // ----------------------------------------------------------------------------
+    // MIN/MAX METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * testMinCount
@@ -198,24 +386,25 @@ public class TestFastIntHistogram extends BaseTestCase {
         assertTrue(vals0.containsAll(vals1));
     }
     
+    // ----------------------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // ----------------------------------------------------------------------------
+
     /**
-     * testValues
+     * testSerialization
      */
-    public void testValues() throws Exception {
-        Collection<Integer> vals0 = h.values();
-        Collection<Integer> vals1 = fast_h.values();
-        assertEquals(vals0.size(), vals1.size());
-        assertTrue(vals0.containsAll(vals1));
-    }
-    
-    /**
-     * testValueCount
-     */
-    public void testValueCount() {
-        assertEquals(h.getValueCount(), fast_h.getValueCount());
-    }
-    
-    
-    
+    public void testSerialization() throws Exception {
+        String json = fast_h.toJSONString();
+        assertFalse(json.isEmpty());
+        
+        FastIntHistogram clone = new FastIntHistogram();
+        JSONObject jsonObj = new JSONObject(json);
+        clone.fromJSON(jsonObj, null);
+        
+        assertEquals(fast_h.size(), clone.size());
+        for (int i = 0, cnt = fast_h.size(); i < cnt; i++) {
+            assertEquals(fast_h.get(i), clone.get(i));
+        } // FOR
+    }    
 
 }
