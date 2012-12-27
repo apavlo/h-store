@@ -378,9 +378,9 @@ public class BenchmarkResults {
                 
                 Integer offset = m_transactionNames.get(txnName);
                 Result r = new Result(offsetTime,
-                                      cmpResults.transactions.get(offset.intValue()),
-                                      cmpResults.specexecs.get(offset.intValue()),
-                                      cmpResults.dtxns.get(offset.intValue()));
+                                      cmpResults.transactions.get(offset.intValue(), 0),
+                                      cmpResults.specexecs.get(offset.intValue(), 0),
+                                      cmpResults.dtxns.get(offset.intValue(), 0));
                 if (cmpResults.latencies != null) {
                     Histogram<Integer> latencies = cmpResults.latencies.get(offset);
                     if (latencies != null) {
