@@ -58,7 +58,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
                 next.getType(), StringUtil.join("\n", this.stack));
         long timestamp = ProfileMeasurement.getTime();
         if (stopParent) {
-            ProfileMeasurement.swap(timestamp, expected_parent, next);
+            ProfileMeasurementUtil.swap(timestamp, expected_parent, next);
         } else {
             next.start(timestamp);
         }
@@ -78,7 +78,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
                 this.stack.peek(), expected_current);
         long timestamp = ProfileMeasurement.getTime();
         if (startNext) {
-            ProfileMeasurement.swap(timestamp, expected_current, next);
+            ProfileMeasurementUtil.swap(timestamp, expected_current, next);
         } else {
             pm.stop(timestamp);
         }
@@ -307,7 +307,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
 
         if (debug.get())
             LOG.debug("START " + this.pm_queue.getType());
-        ProfileMeasurement.swap(timestamp, pm, this.pm_queue);
+        ProfileMeasurementUtil.swap(timestamp, pm, this.pm_queue);
         this.stack.push(this.pm_queue);
     }
 
@@ -351,7 +351,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         ProfileMeasurement current = this.stack.pop();
         assert (current != this.pm_exec_total) : "Trying to start txn execution twice!";
         assert (current == this.pm_queue) : "Trying to start execution before txn was queued (" + current + ")";
-        ProfileMeasurement.swap(current, this.pm_exec_total);
+        ProfileMeasurementUtil.swap(current, this.pm_exec_total);
         this.stack.push(this.pm_exec_total);
     }
 
@@ -460,7 +460,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (current.isStarted() == false) {
             this.pm_post_total.start();
         } else {
-            ProfileMeasurement.swap(current, this.pm_post_total);
+            ProfileMeasurementUtil.swap(current, this.pm_post_total);
         }
         this.stack.push(this.pm_post_total);
     }

@@ -32,7 +32,7 @@ public class TestAbstractProfiler extends TestCase {
         ProfileMeasurement last = null;
         for (int i = 0; i < 10000; i++) {
             for (ProfileMeasurement pm : pms) {
-                if (last != null) ProfileMeasurement.swap(last, pm);
+                if (last != null) ProfileMeasurementUtil.swap(last, pm);
                 else pm.start();
                 last = pm;
             } // FOR
@@ -73,7 +73,7 @@ public class TestAbstractProfiler extends TestCase {
         ProfileMeasurement last = null;
         for (int i = 0; i < 10000; i++) {
             for (ProfileMeasurement pm : pms) {
-                if (last != null) ProfileMeasurement.swap(last, pm);
+                if (last != null) ProfileMeasurementUtil.swap(last, pm);
                 else pm.start();
                 last = pm;
             } // FOR

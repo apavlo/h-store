@@ -55,7 +55,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.BatchPlannerProfiler;
-import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionEstimator;
@@ -734,11 +734,11 @@ public class BatchPlanner {
 
                         // PARTITION ESTIMATOR
                         if (hstore_conf.site.planner_profiling && profiler != null)
-                            ProfileMeasurement.swap(profiler.time_plan, profiler.time_partitionEstimator);
+                            ProfileMeasurementUtil.swap(profiler.time_plan, profiler.time_partitionEstimator);
                         this.p_estimator.getAllFragmentPartitions(frag_partitions, stmt_all_partitions,
                                 fragments.values(), params, base_partition);
                         if (hstore_conf.site.planner_profiling && profiler != null)
-                            ProfileMeasurement.swap(profiler.time_partitionEstimator, profiler.time_plan);
+                            ProfileMeasurementUtil.swap(profiler.time_partitionEstimator, profiler.time_plan);
 
                         int stmt_all_partitions_size = stmt_all_partitions.size();
                         if (is_singlePartition && stmt_all_partitions_size > 1) {
@@ -1055,7 +1055,7 @@ public class BatchPlanner {
      */
     protected PlanGraph buildPlanGraph(BatchPlanner.BatchPlan plan) {
         if (hstore_conf.site.planner_profiling && profiler != null)
-            ProfileMeasurement.swap(profiler.time_plan, profiler.time_planGraph);
+            ProfileMeasurementUtil.swap(profiler.time_plan, profiler.time_planGraph);
         PlanGraph graph = new PlanGraph();
 
         this.sorted_vertices.clear();
@@ -1133,7 +1133,7 @@ public class BatchPlanner {
         graph.sorted_vertices = this.sorted_vertices.toArray(new PlanVertex[0]);
 
         if (hstore_conf.site.planner_profiling && profiler != null)
-            ProfileMeasurement.swap(profiler.time_planGraph, profiler.time_plan);
+            ProfileMeasurementUtil.swap(profiler.time_planGraph, profiler.time_plan);
         return (graph);
     }
 

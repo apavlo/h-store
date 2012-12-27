@@ -57,7 +57,7 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.HStoreSiteProfiler;
-import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 
@@ -617,7 +617,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
             if (debug.get()) LOG.debug("Had back pressure disabling read selection");
             synchronized (m_connections) {
                 if (profiler != null) {
-                    ProfileMeasurement.swap(profiler.network_backup_off, profiler.network_backup_on);
+                    ProfileMeasurementUtil.swap(profiler.network_backup_off, profiler.network_backup_on);
                 }
                 m_hasDTXNBackPressure = true;
                 for (final Connection c : m_connections) {
@@ -636,7 +636,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
             if (debug.get()) LOG.debug("No more back pressure attempting to enable read selection");
             synchronized (m_connections) {
                 if (profiler != null) {
-                    ProfileMeasurement.swap(profiler.network_backup_on, profiler.network_backup_off);
+                    ProfileMeasurementUtil.swap(profiler.network_backup_on, profiler.network_backup_off);
                 }
                 m_hasDTXNBackPressure = false;
                 if (m_hasGlobalClientBackPressure) {

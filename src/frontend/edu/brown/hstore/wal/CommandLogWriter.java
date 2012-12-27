@@ -55,7 +55,7 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.CommandLogWriterProfiler;
-import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -453,7 +453,7 @@ public class CommandLogWriter implements Shutdownable {
             throw new ServerFaultException(message, ex);
         }
         if (hstore_conf.site.commandlog_profiling && profiler != null) 
-            ProfileMeasurement.swap(profiler.writingTime, profiler.networkTime);
+            ProfileMeasurementUtil.swap(profiler.writingTime, profiler.networkTime);
         try {
             // Send responses
             for (int i = 0; i < eb.length; i++) {

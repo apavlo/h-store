@@ -107,7 +107,7 @@ public class ProfileMeasurement implements JSONSerializable {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
 
-    public synchronized void reset() {
+    public void reset() {
         if (this.marker != NULL_MARKER) {
             this.reset = true;
         }
@@ -212,7 +212,7 @@ public class ProfileMeasurement implements JSONSerializable {
      * @return this
      */
 
-    public synchronized ProfileMeasurement start(long timestamp) {
+    public ProfileMeasurement start(long timestamp) {
         assert (this.marker == NULL_MARKER) : String.format("Trying to start %s before it was stopped!", this.type);
         if (debug.get())
             LOG.debug(String.format("START %s", this));
@@ -231,9 +231,13 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.marker != NULL_MARKER);
     }
 
-    public synchronized void addStartObserver(EventObserver<ProfileMeasurement> observer) {
+    public void addStartObserver(EventObserver<ProfileMeasurement> observer) {
         if (this.start_observable == null) {
-            this.start_observable = new EventObservable<ProfileMeasurement>();
+            synchronized (this) {
+                if (this.start_observable == null) {
+                    this.start_observable = new EventObservable<ProfileMeasurement>();        
+                }
+            } // SYNCH
         }
         this.start_observable.addObserver(observer);
     }
@@ -248,7 +252,7 @@ public class ProfileMeasurement implements JSONSerializable {
      * 
      * @return this
      */
-    public synchronized ProfileMeasurement stop(long timestamp) {
+    public ProfileMeasurement stop(long timestamp) {
         if (this.reset) {
             this.reset = false;
             this.marker = NULL_MARKER;
@@ -287,9 +291,13 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this);
     }
 
-    public synchronized void addStopObserver(EventObserver<ProfileMeasurement> observer) {
+    public void addStopObserver(EventObserver<ProfileMeasurement> observer) {
         if (this.stop_observable == null) {
-            this.stop_observable = new EventObservable<ProfileMeasurement>();
+            synchronized (this) {
+                if (this.stop_observable == null) {
+                    this.stop_observable = new EventObservable<ProfileMeasurement>();        
+                }
+            } // SYNCH
         }
         this.stop_observable.addObserver(observer);
     }
@@ -330,7 +338,7 @@ public class ProfileMeasurement implements JSONSerializable {
      * @param stop
      * @param invocations
      */
-    public synchronized void appendTime(long start, long stop, int invocations) {
+    public void appendTime(long start, long stop, int invocations) {
         assert(start >= 0);
         assert(stop >= 0);
         this.total_time += (stop - start);
@@ -364,79 +372,6 @@ public class ProfileMeasurement implements JSONSerializable {
     public static long getTime() {
         // return System.currentTimeMillis();
         return System.nanoTime();
-    }
-
-    // ----------------------------------------------------------------------------
-    // START METHODS
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * Start multiple ProfileMeasurements with the same timestamp
-     * 
-     * @param to_start
-     */
-    public static void start(ProfileMeasurement... to_start) {
-        start(false, to_start);
-    }
-
-    public static void start(boolean ignore_started, ProfileMeasurement... to_start) {
-        long time = ProfileMeasurement.getTime();
-        for (ProfileMeasurement pm : to_start) {
-            synchronized (pm) {
-                if (ignore_started == false || (ignore_started && pm.isStarted() == false))
-                    pm.start(time);
-            } // SYNCH
-        } // FOR
-    }
-
-    // ----------------------------------------------------------------------------
-    // STOP METHODS
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * Stop multiple ProfileMeasurements with the same timestamp
-     * 
-     * @param to_stop
-     */
-    public static void stop(ProfileMeasurement... to_stop) {
-        stop(false, to_stop);
-    }
-
-    /**
-     * Stop multiple ProfileMeasurements with the same timestamp If
-     * ignore_stopped is true, we won't stop ProfileMeasurements that already
-     * stopped
-     * 
-     * @param ignore_stopped
-     * @param to_stop
-     */
-    public static void stop(boolean ignore_stopped, ProfileMeasurement... to_stop) {
-        long time = ProfileMeasurement.getTime();
-        for (ProfileMeasurement pm : to_stop) {
-            synchronized (pm) {
-                if (ignore_stopped == false || (ignore_stopped && pm.isStarted()))
-                    pm.stop(time);
-            } // SYNCH
-        } // FOR
-    }
-
-    /**
-     * Stop one of the given ProfileMeasurement handles and start the other
-     * 
-     * @param to_stop
-     *            the handle to stop
-     * @param to_start
-     *            the handle to start
-     */
-    public static void swap(ProfileMeasurement to_stop, ProfileMeasurement to_start) {
-        swap(ProfileMeasurement.getTime(), to_stop, to_start);
-    }
-
-    public static void swap(long timestamp, ProfileMeasurement to_stop, ProfileMeasurement to_start) {
-        if (debug.get())
-            LOG.debug(String.format("SWAP %s -> %s", to_stop, to_start));
-        to_stop.stop(timestamp);
-        to_start.start(timestamp);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurementUtil;
 
 /**
  * Creates a wrapper around a queue that provides a dynamic limit on the
@@ -263,7 +264,7 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     
     @Override
     public void clear() {
-        if (this.throttled) ProfileMeasurement.stop(true, this.throttle_time);
+        if (this.throttled) ProfileMeasurementUtil.stop(true, this.throttle_time);
         this.throttled = false;
         this.size = 0;
         this.queue.clear();

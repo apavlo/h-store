@@ -12,6 +12,7 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.utils.ExceptionHandlingRunnable;
 
 public abstract class AbstractProcessingThread<E> extends ExceptionHandlingRunnable implements Shutdownable {
@@ -71,7 +72,7 @@ public abstract class AbstractProcessingThread<E> extends ExceptionHandlingRunna
                 break;
             } finally {
                 if (this.stop == false && idleTime != null) {
-                    ProfileMeasurement.swap(idleTime, execTime);
+                    ProfileMeasurementUtil.swap(idleTime, execTime);
                 }
             }
             try {
