@@ -75,7 +75,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
@@ -197,8 +198,7 @@ public class LocalTransaction extends AbstractTransaction {
      * This needs to be a Histogram so that we can figure out what partitions
      * were touched the most if end up needing to redirect it later on
      */
-    private final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
-//    private final FastIntHistogram exec_touchedPartitions;
+    private final FastIntHistogram exec_touchedPartitions;
     
     /**
      * Whether this transaction's control code was executed on
@@ -218,11 +218,8 @@ public class LocalTransaction extends AbstractTransaction {
     public LocalTransaction(HStoreSite hstore_site) {
         super(hstore_site);
         this.init_callback = new LocalInitQueueCallback(hstore_site);
-        
         this.start_msg = new StartTxnMessage(this);
-        
-        // CatalogContext catalogContext = hstore_site.getCatalogContext(); 
-        // this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
+        this.exec_touchedPartitions = new FastIntHistogram(hstore_site.getCatalogContext().numberOfPartitions);
     }
 
     /**
@@ -850,7 +847,7 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     
-    public Histogram<Integer> getTouchedPartitions() {
+    public FastIntHistogram getTouchedPartitions() {
         return (this.exec_touchedPartitions);
     }
 

@@ -34,7 +34,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
@@ -82,7 +82,7 @@ public abstract class MarkovGraphContainersUtil {
         
         final List<Runnable> runnables = new ArrayList<Runnable>();
         final Set<Procedure> procedures = workload.getProcedures(catalog_db);
-        final Histogram<Procedure> proc_h = new Histogram<Procedure>();
+        final ObjectHistogram<Procedure> proc_h = new ObjectHistogram<Procedure>();
         final int num_transactions = workload.getTransactionCount();
         final int marker = Math.max(1, (int)(num_transactions * 0.10));
         final AtomicInteger finished_ctr = new AtomicInteger(0);

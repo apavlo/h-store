@@ -17,7 +17,7 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.RandomDistribution;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ProjectType;
 
@@ -107,13 +107,13 @@ public abstract class FixWorkload {
         // Lame: Generate a mapping of partition ids to warehouses, so that we can do a
         // a quick reverse lookup
         //
-        Map<Integer, Histogram> histograms = new HashMap<Integer, Histogram>();
+        Map<Integer, ObjectHistogram> histograms = new HashMap<Integer, ObjectHistogram>();
         SortedMap<Integer, ListOrderedSet<Integer>> partition_warehouse_xref = new TreeMap<Integer, ListOrderedSet<Integer>>();
         int num_partitions = args.hasher.getNumPartitions();
         System.out.println("Num of Partitions: " + num_partitions);
         for (int i = 0; i < num_partitions; i++) {
             partition_warehouse_xref.put(i, new ListOrderedSet<Integer>());
-            histograms.put(i, new Histogram());
+            histograms.put(i, new ObjectHistogram());
         }
         Set<Integer> warehouse_ids = new HashSet<Integer>();
         for (AbstractTraceElement<?> element : args.workload) {
@@ -199,7 +199,7 @@ public abstract class FixWorkload {
         
         buffer = new StringBuilder();
         buffer.append("Partition Histograms:\n");
-        for ( Entry<Integer, Histogram> entry : histograms.entrySet()) {
+        for ( Entry<Integer, ObjectHistogram> entry : histograms.entrySet()) {
             Integer partition_id = entry.getKey();
             buffer.append("Partition: " + partition_id + " [" + distributions.get(partition_id).getMin() + "]\n");
             buffer.append(entry.getValue()).append("\n");
@@ -222,7 +222,7 @@ public abstract class FixWorkload {
         // Lame: Generate a mapping of partition ids to warehouses, so that we can do a
         // a quick reverse lookup
         //
-        Map<Integer, Histogram> histograms = new HashMap<Integer, Histogram>();
+        Map<Integer, ObjectHistogram> histograms = new HashMap<Integer, ObjectHistogram>();
         Set<Integer> warehouse_ids = new HashSet<Integer>();
         
         for (AbstractTraceElement<?> element : args.workload) {
@@ -232,7 +232,7 @@ public abstract class FixWorkload {
                 int w_id = ((Long)xact.getParam(0)).intValue();
                 warehouse_ids.add(w_id);
                 if (!histograms.containsKey(w_id)) {
-                    histograms.put(w_id, new Histogram());
+                    histograms.put(w_id, new ObjectHistogram());
                 }
             }
         } // FOR
@@ -309,7 +309,7 @@ public abstract class FixWorkload {
         StringBuilder buffer = new StringBuilder();
         buffer.append("Warehouse Histograms:\n");
         for (Integer w_id : histograms.keySet()) {
-            Histogram hist = histograms.get(w_id);
+            ObjectHistogram hist = histograms.get(w_id);
             buffer.append("Partition: " + w_id + " [" + distributions.get(w_id).getMin() + "]\n");
             buffer.append(hist).append("\n");
             hist.save(new File("histograms/" + w_id + ".hist"));

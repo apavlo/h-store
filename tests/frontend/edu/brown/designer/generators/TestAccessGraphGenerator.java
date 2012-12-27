@@ -25,6 +25,7 @@ import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
@@ -261,7 +262,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         } // FOR
         
         Collection<TransactionTrace> traces = workload.getTransactions();
-        Histogram<Integer> hist = new Histogram<Integer>();
+        Histogram<Integer> hist = new ObjectHistogram<Integer>();
 //        TransactionTrace middle = traces.get(traces.size() / 2);
         for (TransactionTrace xact : traces) {
             // int time = (xact.getStartTimestamp() < middle.getStartTimestamp() ? 0 : 1);

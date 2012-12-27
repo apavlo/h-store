@@ -16,7 +16,7 @@ import org.voltdb.catalog.Database;
 import edu.brown.api.results.BenchmarkResults.Result;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
@@ -62,12 +62,12 @@ public class FinalResult implements JSONSerializable {
         this.txnMaxCount = 0;
         this.dtxnTotalCount = 0;
         
-        Histogram<String> clientTxnCounts = new Histogram<String>(true);
-        Histogram<String> clientSpecExecCounts = new Histogram<String>(true);
-        Histogram<String> clientDtxnCounts = new Histogram<String>(true);
-        Histogram<String> txnCounts = new Histogram<String>(true);
-        Histogram<String> specexecCounts = new Histogram<String>(true);
-        Histogram<String> dtxnCounts = new Histogram<String>(true);
+        ObjectHistogram<String> clientTxnCounts = new ObjectHistogram<String>(true);
+        ObjectHistogram<String> clientSpecExecCounts = new ObjectHistogram<String>(true);
+        ObjectHistogram<String> clientDtxnCounts = new ObjectHistogram<String>(true);
+        ObjectHistogram<String> txnCounts = new ObjectHistogram<String>(true);
+        ObjectHistogram<String> specexecCounts = new ObjectHistogram<String>(true);
+        ObjectHistogram<String> dtxnCounts = new ObjectHistogram<String>(true);
         
         double intervalTotals[] = results.computeIntervalTotals();
         if (debug.get()) LOG.debug("INTERVAL TOTALS: " + Arrays.toString(intervalTotals));
@@ -118,9 +118,9 @@ public class FinalResult implements JSONSerializable {
         this.txnMaxPerSecond = this.txnMaxCount / interval;
         
         // TRANSACTION RESULTS
-        Histogram<Integer> latencies = new Histogram<Integer>();
+        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (String txnName : txnCounts.values()) {
-            Histogram<Integer> l = results.getLatenciesForTransaction(txnName);
+            ObjectHistogram<Integer> l = results.getLatenciesForTransaction(txnName);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration, txnCounts.get(txnName), l);
             this.txnResults.put(txnName, er);
             latencies.put(l);
@@ -135,7 +135,7 @@ public class FinalResult implements JSONSerializable {
         
         // CLIENTS RESULTS
         for (String clientName : results.getClientNames()) {
-            Histogram<Integer> l = results.getLatenciesForClient(clientName);
+            ObjectHistogram<Integer> l = results.getLatenciesForClient(clientName);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration, clientTxnCounts.get(clientName), l);
             this.clientResults.put(clientName.replace("client-", ""), er);
         } // FOR

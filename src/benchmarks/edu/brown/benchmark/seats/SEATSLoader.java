@@ -71,6 +71,7 @@ import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableDataIterable;
@@ -117,7 +118,7 @@ public class SEATSLoader extends Loader {
     /**
      * A histogram of the number of flights in the database per airline code
      */
-    private final Histogram<String> flights_per_airline = new Histogram<String>(true);
+    private final ObjectHistogram<String> flights_per_airline = new ObjectHistogram<String>(true);
     
     
     private final RandomGenerator rng; // FIXME
@@ -176,43 +177,43 @@ public class SEATSLoader extends Loader {
     
     @Override
     public void load() throws IOException {
-        if (debug.get()) LOG.debug("Begin to load tables...");
+        if (debug.val) LOG.debug("Begin to load tables...");
         
         // Load Histograms
-        if (debug.get()) LOG.debug("Loading data files for histograms");
+        if (debug.val) LOG.debug("Loading data files for histograms");
         this.loadHistograms();
         
         // Load the first tables from data files
-        if (debug.get()) LOG.debug("Loading data files for fixed-sized tables");
+        if (debug.val) LOG.debug("Loading data files for fixed-sized tables");
         this.loadFixedTables();
         
         // Once we have those mofos, let's go get make our flight data tables
-        if (debug.get()) LOG.debug("Loading data files for scaling tables");
+        if (debug.val) LOG.debug("Loading data files for scaling tables");
         this.loadScalingTables();
         
         // Save the benchmark profile out to disk so that we can send it
         // to all of the clients
         this.profile.saveProfile(this);
 
-        if (debug.get()) LOG.debug("SEATS loader done.");
+        if (debug.val) LOG.debug("SEATS loader done.");
     }
     
     /**
      * Load all the histograms used in the benchmark
      */
     protected void loadHistograms() {
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug(String.format("Loading in %d histograms from files stored in '%s'",
                                     SEATSConstants.HISTOGRAM_DATA_FILES.length, this.airline_data_dir));
         
         // Now load in the histograms that we will need for generating the flight data
         for (String histogramName : SEATSConstants.HISTOGRAM_DATA_FILES) {
             if (this.profile.histograms.containsKey(histogramName)) {
-                if (debug.get()) 
+                if (debug.val) 
                     LOG.warn("Already loaded histogram '" + histogramName + "'. Skipping...");
                 continue;
             }
-            if (debug.get()) 
+            if (debug.val) 
                 LOG.debug("Loading in histogram data file for '" + histogramName + "'");
             Histogram<String> hist = null;
             
@@ -222,7 +223,7 @@ public class SEATSLoader extends Loader {
                 if (histogramName.equals(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT)) {
                     Map<String, Histogram<String>> m = SEATSHistogramUtil.loadAirportFlights(this.airline_data_dir);
                     assert(m != null);
-                    if (debug.get()) 
+                    if (debug.val) 
                         LOG.debug(String.format("Loaded %d airport flight histograms", m.size()));
                     
                     // Store the airport codes information
@@ -231,7 +232,7 @@ public class SEATSLoader extends Loader {
                     // We then need to flatten all of the histograms in this map into a single histogram
                     // that just counts the number of departing flights per airport. We will use this
                     // to get the distribution of where Customers are located
-                    hist = new Histogram<String>();
+                    hist = new ObjectHistogram<String>();
                     for (Entry<String, Histogram<String>> e : m.entrySet()) {
                         hist.put(e.getKey(), e.getValue().getSampleCount());
                     } // FOR
@@ -245,7 +246,7 @@ public class SEATSLoader extends Loader {
             }
             assert(hist != null);
             this.profile.histograms.put(histogramName, hist);
-            if (debug.get()) LOG.debug(String.format("Loaded histogram '%s' [sampleCount=%d, valueCount=%d]",
+            if (debug.val) LOG.debug(String.format("Loaded histogram '%s' [sampleCount=%d, valueCount=%d]",
                                                      histogramName, hist.getSampleCount(), hist.getValueCount()));
         } // FOR
 
@@ -277,7 +278,7 @@ public class SEATSLoader extends Loader {
      * @param catalog_db
      */
     protected void loadScalingTables() {
-        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+        Database catalog_db = this.getCatalogContext().database;
         
         // Setup the # of flights per airline
         this.flights_per_airline.put(profile.getAirlineCodes(), 0);
@@ -326,7 +327,7 @@ public class SEATSLoader extends Loader {
         final boolean is_flight = catalog_tbl.getName().equals(SEATSConstants.TABLENAME_FLIGHT);
         final Database catalog_db = CatalogUtil.getDatabase(catalog_tbl.getCatalog()); 
         
-        if (debug.get()) LOG.debug(String.format("Generating new records for table %s [batchSize=%d]", catalog_tbl.getName(), batch_size));
+        if (debug.val) LOG.debug(String.format("Generating new records for table %s [batchSize=%d]", catalog_tbl.getName(), batch_size));
         final VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         final VoltTable vtFilghtInfo = CatalogUtil.getVoltTable(catalog_db.getTables().get(SEATSConstants.TABLENAME_FLIGHT_INFO));
         final CatalogMap<Column> columns = catalog_tbl.getColumns();
@@ -363,7 +364,7 @@ public class SEATSLoader extends Loader {
         try {
             for (Object tuple[] : iterable) {
                 assert(tuple[0] != null) : "The primary key for " + catalog_tbl.getName() + " is null";
-                if (trace.get()) LOG.trace(this.dumpTuple(catalog_tbl, tuple, row_idx));
+                if (trace.val) LOG.trace(this.dumpTuple(catalog_tbl, tuple, row_idx));
                 
                 // AIRPORT 
                 if (is_airport) {
@@ -407,7 +408,7 @@ public class SEATSLoader extends Loader {
                         Column to_column = columns.get(code_2_id.get(col_code_idx)); 
                         assert(to_column != null) : String.format("Invalid column %s.%s", catalog_tbl.getName(), code_2_id.get(col_code_idx));  
                         long id = (Long)tuple[code_2_id.get(col_code_idx)];
-                        if (trace.get()) LOG.trace(String.format("Mapping %s '%s' -> %s '%d'", from_column.fullName(), code, to_column.fullName(), id));
+                        if (trace.val) LOG.trace(String.format("Mapping %s '%s' -> %s '%d'", from_column.fullName(), code, to_column.fullName(), id));
                         this.profile.code_id_xref.get(to_column.getName()).put(code, id);
                     }
                 } // FOR
@@ -421,7 +422,7 @@ public class SEATSLoader extends Loader {
                     if (tuple[col_code_idx] != null) {
                         String code = tuple[col_code_idx].toString();
                         tuple[col_code_idx] = mapping_columns.get(col_code_idx).get(code);
-                        if (trace.get()) {
+                        if (trace.val) {
                             Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(catalog_col);
                             LOG.trace(String.format("Mapped %s '%s' -> %s '%s'", catalog_col.fullName(), code, catalog_fkey_col.fullName(), tuple[col_code_idx]));
                         }
@@ -430,19 +431,19 @@ public class SEATSLoader extends Loader {
                 
                 vt.addRow(tuple);
                 if (is_flight) {
-                	if (debug.get()) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
+                	if (debug.val) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
                 	Object[] partTuple = new Object[vtFilghtInfo.getColumnCount()];
                 	for (int i =0 ;i < partTuple.length; i++)
                 		partTuple[i] = tuple[i];
                 	vtFilghtInfo.addRow(partTuple);
                 }
                 if (row_idx > 0 && (row_idx+1) % batch_size == 0) {
-                    // if (trace.get()) LOG.trace("Storing batch of " + batch_size + " tuples for " + catalog_tbl.getName() + " [total=" + row_idx + "]");
+                    // if (trace.val) LOG.trace("Storing batch of " + batch_size + " tuples for " + catalog_tbl.getName() + " [total=" + row_idx + "]");
                     // if (debug) System.out.println(vt.toString());
                     this.loadVoltTable(catalog_tbl.getName(), vt);
                     vt.clearRowData();
                     if (is_flight) {
-                    	if (debug.get()) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
+                    	if (debug.val) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
                     	this.loadVoltTable(SEATSConstants.TABLENAME_FLIGHT_INFO, vtFilghtInfo);
                     	vtFilghtInfo.clearRowData();
                     }
@@ -716,7 +717,7 @@ public class SEATSLoader extends Loader {
             // Use the flights per airport histogram to select where people are located
             Histogram<String> histogram = profile.getHistogram(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);  
             this.rand = new FlatHistogram<String>(rng, histogram);
-            if (debug.get()) this.rand.enableHistory();
+            if (debug.val) this.rand.enableHistory();
             
             this.randBalance = new RandomDistribution.Flat(rng, 1000, 10000);
         }
@@ -736,7 +737,7 @@ public class SEATSLoader extends Loader {
                     } // WHILE
                     int next_customer_id = profile.incrementAirportCustomerCount(airport_id);
                     this.last_id = new CustomerId(next_customer_id, airport_id);
-                    if (trace.get()) LOG.trace("NEW CUSTOMER: " + this.last_id.encode() + " / " + this.last_id);
+                    if (trace.val) LOG.trace("NEW CUSTOMER: " + this.last_id.encode() + " / " + this.last_id);
                     value = this.last_id.encode();
                     if (LOG.isTraceEnabled()) LOG.trace(value + " => " + this.airport_code + " [" + profile.getCustomerIdCount(airport_id) + "]");
                     break;
@@ -768,7 +769,7 @@ public class SEATSLoader extends Loader {
         
         @Override
         protected void callbackFinished() {
-            if (trace.get()) {
+            if (trace.val) {
                 Histogram<String> h = this.rand.getHistogramHistory();
                 LOG.trace(String.format("Customer Local Airports Histogram [valueCount=%d, sampleCount=%d]\n%s",
                                         h.getValueCount(), h.getSampleCount(), h.toString()));
@@ -802,7 +803,7 @@ public class SEATSLoader extends Loader {
             flights_per_airline.putAll();
             this.airline_rand = new FlatHistogram<String>(rng, flights_per_airline);
             if (LOG.isTraceEnabled()) this.airline_rand.enableHistory();
-            if (debug.get()) LOG.debug("Flights Per Airline:\n" + flights_per_airline);
+            if (debug.val) LOG.debug("Flights Per Airline:\n" + flights_per_airline);
             
             // Loop through for the total customers and figure out how many entries we 
             // should have for each one. This will be our new total;
@@ -813,7 +814,7 @@ public class SEATSLoader extends Loader {
                                          SEATSConstants.CUSTOMER_NUM_FREQUENTFLYERS_SIGMA);
             long new_total = 0; 
             long total = profile.getCustomerIdCount();
-            if (debug.get()) LOG.debug("Num of Customers: " + total);
+            if (debug.val) LOG.debug("Num of Customers: " + total);
             this.ff_per_customer = new short[(int)total];
             for (int i = 0; i < total; i++) {
                 this.ff_per_customer[i] = (short)ff_zipf.nextInt();
@@ -822,7 +823,7 @@ public class SEATSLoader extends Loader {
                 new_total += this.ff_per_customer[i]; 
             } // FOR
             this.total = new_total;
-            if (debug.get()) LOG.debug("Constructing " + this.total + " FrequentFlyer tuples...");
+            if (debug.val) LOG.debug("Constructing " + this.total + " FrequentFlyer tuples...");
         }
         
         @Override
@@ -850,7 +851,7 @@ public class SEATSLoader extends Loader {
                         value = this.airline_rand.nextValue();
                     } while (this.customer_airlines.contains(value));
                     this.customer_airlines.add((String)value);
-                    if (trace.get()) LOG.trace(this.last_customer_id + " => " + value);
+                    if (trace.val) LOG.trace(this.last_customer_id + " => " + value);
                     break;
                 }
                 // CUSTOMER_ID_STR
@@ -867,7 +868,7 @@ public class SEATSLoader extends Loader {
         
         @Override
         protected void callbackFinished() {
-            if (trace.get()) {
+            if (trace.val) {
                 Histogram<String> h = this.airline_rand.getHistogramHistory();
                 LOG.trace(String.format("Airline Flights Histogram [valueCount=%d, sampleCount=%d]\n%s",
                                         h.getValueCount(), h.getSampleCount(), h.toString()));
@@ -1002,7 +1003,7 @@ public class SEATSLoader extends Loader {
             
             // Flights per Airline
             Collection<String> all_airlines = profile.getAirlineCodes();
-            Histogram<String> histogram = new Histogram<String>();
+            Histogram<String> histogram = new ObjectHistogram<String>();
             histogram.put(all_airlines);
             
             // Embed a Gaussian distribution
@@ -1272,7 +1273,7 @@ public class SEATSLoader extends Loader {
 //                        System.err.println("Airport Customers:\n" + getAirportCustomerHistogram());
                         ReservationIterable.this.error = ex;
                     } finally {
-                        if (debug.get()) LOG.debug("Reservation generation thread is finished");
+                        if (debug.val) LOG.debug("Reservation generation thread is finished");
                         ReservationIterable.this.done = true;
                     }
                 } // run
@@ -1280,7 +1281,7 @@ public class SEATSLoader extends Loader {
         }
         
         private void generateData() throws Exception {
-            if (debug.get()) LOG.debug("Reservation data generation thread started");
+            if (debug.val) LOG.debug("Reservation data generation thread started");
             
             Collection<CustomerId> flight_customer_ids = new HashSet<CustomerId>();
             Collection<ReturnFlight> returning_customers = new ListOrderedSet<ReturnFlight>();
@@ -1299,7 +1300,7 @@ public class SEATSLoader extends Loader {
                 this.getReturningCustomers(returning_customers, flight_id);
                 int booked_seats = SEATSConstants.FLIGHTS_NUM_SEATS - SEATSLoader.this.getFlightRemainingSeats(flight_id);
 
-                if (trace.get()) {
+                if (trace.val) {
                     Map<String, Object> m = new ListOrderedMap<String, Object>();
                     m.put("Flight Id", flight_id + " / " + flight_id.encode());
                     m.put("Departure", String.format("%s / %s", profile.getAirportCode(depart_airport_id), depart_time));
@@ -1340,7 +1341,7 @@ public class SEATSLoader extends Loader {
 
                     // If this is return flight, then there's nothing extra that we need to do
                     if (return_flight != null) {
-                        if (trace.get()) LOG.trace("Booked return flight: " + return_flight + " [remaining=" + returning_customers.size() + "]");
+                        if (trace.val) LOG.trace("Booked return flight: " + return_flight + " [remaining=" + returning_customers.size() + "]");
                     
                     // If it's a new outbound flight, then we will randomly decide when this customer will return (if at all)
                     } else {
@@ -1359,11 +1360,11 @@ public class SEATSLoader extends Loader {
                     assert(flight_customer_ids.contains(customer_id) == false) : flight_id + " already contains " + customer_id; 
                     flight_customer_ids.add(customer_id);
                     
-                    if (trace.get()) LOG.trace(String.format("New reservation ready. Adding to queue! [queueSize=%d]", this.queue.size()));
+                    if (trace.val) LOG.trace(String.format("New reservation ready. Adding to queue! [queueSize=%d]", this.queue.size()));
                     this.queue.put(new Object[]{ customer_id, flight_id, seatnum });
                 } // FOR (seats)
             } // FOR (flights)
-            if (debug.get()) LOG.debug("Reservation data generation thread is finished");
+            if (debug.val) LOG.debug("Reservation data generation thread is finished");
         }
         
         /**
@@ -1389,7 +1390,7 @@ public class SEATSLoader extends Loader {
         
         @Override
         protected boolean hasNext() {
-            if (trace.get()) LOG.trace("hasNext() called");
+            if (trace.val) LOG.trace("hasNext() called");
             this.current = null;
             while (this.done == false || this.queue.isEmpty() == false) {
                 if (this.error != null)
@@ -1401,7 +1402,7 @@ public class SEATSLoader extends Loader {
                     throw new RuntimeException("Unexpected interruption!", ex);
                 }
                 if (this.current != null) return (true);
-                if (trace.get()) LOG.trace("There were no new reservations. Let's try again!");
+                if (trace.val) LOG.trace("There were no new reservations. Let's try again!");
             } // WHILE
             return (false);
         }

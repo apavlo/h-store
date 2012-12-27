@@ -42,6 +42,7 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -125,7 +126,7 @@ public class TestPartitionExecutor extends BaseTestCase {
         boolean result = callback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue("SP LATCH --> " + callback.latch, result);
         assertEquals(num_txns, callback.responses.size());
-        Histogram<Integer> basePartitions = new Histogram<Integer>(); 
+        Histogram<Integer> basePartitions = new ObjectHistogram<Integer>(); 
         for (ClientResponse cresponse : callback.responses) {
             assertEquals(Status.OK, cresponse.getStatus());
             basePartitions.put(cresponse.getBasePartition());

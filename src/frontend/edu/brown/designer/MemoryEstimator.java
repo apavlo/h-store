@@ -26,7 +26,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.ColumnStatistics;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
@@ -49,7 +49,7 @@ public class MemoryEstimator {
 
     private final WorkloadStatistics stats;
     private final AbstractHasher hasher;
-    private final Map<String, Histogram<Integer>> cache_table_partition = new HashMap<String, Histogram<Integer>>();
+    private final Map<String, ObjectHistogram<Integer>> cache_table_partition = new HashMap<String, ObjectHistogram<Integer>>();
 
     /**
      * Constructor
@@ -150,9 +150,9 @@ public class MemoryEstimator {
         ColumnStatistics col_stats = table_stats.getColumnStatistics(partition_col);
         String col_key = CatalogKey.createKey(partition_col);
 
-        Histogram<Integer> h = this.cache_table_partition.get(col_key);
+        ObjectHistogram<Integer> h = this.cache_table_partition.get(col_key);
         if (h == null) {
-            h = new Histogram<Integer>();
+            h = new ObjectHistogram<Integer>();
             for (Object value : col_stats.histogram.values()) {
                 int hash = this.hasher.hash(value, catalog_tbl);
                 h.put(hash);

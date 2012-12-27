@@ -8,7 +8,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
@@ -44,7 +44,7 @@ public class TransformTransactionTraces {
     }
 
     public static void transform(List<TransactionTrace> txn_traces, PartitionEstimator est, Database catalogDb) {
-        Histogram<String> hist = new Histogram<String>();
+        ObjectHistogram<String> hist = new ObjectHistogram<String>();
         List<TxnPartition> al_txn_partitions = new ArrayList<TxnPartition>();
         // Map<String, Integer> txn_partition_counts = new HashMap<String,
         // Integer>();

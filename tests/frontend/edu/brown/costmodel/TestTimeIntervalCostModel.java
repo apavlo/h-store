@@ -7,32 +7,24 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.log4j.Level;
-import org.voltdb.CatalogContext;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
-import edu.brown.catalog.CatalogCloner;
-import edu.brown.designer.Designer;
-import edu.brown.designer.DesignerHints;
-import edu.brown.designer.DesignerInfo;
-import edu.brown.designer.partitioners.BranchAndBoundPartitioner;
-import edu.brown.designer.partitioners.plan.PartitionPlan;
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -251,7 +243,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
     public void testSinglePartitionSkewedWorkload() throws Exception {
         // First construct a zipfian-based histogram of partitions and then create a filter that
         // will selectively prune out txns based on the frequencies in the histogram
-        Histogram<Integer> h = new Histogram<Integer>();
+        Histogram<Integer> h = new ObjectHistogram<Integer>();
         double sigma = 3.5d;
         RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, 0, NUM_PARTITIONS, sigma);
         for (int i = 0; i < 100; i++) {

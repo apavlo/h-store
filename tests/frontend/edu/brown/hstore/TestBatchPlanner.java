@@ -24,7 +24,7 @@ import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
@@ -57,7 +57,7 @@ public class TestBatchPlanner extends BaseTestCase {
     private Statement catalog_stmt;
     private SQLStmt batch[];
     private ParameterSet args[];
-    private final Histogram<Integer> touched_partitions = new Histogram<Integer>();
+    private final FastIntHistogram touched_partitions = new FastIntHistogram();
     private final List<WorkFragment.Builder> fragments = new ArrayList<WorkFragment.Builder>();
     
     @Override

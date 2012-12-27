@@ -26,6 +26,7 @@ import edu.brown.markov.features.FeatureUtil;
 import edu.brown.markov.features.ParamArrayLengthFeature;
 import edu.brown.markov.features.ParamHashPartitionFeature;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
@@ -193,7 +194,7 @@ public class TestFeatureClusterer extends BaseTestCase {
             int c = clusterer.clusterInstance(inst);
             Histogram<Integer> h = p_c_xref.get(base_partition);
             if (h == null) {
-                h = new Histogram<Integer>();
+                h = new ObjectHistogram<Integer>();
                 p_c_xref.put(base_partition, h);
             }
             h.put(c);

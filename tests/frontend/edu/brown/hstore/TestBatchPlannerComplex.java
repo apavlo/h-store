@@ -21,9 +21,13 @@ import edu.brown.benchmark.seats.procedures.LoadConfig;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.ClassUtil;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class TestBatchPlannerComplex extends BaseTestCase {
 
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = LoadConfig.class;
@@ -36,7 +40,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     private ParameterSet args[];
     
     private MockPartitionExecutor executor;
-    private Histogram<Integer> touched_partitions;
+    private FastIntHistogram touched_partitions = new FastIntHistogram();
     private Procedure catalog_proc;
     private BatchPlanner planner;
 
@@ -51,7 +55,6 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(this.builder);
         this.addPartitions(NUM_PARTITIONS);
-        this.touched_partitions = new Histogram<Integer>();
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
         this.batch = new SQLStmt[this.catalog_proc.getStatements().size()];

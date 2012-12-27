@@ -10,7 +10,7 @@ import java.util.List;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 
@@ -45,7 +45,7 @@ public class CombineWorkloadTraces {
             }
             LOG.info(String.format("Workload #%02d: %d txns", i, txns[i].size()));
         }
-        Histogram<String> proc_histogram = new Histogram<String>(); 
+        ObjectHistogram<String> proc_histogram = new ObjectHistogram<String>(); 
         
         // This is basically a crappy merge sort...
         long ctr = 0;

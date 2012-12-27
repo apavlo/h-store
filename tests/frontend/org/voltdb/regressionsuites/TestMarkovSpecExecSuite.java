@@ -28,6 +28,7 @@ import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
@@ -208,7 +209,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         // are speculative, afterwards none should be speculative
         boolean first_spec = false;
         boolean last_spec = false;
-        Histogram<Boolean> specExecHistogram = new Histogram<Boolean>(); 
+        Histogram<Boolean> specExecHistogram = new ObjectHistogram<Boolean>(); 
         for (ClientResponse cr : spResponse) {
             assertTrue(cr.hasDebug());
             crDebug = cr.getDebug();

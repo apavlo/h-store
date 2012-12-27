@@ -40,7 +40,7 @@ import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -179,8 +179,8 @@ public class MarkovCostModel extends AbstractCostModel {
     private boolean force_full_comparison = false;
     private boolean force_regenerate_markovestimates = false;
 
-    private Histogram<Procedure> fast_path_counter = new Histogram<Procedure>();
-    private Histogram<Procedure> full_path_counter = new Histogram<Procedure>();
+    private ObjectHistogram<Procedure> fast_path_counter = new ObjectHistogram<Procedure>();
+    private ObjectHistogram<Procedure> full_path_counter = new ObjectHistogram<Procedure>();
 
     // ----------------------------------------------------------------------------
     // INVOCATION DATA MEMBERS
@@ -192,7 +192,7 @@ public class MarkovCostModel extends AbstractCostModel {
     private transient final List<Penalty> penalties = new ArrayList<Penalty>();
 
     private transient final PartitionSet done_partitions = new PartitionSet();
-    private transient final Histogram<Integer> idle_partition_ctrs = new Histogram<Integer>();
+    private transient final ObjectHistogram<Integer> idle_partition_ctrs = new ObjectHistogram<Integer>();
 
     private transient final PartitionSet e_all_partitions = new PartitionSet();
     private transient final PartitionSet e_read_partitions = new PartitionSet();
@@ -794,12 +794,12 @@ public class MarkovCostModel extends AbstractCostModel {
         final boolean force_regenerate = true;
         final boolean skip_processing = false;
 
-        final Histogram<Procedure> total_h = new Histogram<Procedure>();
-        final Histogram<Procedure> missed_h = new Histogram<Procedure>();
-        final Histogram<Procedure> accurate_h = new Histogram<Procedure>();
-        final Histogram<MarkovOptimization> optimizations_h = new Histogram<MarkovOptimization>();
-        final Histogram<Penalty> penalties_h = new Histogram<Penalty>();
-        final Map<Procedure, Histogram<MarkovOptimization>> proc_penalties_h = new ConcurrentHashMap<Procedure, Histogram<MarkovOptimization>>();
+        final ObjectHistogram<Procedure> total_h = new ObjectHistogram<Procedure>();
+        final ObjectHistogram<Procedure> missed_h = new ObjectHistogram<Procedure>();
+        final ObjectHistogram<Procedure> accurate_h = new ObjectHistogram<Procedure>();
+        final ObjectHistogram<MarkovOptimization> optimizations_h = new ObjectHistogram<MarkovOptimization>();
+        final ObjectHistogram<Penalty> penalties_h = new ObjectHistogram<Penalty>();
+        final Map<Procedure, ObjectHistogram<MarkovOptimization>> proc_penalties_h = new ConcurrentHashMap<Procedure, ObjectHistogram<MarkovOptimization>>();
 
         final AtomicInteger total = new AtomicInteger(0);
         final AtomicInteger failures = new AtomicInteger(0);
@@ -910,7 +910,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     Pair<Integer, TransactionTrace> pair = null;
                     final Set<MarkovOptimization> penalty_groups = new HashSet<MarkovOptimization>();
                     final Set<Penalty> penalties = new HashSet<Penalty>();
-                    Histogram<MarkovOptimization> proc_h = null;
+                    ObjectHistogram<MarkovOptimization> proc_h = null;
 
                     ProfileMeasurement profiler = profilers[thread_id];
                     assert (profiler != null);
@@ -963,7 +963,7 @@ public class MarkovCostModel extends AbstractCostModel {
                             synchronized (proc_penalties_h) {
                                 proc_h = proc_penalties_h.get(catalog_proc);
                                 if (proc_h == null) {
-                                    proc_h = new Histogram<MarkovOptimization>();
+                                    proc_h = new ObjectHistogram<MarkovOptimization>();
                                     proc_penalties_h.put(catalog_proc, proc_h);
                                 }
                             } // SYNCH
@@ -1017,9 +1017,9 @@ public class MarkovCostModel extends AbstractCostModel {
 
         Map<Object, String> debugLabels = CatalogUtil.getHistogramLabels(args.catalog_db.getProcedures());
 
-        Histogram<Procedure> fastpath_h = new Histogram<Procedure>();
+        ObjectHistogram<Procedure> fastpath_h = new ObjectHistogram<Procedure>();
         fastpath_h.setDebugLabels(debugLabels);
-        Histogram<Procedure> fullpath_h = new Histogram<Procedure>();
+        ObjectHistogram<Procedure> fullpath_h = new ObjectHistogram<Procedure>();
         fullpath_h.setDebugLabels(debugLabels);
         ProfileMeasurement total_time = new ProfileMeasurement("ESTIMATION");
 
@@ -1071,7 +1071,7 @@ public class MarkovCostModel extends AbstractCostModel {
         } // FOR
 
         ListOrderedMap<String, Object> m5 = new ListOrderedMap<String, Object>();
-        for (Entry<Procedure, Histogram<MarkovOptimization>> e : proc_penalties_h.entrySet()) {
+        for (Entry<Procedure, ObjectHistogram<MarkovOptimization>> e : proc_penalties_h.entrySet()) {
             if (e.getValue().isEmpty() == false)
                 m5.put(e.getKey().getName(), e.getValue());
         }

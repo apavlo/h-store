@@ -80,7 +80,7 @@ import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.Zipf;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CompositeId;
 import edu.brown.utils.EventObservable;
@@ -769,7 +769,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
      **********************************************************************************************/
     protected class GlobalAttributeGroupGenerator extends AbstractTableGenerator {
         private long num_categories = 0l;
-        private final Histogram<Integer> category_groups = new Histogram<Integer>();
+        private final ObjectHistogram<Integer> category_groups = new ObjectHistogram<Integer>();
         private final LinkedList<GlobalAttributeGroupId> group_ids = new LinkedList<GlobalAttributeGroupId>();
 
         public GlobalAttributeGroupGenerator() {
@@ -816,7 +816,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
      **********************************************************************************************/
     protected class GlobalAttributeValueGenerator extends AbstractTableGenerator {
 
-        private Histogram<GlobalAttributeGroupId> gag_counters = new Histogram<GlobalAttributeGroupId>(true);
+        private ObjectHistogram<GlobalAttributeGroupId> gag_counters = new ObjectHistogram<GlobalAttributeGroupId>(true);
         private Iterator<GlobalAttributeGroupId> gag_iterator;
         private GlobalAttributeGroupId gag_current;
         private int gav_counter = -1;
@@ -974,7 +974,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         private final Map<Long, Pair<Zipf, Zipf>> item_bid_watch_zipfs = new HashMap<Long, Pair<Zipf,Zipf>>();
         
         /** End date distribution */
-        private final Histogram<String> endDateHistogram = new Histogram<String>();
+        private final ObjectHistogram<String> endDateHistogram = new ObjectHistogram<String>();
         private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH");
         
         public ItemGenerator() {
@@ -1283,7 +1283,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             // an existing bidder rather than a completely random one
             else {
                 assert(this.bid != null);
-                Histogram<UserId> bidderHistogram = itemInfo.getBidderHistogram();
+                ObjectHistogram<UserId> bidderHistogram = itemInfo.getBidderHistogram();
                 bidderId = profile.getRandomBuyerId(bidderHistogram, this.bid.bidderId, itemInfo.sellerId);
             }
             assert(bidderId != null);
@@ -1515,7 +1515,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             int col = 0;
             
             // Make it more likely that a user that has bid on an item is watching it
-            Histogram<UserId> bidderHistogram = itemInfo.getBidderHistogram();
+            ObjectHistogram<UserId> bidderHistogram = itemInfo.getBidderHistogram();
             UserId buyerId = null;
             try {
                 profile.getRandomBuyerId(bidderHistogram, itemInfo.sellerId);

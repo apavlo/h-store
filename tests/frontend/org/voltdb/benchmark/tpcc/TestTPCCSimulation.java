@@ -2,6 +2,7 @@ package org.voltdb.benchmark.tpcc;
 
 import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ProjectType;
 
 
@@ -24,7 +25,7 @@ public class TestTPCCSimulation extends BaseTestCase {
      */
     public void testGeneratePairedWarehouse() throws Exception {
         for (int w_id = scaleParams.starting_warehouse; w_id <= scaleParams.last_warehouse; w_id++) {
-            Histogram<Integer> h = new Histogram<Integer>();
+            Histogram<Integer> h = new ObjectHistogram<Integer>();
             for (int i = 0; i < 1000; i++) {
                 int id = TPCCSimulation.generatePairedWarehouse(w_id,
                                                                 scaleParams.starting_warehouse,

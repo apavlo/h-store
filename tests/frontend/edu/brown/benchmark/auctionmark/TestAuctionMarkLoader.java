@@ -43,6 +43,7 @@ import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.benchmark.auctionmark.AuctionMarkLoader.AbstractTableGenerator;
@@ -83,7 +84,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
      */
     protected class MockAuctionMarkLoader extends AuctionMarkLoader {
         
-        private final Histogram<String> tableSizes = new Histogram<String>(true);
+        private final Histogram<String> tableSizes = new ObjectHistogram<String>(true);
         
         public MockAuctionMarkLoader(String args[]) {
             super(args);

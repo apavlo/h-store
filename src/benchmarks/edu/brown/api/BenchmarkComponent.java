@@ -99,7 +99,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
@@ -328,8 +328,8 @@ public abstract class BenchmarkComponent {
      */
     private final boolean m_tableStats;
     private final File m_tableStatsDir;
-    private final Histogram<String> m_tableTuples = new Histogram<String>();
-    private final Histogram<String> m_tableBytes = new Histogram<String>();
+    private final ObjectHistogram<String> m_tableTuples = new ObjectHistogram<String>();
+    private final ObjectHistogram<String> m_tableBytes = new ObjectHistogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
     protected final BenchmarkComponentResults m_txnStats;
     
@@ -350,7 +350,7 @@ public abstract class BenchmarkComponent {
      * Configuration
      */
     private final HStoreConf m_hstoreConf;
-    private final Histogram<String> m_txnWeights = new Histogram<String>();
+    private final ObjectHistogram<String> m_txnWeights = new ObjectHistogram<String>();
     private Integer m_txnWeightsDefault = null;
     private final boolean m_isLoader;
     
@@ -921,12 +921,12 @@ public abstract class BenchmarkComponent {
             } // SYNCH
 
             // LATENCIES COUNTERS
-            Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
+            ObjectHistogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
             if (latencies == null) {
                 synchronized (m_txnStats.latencies) {
                     latencies = m_txnStats.latencies.get(txn_idx);
                     if (latencies == null) {
-                        latencies = new Histogram<Integer>();
+                        latencies = new ObjectHistogram<Integer>();
                         m_txnStats.latencies.put(txn_idx, latencies);
                     }
                 } // SYNCH
@@ -1112,8 +1112,8 @@ public abstract class BenchmarkComponent {
      * of the tables
      * @return
      */
-    public final Histogram<String> getTableTupleCounts() {
-        return (new Histogram<String>(m_tableTuples));
+    public final ObjectHistogram<String> getTableTupleCounts() {
+        return (new ObjectHistogram<String>(m_tableTuples));
     }
     
     /**

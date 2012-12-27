@@ -33,7 +33,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
@@ -67,7 +67,7 @@ public class BenchmarkResults {
         public final long transactionCount;
         public final long specexecCount;
         public final long dtxnCount;
-        public final Histogram<Integer> latencies = new Histogram<Integer>();
+        public final ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         
         @Override
         public String toString() {
@@ -88,12 +88,12 @@ public class BenchmarkResults {
     protected boolean enableNanoseconds = false;
     
     private boolean enableBasePartitions = false;
-    private final Histogram<Integer> basePartitions = new Histogram<Integer>();
+    private final ObjectHistogram<Integer> basePartitions = new ObjectHistogram<Integer>();
     
-    private final Histogram<String> responseStatuses = new Histogram<String>();
+    private final ObjectHistogram<String> responseStatuses = new ObjectHistogram<String>();
     
     private int completedIntervals = 0;
-    private final Histogram<String> clientResultCount = new Histogram<String>();
+    private final ObjectHistogram<String> clientResultCount = new ObjectHistogram<String>();
     
     // cached data for performance and consistency
     // TxnName -> FastIntHistogram Offset
@@ -183,15 +183,15 @@ public class BenchmarkResults {
         retval.addAll(m_data.keySet());
         return retval;
     }
-    public Histogram<Integer> getBasePartitions() {
+    public ObjectHistogram<Integer> getBasePartitions() {
         return (basePartitions);
     }
-    public Histogram<String> getResponseStatuses() {
+    public ObjectHistogram<String> getResponseStatuses() {
         return (responseStatuses);
     }
 
-    public Histogram<Integer> getAllLatencies() {
-        Histogram<Integer> latencies = new Histogram<Integer>();
+    public ObjectHistogram<Integer> getAllLatencies() {
+        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
             for (List<Result> txnResults : clientResults.values()) {
                 for (Result r : txnResults) {
@@ -202,8 +202,8 @@ public class BenchmarkResults {
         return (latencies);
     }
     
-    public Histogram<Integer> getLastLatencies() {
-        Histogram<Integer> latencies = new Histogram<Integer>();
+    public ObjectHistogram<Integer> getLastLatencies() {
+        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
             for (List<Result> txnResults : clientResults.values()) {
                 Result r = CollectionUtil.last(txnResults);
@@ -213,8 +213,8 @@ public class BenchmarkResults {
         return (latencies);
     }
     
-    public Histogram<Integer> getLatenciesForClient(String clientName) {
-        Histogram<Integer> latencies = new Histogram<Integer>();
+    public ObjectHistogram<Integer> getLatenciesForClient(String clientName) {
+        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         SortedMap<String, List<Result>> clientResults = m_data.get(clientName);
         if (clientResults == null) return (latencies);
         for (List<Result> results : clientResults.values()) {
@@ -225,8 +225,8 @@ public class BenchmarkResults {
         return (latencies);
     }
     
-    public Histogram<Integer> getLatenciesForTransaction(String txnName) {
-        Histogram<Integer> latencies = new Histogram<Integer>();
+    public ObjectHistogram<Integer> getLatenciesForTransaction(String txnName) {
+        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
             if (clientResults.containsKey(txnName) == false) continue;
             for (Result r : clientResults.get(txnName)) {
@@ -381,7 +381,7 @@ public class BenchmarkResults {
                                       cmpResults.specexecs.get(offset.intValue()),
                                       cmpResults.dtxns.get(offset.intValue()));
                 if (cmpResults.latencies != null) {
-                    Histogram<Integer> latencies = cmpResults.latencies.get(offset);
+                    ObjectHistogram<Integer> latencies = cmpResults.latencies.get(offset);
                     if (latencies != null) {
                         synchronized (latencies) {
                             r.latencies.put(latencies);

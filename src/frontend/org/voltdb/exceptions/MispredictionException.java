@@ -2,6 +2,7 @@ package org.voltdb.exceptions;
 
 import java.nio.ByteBuffer;
 
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.Histogram;
 
 /**
@@ -20,7 +21,7 @@ public class MispredictionException extends SerializableException {
      * The partitions that the transaction was about to touch or had touched
      * before it was aborted
      */
-    private final Histogram<Integer> partitions = new Histogram<Integer>();
+    private final Histogram<Integer> partitions = new FastIntHistogram();
 
     /**
      * Constructor
@@ -54,7 +55,7 @@ public class MispredictionException extends SerializableException {
      * @return
      */
     public Histogram<Integer> getPartitions() {
-        return partitions;
+        return (this.partitions);
     }
     
     @Override

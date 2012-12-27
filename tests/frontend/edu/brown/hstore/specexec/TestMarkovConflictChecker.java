@@ -35,6 +35,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -166,7 +167,7 @@ public class TestMarkovConflictChecker extends BaseTestCase {
     }
     
     private List<CountedStatement> createQueryEstimate(TransactionTrace txn_trace, Statement start) {
-        Histogram<Statement> stmtHistogram = new Histogram<Statement>();
+        Histogram<Statement> stmtHistogram = new ObjectHistogram<Statement>();
         List<CountedStatement> queries = new ArrayList<CountedStatement>();
         boolean include = (start == null);
         for (QueryTrace q : txn_trace.getQueries()) {

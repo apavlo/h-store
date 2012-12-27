@@ -38,7 +38,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
 
 public class WikipediaClient extends BenchmarkComponent {
@@ -143,7 +143,7 @@ public class WikipediaClient extends BenchmarkComponent {
         super(args);
         
         // Initialize the sampling table
-        Histogram<Transaction> txns = new Histogram<Transaction>(); 
+        ObjectHistogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
         for (Transaction t : Transaction.values()) {
             Integer weight = this.getTransactionWeight(t.callName);
             if (weight == null) weight = t.weight;

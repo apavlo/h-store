@@ -120,7 +120,8 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -2118,7 +2119,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                  status != Status.ABORT_EVICTEDACCESS) {
             // Figure out whether this transaction should be redirected based on what partitions it
             // tried to touch before it was aborted
-            Histogram<Integer> touched = orig_ts.getTouchedPartitions();
+            FastIntHistogram touched = orig_ts.getTouchedPartitions();
             Collection<Integer> most_touched = touched.getMaxCountValues();
             assert(most_touched != null) :
                 "Failed to get most touched partition for " + orig_ts + "\n" + touched;

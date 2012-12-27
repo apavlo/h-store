@@ -42,7 +42,7 @@ import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.ycsb.distributions.CounterGenerator;
 import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 
 public class YCSBClient extends BenchmarkComponent {
@@ -78,7 +78,7 @@ public class YCSBClient extends BenchmarkComponent {
 		}  // end SYNC
 		
 		// Initialize the sampling table
-        Histogram<Transaction> txns = new Histogram<Transaction>(); 
+        ObjectHistogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
         for (Transaction t : Transaction.values()) {
             Integer weight = this.getTransactionWeight(t.callName);
             if (weight == null) weight = t.weight;

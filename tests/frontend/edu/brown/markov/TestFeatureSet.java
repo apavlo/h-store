@@ -21,6 +21,7 @@ import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.ParamArrayLengthFeature;
 import edu.brown.markov.features.ParamHashEqualsBasePartitionFeature;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
@@ -163,8 +164,8 @@ public class TestFeatureSet extends BaseTestCase {
         for (Entry<String, Type> e : this.fset.attributes.entrySet()) {
             assertEquals(e.getKey(), e.getValue(), clone.attributes.get(e.getKey()));
         } // FOR
-        for (Entry<String, Histogram> e : this.fset.attribute_histograms.entrySet()) {
-            Histogram clone_h = clone.attribute_histograms.get(e.getKey());
+        for (Entry<String, ObjectHistogram> e : this.fset.attribute_histograms.entrySet()) {
+            ObjectHistogram<?> clone_h = clone.attribute_histograms.get(e.getKey());
 //            System.err.println(e.getValue());
 //            System.err.println();
 //            System.err.println(clone_h.isEmpty() ? "<EMPTY>" : clone_h.toString());

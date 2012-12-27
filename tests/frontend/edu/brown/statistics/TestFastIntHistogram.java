@@ -44,7 +44,7 @@ public class TestFastIntHistogram extends BaseTestCase {
     private static final int NUM_SAMPLES = 1000;
     private static final int RANGE = 32;
     
-    private Histogram<Integer> h = new Histogram<Integer>();
+    private Histogram<Integer> h = new ObjectHistogram<Integer>();
     private FastIntHistogram fast_h = new FastIntHistogram(RANGE);
     private Random rand = new Random(1);
     
@@ -67,7 +67,7 @@ public class TestFastIntHistogram extends BaseTestCase {
      * testGrowing
      */
     public void testGrowing() throws Exception {
-        Histogram<Integer> origH = new Histogram<Integer>();
+        Histogram<Integer> origH = new ObjectHistogram<Integer>();
         FastIntHistogram fastH = new FastIntHistogram(1);
         for (int i = 0; i < 100; i++) {
             fastH.put(i);

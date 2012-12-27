@@ -39,7 +39,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 /**
  * Given a VoltTable with a schema corresponding to a persistent table, load all
@@ -59,7 +59,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
     static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
 
-    private Histogram<Integer> allPartitionsHistogram = new Histogram<Integer>();
+    private ObjectHistogram<Integer> allPartitionsHistogram = new ObjectHistogram<Integer>();
     
     @Override
     public void initImpl() {

@@ -37,6 +37,7 @@ import java.util.TreeMap;
 
 import junit.framework.TestCase;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 public class TestUserId extends TestCase {
 
@@ -75,7 +76,7 @@ public class TestUserId extends TestCase {
      * testCompareTo
      */
     public void testCompareTo() throws Throwable {
-        Histogram<UserId> h = new Histogram<UserId>();
+        Histogram<UserId> h = new ObjectHistogram<UserId>();
         List<UserId> orig = new ArrayList<UserId>();
         
         Set<Long> seen_encode = new HashSet<Long>();

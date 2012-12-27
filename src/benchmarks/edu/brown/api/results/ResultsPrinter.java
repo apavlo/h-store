@@ -33,7 +33,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkInterest;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
@@ -200,7 +200,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         // -------------------------------
         if (this.output_basepartitions) {
             sb.append("Transaction Base Partitions:\n");
-            Histogram<Integer> h = results.getBasePartitions();
+            ObjectHistogram<Integer> h = results.getBasePartitions();
             h.enablePercentages();
             Map<Integer, String> labels = new HashMap<Integer, String>();
             for (Integer p : h.values()) {
@@ -216,7 +216,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         // -------------------------------
         if (this.output_responses) {
             sb.append("Client Response Statuses:\n");
-            Histogram<String> h = results.getResponseStatuses();
+            ObjectHistogram<String> h = results.getResponseStatuses();
             h.enablePercentages();
             sb.append(StringUtil.prefix(h.toString((int)(width * 0.5)), "   "));
             sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));

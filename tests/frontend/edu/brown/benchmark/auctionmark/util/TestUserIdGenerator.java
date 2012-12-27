@@ -42,6 +42,7 @@ import org.junit.Before;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 
 /**
@@ -58,7 +59,7 @@ public class TestUserIdGenerator extends TestCase {
             AuctionMarkConstants.ITEM_MAX_ITEMS_PER_SELLER,
             1.0001);
     
-    private final Histogram<Long> users_per_item_count = new Histogram<Long>();
+    private final Histogram<Long> users_per_item_count = new ObjectHistogram<Long>();
     
     @Before
     public void setUp() throws Exception {
@@ -72,7 +73,7 @@ public class TestUserIdGenerator extends TestCase {
      * testAllUsers
      */
     public void testAllUsers() throws Exception {
-        UserIdGenerator generator = new UserIdGenerator(users_per_item_count, NUM_CLIENTS);
+        UserIdGenerator generator = new UserIdGenerator(this.users_per_item_count, NUM_CLIENTS);
         Set<UserId> seen = new HashSet<UserId>();
         assert(generator.hasNext());
         for (UserId u_id : CollectionUtil.iterable(generator)) {
@@ -88,7 +89,7 @@ public class TestUserIdGenerator extends TestCase {
      * testPerClient
      */
     public void testPerClient() throws Exception {
-        Histogram<Integer> clients_h = new Histogram<Integer>();
+        Histogram<Integer> clients_h = new ObjectHistogram<Integer>();
         Set<UserId> all_seen = new HashSet<UserId>();
         for (int client = 0; client < NUM_CLIENTS; client++) {
             UserIdGenerator generator = new UserIdGenerator(users_per_item_count, NUM_CLIENTS, client);

@@ -26,6 +26,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 /**
  * A class that generates random numbers that follow some distribution.
@@ -47,7 +48,7 @@ public class RandomDistribution {
         protected final Random random;
         protected final double mean;
         protected final long range_size;
-        private Histogram<Long> history;
+        private ObjectHistogram<Long> history;
 
         public DiscreteRNG(Random random, long min, long max) {
             if (min >= max)
@@ -66,7 +67,7 @@ public class RandomDistribution {
          */
         public void enableHistory() {
             assert (this.history == null) : "Trying to enable history tracking more than once";
-            this.history = new Histogram<Long>();
+            this.history = new ObjectHistogram<Long>();
         }
 
         public boolean isHistoryEnabled() {
@@ -78,7 +79,7 @@ public class RandomDistribution {
          * 
          * @return
          */
-        public Histogram<Long> getHistory() {
+        public ObjectHistogram<Long> getHistory() {
             assert (this.history != null) : "Trying to get value history but tracking wasn't enabled";
             return (this.history);
         }
@@ -248,7 +249,7 @@ public class RandomDistribution {
 
         @Override
         public void enableHistory() {
-            this.history = new Histogram<T>();
+            this.history = new ObjectHistogram<T>();
         }
 
         @Override

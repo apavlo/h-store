@@ -47,7 +47,7 @@ public class TestHistogram extends BaseTestCase {
     public static final int RANGE = 20;
     public static final double SKEW_FACTOR = 4.0;
     
-    private Histogram<Long> h = new Histogram<Long>();
+    private Histogram<Long> h = new ObjectHistogram<Long>();
     private Random rand = new Random(1);
     
     protected void setUp() throws Exception {
@@ -65,7 +65,7 @@ public class TestHistogram extends BaseTestCase {
      * testMinMaxCount
      */
     public void testMinMaxCount() throws Exception {
-        Histogram<Integer> h = new Histogram<Integer>();
+        Histogram<Integer> h = new ObjectHistogram<Integer>();
         int expected = 10;
         for (int i = 0; i < 10; i++) {
             for (int j = 0; j < expected; j++) h.put(i);
@@ -90,7 +90,7 @@ public class TestHistogram extends BaseTestCase {
      * testMinCountValues
      */
     public void testMinCountValues() throws Exception {
-        Histogram<Long> h = new Histogram<Long>();
+        Histogram<Long> h = new ObjectHistogram<Long>();
         long expected = -1981;
         h.put(expected);
         for (int i = 0; i < 1000; i++) {
@@ -154,7 +154,7 @@ public class TestHistogram extends BaseTestCase {
         int rounds = 8;
         int min = 1000;
         while (rounds-- > 0) {
-            Histogram<Long> h = new Histogram<Long>();
+            ObjectHistogram<Long> h = new ObjectHistogram<Long>();
             for (int i = 0; i < size; i++) {
                 h.put((long)(rand.nextInt(min) + min));
             }    
@@ -257,7 +257,7 @@ public class TestHistogram extends BaseTestCase {
      */
     @Test
     public void testPutValues() {
-        Histogram<Integer> hist = new Histogram<Integer>();
+        Histogram<Integer> hist = new ObjectHistogram<Integer>();
         hist.put(49);
         hist.put(50);
         
@@ -278,24 +278,16 @@ public class TestHistogram extends BaseTestCase {
     }
     
     /**
-     * testSkewed
-     */
-    @Test
-    public void testSkewed() {
-        assertTrue(h.isSkewed(SKEW_FACTOR));
-    }
-
-    /**
      * testToJSONString
      */
     public void testToJSONString() throws Exception {
-        Set<Histogram.Members> ignore = new HashSet<Histogram.Members>();
-        ignore.add(Histogram.Members.KEEP_ZERO_ENTRIES);
+        Set<ObjectHistogram.Members> ignore = new HashSet<ObjectHistogram.Members>();
+        ignore.add(ObjectHistogram.Members.KEEP_ZERO_ENTRIES);
         
         String json = h.toJSONString();
         assertNotNull(json);
-        for (Histogram.Members element : Histogram.Members.values()) {
-            if (element == Histogram.Members.KEEP_ZERO_ENTRIES) continue;
+        for (ObjectHistogram.Members element : ObjectHistogram.Members.values()) {
+            if (element == ObjectHistogram.Members.KEEP_ZERO_ENTRIES) continue;
             assertTrue(json.indexOf(element.name()) != -1);
         } // FOR
     }
@@ -308,10 +300,10 @@ public class TestHistogram extends BaseTestCase {
         assertNotNull(json);
         JSONObject jsonObject = new JSONObject(json);
         
-        Histogram<Long> copy = new Histogram<Long>();
+        Histogram<Long> copy = new ObjectHistogram<Long>();
         copy.fromJSON(jsonObject, null);
         assertEquals(h.getValueCount(), copy.getValueCount());
-        for (Histogram.Members element : Histogram.Members.values()) {
+        for (ObjectHistogram.Members element : ObjectHistogram.Members.values()) {
             String field_name = element.toString().toLowerCase();
             Field field = Histogram.class.getDeclaredField(field_name);
             assertNotNull(field);
@@ -319,7 +311,7 @@ public class TestHistogram extends BaseTestCase {
             Object orig_value = field.get(h);
             Object copy_value = field.get(copy);
             
-            if (element == Histogram.Members.HISTOGRAM) {
+            if (element == ObjectHistogram.Members.HISTOGRAM) {
                 for (Long value : h.values()) {
                     assertNotNull(value);
                     assertEquals(h.get(value), copy.get(value));

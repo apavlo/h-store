@@ -37,13 +37,13 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
 public class LoaderItemInfo extends ItemInfo {
     private final List<Bid> bids = new ArrayList<Bid>();
-    private Histogram<UserId> bidderHistogram = new Histogram<UserId>();
+    private ObjectHistogram<UserId> bidderHistogram = new ObjectHistogram<UserId>();
     
     public short numImages;
     public short numAttributes;
@@ -83,7 +83,7 @@ public class LoaderItemInfo extends ItemInfo {
     public Bid getLastBid() {
         return (CollectionUtil.last(this.bids));
     }
-    public Histogram<UserId> getBidderHistogram() {
+    public ObjectHistogram<UserId> getBidderHistogram() {
         return bidderHistogram;
     }
     

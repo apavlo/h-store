@@ -34,7 +34,7 @@ import edu.brown.markov.features.AbstractFeature;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
 import edu.brown.markov.features.TransactionIdFeature;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
@@ -78,7 +78,7 @@ public class FeatureSet implements JSONSerializable {
     /**
      * Attribute Value Histograms
      */
-    public final Map<String, Histogram> attribute_histograms = new HashMap<String, Histogram>();
+    public final Map<String, ObjectHistogram> attribute_histograms = new HashMap<String, ObjectHistogram>();
     
     /**
      * 
@@ -198,7 +198,7 @@ public class FeatureSet implements JSONSerializable {
             }
             if (debug.get()) LOG.debug("Adding new attribute " + key + " [" + type + "]");
             this.attributes.put(key, type);
-            this.attribute_histograms.put(key, new Histogram());
+            this.attribute_histograms.put(key, new ObjectHistogram());
             this.attribute_types.put(key, VoltType.NULL);
         }
         // HACK
@@ -437,7 +437,7 @@ public class FeatureSet implements JSONSerializable {
                                 break;
                             case RANGE: {
                                 // Get the value type from the histogram
-                                Histogram h = this.attribute_histograms.get(attr_key);
+                                ObjectHistogram h = this.attribute_histograms.get(attr_key);
                                 assert(h != null);
                                 VoltType volt_type = h.getEstimatedType();
                                 assert(volt_type != VoltType.INVALID);

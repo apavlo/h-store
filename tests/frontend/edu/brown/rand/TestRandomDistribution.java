@@ -28,6 +28,7 @@ package edu.brown.rand;
 import java.util.Random;
 
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 
 import junit.framework.TestCase;
@@ -64,7 +65,7 @@ public class TestRandomDistribution extends TestCase {
         RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, sigma);
         zipf.enableHistory();
         
-        Histogram<Long> hist = new Histogram<Long>();
+        Histogram<Long> hist = new ObjectHistogram<Long>();
         for (int i = 0; i < num_records; i++) {
             hist.put((long)zipf.nextInt());
         } // FOR
@@ -86,7 +87,7 @@ public class TestRandomDistribution extends TestCase {
         int round = num_rounds;
         while (round-- > 0) {
             RandomDistribution.Gaussian gaussian = new RandomDistribution.Gaussian(this.rand, min, max);
-            Histogram<Integer> hist = new Histogram<Integer>();
+            Histogram<Integer> hist = new ObjectHistogram<Integer>();
             for (int i = 0; i < num_records; i++) {
                 int value = gaussian.nextInt();
                 // double value = rand.nextGaussian();
@@ -109,7 +110,7 @@ public class TestRandomDistribution extends TestCase {
         int round = num_rounds;
         while (round-- > 0) {
             RandomDistribution.Gaussian gaussian = new RandomDistribution.Gaussian(this.rand, min, max);
-            Histogram<Long> hist = new Histogram<Long>();
+            Histogram<Long> hist = new ObjectHistogram<Long>();
             for (int i = 0; i < num_records; i++) {
                 long value = gaussian.nextLong();
                 // double value = rand.nextGaussian();
@@ -132,7 +133,7 @@ public class TestRandomDistribution extends TestCase {
         int round = num_rounds;
         while (round-- > 0) {
             RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, sigma);
-            Histogram<Integer> hist = new Histogram<Integer>();
+            Histogram<Integer> hist = new ObjectHistogram<Integer>();
             // System.out.println("Round #" + Math.abs(num_rounds - 10) + " [sigma=" + sigma + "]");
             for (int i = 0; i < num_records; i++) {
                 int value = zipf.nextInt();
@@ -156,14 +157,14 @@ public class TestRandomDistribution extends TestCase {
      * testFlatHistogramInt
      */
     public void testFlatHistogramInt() throws Exception {
-        Histogram<Integer> hist = new Histogram<Integer>();
+        Histogram<Integer> hist = new ObjectHistogram<Integer>();
         RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, 1.0000001d);
         for (int i = 0; i < num_records; i++) {
             hist.put(zipf.nextInt());
         } // FOR
         
         RandomDistribution.FlatHistogram<Integer> flat = new RandomDistribution.FlatHistogram<Integer>(this.rand, hist);
-        Histogram<Integer> hist2 = new Histogram<Integer>();
+        Histogram<Integer> hist2 = new ObjectHistogram<Integer>();
         for (int i = 0; i < num_records; i++) {
             hist2.put(flat.nextInt());
         } // FOR
@@ -174,14 +175,14 @@ public class TestRandomDistribution extends TestCase {
      * testFlatHistogramLong
      */
     public void testFlatHistogramLong() throws Exception {
-        Histogram<Long> hist = new Histogram<Long>();
+        Histogram<Long> hist = new ObjectHistogram<Long>();
         RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, 1.0000001d);
         for (int i = 0; i < num_records; i++) {
             hist.put(zipf.nextLong());
         } // FOR
         
         RandomDistribution.FlatHistogram<Long> flat = new RandomDistribution.FlatHistogram<Long>(this.rand, hist);
-        Histogram<Long> hist2 = new Histogram<Long>();
+        Histogram<Long> hist2 = new ObjectHistogram<Long>();
         for (int i = 0; i < num_records; i++) {
             hist2.put(flat.nextLong());
         } // FOR

@@ -8,6 +8,7 @@ import org.junit.Test;
 
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 import junit.framework.TestCase;
 
@@ -115,7 +116,7 @@ public class TestMathUtil extends TestCase {
         Random rand = new Random(0);
         List<Integer> values = new ArrayList<Integer>();
         FastIntHistogram h0 = new FastIntHistogram(100);
-        Histogram<Integer> h1 = new Histogram<Integer>(); 
+        Histogram<Integer> h1 = new ObjectHistogram<Integer>(); 
         for (int i = 0; i < 1000; i++) {
             int val = rand.nextInt(100);
             values.add(val);

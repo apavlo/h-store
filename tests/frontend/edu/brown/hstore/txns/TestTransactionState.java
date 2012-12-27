@@ -31,7 +31,7 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.DependencyInfo;
 import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -77,7 +77,7 @@ public class TestTransactionState extends BaseTestCase {
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
-    private Histogram<Integer> touched_partitions = new Histogram<Integer>();
+    private FastIntHistogram touched_partitions = new FastIntHistogram();
     
     @Override
     protected void setUp() throws Exception {

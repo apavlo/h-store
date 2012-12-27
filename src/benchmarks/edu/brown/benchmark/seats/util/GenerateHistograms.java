@@ -39,6 +39,7 @@ import org.apache.log4j.Logger;
 import au.com.bytecode.opencsv.CSVReader;
 import edu.brown.benchmark.seats.SEATSConstants;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
@@ -46,9 +47,9 @@ import edu.brown.utils.StringUtil;
 public class GenerateHistograms {
     private static final Logger LOG = Logger.getLogger(GenerateHistograms.class);
     
-    final Histogram<String> flights_per_airline = new Histogram<String>();
-    final Histogram<String> flights_per_time = new Histogram<String>();
-    final Map<String, Histogram<String>> flights_per_airport = new TreeMap<String, Histogram<String>>();
+    final ObjectHistogram<String> flights_per_airline = new ObjectHistogram<String>();
+    final ObjectHistogram<String> flights_per_time = new ObjectHistogram<String>();
+    final Map<String, ObjectHistogram<String>> flights_per_airport = new TreeMap<String, ObjectHistogram<String>>();
     
     public GenerateHistograms() {
         // Nothing...
@@ -89,9 +90,9 @@ public class GenerateHistograms {
             
             // Flights Per Airport
             // DepartAirport -> Histogram<ArrivalAirport>
-            Histogram<String> h = gh.flights_per_airport.get(depart_airport_code);
+            ObjectHistogram<String> h = gh.flights_per_airport.get(depart_airport_code);
             if (h == null) {
-                h = new Histogram<String>();
+                h = new ObjectHistogram<String>();
                 gh.flights_per_airport.put(depart_airport_code, h);
             }
             h.put(arrival_airport_code);
@@ -120,7 +121,8 @@ public class GenerateHistograms {
         Map<String, Histogram<?>> histograms = new HashMap<String, Histogram<?>>();
         histograms.put(SEATSConstants.HISTOGRAM_FLIGHTS_PER_DEPART_TIMES, gh.flights_per_time);
         // histograms.put(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRLINE, gh.flights_per_airline);
-        histograms.put(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT, SEATSHistogramUtil.collapseAirportFlights(gh.flights_per_airport));
+        histograms.put(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT,
+                       SEATSHistogramUtil.collapseAirportFlights(gh.flights_per_airport));
         
         for (Entry<String, Histogram<?>> e : histograms.entrySet()) {
             File output_file = new File(output_path.getAbsolutePath() + "/" + e.getKey() + ".histogram");

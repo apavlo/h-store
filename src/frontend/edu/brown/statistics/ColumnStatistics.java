@@ -49,7 +49,7 @@ public class ColumnStatistics extends AbstractStatistics<Column> {
     };
 
     public Boolean readonly = true;
-    public Histogram<Object> histogram = new Histogram<Object>();
+    public ObjectHistogram<Object> histogram = new ObjectHistogram<Object>();
 
     public ColumnStatistics(String catalog_key) {
         super(catalog_key);

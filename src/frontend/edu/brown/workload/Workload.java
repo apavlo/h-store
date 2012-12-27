@@ -59,7 +59,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.StringUtil;
@@ -127,7 +127,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     protected final Map<String, Statement> stats_load_stmts = new HashMap<String, Statement>();
     
     // Histogram for the distribution of procedures
-    protected final Histogram<String> proc_histogram = new Histogram<String>();
+    protected final ObjectHistogram<String> proc_histogram = new ObjectHistogram<String>();
     
     // Transaction Start Timestamp Ranges
     protected transient Long min_start_timestamp;
@@ -492,7 +492,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * The keys of the Histogram will be CatalogKeys
      * @return
      */
-    public Histogram<String> getProcedureHistogram() {
+    public ObjectHistogram<String> getProcedureHistogram() {
         // Install debug label mapping
         if (!this.proc_histogram.hasDebugLabels()) {
             Map<Object, String> labels = new HashMap<Object, String>();
@@ -542,16 +542,16 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         return interval;
     }
     
-    public Histogram<Integer> getTimeIntervalProcedureHistogram(int num_intervals) {
-        final Histogram<Integer> h = new Histogram<Integer>();
+    public ObjectHistogram<Integer> getTimeIntervalProcedureHistogram(int num_intervals) {
+        final ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
         for (TransactionTrace txn_trace : this.getTransactions()) {
             h.put(this.getTimeInterval(txn_trace, num_intervals));
         }
         return (h);
     }
     
-    public Histogram<Integer> getTimeIntervalQueryHistogram(int num_intervals) {
-        final Histogram<Integer> h = new Histogram<Integer>();
+    public ObjectHistogram<Integer> getTimeIntervalQueryHistogram(int num_intervals) {
+        final ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
         for (TransactionTrace txn_trace : this.getTransactions()) {
             int interval = this.getTimeInterval(txn_trace, num_intervals);
             int num_queries = txn_trace.getQueryCount();

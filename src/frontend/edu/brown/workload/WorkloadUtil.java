@@ -20,7 +20,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.workload.filters.Filter;
@@ -317,8 +317,8 @@ public abstract class WorkloadUtil {
      * @return
      * @throws Exception
      */
-    public static Histogram<String> getProcedureHistogram(File workload_path) throws Exception {
-        final Histogram<String> h = new Histogram<String>();
+    public static ObjectHistogram<String> getProcedureHistogram(File workload_path) throws Exception {
+        final ObjectHistogram<String> h = new ObjectHistogram<String>();
         final String regex = "^\\{[\\s]*" +
                              // Old Format: Start with an ID#
                              "(\"ID\":[\\d]+,)?" +

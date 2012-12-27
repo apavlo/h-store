@@ -54,6 +54,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
 
@@ -78,7 +79,7 @@ public class SEATSProfile {
      * as their local airport. The customer ids will be stored as follows in the dbms:
      * <16-bit AirportId><48-bit CustomerId>
      */
-    protected final Histogram<Long> airport_max_customer_id = new Histogram<Long>();
+    protected final ObjectHistogram<Long> airport_max_customer_id = new ObjectHistogram<Long>();
     /**
      * The date when flights total data set begins
      */
@@ -352,7 +353,7 @@ public class SEATSProfile {
         while (vt.advanceRow()) {
             int col = 0;
             String name = vt.getString(col++);
-            Histogram<String> h = JSONUtil.fromJSONString(new Histogram<String>(), vt.getString(col++));
+            ObjectHistogram<String> h = JSONUtil.fromJSONString(new ObjectHistogram<String>(), vt.getString(col++));
             boolean is_airline = (vt.getLong(col++) == 1);
             
             if (is_airline) {
@@ -637,8 +638,8 @@ public class SEATSProfile {
         return (this.getAirportCodes().size());
     }
     
-    public Histogram<String> getAirportCustomerHistogram() {
-        Histogram<String> h = new Histogram<String>();
+    public ObjectHistogram<String> getAirportCustomerHistogram() {
+        ObjectHistogram<String> h = new ObjectHistogram<String>();
         if (debug.get()) LOG.debug("Generating Airport-CustomerCount histogram [numAirports=" + this.getAirportCount() + "]");
         for (Long airport_id : this.airport_max_customer_id.values()) {
             String airport_code = this.getAirportCode(airport_id);

@@ -47,7 +47,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
@@ -130,7 +130,7 @@ public abstract class PartitionerUtil {
             LOG.debug("Generating Procedure visit order");
 
         final Map<Procedure, Double> proc_weights = new HashMap<Procedure, Double>();
-        Histogram<String> hist = info.workload.getProcedureHistogram();
+        ObjectHistogram<String> hist = info.workload.getProcedureHistogram();
         TreeSet<Procedure> proc_visit_order = new TreeSet<Procedure>(new PartitionerUtil.CatalogWeightComparator<Procedure>(proc_weights));
 
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -506,9 +506,9 @@ public abstract class PartitionerUtil {
      * @return
      * @throws Exception
      */
-    public static Histogram<Column> generateProcedureColumnAccessHistogram(final DesignerInfo info, final DesignerHints hints, final AccessGraph agraph, final Procedure catalog_proc) throws Exception {
+    public static ObjectHistogram<Column> generateProcedureColumnAccessHistogram(final DesignerInfo info, final DesignerHints hints, final AccessGraph agraph, final Procedure catalog_proc) throws Exception {
         LOG.debug("Constructing column access histogram for " + catalog_proc.getName());
-        Histogram<Column> column_histogram = new Histogram<Column>();
+        ObjectHistogram<Column> column_histogram = new ObjectHistogram<Column>();
         for (Table catalog_tbl : CatalogUtil.getReferencedTables(catalog_proc)) {
             DesignerVertex v = agraph.getVertex(catalog_tbl);
             for (DesignerEdge e : agraph.getIncidentEdges(v)) {
@@ -522,7 +522,7 @@ public abstract class PartitionerUtil {
 
                 double edge_weight = e.getTotalWeight();
                 ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
-                Histogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
+                ObjectHistogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
                 for (Column catalog_col : cset_histogram.values()) {
                     if (!catalog_col.getParent().equals(catalog_tbl))
                         continue;

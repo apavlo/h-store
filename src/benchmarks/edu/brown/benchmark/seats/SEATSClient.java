@@ -88,7 +88,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
 
 public class SEATSClient extends BenchmarkComponent {
@@ -339,7 +339,7 @@ public class SEATSClient extends BenchmarkComponent {
         }
         
         // Initialize Default Transaction Weights
-        final Histogram<Transaction> weights = new Histogram<Transaction>();
+        final ObjectHistogram<Transaction> weights = new ObjectHistogram<Transaction>();
         for (Transaction t : Transaction.values()) {
             int weight = this.getTransactionWeight(t.getExecName(), t.getDefaultWeight());
             weights.put(t, weight);

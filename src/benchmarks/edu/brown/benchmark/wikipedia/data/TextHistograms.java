@@ -1,13 +1,13 @@
 package edu.brown.benchmark.wikipedia.data;
 
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 public abstract class TextHistograms {
 
     /**
      * The length of the OLD_TEXT column
      */
-    public static final Histogram<Integer> TEXT_LENGTH = new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> TEXT_LENGTH = new ObjectHistogram<Integer>() {
         {
             this.put(100, 52106);
             this.put(200, 32370);

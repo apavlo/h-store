@@ -47,7 +47,7 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -131,7 +131,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         private int singlesite_queries = 0;
         private int multisite_queries = 0;
         private int unknown_queries = 0;
-        private Histogram<Integer> touched_partitions = new Histogram<Integer>();
+        private ObjectHistogram<Integer> touched_partitions = new ObjectHistogram<Integer>();
 
         private TransactionCacheEntry(String proc_key, long txn_trace_id, int weight, int total_queries) {
             this.proc_key = proc_key;
@@ -168,8 +168,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.touched_partitions.put(partition);
         }
 
-        public Histogram<Integer> getAllTouchedPartitionsHistogram() {
-            Histogram<Integer> copy = new Histogram<Integer>(this.touched_partitions);
+        public ObjectHistogram<Integer> getAllTouchedPartitionsHistogram() {
+            ObjectHistogram<Integer> copy = new ObjectHistogram<Integer>(this.touched_partitions);
             assert (this.touched_partitions.getValueCount() == copy.getValueCount());
             assert (this.touched_partitions.getSampleCount() == copy.getSampleCount());
             if (this.base_partition != HStoreConstants.NULL_PARTITION_ID && !copy.contains(this.base_partition)) {
@@ -242,7 +242,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         @Override
         public Object clone() throws CloneNotSupportedException {
             TransactionCacheEntry clone = (TransactionCacheEntry) super.clone();
-            clone.touched_partitions = new Histogram<Integer>(this.touched_partitions);
+            clone.touched_partitions = new ObjectHistogram<Integer>(this.touched_partitions);
             return (clone);
         }
 
@@ -549,7 +549,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * @param invalidate_removedTouchedPartitions
      * @return
      */
-    private boolean invalidateQueryCacheEntry(TransactionCacheEntry txn_entry, QueryCacheEntry query_entry, Histogram<Integer> invalidate_removedTouchedPartitions) {
+    private boolean invalidateQueryCacheEntry(TransactionCacheEntry txn_entry, QueryCacheEntry query_entry, ObjectHistogram<Integer> invalidate_removedTouchedPartitions) {
         if (trace.get())
             LOG.trace("Invalidate:" + query_entry);
         boolean invalidate_txn = false;
@@ -684,7 +684,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         if (invalidate_queries != null && invalidate_queries.isEmpty() == false) {
             if (debug.get())
                 LOG.debug(String.format("Invalidating %d QueryCacheEntries for %s", invalidate_queries.size(), catalog_key));
-            Histogram<Integer> invalidate_removedTouchedPartitions = new Histogram<Integer>();
+            ObjectHistogram<Integer> invalidate_removedTouchedPartitions = new ObjectHistogram<Integer>();
             for (QueryCacheEntry query_entry : invalidate_queries) {
                 if (query_entry.isInvalid())
                     continue;
@@ -1351,7 +1351,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
         // XXX: 2011-10-28
         costmodel.setCachingEnabled(true);
-        Histogram<String> hist = new Histogram<String>();
+        ObjectHistogram<String> hist = new ObjectHistogram<String>();
         for (int i = 0; i < 2; i++) {
             ProfileMeasurement time = new ProfileMeasurement("costmodel").start();
             hist.clear();
@@ -1378,7 +1378,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // long total_partitions_touched_queries =
         // costmodel.getQueryPartitionAccessHistogram().getSampleCount();
 
-        Histogram<Integer> h = null;
+        ObjectHistogram<Integer> h = null;
         if (!table_output) {
             System.out.println("Workload Procedure Histogram:");
             System.out.println(StringUtil.addSpacers(args.workload.getProcedureHistogram().toString()));
@@ -1432,7 +1432,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // System.out.println("Partitions Touched By Queries: " +
         // total_partitions_touched_queries);
 
-        Histogram<Integer> entropy_h = costmodel.getJavaExecutionHistogram();
+        ObjectHistogram<Integer> entropy_h = costmodel.getJavaExecutionHistogram();
         m.put("JAVA SKEW", SkewFactorUtil.calculateSkew(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
 
         entropy_h = costmodel.getTxnPartitionAccessHistogram();

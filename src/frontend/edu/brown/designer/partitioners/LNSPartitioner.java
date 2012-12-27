@@ -53,7 +53,7 @@ import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.rand.RandomDistribution;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
@@ -145,7 +145,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
     protected final ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>> orig_proc_attributes = new ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>>();
     protected final Map<Procedure, Collection<Column>> proc_columns = new HashMap<Procedure, Collection<Column>>();
-    protected final Map<Procedure, Histogram<Column>> proc_column_histogram = new HashMap<Procedure, Histogram<Column>>();
+    protected final Map<Procedure, ObjectHistogram<Column>> proc_column_histogram = new HashMap<Procedure, ObjectHistogram<Column>>();
     protected final Map<Procedure, Map<ProcParameter, Set<MultiProcParameter>>> proc_multipoc_map = new HashMap<Procedure, Map<ProcParameter, Set<MultiProcParameter>>>();
 
     private final Set<Table> ignore_tables = new HashSet<Table>();
@@ -232,7 +232,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
         // We also need to know some things about the Procedures and their
         // ProcParameters
-        Histogram<String> workloadHistogram = info.workload.getProcedureHistogram();
+        ObjectHistogram<String> workloadHistogram = info.workload.getProcedureHistogram();
         for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             // Skip if we're explicitly force to ignore this guy
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) {
@@ -862,7 +862,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // assert(correlations != null);
 
         ProcParameter default_param = catalog_proc.getParameters().get(0);
-        Histogram<Column> col_access_histogram = this.proc_column_histogram.get(catalog_proc);
+        ObjectHistogram<Column> col_access_histogram = this.proc_column_histogram.get(catalog_proc);
         if (col_access_histogram == null) {
             if (debug.get())
                 LOG.warn("No column access histogram for " + catalog_proc + ". Setting to default");

@@ -24,7 +24,7 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 
@@ -42,7 +42,7 @@ public class AffinityMapper extends AbstractMapper {
         /**
          * Nasty! <root0.PartitionId, root1.PartitionId> -> Histogram
          */
-        private final Map<Integer, Histogram> histograms = new HashMap<Integer, Histogram>();
+        private final Map<Integer, ObjectHistogram> histograms = new HashMap<Integer, ObjectHistogram>();
 
         public FragmentAffinity(Table root) {
             this.root = root;
@@ -54,7 +54,7 @@ public class AffinityMapper extends AbstractMapper {
 
         public void add(int hash0, int hash1) {
             if (!this.histograms.containsKey(hash0)) {
-                this.histograms.put(hash0, new Histogram());
+                this.histograms.put(hash0, new ObjectHistogram());
             }
             this.histograms.get(hash0).put(hash1);
         }

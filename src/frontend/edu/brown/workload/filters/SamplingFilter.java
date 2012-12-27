@@ -9,7 +9,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 
@@ -25,7 +25,7 @@ public class SamplingFilter extends Filter {
      * Procedure Name -> Total # of Txns Wanted
      */
     private final Map<String, Integer> proc_includes;
-    private final Histogram<String> proc_histogram;
+    private final ObjectHistogram<String> proc_histogram;
     
     private final Map<String, AtomicInteger> proc_counters = new HashMap<String, AtomicInteger>();
     private final Map<String, Integer> proc_rates = new HashMap<String, Integer>();
@@ -35,7 +35,7 @@ public class SamplingFilter extends Filter {
      * @param proc_includes
      * @param proc_histogram
      */
-    public SamplingFilter(Map<String, Integer> proc_includes, Histogram<String> proc_histogram) {
+    public SamplingFilter(Map<String, Integer> proc_includes, ObjectHistogram<String> proc_histogram) {
         final boolean debug = LOG.isDebugEnabled();
         
         this.proc_includes = proc_includes;

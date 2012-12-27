@@ -75,7 +75,7 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
     //
     // ProcParameter => Histogram
     //
-    public final SortedMap<Integer, Histogram<Object>> proc_param_histograms = new TreeMap<Integer, Histogram<Object>>();
+    public final SortedMap<Integer, ObjectHistogram<Object>> proc_param_histograms = new TreeMap<Integer, ObjectHistogram<Object>>();
 
     //
     // Query Statistics
@@ -133,7 +133,7 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
 
         for (ProcParameter catalog_proc_param : catalog_proc.getParameters()) {
             int proc_param_idx = catalog_proc_param.getIndex();
-            this.proc_param_histograms.put(proc_param_idx, new Histogram<Object>());
+            this.proc_param_histograms.put(proc_param_idx, new ObjectHistogram<Object>());
         } // FOR
 
         this.has_preprocessed = true;

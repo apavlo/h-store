@@ -7,6 +7,7 @@ import org.voltdb.benchmark.tpcc.TPCCConstants;
 
 import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 public class TestDefaultHasher extends BaseTestCase {
 
@@ -42,7 +43,7 @@ public class TestDefaultHasher extends BaseTestCase {
         int num_values0 = 50; // # of Warehouses
         int num_values1 = TPCCConstants.DISTRICTS_PER_WAREHOUSE;
         int num_partitions = 100;
-        Histogram h = new Histogram();
+        Histogram<Integer> h = new ObjectHistogram<Integer>();
         
         DefaultHasher hasher = new DefaultHasher(null, num_partitions);
 

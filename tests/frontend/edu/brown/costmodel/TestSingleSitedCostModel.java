@@ -28,6 +28,7 @@ import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
@@ -600,7 +601,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Invalidate that mofo!
         cost_model.invalidateCache(this.getTable(TM1Constants.TABLENAME_SUBSCRIBER));
         
-        Histogram<Integer> expected_touched = new Histogram<Integer>();
+        Histogram<Integer> expected_touched = new ObjectHistogram<Integer>();
         for (TransactionTrace txn_trace : xacts) {
             TransactionCacheEntry txn_entry = cost_model.getTransactionCacheEntry(txn_trace);
             assertNotNull(txn_entry);

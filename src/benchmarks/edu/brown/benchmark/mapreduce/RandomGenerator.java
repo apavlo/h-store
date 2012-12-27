@@ -37,7 +37,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.*;
 
 /**
@@ -69,7 +69,7 @@ public class RandomGenerator extends AbstractRandomGenerator implements JSONStri
         private int minimum;
         private int maximum;
         private transient int range;
-        private final transient SortedMap<Integer, Histogram> histograms = new TreeMap<Integer, Histogram>();
+        private final transient SortedMap<Integer, ObjectHistogram> histograms = new TreeMap<Integer, ObjectHistogram>();
         
         public AffinityRecord() {
             // For serialization...
@@ -116,14 +116,14 @@ public class RandomGenerator extends AbstractRandomGenerator implements JSONStri
             return (this.distributions.get(source));
         }
         
-        public Histogram getHistogram(int source) {
+        public ObjectHistogram getHistogram(int source) {
             return (this.histograms.get(source));
         }
         
         public void add(int source, int target) {
             this.map.put(source, target);
             this.distributions.put(source, new RandomDistribution.Zipf(RandomGenerator.this, target, target + this.range, this.zipf_sigma));
-            this.histograms.put(source, new Histogram());
+            this.histograms.put(source, new ObjectHistogram());
         }
         
         public void toJSONString(JSONStringer stringer) throws JSONException {

@@ -6,6 +6,8 @@ package edu.brown.rand;
 import java.util.Random;
 
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.HistogramUtil;
+import edu.brown.statistics.ObjectHistogram;
 
 import junit.framework.TestCase;
 
@@ -31,7 +33,7 @@ public class TestWrappingRandomDistribution extends TestCase {
         
         int round = num_rounds;
         while (round-- > 0) {
-            Histogram hist = new Histogram();
+            Histogram<Integer> hist = new ObjectHistogram<Integer>();
             // System.out.println("Round #" + Math.abs(num_rounds - 10) + " [sigma=" + sigma + "]");
             for (int i = 0; i < num_records; i++) {
                 int value = wrapping.nextInt();
@@ -46,7 +48,7 @@ public class TestWrappingRandomDistribution extends TestCase {
             Long last = null;
             int current_idx = this.start;
             // System.out.println("SORTED: " + hist.sortedValues());
-            for (Object obj : hist.sortedValues()) {
+            for (Object obj : HistogramUtil.sortedValues(hist)) {
                 Integer value = (Integer)obj;
                 assertNotNull(value);
                 assertEquals(current_idx, value.intValue());

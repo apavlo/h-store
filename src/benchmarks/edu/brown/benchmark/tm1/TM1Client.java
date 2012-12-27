@@ -42,7 +42,7 @@ import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 /**
  * TM1Client
@@ -208,7 +208,7 @@ public class TM1Client extends BenchmarkComponent {
         this.subscriberSize = Math.round(TM1Constants.SUBSCRIBER_SIZE * this.getScaleFactor());
         
         // Initialize the sampling table
-        Histogram<Transaction> txns = new Histogram<Transaction>(); 
+        ObjectHistogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
         for (Transaction t : Transaction.values()) {
             Integer weight = this.getTransactionWeight(t.callName);
             if (weight == null) weight = t.weight;

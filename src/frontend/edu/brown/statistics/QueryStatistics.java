@@ -61,7 +61,7 @@ public class QueryStatistics extends AbstractStatistics<Statement> {
     public Long execute_count_max = null;
     public Long execute_count_avg = null;
 
-    public final SortedMap<Integer, Histogram> param_histograms = new TreeMap<Integer, Histogram>();
+    public final SortedMap<Integer, ObjectHistogram> param_histograms = new TreeMap<Integer, ObjectHistogram>();
 
     public final SortedMap<Integer, SortedMap<Integer, AbstractMapping>> param_proc_corelations = new TreeMap<Integer, SortedMap<Integer, AbstractMapping>>();
 
@@ -97,7 +97,7 @@ public class QueryStatistics extends AbstractStatistics<Statement> {
         final Statement catalog_stmt = this.getCatalogItem(catalog_db);
         for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
             int stmt_param_idx = catalog_stmt_param.getIndex();
-            this.param_histograms.put(stmt_param_idx, new Histogram());
+            this.param_histograms.put(stmt_param_idx, new ObjectHistogram());
         } // FOR
         this.has_preprocessed = true;
     }

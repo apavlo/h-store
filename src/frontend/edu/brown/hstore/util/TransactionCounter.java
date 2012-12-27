@@ -13,7 +13,7 @@ import java.util.TreeSet;
 
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
 
 public enum TransactionCounter {
@@ -73,7 +73,7 @@ public enum TransactionCounter {
 
     ;
     
-    private final Histogram<String> h = new Histogram<String>();
+    private final ObjectHistogram<String> h = new ObjectHistogram<String>();
     private final String name;
     private TransactionCounter() {
         this.name = StringUtil.title(this.name().replace("_", "-"));
@@ -82,7 +82,7 @@ public enum TransactionCounter {
     public String toString() {
         return (this.name);
     }
-    public Histogram<String> getHistogram() {
+    public ObjectHistogram<String> getHistogram() {
         return (this.h);
     }
     public int get() {

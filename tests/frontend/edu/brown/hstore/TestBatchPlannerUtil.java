@@ -18,7 +18,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
@@ -52,14 +52,13 @@ public class TestBatchPlannerUtil extends BaseTestCase {
     private static TransactionTrace txn_trace;
     
     private MockPartitionExecutor executor;
-    private Histogram<Integer> touched_partitions;
+    private FastIntHistogram touched_partitions = new FastIntHistogram(NUM_PARTITIONS);
 
     @Override
     @SuppressWarnings("unchecked")
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
-        this.touched_partitions = new Histogram<Integer>();
 
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);

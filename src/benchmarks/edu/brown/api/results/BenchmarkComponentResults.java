@@ -14,7 +14,7 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.statistics.FastIntHistogram;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
@@ -42,7 +42,7 @@ public class BenchmarkComponentResults implements JSONSerializable {
     /**
      * Transaction Name Index -> Latencies
      */
-    public final Map<Integer, Histogram<Integer>> latencies = new HashMap<Integer, Histogram<Integer>>();
+    public final Map<Integer, ObjectHistogram<Integer>> latencies = new HashMap<Integer, ObjectHistogram<Integer>>();
     
     public FastIntHistogram basePartitions = new FastIntHistogram();
     private boolean enableBasePartitions = false;
@@ -75,8 +75,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.dtxns.put(this.dtxns);
         
         copy.latencies.clear();
-        for (Entry<Integer, Histogram<Integer>> e : this.latencies.entrySet()) {
-            Histogram<Integer> h = new Histogram<Integer>();
+        for (Entry<Integer, ObjectHistogram<Integer>> e : this.latencies.entrySet()) {
+            ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
             synchronized (e.getValue()) {
                 h.put(e.getValue());
             } // SYNCH

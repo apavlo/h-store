@@ -46,7 +46,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.DesignerHints;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
@@ -115,19 +115,19 @@ public abstract class AbstractCostModel {
     /**
      * Which partitions executed the actual the java of the VoltProcedure
      */
-    protected final Histogram<Integer> histogram_java_partitions = new Histogram<Integer>();
+    protected final ObjectHistogram<Integer> histogram_java_partitions = new ObjectHistogram<Integer>();
 
     /**
      * How many times did we execute each procedure
      */
-    protected final Histogram<String> histogram_procs = new Histogram<String>();
+    protected final ObjectHistogram<String> histogram_procs = new ObjectHistogram<String>();
 
     /**
      * How many times did we execute each procedure when it was either single-
      * or multi-partition?
      */
-    protected final Histogram<String> histogram_sp_procs = new Histogram<String>();
-    protected final Histogram<String> histogram_mp_procs = new Histogram<String>();
+    protected final ObjectHistogram<String> histogram_sp_procs = new ObjectHistogram<String>();
+    protected final ObjectHistogram<String> histogram_mp_procs = new ObjectHistogram<String>();
 
     /**
      * This histogram keeps track of how many times txns touched a partition at
@@ -135,7 +135,7 @@ public abstract class AbstractCostModel {
      * partition. If you want the data on the total number times the txns
      * touched the partitions, you want the query access histogram
      */
-    protected final Histogram<Integer> histogram_txn_partitions = new Histogram<Integer>();
+    protected final ObjectHistogram<Integer> histogram_txn_partitions = new ObjectHistogram<Integer>();
 
     /**
      * This histogram keeps track of how many times partitions were touched by
@@ -143,7 +143,7 @@ public abstract class AbstractCostModel {
      * particular partition, there will be an entry added for each of those
      * queries.
      */
-    protected final Histogram<Integer> histogram_query_partitions = new Histogram<Integer>();
+    protected final ObjectHistogram<Integer> histogram_query_partitions = new ObjectHistogram<Integer>();
 
     /**
      * Since we have an iterative cost-model, keep track of the number of
@@ -445,15 +445,15 @@ public abstract class AbstractCostModel {
     // return (this.java_exec_weight);
     // }
 
-    public Histogram<String> getProcedureHistogram() {
+    public ObjectHistogram<String> getProcedureHistogram() {
         return this.histogram_procs;
     }
 
-    public Histogram<String> getSinglePartitionProcedureHistogram() {
+    public ObjectHistogram<String> getSinglePartitionProcedureHistogram() {
         return this.histogram_sp_procs;
     }
 
-    public Histogram<String> getMultiPartitionProcedureHistogram() {
+    public ObjectHistogram<String> getMultiPartitionProcedureHistogram() {
         return this.histogram_mp_procs;
     }
 
@@ -463,7 +463,7 @@ public abstract class AbstractCostModel {
      * 
      * @return
      */
-    public Histogram<Integer> getJavaExecutionHistogram() {
+    public ObjectHistogram<Integer> getJavaExecutionHistogram() {
         return this.histogram_java_partitions;
     }
 
@@ -472,7 +472,7 @@ public abstract class AbstractCostModel {
      * 
      * @return
      */
-    public Histogram<Integer> getTxnPartitionAccessHistogram() {
+    public ObjectHistogram<Integer> getTxnPartitionAccessHistogram() {
         return this.histogram_txn_partitions;
     }
 
@@ -481,7 +481,7 @@ public abstract class AbstractCostModel {
      * 
      * @return
      */
-    public Histogram<Integer> getQueryPartitionAccessHistogram() {
+    public ObjectHistogram<Integer> getQueryPartitionAccessHistogram() {
         return this.histogram_query_partitions;
     }
 
@@ -671,7 +671,7 @@ public abstract class AbstractCostModel {
             "Txn Partition Access",
             "Query Partition Access",
         };
-        Histogram<?> histograms[] = {
+        ObjectHistogram<?> histograms[] = {
             this.histogram_procs,
             this.histogram_sp_procs,
             this.histogram_mp_procs,

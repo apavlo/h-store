@@ -5,13 +5,14 @@ import java.util.Random;
 import java.util.Set;
 
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 import junit.framework.TestCase;
 
 public class TestCustomerIdIterable extends TestCase {
 
     final Random rand = new Random();
-    final Histogram<Long> airport_max_customer_id = new Histogram<Long>();
+    final Histogram<Long> airport_max_customer_id = new ObjectHistogram<Long>();
     CustomerIdIterable customer_id_iterable;
     
     @Override
@@ -30,7 +31,7 @@ public class TestCustomerIdIterable extends TestCase {
      */
     public void testIterator() throws Exception {
         Set<Long> seen_ids = new HashSet<Long>();
-        Histogram<Long> airport_ids = new Histogram<Long>();
+        Histogram<Long> airport_ids = new ObjectHistogram<Long>();
         for (CustomerId c_id : this.customer_id_iterable) {
             assertNotNull(c_id);
             long encoded = c_id.encode();

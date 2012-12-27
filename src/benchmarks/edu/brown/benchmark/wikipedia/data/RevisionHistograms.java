@@ -1,13 +1,13 @@
 package edu.brown.benchmark.wikipedia.data;
 
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 public abstract class RevisionHistograms {
 
     /**
      * The length of the REV_COMMENT column
      */
-    public static final Histogram<Integer> COMMENT_LENGTH = new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> COMMENT_LENGTH = new ObjectHistogram<Integer>() {
         {
             this.put(0, 369676);
             this.put(1, 2349);
@@ -277,8 +277,8 @@ public abstract class RevisionHistograms {
      * 
      */
     @SuppressWarnings("unchecked")
-    public static final Histogram<Integer> REVISION_DELTAS[] = (Histogram<Integer>[])new Histogram[] {
-        new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> REVISION_DELTAS[] = (ObjectHistogram<Integer>[])new ObjectHistogram[] {
+        new ObjectHistogram<Integer>() {
             {
                 this.put(-1000, 237);
                 this.put(-900, 237);
@@ -482,7 +482,7 @@ public abstract class RevisionHistograms {
                 this.put(100000, 4);
             }
         },
-        new Histogram<Integer>() {
+        new ObjectHistogram<Integer>() {
             {
                 this.put(-10000, 15);
                 this.put(-9900, 19);
@@ -759,7 +759,7 @@ public abstract class RevisionHistograms {
                 this.put(100000, 1);
             }
         },
-        new Histogram<Integer>() {
+        new ObjectHistogram<Integer>() {
             {
                 this.put(-985000, 1);
                 this.put(-982000, 1);
@@ -1308,7 +1308,7 @@ public abstract class RevisionHistograms {
     /**
      * The histogram of the REV_MINOR_EDIT column
      */
-    public static final Histogram<Integer> MINOR_EDIT = new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> MINOR_EDIT = new ObjectHistogram<Integer>() {
         {
             this.put(0, 1142822);
             this.put(1, 362171);

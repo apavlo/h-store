@@ -526,7 +526,7 @@ public class ArgumentsParser {
 
             // Txn Limit
             this.workload_xact_limit = this.getLongParam(PARAM_WORKLOAD_XACT_LIMIT);
-            Histogram<String> proc_histogram = null;
+            ObjectHistogram<String> proc_histogram = null;
 
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
@@ -590,11 +590,11 @@ public class ArgumentsParser {
                         }
                     }
 
-                    Histogram<String> proc_multiplier_histogram = null;
+                    ObjectHistogram<String> proc_multiplier_histogram = null;
                     if (debug) {
                         if (proc_histogram != null)
                             LOG.debug("Full Workload Histogram:\n" + proc_histogram);
-                        proc_multiplier_histogram = new Histogram<String>();
+                        proc_multiplier_histogram = new ObjectHistogram<String>();
                     }
                     total = 0;
                     for (Entry<String, Integer> e : limits.entrySet()) {

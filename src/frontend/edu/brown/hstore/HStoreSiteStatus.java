@@ -38,7 +38,7 @@ import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionProfiler;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -275,7 +275,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                            plannerInfo,
                                            poolInfo);
         String bot = "";
-        Histogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getDebugContext().getBlockedDtxnHistogram(); 
+        ObjectHistogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getDebugContext().getBlockedDtxnHistogram(); 
         if (hstore_conf.site.status_show_txn_info && blockedDtxns != null && blockedDtxns.isEmpty() == false) {
             bot = "\nRejected Transactions by Remote Identifier:\n" + blockedDtxns;
 //            bot += "\n" + hstore_site.getTransactionQueueManager().toString();
@@ -454,7 +454,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         // EXECUTION ENGINES
         Map<Integer, String> partitionLabels = new HashMap<Integer, String>();
-        Histogram<Integer> invokedTxns = new Histogram<Integer>();
+        ObjectHistogram<Integer> invokedTxns = new ObjectHistogram<Integer>();
         String status = null;
         Long txn_id = null;
         ProfileMeasurement last = null;
@@ -587,7 +587,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         // Incoming Partition Distribution
         if (siteDebug.getProfiler() != null) {
-            Histogram<Integer> incoming = siteDebug.getProfiler().network_incoming_partitions;
+            ObjectHistogram<Integer> incoming = siteDebug.getProfiler().network_incoming_partitions;
             if (incoming.isEmpty() == false) {
                 incoming.setDebugLabels(partitionLabels);
                 incoming.enablePercentages();

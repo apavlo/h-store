@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
@@ -42,7 +43,7 @@ public class TestWorkloadFile extends BaseTestCase {
      */
     @Test
     public void testGetTimeInterval() throws Exception {
-        Histogram<Integer> h = new Histogram<Integer>();
+        Histogram<Integer> h = new ObjectHistogram<Integer>();
         for (TransactionTrace txn_trace : workload.getTransactions()) {
             assert(txn_trace.getQueryCount() > 0) : txn_trace.debug(catalog_db);
             int interval = workload.getTimeInterval(txn_trace, NUM_INTERVALS);

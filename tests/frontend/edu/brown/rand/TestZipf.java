@@ -4,6 +4,7 @@ import java.util.Random;
 
 import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 public class TestZipf extends BaseTestCase {
 
@@ -19,7 +20,7 @@ public class TestZipf extends BaseTestCase {
         double sigma = 1.0000000001d;
         for (int i = 0; i < 5; i++) {
             RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, sigma);
-            Histogram<Integer> h = new Histogram<Integer>(); 
+            Histogram<Integer> h = new ObjectHistogram<Integer>(); 
             for (int j = 0; j < 10000000; j++) {
                 h.put(zipf.nextInt());
             } // FOR

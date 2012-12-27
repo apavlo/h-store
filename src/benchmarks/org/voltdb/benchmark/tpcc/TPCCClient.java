@@ -55,7 +55,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.ProcCaller {
     private static final Logger LOG = Logger.getLogger(TPCCClient.class);
@@ -299,7 +299,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
      * Initialize the sampling table
      */
     private void initTransactionWeights() {
-        Histogram<Transaction> txns = new Histogram<Transaction>(true);
+        ObjectHistogram<Transaction> txns = new ObjectHistogram<Transaction>(true);
         for (Transaction t : Transaction.values()) {
             Integer weight = null;
             

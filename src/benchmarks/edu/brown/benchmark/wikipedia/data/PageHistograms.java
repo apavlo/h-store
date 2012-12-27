@@ -1,13 +1,13 @@
 package edu.brown.benchmark.wikipedia.data;
 
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 public abstract class PageHistograms {
 
     /**
      * The length of the PAGE_TITLE column
      */
-    public static final Histogram<Integer> TITLE_LENGTH = new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> TITLE_LENGTH = new ObjectHistogram<Integer>() {
         {
             this.put(1, 5);
             this.put(2, 44);
@@ -125,7 +125,7 @@ public abstract class PageHistograms {
      * Revisions per page
      * This seems way off because I think our sample data set is incomplete
      */
-    public static final Histogram<Integer> REVISIONS_PER_PAGE = new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> REVISIONS_PER_PAGE = new ObjectHistogram<Integer>() {
         {
             this.put(1, 39401);  // XXX 39401
             this.put(2, 16869); // XXX 16869
@@ -322,7 +322,7 @@ public abstract class PageHistograms {
     /**
      * The histogram of the PAGE_NAMESPACE column
      */
-    public static final Histogram<Integer> NAMESPACE = new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> NAMESPACE = new ObjectHistogram<Integer>() {
         {
             this.put(0, 40847);
             this.put(1, 15304);
@@ -348,7 +348,7 @@ public abstract class PageHistograms {
     /**
      * The histogram of the PAGE_RESTRICTIONS column
      */
-    public static final Histogram<String> RESTRICTIONS = new Histogram<String>() {
+    public static final ObjectHistogram<String> RESTRICTIONS = new ObjectHistogram<String>() {
         {
             this.put("", 99917);
             this.put("edit=autoconfirmed:move=autoconfirmed", 20);

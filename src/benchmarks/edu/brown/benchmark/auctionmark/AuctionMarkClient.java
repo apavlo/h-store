@@ -60,7 +60,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CompositeId;
 import edu.brown.utils.StringUtil;
 
@@ -730,7 +730,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
     protected abstract class BaseCallback implements ProcedureCallback {
         final Transaction txn;
         final Object params[];
-        final Histogram<ItemStatus> updated = new Histogram<ItemStatus>();
+        final ObjectHistogram<ItemStatus> updated = new ObjectHistogram<ItemStatus>();
         
         public BaseCallback(Transaction txn, Object params[]) {
             this.txn = txn;

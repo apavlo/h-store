@@ -42,7 +42,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.rand.WrappingRandomDistribution;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 public class MarkovLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(MarkovLoader.class);
@@ -64,7 +64,7 @@ public class MarkovLoader extends BenchmarkComponent {
 
     // Histograms
     // TableName -> Histogram for A_ID
-    private final Map<String, Histogram<Long>> histograms = new HashMap<String, Histogram<Long>>();
+    private final Map<String, ObjectHistogram<Long>> histograms = new HashMap<String, ObjectHistogram<Long>>();
 
     // Data Generator Classes
     // TableName -> AbstactTableGenerator
@@ -113,7 +113,7 @@ public class MarkovLoader extends BenchmarkComponent {
 
         // Histograms + Table Sizes + Generators
         for (String tableName : MarkovConstants.TABLENAMES) {
-            this.histograms.put(tableName, new Histogram<Long>());
+            this.histograms.put(tableName, new ObjectHistogram<Long>());
             this.table_sizes.put(tableName, new AtomicLong(0l));
 
             if (tableName.equals(MarkovConstants.TABLENAME_TABLEA)) {
@@ -220,7 +220,7 @@ public class MarkovLoader extends BenchmarkComponent {
     protected abstract class AbstractTableGenerator {
         protected final String tableName;
         protected final VoltTable table;
-        protected final Histogram<Long> hist;
+        protected final ObjectHistogram<Long> hist;
         protected Long tableSize;
         protected Long batchSize;
 

@@ -69,7 +69,7 @@ import edu.brown.rand.RandomDistribution.DiscreteRNG;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.rand.RandomDistribution.Zipf;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
@@ -121,7 +121,7 @@ public class AuctionMarkProfile {
      * A histogram for the number of users that have the number of items listed
      * ItemCount -> # of Users
      */
-    protected Histogram<Long> users_per_item_count = new Histogram<Long>();
+    protected ObjectHistogram<Long> users_per_item_count = new ObjectHistogram<Long>();
     
 
     // ----------------------------------------------------------------
@@ -131,7 +131,7 @@ public class AuctionMarkProfile {
     /**
      * Histogram for number of items per category (stored as category_id)
      */
-    protected Histogram<Long> item_category_histogram = new Histogram<Long>();
+    protected ObjectHistogram<Long> item_category_histogram = new ObjectHistogram<Long>();
 
     /**
      * Three status types for an item:
@@ -163,7 +163,7 @@ public class AuctionMarkProfile {
     private transient Integer current_tick = -1;
     private transient Integer window_total = null;
     private transient Integer window_size = null;
-    private transient final Histogram<Integer> window_histogram = new Histogram<Integer>(true);
+    private transient final ObjectHistogram<Integer> window_histogram = new ObjectHistogram<Integer>(true);
     private transient final List<Integer> window_partitions = new ArrayList<Integer>();
     
     /** Random time different in seconds */
@@ -651,9 +651,9 @@ public class AuctionMarkProfile {
      * @param previousBidders
      * @return
      */
-    public UserId getRandomBuyerId(Histogram<UserId> previousBidders, UserId...exclude) {
+    public UserId getRandomBuyerId(ObjectHistogram<UserId> previousBidders, UserId...exclude) {
         // This is very inefficient, but it's probably good enough for now
-        Histogram<UserId> new_h = new Histogram<UserId>(previousBidders);
+        ObjectHistogram<UserId> new_h = new ObjectHistogram<UserId>(previousBidders);
         new_h.setKeepZeroEntries(false);
         for (UserId ex : exclude) new_h.remove(ex);
         new_h.put(this.getRandomBuyerId(exclude));

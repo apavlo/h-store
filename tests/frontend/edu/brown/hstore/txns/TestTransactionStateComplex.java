@@ -30,7 +30,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.DependencyInfo;
 import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
@@ -69,8 +69,8 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private static PartitionExecutor executor;
     private static BatchPlan plan;
     private static List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
-    private Histogram<Integer> touched_partitions = new Histogram<Integer>();
     
+    private FastIntHistogram touched_partitions = new FastIntHistogram();
     private LocalTransaction ts;
     private ExecutionState execState;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();

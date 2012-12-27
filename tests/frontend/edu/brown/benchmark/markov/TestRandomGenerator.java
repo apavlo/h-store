@@ -37,6 +37,8 @@ import org.json.JSONObject;
 import org.voltdb.utils.Pair;
 
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
+import edu.brown.utils.CollectionUtil;
 
 public class TestRandomGenerator extends TestCase {
     static RandomGenerator generator;
@@ -85,7 +87,7 @@ public class TestRandomGenerator extends TestCase {
     public void testNumberAffinity() {
         int source = 1;
         int count = 10000;
-        Histogram histogram = new Histogram();
+        Histogram<Integer> histogram = new ObjectHistogram<Integer>();
         while (count-- > 0) {
             Integer value = generator.numberAffinity(1, num_warehouses, source, table_name, table_name);
             assertNotNull(value);
@@ -97,7 +99,7 @@ public class TestRandomGenerator extends TestCase {
         // Make sure our target has the most entries in the histogram
         Integer expected = generator.getTarget(table_name, source, table_name);
         assertNotNull(expected);
-        assertEquals(expected, (Integer) histogram.getMaxCountValue());
+        assertEquals(expected, CollectionUtil.first(histogram.getMaxCountValues()));
     }
 
     /**

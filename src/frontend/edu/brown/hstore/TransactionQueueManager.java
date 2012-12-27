@@ -30,7 +30,7 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
@@ -124,7 +124,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
     /**
      * This Histogram keeps track of what sites have blocked the most transactions from us
      */
-    private final Histogram<Integer> blockedQueueHistogram = new Histogram<Integer>();
+    private final ObjectHistogram<Integer> blockedQueueHistogram = new ObjectHistogram<Integer>();
     
     // ----------------------------------------------------------------------------
     // TRANSACTIONS THAT NEED TO INIT
@@ -850,7 +850,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         public int getRestartQueueSize() {
             return (restartQueue.size());
         }
-        public Histogram<Integer> getBlockedDtxnHistogram() {
+        public ObjectHistogram<Integer> getBlockedDtxnHistogram() {
             return (blockedQueueHistogram);
         }
         public TransactionQueueManagerProfiler getProfiler(int partition) {

@@ -120,7 +120,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -848,11 +848,11 @@ public class BenchmarkController {
         // Add all of the client hostnames in our list first so that we can check
         // to see whether we have duplicates. If so, then we'll make sure that
         // their hostnames are unique in our results print outs
-        Histogram<String> clientNames = new Histogram<String>();
+        ObjectHistogram<String> clientNames = new ObjectHistogram<String>();
         for (String clientHost : m_config.clients) {
             clientNames.put(clientHost.trim());
         } // FOR
-        Histogram<String> clientNamesIdxs = new Histogram<String>();
+        ObjectHistogram<String> clientNamesIdxs = new ObjectHistogram<String>();
         
         for (int host_idx = 0; host_idx < m_config.clients.length; host_idx++) {
             // The clientHost is the hostname that we actaully need to run on

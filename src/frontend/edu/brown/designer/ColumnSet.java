@@ -17,7 +17,7 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogPair;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.StringUtil;
 
@@ -272,8 +272,8 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends CatalogType> Histogram<T> buildHistogramForType(Class<T> search_key) {
-        Histogram<T> h = new Histogram<T>();
+    public <T extends CatalogType> ObjectHistogram<T> buildHistogramForType(Class<T> search_key) {
+        ObjectHistogram<T> h = new ObjectHistogram<T>();
         for (CatalogPair e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
                 h.put((T) e.getFirst());

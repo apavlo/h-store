@@ -1,13 +1,13 @@
 package edu.brown.benchmark.wikipedia.data;
 
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 public abstract class UserHistograms {
 
     /**
      * The length of the USER_NAME column
      */
-    public static final Histogram<Integer> NAME_LENGTH = new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> NAME_LENGTH = new ObjectHistogram<Integer>() {
         {
             this.put(1, 29);
             this.put(2, 151);
@@ -68,7 +68,7 @@ public abstract class UserHistograms {
     /**
      * The length of the USER_REAL_NAME column
      */
-    public static final Histogram<Integer> REAL_NAME_LENGTH = new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> REAL_NAME_LENGTH = new ObjectHistogram<Integer>() {
         {
             this.put(1, 29);
             this.put(2, 151);
@@ -129,7 +129,7 @@ public abstract class UserHistograms {
     /**
      * The histogram of the number of users per revision updates 
      */
-    public static final Histogram<Integer> REVISION_COUNT = new Histogram<Integer>() {
+    public static final ObjectHistogram<Integer> REVISION_COUNT = new ObjectHistogram<Integer>() {
         {
             this.put(1, 41764);
             this.put(2, 16092);

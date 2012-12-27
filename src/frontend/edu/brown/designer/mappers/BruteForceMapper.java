@@ -21,7 +21,7 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 
 /**
@@ -29,7 +29,7 @@ import edu.brown.utils.ArgumentsParser;
  */
 public class BruteForceMapper extends AbstractMapper {
 
-    private final Map<Integer, Histogram> histograms = new HashMap<Integer, Histogram>();
+    private final Map<Integer, ObjectHistogram> histograms = new HashMap<Integer, ObjectHistogram>();
     private Solution best_solution = null;
     private Solution worst_solution = null;
     private final Map<Thread, AtomicInteger> thread_checkpoints = new HashMap<Thread, AtomicInteger>();
@@ -108,7 +108,7 @@ public class BruteForceMapper extends AbstractMapper {
         List<Integer> partitions = new ArrayList<Integer>();
         for (int i = start_id; i <= num_warehouses; i++) {
             File path = new File("histograms/" + i + ".hist");
-            Histogram h = new Histogram();
+            ObjectHistogram h = new ObjectHistogram();
             h.load(path, null);
             this.histograms.put(i, h);
             partitions.add(i);

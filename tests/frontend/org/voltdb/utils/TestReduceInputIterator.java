@@ -8,6 +8,7 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 
 import junit.framework.TestCase;
@@ -26,8 +27,8 @@ public class TestReduceInputIterator extends TestCase {
 
     private VoltTable table = new VoltTable(SCHEMA);
     private VoltTable reduceOutput = new VoltTable(SCHEMA);
-    private Histogram<String> keyHistogram = new Histogram<String>(); 
-    private Histogram<Long> countHistogram = new Histogram<Long>(); 
+    private Histogram<String> keyHistogram = new ObjectHistogram<String>(); 
+    private Histogram<Long> countHistogram = new ObjectHistogram<Long>(); 
        
     @Override
     protected void setUp() throws Exception {
@@ -69,8 +70,8 @@ public class TestReduceInputIterator extends TestCase {
         ReduceInputIterator<String> rows = new ReduceInputIterator<String>(this.table);
         assertNotNull(rows);
         
-        Histogram<String> actualkey = new Histogram<String>();
-        Histogram<Long> actualcount = new Histogram<Long>();
+        Histogram<String> actualkey = new ObjectHistogram<String>();
+        Histogram<Long> actualcount = new ObjectHistogram<Long>();
         //System.out.println("Input table:\n" + this.table);
         while (rows.hasNext()) {
             String key = rows.getKey();

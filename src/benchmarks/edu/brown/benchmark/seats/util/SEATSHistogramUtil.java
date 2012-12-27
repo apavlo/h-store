@@ -39,6 +39,7 @@ import org.apache.log4j.Logger;
 import edu.brown.benchmark.seats.SEATSClient;
 import edu.brown.benchmark.seats.SEATSConstants;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.FileUtil;
 
 public abstract class SEATSHistogramUtil {
@@ -56,10 +57,10 @@ public abstract class SEATSHistogramUtil {
         return (file);
     }
     
-    public static Histogram<String> collapseAirportFlights(Map<String, Histogram<String>> m) {
-        Histogram<String> h = new Histogram<String>();
+    public static Histogram<String> collapseAirportFlights(Map<String, ObjectHistogram<String>> m) {
+        ObjectHistogram<String> h = new ObjectHistogram<String>();
         for (String depart : m.keySet()) {
-            Histogram<String> depart_h = m.get(depart);
+            ObjectHistogram<String> depart_h = m.get(depart);
             for (String arrive : depart_h.values()) {
                 String key = depart + "-" + arrive;
                 h.put(key, depart_h.get(arrive));
@@ -78,7 +79,7 @@ public abstract class SEATSHistogramUtil {
         if (cached_AirportFlights != null) return (cached_AirportFlights);
         
         File file = getHistogramFile(data_path, SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);
-        Histogram<String> h = new Histogram<String>();
+        ObjectHistogram<String> h = new ObjectHistogram<String>();
         h.load(file);
         
         Map<String, Histogram<String>> m = new TreeMap<String, Histogram<String>>();
@@ -88,7 +89,7 @@ public abstract class SEATSHistogramUtil {
             String split[] = pattern.split(value);
             Histogram<String> src_h = m.get(split[0]);
             if (src_h == null) {
-                src_h = new Histogram<String>();
+                src_h = new ObjectHistogram<String>();
                 m.put(split[0], src_h);
             }
             src_h.put(split[1], h.get(value));
@@ -108,9 +109,9 @@ public abstract class SEATSHistogramUtil {
      */
     public static synchronized Histogram<String> loadHistogram(String name, File data_path, boolean has_header) throws Exception {
         File file = getHistogramFile(data_path, name);
-        Histogram<String> histogram = cached_Histograms.get(file);
+        ObjectHistogram<String> histogram = (ObjectHistogram<String>)cached_Histograms.get(file);
         if (histogram == null) {
-            histogram = new Histogram<String>();
+            histogram = new ObjectHistogram<String>();
             histogram.load(file);
             cached_Histograms.put(file, histogram);
         }

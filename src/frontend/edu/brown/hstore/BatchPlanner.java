@@ -56,7 +56,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.BatchPlannerProfiler;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -558,7 +559,7 @@ public class BatchPlanner {
      */
     public BatchPlan plan(Long txn_id, long client_handle, int base_partition,
                           PartitionSet predict_partitions, boolean predict_singlePartitioned,
-                          Histogram<Integer> touched_partitions, ParameterSet[] batchArgs) {
+                          FastIntHistogram touched_partitions, ParameterSet[] batchArgs) {
         if (hstore_conf.site.planner_profiling) {
             if (this.profiler == null)
                 this.profiler = new BatchPlannerProfiler();
@@ -632,7 +633,7 @@ public class BatchPlanner {
 
         // Only maintain the histogram of what partitions were touched if we
         // know that we're going to throw a MispredictionException
-        Histogram<Integer> mispredict_h = null;
+        ObjectHistogram<Integer> mispredict_h = null;
         boolean mispredict = false;
 
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
@@ -827,7 +828,7 @@ public class BatchPlanner {
                 // partitions from the previous queries
                 int start_idx = stmt_index;
                 if (mispredict_h == null) {
-                    mispredict_h = new Histogram<Integer>();
+                    mispredict_h = new ObjectHistogram<Integer>();
                     start_idx = 0;
                 }
                 for (int i = start_idx; i <= stmt_index; i++) {

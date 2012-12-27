@@ -31,7 +31,7 @@ import edu.brown.designer.partitioners.plan.TableEntry;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -139,9 +139,9 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 if (trace.get())
                     LOG.trace(catalog_tbl + " has " + edges.size() + " edges in AccessGraph");
 
-                Histogram<Column> column_histogram = null;
-                Histogram<Column> join_column_histogram = new Histogram<Column>();
-                Histogram<Column> self_column_histogram = new Histogram<Column>();
+                ObjectHistogram<Column> column_histogram = null;
+                ObjectHistogram<Column> join_column_histogram = new ObjectHistogram<Column>();
+                ObjectHistogram<Column> self_column_histogram = new ObjectHistogram<Column>();
                 // Map<Column, Double> unsorted = new HashMap<Column, Double>();
                 for (DesignerEdge e : edges) {
                     Collection<DesignerVertex> vertices = agraph.getIncidentVertices(e);
@@ -155,7 +155,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     if (trace.get())
                         LOG.trace("Examining ColumnSet for " + e.toString(true));
 
-                    Histogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
+                    ObjectHistogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
                     Collection<Column> columns = cset_histogram.values();
                     if (trace.get())
                         LOG.trace("Constructed Histogram for " + catalog_tbl + " from ColumnSet:\n"
