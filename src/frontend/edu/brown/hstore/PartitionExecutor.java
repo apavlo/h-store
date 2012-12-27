@@ -162,6 +162,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.PartitionExecutorProfiler;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -614,15 +615,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                              final PartitionEstimator p_estimator,
                              final TransactionEstimator t_estimator) {
         this.hstore_conf = HStoreConf.singleton();
-        
         this.work_queue = new PartitionMessageQueue();
-//        this.work_queue = new ThrottlingQueue<InternalMessage>(
-//                new PartitionMessageQueue(),
-//                hstore_conf.site.queue_incoming_max_per_partition,
-//                hstore_conf.site.queue_incoming_release_factor,
-//                hstore_conf.site.queue_incoming_increase,
-//                hstore_conf.site.queue_incoming_increase_max
-//        );
         this.backend_target = target;
         this.catalogContext = catalogContext;
         this.partition = catalogContext.getPartitionById(partitionId);
@@ -768,7 +761,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param hstore_site
      */
     public void initHStoreSite(HStoreSite hstore_site) {
-        if (trace.val) LOG.trace(String.format("Initializing HStoreSite components at partition %d", this.partitionId));
+        if (trace.val)
+            LOG.trace(String.format("Initializing HStoreSite components at partition %d", this.partitionId));
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getCoordinator();
@@ -870,6 +864,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
         this.hstore_site.getThreadManager().registerEEThread(partition);
+        this.shutdown_latch = new Semaphore(0);
         
         // *********************************** DEBUG ***********************************
         if (hstore_conf.site.exec_validate_work) {
@@ -880,11 +875,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Things that we will need in the loop below
         InternalMessage work = null;
         
+        if (debug.val)
+            LOG.debug("Starting PartitionExecutor run loop...");
         try {
-            // Setup shutdown lock
-            this.shutdown_latch = new Semaphore(0);
-            
-            if (debug.val) LOG.debug("Starting PartitionExecutor run loop...");
+            if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.start();
             while (this.stop == false && this.isShuttingDown() == false) {
                 this.currentTxnId = null;
                 
@@ -893,13 +887,26 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // -------------------------------
                 work = this.getNext();
                 if (work == null) continue;
-                if (trace.val) LOG.trace("Next Work: " + work);
+                if (trace.val)
+                    LOG.trace("Next Work: " + work);
                 
-                if (hstore_conf.site.exec_profiling) this.profiler.exec_time.start();
+                // -------------------------------
+                // Process Work
+                // -------------------------------
+                if (hstore_conf.site.exec_profiling) {
+                    long timestamp = ProfileMeasurement.getTime();
+                    if (this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.stopIfStarted(timestamp);
+                    this.profiler.idle_queue_time.stopIfStarted(timestamp);
+                    this.profiler.exec_time.start(timestamp);
+                }
                 try {
                 	this.processInternalMessage(work);
                 } finally {
-                	if (hstore_conf.site.exec_profiling) this.profiler.exec_time.stopIfStarted();
+                	if (hstore_conf.site.exec_profiling) {
+                	    long timestamp = ProfileMeasurement.getTime();
+                	    this.profiler.exec_time.stopIfStarted(timestamp);
+                	    this.profiler.idle_queue_time.start(timestamp);
+                	}
                 }
                 
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
@@ -936,11 +943,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @return
      */
     protected InternalMessage getNext() {
-        InternalMessage work = null;
-        
-        // TODO: If we get something back here, it should be come our
-        // current distributed transaction.
-        // XXX this.queueManager.checkInitQueue(this.partitionId, 10);
+        // If we get something back here, then it should become our current transaction.
+        //  (1) If it's a single-partition txn, then we can return the StartTxnMessage 
+        //      so that we can fire it off right away.
+        //  (2) If it's as distribued txn, then we'll want to just set it as our 
+        //      current dtxn at this partition and then keep checking the queue
+        //      for more work.
         AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
         if (next != null) {
             // If this a single-partition txn, then we'll want to execute it
@@ -951,40 +959,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             else {
                 this.setCurrentDtxn(next);
                 this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
-                // if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_dtxn_time.start();
             }
         }
+        
+        // Check if we have anything to do right now
+        InternalMessage work = this.work_queue.poll();
+        if (work != null) return (work);
+        
+        // Check if we have any utility work to do while we wait
+        if (trace.val)
+            LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
+        if (this.utilityWork()) return (null);
+        
+        // This is the bare minimum that we can do here...
         EstTimeUpdater.update(System.currentTimeMillis());
-        
-        // TODO: We need to consolidate the polls on the work queue here
-        // We should always be checking utilityWork as long as we don't have real work
-        // for the current txn at this partition
-        
-        while ((work = this.work_queue.poll()) == null) {
-            // See if there is anything else that we can do while we wait
-            if (trace.val) LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
-            if (this.utilityWork() == false) break;
-        } // WHILE
-        
-        // There is no more deferred work, so we'll have to wait
-        // until something shows up in our queue
-        if (work == null) {
-            if (trace.val) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
-            if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.start();
-            if (hstore_conf.site.exec_profiling && this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.start();
-            try {
-                work = this.work_queue.poll(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException ex) {
-                if (debug.val && this.isShuttingDown() == false)
-                    LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
-                this.stop = true;
-                return (null);
-            } finally {
-            	if (hstore_conf.site.exec_profiling && this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.stopIfStarted();
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.stopIfStarted();                    
-            }
-        }
-        return (work);
+        return (null);
     }
     
     

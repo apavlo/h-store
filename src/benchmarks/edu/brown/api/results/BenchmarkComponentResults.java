@@ -14,7 +14,6 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.statistics.FastIntHistogram;
-import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;

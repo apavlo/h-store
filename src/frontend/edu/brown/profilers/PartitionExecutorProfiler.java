@@ -12,37 +12,37 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     
     /**
      * How much time the PartitionExecutor was idle waiting for responses 
-     * from queries on remote partitions. (S1)
+     * from queries on remote partitions. (SP1)
      */
     public final ProfileMeasurement idle_dtxn_query_response_time = new ProfileMeasurement("IDLE_DTXN_QUERY");
     
     /**
      * How much time the PartitionExecutor was idle waiting for
-     * response of distributed transaction on remote partitions. (S2.remote)
+     * response of distributed transaction on remote partitions. (SP2.remote)
      */
     public final ProfileMeasurement idle_waiting_dtxn_time = new ProfileMeasurement("IDLE_WAITING_DTXN");
     
     /**
      * How much time the PartitionExecutor was idle waiting for
-     * work to do in its queue. (S2.remote)
+     * work to do in its queue. (SP2.remote)
      */
     public final ProfileMeasurement idle_queue_time = new ProfileMeasurement("IDLE_QUEUE");
     
     /**
      * How much time the PartitionExecutor was idle waiting for
-     * response of distributed transaction on remote partitions. (S2.remote)
+     * response of distributed transaction on remote partitions. (SP2.remote)
      */
     public final ProfileMeasurement idle_queue_dtxn_time = new ProfileMeasurement("IDLE_QUEUE_DTXN");
     
     /**
      * How much time the local PartitionExecutor was idle waiting for prepare 
-     * responses from remote partitions. (S3.local) 
+     * responses from remote partitions. (SP3.local) 
      */
     public final ProfileMeasurement idle_2pc_local_time = new ProfileMeasurement("IDLE_TWO_PHASE_LOCAL");
     
     /**
      * How much time the remote PartitionExecutor was idle waiting for commit/abort
-     * messages from base partition. (S3.remote)
+     * messages from base partition. (SP3.remote)
      */
     public final ProfileMeasurement idle_2pc_remote_time = new ProfileMeasurement("IDLE_TWO_PHASE_REMOTE");
     

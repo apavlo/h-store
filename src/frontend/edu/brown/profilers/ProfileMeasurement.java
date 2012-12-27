@@ -279,9 +279,11 @@ public class ProfileMeasurement implements JSONSerializable {
     }
     
     public ProfileMeasurement stopIfStarted() {
-        if (this.isStarted()) {
-            this.stop(getTime());
-        }
+        return this.stopIfStarted(getTime());
+    }
+    
+    public ProfileMeasurement stopIfStarted(long timestamp) {
+        if (this.isStarted()) this.stop(timestamp);
         return (this);
     }
 
