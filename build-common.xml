@@ -68,6 +68,8 @@
 <arg value="client.output_txn_profiling_combine=${client.output_txn_profiling_combine}" />
 <arg value="client.output_specexec_profiling=${client.output_specexec_profiling}" />
 <arg value="client.output_specexec_profiling_combine=${client.output_specexec_profiling_combine}" />
+<arg value="client.output_planner_profiling=${client.output_planner_profiling}" />
+<arg value="client.output_planner_profiling_combine=${client.output_planner_profiling_combine}" />
 <arg value="client.output_markov_profiling=${client.output_markov_profiling}" />
 <arg value="client.output_txn_counters=${client.output_txn_counters}" />
 <arg value="client.output_txn_counters_combine=${client.output_txn_counters_combine}" />

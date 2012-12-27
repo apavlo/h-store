@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class BatchPlannerProfiler extends AbstractProfiler {
 
     public final AtomicInteger transactions = new AtomicInteger(0);
+    public final AtomicInteger cached = new AtomicInteger(0);
     
     public final ProfileMeasurement time_plan = new ProfileMeasurement("BuildPlan");
     public final ProfileMeasurement time_partitionEstimator = new ProfileMeasurement("PartitionEstimator");
@@ -15,5 +16,6 @@ public class BatchPlannerProfiler extends AbstractProfiler {
     public void reset() {
         super.reset();
         this.transactions.set(0);
+        this.cached.set(0);
     }
 }

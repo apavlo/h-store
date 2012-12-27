@@ -175,7 +175,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     @Override
     public boolean offer(AbstractTransaction ts) {
         assert(ts != null);
-        assert(ts.isInitialized());
+        assert(ts.isInitialized()) :
+            String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, this.partitionId);
         
         boolean retval = super.offer(ts);
         if (debug.val) LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
@@ -270,7 +271,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         }
         // Check whether can unblock now
         else {
-            assert(ts.isInitialized());
+            assert(ts.isInitialized()) :
+                String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, this.partitionId);
             txnId = ts.getTransactionId();
             assert(txnId != null) : "Null transaction id from " + txnId;
             

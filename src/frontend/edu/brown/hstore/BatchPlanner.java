@@ -564,6 +564,7 @@ public class BatchPlanner {
             if (this.profiler == null)
                 this.profiler = new BatchPlannerProfiler();
             this.profiler.time_plan.start();
+            this.profiler.transactions.incrementAndGet();
         }
         if (debug.val) {
             LOG.debug(String.format("Constructing a new %s BatchPlan for %s txn #%d",
@@ -626,8 +627,10 @@ public class BatchPlanner {
                 if (debug.val)
                     LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id,
                               base_partition, Arrays.toString(this.catalog_stmts)));
-                if (hstore_conf.site.planner_profiling && profiler != null)
+                if (hstore_conf.site.planner_profiling && profiler != null) {
                     profiler.time_plan.stop();
+                    profiler.cached.incrementAndGet();
+                }
                 touched_partitions.put(base_partition, this.nonReplicatedStmtCount);
                 return (this.cache_singlePartitionPlans[base_partition]);
             }

@@ -548,6 +548,7 @@ public class BenchmarkController {
            {"client.output_site_profiling", "site.profiling"},
            {"client.output_specexec_profiling", "site.specexec_profiling"},
            {"client.output_markov_profiling", "site.markov_profiling"},
+           {"client.output_planner_profiling", "site.planner_profiling"},
            {"client.output_txn_profiling", "site.txn_profiling"},
            {"client.output_txn_counters", "site.txn_counters"},
         };
@@ -1304,6 +1305,7 @@ public class BenchmarkController {
             Pair.of(SysProcSelector.SITEPROFILER, hstore_conf.client.output_site_profiling),
             Pair.of(SysProcSelector.SPECEXECPROFILER, hstore_conf.client.output_specexec_profiling),
             Pair.of(SysProcSelector.MARKOVPROFILER, hstore_conf.client.output_markov_profiling),
+            Pair.of(SysProcSelector.PLANNERPROFILER, hstore_conf.client.output_planner_profiling),
             Pair.of(SysProcSelector.TXNCOUNTER, hstore_conf.client.output_txn_counters),
         };
         for (Pair<SysProcSelector, String> pair : profilingData) {
@@ -1374,6 +1376,7 @@ public class BenchmarkController {
         // Combine results (optional)
         boolean needCombine = false;
         if (sps == SysProcSelector.TXNPROFILER) needCombine = hstore_conf.client.output_txn_profiling_combine;
+        if (sps == SysProcSelector.PLANNERPROFILER) needCombine = hstore_conf.client.output_planner_profiling_combine;
         if (sps == SysProcSelector.TXNCOUNTER) needCombine = hstore_conf.client.output_txn_counters_combine;
         if (sps == SysProcSelector.SPECEXECPROFILER) needCombine = hstore_conf.client.output_specexec_profiling_combine;
         if (needCombine) {

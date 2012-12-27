@@ -42,7 +42,7 @@ public class BatchPlannerProfilerStats extends StatsSource {
     
     @Override
     protected Iterator<Object> getStatsRowKeyIterator(boolean interval) {
-        final Iterator<Procedure> it = this.catalogContext.procedures.iterator();
+        final Iterator<Procedure> it = this.catalogContext.getRegularProcedures().iterator();
         return new Iterator<Object>() {
             @Override
             public boolean hasNext() {
@@ -64,6 +64,7 @@ public class BatchPlannerProfilerStats extends StatsSource {
         super.populateColumnSchema(columns);
         columns.add(new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING));
         columns.add(new VoltTable.ColumnInfo("TRANSACTIONS", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("CACHED", VoltType.BIGINT));
         
         BatchPlannerProfiler profiler = new BatchPlannerProfiler();
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
@@ -95,11 +96,13 @@ public class BatchPlannerProfilerStats extends StatsSource {
             } // FOR
             
             total.transactions.addAndGet(profiler.transactions.get());
+            total.cached.addAndGet(profiler.cached.get());
         } // FOR
         
         int offset = this.columnNameToIndex.get("PROCEDURE");
         rowValues[offset++] = proc.getName();
         rowValues[offset++] = total.transactions.get();
+        rowValues[offset++] = total.cached.get();
         for (ProfileMeasurement pm : totalPMs) {
             rowValues[offset++] = pm.getTotalThinkTime();
             rowValues[offset++] = pm.getInvocations();

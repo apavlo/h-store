@@ -1559,6 +1559,23 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "the BatchPlanner profiling stats. Note that this will automatically enable " +
+                        "${site.planner_profiling}, which will affect the runtime performance.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_planner_profiling;
+        
+        @ConfigProperty(
+            description="If set to true, then the data generated for ${client.output_planner_profiling} will " +
+                        "be aggregated based on the Procedure handle.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean output_planner_profiling_combine;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
                         "the MarkovEstimator profiling stats. Note that this will automatically enable " +
                         "${site.markov_profiling}, which will affect the runtime performance.",
             defaultNull=true,
