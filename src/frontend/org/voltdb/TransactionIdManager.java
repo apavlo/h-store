@@ -102,29 +102,25 @@ public class TransactionIdManager {
         long currentTime = System.currentTimeMillis();
         long currentCounter = 0;
         
-        if (currentTime == this.lastUsedTime) {
-            synchronized (this) {
-                if (currentTime == this.lastUsedTime) {
-                    // increment the counter for this millisecond
-                    currentCounter = ++this.counterValue;
-        
-                    // handle the case where we've run out of counter values
-                    // for this particular millisecond (feels unlikely)
-                    if (this.counterValue > COUNTER_MAX_VALUE) {
-                        LOG.warn("TOO MANY TXNS! SPIN LOCK!!!");
-                        // spin until the next millisecond
-                        while (currentTime == this.lastUsedTime)
-                            currentTime = System.currentTimeMillis();
-                        // reset the counter and lastUsedTime for the new millisecond
-                        this.lastUsedTime = currentTime;
-                        currentCounter = this.counterValue = 0;
-                    }
+        synchronized (this) {
+            if (currentTime == this.lastUsedTime) {
+                // increment the counter for this millisecond
+                currentCounter = ++this.counterValue;
+    
+                // handle the case where we've run out of counter values
+                // for this particular millisecond (feels unlikely)
+                if (this.counterValue > COUNTER_MAX_VALUE) {
+                    LOG.warn("TOO MANY TXNS! SPIN LOCK!!!");
+                    // spin until the next millisecond
+                    while (currentTime == this.lastUsedTime)
+                        currentTime = System.currentTimeMillis();
+                    // reset the counter and lastUsedTime for the new millisecond
+                    this.lastUsedTime = currentTime;
+                    currentCounter = this.counterValue = 0;
                 }
-            } // SYNCH
-        }
-        else {
-            // reset the counter and lastUsedTime for the new millisecond
-            synchronized (this) {
+            }
+            else {
+                // reset the counter and lastUsedTime for the new millisecond
                 if (currentTime < this.lastUsedTime) {
                     LOG.warn(String.format("Initiator time moved backwards from %d to %d by %d ms!!!",
                                            this.lastUsedTime, currentTime, (this.lastUsedTime - currentTime)));
@@ -152,8 +148,8 @@ public class TransactionIdManager {
                 }
                 this.lastUsedTime = currentTime;
                 currentCounter = this.counterValue = 0;
-            } // SYNCH
-        }
+            }
+        } // SYNCH
 
         this.lastTxnId = new Long(makeIdFromComponents(currentTime + this.time_delta, currentCounter, this.initiatorId));
         return (this.lastTxnId);
