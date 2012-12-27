@@ -98,58 +98,64 @@ public class TransactionIdManager {
      * to this method will return strictly larger long values.
      * @return The newly generated transaction id.
      */
-    public synchronized Long getNextUniqueTransactionId() {
+    public Long getNextUniqueTransactionId() {
         long currentTime = System.currentTimeMillis();
-//        boolean new_time = true;
-        if (currentTime == lastUsedTime) {
-//            new_time = false;
-            // increment the counter for this millisecond
-            counterValue++;
-
-            // handle the case where we've run out of counter values
-            // for this particular millisecond (feels unlikely)
-            if (counterValue > COUNTER_MAX_VALUE) {
-                LOG.warn("TOO MANY TXNS! SPIN LOCK!!!");
-                // spin until the next millisecond
-                while (currentTime == lastUsedTime)
-                    currentTime = System.currentTimeMillis();
-                // reset the counter and lastUsedTime for the new millisecond
-                lastUsedTime = currentTime;
-                counterValue = 0;
-            }
+        long currentCounter = 0;
+        
+        if (currentTime == this.lastUsedTime) {
+            synchronized (this) {
+                if (currentTime == this.lastUsedTime) {
+                    // increment the counter for this millisecond
+                    currentCounter = ++this.counterValue;
+        
+                    // handle the case where we've run out of counter values
+                    // for this particular millisecond (feels unlikely)
+                    if (this.counterValue > COUNTER_MAX_VALUE) {
+                        LOG.warn("TOO MANY TXNS! SPIN LOCK!!!");
+                        // spin until the next millisecond
+                        while (currentTime == this.lastUsedTime)
+                            currentTime = System.currentTimeMillis();
+                        // reset the counter and lastUsedTime for the new millisecond
+                        this.lastUsedTime = currentTime;
+                        currentCounter = this.counterValue = 0;
+                    }
+                }
+            } // SYNCH
         }
         else {
             // reset the counter and lastUsedTime for the new millisecond
-            if (currentTime < lastUsedTime) {
-                LOG.warn(String.format("Initiator time moved backwards from %d to %d by %d ms!!!",
-                                        lastUsedTime, currentTime, (lastUsedTime - currentTime)));
-                // if the diff is less than 5 ms, wait a bit
-                if ((lastUsedTime - currentTime) < DRIFT_CHECK) {
-                    int count = 1000;
-                    // note, the loop should stop once lastUsedTime is PASSED, not current
-                    while ((currentTime <= lastUsedTime) && (count-- > 0)) {
-                        try {
-                            Thread.sleep(lastUsedTime - currentTime + 1);
-                        } catch (InterruptedException e) {}
-                        currentTime = System.currentTimeMillis();
+            synchronized (this) {
+                if (currentTime < this.lastUsedTime) {
+                    LOG.warn(String.format("Initiator time moved backwards from %d to %d by %d ms!!!",
+                                           this.lastUsedTime, currentTime, (this.lastUsedTime - currentTime)));
+                    // if the diff is less than 5 ms, wait a bit
+                    if ((this.lastUsedTime - currentTime) < DRIFT_CHECK) {
+                        int count = 1000;
+                        // note, the loop should stop once lastUsedTime is PASSED, not current
+                        while ((currentTime <= this.lastUsedTime) && (count-- > 0)) {
+                            try {
+                                Thread.sleep(this.lastUsedTime - currentTime + 1);
+                            } catch (InterruptedException e) {}
+                            currentTime = System.currentTimeMillis();
+                        }
+                        // if the loop above ended because it ran too much
+                        if (count < 0) {
+                            LOG.error("H-Store was unable to recover after the system time was externally negatively adusted. " +
+                                      "It is possible that there is a serious system time or NTP error. ");
+                            HStore.crashDB();
+                        }
                     }
-                    // if the loop above ended because it ran too much
-                    if (count < 0) {
-                        LOG.error("H-Store was unable to recover after the system time was externally negatively adusted. " +
-                                  "It is possible that there is a serious system time or NTP error. ");
+                    // crash immediately if time has gone backwards by too much
+                    else {
                         HStore.crashDB();
                     }
                 }
-                // crash immediately if time has gone backwards by too much
-                else {
-                    HStore.crashDB();
-                }
-            }
-            lastUsedTime = currentTime;
-            counterValue = 0;
+                this.lastUsedTime = currentTime;
+                currentCounter = this.counterValue = 0;
+            } // SYNCH
         }
 
-        this.lastTxnId = new Long(makeIdFromComponents(currentTime + time_delta, counterValue, initiatorId));
+        this.lastTxnId = new Long(makeIdFromComponents(currentTime + this.time_delta, currentCounter, this.initiatorId));
         return (this.lastTxnId);
     }
 
