@@ -551,7 +551,11 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         if (checkQueue) {
             removed = this.lockQueues[partition].remove(ts);
         }
-        assert(this.lockQueues[partition].contains(ts) == false);
+        assert(this.lockQueues[partition].contains(ts) == false) :
+            String.format("The %s for partition %d contains %s even though it should not! " +
+            		      "[checkQueue=%s, removed=%s]",
+            		      this.lockQueues[partition].getClass().getSimpleName(), partition,
+            		      checkQueue, removed);
         
         // This is a local transaction that is still waiting for this partition (i.e., it hasn't
         // been rejected yet). That means we will want to decrement the counter its Transaction
