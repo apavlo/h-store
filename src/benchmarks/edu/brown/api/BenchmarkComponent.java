@@ -99,6 +99,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
@@ -921,7 +922,7 @@ public abstract class BenchmarkComponent {
             } // SYNCH
 
             // LATENCIES COUNTERS
-            ObjectHistogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
+            Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
             if (latencies == null) {
                 synchronized (m_txnStats.latencies) {
                     latencies = m_txnStats.latencies.get(txn_idx);

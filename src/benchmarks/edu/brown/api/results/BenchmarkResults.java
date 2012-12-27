@@ -33,6 +33,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
@@ -381,7 +382,7 @@ public class BenchmarkResults {
                                       cmpResults.specexecs.get(offset.intValue()),
                                       cmpResults.dtxns.get(offset.intValue()));
                 if (cmpResults.latencies != null) {
-                    ObjectHistogram<Integer> latencies = cmpResults.latencies.get(offset);
+                    Histogram<Integer> latencies = cmpResults.latencies.get(offset);
                     if (latencies != null) {
                         synchronized (latencies) {
                             r.latencies.put(latencies);

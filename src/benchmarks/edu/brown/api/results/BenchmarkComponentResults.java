@@ -14,6 +14,7 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
@@ -42,12 +43,12 @@ public class BenchmarkComponentResults implements JSONSerializable {
     /**
      * Transaction Name Index -> Latencies
      */
-    public final Map<Integer, ObjectHistogram<Integer>> latencies = new HashMap<Integer, ObjectHistogram<Integer>>();
+    public final Map<Integer, Histogram<Integer>> latencies = new HashMap<Integer, Histogram<Integer>>();
     
-    public FastIntHistogram basePartitions = new FastIntHistogram();
+    public FastIntHistogram basePartitions = new FastIntHistogram(true);
     private boolean enableBasePartitions = false;
     
-    public FastIntHistogram responseStatuses = new FastIntHistogram(Status.values().length);
+    public FastIntHistogram responseStatuses = new FastIntHistogram(true, Status.values().length);
     private boolean enableResponseStatuses = false;
 
     public BenchmarkComponentResults() {
@@ -55,14 +56,9 @@ public class BenchmarkComponentResults implements JSONSerializable {
     }
     
     public BenchmarkComponentResults(int numProcedures) {
-        this.transactions = new FastIntHistogram(numProcedures);
-        this.transactions.setKeepZeroEntries(true);
-        this.specexecs = new FastIntHistogram(numProcedures);
-        this.specexecs.setKeepZeroEntries(true);
-        this.dtxns = new FastIntHistogram(numProcedures);
-        this.dtxns.setKeepZeroEntries(true);
-        this.basePartitions.setKeepZeroEntries(true);
-        this.responseStatuses.setKeepZeroEntries(true);
+        this.transactions = new FastIntHistogram(true, numProcedures);
+        this.specexecs = new FastIntHistogram(true, numProcedures);
+        this.dtxns = new FastIntHistogram(true, numProcedures);
     }
     
     public BenchmarkComponentResults copy() {
@@ -75,8 +71,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.dtxns.put(this.dtxns);
         
         copy.latencies.clear();
-        for (Entry<Integer, ObjectHistogram<Integer>> e : this.latencies.entrySet()) {
-            ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
+        for (Entry<Integer, Histogram<Integer>> e : this.latencies.entrySet()) {
+            Histogram<Integer> h = new ObjectHistogram<Integer>();
             synchronized (e.getValue()) {
                 h.put(e.getValue());
             } // SYNCH
