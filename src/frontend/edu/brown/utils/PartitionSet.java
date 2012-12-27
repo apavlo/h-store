@@ -74,11 +74,15 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     
     public int[] values() {
         if (this.values == null) {
-            int size = this.inner.cardinality() + (this.contains_null ? 1 : 0);
+            int remaining = this.inner.cardinality();
+            int size = remaining + (this.contains_null ? 1 : 0);
             this.values = new int[size];
             int idx = 0;
-            for (Integer partition : this) {
-                this.values[idx++] = partition.intValue();
+            if (this.contains_null) {
+                this.values[idx++] = HStoreConstants.NULL_PARTITION_ID;
+            }
+            for (int i = 0; idx < size; i++) {
+                if (this.inner.get(i)) this.values[idx++] = i;
             } // FOR
         }
         return (this.values);
