@@ -87,6 +87,20 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         }
         return (this.values);
     }
+    /**
+     * Return first partition found in this PartitionSet. This is primarily
+     * useful for single-partition txns when you just want the only partition in
+     * this set.
+     * @return
+     * @throws IndexOutOfBoundsException
+     */
+    public int get() throws IndexOutOfBoundsException {
+        for (int partition = 0, cnt = this.inner.size(); partition < cnt; partition++) {
+            if (this.inner.get(partition)) return (partition);
+        } // FOR
+        if (this.contains_null) return HStoreConstants.NULL_PARTITION_ID;
+        throw new IndexOutOfBoundsException();
+    }
     
     @Override
     public boolean equals(Object obj) {
