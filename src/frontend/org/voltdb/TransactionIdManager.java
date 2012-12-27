@@ -152,10 +152,11 @@ public class TransactionIdManager {
             }
         } // SYNCH
 
-        this.lastTxnId = new Long(makeIdFromComponents(currentTime + this.time_delta,
-                                  currentCounter,
-                                  this.initiatorId));
-        return (this.lastTxnId);
+        Long newTxnId = new Long(makeIdFromComponents(currentTime + this.time_delta,
+                                 currentCounter,
+                                 this.initiatorId));
+        this.lastTxnId = newTxnId;
+        return (newTxnId);
     }
 
     public static long makeIdFromComponents(long ts, long seqNo, long initiatorId) {
