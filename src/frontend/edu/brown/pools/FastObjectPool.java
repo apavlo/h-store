@@ -1,9 +1,8 @@
 package edu.brown.pools;
 
-import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-// import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.pool.BaseObjectPool;
@@ -75,7 +74,7 @@ public class FastObjectPool<T> extends BaseObjectPool {
     public FastObjectPool(PoolableObjectFactory factory, int maxIdle, int initIdleCapacity) {
         this._factory = factory;
         _maxSleeping = (maxIdle < 0 ? DEFAULT_MAX_SLEEPING : maxIdle);
-        _pool = new LinkedList<T>();
+        _pool = new ConcurrentLinkedQueue<T>();
     }
     
     @SuppressWarnings("unchecked")
