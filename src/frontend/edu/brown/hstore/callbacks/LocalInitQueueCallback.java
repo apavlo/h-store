@@ -57,9 +57,11 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
             this.hstore_site.transactionStart((LocalTransaction)this.ts,
                                               this.ts.getBasePartition());
         }
-        else if (debug.val) {
-            LOG.debug(this.ts + " is ready to execute but it is single-partitioned. " +
-                      "Not telling the HStoreSite to start");
+        else { 
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
+            if (debug.val)
+                LOG.debug(this.ts + " is ready to execute but it is single-partitioned. " +
+                          "Not telling the HStoreSite to start");
         }
     }
 

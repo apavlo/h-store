@@ -50,7 +50,6 @@ import edu.brown.hstore.HStoreConstants;
  */
 public class PartitionSet implements Collection<Integer>, JSONSerializable, FastSerializable {
     
-    // private final Set<Integer> inner = new HashSet<Integer>();
     private final BitSet inner = new BitSet();
     private boolean contains_null = false;
     private int[] values = null;
@@ -223,10 +222,13 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     }
     public boolean containsAll(PartitionSet partitions) {
         if (this.contains_null != partitions.contains_null) return (false);
-        for (int partition = 0, cnt = partitions.inner.size(); partition < cnt; partition++) {
-            if (partitions.inner.get(partition) && this.inner.get(partition) == false) return (false);
-        } // FOR
-        return (true);
+        if (this.inner.intersects(partitions.inner)) {
+            for (int partition = 0, cnt = partitions.inner.size(); partition < cnt; partition++) {
+                if (partitions.inner.get(partition) && this.inner.get(partition) == false) return (false);
+            } // FOR
+            return (true);
+        }
+        return (false);
     }
     @Override
     public boolean addAll(Collection<? extends Integer> partitions) {

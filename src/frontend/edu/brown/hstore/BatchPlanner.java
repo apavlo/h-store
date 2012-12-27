@@ -591,7 +591,7 @@ public class BatchPlanner {
             // suppose to be single-partitioned
             if (this.force_singlePartition == false) {
                 for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
-                    if (cache_fastLookups[stmt_index] == null) {
+                    if (this.cache_fastLookups[stmt_index] == null) {
                         if (debug.val)
                             LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
                                       txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
@@ -600,11 +600,11 @@ public class BatchPlanner {
                         if (debug.val)
                             LOG.debug(String.format("[#%d-%02d] Using fast-lookup caching for %s: %s", txn_id,
                                       stmt_index, this.catalog_stmts[stmt_index].fullName(),
-                                      Arrays.toString(cache_fastLookups[stmt_index])));
+                                      Arrays.toString(this.cache_fastLookups[stmt_index])));
                         Object params[] = batchArgs[stmt_index].toArray();
                         cache_isSinglePartition[stmt_index] = true;
-                        for (int idx : cache_fastLookups[stmt_index]) {
-                            if (hasher.hash(params[idx]) != base_partition) {
+                        for (int idx : this.cache_fastLookups[stmt_index]) {
+                            if (this.hasher.hash(params[idx]) != base_partition) {
                                 cache_isSinglePartition[stmt_index] = false;
                                 break;
                             }
@@ -629,7 +629,7 @@ public class BatchPlanner {
                 if (hstore_conf.site.planner_profiling && profiler != null)
                     profiler.time_plan.stop();
                 touched_partitions.put(base_partition, this.nonReplicatedStmtCount);
-                return (cache_singlePartitionPlans[base_partition]);
+                return (this.cache_singlePartitionPlans[base_partition]);
             }
         }
 
