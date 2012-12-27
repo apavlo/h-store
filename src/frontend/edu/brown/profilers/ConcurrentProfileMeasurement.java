@@ -33,6 +33,16 @@ package edu.brown.profilers;
  */
 public class ConcurrentProfileMeasurement extends ProfileMeasurement {
 
+    public ConcurrentProfileMeasurement() {
+        super();
+    }
+    public ConcurrentProfileMeasurement(String pmtype) {
+        super(pmtype);
+    }
+    public ConcurrentProfileMeasurement(ProfileMeasurement orig) {
+        super(orig);
+    }
+    
     @Override
     public synchronized void reset() {
         super.reset();
