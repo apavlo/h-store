@@ -115,7 +115,7 @@ public class FastIntHistogram implements Histogram<Integer> {
      * You probably don't want this value and instead want getSampleCount()
      * @return
      */
-    protected int size() {
+    public int size() {
         return (this.histogram.length);
     }
     public int[] fastValues() {
