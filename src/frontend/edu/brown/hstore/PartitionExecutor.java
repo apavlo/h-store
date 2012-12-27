@@ -983,7 +983,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // This is the bare minimum that we can do here...
         EstTimeUpdater.update(System.currentTimeMillis());
-        this.tick();
         return (null);
     }
     
