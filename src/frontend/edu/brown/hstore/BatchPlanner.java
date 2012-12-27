@@ -592,13 +592,15 @@ public class BatchPlanner {
             if (this.force_singlePartition == false) {
                 for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
                     if (cache_fastLookups[stmt_index] == null) {
-                        if (debug.val) LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
-                                         txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
+                        if (debug.val)
+                            LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
+                                      txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
                         cache_isSinglePartition[stmt_index] = false;
                     } else {
-                        if (debug.val) LOG.debug(String.format("[#%d-%02d] Using fast-lookup caching for %s: %s", txn_id,
-                                         stmt_index, this.catalog_stmts[stmt_index].fullName(),
-                                         Arrays.toString(cache_fastLookups[stmt_index])));
+                        if (debug.val)
+                            LOG.debug(String.format("[#%d-%02d] Using fast-lookup caching for %s: %s", txn_id,
+                                      stmt_index, this.catalog_stmts[stmt_index].fullName(),
+                                      Arrays.toString(cache_fastLookups[stmt_index])));
                         Object params[] = batchArgs[stmt_index].toArray();
                         cache_isSinglePartition[stmt_index] = true;
                         for (int idx : cache_fastLookups[stmt_index]) {
@@ -608,19 +610,22 @@ public class BatchPlanner {
                             }
                         } // FOR
                     }
-                    if (trace.val) LOG.trace(String.format("[#%d-%02d] cache_isSinglePartition[%s] = %s", txn_id, stmt_index,
-                                     this.catalog_stmts[stmt_index].fullName(), cache_isSinglePartition[stmt_index]));
+                    if (trace.val)
+                        LOG.trace(String.format("[#%d-%02d] cache_isSinglePartition[%s] = %s", txn_id, stmt_index,
+                                  this.catalog_stmts[stmt_index].fullName(), cache_isSinglePartition[stmt_index]));
                     is_allSinglePartition = is_allSinglePartition && cache_isSinglePartition[stmt_index];
                 } // FOR (Statement)
             }
-            if (trace.val) LOG.trace(String.format("[#%d] is_allSinglePartition=%s", txn_id, is_allSinglePartition));
+            if (trace.val)
+                LOG.trace(String.format("[#%d] is_allSinglePartition=%s", txn_id, is_allSinglePartition));
 
             // If all of the Statements are single-partition, then we can use
             // the cached BatchPlan if we already have one.
             // This saves a lot of trouble
             if (is_allSinglePartition && cache_singlePartitionPlans[base_partition] != null) {
-                if (debug.val) LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id,
-                                 base_partition, Arrays.toString(this.catalog_stmts)));
+                if (debug.val)
+                    LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id,
+                              base_partition, Arrays.toString(this.catalog_stmts)));
                 if (hstore_conf.site.planner_profiling && profiler != null)
                     profiler.time_plan.stop();
                 touched_partitions.put(base_partition, this.nonReplicatedStmtCount);
@@ -642,8 +647,9 @@ public class BatchPlanner {
                 String.format("The Statement at index %d is null for %s",
                               stmt_index, this.catalog_proc);
             final Object params[] = batchArgs[stmt_index].toArray();
-            if (trace.val) LOG.trace(String.format("[#%d-%02d] Calculating touched partitions plans for %s",
-                             txn_id, stmt_index, catalog_stmt.fullName()));
+            if (trace.val)
+                LOG.trace(String.format("[#%d-%02d] Calculating touched partitions plans for %s",
+                          txn_id, stmt_index, catalog_stmt.fullName()));
 
             Map<PlanFragment, PartitionSet> frag_partitions = plan.frag_partitions[stmt_index];
             PartitionSet stmt_all_partitions = plan.stmt_partitions[stmt_index];
@@ -664,11 +670,11 @@ public class BatchPlanner {
                 if (trace.val) {
                     if (cache_isSinglePartition[stmt_index]) {
                         LOG.trace(String.format("[#%d-%02d] Using fast-lookup for %s. Skipping PartitionEstimator",
-                                txn_id, stmt_index, catalog_stmt.fullName()));
+                                  txn_id, stmt_index, catalog_stmt.fullName()));
                     } else {
                         LOG.trace(String.format(
-                                "[#%d-%02d] %s is read-only and replicate-only. Skipping PartitionEstimator", txn_id,
-                                stmt_index, catalog_stmt.fullName()));
+                                  "[#%d-%02d] %s is read-only and replicate-only. Skipping PartitionEstimator", txn_id,
+                                  stmt_index, catalog_stmt.fullName()));
                     }
                 }
                 assert (has_singlepartition_plan);
@@ -697,7 +703,7 @@ public class BatchPlanner {
             // single-partitioned or not
             else {
                 if (debug.val) LOG.debug(String.format("[#%d-%02d] Computing touched partitions %s in txn #%d", txn_id,
-                                 stmt_index, catalog_stmt.fullName(), txn_id));
+                                         stmt_index, catalog_stmt.fullName(), txn_id));
 
                 if (plan.stmt_partitions_swap[stmt_index] != null) {
                     stmt_all_partitions = plan.stmt_partitions[stmt_index] = plan.stmt_partitions_swap[stmt_index];
@@ -723,8 +729,8 @@ public class BatchPlanner {
                         if (is_singlePartition == false) stmt_all_partitions.clear();
                         fragments = (is_singlePartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
                         if (debug.val) LOG.debug(String.format("[#%d-%02d] Estimating for %d %s-partition fragments",
-                                         txn_id, stmt_index, fragments.size(),
-                                         (is_singlePartition ? "single" : "multi")));
+                                                 txn_id, stmt_index, fragments.size(),
+                                                 (is_singlePartition ? "single" : "multi")));
 
                         // PARTITION ESTIMATOR
                         if (hstore_conf.site.planner_profiling && profiler != null)
@@ -739,8 +745,9 @@ public class BatchPlanner {
                             // If this was suppose to be multi-partitioned, then
                             // we want to stop right here!!
                             if (predict_singlePartitioned) {
-                                if (trace.val) LOG.trace(String.format("Mispredicted txn #%d - Multiple Partitions %s",
-                                                 txn_id, stmt_all_partitions));
+                                if (trace.val)
+                                    LOG.trace(String.format("Mispredicted txn #%d - Multiple Partitions %s",
+                                              txn_id, stmt_all_partitions));
                                 mispredict = true;
                                 break;
                             }
@@ -752,14 +759,16 @@ public class BatchPlanner {
                         is_local = (stmt_all_partitions_size == 1 && stmt_all_partitions.contains(base_partition));
                         if (is_local == false && predict_singlePartitioned) {
                             // Again, this is not what was suppose to happen!
-                            if (trace.val) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions %s",
-                                             txn_id, stmt_all_partitions));
+                            if (trace.val)
+                                LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions %s",
+                                          txn_id, stmt_all_partitions));
                             mispredict = true;
                             break;
                         } else if (predict_partitions.containsAll(stmt_all_partitions) == false) {
                             // Again, this is not what was suppose to happen!
-                            if (trace.val) LOG.trace(String.format("Mispredicted txn #%d - Unallocated Partitions %s / %s",
-                                             txn_id, stmt_all_partitions, predict_partitions));
+                            if (trace.val)
+                                LOG.trace(String.format("Mispredicted txn #%d - Unallocated Partitions %s / %s",
+                                          txn_id, stmt_all_partitions, predict_partitions));
                             mispredict = true;
                             break;
                         }
@@ -792,7 +801,7 @@ public class BatchPlanner {
                 // Only mark that we touched these partitions if the Statement
                 // is not on a replicated table or it's not read-only
                 if (is_replicated_only == false || is_read_only == false) {
-                    touched_partitions.put(stmt_all_partitions);
+                    touched_partitions.put(stmt_all_partitions.values());
                 }
             }
             // Distributed Query
@@ -803,7 +812,7 @@ public class BatchPlanner {
                 plan.frag_list[stmt_index] = this.sorted_multip_fragments[stmt_index];
 
                 // Always mark that we are touching these partitions
-                touched_partitions.put(stmt_all_partitions);
+                touched_partitions.put(stmt_all_partitions.values());
 
                 // Note that will want to update is_singlePartitioned here for non-readonly replicated
                 // querys when we have a one partition cluster because those queries don't have
@@ -832,17 +841,19 @@ public class BatchPlanner {
                     start_idx = 0;
                 }
                 for (int i = start_idx; i <= stmt_index; i++) {
-                    if (debug.val) LOG.debug(String.format("Pending mispredict for txn #%d. " +
-            		                               "Checking whether to add partitions for batch statement %02d",
-            		                               txn_id, i));
+                    if (debug.val)
+                        LOG.debug(String.format("Pending mispredict for txn #%d. " +
+                                  "Checking whether to add partitions for batch statement %02d",
+                                   txn_id, i));
 
                     // Make sure that we don't count the local partition if it
                     // was reading a replicated table.
                     if (this.stmt_is_replicatedonly[i] == false || 
                         (this.stmt_is_replicatedonly[i] && this.stmt_is_readonly[i] == false)) {
-                        if (trace.val) LOG.trace(String.format("%s touches non-replicated table. " +
-                        		                       "Including %d partitions in mispredict histogram for txn #%d",
-                        		                       this.catalog_stmts[i].fullName(), plan.stmt_partitions[i].size(), txn_id));
+                        if (trace.val)
+                            LOG.trace(String.format("%s touches non-replicated table. " +
+                                      "Including %d partitions in mispredict histogram for txn #%d",
+                                      this.catalog_stmts[i].fullName(), plan.stmt_partitions[i].size(), txn_id));
                         mispredict_h.put(plan.stmt_partitions[i]);
                     }
                 } // FOR
@@ -940,8 +951,9 @@ public class BatchPlanner {
 
         if (hstore_conf.site.planner_profiling && profiler != null)
             profiler.time_partitionFragments.start();
-        if (debug.val) LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]",
-                         txn_id, plan.base_partition));
+        if (debug.val)
+            LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]",
+                      txn_id, plan.base_partition));
 
         for (PlanVertex v : graph.sorted_vertices) {
             int stmt_index = v.stmt_index;
@@ -952,7 +964,8 @@ public class BatchPlanner {
 
         // The main idea of what we're trying to do here is to group together
         // all of the PlanFragments with the same input dependency ids into a single WorkFragment
-        if (trace.val) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #" + txn_id);
+        if (trace.val)
+            LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #" + txn_id);
         for (int round = 0; round < plan.rounds_length; round++) {
             if (trace.val) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round));
             for (int partition = 0; partition < this.num_partitions; partition++) {
@@ -993,11 +1006,12 @@ public class BatchPlanner {
                     // Prefetch
                     if (this.prefetch) partitionBuilder.setPrefetch(true);
 
-                    if (trace.val) LOG.trace(String.format("Fragment Grouping %d => " +
-                    		         "[txnId=#%d, partition=%d, fragDd=%d, input=%d, output=%d, stmtIndex=%d]",
-                    		         partitionBuilder.getFragmentIdCount(),
-                    		         txn_id, partition, v.frag_id,
-                    		         v.input_dependency_id, v.output_dependency_id, v.stmt_index));
+                    if (trace.val)
+                        LOG.trace(String.format("Fragment Grouping %d => " +
+                                  "[txnId=#%d, partition=%d, fragDd=%d, input=%d, output=%d, stmtIndex=%d]",
+                                  partitionBuilder.getFragmentIdCount(),
+                                  txn_id, partition, v.frag_id,
+                                  v.input_dependency_id, v.output_dependency_id, v.stmt_index));
                     
                 } // FOR (frag_idx)
 

@@ -244,10 +244,20 @@ public class FastIntHistogram implements Histogram<Integer> {
         for (Integer v : values)
             this.put(v.intValue());
     }
+    public void put(int values[]) {
+        for (int idx : values) {
+            this.put(idx, 1);
+        } // FOR
+    }
     @Override
     public void put(Collection<Integer> values, long count) {
         for (Integer v : values)
             this.put(v.intValue(), count);
+    }
+    public void put(int values[], long count) {
+        for (int idx : values) {
+            this.put(idx, count);
+        } // FOR
     }
     @Override
     public void put(Histogram<Integer> other) {
