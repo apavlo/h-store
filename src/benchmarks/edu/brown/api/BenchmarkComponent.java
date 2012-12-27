@@ -332,7 +332,7 @@ public abstract class BenchmarkComponent {
     private final ObjectHistogram<String> m_tableTuples = new ObjectHistogram<String>();
     private final ObjectHistogram<String> m_tableBytes = new ObjectHistogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
-    protected final BenchmarkComponentResults m_txnStats;
+    protected final BenchmarkComponentResults m_txnStats = new BenchmarkComponentResults();
     
     /**
      * ClientResponse Entries
@@ -382,7 +382,6 @@ public abstract class BenchmarkComponent {
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
         m_tickInterval = -1;
         m_tickThread = null;
-        m_txnStats = null;
         m_responseEntries = null;
         m_tableStats = false;
         m_tableStatsDir = null;
@@ -658,7 +657,6 @@ public abstract class BenchmarkComponent {
 
         m_countDisplayNames = getTransactionDisplayNames();
         if (m_countDisplayNames != null) {
-            m_txnStats = new BenchmarkComponentResults(m_countDisplayNames.length);
             Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
             
             m_enableResponseEntries = (m_hstoreConf.client.output_full_csv != null);
@@ -675,7 +673,6 @@ public abstract class BenchmarkComponent {
             m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_status);
             
         } else {
-            m_txnStats = null;
             m_responseEntries = null;
         }
         
@@ -928,7 +925,7 @@ public abstract class BenchmarkComponent {
                     latencies = m_txnStats.latencies.get(txn_idx);
                     if (latencies == null) {
                         latencies = new ObjectHistogram<Integer>();
-                        m_txnStats.latencies.put(txn_idx, latencies);
+                        m_txnStats.latencies.put(txn_idx, (ObjectHistogram<Integer>)latencies);
                     }
                 } // SYNCH
             }

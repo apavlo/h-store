@@ -28,22 +28,22 @@ public class BenchmarkComponentResults implements JSONSerializable {
     /**
      * The number of txns executed base on ProcedureID
      */
-    public FastIntHistogram transactions;
+    public FastIntHistogram transactions = new FastIntHistogram(true);
     
     /**
      * The number of speculatively executed txns
      */
-    public FastIntHistogram specexecs;
+    public FastIntHistogram specexecs = new FastIntHistogram(true);
     
     /**
      * The number of distributed txns executed based on ProcedureId
      */
-    public FastIntHistogram dtxns;
+    public FastIntHistogram dtxns = new FastIntHistogram(true);
     
     /**
      * Transaction Name Index -> Latencies
      */
-    public final Map<Integer, Histogram<Integer>> latencies = new HashMap<Integer, Histogram<Integer>>();
+    public final Map<Integer, ObjectHistogram<Integer>> latencies = new HashMap<Integer, ObjectHistogram<Integer>>();
     
     public FastIntHistogram basePartitions = new FastIntHistogram(true);
     private boolean enableBasePartitions = false;
@@ -51,18 +51,15 @@ public class BenchmarkComponentResults implements JSONSerializable {
     public FastIntHistogram responseStatuses = new FastIntHistogram(true, Status.values().length);
     private boolean enableResponseStatuses = false;
 
+    /**
+     * Constructor
+     */
     public BenchmarkComponentResults() {
-        // Needed for deserialization
-    }
-    
-    public BenchmarkComponentResults(int numProcedures) {
-        this.transactions = new FastIntHistogram(true, numProcedures);
-        this.specexecs = new FastIntHistogram(true, numProcedures);
-        this.dtxns = new FastIntHistogram(true, numProcedures);
+        // Nothing to do...
     }
     
     public BenchmarkComponentResults copy() {
-        final BenchmarkComponentResults copy = new BenchmarkComponentResults(this.transactions.size());
+        final BenchmarkComponentResults copy = new BenchmarkComponentResults();
 
         assert(copy.transactions != null);
         copy.transactions.setDebugLabels(this.transactions.getDebugLabels());
@@ -77,8 +74,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.dtxns.put(this.dtxns);
         
         copy.latencies.clear();
-        for (Entry<Integer, Histogram<Integer>> e : this.latencies.entrySet()) {
-            Histogram<Integer> h = new ObjectHistogram<Integer>();
+        for (Entry<Integer, ObjectHistogram<Integer>> e : this.latencies.entrySet()) {
+            ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
             synchronized (e.getValue()) {
                 h.put(e.getValue());
             } // SYNCH

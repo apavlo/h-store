@@ -270,6 +270,9 @@ public abstract class ClassUtil {
     }
 
     /**
+     * Grab the constructor for the given target class with the provided input parameters.
+     * This method will first try to find an exact match for the parameters, and if that
+     * fails then it will be smart and try to find one with the input parameters super classes. 
      * @param <T>
      * @param target_class
      * @param params
@@ -292,8 +295,9 @@ public abstract class ClassUtil {
             LOG.debug("TARGET PARAMS: " + Arrays.toString(params));
         }
 
-        List<Class<?>> paramSuper[] = (List<Class<?>>[]) new List[params.length];
-        for (int i = 0; i < params.length; i++) {
+        final int num_params = (params != null ? params.length : 0);
+        List<Class<?>> paramSuper[] = (List<Class<?>>[]) new List[num_params];
+        for (int i = 0; i < num_params; i++) {
             paramSuper[i] = ClassUtil.getSuperClasses(params[i]);
             if (debug.get())
                 LOG.debug("  SUPER[" + params[i].getSimpleName() + "] => " + paramSuper[i]);
@@ -308,7 +312,7 @@ public abstract class ClassUtil {
             if (params.length != cTypes.length)
                 continue;
 
-            for (int i = 0; i < params.length; i++) {
+            for (int i = 0; i < num_params; i++) {
                 List<Class<?>> cSuper = ClassUtil.getSuperClasses(cTypes[i]);
                 if (debug.get())
                     LOG.debug("  SUPER[" + cTypes[i].getSimpleName() + "] => " + cSuper);

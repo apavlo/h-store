@@ -21,8 +21,9 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONUtil;
 
 /**
- * Fixed-size histogram that only stores integers
- * 
+ * Fixed-size histogram that only stores integers that are greater than zero.
+ * It uses a long array to maintain counts. It can automatically
+ * grow as you add new values that are greater than the size of the internal array.
  * @author pavlo
  */
 public class FastIntHistogram implements Histogram<Integer> {
@@ -35,6 +36,7 @@ public class FastIntHistogram implements Histogram<Integer> {
     }
 
     private static final int NULL_COUNT = -1;
+    private static final int GROW_INCREMENT = 10;
     
     private long histogram[];
     private int value_count = 0;
@@ -49,11 +51,11 @@ public class FastIntHistogram implements Histogram<Integer> {
     // ----------------------------------------------------------------------------
     
     public FastIntHistogram(boolean keepZeroEntries) {
-        this(keepZeroEntries, 10); // HACK
+        this(keepZeroEntries, GROW_INCREMENT); // HACK
     }
     
     public FastIntHistogram() {
-        this(false, 10); // HACK
+        this(false, GROW_INCREMENT); // HACK
     }
     
     public FastIntHistogram(int size) {
@@ -83,7 +85,7 @@ public class FastIntHistogram implements Histogram<Integer> {
     
     private void grow(int newSize) {
         assert(newSize >= this.histogram.length);
-        long temp[] = new long[newSize+10];
+        long temp[] = new long[newSize + GROW_INCREMENT];
         Arrays.fill(temp, this.histogram.length, temp.length, NULL_COUNT);
         System.arraycopy(this.histogram, 0, temp, 0, this.histogram.length);
         this.histogram = temp;
@@ -115,9 +117,13 @@ public class FastIntHistogram implements Histogram<Integer> {
      * You probably don't want this value and instead want getSampleCount()
      * @return
      */
-    public int size() {
+    protected int size() {
         return (this.histogram.length);
     }
+    /**
+     * Return an array of the values in this histogram
+     * @return
+     */
     public int[] fastValues() {
         int num_values = 0;
         for (int i = 0; i < this.histogram.length; i++) {
