@@ -99,10 +99,11 @@ public class TransactionIdManager {
      * @return The newly generated transaction id.
      */
     public Long getNextUniqueTransactionId() {
-        long currentTime = System.currentTimeMillis();
+        long currentTime = 0;
         long currentCounter = 0;
         
         synchronized (this) {
+            currentTime = System.currentTimeMillis();
             if (currentTime == this.lastUsedTime) {
                 // increment the counter for this millisecond
                 currentCounter = ++this.counterValue;
@@ -151,7 +152,9 @@ public class TransactionIdManager {
             }
         } // SYNCH
 
-        this.lastTxnId = new Long(makeIdFromComponents(currentTime + this.time_delta, currentCounter, this.initiatorId));
+        this.lastTxnId = new Long(makeIdFromComponents(currentTime + this.time_delta,
+                                  currentCounter,
+                                  this.initiatorId));
         return (this.lastTxnId);
     }
 
