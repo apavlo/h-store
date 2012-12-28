@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # ---------------------------------------------------------------------
 
@@ -16,7 +16,6 @@ ENABLE_ANTICACHE=false
 SITE_HOST="modis"
 
 CLIENT_HOSTS=( \
-    "modis" \
     "modis2" \
     "modis2" \
     "modis2" \
@@ -45,6 +44,7 @@ BASE_ARGS=( \
     "-Dsite.specexec_enable=false" \
     "-Dsite.queue_incoming_max_per_partition=2500" \
     "-Dsite.queue_incoming_increase_max=2000" \
+    "-Dsite.commandlog_enable=true" \
     
     # Client Params
     "-Dclient.scalefactor=1" \
@@ -85,7 +85,7 @@ done
 HOSTS_TO_BUILD=("$SITE_HOST")
 for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
     NEED_BUILD=1
-    for x in ${HOSTS_TO_BUILD[@]}; done
+    for x in ${HOSTS_TO_BUILD[@]}; do
         if [ "$CLIENT_HOST" = "$x" ]; then
             NEED_BUILD=0
             break
@@ -96,9 +96,10 @@ for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
     fi
 done
 for HOST in ${HOSTS_TO_BUILD[@]}; do
-    ssh $HOST "cd $BASE_DIR && ant compile" &
+    echo $HOST
+    ssh $HOST "cd $BASE_DIR && git pull && ant compile" &
 done
-join
+wait
 
 # ant compile
 # for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
@@ -120,7 +121,7 @@ for i in `seq 1 4`; do
     CLIENT_HOSTS_STR=""
     for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
         if [ $CLIENT_HOST != $SITE_HOST ]; then
-            scp -r ${BASE_PROJECT}.jar ${CLIENT_HOST}:${BASE_DIR}
+            scp -r ${BASE_PROJECT}.jar ${CLIENT_HOST}:${BASE_DIR} &
         fi
         CLIENT_COUNT=`expr $CLIENT_COUNT + 1`
         if [ ! -z "$CLIENT_HOSTS_STR" ]; then
@@ -128,6 +129,7 @@ for i in `seq 1 4`; do
         fi
         CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR}${CLIENT_HOST}"
     done
+    wait
     
     # EXECUTE BENCHMARK
     ant hstore-benchmark ${BASE_ARGS[@]} \
