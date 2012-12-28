@@ -644,7 +644,9 @@ public class BenchmarkController {
         // If one of them was started on the outside, let's just sleep for a 
         // few seconds to make sure that our clients can connect
         if (m_config.profileSiteIds.isEmpty() == false) {
-            ThreadUtil.sleep(5000);
+            int sleep = 5000;
+            LOG.info(String.format("Sleeping for %.1f seconds to let the profiler come online", sleep/1000)); 
+            ThreadUtil.sleep(sleep);
         }
         
         if (debug.get()) LOG.debug("All remote HStoreSites are initialized");

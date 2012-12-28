@@ -302,12 +302,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private final PartitionMessageQueue work_queue;
     
-    /**
-     * This is the queue for utility work that the PartitionExecutor can perform
-     * whenever it has some idle time.
-     */
-    // private final ConcurrentLinkedQueue<InternalMessage> utility_queue;
-
     // ----------------------------------------------------------------------------
     // Internal Execution State
     // ----------------------------------------------------------------------------
@@ -585,7 +579,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     protected PartitionExecutor() {
         this.catalogContext = null;
         this.work_queue = null;
-//        this.utility_queue = null;
         this.ee = null;
         this.hsql = null;
         this.specExecChecker = null;
@@ -716,9 +709,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Initialize temporary data structures
         int num_sites = this.catalogContext.numberOfSites;
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
-        
-        // Utility Work Queue
-//        this.utility_queue = new ConcurrentLinkedQueue<InternalMessage>();
     }
     
     protected void initializeVoltProcedures() {
@@ -826,13 +816,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
     @Override
     public void updateConf(HStoreConf hstore_conf) {
-        // ThrottlingQueue
-//        this.work_queue.setQueueMax(hstore_conf.site.queue_incoming_max_per_partition);
-//        this.work_queue.setQueueReleaseFactor(hstore_conf.site.queue_incoming_release_factor);
-//        this.work_queue.setQueueIncrease(hstore_conf.site.queue_incoming_increase);
-//        this.work_queue.setQueueIncreaseMax(hstore_conf.site.queue_incoming_increase_max);
-//        this.work_queue.checkThrottling(false);
-        
         // SpecExecScheduler
         this.specExecScheduler.setIgnoreAllLocal(hstore_conf.site.specexec_ignore_all_local);
     }

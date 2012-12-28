@@ -1,4 +1,5 @@
 package org.voltdb;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,7 +13,6 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
-import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.special.CountedStatement;

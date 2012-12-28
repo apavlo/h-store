@@ -174,8 +174,8 @@ public final class HStoreConf {
                         "other PartitionExecutors) will be allowed to execute on that core. This configuration " +
                         "option is mostly used for debugging and is unlikely to provide any speed improvement " +
                         "because the operating system will automatically maintain CPU affinity.",
-            defaultBoolean=false,
-            experimental=true
+            defaultBoolean=true,
+            experimental=false
         )
         public boolean cpu_affinity_one_partition_per_core;
         
