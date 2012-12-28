@@ -34,6 +34,13 @@ public class HStoreThreadManager {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    public enum ThreadGroupType {
+        PROCESSING,
+        EXECUTION,
+        AUXILIARY
+    };
+    
+    
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -50,6 +57,8 @@ public class HStoreThreadManager {
     private final Set<Thread> all_threads = new HashSet<Thread>();
     private final Map<Integer, Set<Thread>> cpu_threads = new HashMap<Integer, Set<Thread>>();
     private final int ee_core_offset;
+    
+    private final Map<ThreadGroupType, ThreadGroup> threadGroups = new HashMap<ThreadGroupType, ThreadGroup>();
     
     private final Map<String, boolean[]> utilityAffinities = new HashMap<String, boolean[]>();
     private final String utility_suffixes[] = {
@@ -134,6 +143,16 @@ public class HStoreThreadManager {
             }
             if (debug.val) LOG.debug("Default CPU Affinity: " + Arrays.toString(this.defaultAffinity));
         }
+    }
+    
+    public synchronized ThreadGroup getThreadGroup(ThreadGroupType type) {
+        ThreadGroup group = this.threadGroups.get(type);
+        if (group == null) {
+            String name = StringUtil.title(type.name()) + " Threads";
+            group = new ThreadGroup(name);
+            this.threadGroups.put(type, group);
+        }
+        return (group);
     }
     
     // ----------------------------------------------------------------------------

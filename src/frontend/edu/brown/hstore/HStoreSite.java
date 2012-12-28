@@ -83,6 +83,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.ClientInterface.ClientInputHandler;
+import edu.brown.hstore.HStoreThreadManager.ThreadGroupType;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -1061,7 +1062,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     protected HStoreSite init() {
         if (debug.val) LOG.debug("Initializing HStoreSite " + this.getSiteName());
-
         this.hstore_coordinator = this.initHStoreCoordinator();
         
         // First we need to tell the HStoreCoordinator to start-up and initialize its connections
@@ -1088,7 +1088,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TransactionPreProcessors
         if (this.preProcessors != null) {
             for (TransactionPreProcessor tpp : this.preProcessors) {
-                t = new Thread(tpp);
+                t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.PROCESSING), tpp); 
                 t.setDaemon(true);
                 t.setUncaughtExceptionHandler(this.exceptionHandler);
                 t.start();    
@@ -1097,7 +1097,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TransactionPostProcessors
         if (this.postProcessors != null) {
             for (TransactionPostProcessor tpp : this.postProcessors) {
-                t = new Thread(tpp);
+                t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.PROCESSING), tpp);
                 t.setDaemon(true);
                 t.setUncaughtExceptionHandler(this.exceptionHandler);
                 t.start();    
@@ -1105,13 +1105,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Then we need to start all of the PartitionExecutor in threads
-        if (debug.val) LOG.debug(String.format("Starting PartitionExecutor threads for %s partitions on %s",
-                         this.local_partitions.size(), this.getSiteName()));
+        if (debug.val)
+            LOG.debug(String.format("Starting PartitionExecutor threads for %s partitions on %s",
+                      this.local_partitions.size(), this.getSiteName()));
         for (int partition : this.local_partitions.values()) {
             PartitionExecutor executor = this.getPartitionExecutor(partition);
             executor.initHStoreSite(this);
             
-            t = new Thread(executor);
+            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.EXECUTION), executor);
             t.setDaemon(true);
             t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
             t.setUncaughtExceptionHandler(this.exceptionHandler);
