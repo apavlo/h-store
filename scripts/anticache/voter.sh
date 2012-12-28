@@ -82,21 +82,20 @@ for t in ${EVICTABLE_TABLES[@]}; do
 done
 
 # Compile
-HOSTS_TO_BUILD=("$SITE_HOST")
+HOSTS_TO_UPDATE=("$SITE_HOST")
 for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
-    NEED_BUILD=1
-    for x in ${HOSTS_TO_BUILD[@]}; do
+    NEED_UPDATE=1
+    for x in ${HOSTS_TO_UPDATE[@]}; do
         if [ "$CLIENT_HOST" = "$x" ]; then
-            NEED_BUILD=0
+            NEED_UPDATE=0
             break
         fi
     done
-    if [ $NEED_BUILD = 1 ]; then
-        HOSTS_TO_BUILD+=("$CLIENT_HOST")
+    if [ $NEED_UPDATE = 1 ]; then
+        HOSTS_TO_UPDATE+=("$CLIENT_HOST")
     fi
 done
-for HOST in ${HOSTS_TO_BUILD[@]}; do
-    echo $HOST
+for HOST in ${HOSTS_TO_UPDATE[@]}; do
     ssh $HOST "cd $BASE_DIR && git pull && ant compile" &
 done
 wait
@@ -120,14 +119,18 @@ for i in `seq 1 4`; do
     CLIENT_COUNT=0
     CLIENT_HOSTS_STR=""
     for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
-        if [ $CLIENT_HOST != $SITE_HOST ]; then
-            scp -r ${BASE_PROJECT}.jar ${CLIENT_HOST}:${BASE_DIR} &
-        fi
         CLIENT_COUNT=`expr $CLIENT_COUNT + 1`
         if [ ! -z "$CLIENT_HOSTS_STR" ]; then
             CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR},"
         fi
         CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR}${CLIENT_HOST}"
+    done
+    
+    # DISTRIBUTE PROJECT JAR
+    for HOST in ${HOSTS_TO_UPDATE[@]}; do
+        if [ "$HOST" != $(hostname) ]; then
+            scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
+        fi
     done
     wait
     
