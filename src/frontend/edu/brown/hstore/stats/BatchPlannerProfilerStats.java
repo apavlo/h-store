@@ -63,6 +63,7 @@ public class BatchPlannerProfilerStats extends StatsSource {
     protected void populateColumnSchema(ArrayList<ColumnInfo> columns) {
         super.populateColumnSchema(columns);
         columns.add(new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING));
+        columns.add(new VoltTable.ColumnInfo("NUM_PLANNERS", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("TRANSACTIONS", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("CACHED", VoltType.BIGINT));
         
@@ -85,7 +86,8 @@ public class BatchPlannerProfilerStats extends StatsSource {
         ProfileMeasurement totalPMs[] = total.getProfileMeasurements();
         
         // Find all of the BatchPlanners for each partition for our target procedure
-        for (BatchPlanner planner : this.getBatchPlanners(proc)) {
+        Collection<BatchPlanner> planners = this.getBatchPlanners(proc);
+        for (BatchPlanner planner : planners) {
             BatchPlannerProfiler profiler = planner.getDebugContext().getProfiler();
             if (profiler == null) continue;
             
@@ -97,10 +99,19 @@ public class BatchPlannerProfilerStats extends StatsSource {
             
             total.transactions.addAndGet(profiler.transactions.get());
             total.cached.addAndGet(profiler.cached.get());
+            
+            if (debug.val)
+                LOG.debug(String.format("%s/%s -> Txns:%d Cached:%d",
+                         planner.getClass().getSimpleName(), planner.getProcedure().getName(),
+                         profiler.transactions.get(), profiler.cached.get())); 
         } // FOR
+        if (debug.val)
+            LOG.debug(String.format("TOTAL -> Txns:%d Cached:%d",
+                     total.transactions.get(), total.cached.get()));
         
         int offset = this.columnNameToIndex.get("PROCEDURE");
         rowValues[offset++] = proc.getName();
+        rowValues[offset++] = planners.size();
         rowValues[offset++] = total.transactions.get();
         rowValues[offset++] = total.cached.get();
         for (ProfileMeasurement pm : totalPMs) {

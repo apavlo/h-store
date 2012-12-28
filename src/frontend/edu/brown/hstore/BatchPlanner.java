@@ -489,7 +489,7 @@ public class BatchPlanner {
             if (this.enable_caching) {
                 this.cache_fastLookups[i] = p_estimator.getStatementEstimationParameters(this.catalog_stmts[i]);
                 if (trace.val) 
-                    LOG.trace(String.format("INIT[%d] %s Cached Fast-Lookup at Offset %d: %s",
+                    LOG.trace(String.format("INIT[%d] %s Cached Fast-Lookup: %s",
                               i, this.catalog_stmts[i].fullName(), Arrays.toString(this.cache_fastLookups[i])));
             }
         } // FOR
@@ -597,6 +597,7 @@ public class BatchPlanner {
                             if (debug.val)
                                 LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s but stmt is replicated + read-only.",
                                           txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
+                            cache_isSinglePartition[stmt_index] = true;
                         }
                         else {
                             if (debug.val)
