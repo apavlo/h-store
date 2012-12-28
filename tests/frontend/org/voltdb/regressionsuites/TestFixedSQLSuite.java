@@ -42,6 +42,8 @@ import org.voltdb.regressionsuites.fixedsql.Insert;
 
 public class TestFixedSQLSuite extends RegressionSuite {
 
+    private static final String PREFIX = "fixed";
+    
     /** Procedures used by this suite */
     @SuppressWarnings("unchecked")
     static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
@@ -950,25 +952,33 @@ public class TestFixedSQLSuite extends RegressionSuite {
         project.addStmtProcedure("Ticket309P2", "select count(*), P2.NUM from P2 group by P2.NUM");
         project.addStmtProcedure("Ticket309R2", "select count(*), R2.NUM from R2 group by R2.NUM");
         
+        boolean success;
+        
         //project.addStmtProcedure("Eng490Select", "SELECT A.ASSET_ID, A.OBJECT_DETAIL_ID,  OD.OBJECT_DETAIL_ID FROM ASSET A, OBJECT_DETAIL OD WHERE A.OBJECT_DETAIL_ID = OD.OBJECT_DETAIL_ID;");
 
-        // CONFIG #1: Local Site/Partitions running on IPC backend
-        // config = new LocalSingleProcessServer("sqltypes-onesite.jar", 1, BackendTarget.NATIVE_EE_IPC);
-        // config.compile(project);
-        // builder.addServerConfig(config);
-
-        // JNI
-        config = new LocalSingleProcessServer("fixedsql-onesite.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        config.compile(project);
+        /////////////////////////////////////////////////////////////
+        // CONFIG #1: 1 Local Site/Partition running on JNI backend
+        /////////////////////////////////////////////////////////////
+//        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
         builder.addServerConfig(config);
 
-
-        // CLUSTER!
-
-//        config = new LocalCluster("fixedsql-cluster.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
-//        config.compile(project);
+        ////////////////////////////////////////////////////////////
+        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+//        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
 //        builder.addServerConfig(config);
-
 
         return builder;
     }

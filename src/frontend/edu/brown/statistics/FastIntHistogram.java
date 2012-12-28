@@ -286,7 +286,10 @@ public class FastIntHistogram implements Histogram<Integer> {
             this.put((FastIntHistogram)other);
         } else {
             for (Integer v : other.values()) {
-                this.put(v.intValue(), other.get(v, NULL_COUNT));
+                Long cnt = other.get(v);
+                if (cnt != null) {
+                    this.put(v.intValue(), cnt.longValue());
+                }
             } // FOR
         }
     }
@@ -375,15 +378,19 @@ public class FastIntHistogram implements Histogram<Integer> {
     
     @Override
     public void clear() {
-        for (int i = 0; i < this.histogram.length; i++) {
-            this.histogram[i] = 0;
-        } // FOR
+        Arrays.fill(this.histogram, NULL_COUNT);
+        this.value_count = 0;
         this.num_samples = 0;
     }
     @Override
     public void clearValues() {
-        Arrays.fill(this.histogram, NULL_COUNT);
-        this.value_count = 0;
+        if (this.keep_zero_entries) {
+            for (int i = 0; i < this.histogram.length; i++) {
+                this.histogram[i] = 0;
+            } // FOR
+        } else {
+            this.clear();
+        }
         this.num_samples = 0;
     }
     @Override

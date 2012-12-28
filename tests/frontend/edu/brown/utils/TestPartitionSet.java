@@ -53,6 +53,29 @@ public class TestPartitionSet extends TestCase {
     }
     
     /**
+     * testValues2
+     */
+    public void testValues2() {
+        assertTrue(pset.isEmpty());
+        for (int i = 0; i < 2; i++) {
+            pset.add(i);
+        } // FOR
+        assertFalse(pset.isEmpty());
+        assertEquals(2, pset.size());
+        
+        int values[] = pset.values();
+        assertEquals(pset.size(), values.length);
+        for (int partition : values) {
+            assertFalse(Integer.toString(partition), set.contains(partition));
+            
+            set.add(partition);
+            assertTrue(Integer.toString(partition), set.contains(partition));
+            assertTrue(Integer.toString(partition), pset.contains(partition));
+        } // FOR
+        assertEquals(set.size(), pset.size());
+    }
+    
+    /**
      * testToString
      */
     public void testToString() {

@@ -59,7 +59,6 @@ import edu.brown.profilers.BatchPlannerProfiler;
 import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.Histogram;
-import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -722,8 +721,9 @@ public class BatchPlanner {
             // Otherwise figure out whether the query can execute as
             // single-partitioned or not
             else {
-                if (debug.val) LOG.debug(String.format("[#%d-%02d] Computing touched partitions %s in txn #%d", txn_id,
-                                         stmt_index, catalog_stmt.fullName(), txn_id));
+                if (debug.val)
+                    LOG.debug(String.format("[#%d-%02d] Computing touched partitions %s in txn #%d", txn_id,
+                              stmt_index, catalog_stmt.fullName(), txn_id));
 
                 if (plan.stmt_partitions_swap[stmt_index] != null) {
                     stmt_all_partitions = plan.stmt_partitions[stmt_index] = plan.stmt_partitions_swap[stmt_index];
@@ -857,7 +857,7 @@ public class BatchPlanner {
                 // partitions from the previous queries
                 int start_idx = stmt_index;
                 if (mispredict_h == null) {
-                    mispredict_h = new ObjectHistogram<Integer>();
+                    mispredict_h = new FastIntHistogram();
                     start_idx = 0;
                 }
                 for (int i = start_idx; i <= stmt_index; i++) {
@@ -941,6 +941,10 @@ public class BatchPlanner {
         // at the plan first
         if (mispredict_h != null) {
             plan.mispredict = new MispredictionException(txn_id, mispredict_h);
+            if (debug.val)
+                LOG.warn(String.format("Created %s for txn #%d\n%s\n%s\n%s",
+                         plan.mispredict.getClass().getSimpleName(), txn_id,
+                         plan.mispredict.getPartitions()));
         }
         // If this a single-partition plan and we have caching enabled, we'll
         // add this to our cached listing. We'll mark it as cached so that it is never

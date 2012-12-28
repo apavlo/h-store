@@ -76,7 +76,6 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.FastIntHistogram;
-import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 

@@ -1371,7 +1371,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             StringBuilder sb = new StringBuilder();
             int i = 0;
             for (String txn : this.deletable_last) {
-                sb.append(String.format(" [%02d]%s\n", i++, txn));
+                sb.append(String.format(" [%02d] %s\n", i++, txn));
                 // sb.append(String.format(" [%02d]\n%s\n", i++, StringUtil.prefix(txn, "  | ")));
             }
             LOG.info("Last Deleted Transactions:\n" + sb + "\n\n");
@@ -2094,9 +2094,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public Status transactionRestart(LocalTransaction orig_ts, Status status) {
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
-        if (debug.val) LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute " +
-                         "[restarts=%d]",
-                         orig_ts , status, orig_ts.getRestartCounter()));
+        if (debug.val)
+            LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute " +
+                      "[restarts=%d]",
+                      orig_ts , status, orig_ts.getRestartCounter()));
         int base_partition = orig_ts.getBasePartition();
         SerializableException orig_error = orig_ts.getPendingError();
         
@@ -2131,8 +2132,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // XXX: We should probably decrement the base partition by one 
             //      so that we only consider where they actually executed queries
-            if (debug.val) LOG.debug(String.format("Touched partitions for mispredicted %s%s",
-                                           orig_ts, (trace.val ? "\n"+touched : " " + touched.values())));
+            if (debug.val)
+                LOG.debug(String.format("Touched partitions for mispredicted %s\n%s",
+                          orig_ts, touched));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
                 redirect_partition = CollectionUtil.first(most_touched);
@@ -2159,8 +2161,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
             // That's what you get for messing up!!
             if (this.isLocalPartition(redirect_partition.intValue()) == false && orig_ts.getRestartCounter() == 0) {
-                if (debug.val) LOG.debug(String.format("%s - Redirecting to partition %d because of misprediction",
-                                 orig_ts, redirect_partition));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Redirecting to partition %d because of misprediction",
+                              orig_ts, redirect_partition));
                 
                 Procedure catalog_proc = orig_ts.getProcedure();
                 StoredProcedureInvocation spi = new StoredProcedureInvocation(orig_ts.getClientHandle(),
@@ -2197,15 +2200,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else if (orig_ts.getRestartCounter() <= 1) {
                 if (redirect_partition.intValue() != base_partition &&
                     this.isLocalPartition(redirect_partition.intValue())) {
-                    if (debug.val) LOG.debug(String.format("%s - Redirecting to local partition %d [restartCtr=%d]%s",
-                                                    orig_ts, redirect_partition, orig_ts.getRestartCounter(),
-                                                    (trace.val ? "\n"+touched : "")));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Redirecting to local partition %d [restartCtr=%d]%s",
+                                  orig_ts, redirect_partition, orig_ts.getRestartCounter(),
+                                  (trace.val ? "\n"+touched : "")));
                     base_partition = redirect_partition.intValue();
                 }
             } else {
-                if (debug.val) LOG.debug(String.format("%s - Mispredicted txn has already been aborted once before. " +
-                                 "Restarting as all-partition txn [restartCtr=%d, redirectPartition=%d]\n%s",
-                                 orig_ts, orig_ts.getRestartCounter(), redirect_partition, touched));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Mispredicted txn has already been aborted once before. " +
+                              "Restarting as all-partition txn [restartCtr=%d, redirectPartition=%d]\n%s",
+                              orig_ts, orig_ts.getRestartCounter(), redirect_partition, touched));
                 touched.put(this.local_partitions);
             }
         }
@@ -2264,7 +2269,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 predict_touchedPartitions.addAll(partitions);
             }
-            if (trace.val) LOG.trace(orig_ts + " Mispredicted Partitions: " + partitions);
+            if (debug.val)
+                LOG.trace(orig_ts + " Mispredicted Partitions: " + partitions);
         }
         
         if (predict_touchedPartitions.contains(base_partition) == false) {
@@ -2387,8 +2393,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void responseQueue(LocalTransaction ts, ClientResponseImpl cr) {
         assert(hstore_conf.site.exec_postprocessing_threads);
-        if (debug.val) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
-                         ts, ts.getBasePartition(), cr.getStatus(), this.postProcessorQueue.size()));
+        if (debug.val)
+            LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
+                      ts, ts.getBasePartition(), cr.getStatus(), this.postProcessorQueue.size()));
         this.postProcessorQueue.add(Pair.of(ts,cr));
     }
 
@@ -2432,11 +2439,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (debug.val) LOG.debug(String.format("Txn %s - Sending back ClientResponse [status=%s%s]",
-                         (cresponse.getTransactionId() == -1 ? "<NONE>" : "#"+cresponse.getTransactionId()),
-                         status,
-                         (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null ?
-                                 "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
+        if (debug.val)
+            LOG.debug(String.format("Txn %s - Sending back ClientResponse [status=%s%s]",
+                      (cresponse.getTransactionId() == -1 ? "<NONE>" : "#"+cresponse.getTransactionId()),
+                      status,
+                      (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null ?
+                      "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
         
         long now = -1;
         if (hstore_conf.global.nanosecond_latencies) {
@@ -2453,7 +2461,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // There is nothing else we can really do here. We'll clean up
             // the transaction just as normal and report the error
             // in our logs if they have debugging turned on
-            if (trace.val) LOG.warn("Failed to send back ClientResponse for txn #" + cresponse.getTransactionId(), ex);
+            if (trace.val)
+                LOG.warn("Failed to send back ClientResponse for txn #" + cresponse.getTransactionId(), ex);
         }
     }
     
@@ -2470,7 +2479,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void queueDeleteTransaction(Long txn_id, Status status) {
         assert(txn_id != null) : "Unexpected null transaction id";
-        if (trace.val) LOG.trace(String.format("Queueing txn #%d for deletion [status=%s]", txn_id, status));
+        if (trace.val)
+            LOG.trace(String.format("Queueing txn #%d for deletion [status=%s]", txn_id, status));
         
         // Update Transaction profiler
         // We want to call this before we queue it so that the post-finish time is more accurate

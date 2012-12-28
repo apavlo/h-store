@@ -116,6 +116,34 @@ public class TestFastIntHistogram extends BaseTestCase {
     }
     
     /**
+     * testToString
+     */
+    public void testToString() {
+        int size = 20;
+        FastIntHistogram fast_h = new FastIntHistogram();
+        for (int i = 0; i < size; i++)
+            fast_h.put(i);
+        for (int i = 0; i < size; i++)
+            fast_h.dec(i);
+        
+        String str = fast_h.toString();
+        assertEquals("<EMPTY>", str.toUpperCase());
+    }
+    
+    /**
+     * testToStringAfterClear
+     */
+    public void testToStringAfterClear() {
+        int size = 20;
+        FastIntHistogram fast_h = new FastIntHistogram();
+        for (int i = 0; i < size; i++)
+            fast_h.put(i, 100);
+        fast_h.clear();
+        String str = fast_h.toString();
+        assertEquals("<EMPTY>", str.toUpperCase());
+    }
+    
+    /**
      * testKeepZeroEntries
      */
     public void testKeepZeroEntries() {
