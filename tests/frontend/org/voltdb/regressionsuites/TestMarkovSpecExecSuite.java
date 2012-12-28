@@ -90,7 +90,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         
         ClientResponseDebug crDebug = cr.getDebug();
         assertFalse(crDebug.toString(), crDebug.isPredictSinglePartition());
-        assertFalse(crDebug.toString(), crDebug.isSpeculative());
+        assertFalse(cr.toString(), cr.isSpeculative());
         assertEquals(crDebug.toString(), crDebug.getPredictTouchedPartitions(), crDebug.getExecTouchedPartitions());
         assertEquals(crDebug.toString(), crDebug.getPredictTouchedPartitions(), crDebug.getExecTouchedPartitions());
         
@@ -137,7 +137,6 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         int w_id = 1;
         int d_id = 1;
         ClientResponse cresponse = null;
-        ClientResponseDebug crDebug = null;
         String procName = null;
         Object params[] = null;
         
@@ -195,7 +194,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         assertNotNull(cresponse);
         assertFalse(cresponse.isSinglePartition());
         assertTrue(cresponse.hasDebug());
-        assertFalse(cresponse.getDebug().isSpeculative());
+        assertFalse(cresponse.isSpeculative());
         
         // Spin and wait for the single-p txns to finish
         while (spLatch.get() > 0) {
@@ -212,9 +211,8 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         Histogram<Boolean> specExecHistogram = new ObjectHistogram<Boolean>(); 
         for (ClientResponse cr : spResponse) {
             assertTrue(cr.hasDebug());
-            crDebug = cr.getDebug();
-            specExecHistogram.put(crDebug.isSpeculative());
-            if (crDebug.isSpeculative()) {
+            specExecHistogram.put(cr.isSpeculative());
+            if (cr.isSpeculative()) {
                 if (first_spec == false) {
                     first_spec = true;
                 }

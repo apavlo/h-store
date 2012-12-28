@@ -169,6 +169,12 @@ public class MockVoltClient implements Client {
                 // TODO Auto-generated method stub
                 
             }
+            
+            @Override
+            public boolean isSpeculative() {
+                // TODO Auto-generated method stub
+                return false;
+            }
 
             @Override
             public boolean hasDebug() {

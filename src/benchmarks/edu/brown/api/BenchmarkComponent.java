@@ -909,7 +909,7 @@ public abstract class BenchmarkComponent {
         if (status == Status.OK || status == Status.ABORT_USER) {
             
             // TRANSACTION COUNTERS
-            boolean is_specexec = (cresponse.hasDebug() && cresponse.getDebug().isSpeculative()); 
+            boolean is_specexec = cresponse.isSpeculative(); 
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.put(txn_idx);
                 if (cresponse.isSinglePartition() == false) {

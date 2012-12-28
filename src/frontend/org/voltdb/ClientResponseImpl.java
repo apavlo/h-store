@@ -26,6 +26,7 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.types.SpeculationType;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -54,6 +55,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private boolean singlepartition = true;
     private int basePartition = -1;
     private int restartCounter = 0;
+    private SpeculationType speculative = SpeculationType.NULL;
     private ClientResponseDebug debug = null;
 
     /** opaque data optionally provided by and returned to the client */
@@ -117,6 +119,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.appStatusString = appStatusString;
         this.restartCounter = ts.getRestartCounter();
         this.singlepartition = ts.isPredictSinglePartition();
+        this.speculative = ts.getSpeculativeType();
         this.setResults(status, results, statusString, e);
     }
     
@@ -250,6 +253,11 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void setRestartCounter(int restarts) {
         restartCounter = restarts;
     }
+
+    @Override
+    public boolean isSpeculative() {
+        return (this.speculative != SpeculationType.NULL);
+    }
     
     // ----------------------------------------------------------------------------
     // SPECIAL DEBUG HANDLE
@@ -274,12 +282,13 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//Skip version byte   // 1 byte
-        restartCounter = in.readByte();     // 1 byte
-        txn_id = in.readLong();             // 8 bytes
-        clientHandle = in.readLong();       // 8 bytes
-        singlepartition = in.readBoolean(); // 1 byte
-        basePartition = in.readInt();       // 4 bytes
-        status = Status.valueOf(in.readByte()); // 1 byte
+        this.restartCounter = in.readByte();     // 1 byte
+        this.txn_id = in.readLong();             // 8 bytes
+        this.clientHandle = in.readLong();       // 8 bytes
+        this.singlepartition = in.readBoolean(); // 1 byte
+        this.basePartition = in.readInt();       // 4 bytes
+        this.speculative = SpeculationType.get(in.readByte()); // 1 byte
+        this.status = Status.valueOf(in.readByte()); // 1 byte
         
         byte presentFields = in.readByte(); // 1 byte
         if ((presentFields & (1 << 5)) != 0) {
@@ -312,12 +321,13 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void writeExternal(FastSerializer out) throws IOException {
         assert setProperly;
         out.writeByte(0);//version
-        out.writeByte(restartCounter);
-        out.writeLong(txn_id);
-        out.writeLong(clientHandle);
-        out.writeBoolean(singlepartition);
-        out.writeInt(basePartition);
-        out.write((byte)status.ordinal());
+        out.writeByte(this.restartCounter);
+        out.writeLong(this.txn_id);
+        out.writeLong(this.clientHandle);
+        out.writeBoolean(this.singlepartition);
+        out.writeInt(this.basePartition);
+        out.write((byte)this.speculative.ordinal());
+        out.write((byte)this.status.ordinal());
         
         byte presentFields = 0;
         if (appStatusString != null) {
@@ -361,6 +371,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         m.put("Handle", this.clientHandle);
         m.put("Restart Counter", this.restartCounter);
         m.put("Single-Partition", this.singlepartition);
+        m.put("Speculative Execution", this.speculative);
         m.put("Base Partition", this.basePartition);
         m.put("Exception", m_exception);
         
@@ -418,7 +429,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Status status) {
-        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 = 23
+        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 1 + 4 = 24
     }
     
     // ----------------------------------------------------------------------------

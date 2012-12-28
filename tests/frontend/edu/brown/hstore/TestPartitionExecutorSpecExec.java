@@ -222,11 +222,11 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
             assertNotNull(cr);
             assertEquals(cr.toString(), status, cr.getStatus());
             assertTrue(cr.toString(), cr.isSinglePartition());
+            assertEquals(cr.getTransactionId() + " - SPECULATIVE", speculative, cr.isSpeculative());
             assertTrue(cr.toString(), cr.hasDebug());
             
             ClientResponseDebug crDebug = cr.getDebug();
             assertNotNull(crDebug);
-            assertEquals(cr.getTransactionId() + " - SPECULATIVE", speculative, crDebug.isSpeculative());
             if (restarts != null) {
                 assertEquals(cr.getTransactionId() + " - RESTARTS", restarts.intValue(), cr.getRestartCounter());
             }

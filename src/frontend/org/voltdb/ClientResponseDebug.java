@@ -79,7 +79,6 @@ public class ClientResponseDebug implements FastSerializable {
     private boolean predict_readOnly;
     private final PartitionSet predict_touchedPartitions = new PartitionSet();
     
-    private SpeculationType speculative = SpeculationType.NULL;
     private boolean prefetched = false;
     private final PartitionSet exec_touchedPartitions = new PartitionSet();
     
@@ -98,7 +97,6 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_abortable = ts.isPredictAbortable();
         this.predict_readOnly = ts.isPredictReadOnly();
         this.predict_touchedPartitions.addAll(ts.getPredictTouchedPartitions());
-        this.speculative = ts.getSpeculativeType();
         this.prefetched = ts.hasPrefetchQueries();
         this.exec_touchedPartitions.addAll(ts.getTouchedPartitions().values());
         
@@ -165,10 +163,6 @@ public class ClientResponseDebug implements FastSerializable {
         return (result);
     }
     
-    public boolean isSpeculative() {
-        return (this.speculative != SpeculationType.NULL);
-    }
-    
     /**
      * Returns true if this transaction was executed with prefetched queries.
      * @return
@@ -189,7 +183,6 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_readOnly = in.readBoolean();
         this.predict_touchedPartitions.readExternal(in);
         this.prefetched = in.readBoolean();
-        this.speculative = SpeculationType.get(in.readShort());
         this.exec_touchedPartitions.readExternal(in);
         
         // QUERY ESTIMATES
@@ -213,7 +206,6 @@ public class ClientResponseDebug implements FastSerializable {
         out.writeBoolean(this.predict_readOnly);
         this.predict_touchedPartitions.writeExternal(out);
         out.writeBoolean(this.prefetched);
-        out.writeShort(this.speculative.ordinal());
         this.exec_touchedPartitions.writeExternal(out);
         
         // QUERY ESTIMATES
@@ -238,7 +230,6 @@ public class ClientResponseDebug implements FastSerializable {
         m.put("Predict Read Only", this.predict_readOnly);
         m.put("Predict Abortable", this.predict_abortable);
         m.put("Had Prefetched Queries", this.prefetched);
-        m.put("Speculative Execution", this.speculative);
         m.put("Remote Query Estimates", this.remote_estimates);
         maps.add(m);
         

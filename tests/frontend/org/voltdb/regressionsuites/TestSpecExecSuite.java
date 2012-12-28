@@ -93,14 +93,14 @@ public class TestSpecExecSuite extends RegressionSuite {
         assertEquals(Status.OK, dtxnResponse[0].getStatus());
         assertTrue(dtxnResponse[0].hasDebug());
         assertFalse(dtxnResponse[0].isSinglePartition());
-        assertFalse(dtxnResponse[0].getDebug().isSpeculative());
+        assertFalse(dtxnResponse[0].isSpeculative());
         
         // And the SP results. Where is your god now?
         assertNotNull(spResponse[0]);
         assertEquals(Status.OK, spResponse[0].getStatus());
         assertTrue(spResponse[0].hasDebug());
         assertTrue(spResponse[0].isSinglePartition());
-        assertFalse(spResponse[0].getDebug().isSpeculative());
+        assertFalse(spResponse[0].isSpeculative());
         
         // SANITY CHECK
         // We should have exaclty two different MSC_LOCATION values
@@ -165,10 +165,10 @@ public class TestSpecExecSuite extends RegressionSuite {
             long elapsed = System.currentTimeMillis() - start;
             assert(elapsed <= sleepTime*1.25);
             if (elapsed < sleepTime/2) {
-                assertEquals(cresponse.toString(), latch.get(), cresponse.getDebug().isSpeculative());
+                assertEquals(cresponse.toString(), latch.get(), cresponse.isSpeculative());
                 System.err.println(cresponse.getDebug());
             }
-            if (cresponse.getDebug().isSpeculative()) specexec_ctr++;
+            if (cresponse.isSpeculative()) specexec_ctr++;
         } // WHILE 
         assert(specexec_ctr > 0);
 
@@ -176,7 +176,7 @@ public class TestSpecExecSuite extends RegressionSuite {
         assertNotNull(cresponse);
         assertTrue(cresponse.hasDebug());
         assertFalse(cresponse.isSinglePartition());
-        assertFalse(cresponse.getDebug().isSpeculative());
+        assertFalse(cresponse.isSpeculative());
     }
 
     public static Test suite() {
