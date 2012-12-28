@@ -37,7 +37,7 @@ public class TransactionPrepareWrapperCallback extends AbstractTransactionCallba
         assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         this.partitions = partitions;
@@ -62,7 +62,7 @@ public class TransactionPrepareWrapperCallback extends AbstractTransactionCallba
     
     @Override
     protected synchronized void unblockTransactionCallback() {
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(String.format("%s - Sending %s to %s with status %s",
                                     this.ts,
                                     TransactionPrepareResponse.class.getSimpleName(),
@@ -81,7 +81,7 @@ public class TransactionPrepareWrapperCallback extends AbstractTransactionCallba
     
     @Override
     protected boolean abortTransactionCallback(Status status) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("%s - Aborting %s with status %s",
                       this.ts, this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
@@ -96,7 +96,7 @@ public class TransactionPrepareWrapperCallback extends AbstractTransactionCallba
     
     @Override
     protected synchronized int runImpl(Integer partition) {
-        if (debug.get()) LOG.debug(String.format("%s - Adding partition %d", this.ts, partition));
+        if (debug.val) LOG.debug(String.format("%s - Adding partition %d", this.ts, partition));
         assert(this.partitions.contains(partition));
         if (this.isAborted() == false && this.builder != null)
             this.builder.addPartitions(partition.intValue());

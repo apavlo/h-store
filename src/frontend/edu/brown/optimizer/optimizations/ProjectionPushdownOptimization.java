@@ -55,7 +55,7 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
                 // ---------------------------------------------------
                 if (element.getChildPlanNodeCount() == 0 && element instanceof AbstractScanPlanNode) {
                     if (element.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("SKIP - " + element + " already has an inline ProjectionPlanNode");
                     } else {
                         try {
@@ -101,7 +101,7 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
         // Look at the output columns of the given AbstractPlanNode and figure out
         // which of those columns we're going to need up above in the tree
         Set<PlanColumn> referenced = PlanOptimizerUtil.extractReferencedColumns(state, node);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("All referenced columns above %s:\n%s", node, StringUtil.join("\n", referenced)));
 
         // Look over the PlanColumns that we need above us, and add the ones that
@@ -134,7 +134,7 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
             // Only create the projection if the number of columns we need to
             // output is less then the total number of columns for the table
             if (new_output_cols.size() == catalog_tbl.getColumns().size()) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("SKIP - All columns needed in query. No need for inline projection on " + catalog_tbl);
                 return (false);
             }
@@ -169,14 +169,14 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
         state.markDirty(proj_node);
         state.markDirty(node);
 
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("PLANOPT - Added %s%s with %d columns for node %s", (inline ? "inline " : ""), proj_node, proj_node.getOutputColumnGUIDCount(), node));
 
         return (true);
     }
 
     private void populateProjectionPlanNode(AbstractPlanNode parent, ProjectionPlanNode proj_node, Collection<PlanColumn> output_columns) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Populating %s with %d output PlanColumns", proj_node, output_columns.size()));
 
         AbstractExpression orig_col_exp = null;
@@ -205,9 +205,9 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
                 if (new_col_exp instanceof TupleValueExpression) {
                     new_plan_col = new PlanColumn(orig_guid, new_col_exp, ((TupleValueExpression) new_col_exp).getColumnName(), plan_col.getSortOrder(), plan_col.getStorage());
                     proj_node.appendOutputColumn(new_plan_col);
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug("Added " + new_plan_col + " to " + proj_node);
-                } else if (debug.get()) {
+                } else if (debug.val) {
                     LOG.debug("Skipped adding " + new_plan_col + " to " + proj_node + "?");
                 }
             }

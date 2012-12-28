@@ -169,7 +169,7 @@ public class CommandLogWriter implements Shutdownable {
                 } catch (InterruptedException e) {
                     if (stop) break;
                 } finally {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug("Group commit timeout occurred, writing buffer to disk.");
                 }
                 
@@ -177,7 +177,7 @@ public class CommandLogWriter implements Shutdownable {
                 // thread from appending to the buffer that we're about to swap
                 int free_permits = numWritingLocks - writingEntry.drainPermits();
                 if (free_permits > 0) {
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace("Acquiring " + free_permits + " writeEntry permits");
                     do {
                         try {
@@ -203,11 +203,11 @@ public class CommandLogWriter implements Shutdownable {
                 
                 // Release our entry permits so that other threads can 
                 // start filling up their Entry buffers
-                if (trace.get()) LOG.trace("Releasing writingEntry permits");
+                if (trace.val) LOG.trace("Releasing writingEntry permits");
                 writingEntry.release(group_commit_size);
 
                 // Write the entries out to disk
-                if (debug.get()) LOG.debug("Executing group commit");
+                if (debug.val) LOG.debug("Executing group commit");
                 flushInProgress.set(true);
                 groupCommit(entriesFlushing);
                 flushInProgress.set(false);
@@ -344,7 +344,7 @@ public class CommandLogWriter implements Shutdownable {
             Thread.yield();
         } // WHILE
         
-        if (debug.get()) {
+        if (debug.val) {
             Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Current Buffer", StringUtil.join("\n", this.entries));
             m.put("Flushing Buffer", StringUtil.join("\n", this.entriesFlushing));
@@ -370,7 +370,7 @@ public class CommandLogWriter implements Shutdownable {
     }
     
     public boolean writeHeader() {
-        if (debug.get()) LOG.debug("Writing out WAL header");
+        if (debug.val) LOG.debug("Writing out WAL header");
         assert(this.singletonSerializer != null);
         try {
             this.singletonSerializer.clear();
@@ -420,7 +420,7 @@ public class CommandLogWriter implements Shutdownable {
                     } catch (Throwable ex) {
                         LOG.warn("Failed to write log entry", ex);
                     }
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug(String.format("Prepared txn #%d for group commit batch #%d",
                                                 entry.getTransactionId(), this.commitBatchCounter));
                     if (position >= size) position = 0;
@@ -431,7 +431,7 @@ public class CommandLogWriter implements Shutdownable {
             }
         } // FOR
         if (txnCounter == 0) {
-            if (debug.get()) LOG.debug("No transactions are in the current buffers. Not writing anything to disk");  
+            if (debug.val) LOG.debug("No transactions are in the current buffers. Not writing anything to disk");  
             return;
         }
         
@@ -443,7 +443,7 @@ public class CommandLogWriter implements Shutdownable {
             throw new RuntimeException("Failed to compress WAL buffer");
         }
         
-        if (debug.get()) LOG.debug(String.format("Writing out %d bytes for %d txns [batchCtr=%d]",
+        if (debug.val) LOG.debug(String.format("Writing out %d bytes for %d txns [batchCtr=%d]",
                                    compressed.limit(), txnCounter, this.commitBatchCounter)); 
         try {
             this.fstream.write(compressed);
@@ -492,7 +492,7 @@ public class CommandLogWriter implements Shutdownable {
         // QUEUE FOR GROUP COMMIT
         // -------------------------------
         if (this.useGroupCommit) {
-            if (trace.get())
+            if (trace.val)
                 LOG.trace(ts + " - Attempting to queue txn to write out to command log using group commit");
             
             int basePartition = ts.getBasePartition();
@@ -512,7 +512,7 @@ public class CommandLogWriter implements Shutdownable {
                 // only one thread per partition
                 LogEntry entry = buffer.next(ts, cresponse);
                 assert(entry != null);
-                if (trace.get()) LOG.trace(String.format("New %s %s from %s for partition %d",
+                if (trace.val) LOG.trace(String.format("New %s %s from %s for partition %d",
                                                         entry.getClass().getSimpleName(),
                                                         entry, buffer, basePartition));
 
@@ -523,7 +523,7 @@ public class CommandLogWriter implements Shutdownable {
                 if (hstore_conf.site.commandlog_profiling && profiler != null) profiler.blockedTime.stop();
             }
 
-            if (trace.get())
+            if (trace.val)
                 LOG.trace(ts + " - Finished queuing txn to write out to command log");
             
             // We always want to set this to false because our flush thread will

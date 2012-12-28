@@ -51,7 +51,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
     }
     
     public void init(AbstractTransaction ts, PartitionSet partitions, RpcCallback<TransactionInitResponse> orig_callback) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("%s - Starting new %s", ts, this.getClass().getSimpleName()));
         assert(orig_callback != null) :
             String.format("Tried to initialize %s with a null callback for %s", this.getClass().getSimpleName(), ts);
@@ -84,7 +84,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
     
     @Override
     protected void finishImpl() {
-        if (debug.get()) LOG.debug(String.format("%s - Clearing out %s",
+        if (debug.val) LOG.debug(String.format("%s - Clearing out %s",
                                    this.ts, this.builder.getClass().getSimpleName()));
         this.builder = null;
         super.finishImpl();
@@ -92,11 +92,11 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
     
     @Override
     protected synchronized void unblockTransactionCallback() {
-        if (debug.get()) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
+        if (debug.val) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
                                    this.ts, TransactionInitResponse.class.getSimpleName(),
                                    (this.builder != null ? this.builder.getStatus() : "???")));
         if (this.builder != null) {
-            if (debug.get()) {
+            if (debug.val) {
                 LOG.debug(String.format("%s - Sending %s to %s with status %s",
                                         this.ts,
                                         TransactionInitResponse.class.getSimpleName(),
@@ -158,7 +158,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
                 } // FOR
             }
         }
-        else if (debug.get()) {
+        else if (debug.val) {
             LOG.debug(String.format("%s - No builder is available? Unable to send back %s",
                       this.ts, TransactionInitResponse.class.getSimpleName()));
         }
@@ -174,7 +174,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
      */
     public synchronized void abort(Status status, int partition, Long txn_id) {
         if (this.builder != null) {
-            if (debug.get()) LOG.debug(String.format("Txn #%d - Setting abort status to %s",
+            if (debug.val) LOG.debug(String.format("Txn #%d - Setting abort status to %s",
                                        this.getTransactionId(), status));
             if (txn_id != null) {
                 this.builder.setRejectPartition(partition);
@@ -188,7 +188,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
     protected boolean abortTransactionCallback(Status status) {
         // Uh... this might have already been sent out?
         if (this.builder != null) {
-            if (debug.get()) LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
+            if (debug.val) LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                        this.getTransactionId(), this.getClass().getSimpleName(), status));
             
             // Ok so where's what going on here. We need to send back

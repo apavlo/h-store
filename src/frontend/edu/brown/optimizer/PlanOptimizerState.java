@@ -108,7 +108,7 @@ public class PlanOptimizerState {
     }
 
     public void markDirty(AbstractPlanNode node) {
-        if (trace.get())
+        if (trace.val)
             LOG.trace("Marking " + node + " as dirty");
         this.dirtyPlanNodes.add(node);
     }
@@ -127,14 +127,14 @@ public class PlanOptimizerState {
             if (this.isDirty(child_node))
                 ctr++;
         }
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("%s has %d dirty children", node, ctr));
         return (ctr > 0);
     }
 
     public void updateColumnInfo(AbstractPlanNode node) {
         // Clears the internal data structures that stores the column info
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Clearing internal state information");
         this.orig_node_output.clear();
         this.tableColumns.clear();
@@ -159,7 +159,7 @@ public class PlanOptimizerState {
         }
         this.column_guid_xref.get(catalog_col).add(guid);
         this.guid_column_xref.put(guid, catalog_col);
-        if (trace.get())
+        if (trace.val)
             LOG.trace(String.format("Added Column GUID Mapping: %s => %d", catalog_col.fullName(), guid));
     }
 
@@ -167,7 +167,7 @@ public class PlanOptimizerState {
         if (this.planNodeColumns.containsKey(node) == false) {
             this.planNodeColumns.put(node, new HashSet<Column>());
         }
-        if (trace.get())
+        if (trace.val)
             LOG.trace(String.format("Referenced Columns %s -> %s", node, catalog_col));
         this.planNodeColumns.get(node).add(catalog_col);
     }

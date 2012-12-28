@@ -194,7 +194,7 @@ public abstract class CatalogKey {
      */
     @SuppressWarnings("unchecked")
     public static <T extends CatalogType> T getFromKey(Database catalog_db, String key, Class<T> catalog_class) throws InvalidCatalogKey {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Grabbing " + catalog_class + " object for '" + key + "'");
         assert (catalog_db != null);
         assert (catalog_class != null);
@@ -226,7 +226,7 @@ public abstract class CatalogKey {
 
     @SuppressWarnings("unchecked")
     private static <T extends CatalogType> T getFromKey(Database catalog_db, JSONObject jsonObject, Class<T> catalog_class) throws JSONException {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Retrieving catalog key for " + jsonObject);
         T catalog_child = null;
         CatalogType catalog_parent = null;
@@ -273,7 +273,7 @@ public abstract class CatalogKey {
         // It's ok for the parent to be missing, but it's *not* ok if the child
         // is missing
         if (catalog_parent != null) {
-            if (debug.get()) {
+            if (debug.val) {
                 LOG.debug("Catalog Parent:     " + CatalogUtil.getDisplayName(catalog_parent));
                 LOG.debug("MultiAttribute Key: " + multiattribute_key);
                 LOG.debug("Child Key:          " + child_key);

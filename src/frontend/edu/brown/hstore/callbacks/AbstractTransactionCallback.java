@@ -61,7 +61,7 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
             String.format("Uninitialized transaction handle in %s", this.getClass().getSimpleName());
         
         this.ts = ts;
-        if (debug.get()) LOG.debug(this.ts + " - Initializing new " + this.getClass().getSimpleName());
+        if (debug.val) LOG.debug(this.ts + " - Initializing new " + this.getClass().getSimpleName());
         super.init(this.ts.getTransactionId(), counter_val, orig_callback);
     }
 
@@ -171,7 +171,7 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
     protected final void finishTransaction(Status status) {
         assert(this.ts != null) :
             "Null transaction handle for txn #" + this.getTransactionId();
-        if (debug.get()) LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
+        if (debug.val) LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
                                    this.ts, this.getClass().getSimpleName(), status));
         
         // Let everybody know that the party is over!

@@ -85,7 +85,7 @@ public class MemoryEstimator {
      */
     public long estimate(Database catalog_db, int partitions, Collection<Table> include_tables) {
         Map<String, Long> m0 = null;
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(String.format("Estimating total size of tables for %d partitions: %s", partitions, include_tables));
             m0 = new ListOrderedMap<String, Long>();
         }
@@ -97,16 +97,16 @@ public class MemoryEstimator {
         long bytes = 0l;
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (include_tables.contains(catalog_tbl) == false) {
-                if (trace.get())
+                if (trace.val)
                     LOG.trace("Skipping " + catalog_tbl);
                 continue;
             }
 
             // TABLE SIZE
-            if (trace.get())
+            if (trace.val)
                 LOG.trace("Estimating table size for " + catalog_tbl);
             long table_bytes = this.estimate(catalog_tbl, partitions);
-            if (debug.get()) {
+            if (debug.val) {
                 Column catalog_col = (catalog_tbl.getIsreplicated() ? ReplicatedColumn.get(catalog_tbl) : catalog_tbl.getPartitioncolumn());
                 assert (catalog_col != null) : catalog_tbl;
                 m0.put(catalog_col.fullName(), table_bytes);
@@ -120,7 +120,7 @@ public class MemoryEstimator {
             remaining_tables.remove(catalog_tbl);
         } // FOR
         assert (remaining_tables.isEmpty()) : String.format("Unknown Tables: %s / %s / %s", remaining_tables, include_tables, catalog_db.getTables());
-        if (debug.get()) {
+        if (debug.val) {
             Map<String, Long> m1 = new ListOrderedMap<String, Long>();
             m1.put("Total Database Size", bytes);
             LOG.debug(String.format("Memory Estimate for %d Partitions:\n%s", partitions, StringUtil.formatMaps(m0, m1)));
@@ -179,7 +179,7 @@ public class MemoryEstimator {
         // tuples for all possible partitions
         TableStatistics table_stats = this.stats.getTableStatistics(catalog_tbl);
         assert (table_stats != null) : "Missing statistics for " + catalog_tbl;
-        if (debug.get() && table_stats.tuple_size_total == 0) {
+        if (debug.val && table_stats.tuple_size_total == 0) {
             LOG.warn(this.stats.debug(CatalogUtil.getDatabase(catalog_tbl)));
         }
         // assert(table_stats.tuple_size_total != 0) : "Size estimate for " +
@@ -188,15 +188,15 @@ public class MemoryEstimator {
         Column catalog_col = null;
         if (catalog_tbl.getIsreplicated()) {
             estimate += table_stats.tuple_size_total;
-            if (trace.get())
+            if (trace.val)
                 catalog_col = ReplicatedColumn.get(catalog_tbl);
         } else {
             // FIXME: Assume uniform distribution for now
             estimate += table_stats.tuple_size_total / partitions;
-            if (trace.get())
+            if (trace.val)
                 catalog_col = catalog_tbl.getPartitioncolumn();
         }
-        if (trace.get())
+        if (trace.val)
             LOG.debug(String.format("%-30s%d [total=%d]", catalog_col.fullName() + ":", estimate, table_stats.tuple_size_total));
         return (estimate);
     }

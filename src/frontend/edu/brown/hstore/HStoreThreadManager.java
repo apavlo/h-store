@@ -16,6 +16,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
+import org.voltdb.utils.ThreadUtils;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
@@ -84,7 +85,7 @@ public class HStoreThreadManager {
             this.ee_core_offset = 0;
         }
         else if (this.num_cores <= host_partitions.size()) {
-//            if (debug.get())
+//            if (debug.val)
                 LOG.warn(String.format("Unable to set CPU affinity on %s because there are %d partitions " +
                 		               "but only %d available cores",
                                        host.getIpaddr(), host_partitions.size(), this.num_cores));
@@ -114,7 +115,7 @@ public class HStoreThreadManager {
                     }
                 } // FOR
             }
-            if (debug.get()) LOG.debug("EE CPU Core Offset: " + ee_core_offset);
+            if (debug.val) LOG.debug("EE CPU Core Offset: " + ee_core_offset);
             this.ee_core_offset = ee_core_offset;
             
             // Reserve the lowest cores for the various utility threads
@@ -131,7 +132,7 @@ public class HStoreThreadManager {
                     this.utilityAffinities.put(this.utility_suffixes[i], affinity);
                 } // FOR
             }
-            if (debug.get()) LOG.debug("Default CPU Affinity: " + Arrays.toString(this.defaultAffinity));
+            if (debug.val) LOG.debug("Default CPU Affinity: " + Arrays.toString(this.defaultAffinity));
         }
     }
     
@@ -215,23 +216,23 @@ public class HStoreThreadManager {
             } // FOR
         }
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Registering EE Thread %s to execute on CPUs %s",
                                     t.getName(), this.getCPUIds(affinity)));
         
-        this.disable = (org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity) == false);
+        this.disable = (ThreadUtils.setThreadAffinity(affinity) == false);
         if (this.disable) {
             LOG.warn("Unable to set CPU affinity for thread '" + t.getName() + "'. Disabling feature");
             return (false);
         }
         this.registerThread(affinity);
         
-        final boolean endingAffinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
+        final boolean endingAffinity[] = ThreadUtils.getThreadAffinity();
         for (int ii = 0; ii < endingAffinity.length; ii++) {
-            if (trace.get() && endingAffinity[ii]) LOG.trace(String.format("NEW AFFINITY %s -> CPU[%d]", partition, ii));
+            if (trace.val && endingAffinity[ii]) LOG.trace(String.format("NEW AFFINITY %s -> CPU[%d]", partition, ii));
             affinity[ii] = false;
         } // FOR
-        if (debug.get()) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
+        if (debug.val) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
                                    t.getName(), this.getCPUIds(affinity)));
         return (true);
     }
@@ -249,7 +250,7 @@ public class HStoreThreadManager {
             affinity = this.utilityAffinities.get(suffix); 
         }
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Registering Processing Thread %s to execute on CPUs %s",
                                     t.getName(), this.getCPUIds(affinity)));
         
@@ -257,7 +258,7 @@ public class HStoreThreadManager {
         // If this fails (such as on OS X for some weird reason), we'll
         // just print a warning rather than crash
         try {
-            this.disable = (org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity) == false);
+            this.disable = (ThreadUtils.setThreadAffinity(affinity) == false);
         } catch (UnsatisfiedLinkError ex) {
             LOG.warn("Unable to set CPU affinity for thread '" + t.getName() + "'. Disabling feature", ex);
             this.disable = true;
@@ -269,7 +270,7 @@ public class HStoreThreadManager {
         }
         this.registerThread(this.defaultAffinity);
         
-        if (debug.get()) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
+        if (debug.val) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
                                    t.getName(), this.getCPUIds(affinity)));
         return (true);
     }

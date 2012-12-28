@@ -56,7 +56,7 @@ public class SlowTransactionInitCallback extends AbstractTransactionCallback<Loc
     protected void unblockTransactionCallback() {
         assert(this.isAborted() == false);
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) this.ts.profiler.stopInitDtxn();
-        if (debug.get())
+        if (debug.val)
             LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
         hstore_site.transactionStart((LocalTransaction)this.ts, this.ts.getBasePartition());
     }
@@ -64,7 +64,7 @@ public class SlowTransactionInitCallback extends AbstractTransactionCallback<Loc
     @Override
     protected boolean abortTransactionCallback(Status status) {
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) this.ts.profiler.stopInitDtxn();
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug(String.format("%s - Transaction was aborted by partition %d with status %s [rejectTxn=%d]",
                       this.ts, this.reject_partition, status, this.reject_txnId));
         
@@ -100,7 +100,7 @@ public class SlowTransactionInitCallback extends AbstractTransactionCallback<Loc
     
     @Override
     protected int runImpl(TransactionInitResponse response) {
-        if (debug.get()) LOG.debug(String.format("Got %s with status %s for %s " +
+        if (debug.val) LOG.debug(String.format("Got %s with status %s for %s " +
             		               "[partitions=%s, rejectPartition=%s, rejectTxn=%s]",
             		               response.getClass().getSimpleName(),
             		               response.getStatus(),
@@ -135,7 +135,7 @@ public class SlowTransactionInitCallback extends AbstractTransactionCallback<Loc
                                   response.getClass().getSimpleName(), response.getTransactionId(), this.ts);
                 synchronized (this) {
                     if (this.reject_txnId == null || this.reject_txnId < response.getRejectTransactionId()) {
-                        if (debug.get()) LOG.debug(String.format("%s was rejected at partition %d by txn #%d",
+                        if (debug.val) LOG.debug(String.format("%s was rejected at partition %d by txn #%d",
                                                    this.ts, response.getRejectPartition(), response.getRejectTransactionId()));
                         this.reject_partition = response.getRejectPartition();
                         this.reject_txnId = response.getRejectTransactionId();

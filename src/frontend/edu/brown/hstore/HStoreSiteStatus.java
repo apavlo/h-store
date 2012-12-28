@@ -899,11 +899,11 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     public void addTxnProfile(Procedure catalog_proc, TransactionProfiler tp) {
         assert(catalog_proc != null);
         assert(tp.isStopped());
-        if (trace.get()) LOG.info("Calculating TransactionProfile information");
+        if (trace.val) LOG.info("Calculating TransactionProfile information");
 
         long tuple[] = tp.getTuple();
         assert(tuple != null);
-        if (trace.get()) LOG.trace(String.format("Appending TransactionProfile: %s", tp, Arrays.toString(tuple)));
+        if (trace.val) LOG.trace(String.format("Appending TransactionProfile: %s", tp, Arrays.toString(tuple)));
         this.txn_profile_queues.get(catalog_proc).offer(tuple);
     }
     

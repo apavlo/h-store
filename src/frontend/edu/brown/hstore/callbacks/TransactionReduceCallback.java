@@ -57,7 +57,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<MapRe
      */
     @Override
     protected void unblockTransactionCallback() {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
         
         // Client gets the final result, and  txn  is about to finish
@@ -85,7 +85,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<MapRe
     
     @Override
     protected int runImpl(TransactionReduceResponse response) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s with status %s for %s [partitions=%s]",
                                     response.getClass().getSimpleName(),
                                     response.getStatus(),
@@ -114,7 +114,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<MapRe
                     throw new RuntimeException("Unexpected error when deserializing VoltTable", ex);
                 }
                 assert(vt != null);
-                if (debug.get()) {
+                if (debug.val) {
                     byte bytes[] = pr.getData().toByteArray();
                     LOG.debug(String.format("Inbound Partition reduce result for Partition #%d: RowCount=%d / MD5=%s / Length=%d",
                                             partition, vt.getRowCount(),StringUtil.md5sum(bytes), bytes.length));

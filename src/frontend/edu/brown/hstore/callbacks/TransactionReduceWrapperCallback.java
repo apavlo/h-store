@@ -38,7 +38,7 @@ public class TransactionReduceWrapperCallback extends BlockingRpcCallback<Transa
         assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         this.builder = TransactionReduceResponse.newBuilder()
@@ -49,7 +49,7 @@ public class TransactionReduceWrapperCallback extends BlockingRpcCallback<Transa
     
     @Override
     protected void abortCallback(Status status) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
@@ -89,7 +89,7 @@ public class TransactionReduceWrapperCallback extends BlockingRpcCallback<Transa
 
     @Override
     protected void unblockCallback() {
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
                                     this.getTransactionId(),
                                     TransactionReduceResponse.class.getSimpleName(),
@@ -103,7 +103,7 @@ public class TransactionReduceWrapperCallback extends BlockingRpcCallback<Transa
             String.format("The original callback for txn #%d is null!", this.getTransactionId());
         
         // All Reduces are complete, We should merge reduceOuptuts in every partition to get the final output for client
-        if (debug.get()) LOG.debug("All Reducers are complete, We should merge reduceOuptuts in every partition to get the final output for client");
+        if (debug.val) LOG.debug("All Reducers are complete, We should merge reduceOuptuts in every partition to get the final output for client");
         
         this.getOrigCallback().run(this.builder.build());
     }

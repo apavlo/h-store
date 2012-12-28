@@ -146,7 +146,7 @@ public class MapReduceTransaction extends LocalTransaction {
         // Intialize MapReduce properties
         this.mapEmit = hstore_site.getCatalogContext().getTableByName(catalog_proc.getMapemittable());
         this.reduceEmit = hstore_site.getCatalogContext().getTableByName(catalog_proc.getReduceemittable());
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(" CatalogUtil.getVoltTable(thisMapEmit): -> " + catalog_proc.getMapemittable());
             LOG.debug("MapReduce LocalPartitionIds: " + this.hstore_site.getLocalPartitionIds());
         }
@@ -156,7 +156,7 @@ public class MapReduceTransaction extends LocalTransaction {
         for (int partition : this.hstore_site.getLocalPartitionIds()) {
             int offset = hstore_site.getLocalPartitionOffset(partition);
             //int offset = partition;
-            if (debug.get()) LOG.debug(String.format("Partition[%d] -> Offset[%d]", partition, offset));
+            if (debug.val) LOG.debug(String.format("Partition[%d] -> Offset[%d]", partition, offset));
             this.local_txns[offset].init(this.txn_id,
                                          initiateTime,
                                          this.client_handle,
@@ -190,7 +190,7 @@ public class MapReduceTransaction extends LocalTransaction {
             this.cleanup_callback.init(this, this.hstore_site.getLocalPartitionIds());
         }
         
-        if (debug.get()) LOG.info("Invoked MapReduceTransaction.init() -> " + this);
+        if (debug.val) LOG.info("Invoked MapReduceTransaction.init() -> " + this);
         return (this);
     }
 
@@ -237,7 +237,7 @@ public class MapReduceTransaction extends LocalTransaction {
         }
         
         
-        if(debug.get()) LOG.debug("<MapReduceTransaction> this.reduceWrapper_callback.finish().......................");
+        if(debug.val) LOG.debug("<MapReduceTransaction> this.reduceWrapper_callback.finish().......................");
         this.mapEmit = null;
         this.reduceEmit = null;
         this.mapOutput = null;
@@ -254,11 +254,11 @@ public class MapReduceTransaction extends LocalTransaction {
         VoltTable input = this.getReduceInputByPartition(partition);
         
         assert(input != null);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("StoreData into Partition #%d: RowCount=%d ",
                     partition, vt.getRowCount()));
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("<StoreData, change to ReduceInputTable> to Partition:%d>\n %s",partition,vt));
         while (vt.advanceRow()) {
             VoltTableRow row = vt.fetchRow(vt.getActiveRowIndex());
@@ -408,13 +408,13 @@ public class MapReduceTransaction extends LocalTransaction {
     }
     
     public void initTransactionMapWrapperCallback(RpcCallback<TransactionMapResponse> orig_callback) {
-        if (debug.get()) LOG.debug("Trying to intialize TransactionMapWrapperCallback for " + this);
+        if (debug.val) LOG.debug("Trying to intialize TransactionMapWrapperCallback for " + this);
         assert (this.mapWrapper_callback.isInitialized() == false);
         this.mapWrapper_callback.init(this, orig_callback);
     }
     
     public void initTransactionReduceWrapperCallback(RpcCallback<TransactionReduceResponse> orig_callback) {
-        if (debug.get()) LOG.debug("Trying to initialize TransactionReduceWrapperCallback for " + this);
+        if (debug.val) LOG.debug("Trying to initialize TransactionReduceWrapperCallback for " + this);
         //assert (this.reduceWrapper_callback.isInitialized() == false);
         this.reduceWrapper_callback.init(this, orig_callback);
     }
@@ -457,18 +457,18 @@ public class MapReduceTransaction extends LocalTransaction {
     }
     
     public VoltTable getMapOutputByPartition( int partition ) {
-        if (debug.get()) LOG.debug("Trying to getMapOutputByPartition: [ " + partition + " ]");
+        if (debug.val) LOG.debug("Trying to getMapOutputByPartition: [ " + partition + " ]");
         return this.mapOutput[hstore_site.getLocalPartitionOffset(partition)];
     }
     
     public VoltTable getReduceInputByPartition ( int partition ) {
-        if (debug.get()) LOG.debug("Trying to getReduceInputByPartition: [ " + partition + " ]");
+        if (debug.val) LOG.debug("Trying to getReduceInputByPartition: [ " + partition + " ]");
         return this.reduceInput[hstore_site.getLocalPartitionOffset(partition)];
         //return this.reduceInput[partition];
     }
     
     public VoltTable getReduceOutputByPartition ( int partition ) {
-        if (debug.get()) LOG.debug("Trying to getReduceOutputByPartition: [ " + partition + " ]");
+        if (debug.val) LOG.debug("Trying to getReduceOutputByPartition: [ " + partition + " ]");
         return this.reduceOutput[hstore_site.getLocalPartitionOffset(partition)];
         //return this.reduceOutput[partition];
     }

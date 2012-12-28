@@ -51,13 +51,13 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     public void remoteQueue(RpcController controller, TransactionFinishRequest request,
                             RpcCallback<TransactionFinishResponse> callback) {
         if (this.finishDispatcher != null && request.getStatus() == Status.ABORT_RESTART) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Queuing %s for txn #%d [status=%s]",
                           request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
             Object o[] = { controller, request, callback };
             this.finishDispatcher.queue(o);
         } else {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Sending %s to remote handler for txn #%d [status=%s]",
                           request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
             this.remoteHandler(controller, request, callback);
@@ -68,7 +68,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
                               RpcCallback<TransactionFinishResponse> callback) {
         assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         long txn_id = request.getTransactionId();
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s for txn #%d [status=%s]",
                       request.getClass().getSimpleName(), txn_id, request.getStatus()));
         
@@ -82,7 +82,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         for (int p : request.getPartitionsList()) {
             if (hstore_site.isLocalPartition(p)) builder.addPartitions(p);
         } // FOR
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
                       TransactionFinishResponse.class.getSimpleName(), txn_id,
                       request.getStatus(), builder.getPartitionsList()));

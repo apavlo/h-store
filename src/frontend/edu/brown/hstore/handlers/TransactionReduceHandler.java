@@ -56,13 +56,13 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
             RpcCallback<TransactionReduceResponse> callback) {
         assert (request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
         long txn_id = request.getTransactionId();
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s for txn #%d",
                       request.getClass().getSimpleName(), txn_id));
         
         MapReduceTransaction mr_ts = hstore_site.getTransaction(txn_id);
         assert(mr_ts != null);
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug(String.format("TXN: %s, [Stage], [Site] %d",mr_ts,hstore_site.getSiteId())); 
        
         
@@ -73,7 +73,7 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
         
         assert(mr_ts.isReducePhase());
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug("After init initTransactionReduceWrapperCallback.......");
         
         /*

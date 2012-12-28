@@ -392,7 +392,7 @@ public abstract class PlanNodeUtil {
             AbstractExpression exp = planColumn.getExpression();
             assert (exp != null);
             Collection<Column> exp_cols = ExpressionUtil.getReferencedColumns(catalog_db, exp);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(planColumn.toString() + " => " + exp_cols);
             columns.addAll(exp_cols);
         } // FOR
@@ -437,11 +437,11 @@ public abstract class PlanNodeUtil {
         if ((node instanceof AbstractScanPlanNode) && node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
             ProjectionPlanNode prj_node = node.getInlinePlanNode(PlanNodeType.PROJECTION);
             planColumnIds.addAll(prj_node.getOutputColumnGUIDs());
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(prj_node.getPlanNodeType() + ": " + planColumnIds);
         } else {
             planColumnIds.addAll(node.getOutputColumnGUIDs());
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(node.getPlanNodeType() + ": " + planColumnIds);
         }
 
@@ -450,7 +450,7 @@ public abstract class PlanNodeUtil {
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode agg_node = (AggregatePlanNode) node;
             planColumnIds.addAll(agg_node.getAggregateColumnGuids());
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(node.getPlanNodeType() + ": " + agg_node.getAggregateColumnGuids());
         }
 
@@ -896,7 +896,7 @@ public abstract class PlanNodeUtil {
      * @return
      */
     public static AbstractPlanNode reconstructPlanNodeTree(Statement catalog_stmt, List<AbstractPlanNode> nodes, boolean singlePartition) throws Exception {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("reconstructPlanNodeTree(" + catalog_stmt + ", " + nodes + ", true)");
 
         // HACK: We should have all SendPlanNodes here, so we just need to order
@@ -910,7 +910,7 @@ public abstract class PlanNodeUtil {
             }
         });
         sorted_nodes.addAll(nodes);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("SORTED NODES: " + sorted_nodes);
         AbstractPlanNode last_node = null;
         for (AbstractPlanNode node : sorted_nodes) {
@@ -951,7 +951,7 @@ public abstract class PlanNodeUtil {
         if (singlePartition && !catalog_stmt.getHas_singlesited()) {
             String msg = "No single-partition plan is available for " + catalog_stmt + ". ";
             if (catalog_stmt.getHas_multisited()) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(msg + "Going to try to use multi-partition plan");
                 return (getRootPlanNodeForStatement(catalog_stmt, false));
             } else {
@@ -961,7 +961,7 @@ public abstract class PlanNodeUtil {
         } else if (!singlePartition && !catalog_stmt.getHas_multisited()) {
             String msg = "No multi-sited plan is available for " + catalog_stmt + ". ";
             if (catalog_stmt.getHas_singlesited()) {
-                if (debug.get())
+                if (debug.val)
                     LOG.warn(msg + "Going to try to use single-partition plan");
                 return (getRootPlanNodeForStatement(catalog_stmt, true));
             } else {
@@ -1065,7 +1065,7 @@ public abstract class PlanNodeUtil {
         String id = catalog_frag.getName();
         AbstractPlanNode ret = PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.get(id);
         if (ret == null) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("No cached object for " + catalog_frag.fullName());
             Database catalog_db = CatalogUtil.getDatabase(catalog_frag);
             String jsonString = Encoder.hexDecodeToString(catalog_frag.getPlannodetree());

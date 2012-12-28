@@ -361,14 +361,14 @@ public class MarkovGraphsContainer implements JSONSerializable {
                 final Procedure catalog_proc = CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class);
                 assert(catalog_proc != null);
                 if (this.load_procedures != null && this.load_procedures.contains(catalog_proc) == false) {
-                    if (debug.get()) LOG.debug(String.format("Skipping MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                    if (debug.val) LOG.debug(String.format("Skipping MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
                     continue;
                 }
                 
                 runnables.add(new Runnable() {
                     @Override
                     public void run() {
-                        if (trace.get()) LOG.trace(String.format("Loading MarkovGraph [id=%d, proc=%s]",
+                        if (trace.val) LOG.trace(String.format("Loading MarkovGraph [id=%d, proc=%s]",
                                                                  id, catalog_proc.getName()));
                         JSONObject json_graph = null;
                         try {
@@ -384,7 +384,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
                 });
             } // FOR (proc key)
         } // FOR (id key)
-        if (debug.get()) LOG.debug(String.format("Going to wait for %d MarkovGraphs to load", runnables.size())); 
+        if (debug.val) LOG.debug(String.format("Going to wait for %d MarkovGraphs to load", runnables.size())); 
         ThreadUtil.runGlobalPool(runnables);
     }
     

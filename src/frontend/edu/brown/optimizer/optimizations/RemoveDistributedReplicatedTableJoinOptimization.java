@@ -36,7 +36,7 @@ public class RemoveDistributedReplicatedTableJoinOptimization extends AbstractOp
     public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode rootNode) {
         // Skip single-partition query plans
         if (PlanNodeUtil.isDistributedQuery(rootNode) == false) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("SKIP - Not a distributed query plan");
             return (Pair.of(false, rootNode));
         }
@@ -46,14 +46,14 @@ public class RemoveDistributedReplicatedTableJoinOptimization extends AbstractOp
         // scanned in a separate PlanFragment
         boolean modified = false;
         for (AbstractJoinPlanNode join_node : PlanNodeUtil.getPlanNodes(rootNode, AbstractJoinPlanNode.class)) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Examining " + join_node);
 
             // Check whether the chain below this node is
             // RECIEVE -> SEND -> SCAN
             assert (join_node.getChildPlanNodeCount() >= 1);
             AbstractPlanNode child = join_node.getChild(0);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(join_node + " -> " + child);
             if (child instanceof ReceivePlanNode) {
                 ReceivePlanNode recv_node = (ReceivePlanNode) child;

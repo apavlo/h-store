@@ -47,7 +47,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
     @Override
     public void remoteQueue(RpcController controller, TransactionWorkRequest request, 
             RpcCallback<TransactionWorkResponse> callback) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Executing %s using remote handler for txn #%d",
                       request.getClass().getSimpleName(), request.getTransactionId()));
         this.remoteHandler(controller, request, callback);
@@ -57,7 +57,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             RpcCallback<TransactionWorkResponse> callback) {
         assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = Long.valueOf(request.getTransactionId());
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s for txn #%d [partitionFragments=%d]",
                                    request.getClass().getSimpleName(), txn_id, request.getFragmentsCount()));
         
@@ -74,7 +74,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             ByteString paramData = request.getParams(i);
             if (paramData != null && paramData.isEmpty() == false) {
                 final FastDeserializer fds = new FastDeserializer(paramData.asReadOnlyByteBuffer());
-                if (trace.get()) LOG.trace(String.format("Txn #%d paramData[%d] => %s",
+                if (trace.val) LOG.trace(String.format("Txn #%d paramData[%d] => %s",
                                                          txn_id, i, fds.buffer()));
                 try {
                     parameterSets[i] = fds.readObject(ParameterSet.class);
@@ -129,12 +129,12 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
                 TransactionWorkCallback work_callback = ts.getWorkCallback();
                 if (work_callback.isInitialized()) work_callback.finish();
                 work_callback.init(txn_id, request.getFragmentsCount(), callback);
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("Initializing %s for %s",
                               work_callback.getClass().getSimpleName(), ts));
             }
             
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Invoking transactionWork for %s [first=%s]", ts, first));
             hstore_site.transactionWork(ts, work);
             first = false;

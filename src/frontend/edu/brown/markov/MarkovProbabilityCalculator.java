@@ -57,13 +57,13 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
         // HACK
         DynamicTransactionEstimate est = (this.markov_est != null ? this.markov_est : element);
         
-        if (trace.get()) LOG.trace("BEFORE: " + element + " => " + est.getSinglePartitionProbability());
+        if (trace.val) LOG.trace("BEFORE: " + element + " => " + est.getSinglePartitionProbability());
 //            if (element.isSingleSitedProbablitySet() == false) element.setSingleSitedProbability(0.0);
         Type vtype = element.getType(); 
         
         // COMMIT/ABORT is always single-partitioned!
         if (vtype == MarkovVertex.Type.COMMIT || vtype == MarkovVertex.Type.ABORT) {
-            if (trace.get()) LOG.trace(element + " is single-partitioned!");
+            if (trace.val) LOG.trace(element + " is single-partitioned!");
             est.setSinglePartitionProbability(1.0f);
             
             // And DONE at all partitions!
@@ -91,7 +91,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
             // then we're going to say that it is multi-partitioned
             boolean element_islocalonly = element.isLocalPartitionOnly(); 
             if (element_islocalonly == false) {
-                if (trace.get()) LOG.trace(element + " NOT is single-partitioned!");
+                if (trace.val) LOG.trace(element + " NOT is single-partitioned!");
                 est.setSinglePartitionProbability(0.0f);
             }
 
@@ -112,7 +112,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                 if (element_islocalonly) {
                     float prob = e.getProbability() * successor.getSinglePartitionProbability();
                     est.addSinglePartitionProbability(prob);
-                    if (trace.get()) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSinglePartitionProbability(), prob) + "\nprob = " + prob);
+                    if (trace.val) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSinglePartitionProbability(), prob) + "\nprob = " + prob);
                 }
                 
                 // Abort Probability
@@ -136,11 +136,11 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                         
                         // Figure out whether it is a read or a write
                         if (catalog_stmt.getReadonly()) {
-                            if (trace.get()) LOG.trace(String.format("%s does not modify partition %d. Setting writing probability based on children [%s]", element, partition, qtype));
+                            if (trace.val) LOG.trace(String.format("%s does not modify partition %d. Setting writing probability based on children [%s]", element, partition, qtype));
                             est.addWriteProbability(partition, (e.getProbability() * successor.getWriteProbability(partition)));
                             est.addReadOnlyProbability(partition, (e.getProbability() * successor.getReadOnlyProbability(partition)));
                         } else {
-                            if (trace.get()) LOG.trace(String.format("%s modifies partition %d. Setting writing probability to 1.0 [%s]", element, partition, qtype));
+                            if (trace.val) LOG.trace(String.format("%s modifies partition %d. Setting writing probability to 1.0 [%s]", element, partition, qtype));
                             est.setWriteProbability(partition, 1.0f);
                             est.setReadOnlyProbability(partition, 0.0f);
                         }
@@ -170,8 +170,8 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                 } // FOR (PartitionId)
             } // FOR (Edge)
         }
-        if (trace.get()) LOG.trace("AFTER: " + element + " => " + est.getSinglePartitionProbability());
-        if (trace.get()) LOG.trace(StringUtil.repeat("-", 40));
+        if (trace.val) LOG.trace("AFTER: " + element + " => " + est.getSinglePartitionProbability());
+        if (trace.val) LOG.trace(StringUtil.repeat("-", 40));
     }
     
     @Override

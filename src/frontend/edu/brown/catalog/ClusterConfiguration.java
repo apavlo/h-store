@@ -154,7 +154,7 @@ public class ClusterConfiguration extends ClusterConfig {
         if (this.all_partitions.contains(partition)) {
             throw new IllegalArgumentException("Duplicate partition id #" + partition + " for host '" + host + "'");
         }
-        if (debug.get())
+        if (debug.val)
             LOG.info(String.format("Adding Partition: %s:%d:%d", host, site, partition));
 
         PartitionConfiguration pc = new PartitionConfiguration(host, site, partition);
@@ -168,7 +168,7 @@ public class ClusterConfiguration extends ClusterConfig {
             this.host_sites.get(host).put(site, new HashSet<PartitionConfiguration>());
         }
         this.host_sites.get(host).get(site).add(pc);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("New PartitionConfiguration: " + pc);
     }
 

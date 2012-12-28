@@ -113,7 +113,7 @@ public abstract class AbstractProcessingThread<E> extends ExceptionHandlingRunna
     public final void shutdown() {
         this.stop = true;
         if (this.self != null) this.self.interrupt();
-        if (debug.get() && this.idleTime != null)
+        if (debug.val && this.idleTime != null)
             LOG.debug(String.format("%s Idle Time: %.2fms",
                                     this.getClass().getSimpleName(),
                                     idleTime.getTotalThinkTimeMS()));

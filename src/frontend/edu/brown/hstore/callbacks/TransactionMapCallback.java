@@ -45,7 +45,7 @@ public class TransactionMapCallback extends AbstractTransactionCallback<MapReduc
      */
     @Override
     protected void unblockTransactionCallback() {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(ts + " is ready to execute. Passing to HStoreSite " +
                     "<Switching to the 'reduce' phase>.......");
         
@@ -54,13 +54,13 @@ public class TransactionMapCallback extends AbstractTransactionCallback<MapReduc
         assert(mr_ts.isReducePhase());
         
         if (hstore_site.getHStoreConf().site.mr_reduce_blocking){
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(ts + ": $$$ normal reduce blocking execution way");
             // calling this hstore_site.transactionStart function will block the executing engine on each partition
             hstore_site.transactionStart(ts, ts.getBasePartition());
         } else {
             // throw reduce job to MapReduceHelperThread to do
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(ts + ": $$$ non-blocking reduce execution by MapReduceHelperThread");
             hstore_site.getMapReduceHelper().queue(mr_ts);
         }
@@ -74,7 +74,7 @@ public class TransactionMapCallback extends AbstractTransactionCallback<MapReduc
     
     @Override
     protected int runImpl(TransactionMapResponse response) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s with status %s for %s [partitions=%s]",
                                     response.getClass().getSimpleName(),
                                     response.getStatus(),

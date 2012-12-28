@@ -95,7 +95,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param partitions - The partitions that we expected to get notifications for
      */
     protected void init(X ts, PartitionSet partitions) {
-        if (debug.get()) LOG.debug(String.format("%s - Initialized new %s with partitions %s [counter=%d, hashCode=%d]",
+        if (debug.val) LOG.debug(String.format("%s - Initialized new %s with partitions %s [counter=%d, hashCode=%d]",
                                    ts, this.getClass().getSimpleName(), partitions, partitions.size(), this.hashCode()));
         int counter_val = partitions.size();
         this.orig_counter = counter_val;
@@ -146,7 +146,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     protected final void finishTransaction(Status status) {
         assert(this.ts != null) :
             "Null transaction handle for txn #" + this.orig_txn_id;
-        if (debug.get()) LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
+        if (debug.val) LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
                                    this.ts, this.getClass().getSimpleName(), status));
         
         // Let everybody know that the party is over!
@@ -176,10 +176,10 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         int delta = 1; // XXX this.runImpl(partition);
         int new_count = this.counter.addAndGet(-1 * delta);
         this.receivedPartitions.add(partition);
-        if (debug.get()) LOG.debug(String.format("%s - %s.run() / COUNTER: %d - %d = %d%s",
+        if (debug.val) LOG.debug(String.format("%s - %s.run() / COUNTER: %d - %d = %d%s",
                                    this.ts, this.getClass().getSimpleName(),
                                    new_count+delta, delta, new_count,
-                                   (trace.get() ? "\n" + partition : "")));
+                                   (trace.val ? "\n" + partition : "")));
         
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
@@ -194,7 +194,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      */
 //    public final int decrementCounter(int delta) {
 //        int new_count = this.counter.addAndGet(-1 * delta); 
-//        if (debug.get()) LOG.debug(String.format("%s - Decremented %s / COUNTER: %d - %d = %s",
+//        if (debug.val) LOG.debug(String.format("%s - Decremented %s / COUNTER: %d - %d = %s",
 //                                   this.ts, this.getClass().getSimpleName(), new_count+delta, delta, new_count));
 //        assert(new_count >= 0) :
 //            "Invalid negative " + this.getClass().getSimpleName() + " counter for " + this.ts;
@@ -220,7 +220,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     private final void unblock() {
         if (this.canceled.get() == false && this.abortInvoked.get() == false) {
             if (this.unblockInvoked.compareAndSet(false, true)) {
-                if (debug.get()) LOG.debug(String.format("%s - Invoking %s.unblockCallback() [hashCode=%d]",
+                if (debug.val) LOG.debug(String.format("%s - Invoking %s.unblockCallback() [hashCode=%d]",
                                            this.ts, this.getClass().getSimpleName(), this.hashCode()));
                 this.unblockCallback();
                 this.unblockFinished = true;
@@ -309,7 +309,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     
     @Override
     public final void finish() {
-        if (debug.get()) LOG.debug(String.format("%s - Finishing %s [hashCode=%d]",
+        if (debug.val) LOG.debug(String.format("%s - Finishing %s [hashCode=%d]",
                                    this.ts, this.getClass().getSimpleName(), this.hashCode()));
         this.abortInvoked.lazySet(false);
         this.unblockInvoked.lazySet(false);

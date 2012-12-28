@@ -205,11 +205,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     Set<Column> modified_cols = STATEMENT_MODIFIED_COLUMNS.get(catalog_stmt);
                     assert (modified_cols != null) : "Failed to get modified columns for " + catalog_stmt.fullName();
                     all_modified.addAll(modified_cols);
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug("ALL - " + catalog_stmt.fullName() + ": " + modified_cols);
                     if (qtype != QueryType.INSERT) {
                         all_modified_no_inserts.addAll(modified_cols);
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("NOINSERT - " + catalog_stmt.fullName() + ": " + modified_cols);
                     }
                 } // FOR (stmt)
@@ -234,7 +234,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     }
                 } // FOR (col)
 
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("%s: READONLY_ALL%s - READONLY_NOINSERT%s", catalog_tbl.getName(), readonly_with_inserts, readonly_no_inserts));
 
                 READONLY_COLUMNS_ALL.put(catalog_tbl, readonly_with_inserts);
@@ -321,7 +321,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Catalog loadCatalogFromJar(File jar_path) {
         Catalog catalog = null;
         String serializedCatalog = null;
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Loading catalog from jar file at '" + jar_path.getAbsolutePath() + "'");
         if (!jar_path.exists()) {
             LOG.error("The catalog jar file '" + jar_path + "' does not exist");
@@ -339,7 +339,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             LOG.warn("The catalog file '" + CatalogUtil.CATALOG_FILENAME + "' in jar file '" + jar_path + "' is empty");
         } else {
             catalog = new Catalog();
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Extracted file '" + CatalogUtil.CATALOG_FILENAME + "' from jar file '" + jar_path + "'");
             catalog.execute(serializedCatalog);
         }
@@ -628,7 +628,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static void copyQueryPlans(Statement copy_src, Statement copy_dest) {
         // Update both the single and multi-partition query plans
         for (boolean sp : new boolean[] { true, false }) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Copying %s-partition query plan from %s to %s", (sp ? "single" : "multi"), copy_src.fullName(), copy_dest.fullName()));
             String fields[] = { (sp ? "" : "ms_") + "exptree", (sp ? "" : "ms_") + "fullplan", "has_" + (sp ? "single" : "multi") + "sited", };
             copyFields(copy_src, copy_dest, fields);
@@ -648,7 +648,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             copy_dest_fragments.clear();
             for (PlanFragment copy_src_frag : copy_src_fragments) {
                 PlanFragment copy_dest_frag = copy_dest_fragments.add(copy_src_frag.getName());
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(String.format("Copying %s to %s", copy_src_frag.fullName(), copy_dest_frag.fullName()));
                 copyFields(copy_src_frag, copy_dest_frag, copy_src_frag.getFields().toArray(new String[0]));
             } // FOR
@@ -661,10 +661,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             if (src_val != null) {
                 if (src_val instanceof String)
                     src_val = "\"" + src_val + "\""; // HACK
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(String.format("Copied value '%s' for field '%s': %s => %s", src_val, f, copy_dest.fullName(), copy_src.fullName()));
                 copy_dest.set(f, src_val.toString());
-            } else if (debug.get()) {
+            } else if (debug.val) {
                 LOG.warn(String.format("Missing value for field '%s': %s => %s", f, copy_dest.fullName(), copy_src.fullName()));
             }
         } // FOR
@@ -821,11 +821,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     sites.put(catalog_host, new TreeSet<Site>(comparator));
                 }
                 sites.get(catalog_host).add(catalog_site);
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(catalog_host + " => " + catalog_site);
             } // FOR
             assert (sites.size() == catalog_clus.getHosts().size());
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("HOST SITES: " + sites);
         }
         return (sites);
@@ -1428,7 +1428,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Collection<Column> getReferencedColumns(Statement catalog_stmt) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Extracting referenced columns from statement " + CatalogUtil.getDisplayName(catalog_stmt));
 
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
@@ -1471,7 +1471,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Collection<Column> getModifiedColumns(Statement catalog_stmt) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Extracting modified columns from statement " + CatalogUtil.getDisplayName(catalog_stmt));
 
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
@@ -1492,7 +1492,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Collection<Column> getReadOnlyColumns(Statement catalog_stmt) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Extracting read-only columns from statement " + CatalogUtil.getDisplayName(catalog_stmt));
 
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
@@ -1511,7 +1511,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Collection<Column> getOrderByColumns(Statement catalog_stmt) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Extracting order-by columns from statement " + CatalogUtil.getDisplayName(catalog_stmt));
 
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
@@ -2052,7 +2052,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 } // FOR
                 children.addAfter(to_add);
 
-                if (debug.get()) {
+                if (debug.val) {
                     LOG.debug(children);
                     LOG.debug("-------------------------");
                 }
@@ -2061,7 +2061,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             @Override
             protected void callback(final AbstractPlanNode node) {
                 try {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug("Examining child node " + node);
                     this._callback(node);
                 } catch (Exception ex) {
@@ -2086,24 +2086,24 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     for (int i = 0, cnt = cast_node.getSearchKeyExpressions().size(); i < cnt; i++) {
                         AbstractExpression index_exp = cast_node.getSearchKeyExpressions().get(i);
                         Column catalog_col = index_cols.get(i).getColumn();
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("[" + i + "] " + catalog_col);
                         exps.add(CatalogUtil.createTempExpression(catalog_col, index_exp));
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("Added temp index search key expression:\n" + ExpressionUtil.debug(exps.get(exps.size() - 1)));
                     } // FOR
 
                     // End Expression
                     if (cast_node.getEndExpression() != null) {
                         exps.add(cast_node.getEndExpression());
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("Added scan end expression:\n" + ExpressionUtil.debug(exps.get(exps.size() - 1)));
                     }
 
                     // Post-Scan Expression
                     if (cast_node.getPredicate() != null) {
                         exps.add(cast_node.getPredicate());
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("Added post-scan predicate:\n" + ExpressionUtil.debug(exps.get(exps.size() - 1)));
                     }
 
@@ -2112,7 +2112,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     SeqScanPlanNode cast_node = (SeqScanPlanNode) node;
                     if (cast_node.getPredicate() != null) {
                         exps.add(cast_node.getPredicate());
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("Adding scan node predicate:\n" + ExpressionUtil.debug(exps.get(exps.size() - 1)));
                     }
 
@@ -2135,7 +2135,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                             StmtParameter catalog_param = catalog_stmt.getParameters().get(((ParameterValueExpression) exp).getParameterId());
                             cset.add(catalog_col, catalog_param, ExpressionType.COMPARE_EQUAL, catalog_stmt);
                         } else if (exp instanceof AbstractValueExpression) {
-                            if (debug.get())
+                            if (debug.val)
                                 LOG.debug("Ignoring AbstractExpressionType type: " + exp);
                         } else {
                             throw new Exception("Unexpected AbstractExpression type: " + exp);
@@ -2147,12 +2147,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode) node;
                     if (cast_node.getPredicate() != null) {
                         exps.add(cast_node.getPredicate());
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("Added join node predicate: " + ExpressionUtil.debug(exps.get(exps.size() - 1)));
                     }
                 }
 
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("Extracting expressions information from " + node + " for tables " + tables);
                 for (AbstractExpression exp : exps) {
                     if (exp == null)

@@ -191,7 +191,7 @@ public abstract class MarkovGraphContainersUtil {
                         proc_h.put(catalog_proc);
                         
                         int global_ctr = txn_ctr.incrementAndGet();
-                        if (debug.get() && global_ctr % marker == 0) {
+                        if (debug.val && global_ctr % marker == 0) {
                             LOG.debug(String.format("Processed %d/%d transactions",
                                                     global_ctr, num_transactions));
                         }
@@ -305,7 +305,7 @@ public abstract class MarkovGraphContainersUtil {
         MarkovGraphsContainer markovs = ClassUtil.newInstance(className, new Object[]{procedures},
                                                                          new Class<?>[]{Collection.class}); 
         assert(markovs != null);
-        if (debug.get()) LOG.debug(String.format("Instantiated new %s object", markovs.getClass().getSimpleName()));
+        if (debug.val) LOG.debug(String.format("Instantiated new %s object", markovs.getClass().getSimpleName()));
         markovs.fromJSON(json_object, catalog_db);
         return (markovs);
     }
@@ -417,14 +417,14 @@ public abstract class MarkovGraphContainersUtil {
                             line_xref.put(offset, partition);
                         }
                     } // FOR
-                    if (debug.get()) LOG.debug(String.format("Loading %d MarkovGraphsContainers", line_xref.size()));
+                    if (debug.val) LOG.debug(String.format("Loading %d MarkovGraphsContainers", line_xref.size()));
                     
                 // Otherwise check whether this is a line number that we care about
                 } else if (line_xref.containsKey(Integer.valueOf(line_ctr))) {
                     Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
                     JSONObject json_object = new JSONObject(line).getJSONObject(partition.toString());
                     MarkovGraphsContainer markovs = createMarkovGraphsContainer(json_object, procedures, catalog_db);
-                    if (debug.get()) LOG.debug(String.format("Storing %s for partition %d", markovs.getClass().getSimpleName(), partition));
+                    if (debug.val) LOG.debug(String.format("Storing %s for partition %d", markovs.getClass().getSimpleName(), partition));
                     ret.put(partition, markovs);        
                     if (line_xref.isEmpty()) break;
                 }
@@ -436,7 +436,7 @@ public abstract class MarkovGraphContainersUtil {
             LOG.error("Failed to deserialize the MarkovGraphsContainer from file '" + file + "'", ex);
             throw new IOException(ex);
         }
-        if (debug.get()) LOG.debug("The loading of the MarkovGraphsContainer is complete");
+        if (debug.val) LOG.debug("The loading of the MarkovGraphsContainer is complete");
         return (ret);
     }
 
@@ -449,7 +449,7 @@ public abstract class MarkovGraphContainersUtil {
      * @param markovs
      */
     public static void calculateProbabilities(Map<Integer, ? extends MarkovGraphsContainer> markovs) {
-        if (debug.get()) LOG.debug(String.format("Calculating probabilities for %d ids", markovs.size()));
+        if (debug.val) LOG.debug(String.format("Calculating probabilities for %d ids", markovs.size()));
         for (MarkovGraphsContainer m : markovs.values()) {
             m.calculateProbabilities();
         }
@@ -462,7 +462,7 @@ public abstract class MarkovGraphContainersUtil {
      * @param hasher
      */
     public static void setHasher(Map<Integer, ? extends MarkovGraphsContainer> markovs, AbstractHasher hasher) {
-        if (debug.get()) LOG.debug(String.format("Setting hasher for for %d ids", markovs.size()));
+        if (debug.val) LOG.debug(String.format("Setting hasher for for %d ids", markovs.size()));
         for (MarkovGraphsContainer m : markovs.values()) {
             m.setHasher(hasher);
         }

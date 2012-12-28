@@ -54,7 +54,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     AbstractScanPlanNode scan_node = (AbstractScanPlanNode) element;
                     ProjectionPlanNode proj_node = element.getInlinePlanNode(PlanNodeType.PROJECTION);
                     if (proj_node == null) {
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("SKIP - " + element + " does not an inline ProjectionPlanNode");
                         return;
                     }
@@ -63,7 +63,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     Table catalog_tbl = state.catalog_db.getTables().get(table_name);
                     assert (catalog_tbl != null) : "Unexpected table '" + table_name + "'";
                     if (catalog_tbl.getColumns().size() != proj_node.getOutputColumnGUIDCount()) {
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("SKIP - Inline " + proj_node + " does not have the same number of output columns as " + catalog_tbl);
                         return;
                     }
@@ -76,7 +76,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                         AbstractExpression col_exp = plan_col.getExpression();
                         assert (col_exp != null);
                         if ((col_exp instanceof TupleValueExpression) == false) {
-                            if (debug.get())
+                            if (debug.val)
                                 LOG.debug("SKIP - Inline " + proj_node + " does not have a TupleValueExpression for output column #" + i);
                             return;
                         }
@@ -94,7 +94,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     scan_node.removeInlinePlanNode(PlanNodeType.PROJECTION);
                     modified.set(true);
 
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug(String.format("PLANOPT - Removed redundant %s from %s\n%s", proj_node, scan_node, PlanNodeUtil.debug(rootNode)));
                 }
 
@@ -106,13 +106,13 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     ProjectionPlanNode next_proj = getFirstProjection(element);
                     assert (next_proj == null || next_proj != element);
                     if (next_proj == null) {
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("SKIP - No other Projection found below " + element);
                         return;
                     }
                     // They must at least have the same number of output columns
                     else if (element.getOutputColumnGUIDCount() != next_proj.getOutputColumnGUIDCount()) {
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug(String.format("SKIP - %s and %s do not have the same number of output columns", element, next_proj));
                         return;
                     }
@@ -120,7 +120,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     // There can't be a JOIN PlanNode in between us, since that may mean we need
                     // to prune out the colums at the bottom scan node
                     Collection<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(element, AbstractJoinPlanNode.class);
-                    if (debug.get()) LOG.debug(String.format("%s has %d join nodes below it: %s",
+                    if (debug.val) LOG.debug(String.format("%s has %d join nodes below it: %s",
                                                              element, join_nodes.size(), join_nodes));
                     if (join_nodes.isEmpty() == false) {
                         // Check to see whether the joins appear *after* the projection node
@@ -133,7 +133,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                             assert(elementDepth < joinDepth);
                             assert(nextDepth != joinDepth);
                             if (joinDepth < nextDepth) {
-                                if (debug.get())
+                                if (debug.val)
                                     LOG.debug(String.format("SKIP - %s has %s that comes after %s", element, join_node, next_proj));
                                 return;
                             }
@@ -160,7 +160,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                         idx++;
                     } // FOR
                     if (match == false) {
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug(String.format("SKIP - %s and %s do not have the same output columns", element, next_proj));
                         return;
                     }
@@ -170,7 +170,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     if (element.getParentPlanNodeCount() == 0) {
                         assert (element.getChildPlanNodeCount() == 1) : "Projection element expected 1 child but has " + element.getChildPlanNodeCount() + " children";
                         new_root = element.getChild(0);
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug("PLANOPT - Promoted " + new_root + " as the new query plan root!");
                     } else {
                         AbstractPlanNode parent = element.getParent(0);
@@ -181,7 +181,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     }
 
                     // Off with it's head!
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug("PLANOPT - Removed redundant " + element + " from query plan!");
                     element.removeFromGraph();
                     modified.set(true);

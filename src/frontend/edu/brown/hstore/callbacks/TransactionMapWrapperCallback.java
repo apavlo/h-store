@@ -44,7 +44,7 @@ public class TransactionMapWrapperCallback extends BlockingRpcCallback<Transacti
         assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         this.builder = TransactionMapResponse.newBuilder()
@@ -55,7 +55,7 @@ public class TransactionMapWrapperCallback extends BlockingRpcCallback<Transacti
     
     @Override
     protected void abortCallback(Status status) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
@@ -91,7 +91,7 @@ public class TransactionMapWrapperCallback extends BlockingRpcCallback<Transacti
 
     @Override
     protected void unblockCallback() {
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
                                     this.getTransactionId(),
                                     TransactionMapResponse.class.getSimpleName(),
@@ -112,7 +112,7 @@ public class TransactionMapWrapperCallback extends BlockingRpcCallback<Transacti
         MapReduceHelperThread mr_helper = this.hstore_site.getMapReduceHelper();
         ts.setShufflePhase();
         
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug(String.format("Txn #%d - I am swithing to SHUFFLE phase, go to MR_helper thread",this.getTransactionId()));
         // enqueue this MapReduceTransaction to do shuffle work
         mr_helper.queue(this.ts);

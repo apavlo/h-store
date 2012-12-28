@@ -135,14 +135,14 @@ public class ConflictSetCalculator {
                 
                 conflicts = this.checkReadWriteConflict(proc0, proc1);
                 if (conflicts.isEmpty() == false) {
-                    if (debug.get()) 
+                    if (debug.val) 
                         LOG.debug(String.format("**RW-CONFLICT** %s <-> %s", proc0.getName(), proc1.getName()));
                     this.procedures.get(proc0).rwConflicts.put(proc1, conflicts);
                 }
                 
                 conflicts = this.checkWriteWriteConflict(proc0, proc1);
                 if (conflicts.isEmpty() == false) {
-                    if (debug.get()) 
+                    if (debug.val) 
                         LOG.debug(String.format("**WW-CONFLICT** %s <-> %s", proc0.getName(), proc1.getName()));
                     this.procedures.get(proc0).wwConflicts.put(proc1, conflicts);
                 }
@@ -160,7 +160,7 @@ public class ConflictSetCalculator {
             this.updateCatalog(pInfo, pInfo.rwConflicts, true);
             this.updateCatalog(pInfo, pInfo.wwConflicts, false);
             
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format(
                           "%s Conflicts:\n" +
                           "  R-W: %s\n" +
@@ -234,7 +234,7 @@ public class ConflictSetCalculator {
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
                 Collection<Column> cols1 = CatalogUtil.getReferencedColumns(stmt1);
                 boolean alwaysConflicting1 = this.alwaysWriteConflicting(stmt1, type1, tables1, cols1);
-                if (debug.get()) LOG.debug(String.format("RW %s <-> %s - Intersection Tables %s",
+                if (debug.val) LOG.debug(String.format("RW %s <-> %s - Intersection Tables %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectTables));
                 if (intersectTables.isEmpty()) continue;
                 
@@ -246,12 +246,12 @@ public class ConflictSetCalculator {
                     cols1 = CatalogUtil.getModifiedColumns(stmt1);
                     assert(cols1.isEmpty() == false) : "No columns for " + stmt1.fullName();
                     Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
-                    if (debug.get()) LOG.debug(String.format("RW %s <-> %s - Intersection Columns %s",
+                    if (debug.val) LOG.debug(String.format("RW %s <-> %s - Intersection Columns %s",
                                                stmt0.fullName(), stmt1.fullName(), intersectColumns));
                     if (intersectColumns.isEmpty()) continue;
                 }
                 
-                if (debug.get()) LOG.debug(String.format("RW %s <-> %s CONFLICTS",
+                if (debug.val) LOG.debug(String.format("RW %s <-> %s CONFLICTS",
                                            stmt0.fullName(), stmt1.fullName()));
                 Conflict c = new Conflict(stmt0, stmt1, intersectTables, (alwaysConflicting0 || alwaysConflicting1));
                 conflicts.add(c);
@@ -293,7 +293,7 @@ public class ConflictSetCalculator {
                 boolean alwaysConflicting1 = this.alwaysWriteConflicting(stmt1, type1, tables1, cols1);
                 
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
-                if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Tables %s",
+                if (debug.val) LOG.debug(String.format("WW %s <-> %s - Intersection Tables %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectTables));
                 if (intersectTables.isEmpty()) continue;
                 
@@ -305,7 +305,7 @@ public class ConflictSetCalculator {
                 }
                     
                 Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
-                if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Columns %s",
+                if (debug.val) LOG.debug(String.format("WW %s <-> %s - Intersection Columns %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectColumns));
                 if (alwaysConflicting0 == false && alwaysConflicting1 == false && intersectColumns.isEmpty()) continue;
                 Conflict c = new Conflict(stmt0, stmt1, intersectTables, (alwaysConflicting0 || alwaysConflicting1));

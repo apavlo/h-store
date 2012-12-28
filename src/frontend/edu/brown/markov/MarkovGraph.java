@@ -389,7 +389,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      * Calculate vertex probabilities
      */
     private void calculateVertexProbabilities() {
-        if (trace.get()) LOG.trace("Calculating Vertex probabilities for " + this);
+        if (trace.val) LOG.trace("Calculating Vertex probabilities for " + this);
         new MarkovProbabilityCalculator(this).calculate();
     }
 
@@ -427,7 +427,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     }
     
     public void validate() throws InvalidGraphElementException {
-        if (debug.get()) LOG.warn("Calling MarkovGraph.isValid(). This should never be done at runtime!");
+        if (debug.val) LOG.warn("Calling MarkovGraph.isValid(). This should never be done at runtime!");
         Map<Long, AbstractGraphElement> seen_ids = new HashMap<Long, AbstractGraphElement>();
         
         // Validate Edges

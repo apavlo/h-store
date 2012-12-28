@@ -37,34 +37,34 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
     public Pair<Boolean, AbstractPlanNode> optimize(AbstractPlanNode rootNode) {
         Collection<HashAggregatePlanNode> nodes = PlanNodeUtil.getPlanNodes(rootNode, HashAggregatePlanNode.class);
         if (nodes.size() != 1) {
-            if (debug.get()) LOG.debug("SKIP - Not an aggregate query plan");
+            if (debug.val) LOG.debug("SKIP - Not an aggregate query plan");
             return Pair.of(false, rootNode);
         }
         final HashAggregatePlanNode node = CollectionUtil.first(nodes);
         
         // Skip single-partition query plans
         if (PlanNodeUtil.isDistributedQuery(rootNode) == false) {
-            if (debug.get()) LOG.debug("SKIP - Not a distributed query plan");
+            if (debug.val) LOG.debug("SKIP - Not a distributed query plan");
             return (Pair.of(false, rootNode));
         }
 // // Right now, Can't do averages
 // for (ExpressionType et: node.getAggregateTypes()) {
 // if (et.equals(ExpressionType.AGGREGATE_AVG)) {
-// if (debug.get()) LOG.debug("SKIP - Right now can't optimize AVG()");
+// if (debug.val) LOG.debug("SKIP - Right now can't optimize AVG()");
 // return (Pair.of(false, rootNode));
 // }
 // }
         
         // Get the AbstractScanPlanNode that is directly below us
         Collection<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(node, AbstractScanPlanNode.class);
-        if (debug.get()) LOG.debug("<ScanPlanNodes>: "+ scans);
+        if (debug.val) LOG.debug("<ScanPlanNodes>: "+ scans);
         if (scans.size() != 1) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("SKIP - Multiple scans!");
             return (Pair.of(false, rootNode));
         }
         
-        if (debug.get()) LOG.debug("Trying to apply Aggregate pushdown optimization!");
+        if (debug.val) LOG.debug("Trying to apply Aggregate pushdown optimization!");
         AbstractScanPlanNode scan_node = CollectionUtil.first(scans);
         assert (scan_node != null);
         
@@ -78,7 +78,7 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         
         // Skip if we're already directly after the scan (meaning no network traffic)
         if (scan_node.getParent(0).equals(node)) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("SKIP - Aggregate does not need to be distributed");
             return (Pair.of(false, rootNode));
         }
@@ -149,9 +149,9 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
             } // FOR
         }
 
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug("Successfully applied optimization! Eat that John Hugg!");
-            if (trace.get())
+            if (trace.val)
                 LOG.trace("\n" + PlanNodeUtil.debug(rootNode));
         }
 

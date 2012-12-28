@@ -312,19 +312,19 @@ public abstract class AbstractCostModel {
      * @param caching
      */
     public void setCachingEnabled(boolean caching) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Cost Model Caching: " + (caching ? "ENABLED" : "DISABLED"));
         this.use_caching = caching;
     }
 
     public void enableTransactionWeights(boolean val) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Transaction Weight Support: " + (val ? "ENABLED" : "DISABLED"));
         this.use_txn_weights = val;
     }
 
     public void enableQueryWeights(boolean val) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Transaction Weight Support: " + (val ? "ENABLED" : "DISABLED"));
         this.use_txn_weights = val;
     }
@@ -338,13 +338,13 @@ public abstract class AbstractCostModel {
     }
 
     public void setExecutionCostEnabled(boolean execution) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Cost Model Execution: " + (execution ? "ENABLED" : "DISABLED"));
         this.use_execution = execution;
     }
 
     public void setExecutionWeight(double weight) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Execution Cost Weight: " + weight);
         this.execution_weight = weight;
     }
@@ -362,13 +362,13 @@ public abstract class AbstractCostModel {
     }
 
     public void setEntropyEnabled(boolean entropy) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Cost Model Entropy: " + (entropy ? "ENABLED" : "DISABLED"));
         this.use_skew = entropy;
     }
 
     public void setEntropyWeight(double weight) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Entropy Cost Weight: " + weight);
         this.skew_weight = weight;
     }
@@ -386,13 +386,13 @@ public abstract class AbstractCostModel {
     }
 
     public void setMultiPartitionPenaltyEnabled(boolean enable) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Cost Model MultiPartition Penalty: " + (enable ? "ENABLED" : "DISABLED"));
         this.use_multitpartition_penalty = enable;
     }
 
     public void setMultiPartitionPenalty(double penalty) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("MultiPartition Penalty: " + penalty);
         this.multipartition_penalty = penalty;
     }
@@ -410,13 +410,13 @@ public abstract class AbstractCostModel {
     }
 
     public void setJavaExecutionWeightEnabled(boolean enable) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Cost Model Java Execution: " + (enable ? "ENABLED" : "DISABLED"));
         this.use_skew_java = enable;
     }
 
     public void setJavaExecutionWeight(double weight) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Java Execution Weight: " + weight);
         this.java_exec_weight = weight;
     }
@@ -433,12 +433,12 @@ public abstract class AbstractCostModel {
     // return this.use_skew_java;
     // }
     // public void setEntropyTxnWeightEnabled(boolean enable) {
-    // if (debug.get()) LOG.debug("Cost Model Entropy Txn: " + (enable ?
+    // if (debug.val) LOG.debug("Cost Model Entropy Txn: " + (enable ?
     // "ENABLED" : "DISABLED"));
     // this.use_skew_java = enable;
     // }
     // public void setEntropyTxnWeight(int weight) {
-    // if (debug.get()) LOG.debug("Entropy Txn Weight: " + weight);
+    // if (debug.val) LOG.debug("Entropy Txn Weight: " + weight);
     // this.java_exec_weight = weight;
     // }
     // public int getEntropyTxnWeight() {
@@ -589,8 +589,8 @@ public abstract class AbstractCostModel {
                 throw ex;
             }
             if (upper_bound != null && cost > upper_bound.doubleValue()) {
-                if (debug.get())
-                    if (debug.get())
+                if (debug.val)
+                    if (debug.val)
                         LOG.debug("Exceeded upper bound. Halting estimation early!");
                 break;
             }
@@ -619,7 +619,7 @@ public abstract class AbstractCostModel {
      */
     public void setDebuggingEnabled(boolean enable_debugging) {
         this.enable_debugging = enable_debugging;
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Setting Custom Debugging: " + this.enable_debugging);
     }
 

@@ -49,7 +49,7 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
     @Override
     public void remoteQueue(RpcController controller, TransactionPrepareRequest request, 
             RpcCallback<TransactionPrepareResponse> callback) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Sending %s to remote handler for txn #%d",
                       request.getClass().getSimpleName(), request.getTransactionId()));
         this.remoteHandler(controller, request, callback);
@@ -60,7 +60,7 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         assert(request.hasTransactionId()) :
             "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = Long.valueOf(request.getTransactionId());
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
         
         // HACK

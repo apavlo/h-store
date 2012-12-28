@@ -92,7 +92,7 @@ public abstract class AbstractPartitioner {
      */
     protected void setProcedureSinglePartitionFlags(final PartitionPlan pplan, final DesignerHints hints) {
         pplan.apply(info.catalogContext.database);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Processing workload and checking which procedures are single-partitioned");
         if (info.getCostModel() != null) {
             try {
@@ -105,7 +105,7 @@ public abstract class AbstractPartitioner {
                 try {
                     Boolean singlepartitioned = info.getCostModel().isAlwaysSinglePartition(e.getKey());
                     if (singlepartitioned != null) {
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace("Setting single-partition flag for " + e.getKey() + ":  " + singlepartitioned);
                         e.getValue().setSinglePartition(singlepartitioned);
                     }
@@ -126,7 +126,7 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     protected AccessGraph generateAccessGraph() throws Exception {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Generating AccessGraph for entire catalog");
         assert (info.workload != null);
 
@@ -135,7 +135,7 @@ public abstract class AbstractPartitioner {
             // Skip if there are no transactions in the workload for this
             // procedure
             if (info.workload.getTraces(catalog_proc).isEmpty()) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
             } else if (this.designer.getGraphs(catalog_proc) != null) {
                 this.designer.getGraphs(catalog_proc).add(agraph);

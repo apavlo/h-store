@@ -143,7 +143,7 @@ public abstract class HStore {
                 long load_time = System.currentTimeMillis() - start;
                 LOG.info(String.format("Finished loading MarkovGraphsContainer '%s' in %.1f sec",
                                        path, (load_time / 1000d)));
-            } else if (debug.get()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
+            } else if (debug.val) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
             ThreadUtil.shutdownGlobalPool(); // HACK
         }
         
@@ -160,7 +160,7 @@ public abstract class HStore {
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
-            } else if (debug.get()) LOG.warn("The ParameterMappings file '" + path + "' does not exist");
+            } else if (debug.val) LOG.warn("The ParameterMappings file '" + path + "' does not exist");
         }
         
         // ----------------------------------------------------------------------------
@@ -183,7 +183,7 @@ public abstract class HStore {
             // Load the Markov models if we were given an input path and pass them to t_estimator
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
-            if (debug.get()) LOG.debug("Creating TransactionEstimator for " + singleton.getSiteName());
+            if (debug.val) LOG.debug("Creating TransactionEstimator for " + singleton.getSiteName());
             TransactionEstimator t_estimator = null;
             if (hstore_conf.site.markov_enable) {
                 if (hstore_conf.site.markov_fixed == false && markovs != null) {
@@ -198,7 +198,7 @@ public abstract class HStore {
             }
 
             // setup the EE
-            if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
+            if (debug.val) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
             PartitionExecutor executor = new PartitionExecutor(
                                                 local_partition,
                                                 singleton.getCatalogContext(),
@@ -236,7 +236,7 @@ public abstract class HStore {
         t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
         
         HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args);
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
         
         HStoreSite hstore_site = HStore.initialize(args.catalogContext, site_id, hstore_conf);
@@ -258,7 +258,7 @@ public abstract class HStore {
         // ----------------------------------------------------------------------------
         // Bombs Away!
         // ----------------------------------------------------------------------------
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Instantiating HStoreSite network connections for " + hstore_site.getSiteName());
         hstore_site.run();
     }

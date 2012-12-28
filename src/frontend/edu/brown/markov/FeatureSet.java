@@ -10,9 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.Vector;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -30,6 +28,7 @@ import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
 import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.features.AbstractFeature;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
@@ -43,8 +42,8 @@ import edu.brown.workload.TransactionTrace;
 
 public class FeatureSet implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(FeatureSet.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -196,7 +195,7 @@ public class FeatureSet implements JSONSerializable {
                     type = Type.RANGE;
                 }
             }
-            if (debug.get()) LOG.debug("Adding new attribute " + key + " [" + type + "]");
+            if (debug.val) LOG.debug("Adding new attribute " + key + " [" + type + "]");
             this.attributes.put(key, type);
             this.attribute_histograms.put(key, new ObjectHistogram());
             this.attribute_types.put(key, VoltType.NULL);
@@ -220,7 +219,7 @@ public class FeatureSet implements JSONSerializable {
         int num_attributes = this.attributes.size();
         Vector<Object> values = this.txn_values.get(txn_id); 
         if (values == null) {
-            if (trace.get()) LOG.trace("Creating new feature vector for " + txn_id);
+            if (trace.val) LOG.trace("Creating new feature vector for " + txn_id);
             values = new Vector<Object>(num_attributes);
             values.setSize(num_attributes);
             this.txn_values.put(txn_id, values);
@@ -231,7 +230,7 @@ public class FeatureSet implements JSONSerializable {
                 v.setSize(num_attributes);
             } // FOR
             this.last_num_attributes = num_attributes;
-            if (trace.get()) LOG.trace("Increased FeatureSet size to " + this.last_num_attributes + " attributes");
+            if (trace.val) LOG.trace("Increased FeatureSet size to " + this.last_num_attributes + " attributes");
         }
         this.txn_values.get(txn_id).set(idx, val);
         
@@ -239,7 +238,7 @@ public class FeatureSet implements JSONSerializable {
             this.attribute_types.put(key, VoltType.typeFromClass(val.getClass()));
         }
         
-        if (trace.get()) LOG.trace(txn_id + ": " + key + " => " + val);
+        if (trace.val) LOG.trace(txn_id + ": " + key + " => " + val);
     }
 
     /**
@@ -276,7 +275,7 @@ public class FeatureSet implements JSONSerializable {
             } // FOR
             if (include) export_attrs.add(key);
         } // FOR
-        if (debug.get()) LOG.debug("# of Attributes to Export: " + export_attrs.size());
+        if (debug.val) LOG.debug("# of Attributes to Export: " + export_attrs.size());
         
         List<Map<Object, Double>> normalized_values = null;
         Set<String> normalize_ignore = new HashSet<String>();
@@ -284,7 +283,7 @@ public class FeatureSet implements JSONSerializable {
             normalize_ignore.add(FeatureUtil.getFeatureKeyPrefix(TransactionIdFeature.class));
             normalize_ignore.add(FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class));
             
-            if (debug.get()) LOG.debug("Normalizing values!");
+            if (debug.val) LOG.debug("Normalizing values!");
             normalized_values = new ArrayList<Map<Object,Double>>();
             for (String key : export_attrs) {
                 if (normalize_ignore.contains(key) == false) {

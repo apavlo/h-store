@@ -38,7 +38,7 @@ public class ShutdownPrepareCallback implements RpcCallback<ShutdownPrepareRespo
         assert(this.siteids.contains(siteId) == false) :
             "Duplicate response from remote HStoreSite " + HStoreThreadManager.formatSiteName(siteId);
         this.siteids.add(siteId);
-        if (trace.get()) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
+        if (trace.val) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
         this.latch.countDown();
     }
 };

@@ -198,7 +198,7 @@ public class ConstraintPropagator {
                     LOG.fatal("Failed to find column for " + catalog_tbl + " in ColumnSet:\n" + cset);
 
                 if (catalog_col.getNullable()) {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.warn("Ignoring nullable horizontal partition column candidate " + catalog_col.fullName());
                 } else {
                     // Always add the base column without any vertical
@@ -296,7 +296,7 @@ public class ConstraintPropagator {
             int val = this.column_edge_ctrs.get(catalog_col).decrementAndGet();
             assert (val >= 0) : "Invalid counter for " + catalog_col.fullName() + ": " + val;
         } // FOR
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Marked edge %s and updated %d Column counters.", e.toStringPath(agraph), this.edge_cols_xref.get(e).size()));
     }
 
@@ -311,7 +311,7 @@ public class ConstraintPropagator {
         for (Column catalog_col : this.edge_cols_xref.get(e)) {
             this.column_edge_ctrs.get(catalog_col).incrementAndGet();
         } // FOR
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Unmarked edge %s and updated %d Column counters.", e.toStringPath(agraph), this.edge_cols_xref.get(e).size()));
     }
 
@@ -327,7 +327,7 @@ public class ConstraintPropagator {
      * @param catalog_tbl
      */
     public void update(CatalogType catalog_obj) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Propagating constraints for " + catalog_obj);
         assert (this.isset.contains(catalog_obj) == false) : "Trying to update " + catalog_obj + " more than once!";
 
@@ -357,21 +357,21 @@ public class ConstraintPropagator {
                 Collection<DesignerEdge> all_edges = this.agraph.getIncidentEdges(v0);
                 assert (all_edges != null);
 
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(String.format("%s Edges:\nMATCHING EDGES\n%s" + StringUtil.SINGLE_LINE + "ALL EDGES\n%s", catalog_tbl.fullName(), StringUtil.prefix(StringUtil.join("\n", edges), "   "),
                             StringUtil.prefix(StringUtil.join("\n", all_edges), "   ")));
 
                 // Look at v0's edges and mark any that are not in our list
                 int e_ctr = 0;
                 for (DesignerEdge e : all_edges) {
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace(String.format("Checking whether we can mark edge %s", e.toStringPath(agraph)));
                     if (edges.contains(e) == false && this.marked_edges.contains(e) == false) {
                         this.markEdge(e);
                         e_ctr++;
                     }
                 } // FOR
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("Marked %d out of %d edges for update of %s", e_ctr, all_edges.size(), catalog_tbl));
             }
             this.isset_tables++;
@@ -389,7 +389,7 @@ public class ConstraintPropagator {
             assert (false) : "Unexpected " + catalog_obj;
         }
         this.isset.add(catalog_obj);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Current IsSet Items: " + this.isset);
         assert (this.isset.size() == (this.isset_tables + this.isset_procs));
     }
@@ -399,7 +399,7 @@ public class ConstraintPropagator {
      */
     public void reset(CatalogType catalog_obj) {
         assert (this.isset.contains(catalog_obj)) : "Trying to reset " + catalog_obj + " before it's been marked as set!";
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Reseting marked edges for " + catalog_obj);
 
         // ----------------------------------------------
@@ -429,7 +429,7 @@ public class ConstraintPropagator {
             assert (false) : "Unexpected " + catalog_obj;
         }
         this.isset.remove(catalog_obj);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Current IsSet Items: " + this.isset);
         assert (this.isset.size() == (this.isset_tables + this.isset_procs));
     }
@@ -447,7 +447,7 @@ public class ConstraintPropagator {
             throw new IllegalArgumentException("Unexpected item " + catalog_obj);
         }
         ret.clear();
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Retrieving candidate values for " + catalog_obj);
 
         // ----------------------------------------------
@@ -475,20 +475,20 @@ public class ConstraintPropagator {
                 if (columns == null)
                     continue;
 
-                if (trace.get() && columns.isEmpty() == false) {
+                if (trace.val && columns.isEmpty() == false) {
                     LOG.trace(String.format("Examining %d candidate Columns for %s", columns.size(), e.toStringPath(agraph)));
                 }
                 for (Column catalog_col : columns) {
                     // Make sure that we only add the Columns for our table
                     if (catalog_col.getParent().equals(catalog_tbl) && this.column_edge_ctrs.get(catalog_col).get() > 0) {
                         ret.add((T) catalog_col);
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace(String.format("Adding candidate Column %s because of Edge %s", catalog_col.fullName(), e.toStringPath(agraph)));
                     }
                 } // FOR (columns)
                 total_cols += columns.size();
             } // FOR (edges)
-            if (debug.get()) {
+            if (debug.val) {
                 LOG.debug(String.format("Selected %d out of %d candidate Columns using %d edges for %s", ret.size(), total_cols, edges.size(), catalog_tbl));
             }
 
@@ -514,7 +514,7 @@ public class ConstraintPropagator {
         } else {
             assert (false) : "Unexpected " + catalog_obj;
         }
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("%s Possible Values [%d]: %s", catalog_obj, ret.size(), CatalogUtil.debug(ret)));
         return (ret);
     }

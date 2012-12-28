@@ -58,7 +58,7 @@ public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest,
         assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
         long txn_id = request.getTransactionId();
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d",
                                    request.getClass().getSimpleName(), txn_id));
 
@@ -85,13 +85,13 @@ public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest,
                 LOG.warn("Unexpected error when deserializing VoltTable", ex);
             }
             assert(vt != null);
-            if (debug.get()) {
+            if (debug.val) {
                 byte bytes[] = request.getData(i).toByteArray();
                 LOG.debug(String.format("Inbound data for Partition #%d: RowCount=%d / MD5=%s / Length=%d",
                                         partition, vt.getRowCount(),StringUtil.md5sum(bytes), bytes.length));
             }
                 
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("<StoreTable from Partition %d to Partition:%d>\n %s",hstore_site.getSiteId() ,partition,vt));
             Hstoreservice.Status status = ts.storeData(partition, vt);
             if (status != Hstoreservice.Status.OK) builder.setStatus(status);

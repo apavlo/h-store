@@ -76,7 +76,7 @@ public abstract class Filter {
     
     public Filter.FilterResult apply(AbstractTraceElement<? extends CatalogType> element) {
         Filter.FilterResult result = this.applyImpl(element);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Filter: " + element + " => " + result);
         return (result);
     }

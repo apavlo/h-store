@@ -79,7 +79,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      * @param orig_callback
      */
     protected void init(Long txn_id, int counter_val, RpcCallback<T> orig_callback) {
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug(String.format("Txn #%d - Initialized new %s with counter = %d [hashCode=%d]",
                                     txn_id, this.getClass().getSimpleName(), counter_val, this.hashCode()));
         this.orig_counter = counter_val;
@@ -125,11 +125,11 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     public final void run(U parameter) {
         int delta = this.runImpl(parameter);
         int new_count = this.counter.addAndGet(-1 * delta);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Txn #%d - %s.run() / COUNTER: %d - %d = %d%s",
                                     this.txn_id, this.getClass().getSimpleName(),
                                     new_count+delta, delta, new_count,
-                                    (trace.get() ? "\n" + parameter : "")));
+                                    (trace.val ? "\n" + parameter : "")));
         
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
@@ -144,7 +144,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      */
     public final int decrementCounter(int delta) {
         int new_count = this.counter.addAndGet(-1 * delta); 
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Txn #%d - Decremented %s / COUNTER: %d - %d = %s",
                                     this.txn_id, this.getClass().getSimpleName(), new_count+delta, delta, new_count));
         assert(new_count >= 0) :
@@ -171,7 +171,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     private final void unblock() {
         if (this.canceled.get() == false && (this.abortInvoked.get() == false || this.invoke_even_if_aborted)) {
             if (this.unblockInvoked.compareAndSet(false, true)) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback() [hashCode=%d]",
                                            this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
                 
@@ -246,7 +246,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     
     @Override
     public final void finish() {
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug(String.format("Txn #%d - Finishing %s [hashCode=%d]",
                                    this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
         this.finishImpl();

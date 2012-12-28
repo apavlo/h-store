@@ -226,7 +226,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             this.table_nonreplicated_size.put(catalog_tbl, Math.round(ts.tuple_size_total / (double) this.num_partitions));
             this.table_replicated_size.put(catalog_tbl, ts.tuple_size_total);
 
-            if (trace.get())
+            if (trace.val)
                 LOG.trace(catalog_tbl.getName() + ": " + columns);
         } // FOR
 
@@ -236,20 +236,20 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             // Skip if we're explicitly force to ignore this guy
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) {
-                if (debug.get()) LOG.warn(String.format("Ignoring %s - Set to be ignored by the DesignerHints.", catalog_proc));
+                if (debug.val) LOG.warn(String.format("Ignoring %s - Set to be ignored by the DesignerHints.", catalog_proc));
                 this.ignore_procs.add(catalog_proc);
                 continue;
             }
             // Or if there are not transactions in the sample workload
             else if (workloadHistogram.get(CatalogKey.createKey(catalog_proc), 0) == 0) {
-                if (debug.get()) LOG.warn(String.format("Ignoring %s - No transaction records in sample workload.", catalog_proc));
+                if (debug.val) LOG.warn(String.format("Ignoring %s - No transaction records in sample workload.", catalog_proc));
                 this.ignore_procs.add(catalog_proc);
                 continue;
             }
 
             Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
             if (columns.isEmpty()) {
-                if (debug.get()) LOG.warn(String.format("Ignoring %s - Does not reference any columns in its queries.", catalog_proc));
+                if (debug.val) LOG.warn(String.format("Ignoring %s - Does not reference any columns in its queries.", catalog_proc));
                 this.ignore_procs.add(catalog_proc);
                 continue;
             }
@@ -271,7 +271,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             HashMap<ProcParameter, Set<MultiProcParameter>> multiparams = new HashMap<ProcParameter, Set<MultiProcParameter>>();
             if (hints.enable_multi_partitioning) {
                 multiparams.putAll(PartitionerUtil.generateMultiProcParameters(info, hints, catalog_proc));
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(catalog_proc + " MultiProcParameters:\n" + multiparams);
             }
             this.proc_multipoc_map.put(catalog_proc, multiparams);
@@ -290,7 +290,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 for (Entry<Table, Collection<MultiColumn>> e : multicolumns.entrySet()) {
                     if (this.ignore_tables.contains(e.getKey()))
                         continue;
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace(e.getKey().getName() + " MultiColumns:\n" + multicolumns);
                     ListOrderedSet<Column> cols = this.orig_table_attributes.get(e.getKey());
                     if (cols == null) {
@@ -519,7 +519,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // a solution that fully utilizes partitions
         if (hints.enable_costmodel_idlepartition_penalty) {
             Set<Integer> untouched_partitions = this.costmodel.getUntouchedPartitions(this.num_partitions);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Number of Idle Partitions: " + untouched_partitions.size());
             if (!untouched_partitions.isEmpty()) {
                 double entropy_weight = this.costmodel.getEntropyWeight();
@@ -541,7 +541,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
         }
 
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug("Initial Solution Cost: " + String.format(DEBUG_COST_FORMAT, this.initial_cost));
             LOG.debug("Initial Solution Memory: " + String.format(DEBUG_COST_FORMAT, this.initial_memory));
             LOG.debug("Initial Solution:\n" + this.initial_solution);
@@ -647,7 +647,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         while (true) {
             relaxed_tables.clear();
             Collection<Integer> rand_idxs = rand.getRandomIntSet(relax_size);
-            if (trace.get())
+            if (trace.val)
                 LOG.trace("Relaxed Table Identifiers: " + rand_idxs);
             for (int idx : rand_idxs) {
                 assert (idx < this.orig_table_attributes.size()) : "Random Index is too large: " + idx + " " + this.orig_table_attributes.keySet();
@@ -864,11 +864,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         ProcParameter default_param = catalog_proc.getParameters().get(0);
         ObjectHistogram<Column> col_access_histogram = this.proc_column_histogram.get(catalog_proc);
         if (col_access_histogram == null) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("No column access histogram for " + catalog_proc + ". Setting to default");
             return (default_param);
         }
-        if (debug.get())
+        if (debug.val)
             LOG.debug(catalog_proc + " Column Histogram:\n" + col_access_histogram);
 
         // Loop through each Table and check whether its partitioning column is
@@ -882,7 +882,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 continue;
             long col_access_cnt = col_access_histogram.get(catalog_col);
 
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(CatalogUtil.getDisplayName(catalog_col));
             // Now loop through the ProcParameters and figure out which ones are
             // correlated to the Column
@@ -901,10 +901,10 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                         weights_list.add(c.getCoefficient() * col_access_cnt);
                     } // FOR
                 }
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("  " + catalog_proc_param + ": " + weights_list);
             } // FOR
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("");
         } // FOR (Table)
 
@@ -920,14 +920,14 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
         } // FOR
         if (final_param_weights.isEmpty()) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("Failed to find any ProcParameters for " + catalog_proc.getName() + " that map to partition columns");
             return (default_param);
         }
         Map<ProcParameter, Double> sorted = CollectionUtil.sortByValues(final_param_weights, true);
         assert (sorted != null);
         ProcParameter best_param = CollectionUtil.first(sorted.keySet());
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Best Param: " + best_param + " " + sorted);
         return (best_param);
     }

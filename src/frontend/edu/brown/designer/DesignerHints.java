@@ -575,7 +575,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
                 } // FOR
             } // FOR
             if (to_add.size() > 0) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("Added ignore procedures: " + to_add);
                 this.ignore_procedures.addAll(to_add);
             }
@@ -583,7 +583,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
 
         // Target PartitionPlan
         if (this.target_plan_path != null && this.target_plan_path != null) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Loading in target PartitionPlan from '" + this.target_plan_path + "'");
             this.target_plan = new PartitionPlan();
             try {

@@ -63,7 +63,7 @@ public abstract class WorkloadUtil {
         public void run() {
             self = Thread.currentThread();
             self.setName(this.getClass().getSimpleName());
-            if (debug.get()) LOG.debug(String.format("Starting thread to read workload '%s' [processingThreads=%d]",
+            if (debug.val) LOG.debug(String.format("Starting thread to read workload '%s' [processingThreads=%d]",
                                        this.input_path.getAbsolutePath(), this.processingThreads.size()));
             
             BufferedReader in = null;
@@ -79,7 +79,7 @@ public abstract class WorkloadUtil {
             try {
                 while (in.ready() && this.stop == false) {
                     totalCtr++;
-                    if (debug.get() && totalCtr % 10000 == 0)
+                    if (debug.val && totalCtr % 10000 == 0)
                         LOG.debug(String.format("Read in %d lines from '%s' [queue=%d, procCtr=%d, fastCtr=%d]",
                                                 totalCtr, this.input_path.getName(), this.lines.size(), procCtr, fastCtr));
                     
@@ -93,7 +93,7 @@ public abstract class WorkloadUtil {
                     procCtr++;
                 } // WHILE
                 in.close();
-                if (debug.get()) LOG.debug("Finished reading file. Telling all ProcessingThreads to stop when their queue is empty");
+                if (debug.val) LOG.debug("Finished reading file. Telling all ProcessingThreads to stop when their queue is empty");
             } catch (InterruptedException ex) {
                 if (this.stop == false) throw new RuntimeException(ex);
             } catch (Exception ex) {
@@ -104,11 +104,11 @@ public abstract class WorkloadUtil {
                     lt.stop();
                 } // FOR
             }
-            if (debug.get()) LOG.debug(String.format("Read %d lines [fast_filter=%d]", procCtr, fastCtr));
+            if (debug.val) LOG.debug(String.format("Read %d lines [fast_filter=%d]", procCtr, fastCtr));
         }
         public synchronized void stop() {
             if (this.stop == false) {
-                if (debug.get()) LOG.debug("ReadThread told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
+                if (debug.val) LOG.debug("ReadThread told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
                 this.stop = true;
                 this.lines.clear();
                 this.self.interrupt();
@@ -144,7 +144,7 @@ public abstract class WorkloadUtil {
         public void run() {
             Thread self = Thread.currentThread();
             self.setName(String.format("%s-%d", this.getClass().getSimpleName(), this.id));
-            if (debug.get()) LOG.debug(String.format("Starting %s [%d / %d]",
+            if (debug.val) LOG.debug(String.format("Starting %s [%d / %d]",
                                        this.getClass().getSimpleName(), this.id, this.reader.processingThreads.size()));
 
             AtomicInteger element_ctr = this.counters[ELEMENT_CTR_IDX];
@@ -170,16 +170,16 @@ public abstract class WorkloadUtil {
     
                 if (p == null) {
                     if (this.stop) {
-                        if (debug.get()) LOG.debug("Queue is empty and we were told to stop!");
+                        if (debug.val) LOG.debug("Queue is empty and we were told to stop!");
                         break;
                     }
-                    if (debug.get()) LOG.debug("Queue is empty but we haven't been told to stop yet");
+                    if (debug.val) LOG.debug("Queue is empty but we haven't been told to stop yet");
                     continue;
                 }
                 
                 line_ctr = p.getFirst();
                 line = p.getSecond();
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(String.format("Processing TransactionTrace on line %d [queueSize=%d, bytes=%d]",
                                              line_ctr, reader.lines.size(), line.length()));
                 try {
@@ -187,7 +187,7 @@ public abstract class WorkloadUtil {
                         jsonObject = new JSONObject(line);
                     } catch (JSONException ex) {
                         String msg = String.format("Ignoring invalid TransactionTrace on line %d of '%s'", (line_ctr+1), input_path);
-                        if (debug.get()) {
+                        if (debug.val) {
                             LOG.warn(msg, ex);
                         } else {
                             LOG.warn(msg); 
@@ -223,22 +223,22 @@ public abstract class WorkloadUtil {
                             synchronized (filter) {
                                 result = filter.apply(xact);
                             } // SYNCH
-                            if (trace.get()) LOG.trace(xact + " Filter Result: " + result);
+                            if (trace.val) LOG.trace(xact + " Filter Result: " + result);
                             
                             if (result == FilterResult.HALT) {
                                 // We have to tell the ReadThread to stop too!
-                                if (debug.get()) LOG.debug("Got HALT response from filter! Telling ReadThread to stop!");
+                                if (debug.val) LOG.debug("Got HALT response from filter! Telling ReadThread to stop!");
                                 this.reader.stop();
                                 break;
                             }
                             else if (result == FilterResult.SKIP) continue;
-                            if (trace.get()) LOG.trace(result + ": " + xact);
+                            if (trace.val) LOG.trace(result + ": " + xact);
                         }
     
                         // Keep track of how many trace elements we've loaded so that we can make sure
                         // that our element trace list is complete
                         int x = xact_ctr.incrementAndGet();
-                        if (debug.get() && x % 10000 == 0) LOG.debug("Processed " + xact_ctr + " transactions...");
+                        if (debug.val && x % 10000 == 0) LOG.debug("Processed " + xact_ctr + " transactions...");
                         query_ctr.addAndGet(xact.getQueryCount());
                         element_ctr.addAndGet(1 + xact.getQueries().size());
                         weightedTxn_ctr.addAndGet(xact.weight);
@@ -260,7 +260,7 @@ public abstract class WorkloadUtil {
         }
         
         public void stop() {
-            if (debug.get()) LOG.debug("Told to stop [queue_size=" + this.reader.lines.size() + "]");
+            if (debug.val) LOG.debug("Told to stop [queue_size=" + this.reader.lines.size() + "]");
             this.stop = true;
         }
     } // END CLASS
@@ -301,7 +301,7 @@ public abstract class WorkloadUtil {
                 output.write(xact.toJSONString(catalog_db).getBytes());
                 output.write(newline);
                 output.flush();
-                if (debug.get()) Workload.LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+                if (debug.val) Workload.LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
             } catch (IOException ex) {
                 Workload.LOG.fatal("Failed to write " + xact + " out to file", ex);
                 System.exit(1);
@@ -327,7 +327,7 @@ public abstract class WorkloadUtil {
                              "\":[\\s]*\"([\\w\\d]+)\"[\\s]*,[\\s]*.*";
         final Pattern p = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
 
-        if (debug.get()) LOG.debug("Fast generation of Procedure Histogram from Workload '" + workload_path.getAbsolutePath() + "'");
+        if (debug.val) LOG.debug("Fast generation of Procedure Histogram from Workload '" + workload_path.getAbsolutePath() + "'");
         BufferedReader reader = FileUtil.getReader(workload_path.getAbsolutePath());
         int line_ctr = 0;
         while (reader.ready()) {
@@ -350,7 +350,7 @@ public abstract class WorkloadUtil {
         } // WHILE
         reader.close();
         
-        if (debug.get()) LOG.debug("Processed " + line_ctr + " workload trace records for histogram\n" + h);
+        if (debug.val) LOG.debug("Processed " + line_ctr + " workload trace records for histogram\n" + h);
         return (h);
     }
     

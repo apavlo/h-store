@@ -71,11 +71,11 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
 
     @Override
     protected void unblockCallback() {
-        if (debug.get()) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
+        if (debug.val) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
                                    this.ts, TransactionInitResponse.class.getSimpleName(),
                                    (this.builder != null ? this.builder.getStatus() : "???")));
         if (this.builder != null) {
-            if (debug.get()) {
+            if (debug.val) {
                 LOG.debug(String.format("%s - Sending %s to %s with status %s",
                                         this.ts,
                                         TransactionInitResponse.class.getSimpleName(),
@@ -150,7 +150,7 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
                 } // FOR
             }
         }
-        else if (debug.get()) {
+        else if (debug.val) {
             LOG.warn(String.format("%s - No builder is available? Unable to send back %s",
                       this.ts, TransactionInitResponse.class.getSimpleName()));
         }
@@ -160,7 +160,7 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
     protected void abortCallback(Status status) {
         // Uh... this might have already been sent out?
         if (this.builder != null) {
-            if (debug.get()) LOG.debug(String.format("%s - Aborting %s with status %s",
+            if (debug.val) LOG.debug(String.format("%s - Aborting %s with status %s",
                                        this.ts, this.getClass().getSimpleName(), status));
             
             // Ok so where's what going on here. We need to send back
@@ -178,7 +178,7 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
             this.builder = null;
             this.clearCounter();
         }
-        else if (debug.get()) {
+        else if (debug.val) {
             LOG.warn(String.format("%s - No builder is available? Unable to send back %s",
                       this.ts, TransactionInitResponse.class.getSimpleName()));
         }

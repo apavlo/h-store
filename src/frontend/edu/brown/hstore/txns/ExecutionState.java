@@ -152,7 +152,7 @@ public class ExecutionState implements Poolable {
     }
     
     public void clear() {
-        if (debug.get()) LOG.debug("Clearing ExecutionState at partition " + this.executor.getPartitionId());
+        if (debug.val) LOG.debug("Clearing ExecutionState at partition " + this.executor.getPartitionId());
         this.dependency_latch = null;
         this.clearRound();
     }

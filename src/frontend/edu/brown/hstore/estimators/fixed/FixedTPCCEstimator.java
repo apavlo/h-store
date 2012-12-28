@@ -104,7 +104,7 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
                 touchedPartitions.add(this.getPartition(s_w_id));
             }
         } // FOR
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug(String.format("NewOrder - [W_ID=%d / S_W_IDS=%s] => [BasePartition=%s / Partitions=%s]",
                       w_id, Arrays.toString(s_w_ids), 
                       base_partition, touchedPartitions));

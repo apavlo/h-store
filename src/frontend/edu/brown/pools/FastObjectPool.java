@@ -118,7 +118,7 @@ public class FastObjectPool<T> extends BaseObjectPool {
         }
         _numActive.incrementAndGet();
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Retrieved %s from ObjectPool [hashCode=%d]",
                       obj.getClass().getSimpleName(), obj.hashCode()));
             
@@ -153,7 +153,7 @@ public class FastObjectPool<T> extends BaseObjectPool {
                 shouldDestroy = true;
                 toBeDestroyed = _pool.poll(); // remove the stalest object
             }
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
                                         t.getClass().getSimpleName(), t.hashCode()));
             _pool.offer(t);

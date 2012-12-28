@@ -154,12 +154,12 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public boolean isDeletable() {
         if (this.init_callback.allCallbacksFinished() == false) {
-            if (debug.get()) LOG.warn(String.format("%s - %s is not finished", this,
+            if (debug.val) LOG.warn(String.format("%s - %s is not finished", this,
                                       this.init_callback.getClass().getSimpleName()));
             return (false);
         }
         if (this.cleanup_callback.allCallbacksFinished() == false) {
-            if (debug.get()) LOG.warn(String.format("%s - %s is not finished", this,
+            if (debug.val) LOG.warn(String.format("%s - %s is not finished", this,
                                       this.cleanup_callback.getClass().getSimpleName()));
             return (false);
         }

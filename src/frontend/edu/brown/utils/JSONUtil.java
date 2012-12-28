@@ -193,7 +193,7 @@ public abstract class JSONUtil {
      * @throws IOException
      */
     public static <T extends JSONSerializable> void save(T object, File output_path) throws IOException {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Writing out contents of " + object.getClass().getSimpleName() + " to '" + output_path + "'");
         try {
             FileUtil.makeDirIfNotExists(output_path.getParent());
@@ -214,7 +214,7 @@ public abstract class JSONUtil {
      * @throws Exception
      */
     public static <T extends JSONSerializable> void load(T object, Database catalog_db, File input_path) throws IOException {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Loading in serialized " + object.getClass().getSimpleName() + " from '" + input_path + "'");
         String contents = FileUtil.readFile(input_path);
         if (contents.isEmpty()) {
@@ -223,11 +223,11 @@ public abstract class JSONUtil {
         try {
             object.fromJSON(new JSONObject(contents), catalog_db);
         } catch (Exception ex) {
-            if (debug.get())
+            if (debug.val)
                 LOG.error("Failed to deserialize the " + object.getClass().getSimpleName() + " from file '" + input_path + "'", ex);
             throw new IOException(ex);
         }
-        if (debug.get())
+        if (debug.val)
             LOG.debug("The loading of the " + object.getClass().getSimpleName() + " is complete");
     }
 
@@ -265,7 +265,7 @@ public abstract class JSONUtil {
      * @throws JSONException
      */
     public static <T> void fieldsToJSON(JSONStringer stringer, T object, Class<? extends T> base_class, Field fields[]) throws JSONException {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Serializing out " + fields.length + " elements for " + base_class.getSimpleName());
         for (Field f : fields) {
             String json_key = f.getName().toUpperCase();
@@ -301,13 +301,13 @@ public abstract class JSONUtil {
     public static void writeFieldValue(JSONStringer stringer, Class<?> field_class, Object field_value) throws JSONException {
         // Null
         if (field_value == null) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("writeNullFieldValue(" + field_class + ", " + field_value + ")");
             stringer.value(null);
         }
         // Collections
         else if (ClassUtil.getInterfaces(field_class).contains(Collection.class)) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("writeCollectionFieldValue(" + field_class + ", " + field_value + ")");
             stringer.array();
             for (Object value : (Collection<?>) field_value) {
@@ -321,7 +321,7 @@ public abstract class JSONUtil {
         }
         // Maps
         else if (field_value instanceof Map) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("writeMapFieldValue(" + field_class + ", " + field_value + ")");
             stringer.object();
             for (Entry<?, ?> e : ((Map<?, ?>) field_value).entrySet()) {
@@ -349,7 +349,7 @@ public abstract class JSONUtil {
         }
         // Primitives
         else {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("writePrimitiveFieldValue(" + field_class + ", " + field_value + ")");
             stringer.value(makePrimitiveValue(field_class, field_value));
         }
@@ -473,13 +473,13 @@ public abstract class JSONUtil {
 
         // Null
         if (json_object.isNull(json_key)) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Field " + json_key + " is null");
             field_handle.set(object, null);
 
         // Collections
         } else if (ClassUtil.getInterfaces(field_class).contains(Collection.class)) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Field " + json_key + " is a collection");
             assert (field_object != null);
             Stack<Class<?>> inner_classes = new Stack<Class<?>>();
@@ -493,7 +493,7 @@ public abstract class JSONUtil {
 
         // Maps
         } else if (field_object instanceof Map) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Field " + json_key + " is a map");
             assert (field_object != null);
             Stack<Class<?>> inner_classes = new Stack<Class<?>>();
@@ -510,14 +510,14 @@ public abstract class JSONUtil {
             Class<?> explicit_field_class = JSONUtil.getClassForField(json_object, json_key);
             if (explicit_field_class != null) {
                 field_class = explicit_field_class;
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("Found explict field class " + field_class.getSimpleName() + " for " + json_key);
             }
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Field " + json_key + " is primitive type " + field_class.getSimpleName());
             Object value = JSONUtil.getPrimitiveValue(json_object.getString(json_key), field_class, catalog_db);
             field_handle.set(object, value);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Set field " + json_key + " to '" + value + "'");
         }
     }
@@ -578,13 +578,13 @@ public abstract class JSONUtil {
             throws JSONException {
         for (Field field_handle : fields) {
             String json_key = field_handle.getName().toUpperCase();
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Retreiving value for field '" + json_key + "'");
 
             if (!json_object.has(json_key)) {
                 String msg = "JSONObject for " + base_class.getSimpleName() + " does not have key '" + json_key + "': " + CollectionUtil.list(json_object.keys());
                 if (ignore_missing) {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.warn(msg);
                     continue;
                 } else {

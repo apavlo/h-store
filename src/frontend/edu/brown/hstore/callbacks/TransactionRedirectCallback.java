@@ -57,7 +57,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
     
     @Override
     public void run(TransactionRedirectResponse parameter) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got back %s from %s. Sending response to client [bytes=%d]",
                                     parameter.getClass().getSimpleName(),
                                     HStoreThreadManager.formatSiteName(parameter.getSenderSite()),
@@ -79,12 +79,12 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
             }
             
             assert(cresponse != null);
-            if (debug.get()) 
+            if (debug.val) 
                 LOG.debug("Returning redirected ClientResponse to client:\n" + cresponse);
             try {
                 this.orig_callback.run(cresponse);
             } catch (ClientConnectionLostException ex) {
-                if (debug.get()) LOG.warn("Lost connection to client for txn #" + cresponse.getTransactionId());
+                if (debug.val) LOG.warn("Lost connection to client for txn #" + cresponse.getTransactionId());
             } catch (Throwable ex) {
                 LOG.fatal("Failed to forward ClientResponse data back!", ex);
                 throw new RuntimeException(ex);

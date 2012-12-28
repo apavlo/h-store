@@ -40,17 +40,17 @@ public class LimitPushdownOptimization extends AbstractOptimization {
         Collection<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root, AbstractJoinPlanNode.class);
         Collection<ReceivePlanNode> recv_nodes = PlanNodeUtil.getPlanNodes(root, ReceivePlanNode.class);
         if (limit_nodes.size() != 1) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("SKIP - Number of LimitPlanNodes is " + limit_nodes.size());
             return (Pair.of(false, root));
         }
         else if (join_nodes.isEmpty() == false) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("SKIP - Contains a JoinPlanNode " + join_nodes);
             return (Pair.of(false, root));
         }
         else if (recv_nodes.isEmpty()) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("SKIP - Does not contain any ReceivePlanNodes");
             return (Pair.of(false, root));
         }
@@ -70,7 +70,7 @@ public class LimitPushdownOptimization extends AbstractOptimization {
         }
         assert (limit_node != null);
 
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug("LIMIT:    " + PlanNodeUtil.debug(limit_node));
             LOG.debug("ORDER BY: " + PlanNodeUtil.debug(orderby_node));
             LOG.debug(PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class));
@@ -91,7 +91,7 @@ public class LimitPushdownOptimization extends AbstractOptimization {
             limit_node.setOutputColumns(scan_node.getOutputColumnGUIDs());
         }
         state.markDirty(limit_node);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("PLANOPT - Added " + limit_node + " after " + scan_node);
 
         return (Pair.of(true, root));

@@ -126,7 +126,7 @@ public abstract class PartitionerUtil {
      * @throws Exception
      */
     public LinkedList<String> generateProcedureOrder(final DesignerInfo info, final Database catalog_db, final DesignerHints hints) throws Exception {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Generating Procedure visit order");
 
         final Map<Procedure, Double> proc_weights = new HashMap<Procedure, Double>();
@@ -237,7 +237,7 @@ public abstract class PartitionerUtil {
         // If there were no matches, then we'll just include all of the
         // attributes
         if (param_weights.isEmpty()) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("No parameter correlations found for " + catalog_proc.getName() + ". Returning all candidates!");
             for (ProcParameter catalog_proc_param : catalog_proc.getParameters()) {
                 if (hints.enable_multi_partitioning || !(catalog_proc_param instanceof MultiProcParameter)) {
@@ -276,7 +276,7 @@ public abstract class PartitionerUtil {
                 assert (ts != null);
                 double size_ratio = ts.tuple_size_total / (double) hints.max_memory_per_partition;
                 if (ts.readonly && size_ratio <= hints.force_replication_size_limit) {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug(CatalogUtil.getDisplayName(catalog_tbl) + " is read-only and only " + String.format("%.02f", (size_ratio * 100)) + "% of total memory. Forcing replication...");
                     replication_weights.put(catalog_tbl, size_ratio);
                     temp_list.add(catalog_tbl);
@@ -286,12 +286,12 @@ public abstract class PartitionerUtil {
                 table_visit_order.add(catalog_tbl);
             }
             Collections.reverse(table_visit_order);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Forced Replication: " + table_visit_order);
         }
 
         for (DesignerVertex root : PartitionerUtil.createCandidateRoots(info, hints, agraph)) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Examining edges for candidate root '" + root.getCatalogItem().getName() + "'");
             // From each candidate root, traverse the graph in breadth first
             // order based on
@@ -328,7 +328,7 @@ public abstract class PartitionerUtil {
                     for (Table child_tbl : sorted) {
                         children.addAfter(this.getGraph().getVertex(child_tbl));
                     } // FOR
-                    if (debug.get()) {
+                    if (debug.val) {
                         LOG.debug(element);
                         LOG.debug("  sorted=" + sorted);
                         LOG.debug("  weights=" + vertex_weights);
@@ -352,7 +352,7 @@ public abstract class PartitionerUtil {
         // Note that we have to traverse the graph so that we don't try to plan
         // a parent before a child
         // for (DesignerVertex root : info.dgraph.getRoots()) {
-        // if (trace.get())
+        // if (trace.val)
         // LOG.trace("Creating table visit order starting from root " + root);
         //
         // new VertexTreeWalker<DesignerVertex, DesignerEdge>(info.dgraph,
@@ -362,7 +362,7 @@ public abstract class PartitionerUtil {
         // assert(catalog_tbl != null);
         // String table_key = CatalogKey.createKey(catalog_tbl);
         // if (!table_visit_order.contains(table_key)) {
-        // if (debug.get()) LOG.warn("Added " + catalog_tbl +
+        // if (debug.val) LOG.warn("Added " + catalog_tbl +
         // " because it does not appear in the AccessGraph");
         // table_visit_order.add(table_key);
         // }
@@ -406,7 +406,7 @@ public abstract class PartitionerUtil {
         // Force columns in hints
         Collection<Column> force_columns = hints.getForcedTablePartitionCandidates(catalog_tbl);
         if (!force_columns.isEmpty()) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Force " + catalog_tbl + " candidates: " + force_columns);
             for (Column catalog_col : force_columns) {
                 ret.add(catalog_col);
@@ -424,11 +424,11 @@ public abstract class PartitionerUtil {
         // TreeMap<Double, Collection<Column>>(Collections.reverseOrder());
         DesignerVertex vertex = agraph.getVertex(catalog_tbl);
         assert (vertex != null) : "No vertex exists in AccesGraph for " + catalog_tbl;
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Retreiving edges for " + vertex + " from AccessGraph");
         Collection<DesignerEdge> edges = agraph.getIncidentEdges(vertex);
         if (edges == null) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("No edges were found for " + vertex + " in AccessGraph");
         } else {
             for (DesignerEdge edge : agraph.getIncidentEdges(vertex)) {
@@ -456,7 +456,7 @@ public abstract class PartitionerUtil {
         // Increase the weight of the columns based on the number foreign key
         // descendants they have
         DependencyUtil dependencies = DependencyUtil.singleton(CatalogUtil.getDatabase(catalog_tbl));
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Calculating descendants for columns");
         for (Entry<Column, Double> entry : column_weights.entrySet()) {
             Column catalog_col = entry.getKey();
@@ -476,7 +476,7 @@ public abstract class PartitionerUtil {
         List<Column> sorted = new ArrayList<Column>(column_weights.keySet());
         Collections.sort(sorted, new PartitionerUtil.CatalogWeightComparator<Column>(column_weights));
 
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(catalog_tbl);
             LOG.debug("  sorted=" + sorted);
             LOG.debug("  weights=" + column_weights);
@@ -608,7 +608,7 @@ public abstract class PartitionerUtil {
                 if (!multicolumns.containsKey(catalog_tbl)) {
                     multicolumns.put(catalog_tbl, new ArrayList<MultiColumn>());
                 }
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(String.format("%s - MultiColumn Candidate: %s", catalog_stmt.fullName(), catalog_col0.fullName()));
                 for (Column catalog_col1 : columns) {
                     if (catalog_col0.equals(catalog_col1) || !catalog_tbl.equals(catalog_col1.getParent()))

@@ -138,7 +138,7 @@ public class WorkloadSummarizer {
     }
     
     public void setIntervals(Integer intervals) {
-        if (debug.get()) LOG.debug("Compression Intervals: " + intervals);
+        if (debug.val) LOG.debug("Compression Intervals: " + intervals);
         this.num_intervals = intervals;
     }
     
@@ -180,7 +180,7 @@ public class WorkloadSummarizer {
                     }
                 } // FOR (parameter)
                 this.target_stmt_params.put(catalog_stmt, stmt_params);
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_stmt.fullName(), stmt_params)); 
             } // FOR (statement)
             
@@ -200,7 +200,7 @@ public class WorkloadSummarizer {
                 if (matched) proc_params.add(catalog_param);
             } // FOR (parameter)
             this.target_proc_params.put(catalog_proc, proc_params);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_proc.fullName(), proc_params)); 
         } // FOR (procedure)
     }
@@ -220,7 +220,7 @@ public class WorkloadSummarizer {
             signature += "\n" + q;
         } // FOR
         
-        if (trace.get()) LOG.trace(txn_trace + " ==> " + signature);
+        if (trace.val) LOG.trace(txn_trace + " ==> " + signature);
         
         return (signature);
     }
@@ -378,7 +378,7 @@ public class WorkloadSummarizer {
         
         ThreadUtil.runGlobalPool(producer.getRunnablesList()); // BLOCKING
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Reduced Workload %d -> %d txns [%.2f]  / %d -> %d queries [%.2f]",
                                     workload.getTransactionCount(), new_workload.getTransactionCount(),
                                     (workload.getTransactionCount() - new_workload.getTransactionCount()) / (double)new_workload.getTransactionCount(),

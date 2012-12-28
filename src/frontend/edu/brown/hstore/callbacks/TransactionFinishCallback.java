@@ -75,7 +75,7 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Local
     
     @Override
     protected int runImpl(TransactionFinishResponse response) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("%s - Got %s with %s [partitions=%s, counter=%d]",
                                     this.ts, response.getClass().getSimpleName(),
                                     this.status, response.getPartitionsList(), this.getCounter()));

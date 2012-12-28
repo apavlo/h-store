@@ -113,7 +113,7 @@ public class PlanOptimizer {
         // HACK
         for (String broken : BROKEN_SQL) {
             if (sql.contains(broken)) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("Given SQL contains broken fragment '" + broken + "'. Skipping...\n" + sql);
                 return (null);
             }
@@ -126,11 +126,11 @@ public class PlanOptimizer {
 
         // Check if our tree contains anything that we want to ignore
         Collection<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(root);
-        if (trace.get())
+        if (trace.val)
             LOG.trace(sql + " - PlanNodeTypes: " + types);
         for (PlanNodeType t : TO_IGNORE) {
             if (types.contains(t)) {
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(String.format("Tree rooted at %s contains %s. Skipping optimization...", root, t));
                 return (null);
             }
@@ -140,7 +140,7 @@ public class PlanOptimizer {
         // if (types.contains(PlanNodeType.RECEIVE) == false) return (null);
 
         AbstractPlanNode new_root = root;
-        if (trace.get())
+        if (trace.val)
             LOG.trace("BEFORE: " + sql + "\n" + StringBoxUtil.box(PlanNodeUtil.debug(root)));
 //             LOG.debug("LET 'ER RIP!");
 //         }
@@ -148,7 +148,7 @@ public class PlanOptimizer {
         // STEP #1:
         // Populate the PlanOptimizerState with the information that we will
         // need to figure out our various optimizations
-        if (debug.get())
+        if (debug.val)
             LOG.debug(StringUtil.header("POPULATING OPTIMIZER STATE", "*"));
         PlanOptimizerUtil.populateTableNodeInfo(state, new_root);
         PlanOptimizerUtil.populateJoinTableInfo(state, new_root);
@@ -158,10 +158,10 @@ public class PlanOptimizer {
         // We will pass in the new_root each time to ensure that each
         // optimization
         // gets a full view of the quey plan tree
-        if (debug.get())
+        if (debug.val)
             LOG.debug(StringUtil.header("APPLYING OPTIMIZATIONS", "*"));
         for (Class<? extends AbstractOptimization> optClass : OPTIMIZATONS) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(StringUtil.header(optClass.getSimpleName()));
 
             // Always reset everything so that each optimization has a clean
@@ -176,12 +176,12 @@ public class PlanOptimizer {
                 assert (opt != null);
                 Pair<Boolean, AbstractPlanNode> p = opt.optimize(new_root);
                 if (p.getFirst()) {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug(String.format("%s modified query plan", optClass.getSimpleName()));
                     new_root = p.getSecond();
                 }
             } catch (Throwable ex) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("Last Query Plan:\n" + PlanNodeUtil.debug(new_root));
 
                 String msg = String.format("Failed to apply %s to query plan\n%s", optClass.getSimpleName(), sql);
@@ -199,7 +199,7 @@ public class PlanOptimizer {
         } // FOR
         PlanOptimizerUtil.updateAllColumns(state, new_root, true);
 
-        if (trace.get())
+        if (trace.val)
             LOG.trace("AFTER: " + sql + "\n" + StringBoxUtil.box(PlanNodeUtil.debug(new_root)));
 
         return (new_root);

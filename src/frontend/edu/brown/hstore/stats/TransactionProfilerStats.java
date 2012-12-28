@@ -57,7 +57,7 @@ public class TransactionProfilerStats extends StatsSource {
     public void addTxnProfile(Procedure catalog_proc, TransactionProfiler tp) {
         assert(catalog_proc != null);
         assert(tp.isStopped());
-        if (trace.get()) LOG.info("Calculating TransactionProfile information");
+        if (trace.val) LOG.info("Calculating TransactionProfile information");
 
         Queue<long[]> queue = this.profileQueues.get(catalog_proc);
         if (queue == null) {
@@ -72,14 +72,14 @@ public class TransactionProfilerStats extends StatsSource {
         
         long tuple[] = tp.getTuple();
         assert(tuple != null);
-        if (trace.get())
+        if (trace.val)
             LOG.trace(String.format("Appending TransactionProfile: %s", Arrays.toString(tuple)));
         queue.offer(tuple);
     }
     
     @SuppressWarnings("unchecked")
     private Object[] calculateTxnProfileTotals(Procedure catalog_proc) {
-        if (debug.get()) LOG.debug("Calculating profiling totals for " + catalog_proc.getName());
+        if (debug.val) LOG.debug("Calculating profiling totals for " + catalog_proc.getName());
         Object row[] = null; // this.profileTotals.get(catalog_proc); 
         long tuple[] = null;
         int stdev_offset = this.stdev_offset - this.proc_offset - 1;
@@ -113,7 +113,7 @@ public class TransactionProfilerStats extends StatsSource {
                 if (i % 2 == 0 && tuple[i] > 0 && tuple[i+1] > 0) {
                     if (stdevValues[offset] == null) {
                         stdevValues[offset] = new ArrayList<Long>();
-                        if (trace.get()) LOG.trace(String.format("%s - Created stdevValues at offset %d",
+                        if (trace.val) LOG.trace(String.format("%s - Created stdevValues at offset %d",
                                                    catalog_proc.getName(), offset));
                     }
                     stdevValues[offset].add(tuple[i] / tuple[i+1]);
@@ -128,7 +128,7 @@ public class TransactionProfilerStats extends StatsSource {
         if (stdevValues != null && stdevValues[i] != null) {
             double values[] = CollectionUtil.toDoubleArray(stdevValues[i]);
             row[stdev_offset] = MathUtil.stdev(values);
-            if (trace.get()) 
+            if (trace.val) 
                 LOG.trace(String.format("[%02d] %s => %f", stdev_offset, catalog_proc.getName(), row[stdev_offset]));
         }
         
@@ -187,7 +187,7 @@ public class TransactionProfilerStats extends StatsSource {
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
         Procedure proc = (Procedure)rowKey;
-        if (debug.get()) LOG.debug("Collecting txn profiling stats for " + proc.getName());
+        if (debug.val) LOG.debug("Collecting txn profiling stats for " + proc.getName());
         
         rowValues[this.proc_offset] = proc.getName();
         Object row[] = this.calculateTxnProfileTotals(proc);

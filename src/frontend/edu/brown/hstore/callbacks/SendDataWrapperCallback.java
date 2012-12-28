@@ -42,7 +42,7 @@ public class SendDataWrapperCallback extends BlockingRpcCallback<SendDataRespons
         assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         this.builder = SendDataResponse.newBuilder()
@@ -53,7 +53,7 @@ public class SendDataWrapperCallback extends BlockingRpcCallback<SendDataRespons
     
     @Override
     protected void abortCallback(Status status) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
@@ -82,7 +82,7 @@ public class SendDataWrapperCallback extends BlockingRpcCallback<SendDataRespons
 
     @Override
     protected void unblockCallback() {
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
                                     this.getTransactionId(),
                                     TransactionInitResponse.class.getSimpleName(),

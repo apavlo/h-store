@@ -214,7 +214,7 @@ public class ProfileMeasurement implements JSONSerializable {
 
     public ProfileMeasurement start(long timestamp) {
         assert (this.marker == NULL_MARKER) : String.format("Trying to start %s before it was stopped!", this.type);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("START %s", this));
         this.marker = timestamp;
         this.invocations++;
@@ -258,7 +258,7 @@ public class ProfileMeasurement implements JSONSerializable {
             this.marker = NULL_MARKER;
             return (this);
         }
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("STOP %s", this));
         assert (this.marker != NULL_MARKER) : 
             String.format("Trying to stop %s before it was started!", this.type);

@@ -41,7 +41,7 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
     public PartitionPlan generate(DesignerHints hints) throws Exception {
         PartitionPlan pplan = new PartitionPlan();
 
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Selecting partitioning Column for " + this.info.catalog_db.getTables().size() + " Tables");
         double total_memory_used = 0.0;
         boolean calculate_memory = (hints.force_replication_size_limit != null && hints.max_memory_per_partition != 0);
@@ -58,7 +58,7 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
             // Replication
             if (hints.force_replication.contains(table_key) || (calculate_memory && ts.readonly && size_ratio <= hints.force_replication_size_limit) || pkey_columns.isEmpty()) {
                 total_memory_used += size_ratio;
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("Choosing " + catalog_tbl.getName() + " for replication");
                 col = ReplicatedColumn.get(catalog_tbl);
                 pentry = new TableEntry(PartitionMethodType.REPLICATION, col, null, null);
@@ -76,14 +76,14 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
                 }
                 assert (pentry.attribute != null) : catalog_tbl;
             }
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("[%02d] %s", pplan.getTableCount(), col.fullName()));
             pplan.getTableEntries().put(catalog_tbl, pentry);
         } // FOR
         assert (total_memory_used <= 100) : "Too much memory per partition: " + total_memory_used;
 
         if (hints.enable_procparameter_search) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalog_db.getProcedures().size() + " Procedures");
             pplan.apply(info.catalog_db);
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {

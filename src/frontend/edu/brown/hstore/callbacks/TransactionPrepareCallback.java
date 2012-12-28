@@ -38,9 +38,9 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Loca
     
     @Override
     public void unblockTransactionCallback() {
-        if (debug.get()) LOG.debug(String.format("%s - Unblocking callback and sending back ClientResponse", this.ts));
+        if (debug.val) LOG.debug(String.format("%s - Unblocking callback and sending back ClientResponse", this.ts));
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
-            if (debug.get()) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + Status.OK);
+            if (debug.val) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + Status.OK);
             this.ts.profiler.stopPostPrepare();
             this.ts.profiler.startPostFinish();
         }
@@ -62,9 +62,9 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Loca
     
     @Override
     protected boolean abortTransactionCallback(Status status) {
-        if (debug.get()) LOG.debug(String.format("%s - Aborting callback and sending back %s ClientResponse", this.ts, status));
+        if (debug.val) LOG.debug(String.format("%s - Aborting callback and sending back %s ClientResponse", this.ts, status));
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
-            if (debug.get()) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + status);
+            if (debug.val) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + status);
             this.ts.profiler.stopPostPrepare();
             this.ts.profiler.startPostFinish();
         }
@@ -83,7 +83,7 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Loca
     
     @Override
     protected int runImpl(TransactionPrepareResponse response) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s with %d partitions for %s",
                                     response.getClass().getSimpleName(),
                                     response.getPartitionsCount(),

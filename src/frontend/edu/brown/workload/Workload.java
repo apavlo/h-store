@@ -232,7 +232,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     public Workload() {
         // Create a shutdown hook to make sure that always call finalize()
         if (ENABLE_SHUTDOWN_HOOKS) {
-            if (LOG.isDebugEnabled()) if (debug.get()) LOG.debug("Created shutdown hook for " + Workload.class.getName());
+            if (debug.val) LOG.debug("Created shutdown hook for " + Workload.class.getName());
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run() {
@@ -302,7 +302,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         this.output_path = path;
         try {
             this.out = new FileOutputStream(path);
-            if (debug.get()) LOG.debug("Opened file '" + path + "' for logging workload trace");
+            if (debug.val) LOG.debug("Opened file '" + path + "' for logging workload trace");
         } catch (Exception ex) {
             LOG.fatal("Failed to open trace output file: " + path);
             ex.printStackTrace();
@@ -345,7 +345,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @throws Exception
      */
     public void load(File input_path, Database catalog_db, Filter filter) throws Exception {
-        if (debug.get()) LOG.debug("Reading workload trace from file '" + input_path + "'");
+        if (debug.val) LOG.debug("Reading workload trace from file '" + input_path + "'");
         this.input_path = input_path;
         long start = System.currentTimeMillis();
         
@@ -362,7 +362,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
                 } // FOR
                 if (names.isEmpty() == false) {
                     temp_pattern = Pattern.compile(String.format("\"NAME\":[\\s]*\"(%s)\"", StringUtil.join("|", names)), Pattern.CASE_INSENSITIVE);
-                    if (debug.get()) {
+                    if (debug.val) {
                         LOG.debug(String.format("Fast filter for %d procedure names", names.size()));
                         LOG.debug("PATTERN: " + temp_pattern.pattern());
                     }
@@ -393,7 +393,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
             all_runnables.add(lt);
         } // FOR
         
-        if (debug.get()) LOG.debug(String.format("Loading workload trace using %d ProcessThreads", rt.processingThreads.size())); 
+        if (debug.val) LOG.debug(String.format("Loading workload trace using %d ProcessThreads", rt.processingThreads.size())); 
         ThreadUtil.runNewPool(all_runnables, all_runnables.size());
         VerifyWorkload.verify(catalog_db, this);
         
@@ -597,7 +597,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param force_index_update
      */
     protected synchronized void addTransaction(Procedure catalog_proc, TransactionTrace txn_trace, boolean force_index_update) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Adding new %s [numTraces=%d]", txn_trace, this.xact_trace.size()));
         
         long txn_id = txn_trace.getTransactionId();
@@ -775,14 +775,14 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
             
         // Ignored/Sysproc Procedures
         } else if (this.ignored_procedures.contains(proc_name) || catalog_proc.getSystemproc()) {
-            if (debug.get()) LOG.debug("Ignoring start transaction call for procedure '" + proc_name + "'");
+            if (debug.val) LOG.debug("Ignoring start transaction call for procedure '" + proc_name + "'");
             this.ignored_xact_ids.add(xact_id);
             
         // Procedures we want to trace
         } else {
             xact_handle = new TransactionTrace(xact_id, catalog_proc, args);
             this.addTransaction(catalog_proc, xact_handle, false);
-            if (debug.get()) LOG.debug(String.format("Created %s TransactionTrace with %d parameters", proc_name, args.length));
+            if (debug.val) LOG.debug(String.format("Created %s TransactionTrace with %d parameters", proc_name, args.length));
             
             // HACK
             if (this.catalog_db == null) this.catalog_db = CatalogUtil.getDatabase(catalog_proc);
@@ -815,7 +815,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
             boolean unclean = false;
             for (QueryTrace query : txn_trace.getQueries()) {
                 if (!query.isStopped()) {
-                    if (debug.get()) LOG.warn("Trace for '" + query + "' was not stopped before the transaction. Assuming it was aborted");
+                    if (debug.val) LOG.warn("Trace for '" + query + "' was not stopped before the transaction. Assuming it was aborted");
                     query.aborted = true;
                     unclean = true;
                 }
@@ -829,7 +829,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
             // Remove from internal cache data structures
             this.removeTransaction(txn_trace);
             
-            if (debug.get()) LOG.debug("Stopping trace for transaction " + txn_trace);
+            if (debug.val) LOG.debug("Stopping trace for transaction " + txn_trace);
         } else {
             LOG.fatal("Unable to stop transaction trace: Invalid transaction handle");
         }
@@ -841,7 +841,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
                 LOG.warn("The database catalog handle is null: " + xact);
             } else {
                 if (this.out == null) {
-                    if (debug.get()) LOG.warn("No output path is set. Unable to log trace information to file");
+                    if (debug.val) LOG.warn("No output path is set. Unable to log trace information to file");
                 } else {
                     writeTransactionToStream(this.catalog_db, xact, this.out);
                 }
@@ -863,14 +863,14 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
                 }
             } // FOR
             txn_trace.abort();
-            if (debug.get()) LOG.debug("Aborted trace for transaction " + txn_trace);
+            if (debug.val) LOG.debug("Aborted trace for transaction " + txn_trace);
             
             // Write the trace object out to our file if it is not null
             if (this.catalog_db == null) {
                 LOG.warn("The database catalog handle is null: " + txn_trace);
             } else {
                 if (this.out == null) {
-                    if (debug.get()) LOG.warn("No output path is set. Unable to log trace information to file");
+                    if (debug.val) LOG.warn("No output path is set. Unable to log trace information to file");
                 } else {
                     writeTransactionToStream(this.catalog_db, txn_trace, this.out);
                 }
@@ -930,7 +930,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
             }
             batch_ctr.incrementAndGet();
             
-            if (debug.get()) LOG.debug("Created '" + catalog_statement.getName() + "' query trace record for xact '" + txn_id + "'");
+            if (debug.val) LOG.debug("Created '" + catalog_statement.getName() + "' query trace record for xact '" + txn_id + "'");
         } else {
             LOG.fatal("Unable to create new query trace: Invalid transaction handle");
         }
@@ -952,7 +952,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
                 AtomicInteger batch_ctr = m.get(query.getBatchId());
                 int count = batch_ctr.decrementAndGet();
                 assert(count >= 0) : "Invalid open query counter for batch #" + query.getBatchId() + " in Txn #" + txn_id;
-                if (debug.get()) LOG.debug("Stopping trace for query " + query);
+                if (debug.val) LOG.debug("Stopping trace for query " + query);
             } else {
                 LOG.warn(String.format("No open query counters for txn #%d???", txn_id)); 
             }
@@ -980,7 +980,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
                     this.out.write(xact.toJSONString(catalog_db).getBytes());
                     this.out.write("\n".getBytes());
                     this.out.flush();
-                    if (debug.get()) LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+                    if (debug.val) LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
                 } catch (Exception ex) {
                     LOG.fatal(ex.getMessage());
                     ex.printStackTrace();

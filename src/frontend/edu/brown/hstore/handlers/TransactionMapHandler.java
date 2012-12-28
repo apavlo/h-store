@@ -36,7 +36,7 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
     public void sendLocal(Long txn_id, TransactionMapRequest request, PartitionSet partitions, RpcCallback<TransactionMapResponse> callback) {
         // This is for MapReduce Transaction, the local task is still passed to the remoteHandler to be invoked the TransactionStart
         // as the a LocalTransaction. This LocalTransaction in this partition is the base partition for MR transaction.
-        if (debug.get()) LOG.debug("Send to remoteHandler from sendLocal");
+        if (debug.val) LOG.debug("Send to remoteHandler from sendLocal");
         this.remoteHandler(null, request, callback);
     }
     @Override
@@ -55,7 +55,7 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
         assert(request.hasTransactionId()) :
             "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = Long.valueOf(request.getTransactionId());
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s for txn #%d",
                                    request.getClass().getSimpleName(), txn_id));
 

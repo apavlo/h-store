@@ -93,7 +93,7 @@ public class HStoreTerminal implements Runnable {
         this.catalog = catalog;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog);
         
-        if (debug.get()) LOG.debug("Generating tab-completion keywords");
+        if (debug.val) LOG.debug("Generating tab-completion keywords");
         this.completer = new TokenCompletor(catalog);
         this.reader.addCompletor(this.completer);
     }
@@ -208,7 +208,7 @@ public class HStoreTerminal implements Runnable {
                     Throwable cause = ex.getCause();
                     if (cause != null) {
                         LOG.error(cause.getMessage());
-                        if (debug.get()) cause.printStackTrace();
+                        if (debug.val) cause.printStackTrace();
                     }
                 }
             } while (query != null && stop == false);
@@ -243,7 +243,7 @@ public class HStoreTerminal implements Runnable {
         
         String hostname = catalog_host.getIpaddr();
         int port = catalog_site.getProc_port();
-        if (debug.get()) LOG.debug(String.format("Creating new client connection to HStoreSite %s",
+        if (debug.val) LOG.debug(String.format("Creating new client connection to HStoreSite %s",
                                 HStoreThreadManager.formatSiteName(catalog_site.getId())));
         
         Client new_client = ClientFactory.createClient(128, null, false, null);
@@ -266,7 +266,7 @@ public class HStoreTerminal implements Runnable {
      * @throws Exception
      */
     private ClientResponse execQuery(Client client, String query) throws Exception {
-        if (debug.get()) LOG.debug("QUERY: " + query);
+        if (debug.val) LOG.debug("QUERY: " + query);
         ClientResponse cresponse = client.callProcedure("@AdHoc", query);
         return (cresponse);
     }
@@ -293,7 +293,7 @@ public class HStoreTerminal implements Runnable {
         if (m.matches()) {
             // Extract the parameters and then convert them to their appropriate type
             List<String> params = HStoreTerminal.extractParams(m.group(1));
-            if (debug.get()) LOG.debug("PARAMS: " + params);
+            if (debug.val) LOG.debug("PARAMS: " + params);
             if (params.size() != catalog_proc.getParameters().size()) {
                 String msg = String.format("Expected %d params for '%s' but %d parameters were given",
                                            catalog_proc.getParameters().size(), catalog_proc.getName(), params.size());

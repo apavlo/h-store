@@ -49,7 +49,7 @@ public abstract class GraphUtil {
      * @return Returns the set of edges that were removed
      */
     public static <V extends AbstractVertex, E extends AbstractEdge> Collection<E> removeEdgesWithoutVertex(IGraph<V, E> graph, V...vertices) {
-        if (debug.get()) LOG.debug("Removing edges that are not incident to " + Arrays.toString(vertices));
+        if (debug.val) LOG.debug("Removing edges that are not incident to " + Arrays.toString(vertices));
         Set<E> toRemove = new HashSet<E>();
         for (E e : graph.getEdges()) {
             boolean found = false;
@@ -186,7 +186,7 @@ public abstract class GraphUtil {
      * @throws Exception
      */
     public static <V extends AbstractVertex, E extends AbstractEdge> void save(IGraph<V, E> graph, File output_path) throws IOException {
-        if (debug.get()) LOG.debug("Writing out graph to '" + output_path + "'");
+        if (debug.val) LOG.debug("Writing out graph to '" + output_path + "'");
         
         JSONStringer stringer = new JSONStringer();
         try {
@@ -203,7 +203,7 @@ public abstract class GraphUtil {
         } catch (Exception ex) {
             throw new IOException(ex);
         }
-        if (debug.get()) LOG.debug("Graph was written out to '" + output_path + "'");
+        if (debug.val) LOG.debug("Graph was written out to '" + output_path + "'");
     }
     
     /**
@@ -247,18 +247,18 @@ public abstract class GraphUtil {
             if (ignore_v != null && ignore_v.contains(v)) continue;
             if (v_class == null) {
                 v_class = (Class<V>)v.getClass();
-                if (debug.get()) LOG.debug("Discovered vertex class: " + v_class.getName());
+                if (debug.val) LOG.debug("Discovered vertex class: " + v_class.getName());
             }
             stringer.object();
             v.toJSON(stringer);
             stringer.endObject();
             all_vertices.add(v.getElementId());
             v_cnt++;
-            if (trace.get()) LOG.trace("V [" + v.getElementId() + "]");
+            if (trace.val) LOG.trace("V [" + v.getElementId() + "]");
         } // FOR
         stringer.endArray();
         stringer.key(Members.VERTEX_CLASS.name()).value(v_class.getName());
-        if (debug.get()) LOG.debug("# of Vertices: " + v_cnt);
+        if (debug.val) LOG.debug("# of Vertices: " + v_cnt);
         
         // Edges
         if (graph.getEdgeCount() > 0) {
@@ -268,7 +268,7 @@ public abstract class GraphUtil {
                 if (ignore_e != null && ignore_e.contains(e)) continue;
                 if (e_class == null) {
                     e_class = (Class<E>)e.getClass();
-                    if (debug.get()) LOG.debug("Discovered edge class: " + e_class.getName());
+                    if (debug.val) LOG.debug("Discovered edge class: " + e_class.getName());
                 }
                 // Thread synchronization issue
                 // This is an attempt to prevent us from writing out edges that have vertices
@@ -285,7 +285,7 @@ public abstract class GraphUtil {
                 
                 if (ignore_v != null && (ignore_v.contains(v0) || ignore_v.contains(v1))) continue;
                 if (all_vertices.contains(v0.getElementId()) && all_vertices.contains(v1.getElementId())) {
-                    if (trace.get()) LOG.trace(String.format("E [%d] %d => %d", e.getElementId(), v0.getElementId(), v1.getElementId()));
+                    if (trace.val) LOG.trace(String.format("E [%d] %d => %d", e.getElementId(), v0.getElementId(), v1.getElementId()));
                     stringer.object();
                     e.toJSON(stringer);
                     stringer.endObject();
@@ -298,7 +298,7 @@ public abstract class GraphUtil {
             stringer.key(Members.EDGE_CLASS.name()).value(e_class.getName());
         }
         if (e_skipped > 0) LOG.warn(String.format("Skipped %d out of %d edges", e_skipped, graph.getEdgeCount()));
-        if (debug.get()) LOG.debug("# of Edges: " + e_cnt);
+        if (debug.val) LOG.debug("# of Edges: " + e_cnt);
         return;
     }
     
@@ -312,7 +312,7 @@ public abstract class GraphUtil {
      * @throws Exception
      */
     public static <V extends AbstractVertex, E extends AbstractEdge> void load(IGraph<V, E> graph, Database catalog_db, File path) throws IOException {
-        if (debug.get()) LOG.debug("Loading in serialized graph from '" + path + "'");
+        if (debug.val) LOG.debug("Loading in serialized graph from '" + path + "'");
         String contents = FileUtil.readFile(path);
         if (contents.isEmpty()) {
             throw new IOException("The workload statistics file '" + path + "' is empty");
@@ -322,7 +322,7 @@ public abstract class GraphUtil {
         } catch (Exception ex) {
             throw new IOException(ex);
         }
-        if (debug.get()) LOG.debug("Graph loading is complete");
+        if (debug.val) LOG.debug("Graph loading is complete");
         return;
     }
     
@@ -346,7 +346,7 @@ public abstract class GraphUtil {
         // 2011-07-13: Fix for MarkovVertex
         v_className = v_className.replace("markov.Vertex", "markov.MarkovVertex");
         Class<V> v_class = (Class<V>)ClassUtil.getClass(v_className);
-        if (debug.get()) LOG.debug("Vertex class is '" + v_class.getName() + "'");
+        if (debug.val) LOG.debug("Vertex class is '" + v_class.getName() + "'");
         
         JSONArray jsonArray = jsonObject.getJSONArray(Members.VERTICES.name());
         for (int i = 0, cnt = jsonArray.length(); i < cnt; i++) {
@@ -370,7 +370,7 @@ public abstract class GraphUtil {
             // 2011-07-13: Fix for MarkovVertex
             e_className = e_className.replace("markov.Edge", "markov.MarkovEdge");
             Class<E> e_class = (Class<E>)ClassUtil.getClass(e_className);
-            if (debug.get()) LOG.debug("Edge class is '" + v_class.getName() + "'");
+            if (debug.val) LOG.debug("Edge class is '" + v_class.getName() + "'");
             
             jsonArray = jsonObject.getJSONArray(Members.EDGES.name());
             for (int i = 0, cnt = jsonArray.length(); i < cnt; i++) {

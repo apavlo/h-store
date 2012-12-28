@@ -167,7 +167,7 @@ public class VerticalPartitionColumn extends MultiColumn {
         if (catalog_view == null || catalog_view.getDest() == null) {
             Collection<Column> cols = this.getVerticalPartitionColumns();
             assert (cols.size() > 0) : "No Vertical Partition columns for " + this;
-            if (trace.get())
+            if (trace.val)
                 LOG.trace("Creating VerticalPartition in catalog for " + catalog_tbl + ": " + cols);
             try {
                 catalog_view = VoltCompiler.addVerticalPartition(catalog_tbl, cols, true);
@@ -175,10 +175,10 @@ public class VerticalPartitionColumn extends MultiColumn {
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to create vertical partition for " + this, ex);
             }
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Created vertical partition %s.%s: %s", catalog_tbl.getName(), catalog_view.getName(), CatalogUtil.debug(catalog_view.getDest().getColumns())));
 
-        } else if (debug.get()) {
+        } else if (debug.val) {
             LOG.debug(String.format("Using existing vertical partition %s.%s: %s", catalog_tbl.getName(), catalog_view.getName(), CatalogUtil.debug(catalog_view.getDest().getColumns())));
         }
         validate(catalog_view, catalog_tbl);
@@ -197,7 +197,7 @@ public class VerticalPartitionColumn extends MultiColumn {
         if (this.catalog_view == null) {
             this.catalog_view = this.createMaterializedView();
         } else {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Reusing existing vertical partition " + this.catalog_view + " for " + catalog_tbl);
             if (catalog_tbl.getViews().contains(catalog_view) == false)
                 catalog_tbl.getViews().add(this.catalog_view, false);
@@ -207,15 +207,15 @@ public class VerticalPartitionColumn extends MultiColumn {
         // Make sure that the view's destination table is in the catalog
         Database catalog_db = CatalogUtil.getDatabase(catalog_view);
         if (catalog_db.getTables().contains(catalog_view.getDest()) == false) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Adding back " + catalog_view.getDest() + " to catalog");
             catalog_db.getTables().add(catalog_view.getDest(), false);
-        } else if (debug.get()) {
+        } else if (debug.val) {
             LOG.debug(String.format("%s already exists in catalog %s", catalog_view.getDest(), catalog_db.getTables()));
         }
 
         // Apply the new Statement query plans
-        if (debug.get() && this.optimized.isEmpty()) {
+        if (debug.val && this.optimized.isEmpty()) {
             LOG.warn("There are no optimized query plans for " + this.fullName());
         }
         for (Entry<Statement, Statement> e : this.optimized.entrySet()) {
@@ -224,7 +224,7 @@ public class VerticalPartitionColumn extends MultiColumn {
             if (backup == null) {
                 Procedure catalog_proc = e.getKey().getParent();
                 backup = catalog_proc.getStatements().add("BACKUP__" + e.getKey().getName());
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("Created temporary catalog object %s to back-up %s's query plans", backup.getName(), e.getKey().fullName()));
                 this.backups.put(e.getKey(), backup);
                 boolean ret = catalog_proc.getStatements().remove(backup);
@@ -234,7 +234,7 @@ public class VerticalPartitionColumn extends MultiColumn {
             VerticalPartitionPlanner.applyOptimization(e.getKey(), backup);
 
             // Then copy the optimized query plans
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Copying optimized query plans from %s to %s", e.getValue().fullName(), e.getKey().fullName()));
             CatalogUtil.copyQueryPlans(e.getValue(), e.getKey());
         } // FOR
@@ -242,7 +242,7 @@ public class VerticalPartitionColumn extends MultiColumn {
 
         validate(catalog_view, catalog_tbl);
 
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Added " + catalog_view.getDest() + " for " + catalog_tbl + " and updated " + this.optimized.size() + " query plans");
         return (this.catalog_view);
     }
@@ -256,7 +256,7 @@ public class VerticalPartitionColumn extends MultiColumn {
 
         Table catalog_tbl = this.getParent();
         assert (catalog_tbl != null);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Reverting catalog update on %s for %s", catalog_tbl, this.catalog_view));
         assert (catalog_tbl.getViews().contains(this.catalog_view));
         catalog_tbl.getViews().remove(this.catalog_view);
@@ -265,7 +265,7 @@ public class VerticalPartitionColumn extends MultiColumn {
         for (Statement catalog_stmt : this.optimized.keySet()) {
             Statement backup = this.backups.get(catalog_stmt);
             assert (backup != null) : "Missing backup for " + catalog_stmt.fullName();
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Restoring %s's original query plans from %s", catalog_stmt.fullName(), backup.getName()));
             CatalogUtil.copyQueryPlans(backup, catalog_stmt);
         } // FOR

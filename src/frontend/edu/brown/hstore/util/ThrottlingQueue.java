@@ -131,7 +131,7 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         // If we're throttled and we've gone below our release
         // threshold, then we can go ahead and unthrottle them
         else if (this.size <= this.queue_release) {
-            if (debug.get()) LOG.debug(String.format("Unthrottling queue [size=%d > release=%d]",
+            if (debug.val) LOG.debug(String.format("Unthrottling queue [size=%d > release=%d]",
                                                      this.size, this.queue_release));
             this.throttled = false;
         }

@@ -291,7 +291,7 @@ public abstract class MarkovUtil {
                 
                 if (highlight_invalid && v0.isValid(markov) == false) {
                     av.put(Attribute.FILLCOLOR, "red");
-                    if (debug.get()) LOG.warn("Highlighting " + v0 + " as invalid");
+                    if (debug.val) LOG.warn("Highlighting " + v0 + " as invalid");
                 }
                 
                 String label = "";
@@ -382,7 +382,7 @@ public abstract class MarkovUtil {
     public static void getReadWritePartitions(List<MarkovVertex> path, PartitionSet read_p, PartitionSet write_p) {
         for (MarkovVertex v : path) {
             if (v.isQueryVertex() == false) continue;
-            if (trace.get())
+            if (trace.val)
                 LOG.trace(String.format("%s - R:%s / W:%s", v, read_p, write_p));
             
             Statement catalog_stmt = v.getCatalogItem();

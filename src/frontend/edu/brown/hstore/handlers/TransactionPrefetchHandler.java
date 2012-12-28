@@ -52,7 +52,7 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
     }
     @Override
     public void remoteQueue(RpcController controller, TransactionPrefetchResult request, RpcCallback<TransactionPrefetchAcknowledgement> callback) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Executing %s using remote handler for txn #%d",
                       request.getClass().getSimpleName(), request.getTransactionId()));
         this.remoteHandler(controller, request, callback);
@@ -62,7 +62,7 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         assert(request.hasTransactionId()) : 
             "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = Long.valueOf(request.getTransactionId());
-        if (debug.get()) LOG.debug(String.format("Got %s for txn #%d [remotePartition=%d]",
+        if (debug.val) LOG.debug(String.format("Got %s for txn #%d [remotePartition=%d]",
                                                  request.getClass().getSimpleName(), txn_id, request.getSourcePartition()));
         
         // We should never a get a TransactionPrefetchResult for a transaction that

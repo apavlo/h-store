@@ -133,7 +133,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         // XXX: We could also use Runtime.getRuntime().totalMemory() instead of getting table stats
 //        this.availableMemory = Runtime.getRuntime().maxMemory();
         this.availableMemory = hstore_conf.site.memory * 1024l * 1024l;
-        if (debug.get())
+        if (debug.val)
             LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
         
         CatalogContext catalogContext = hstore_site.getCatalogContext();
@@ -285,7 +285,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         // TODO: If the total size is greater than some threshold, then
         //       we need to initiate the eviction process
         int offset = hstore_site.getLocalPartitionOffset(partition);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
                                     partition, totalSizeKb, this.partitionSizes[offset])); 
         this.partitionSizes[offset] = totalSizeKb;

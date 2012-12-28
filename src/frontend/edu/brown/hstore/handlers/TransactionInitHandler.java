@@ -54,7 +54,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     public void remoteQueue(RpcController controller, TransactionInitRequest request,
             RpcCallback<TransactionInitResponse> callback) {
         if (initDispatcher != null) {
-            if (debug.get()) LOG.debug("Queuing request for txn #" + request.getTransactionId());
+            if (debug.val) LOG.debug("Queuing request for txn #" + request.getTransactionId());
             Object o[] = { controller, request, callback };
             initDispatcher.queue(o);
         } else {
@@ -65,7 +65,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     public void remoteHandler(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> callback) {
         assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = request.getTransactionId();
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
         
         AbstractTransaction ts = this.hstore_site.getTransaction(txn_id); 
@@ -105,7 +105,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         // our state when pre-fetching queries.
         if (request.getPrefetchFragmentsCount() > 0) {
             // Stick the prefetch information into the transaction
-            if (debug.get()) LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at %s",
+            if (debug.val) LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at %s",
                                        ts, request.getPrefetchFragmentsCount(), hstore_site.getSiteName()));
             ts.initializePrefetch();
             ts.attachPrefetchQueries(request.getPrefetchFragmentsList(),

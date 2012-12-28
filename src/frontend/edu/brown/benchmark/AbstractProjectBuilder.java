@@ -114,7 +114,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         } catch (MalformedURLException ex) {
             throw new RuntimeException(ex);
         }
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Wrote DDL contents to '" + f.getAbsolutePath() + "'");
         return (f);
     }
@@ -131,7 +131,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         File file = null;
         String name = this.project_name + ".mappings";
         URL url = this.base_class.getResource(name);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(this.project_name.toUpperCase() + ": " + url);
         if (url != null) {
             file = new File(url.getPath());
@@ -255,7 +255,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     
     public static AbstractProjectBuilder getProjectBuilder(ProjectType type) {
         String pb_className = String.format("%s.%sProjectBuilder", type.getPackageName(), type.getBenchmarkPrefix());
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Dynamically creating project builder for " + type + ": " + pb_className);
         final AbstractProjectBuilder pb = (AbstractProjectBuilder)ClassUtil.newInstance(pb_className,
                                                    new Object[]{  }, new Class<?>[]{  });

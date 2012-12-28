@@ -70,7 +70,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
         boolean send_local = false;
         boolean site_sent[] = new boolean[this.num_sites];
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Sending %s to %d partitions for %s",
                                     request.getClass().getSimpleName(),  partitions.size(), ts));
         
@@ -80,7 +80,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             // Skip this HStoreSite if we're already sent it a message 
             if (site_sent[dest_site_id]) continue;
             
-            if (trace.get())
+            if (trace.val)
                 LOG.trace(String.format("Sending %s message to %s for %s",
                           request.getClass().getSimpleName(), HStoreThreadManager.formatSiteName(dest_site_id), ts));
             

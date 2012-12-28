@@ -6,11 +6,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 
 import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * Special container for keeping track of transaction visitation times at MarkovVertexes
@@ -18,8 +18,8 @@ import edu.brown.logging.LoggerUtil;
  */
 public class MarkovGraphTimes {
     private static final Logger LOG = Logger.getLogger(MarkovGraphTimes.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -71,7 +71,7 @@ public class MarkovGraphTimes {
                 long time = stop.longValue() - e.getValue().longValue();
                 v.addExecutionTime(time);
                 to_remove.add(e.getKey());
-                if (trace.get()) 
+                if (trace.val) 
                     LOG.trace(String.format("Updating %s with %d time units from txn #%d", v, time, e.getKey())); 
             }
         } // FOR

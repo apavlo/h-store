@@ -513,7 +513,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     protected static void populateProbabilities(MarkovEstimate estimate, MarkovVertex next_vertex) {
         PartitionSet next_partitions = next_vertex.getPartitions();
-        // String orig = (debug.get() ? next_partitions.toString() : null);
+        // String orig = (debug.val ? next_partitions.toString() : null);
         float inverse_prob = 1.0f - estimate.confidence;
         Statement catalog_stmt = next_vertex.getCatalogItem();
         

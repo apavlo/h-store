@@ -1668,7 +1668,7 @@ public final class HStoreConf {
                 } catch (Exception ex) {
                     throw new RuntimeException(String.format("Failed to set default value '%s' for field '%s'", value, f.getName()), ex);
                 }
-                if (trace.get()) LOG.trace(String.format("%-20s = %s", f.getName(), value));
+                if (trace.val) LOG.trace(String.format("%-20s = %s", f.getName(), value));
             } // FOR   
         }
         
@@ -1804,7 +1804,7 @@ public final class HStoreConf {
         try {
             f = confClass.getField(f_name);
         } catch (Exception ex) {
-            if (debug.get()) LOG.warn(String.format("Invalid configuration property '%s.%s'. Ignoring...",
+            if (debug.val) LOG.warn(String.format("Invalid configuration property '%s.%s'. Ignoring...",
                                       handle.prefix, f_name));
             return;
         }
@@ -1822,7 +1822,7 @@ public final class HStoreConf {
     protected void set(Conf handle, Field f, Object value) {
         try {
             f.set(handle, value);
-             if (debug.get())
+             if (debug.val)
                 LOG.debug(String.format("SET %s.%s = %s",
                                         handle.prefix, f.getName(), value));
         } catch (Exception ex) {
@@ -1837,7 +1837,7 @@ public final class HStoreConf {
         ConfigProperty cp = handle.getConfigProperties().get(f);
         assert(cp != null) : "Missing ConfigProperty for " + f;
         if (cp.replacedBy() != null && cp.replacedBy().isEmpty() == false) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Automatically updating replaceBy parameter: %s.%s => %s",
                                         handle.prefix, f.getName(), cp.replacedBy()));
             this.set(cp.replacedBy(), value, true);
@@ -1849,7 +1849,7 @@ public final class HStoreConf {
      * This can only be invoked after all of the Conf handles are initialized
      */
     protected void populateDependencies() {
-        if (debug.get()) LOG.debug("Populating dependent parameters");
+        if (debug.val) LOG.debug("Populating dependent parameters");
         
         Pattern p = Pattern.compile("\\$\\{" + REGEX_STR + "\\}", Pattern.CASE_INSENSITIVE);
         for (Conf handle : confHandles.values()) {
@@ -1871,7 +1871,7 @@ public final class HStoreConf {
                 if (m == null || found == false) continue;
                 
                 String dependencyKey = m.group(1) + "." + m.group(2);
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(String.format("Found dependency: %s -> %s", f.getName(), dependencyKey));
                 
                 Object dependencyValue = this.get(dependencyKey);
@@ -1879,7 +1879,7 @@ public final class HStoreConf {
                                   dependencyValue +
                                   defaultString.substring(m.end());
                 this.set(handle, f, newValue);
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("Updated dependent parameter %s.%s [%s] ==> %s",
                               handle.prefix, f.getName(), defaultString, newValue));
             } // FOR
@@ -1911,7 +1911,7 @@ public final class HStoreConf {
     protected boolean isMarkedExternal(Conf handle, String f_name) {
         Set<String> s = this.externalParams.get(handle);
         boolean ret = (s != null && s.contains(f_name));
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Checking whether %s.%s is externally set: %s",
                                handle.prefix, f_name, ret));
         return (ret);
@@ -1982,7 +1982,7 @@ public final class HStoreConf {
      */
     @SuppressWarnings("unchecked")
     public void loadFromFile(File path) {
-        if (debug.get()) LOG.debug("Loading from input file [" + path + "]");
+        if (debug.val) LOG.debug("Loading from input file [" + path + "]");
         
         try {
             this.config = new PropertiesConfiguration(path);
@@ -1995,7 +1995,7 @@ public final class HStoreConf {
             Matcher m = REGEX_PARSE.matcher(k);
             boolean found = m.matches();
             if (m == null || found == false) {
-                if (debug.get()) LOG.warn("Invalid key '" + k + "' from configuration file '" + path + "'");
+                if (debug.val) LOG.warn("Invalid key '" + k + "' from configuration file '" + path + "'");
                 continue;
             }
             assert(m != null);
@@ -2037,7 +2037,7 @@ public final class HStoreConf {
     }
     
     public void loadFromArgs(String args[]) {
-        if (debug.get()) LOG.debug("Loading from commandline input arguments");
+        if (debug.val) LOG.debug("Loading from commandline input arguments");
         final Pattern split_p = Pattern.compile("=");
         
         final Map<String, String> argsMap = new ListOrderedMap<String, String>();
@@ -2078,7 +2078,7 @@ public final class HStoreConf {
             Matcher m = REGEX_PARSE.matcher(k);
             boolean found = m.matches();
             if (m == null || found == false) {
-                if (debug.get()) LOG.warn("Invalid key '" + k + "'");
+                if (debug.val) LOG.warn("Invalid key '" + k + "'");
                 continue;
             }
             assert(m != null);
@@ -2092,14 +2092,14 @@ public final class HStoreConf {
             try {
                 f = confClass.getField(f_name);
             } catch (Exception ex) {
-                if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
+                if (debug.val) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
             }
             ConfigProperty cp = handle.getConfigProperties().get(f);
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
-            if (debug.get()) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type [class=%s]",
+            if (debug.val) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type [class=%s]",
                                        v, k, f_class));
 
             try {
@@ -2121,7 +2121,7 @@ public final class HStoreConf {
                 LOG.error(String.format("Invalid value '%s' for configuration parameter '%s'", v, k), ex);
                 continue;
             }
-            if (debug.get()) LOG.debug(String.format("CAST %s => %s", k, value));
+            if (debug.val) LOG.debug(String.format("CAST %s => %s", k, value));
            
             this.set(handle, f, value);
             this.markAsExternal(handle, f_name);
@@ -2135,7 +2135,7 @@ public final class HStoreConf {
                 Object val = confHandle.getValue(f_name);
                 if (val != null) {
                     String key = String.format("%s.%s", confHandle.prefix, f_name);
-                    if (trace.get()) LOG.trace(String.format("LOADED %s => %s", key, val.toString()));
+                    if (trace.val) LOG.trace(String.format("LOADED %s => %s", key, val.toString()));
                     m.put(key, val.toString());
                 }
             } // FOR

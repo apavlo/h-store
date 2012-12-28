@@ -29,21 +29,17 @@ package edu.brown.hstore.cmdlog;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.BufferUnderflowException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
 
 import org.jfree.util.Log;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.CompressionService;
-import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.NotImplementedException;
-import org.voltdb.utils.DBBPool.BBContainer;
 
 
 /**

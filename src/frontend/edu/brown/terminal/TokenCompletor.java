@@ -109,7 +109,7 @@ public class TokenCompletor implements Completor {
         this.allTokens.addAll(this.columnTokens);
         this.allTokens.addAll(this.procTokens);
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Token Information:\n" + this.toString());
     }
     
@@ -126,7 +126,7 @@ public class TokenCompletor implements Completor {
         String tokens[] = SPLIT.split(buffer);
         String last = tokens[tokens.length - 1].trim().toUpperCase();
         
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug("BUFFER: '" + buffer + "'");
             LOG.debug("CURSOR: " + cursor);
             LOG.debug("TOKENS: " + Arrays.toString(tokens));
@@ -142,7 +142,7 @@ public class TokenCompletor implements Completor {
         }
         prevToken = prevToken.trim().toUpperCase();
         
-        if (debug.get()) LOG.debug("PREV: " + prevToken);
+        if (debug.val) LOG.debug("PREV: " + prevToken);
         
         // The first token must always be a SQL command token
         // Otherwise, check which candidates to use based on
@@ -155,28 +155,28 @@ public class TokenCompletor implements Completor {
         if (tokens.length >= 2 &&
             tokens[0].equalsIgnoreCase(HStoreTerminal.Command.EXEC.name()) &&
             this.procTokens.contains(tokens[1].toUpperCase())) {
-            if (debug.get()) LOG.debug("EXEC COMMAND: '" + buffer + "'");
+            if (debug.val) LOG.debug("EXEC COMMAND: '" + buffer + "'");
             candidates = this.emptyTokens;
         }
         // TABLE
         else if (this.tablePrefixes.contains(prevToken)) {
-            if (debug.get()) LOG.debug("TABLE PREFIX: '" + prevToken + "'");
+            if (debug.val) LOG.debug("TABLE PREFIX: '" + prevToken + "'");
             candidates = this.tableTokens;
         }
         // COLUMN
         else if (this.columnPrefixes.contains(prevToken)) {
-            if (debug.get()) LOG.debug("COLUMN PREFIX: " + prevToken);
+            if (debug.val) LOG.debug("COLUMN PREFIX: " + prevToken);
             candidates = this.columnTokens;
         }
         // PROCEDURE
         else if (this.procPrefixes.contains(prevToken)) {
-            if (debug.get()) LOG.debug("PROC PREFIX: " + prevToken);
+            if (debug.val) LOG.debug("PROC PREFIX: " + prevToken);
             candidates = this.procTokens;
-        } else if (debug.get()) {
+        } else if (debug.val) {
             LOG.debug("Using all candidates!");
         }
         assert(candidates != null);
-        if (debug.get()) LOG.debug("CANDIDATES: " + candidates);
+        if (debug.val) LOG.debug("CANDIDATES: " + candidates);
         
         if (buffer.endsWith(DELIMITER)) {
             for (String can : candidates) {
@@ -188,12 +188,12 @@ public class TokenCompletor implements Completor {
             
         } else {
             Collection<String> matches = candidates.tailSet(last);
-            if (debug.get()) LOG.debug("MATCHES: " + matches);
+            if (debug.val) LOG.debug("MATCHES: " + matches);
             for (String can : matches) {
-                if (debug.get()) LOG.debug("Candidate: " + can);
+                if (debug.val) LOG.debug("Candidate: " + can);
     
                 if (can.startsWith(last) == false || can.equalsIgnoreCase(last)) {
-                    if (debug.get()) LOG.debug("Invalid match!");
+                    if (debug.val) LOG.debug("Invalid match!");
                     break;
                 }
                 

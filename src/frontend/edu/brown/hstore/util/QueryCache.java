@@ -170,7 +170,7 @@ public class QueryCache {
      * @param result
      */
     public void addResult(Long txnId, int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("#%d - Storing query result for FragmentId %d - %s",
                                     txnId, fragmentId, params));
         this.addResult(txnId, fragmentId, partitionId, params.hashCode(), result);
@@ -186,7 +186,7 @@ public class QueryCache {
      * @param result
      */
     public void addResult(Long txnId, int fragmentId, int partitionId, int paramsHash, VoltTable result) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("#%d - Storing query result for FragmentId %d / paramsHash:%d",
                                     txnId, fragmentId, paramsHash));
         
@@ -209,7 +209,7 @@ public class QueryCache {
         assert(entry != null);
         entry.init(fragmentId, partitionId, paramsHash, result);
         entries.add(entry.idx);
-        if (debug.get()) LOG.debug(String.format("#%d - CacheEntry\n%s", txnId, entry.toString()));
+        if (debug.val) LOG.debug(String.format("#%d - CacheEntry\n%s", txnId, entry.toString()));
     }
     
     /**
@@ -221,12 +221,12 @@ public class QueryCache {
      */
     public VoltTable getResult(Long txnId, int fragmentId, int partitionId, ParameterSet params) {
         
-        if (debug.get()) LOG.debug(String.format("#%d - Retrieving query cache for FragmentId %d - %s",
+        if (debug.val) LOG.debug(String.format("#%d - Retrieving query cache for FragmentId %d - %s",
                                                  txnId, fragmentId, params));
         
         List<Integer> entries = this.txnCacheXref.get(txnId);
         if (entries != null) {
-            if (trace.get()) LOG.trace(String.format("Txn #%d has %d cache entries", txnId, entries.size()));
+            if (trace.val) LOG.trace(String.format("Txn #%d has %d cache entries", txnId, entries.size()));
             int paramsHash = -1;
             for (int i = 0, cnt = entries.size(); i < cnt; i++) {
                 CacheEntry entry = this.txnCache.get(entries.get(i));

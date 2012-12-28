@@ -124,7 +124,7 @@ public class MarkovEstimator extends TransactionEstimator {
             if (catalog_proc.getSystemproc()) continue;
             this.manglers.put(catalog_proc, ParameterMangler.singleton(catalog_proc));
         } // FOR
-        if (debug.get()) LOG.debug(String.format("Created ParameterManglers for %d procedures",
+        if (debug.val) LOG.debug(String.format("Created ParameterManglers for %d procedures",
                                    this.manglers.size()));
         
         if (debug.val) LOG.debug("Creating MarkovPathEstimator Object Pool");

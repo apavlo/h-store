@@ -106,7 +106,7 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
                         if (table_name.contains(PlanAssembler.AGGREGATE_TEMP_TABLE) == false) {
                             this.stop();
                             throw new RuntimeException(String.format("Unknown table '%s' referenced in Expression node %s", table_name, element));
-                        } else if (debug.get()) {
+                        } else if (debug.val) {
                             LOG.debug("Ignoring temporary table '" + table_name + "'");
                         }
                         return;

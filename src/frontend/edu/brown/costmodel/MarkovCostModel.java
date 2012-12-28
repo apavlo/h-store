@@ -275,9 +275,9 @@ public class MarkovCostModel extends AbstractCostModel {
         assert (s != null);
         Procedure catalog_proc = txn_trace.getCatalogItem(catalogContext.database);
 
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug("Measuring MarkovEstimate Accuracy: " + txn_trace);
-            if (trace.get()) {
+            if (trace.val) {
                 LOG.trace("Estimated: " + ((MarkovEstimate)s.getInitialEstimate()).getMarkovPath());
                 LOG.trace("Actual:    " + s.getActualPath());
             }
@@ -353,7 +353,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @return
      */
     protected boolean comparePathsFast(List<MarkovVertex> estimated, List<MarkovVertex> actual) {
-        if (trace.get())
+        if (trace.val)
             LOG.trace(String.format("Fast Path Compare: Estimated [size=%d] vs. Actual [size=%d]", estimated.size(), actual.size()));
         this.e_read_partitions.clear();
         this.e_write_partitions.clear();
@@ -376,7 +376,7 @@ public class MarkovCostModel extends AbstractCostModel {
         MarkovVertex a_last = CollectionUtil.last(actual);
         assert (a_last != null);
         assert (a_last.isEndingVertex());
-        if (trace.get()) {
+        if (trace.val) {
             LOG.trace("Estimated Last Vertex: " + e_last);
             LOG.trace("Actual Last Vertex: " + a_last);
         }
@@ -386,7 +386,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
         // (2) Check that the partitions that we predicted that the txn would
         // read/write are the same
-        if (trace.get()) {
+        if (trace.val) {
             LOG.trace("Estimated Read Partitions:  " + this.e_read_partitions);
             LOG.trace("Estimated Write Partitions: " + this.e_write_partitions);
             LOG.trace("Actual Read Partitions:     " + this.a_read_partitions);
@@ -411,7 +411,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @return
      */
     protected double comparePathsFull(MarkovEstimatorState s) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Performing full comparison of Transaction #" + s.getTransactionId());
 
         this.penalties.clear();
@@ -446,7 +446,7 @@ public class MarkovCostModel extends AbstractCostModel {
         // This is strictly for the paper so that we can show how slow it would
         // be to have calculate probabilities through a traversal for each batch
         if (this.force_regenerate_markovestimates) {
-            if (debug.get()) {
+            if (debug.val) {
                 String name = AbstractTransaction.formatTxnName(markov.getProcedure(), s.getTransactionId());
                 LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + name);
             }
@@ -467,7 +467,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
         boolean first_penalty = true;
 
-        if (trace.get()) {
+        if (trace.val) {
             LOG.trace("Estimated Read Partitions:  " + this.e_read_partitions);
             LOG.trace("Estimated Write Partitions: " + this.e_write_partitions);
             LOG.trace("Actual Read Partitions:     " + this.a_read_partitions);
@@ -485,7 +485,7 @@ public class MarkovCostModel extends AbstractCostModel {
             e_base_partition = CollectionUtil.first(most_touched);
         }
         if (e_base_partition == null || e_base_partition != base_partition) {
-            if (trace.get()) {
+            if (trace.val) {
                 LOG.trace(String.format("Estimated base partition for txn #%d was %d but PartitionEstimator says it should be %d", s.getTransactionId(), e_base_partition, base_partition));
             }
             this.penalties.add(Penalty.WRONG_BASE_PARTITION);
@@ -501,7 +501,7 @@ public class MarkovCostModel extends AbstractCostModel {
         // ----------------------------------------------------------------------------
         first_penalty = true;
         if (initial_est.isAbortable(this.thresholds) == false && a_last.isAbortVertex()) {
-            if (trace.get()) {
+            if (trace.val) {
                 if (first_penalty) {
                     LOG.trace("PENALTY: " + MarkovOptimization.OP3_ABORTS);
                     first_penalty = false;
@@ -547,7 +547,7 @@ public class MarkovCostModel extends AbstractCostModel {
             // we're going to be read-only for the rest of the transaction
             // This is would be considered wasted work
             if (isAbortable && isReadOnly) {
-                if (trace.get()) {
+                if (trace.val) {
                     if (first_penalty) {
                         LOG.trace("PENALTY: " + MarkovOptimization.OP3_ABORTS);
                         first_penalty = false;
@@ -567,7 +567,7 @@ public class MarkovCostModel extends AbstractCostModel {
         first_penalty = true;
         for (Integer p : this.a_read_partitions) {
             if (this.e_read_partitions.contains(p) == false) {
-                if (trace.get()) {
+                if (trace.val) {
                     if (first_penalty) {
                         LOG.trace("PENALTY: " + MarkovOptimization.OP2_PARTITIONS);
                         first_penalty = false;
@@ -579,7 +579,7 @@ public class MarkovCostModel extends AbstractCostModel {
         } // FOR
         for (Integer p : this.a_write_partitions) {
             if (this.e_write_partitions.contains(p) == false) {
-                if (trace.get()) {
+                if (trace.val) {
                     if (first_penalty) {
                         LOG.trace("PENALTY: " + MarkovOptimization.OP2_PARTITIONS);
                         first_penalty = false;
@@ -655,7 +655,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     // Check if we read/write at any partition that was
                     // previously declared as done
                     if (this.done_partitions.contains(p)) {
-                        if (trace.get()) {
+                        if (trace.val) {
                             if (first_penalty) {
                                 LOG.trace("PENALTY: " + MarkovOptimization.OP4_FINISHED);
                                 first_penalty = false;
@@ -686,7 +686,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     // We are late with identifying that a partition is finished
                     // if it was idle for more than one batch round
                     if (this.idle_partition_ctrs.get(finished_p, 0) > 0) {
-                        if (trace.get()) {
+                        if (trace.val) {
                             if (first_penalty5) {
                                 LOG.trace("PENALTY: " + MarkovOptimization.OP4_FINISHED);
                                 first_penalty5 = false;
@@ -700,7 +700,7 @@ public class MarkovCostModel extends AbstractCostModel {
                         // FIXME this.idle_partition_ctrs.put(finished_p, Integer.MIN_VALUE);
                     }
                     if (this.done_partitions.contains(finished_p) == false) {
-                        if (trace.get())
+                        if (trace.val)
                             LOG.trace(String.format("Marking touched partition %d as finished for the first time in MarkovEstimate #%d", finished_p.intValue(), i));
                         this.done_partitions.add(finished_p);
                     }
@@ -720,7 +720,7 @@ public class MarkovCostModel extends AbstractCostModel {
         boolean could_be_singlepartitioned = (e_singlepartitioned == false && a_singlepartitioned == true);
         for (Integer p : this.e_read_partitions) {
             if (this.a_read_partitions.contains(p) == false) {
-                if (trace.get()) {
+                if (trace.val) {
                     if (first_penalty) {
                         LOG.trace("PENALTY: " + MarkovOptimization.OP2_PARTITIONS);
                         first_penalty = false;
@@ -732,7 +732,7 @@ public class MarkovCostModel extends AbstractCostModel {
         } // FOR
         for (Integer p : this.e_write_partitions) {
             if (this.a_write_partitions.contains(p) == false) {
-                if (trace.get()) {
+                if (trace.val) {
                     if (first_penalty) {
                         LOG.trace("PENALTY: " + MarkovOptimization.OP2_PARTITIONS);
                         first_penalty = false;
@@ -743,7 +743,7 @@ public class MarkovCostModel extends AbstractCostModel {
             }
         } // FOR
 
-        if (trace.get())
+        if (trace.val)
             LOG.info(String.format("Number of Penalties %d: %s", this.penalties.size(), this.penalties));
         double cost = 0.0d;
         for (Penalty p : this.penalties)
@@ -955,7 +955,7 @@ public class MarkovCostModel extends AbstractCostModel {
                         TransactionTrace txn_trace = pair.getSecond();
                         Procedure catalog_proc = txn_trace.getCatalogItem(args.catalog_db);
                         total_h.put(catalog_proc);
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug(String.format("Processing %s [%d / %d]", txn_trace, thread_ctr, thread_ctr + queues[thread_id].size()));
 
                         proc_h = proc_penalties_h.get(catalog_proc);

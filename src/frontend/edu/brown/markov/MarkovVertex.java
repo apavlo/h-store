@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -30,6 +29,7 @@ import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.hstore.estimators.DynamicTransactionEstimate;
 import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
@@ -44,8 +44,8 @@ import edu.brown.utils.TableUtil;
  */
 public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, DynamicTransactionEstimate {
     private static final Logger LOG = Logger.getLogger(MarkovVertex.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -620,7 +620,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * @param probability
      */
     private void setProbability(MarkovVertex.Probability ptype, int partition, float probability) {
-        if (trace.get()) LOG.trace("(" + ptype + ", " + partition + ") => " + probability);
+        if (trace.val) LOG.trace("(" + ptype + ", " + partition + ") => " + probability);
         assert(MathUtil.greaterThanEquals(probability, 0.0f, MarkovGraph.PROBABILITY_EPSILON) &&
                MathUtil.lessThanEquals(probability, 1.0f, MarkovGraph.PROBABILITY_EPSILON)) :
             String.format("%s - Invalid %s probability at partition #%d: %f", this, ptype, partition, probability);

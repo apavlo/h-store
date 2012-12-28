@@ -42,7 +42,7 @@ public final class TransactionPostProcessor extends AbstractProcessingThread<Pai
         ClientResponseImpl cr = pair.getSecond();
         assert(cr != null);
         
-        if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
+        if (debug.val) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                                  ts, ts.getBasePartition(), cr.getStatus()));
         try {
             hstore_site.responseSend(ts, cr);

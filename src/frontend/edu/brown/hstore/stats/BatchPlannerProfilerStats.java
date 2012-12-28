@@ -78,7 +78,7 @@ public class BatchPlannerProfilerStats extends StatsSource {
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
         Procedure proc = (Procedure)rowKey;
-        if (debug.get()) LOG.debug("Collecting BatchPlanner stats for " + proc.getName());
+        if (debug.val) LOG.debug("Collecting BatchPlanner stats for " + proc.getName());
         
         // We're going to create a new profiler that we can use
         // to add up all of the values from the individual BatchPlannerProfilers

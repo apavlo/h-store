@@ -45,7 +45,7 @@ public class SendDataCallback extends BlockingRpcCallback<AbstractTransaction, S
         assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         super.init(ts.getTransactionId(), this.num_sites, orig_callback);
@@ -68,7 +68,7 @@ public class SendDataCallback extends BlockingRpcCallback<AbstractTransaction, S
     @Override
     protected void unblockCallback() {
         assert(this.isAborted() == false);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(ts + " is ready to execute. Passing to HStoreSite " +
                     " ...<shuffle phases is over>.......<Send all data to partitions already>");
         
@@ -88,7 +88,7 @@ public class SendDataCallback extends BlockingRpcCallback<AbstractTransaction, S
     
     @Override
     protected int runImpl(SendDataResponse response) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Got %s with status %s for %s",
                                     response.getClass().getSimpleName(),
                                     response.getStatus(),
@@ -106,7 +106,7 @@ public class SendDataCallback extends BlockingRpcCallback<AbstractTransaction, S
         // If we get a response that matches our original txn but the LocalTransaction handle 
         // has changed, then we need to will just ignore it
         if (orig_txn_id.longValue() == resp_txn_id && orig_txn_id.equals(ts_txn_id) == false) {
-            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
+            if (debug.val) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
                                                      response.getClass().getSimpleName(), resp_txn_id, orig_txn_id));
             return (0);
         }
@@ -119,7 +119,7 @@ public class SendDataCallback extends BlockingRpcCallback<AbstractTransaction, S
             this.abort(response.getStatus());
             return (0);
         }
-        if (debug.get()) LOG.debug("SendDataCallback, I am trying to return 1, actually counter is:" + this.getCounter());
+        if (debug.val) LOG.debug("SendDataCallback, I am trying to return 1, actually counter is:" + this.getCounter());
         return 1;
     }
 }

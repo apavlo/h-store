@@ -1697,7 +1697,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param work
      */
 //    public void queueUtilityWork(InternalMessage work) {
-//        if (debug.get()) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
+//        if (debug.val) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
 //                                   this.partitionId, work));
 //        this.utility_queue.offer(work);
 //    }

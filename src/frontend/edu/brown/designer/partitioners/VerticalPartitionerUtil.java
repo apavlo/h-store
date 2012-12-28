@@ -66,7 +66,7 @@ public abstract class VerticalPartitionerUtil {
             tbl_stats.tuple_size_min = tuple_size;
             tbl_stats.tuple_size_total = tbl_stats.tuple_count_total * tuple_size;
 
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Added TableStatistics for vertical partition replica table " + view_tbl);
         }
         return (tbl_stats);
@@ -92,7 +92,7 @@ public abstract class VerticalPartitionerUtil {
         // If the horizontal partition column is null, then there can't be any
         // vertical partition columns
         if (partition_col.getNullable()) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("The horizontal partition column " + partition_col.fullName() + " is nullable. Skipping candidate generation");
             return (candidates);
         }
@@ -103,7 +103,7 @@ public abstract class VerticalPartitionerUtil {
         // For the given Column object, figure out what are the potential
         // vertical partitioning candidates
         // if we assume that the Table is partitioned on that Column
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(String.format("Generating VerticalPartitionColumn candidates based on using %s as the horizontal partitioning attribute", partition_col.fullName()));
             LOG.trace(catalog_tbl + " Read-Only Columns: " + CatalogUtil.debug(readOnlyColumns));
         }
@@ -175,7 +175,7 @@ public abstract class VerticalPartitionerUtil {
                     assert (vpc != null) : String.format("Failed to get VerticalPartition column for <%s, %s>", partition_col, vp_col);
                     candidates.add(vpc);
     
-                    if (debug.get()) {
+                    if (debug.val) {
                         Map<String, Object> m = new ListOrderedMap<String, Object>();
                         m.put("Output Columns", output_cols);
                         m.put("Predicate Columns", stmt_cols);
@@ -187,7 +187,7 @@ public abstract class VerticalPartitionerUtil {
             } // FOR (stmt)
         } // FOR (proc)
 
-        if (debug.get() && candidates.size() > 0)
+        if (debug.val && candidates.size() > 0)
             LOG.debug("Computing vertical partition query plans for " + candidates.size() + " candidates");
         Set<VerticalPartitionColumn> final_candidates = new HashSet<VerticalPartitionColumn>();
         for (VerticalPartitionColumn vpc : candidates) {
@@ -197,7 +197,7 @@ public abstract class VerticalPartitionerUtil {
                 VerticalPartitionerUtil.computeTableStatistics(vpc, stats);
 
             if (vpc.hasOptimizedQueries()) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("Skipping candidate that already has optimized queries\n" + vpc.toString());
                 final_candidates.add(vpc);
             } else if (generateOptimizedQueries(catalog_db, vpc)) {
@@ -233,13 +233,13 @@ public abstract class VerticalPartitionerUtil {
         if (optimized != null) {
             c.addOptimizedQueries(optimized);
             ret = true;
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Generated %d optimized query plans using %s's vertical partition: %s", optimized.size(), c.getParent().getName(), columnNames));
         } else if (c.hasOptimizedQueries()) {
             ret = true;
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Using existing %d optimized query plans using %s's vertical partition", c.getOptimizedQueries().size(), c.getParent().getName()));
-        } else if (debug.get()) {
+        } else if (debug.val) {
             LOG.warn("No optimized queries were generated for " + c.fullName());
         }
         return (ret);

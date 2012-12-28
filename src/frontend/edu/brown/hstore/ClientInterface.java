@@ -430,7 +430,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
             responseBuffer.put(buildString).flip();
             socket.write(responseBuffer);
             
-            if (debug.get()) LOG.debug("Established new client connection to " + socket);
+            if (debug.val) LOG.debug("Established new client connection to " + socket);
             
             return handler;
         }
@@ -502,7 +502,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
             return new Runnable() {
                 @Override
                 public void run() {
-                    if (trace.get()) LOG.trace("Off-backpressure for " + this);
+                    if (trace.val) LOG.trace("Off-backpressure for " + this);
                     /**
                      * Must synchronize to prevent a race between the DTXN backpressure starting
                      * and this attempt to reenable read selection (which should not occur
@@ -522,7 +522,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
             return new Runnable() {
                 @Override
                 public void run() {
-                    if (trace.get()) LOG.trace("On-backpressure for " + this);
+                    if (trace.val) LOG.trace("On-backpressure for " + this);
                     synchronized (m_connection) {
                         m_connection.disableReadSelection();
                     }
@@ -614,7 +614,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
     private final EventObserver<HStoreSite> onBackPressureObserver = new EventObserver<HStoreSite>() {
         @Override
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-            if (debug.get()) LOG.debug("Had back pressure disabling read selection");
+            if (debug.val) LOG.debug("Had back pressure disabling read selection");
             synchronized (m_connections) {
                 if (profiler != null) {
                     ProfileMeasurementUtil.swap(profiler.network_backup_off, profiler.network_backup_on);
@@ -633,7 +633,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
     private final EventObserver<HStoreSite> offBackPressureObserver = new EventObserver<HStoreSite>() {
         @Override
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-            if (debug.get()) LOG.debug("No more back pressure attempting to enable read selection");
+            if (debug.val) LOG.debug("No more back pressure attempting to enable read selection");
             synchronized (m_connections) {
                 if (profiler != null) {
                     ProfileMeasurementUtil.swap(profiler.network_backup_on, profiler.network_backup_off);
@@ -775,7 +775,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
     public void increaseBackpressure(int messageSize) {
         long pendingBytes = m_pendingTxnBytes.addAndGet(messageSize);
         int pendingTxns = m_pendingTxnCount.incrementAndGet();
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug(String.format("Increased Backpressure by %d bytes " +
             		  "[BYTES: %d/%d] [TXNS: %d/%d]%s",
                       messageSize,
@@ -785,7 +785,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
         
         if (pendingBytes > MAX_DESIRED_PENDING_BYTES || pendingTxns > MAX_DESIRED_PENDING_TXNS) {
             if (!m_hadBackPressure) {
-                if (trace.get()) LOG.trace("DTXN back pressure began");
+                if (trace.val) LOG.trace("DTXN back pressure began");
                 m_hadBackPressure = true;
                 m_backpressureCounter += 1;
                 onBackPressure.notifyObservers(hstore_site);
@@ -796,7 +796,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
     public void reduceBackpressure(final int messageSize) {
         long pendingBytes = m_pendingTxnBytes.addAndGet(-1 * messageSize);
         int pendingTxns = m_pendingTxnCount.decrementAndGet();
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Reduced Backpressure by %d bytes " +
                       "[BYTES: %d/%d] [TXNS: %d/%d]%s",
                       messageSize,
@@ -808,7 +808,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
             pendingTxns < (MAX_DESIRED_PENDING_TXNS * MAX_DESIRED_PENDING_TXNS_RELEASE))
         {
             if (m_hadBackPressure) {
-                if (trace.get()) LOG.trace("DTXN backpressure ended");
+                if (trace.val) LOG.trace("DTXN backpressure ended");
                 m_hadBackPressure = false;
                 offBackPressure.notifyObservers(hstore_site);
             }
