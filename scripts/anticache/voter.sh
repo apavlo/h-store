@@ -29,7 +29,6 @@ BASE_PROJECT="voter"
 BASE_DIR=`pwd`
 
 BASE_ARGS=( \
-    "-Dsite.status_enable=false" \
     
     # SITE DEBUG
 #     "-Dsite.status_enable=true" \
@@ -82,7 +81,24 @@ for t in ${EVICTABLE_TABLES[@]}; do
     EVICTABLES="${t},${EVICTABLES}"
 done
 
-
+# Compile
+HOSTS_TO_BUILD=("$SITE_HOST")
+for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
+    NEED_BUILD=1
+    for x in ${HOSTS_TO_BUILD[@]}; done
+        if [ "$CLIENT_HOST" = "$x" ]; then
+            NEED_BUILD=0
+            break
+        fi
+    done
+    if [ $NEED_BUILD = 1 ]; then
+        HOSTS_TO_BUILD+=("$CLIENT_HOST")
+    fi
+done
+for HOST in ${HOSTS_TO_BUILD[@]}; do
+    ssh $HOST "cd $BASE_DIR && ant compile" &
+done
+join
 
 # ant compile
 # for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
