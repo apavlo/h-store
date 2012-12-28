@@ -921,6 +921,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                 this.tick();
             } // WHILE
+        } catch (InterruptedException ex) {
+            // IGNORE!
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
                 // ex.printStackTrace();
