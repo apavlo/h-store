@@ -29,6 +29,7 @@ import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
@@ -113,7 +114,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         Map<Field, Histogram<?>> ret = new HashMap<Field, Histogram<?>>();
         Class<?> clazz = cost_model.getClass().getSuperclass();
         for (Field f : clazz.getDeclaredFields()) {
-            if (f.getType().equals(Histogram.class)) {
+            if (ClassUtil.getInterfaces(f.getType()).contains(Histogram.class)) {
                 ret.put(f, (Histogram<?>)f.get(cost_model));
             }
         } // FOR
