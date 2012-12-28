@@ -17,10 +17,10 @@ import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
-import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.SpecExecProfiler;
 import edu.brown.profilers.TransactionQueueManagerProfiler;

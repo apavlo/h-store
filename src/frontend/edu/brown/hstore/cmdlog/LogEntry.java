@@ -24,7 +24,7 @@
  *   OTHER DEALINGS IN THE SOFTWARE.                                       *
  ***************************************************************************/
 
-package edu.brown.hstore.wal;
+package edu.brown.hstore.cmdlog;
 
 import java.io.IOException;
 

@@ -23,7 +23,7 @@
  *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
  *   OTHER DEALINGS IN THE SOFTWARE.                                       *
  ***************************************************************************/
-package edu.brown.hstore.wal;
+package edu.brown.hstore.cmdlog;
 
 import java.io.File;
 import java.io.FileOutputStream;

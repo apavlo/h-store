@@ -23,7 +23,7 @@
  *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
  *   OTHER DEALINGS IN THE SOFTWARE.                                       *
  ***************************************************************************/
-package edu.brown.hstore.wal;
+package edu.brown.hstore.cmdlog;
 
 import java.io.File;
 import java.util.concurrent.atomic.AtomicLong;
@@ -41,6 +41,9 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.MockHStoreSite;
+import edu.brown.hstore.cmdlog.CommandLogReader;
+import edu.brown.hstore.cmdlog.CommandLogWriter;
+import edu.brown.hstore.cmdlog.LogEntry;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;

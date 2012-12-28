@@ -18,6 +18,7 @@ import edu.brown.utils.PartitionSet;
  * This is created at the base partition's site.
  * @author pavlo
  */
+@Deprecated
 public class SlowTransactionInitCallback extends AbstractTransactionCallback<LocalTransaction, TransactionInitResponse, TransactionInitResponse> {
     private static final Logger LOG = Logger.getLogger(SlowTransactionInitCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
