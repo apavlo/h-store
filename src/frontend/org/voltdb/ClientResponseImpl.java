@@ -429,7 +429,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Status status) {
-        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 1 + 4 = 24
+        b.put(24, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 1 + 4 = 24
     }
     
     // ----------------------------------------------------------------------------
