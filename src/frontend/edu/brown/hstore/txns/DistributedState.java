@@ -91,14 +91,12 @@ public class DistributedState implements Poolable {
     
     public DistributedState init(LocalTransaction ts) {
         this.ts = ts;
-        
-        for (Integer p : ts.getPredictTouchedPartitions()) {
-            if (ts.hstore_site.isLocalPartition(p.intValue()) == false) {
+        for (int p : ts.getPredictTouchedPartitions().values()) {
+            if (ts.hstore_site.isLocalPartition(p) == false) {
                 this.is_all_local = false;
                 break;
             }
         } // FOR
-        
         return (this);
     }
     

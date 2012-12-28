@@ -122,7 +122,6 @@ import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.statistics.FastIntHistogram;
-import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -779,7 +778,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public boolean isLocalPartition(int partition) {
         assert(partition >= 0);
-        assert(partition < this.local_partition_offsets.length);
+        assert(partition < this.local_partition_offsets.length) :
+            String.format("Invalid partition %d - %s", partition, this.catalogContext.getAllPartitionIds());
         return (this.local_partition_offsets[partition] != -1);
     }
     /**
@@ -789,8 +789,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     public boolean isLocalPartitions(PartitionSet partitions) {
-        for (Integer p : partitions) {
-            if (this.local_partition_offsets[p.intValue()] == -1) {
+        for (int p : partitions.values()) {
+            if (this.local_partition_offsets[p] == -1) {
                 return (false);
             }
         } // FOR
