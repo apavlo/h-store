@@ -1,13 +1,7 @@
 package edu.brown.hstore;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.tools.ant.taskdefs.optional.junit.BaseTest;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
-import org.voltdb.VoltProcedure;
-import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
@@ -16,11 +10,7 @@ import org.voltdb.types.QueryType;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.voter.procedures.Vote;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.QueryTrace;
-import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload;
 
 /**
  * Additional PartitionEstimator Tests
@@ -28,12 +18,7 @@ import edu.brown.workload.Workload;
  */
 public class TestBatchPlannerCaching extends BaseTestCase {
 
-    private static final int TARGET_BATCH = 1;
-    private static final int WORKLOAD_XACT_LIMIT = 1;
     private static final int NUM_PARTITIONS = 50;
-    private static final int BASE_PARTITION = 0;
-    private static final long TXN_ID = 123l;
-    private static final long CLIENT_HANDLE = Long.MAX_VALUE;
 
     private SQLStmt batch[];
     private ParameterSet args[];
