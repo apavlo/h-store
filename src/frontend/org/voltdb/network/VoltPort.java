@@ -356,7 +356,7 @@ public class VoltPort implements Callable<VoltPort>, Connection
 
     @Override
     public String toString() {
-        return super.toString() + ":" + m_channel.socket().getRemoteSocketAddress().toString();
+        return m_channel.socket().getRemoteSocketAddress().toString();
     }
 
     public synchronized long getMessagesRead(boolean interval) {
