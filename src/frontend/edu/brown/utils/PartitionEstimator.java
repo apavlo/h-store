@@ -79,8 +79,10 @@ import edu.brown.workload.TransactionTrace;
 
 /**
  * This class is used to calculate what partitions various operations
- * will need to execute on. It's not actually estimating. These are deterministic
- * calculations. 
+ * will need to execute on. It's not actually estimating.
+ * <B>NOTE:</B> These are deterministic calculations. We call it an "estimator" because
+ * we can get the partitions touched by an operation without actaully running a txn
+ * or executing a query. 
  * @author pavlo
  */
 public class PartitionEstimator {
@@ -1060,6 +1062,9 @@ public class PartitionEstimator {
                 }
 
                 for (Table catalog_tbl : cache_entry.getTables()) {
+                    if (catalog_tbl.getMaterializer() != null) {
+                        catalog_tbl = catalog_tbl.getMaterializer();
+                    }
                     Column partition_col = catalog_tbl.getPartitioncolumn();
                     if (partition_col instanceof MultiColumn) {
                         if (debug.val)

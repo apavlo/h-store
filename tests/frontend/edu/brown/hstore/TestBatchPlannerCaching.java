@@ -121,10 +121,9 @@ public class TestBatchPlannerCaching extends BaseTestCase {
         // The result is allowed to be null if this stmt only references
         // a replicated table
         int result[] = this.plannerDebug.getCachedLookup(stmt_index);
-        assertNotNull(stmt.fullName(), result);
-        assertEquals(stmt.fullName(), 1, result.length);
+        assertNull(stmt.fullName(), result);
         assertTrue(stmt.fullName(), this.plannerDebug.isCachedReadOnly(stmt_index));
-        assertFalse(stmt.fullName(), this.plannerDebug.isCachedReplicatedOnly(stmt_index));
+        assertTrue(stmt.fullName(), this.plannerDebug.isCachedReplicatedOnly(stmt_index));
     }
         
 }

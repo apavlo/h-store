@@ -2,6 +2,7 @@ package edu.brown.utils;
 
 import java.util.Collection;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
@@ -10,41 +11,61 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.voter.procedures.Vote;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
-import edu.brown.hashing.DefaultHasher;
 
 /**
  * PartitionEstimator tests for queries on views
  * @author pavlo
  */
 public class TestPartitionEstimatorViews extends BaseTestCase {
-
-    protected static AbstractHasher hasher;
-    protected static final int num_partitions = 10;
-    protected static final int base_partition = 1;
     
+    private static final Class<? extends VoltProcedure> TARGET_PROC = Vote.class;
+    private static final String TARGET_STMT = "checkVoterStmt";
+    private static final long phoneNumber = 5555555555l;
+    
+    protected static final int NUM_PARTITIONS = 10;
+    protected static final int BASE_PARTITION = 1;
+    
+    private AbstractHasher hasher;
     private final PartitionSet partitions = new PartitionSet();
+    private Procedure catalog_proc;
+    private Statement catalog_stmt;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.VOTER);
-        if (hasher == null) {
-            this.addPartitions(num_partitions);
-            hasher = new DefaultHasher(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db));
-        }
+        this.addPartitions(NUM_PARTITIONS);
+        
+        this.hasher = p_estimator.getHasher();
+        this.catalog_proc = this.getProcedure(TARGET_PROC);
+        this.catalog_stmt = this.getStatement(catalog_proc, TARGET_STMT);
+        
+        assertEquals(NUM_PARTITIONS, hasher.getNumPartitions());
+        assertEquals(NUM_PARTITIONS, catalogContext.numberOfPartitions);
+    }
+    
+    /**
+     * testGetStatementEstimationParameters
+     */
+    public void testGetStatementEstimationParameters() throws Exception {
+        Collection<Table> tables = CatalogUtil.getReferencedTables(catalog_stmt);
+        assertEquals(1, tables.size());
+        assertNotNull(CollectionUtil.first(tables));
+        assertNotNull(CollectionUtil.first(tables).getMaterializer());
+        
+        int result[] = p_estimator.getStatementEstimationParameters(this.catalog_stmt);
+        assertNotNull(catalog_stmt.fullName(), result);
+        assertEquals(1, result.length);
     }
     
     /**
      * testGetPartitionsStmtView
      */
     public void testGetPartitionsStmtView() throws Exception {
-        long phoneNumber = 5555555555l;
-        Procedure catalog_proc = this.getProcedure(Vote.class);
-        Object txn_params[] = new Object[] { base_partition, phoneNumber, 1, 100l };
+        Object txn_params[] = new Object[] { BASE_PARTITION, phoneNumber, 1, 100l };
         int procPartition = p_estimator.getBasePartition(catalog_proc, txn_params);
-        assert(procPartition >= 0 && procPartition < num_partitions);
+        assert(procPartition >= 0 && procPartition < NUM_PARTITIONS);
         
         // Make sure this is the query that touches the view
-        Statement catalog_stmt = this.getStatement(catalog_proc, "checkVoterStmt");
         Object stmt_params[] = new Object[] { phoneNumber };
         Collection<Table> stmtTables = CatalogUtil.getReferencedTables(catalog_stmt);
         assertEquals(1, stmtTables.size());

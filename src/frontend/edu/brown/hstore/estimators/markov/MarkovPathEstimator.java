@@ -120,13 +120,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------
-    
+
     /**
-     * 
-     * @param markov
-     * @param t_estimator
-     * @param base_partition
-     * @param args
+     * Constructor
+     * @param catalogContext
+     * @param p_estimator
      */
     public MarkovPathEstimator(CatalogContext catalogContext, PartitionEstimator p_estimator) {
         super();
