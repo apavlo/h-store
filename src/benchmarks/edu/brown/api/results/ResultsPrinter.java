@@ -240,6 +240,12 @@ public class ResultsPrinter implements BenchmarkInterest {
         double intervalLatency = MathUtil.sum(latencies) / (double)latencies.size();
         latencies = HistogramUtil.weightedValues(results.getAllLatencies());
         double totalLatency = MathUtil.sum(latencies) / (double)latencies.size();
+        if (totalLatency < 0) {
+            LOG.warn("Negative Total Latency: " + totalLatency);
+            LOG.warn("# of Latencies: " + latencies.size());
+            LOG.warn("Latencies List: " + StringUtil.join("\n", latencies));
+            assert(false);
+        }
 
         int pollIndex = results.getCompletedIntervalCount();
         long duration = results.getTotalDuration();
