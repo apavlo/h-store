@@ -242,12 +242,6 @@ public class ResultsPrinter implements BenchmarkInterest {
         // TOTAL LATENCY
         Histogram<Integer> allLatencies = results.getAllLatencies();        
         double totalLatency = HistogramUtil.sum(allLatencies) / (double)allLatencies.getSampleCount();
-        if (totalLatency < 0) {
-            LOG.warn("Negative Total Latency: " + totalLatency);
-            LOG.warn("# of All Latencies: " + allLatencies.getSampleCount());
-            LOG.warn("All Latencies:\n" + allLatencies);
-            assert(false);
-        }
 
         int pollIndex = results.getCompletedIntervalCount();
         long duration = results.getTotalDuration();

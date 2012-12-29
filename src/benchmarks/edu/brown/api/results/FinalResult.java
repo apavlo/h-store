@@ -120,19 +120,18 @@ public class FinalResult implements JSONSerializable {
         this.txnMaxPerSecond = this.txnMaxCount / interval;
         
         // TRANSACTION RESULTS
-        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
+        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (String txnName : txnCounts.values()) {
             Histogram<Integer> l = results.getLatenciesForTransaction(txnName);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration, txnCounts.get(txnName), l);
             this.txnResults.put(txnName, er);
             latencies.put(l);
         } // FOR
-        Collection<Integer> allLatencies = HistogramUtil.weightedValues(latencies);
-        if (allLatencies.isEmpty() == false) {
+        if (latencies.isEmpty() == false) {
             this.totalMinLatency = latencies.getMinValue().doubleValue();
             this.totalMaxLatency = latencies.getMaxValue().doubleValue();
-            this.totalAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
-            this.totalStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));
+            this.totalAvgLatency = HistogramUtil.sum(latencies) / (double)latencies.getSampleCount();
+            this.totalStdDevLatency = HistogramUtil.stdev(latencies);
         }
         
         // CLIENTS RESULTS
