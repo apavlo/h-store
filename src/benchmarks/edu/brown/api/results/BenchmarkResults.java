@@ -184,14 +184,14 @@ public class BenchmarkResults {
         retval.addAll(m_data.keySet());
         return retval;
     }
-    public ObjectHistogram<Integer> getBasePartitions() {
+    public Histogram<Integer> getBasePartitions() {
         return (basePartitions);
     }
-    public ObjectHistogram<String> getResponseStatuses() {
+    public Histogram<String> getResponseStatuses() {
         return (responseStatuses);
     }
 
-    public ObjectHistogram<Integer> getAllLatencies() {
+    public Histogram<Integer> getAllLatencies() {
         ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
             for (List<Result> txnResults : clientResults.values()) {
@@ -203,8 +203,8 @@ public class BenchmarkResults {
         return (latencies);
     }
     
-    public ObjectHistogram<Integer> getLastLatencies() {
-        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
+    public Histogram<Integer> getLastLatencies() {
+        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
             for (List<Result> txnResults : clientResults.values()) {
                 Result r = CollectionUtil.last(txnResults);
@@ -214,8 +214,8 @@ public class BenchmarkResults {
         return (latencies);
     }
     
-    public ObjectHistogram<Integer> getLatenciesForClient(String clientName) {
-        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
+    public Histogram<Integer> getLatenciesForClient(String clientName) {
+        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
         SortedMap<String, List<Result>> clientResults = m_data.get(clientName);
         if (clientResults == null) return (latencies);
         for (List<Result> results : clientResults.values()) {
@@ -226,8 +226,8 @@ public class BenchmarkResults {
         return (latencies);
     }
     
-    public ObjectHistogram<Integer> getLatenciesForTransaction(String txnName) {
-        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
+    public Histogram<Integer> getLatenciesForTransaction(String txnName) {
+        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
             if (clientResults.containsKey(txnName) == false) continue;
             for (Result r : clientResults.get(txnName)) {

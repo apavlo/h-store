@@ -9,8 +9,8 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.HistogramUtil;
-import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
@@ -27,7 +27,7 @@ public class EntityResult implements JSONSerializable {
     public double txnMinLatency = 0d;
     public double txnMaxLatency = 0d;
     
-    public EntityResult(long totalTxnCount, long duration, long txnCount, ObjectHistogram<Integer> latencies) {
+    public EntityResult(long totalTxnCount, long duration, long txnCount, Histogram<Integer> latencies) {
         this.txnCount = txnCount;
         if (totalTxnCount == 0) {
             this.txnPercentage = 0;

@@ -21,6 +21,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.SpecExecProfiler;
+import edu.brown.statistics.HistogramUtil;
 import edu.brown.utils.MathUtil;
 
 public class SpecExecProfilerStats extends StatsSource {
@@ -111,9 +112,9 @@ public class SpecExecProfilerStats extends StatsSource {
         rowValues[offset++] = profiler.success;
         rowValues[offset++] = profiler.success / (double)profiler.total_time.getInvocations();
         rowValues[offset++] = MathUtil.weightedMean(profiler.queue_size);
-        rowValues[offset++] = MathUtil.stdev(profiler.queue_size);
+        rowValues[offset++] = HistogramUtil.stdev(profiler.queue_size);
         rowValues[offset++] = MathUtil.weightedMean(profiler.num_comparisons);
-        rowValues[offset++] = MathUtil.stdev(profiler.num_comparisons);
+        rowValues[offset++] = HistogramUtil.stdev(profiler.num_comparisons);
         
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();

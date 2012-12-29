@@ -16,6 +16,7 @@ import org.voltdb.catalog.Database;
 import edu.brown.api.results.BenchmarkResults.Result;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.HistogramUtil;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
@@ -121,7 +122,7 @@ public class FinalResult implements JSONSerializable {
         // TRANSACTION RESULTS
         ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (String txnName : txnCounts.values()) {
-            ObjectHistogram<Integer> l = results.getLatenciesForTransaction(txnName);
+            Histogram<Integer> l = results.getLatenciesForTransaction(txnName);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration, txnCounts.get(txnName), l);
             this.txnResults.put(txnName, er);
             latencies.put(l);
@@ -136,7 +137,7 @@ public class FinalResult implements JSONSerializable {
         
         // CLIENTS RESULTS
         for (String clientName : results.getClientNames()) {
-            ObjectHistogram<Integer> l = results.getLatenciesForClient(clientName);
+            Histogram<Integer> l = results.getLatenciesForClient(clientName);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration, clientTxnCounts.get(clientName), l);
             this.clientResults.put(clientName.replace("client-", ""), er);
         } // FOR

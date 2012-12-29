@@ -8,6 +8,7 @@ import org.junit.Test;
 
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.HistogramUtil;
 import edu.brown.statistics.ObjectHistogram;
 
 import junit.framework.TestCase;
@@ -125,8 +126,8 @@ public class TestMathUtil extends TestCase {
         } // FOR
         
         double expected = MathUtil.stdev(CollectionUtil.toDoubleArray(values));
-        assertEquals(expected, MathUtil.stdev(h0), 0.001);
-        assertEquals(expected, MathUtil.stdev(h1), 0.001);
+        assertEquals(expected, HistogramUtil.stdev(h0), 0.001);
+        assertEquals(expected, HistogramUtil.stdev(h1), 0.001);
     }
 
 }

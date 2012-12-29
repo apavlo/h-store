@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import edu.brown.utils.MathUtil;
+
 public abstract class HistogramUtil {
     
     public static final String DELIMITER = "\t";
@@ -19,7 +21,7 @@ public abstract class HistogramUtil {
         return toString(histogram, MAX_CHARS, MAX_VALUE_LENGTH);
     }
     
-    public static <X> String toString(Histogram<X> histogram, Integer max_chars) {
+    public static <X> String toString(Histogram<X> histogram, int max_chars) {
         return toString(histogram, max_chars, MAX_VALUE_LENGTH);
     }
 
@@ -29,9 +31,8 @@ public abstract class HistogramUtil {
      * @param max_length
      * @return
      */
-    public static <X> String toString(Histogram<X> histogram, Integer max_chars, Integer _max_length) {
+    public static <X> String toString(Histogram<X> histogram, int max_chars, int max_length) {
         StringBuilder s = new StringBuilder();
-        int max_length = (_max_length != null ? _max_length.intValue() : MAX_VALUE_LENGTH);
         
         // Figure out the max size of the counts
         int max_ctr_length = 4;
@@ -75,7 +76,7 @@ public abstract class HistogramUtil {
             }
             
             // Histogram Bar
-            int barSize = (int)((cnt / (double)max_count) * max_chars.intValue());
+            int barSize = (int)((cnt / (double)max_count) * max_chars);
             for (int i = 0; i < barSize; i++) s.append(MARKER);
             
             first = false;
@@ -105,7 +106,7 @@ public abstract class HistogramUtil {
      * @param h
      * @return
      */
-    public static <X> SortedSet<X> sortedValues(final Histogram<X> h) {
+    public static <X> Collection<X> sortedValues(final Histogram<X> h) {
         SortedSet<X> sorted = new TreeSet<X>(new Comparator<X>() {
             public int compare(final X item0, final X item1) {
                 final Long v0 = h.get(item0);
@@ -117,6 +118,35 @@ public abstract class HistogramUtil {
         });
         sorted.addAll(h.values());
         return (sorted);
+    }
+
+    /**
+     * Return the weighted sum of the values within the histogram
+     * @param h
+     * @return
+     */
+    public static <T extends Number> long sum(Histogram<T> h) {
+        long total = 0;
+        for (T val : h.values()) {
+            long value = val.longValue();
+            long weight = h.get(val, 0l);
+            total += (value * weight);
+        } // FOR
+        return (total);
+    }
+
+    public static <T extends Number> double stdev(Histogram<T> h) {
+        double values[] = new double[h.getSampleCount()];
+        int idx = 0;
+        for (T val : h.values()) {
+            double value = val.doubleValue();
+            long weight = h.get(val, 0l);
+            for (int i = 0; i < weight; i++) {
+                values[idx++] = value;
+            }
+        } // FOR
+        assert(idx == values.length) : idx + "!=" + values.length;
+        return (MathUtil.stdev(values));
     }
     
 }

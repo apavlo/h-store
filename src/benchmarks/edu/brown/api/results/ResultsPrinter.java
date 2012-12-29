@@ -33,9 +33,8 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkInterest;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.HistogramUtil;
-import edu.brown.statistics.ObjectHistogram;
-import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -201,7 +200,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         // -------------------------------
         if (this.output_basepartitions) {
             sb.append("Transaction Base Partitions:\n");
-            ObjectHistogram<Integer> h = results.getBasePartitions();
+            Histogram<Integer> h = results.getBasePartitions();
             h.enablePercentages();
             Map<Integer, String> labels = new HashMap<Integer, String>();
             for (Integer p : h.values()) {
@@ -217,7 +216,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         // -------------------------------
         if (this.output_responses) {
             sb.append("Client Response Statuses:\n");
-            ObjectHistogram<String> h = results.getResponseStatuses();
+            Histogram<String> h = results.getResponseStatuses();
             h.enablePercentages();
             sb.append(StringUtil.prefix(h.toString((int)(width * 0.5)), "   "));
             sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
@@ -236,14 +235,17 @@ public class ResultsPrinter implements BenchmarkInterest {
         long totalTxnCount = p.getFirst();
         long txnDelta = p.getSecond();
         
-        Collection<Integer> latencies = HistogramUtil.weightedValues(results.getLastLatencies());
-        double intervalLatency = MathUtil.sum(latencies) / (double)latencies.size();
-        latencies = HistogramUtil.weightedValues(results.getAllLatencies());
-        double totalLatency = MathUtil.sum(latencies) / (double)latencies.size();
+        // INTERVAL LATENCY
+        Histogram<Integer> lastLatencies = results.getLastLatencies();
+        double intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
+        
+        // TOTAL LATENCY
+        Histogram<Integer> allLatencies = results.getAllLatencies();        
+        double totalLatency = HistogramUtil.sum(allLatencies) / (double)allLatencies.getSampleCount();
         if (totalLatency < 0) {
             LOG.warn("Negative Total Latency: " + totalLatency);
-            LOG.warn("# of Latencies: " + latencies.size());
-            LOG.warn("Latencies List: " + StringUtil.join("\n", latencies));
+            LOG.warn("# of All Latencies: " + allLatencies.getSampleCount());
+            LOG.warn("All Latencies:\n" + allLatencies);
             assert(false);
         }
 
