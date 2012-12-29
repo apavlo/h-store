@@ -1081,6 +1081,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
+        // Start CommandLogWriter
+        t = new Thread(this.commandLogger);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        
         // Initialize Status Monitor
         assert(hstore_conf.site.status_interval >= 0);
         this.status_monitor = new HStoreSiteStatus(this, hstore_conf);

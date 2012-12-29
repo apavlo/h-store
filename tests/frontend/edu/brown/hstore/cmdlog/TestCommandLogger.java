@@ -72,6 +72,7 @@ public class TestCommandLogger extends BaseTestCase {
     
     HStoreSite hstore_site; 
     CommandLogWriter logger;
+    Thread loggerThread;
     Procedure catalog_procs[];
     File outputFile;
     
@@ -94,6 +95,9 @@ public class TestCommandLogger extends BaseTestCase {
         
         outputFile = FileUtil.getTempFile("log");
         logger = new CommandLogWriter(hstore_site, outputFile);
+        loggerThread = new Thread(this.logger);
+        loggerThread.setDaemon(true);
+        loggerThread.start();
     }
 
     @Override

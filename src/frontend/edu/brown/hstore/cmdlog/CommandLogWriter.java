@@ -64,7 +64,7 @@ import edu.brown.utils.StringUtil;
  * @author pavlo
  * @author debrabant
  */
-public class CommandLogWriter implements Shutdownable {
+public class CommandLogWriter implements Runnable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(CommandLogWriter.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -148,74 +148,6 @@ public class CommandLogWriter implements Shutdownable {
         }
     } // CLASS
     
-    /**
-     * Separate thread for writing out entries to the log
-     */
-    protected class WriterThread extends Thread {
-        {
-            this.setDaemon(true);
-        }
-        @Override
-        public void run() {
-            Thread self = Thread.currentThread();
-            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COMMANDLOGGER));
-            hstore_site.getThreadManager().registerProcessingThread();
-
-            CircularLogEntryBuffer temp[] = null;
-            while (stop == false) {
-                // Sleep until our timeout period, at which point a 
-                // flush will be initiated
-                try {
-                    Thread.sleep(hstore_conf.site.commandlog_timeout);
-                } catch (InterruptedException e) {
-                    if (stop) break;
-                } finally {
-                    if (debug.val)
-                        LOG.debug("Group commit timeout occurred, writing buffer to disk.");
-                }
-                
-                // Take all of the writing permits. This will stop any other
-                // thread from appending to the buffer that we're about to swap
-                int free_permits = numWritingLocks - writingEntry.drainPermits();
-                if (free_permits > 0) {
-                    if (trace.val)
-                        LOG.trace("Acquiring " + free_permits + " writeEntry permits");
-                    do {
-                        try {
-                            writingEntry.acquire(free_permits);
-                        } catch (InterruptedException ex) {
-                            continue;
-                        }
-                        break;
-                    } while (stop == false);
-                }
-                
-                // At this point we know that nobody else could be writing to the
-                // current buffer for the threads, so it's safe for us to swap it 
-                // with the one that we just wrote out to disk
-                // SYNC POINT: a synchronization point between the thread 
-                // filling the buffer and the writing thread where a full 
-                // buffer is exchanged for an empty one and the full
-                // buffer is written out to disk.
-                temp = entries;
-                entries = entriesFlushing;
-                entriesFlushing = temp;
-                assert(entries != entriesFlushing);
-                
-                // Release our entry permits so that other threads can 
-                // start filling up their Entry buffers
-                if (trace.val) LOG.trace("Releasing writingEntry permits");
-                writingEntry.release(group_commit_size);
-
-                // Write the entries out to disk
-                if (debug.val) LOG.debug("Executing group commit");
-                flushInProgress.set(true);
-                groupCommit(entriesFlushing);
-                flushInProgress.set(false);
-            } // WHILE
-        }
-    }
-    
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final CatalogContext catalogContext;
@@ -230,7 +162,6 @@ public class CommandLogWriter implements Shutdownable {
     private final FastSerializer singletonSerializer;
     private final LogEntry singletonLogEntry;
      
-    private final WriterThread flushThread;
     private int commitBatchCounter = 0;
     private boolean stop = false;
 
@@ -268,8 +199,10 @@ public class CommandLogWriter implements Shutdownable {
         // hack, set arbitrarily high to avoid contention for log buffer
         this.group_commit_size = (10000 * num_partitions); 
         
-        LOG.debug("group_commit_size: " + this.group_commit_size); 
-        LOG.debug("group_commit_timeout: " + hstore_conf.site.commandlog_timeout); 
+        if (debug.val) {
+            LOG.debug("group_commit_size: " + this.group_commit_size);
+            LOG.debug("group_commit_timeout: " + hstore_conf.site.commandlog_timeout);
+        }
         
         // Configure group commit parameters
         if (this.group_commit_size > 0) {
@@ -285,12 +218,10 @@ public class CommandLogWriter implements Shutdownable {
                 this.entries[partition] = new CircularLogEntryBuffer(this.group_commit_size, fs0);
                 this.entriesFlushing[partition] = new CircularLogEntryBuffer(this.group_commit_size, fs1);
             } // FOR
-            this.flushThread = new WriterThread();
             this.singletonLogEntry = null;
         } else {
             this.useGroupCommit = false;
             this.writingEntry = null; 
-            this.flushThread = null;
             this.singletonLogEntry = new LogEntry();
         }
         
@@ -308,14 +239,74 @@ public class CommandLogWriter implements Shutdownable {
         // Write out a header to the file 
         this.writeHeader();
         
-        if (this.useGroupCommit) this.flushThread.start();
-        
         // Writer Profiling
         if (hstore_conf.site.commandlog_profiling) {
             this.profiler = new CommandLogWriterProfiler();
         }
     }
     
+    /**
+     * Separate thread for writing out entries to the log
+     */
+    @Override
+    public void run() {
+        Thread self = Thread.currentThread();
+        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COMMANDLOGGER));
+        hstore_site.getThreadManager().registerProcessingThread();
+
+        CircularLogEntryBuffer temp[] = null;
+        while (stop == false) {
+            // Sleep until our timeout period, at which point a 
+            // flush will be initiated
+            try {
+                Thread.sleep(hstore_conf.site.commandlog_timeout);
+            } catch (InterruptedException e) {
+                if (stop) break;
+            } finally {
+                if (debug.val)
+                    LOG.debug("Group commit timeout occurred, writing buffer to disk.");
+            }
+            
+            // Take all of the writing permits. This will stop any other
+            // thread from appending to the buffer that we're about to swap
+            int free_permits = numWritingLocks - writingEntry.drainPermits();
+            if (free_permits > 0) {
+                if (trace.val)
+                    LOG.trace("Acquiring " + free_permits + " writeEntry permits");
+                do {
+                    try {
+                        writingEntry.acquire(free_permits);
+                    } catch (InterruptedException ex) {
+                        continue;
+                    }
+                    break;
+                } while (stop == false);
+            }
+            
+            // At this point we know that nobody else could be writing to the
+            // current buffer for the threads, so it's safe for us to swap it 
+            // with the one that we just wrote out to disk
+            // SYNC POINT: a synchronization point between the thread 
+            // filling the buffer and the writing thread where a full 
+            // buffer is exchanged for an empty one and the full
+            // buffer is written out to disk.
+            temp = entries;
+            entries = entriesFlushing;
+            entriesFlushing = temp;
+            assert(entries != entriesFlushing);
+            
+            // Release our entry permits so that other threads can 
+            // start filling up their Entry buffers
+            if (trace.val) LOG.trace("Releasing writingEntry permits");
+            writingEntry.release(group_commit_size);
+
+            // Write the entries out to disk
+            if (debug.val) LOG.debug("Executing group commit");
+            flushInProgress.set(true);
+            groupCommit(entriesFlushing);
+            flushInProgress.set(false);
+        } // WHILE
+    }
     
     @Override
     public void prepareShutdown(boolean error) {
