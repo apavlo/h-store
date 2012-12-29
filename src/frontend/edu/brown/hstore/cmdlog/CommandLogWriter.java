@@ -159,6 +159,7 @@ public class CommandLogWriter implements Shutdownable {
         public void run() {
             Thread self = Thread.currentThread();
             self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COMMANDLOGGER));
+            hstore_site.getThreadManager().registerProcessingThread();
 
             CircularLogEntryBuffer temp[] = null;
             while (stop == false) {
