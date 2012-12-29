@@ -13,15 +13,15 @@ function onexit() {
 
 ENABLE_ANTICACHE=false
 
-SITE_HOST="modis"
+SITE_HOST="modis2"
 
 CLIENT_HOSTS=( \
-    "modis2" \
-    "modis2" \
-    "modis2" \
+    "modis" \
+    "modis" \
+    "modis" \
 )
 
-BASE_CLIENT_THREADS=15
+BASE_CLIENT_THREADS=10
 BASE_SITE_MEMORY=2048
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="voter"
@@ -39,17 +39,17 @@ BASE_ARGS=( \
 #     "-Dsite.log_backup=true"\
     
     # Site Params
-    "-Dsite.cpu_affinity_one_partition_per_core=true" \
-    "-Dsite.pool_localtxnstate_idle=4000" \
+    "-Dsite.jvm_asserts=false" \
     "-Dsite.specexec_enable=false" \
-    "-Dsite.queue_incoming_max_per_partition=2500" \
-    "-Dsite.queue_incoming_increase_max=2000" \
+    "-Dsite.cpu_affinity_one_partition_per_core=true" \
+    "-Dsite.pool_localtxnstate_idle=5000" \
+    "-Dsite.network_incoming_max_per_partition=4000" \
     "-Dsite.commandlog_enable=true" \
     
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=2000" \
+    "-Dclient.txnrate=1000" \
     "-Dclient.warmup=30000" \
     "-Dclient.duration=300000 "\
     "-Dclient.shared_connection=false" \
@@ -100,9 +100,7 @@ for HOST in ${HOSTS_TO_UPDATE[@]}; do
 done
 wait
 
-# ant compile
-# for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
-for i in `seq 1 4`; do
+for i in `seq 5 10`; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
