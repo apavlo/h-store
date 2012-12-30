@@ -180,81 +180,48 @@ public class YCSBClient extends BenchmarkComponent {
 	
 	@Override
     protected boolean runOnce() throws IOException {
-		
-		boolean response = true; 
-		client = this.getClientHandle();
-		
-		Object procParams[]; 
-		
 		// pick random transaction to call, weighted by txnWeights
 		final Transaction target = this.txnWeights.nextValue(); 
 		int procIdx = target.ordinal(); 
 		String procName = target.callName; 
 		
 		int key = 0; 
-		int scan_count = 0;
-        				
+		int scan_count = 0; 
+		
 		if (procName.equals("DeleteRecord")) {
-			
-			procParams = new Object[1]; 
 			
 			key = readRecord.nextInt(); 
 		} 
 		else if (procName.equals("InsertRecord")) {
 			
-			procParams = new Object[11]; 
-			
 			key = insertRecord.nextInt(); 
-			List<String> values = buildValues(10);
-			
-			for(int i = 0; i < 10; i++)
-				procParams[i+1] = values.get(i); 			
+			List<String> values = buildValues(10); 
 		} 
-		else if (procName.equals("ReadRecord")) {
-						
-			procParams = new Object[1]; 
+		else if (procName.equals("ReadModifyWriteRecord")) {
 			
 			key = readRecord.nextInt(); 
-						
+			List<String> values = buildValues(10); 
+		} 
+		else if (procName.equals("ReadRecord")) {
+			
+			key = readRecord.nextInt(); 
 		} 
 		else if (procName.equals("ScanRecord")) {
-						
-			procParams = new Object[1]; 
 			
 			key = readRecord.nextInt(); 
 			scan_count = randScan.nextInt(); 
 		} 
 		else if (procName.equals("UpdateRecord")) {
-						
-			procParams = new Object[11]; 
 			
 			key = readRecord.nextInt(); 
-			List<String> values = buildValues(10); 
-			
-			for(int i = 0; i < 10; i++)
-				procParams[i+1] = values.get(i);  
 		}
 		else {
-			
-			procParams = new Object[1]; 
 			key = readRecord.nextInt();
 		}
 		
-		try 
-		{
-			Callback callback = new Callback(procIdx);
-			
-			// invoke procedure asynchronously 
-			response = client.callProcedure(callback, procName, procParams);
-		}
-		catch(IOException e) 
-		{
-			throw e; 
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace(); 
-		}
+		Object procParams[] = new Object[]{ key };
+		Callback callback = new Callback(procIdx);
+		boolean response = this.getClientHandle().callProcedure(callback, procName, procParams);
 				
 		return response; 
 	}
@@ -262,7 +229,7 @@ public class YCSBClient extends BenchmarkComponent {
 	private List<String> buildValues(int numVals) {
         this.value_list.clear();
         for (int i = 0; i < numVals; i++) {
-            this.value_list.add(YCSBUtil.astring(50,50));
+            this.value_list.add(YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH,YCSBConstants.COLUMN_LENGTH));
         }
         return this.value_list;
     }

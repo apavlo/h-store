@@ -508,13 +508,22 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     // anti-cache variables
     //EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
 	list<uint16_t> evicted_block_ids; 
+	list<char*> evicted_keys; 
 	
 	ValuePeeker peeker; 
+	//TableTuple m_evicted_tuple; 
+		
+	TableTuple* m_evicted_tuple = NULL; 
 	
-	TableTuple m_evicted_tuple(m_targetTable->getEvictedTable()->schema()); 
+	if(m_targetTable->getEvictedTable() != NULL)
+		m_evicted_tuple = new TableTuple(m_targetTable->getEvictedTable()->schema()); 
+
 	
 	int block_id_index; 
 	uint16_t block_id;
+	int bytes_in_key = 0; 
+	char* key_storage; 
+	
 #endif        
 
 
@@ -526,26 +535,53 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
            ((m_lookupType != INDEX_LOOKUP_TYPE_EQ || m_numOfSearchkeys == 0) &&
             !(m_tuple = m_index->nextValue()).isNullTuple()))
     {
-		int tuple_id = 0; 
-		tuple_id = (int)peeker.peekInteger(m_tuple.getNValue(0));
-		//VOLT_INFO("Looking up tuple %d in index.", tuple_id); 
         
 #ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple
 
 		if(m_tuple.isEvicted())
-        {
-			VOLT_INFO("Found an evicted tuple: %d", tuple_id);
-	
-			// create an evicted tuple from the current tuple address
-			// NOTE: This is necessary because the original table tuple and the evicted tuple do not have the same schema
-			m_evicted_tuple.move(m_tuple.address()); 
+        {			
+			if(m_evicted_tuple == NULL)
+			{
+				VOLT_INFO("Evicted Tuple found in table without EvictedTable!"); 
+			}
+			else
+			{
+				// create an evicted tuple from the current tuple address
+				// NOTE: This is necessary because the original table tuple and the evicted tuple do not have the same schema
+				m_evicted_tuple->move(m_tuple.address()); 
 			
-			// determine the block id using the evicted tuple
-			block_id_index = m_evicted_tuple.getSchema()->columnCount() - 1; 
-			block_id = peeker.peekSmallInt(m_evicted_tuple.getNValue(block_id_index)); 
+				if(bytes_in_key == 0) // only calculate this the first time through
+				{
+					for(int i = 0; i < m_evicted_tuple->getSchema()->columnCount(); i++)
+					{
+						NValue value = m_evicted_tuple->getNValue(i); 
+						bytes_in_key += value.getTupleStorageSize(value.getValueType());
+					}
+				
+				}
+			
+				key_storage = new char[bytes_in_key];
+			
+				int bytes_written = 0; 
+				int bytes_in_current_column; 
+			
+				// copy the raw bytes from the evicted tuples primary key to include in the EvictedTupleAccessException
+				for(int i = 0; i < m_evicted_tuple->getSchema()->columnCount() - 1; i++)
+				{
+					NValue value = m_evicted_tuple->getNValue(i); 
+					bytes_in_current_column = value.getTupleStorageSize(value.getValueType());
+					value.serializeToTupleStorage(key_storage+bytes_written, true, bytes_in_current_column);  // we're assuming the keys are inlined 
+					bytes_written += bytes_in_current_column; 
+				}
+			
+				// determine the block id using the evicted tuple
+				block_id_index = m_evicted_tuple->getSchema()->columnCount() - 1; 
+				block_id = peeker.peekSmallInt(m_evicted_tuple->getNValue(block_id_index)); 
 
-			evicted_block_ids.push_back(block_id); 
+				evicted_block_ids.push_back(block_id); 
+				evicted_keys.push_back(key_storage); 
+			}
 		}
 #endif        
         
@@ -687,6 +723,10 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     }
     
 #ifdef ANTICACHE
+
+	if(m_evicted_tuple != NULL)
+		delete m_evicted_tuple; 
+
     // throw exception indicating evicted blocks are needed
     if(evicted_block_ids.size() > 0)
     {
@@ -705,9 +745,17 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 			VOLT_INFO("Unevicting block %d", *itr); 
         }
 
+		char** tuple_keys = new char*[num_block_ids]; 
+		i = 0; 
+		for(list<char*>::iterator itr = evicted_keys.begin(); itr != evicted_keys.end(); ++itr, ++i)
+        {
+            tuple_keys[i] = *itr; 
+        }
+		
+
 		VOLT_INFO("Throwing EvictedTupleAccessException"); 
 
-		throw EvictedTupleAccessException(m_targetTable->databaseId(), num_block_ids, block_ids);
+		throw EvictedTupleAccessException(m_targetTable->databaseId(), num_block_ids, block_ids, tuple_keys);
     }
 #endif
     

@@ -53,7 +53,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     }
 
    // public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1MB
-	public static final long DEFAULT_MEMORY_THRESHOLD_MB = 4096; 
+	public static final long DEFAULT_MEMORY_THRESHOLD_MB = 2; 
 	
 	public static final long DEFAULT_EVICTED_BLOCK_SIZE = 51200; // 50 kb
 	//public static final long DEFAULT_MEMORY_THRESHOLD_MB = 512; 

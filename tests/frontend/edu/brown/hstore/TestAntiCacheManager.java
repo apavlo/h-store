@@ -113,6 +113,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertEquals(1, results.length);
         System.err.println(VoltTableUtil.format(results));
         for (String col : statsFields) {
+			results[0].advanceRow(); 
             int idx = results[0].getColumnIndex(col);
             assertEquals(0, results[0].getLong(idx));    
         } // FOR
@@ -120,6 +121,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
         VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024);
+
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(evictResult));
         assertNotNull(evictResult);
@@ -169,12 +171,15 @@ public class TestAntiCacheManager extends BaseTestCase {
     public void testEvictTuples() throws Exception {
         this.loadData();
         VoltTable evictResult = this.evictData();
+		evictResult.advanceRow(); 
 
         // Our stats should now come back with at least one block evicted
         VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(results));
+
+		results[0].advanceRow(); 
         for (String col : statsFields) {
             assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
             if (col == "BLOCKS_EVICTED") {
@@ -196,6 +201,8 @@ public class TestAntiCacheManager extends BaseTestCase {
         VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
         System.err.println(VoltTableUtil.format(results));
+
+		results[0].advanceRow(); 
         for (String col : statsFields) {
             int idx = results[0].getColumnIndex(col);
             assertEquals(0, results[0].getLong(idx));    
