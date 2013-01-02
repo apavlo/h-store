@@ -467,6 +467,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             partitionLabels.put(partition, partitionLabel);
             
             PartitionExecutor es = e.getValue();
+            if (es == null) continue;
             PartitionExecutor.Debug dbg = es.getDebugContext();
             Queue<?> es_queue = dbg.getWorkQueue();
             TransactionInitPriorityQueue dtxn_queue = queueManager.getInitQueue(partition);

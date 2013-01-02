@@ -4267,10 +4267,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     private PartitionExecutor.Debug cachedDebugContext;
     public PartitionExecutor.Debug getDebugContext() {
-        if (cachedDebugContext == null) {
+        if (this.cachedDebugContext == null) {
             // We don't care if we're thread-safe here...
-            cachedDebugContext = new PartitionExecutor.Debug();
+            this.cachedDebugContext = new PartitionExecutor.Debug();
         }
-        return cachedDebugContext;
+        return this.cachedDebugContext;
     }
 }
