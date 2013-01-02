@@ -3562,9 +3562,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // We want to make sure that we don't go back to ones that we've already told
             PartitionSet donePartitions = ts.getDonePartitions();
             tmp_preparePartitions.clear();
-            for (Integer p : ts.getPredictTouchedPartitions()) {
-                if (donePartitions.contains(p.intValue()) == false) {
-                    tmp_preparePartitions.add(p.intValue());
+            for (int partition : ts.getPredictTouchedPartitions().values()) {
+                if (donePartitions.contains(partition) == false) {
+                    tmp_preparePartitions.add(partition);
                 }
             } // FOR
 

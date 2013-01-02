@@ -436,8 +436,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.round_state[partition] = RoundState.INITIALIZED;
         
         if (debug.val) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d / first=%d / last=%d]",
-                         this, this.round_ctr[partition], partition,
-                         undoToken, this.exec_firstUndoToken[partition],  this.exec_lastUndoToken[partition]));
+                                               this, this.round_ctr[partition], partition,
+                                               undoToken, this.exec_firstUndoToken[partition], 
+                                               this.exec_lastUndoToken[partition]));
     }
     
     /**
@@ -610,7 +611,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         }
         if (this.prepareWrapper_callback.allCallbacksFinished() == false) {
             if (debug.val) LOG.warn(String.format("%s - %s is not finished", this,
-                            this.prepareWrapper_callback.getClass().getSimpleName()));
+                                    this.prepareWrapper_callback.getClass().getSimpleName()));
             return (false);
         }
         return (this.deletable.compareAndSet(false, true));
@@ -698,18 +699,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     /**
      * Return this handle's TransactionInitQueueCallback
      */
-//    public final TransactionInitQueueCallback initTransactionInitQueueCallback(RpcCallback<TransactionInitResponse> callback) {
-//        assert(this.isInitialized());
-//        assert(this.initQueue_callback.isInitialized() == false) : 
-//            String.format("Trying to initialize %s for %s more than once",
-//                          this.initQueue_callback.getClass().getSimpleName(), this);
-//        this.initQueue_callback.init(this, this.predict_touchedPartitions, callback);
-//        return (this.initQueue_callback);
-//    }
-    
-    /**
-     * Return this handle's TransactionInitQueueCallback
-     */
     public abstract <T extends PartitionCountingCallback<? extends AbstractTransaction>> T getTransactionInitQueueCallback();
 
     /**
@@ -750,7 +739,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
             if (debug.val) LOG.warn(String.format("%s - Got %s error for txn: %s",
-                            this, error.getClass().getSimpleName(), error.getMessage()));
+                                    this, error.getClass().getSimpleName(), error.getMessage()));
             this.pending_error = error;
         }
     }
@@ -806,7 +795,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public void markQueuedWork(int partition) {
         if (debug.val) LOG.debug(String.format("%s - Marking as having queued work on partition %d [exec_queueWork=%s]",
-                         this, partition, Arrays.toString(this.exec_queueWork)));
+                                 this, partition, Arrays.toString(this.exec_queueWork)));
         this.exec_queueWork[partition] = true;
     }
     
@@ -823,7 +812,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public void markExecutedWork(int partition) {
         if (debug.val) LOG.debug(String.format("%s - Marking as having submitted to the EE on partition %d [exec_eeWork=%s]",
-                         this, partition, Arrays.toString(this.exec_eeWork)));
+                                 this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[partition] = true;
     }
     
@@ -898,8 +887,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public boolean markPrepared(int partition) {
         if (debug.val) LOG.debug(String.format("%s - Marking as prepared on partition %d %s [hashCode=%d, offset=%d]",
-                                       this, partition, Arrays.toString(this.prepared),
-                                       this.hashCode(), partition));
+                                 this, partition, Arrays.toString(this.prepared),
+                                 this.hashCode(), partition));
         boolean orig = false;
         synchronized (this.prepared) {
             orig = this.prepared[partition];
@@ -920,9 +909,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public void markFinished(int partition) {
         if (debug.val) LOG.debug(String.format("%s - Marking as finished on partition %d " +
-        		                       "[finished=%s / hashCode=%d / offset=%d]",
-                                       this, partition, Arrays.toString(this.finished),
-                                       this.hashCode(), partition));
+        		                 "[finished=%s / hashCode=%d / offset=%d]",
+                                 this, partition, Arrays.toString(this.finished),
+                                 this.hashCode(), partition));
         this.finished[partition] = true;
     }
     /**
