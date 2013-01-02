@@ -3,10 +3,13 @@ package edu.brown.hstore.txns;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.ReentrantLock;
@@ -96,6 +99,12 @@ public class ExecutionState implements Poolable {
     protected final Map<Pair<Integer, Integer>, Queue<Integer>> results_dependency_stmt_ctr = new HashMap<Pair<Integer,Integer>, Queue<Integer>>();
     
     /**
+     * Internal cache of the result queues that were used by the txn in this round.
+     * This is so that we don't have to clear all of the queues in the entire results_dependency_stmt_ctr cache. 
+     */
+    private final Set<Queue<Integer>> results_queue_cache = new HashSet<Queue<Integer>>();
+    
+    /**
      * Sometimes we will get results back while we are still queuing up the rest of the tasks and
      * haven't started the next round. So we need a temporary space where we can put these guys until 
      * we start the round. Otherwise calculating the proper latch count is tricky
@@ -163,6 +172,27 @@ public class ExecutionState implements Poolable {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
     
+    /**
+     * Keep track of a new output dependency from the given partition that corresponds
+     * to the SQL statement executed at the given offset.
+     * @param partition
+     * @param output_dep_id
+     * @param stmt_index
+     */
+    public void addResultDependencyStatement(int partition, int output_dep_id, int stmt_index) {
+        Pair<Integer, Integer> key = Pair.of(partition, output_dep_id);
+        Queue<Integer> rest_stmt_ctr = this.results_dependency_stmt_ctr.get(key);
+        if (rest_stmt_ctr == null) {
+            rest_stmt_ctr = new LinkedList<Integer>();
+            this.results_dependency_stmt_ctr.put(key, rest_stmt_ctr);
+        }
+        rest_stmt_ctr.add(stmt_index);
+        this.results_queue_cache.add(rest_stmt_ctr);
+        if (debug.val) LOG.debug(String.format("%s - Set Dependency Statement Counters for <%d %d>: %s",
+                                 this, partition, output_dep_id, rest_stmt_ctr));
+    }
+    
+    
     public LinkedBlockingDeque<Collection<WorkFragment.Builder>> getUnblockedWorkFragmentsQueue() {
         return (this.unblocked_tasks);
     }
@@ -203,9 +233,10 @@ public class ExecutionState implements Poolable {
         this.still_has_tasks = true;
 
         // Note that we only want to clear the queues and not the whole maps
-        for (Queue<Integer> q : this.results_dependency_stmt_ctr.values()) {
+        for (Queue<Integer> q : this.results_queue_cache) {
             q.clear();
         } // FOR
+        this.results_queue_cache.clear();
         
         this.batch_size = 0;
         this.dependency_ctr = 0;
