@@ -162,8 +162,10 @@ import org.voltdb.utils.VoltLoggerFactory;
             threadPoolSize = 1;
         } else if (availableProcessors <= 8) {
             threadPoolSize = 2;
-        } else { // if (availableProcessors <= 16) {
+        } else if (availableProcessors <= 16) {
             threadPoolSize = 3;
+        } else {
+            threadPoolSize = 4;
         }
         m_logger.debug("Network Thread Pool Size: " + threadPoolSize);
 
