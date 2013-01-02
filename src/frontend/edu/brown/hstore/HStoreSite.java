@@ -216,8 +216,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final Map<Status, Queue<Long>> deletable_txns = new HashMap<Status, Queue<Long>>();
     
-    private final List<Long> deletable_txns_requeue = new ArrayList<Long>();
-    
     /**
      * The list of the last txn ids that were successfully deleted
      * This is primarily used for debugging
@@ -302,6 +300,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final List<TransactionPostProcessor> postProcessors;
     private final BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> postProcessorQueue;
+    
+    /**
+     * Transaction Handle Cleaner
+     */
+    private final TransactionCleaner txnCleaner;
     
     /**
      * MapReduceHelperThread
@@ -511,6 +514,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Distributed Transaction Queue Manager
         this.txnQueueManager = new TransactionQueueManager(this);
+        
+        // Transaction Cleaner
+        this.txnCleaner = new TransactionCleaner(this);
         
         // MapReduce Transaction helper thread
         if (catalogContext.getMapReduceProcedures().isEmpty() == false) { 
@@ -893,6 +899,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected final Map<Long, AbstractTransaction> getInflightTxns() {
         return (this.inflight_txns);
     }
+    protected final Map<Status, Queue<Long>> getDeletableQueues() {
+        return (this.deletable_txns);
+    }
     protected final String getRejectionMessage() {
         return (this.REJECTION_MESSAGE);
     }
@@ -1083,6 +1092,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
+        // Start Transaction Cleaner
+        t = new Thread(auxGroup, this.txnCleaner);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        
         // TransactionPreProcessors
         if (this.preProcessors != null) {
             for (TransactionPreProcessor tpp : this.preProcessors) {
@@ -1183,6 +1198,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // we can ensure that it only shows up on the cores that we want it to.
         this.threadManager.initPerioidicThread();
         
+        // Periodic Work Processor
         this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
             @Override
             public void runImpl() {
@@ -1225,17 +1241,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }, 0, 5, TimeUnit.SECONDS);
 
         // medium stats samples
-        this.threadManager.schedulePeriodicWork(new Runnable() {
+        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
             @Override
-            public void run() {
+            public void runImpl() {
                 SystemStatsCollector.asyncSampleSystemNow(true, false);
             }
         }, 0, 1, TimeUnit.MINUTES);
 
         // large stats samples
-        this.threadManager.schedulePeriodicWork(new Runnable() {
+        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
             @Override
-            public void run() {
+            public void runImpl() {
                 SystemStatsCollector.asyncSampleSystemNow(true, true);
             }
         }, 0, 6, TimeUnit.MINUTES);
@@ -1340,6 +1356,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.commandLogger != null) {
             this.commandLogger.prepareShutdown(error);
         }
+        if (this.txnCleaner != null) {
+            this.txnCleaner.prepareShutdown(error);
+        }
         if (this.anticacheManager != null) {
             this.anticacheManager.prepareShutdown(error);
         }
@@ -1414,6 +1433,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         if (this.commandLogger != null) {
             this.commandLogger.shutdown();
+        }
+        if (this.txnCleaner != null) {
+            this.txnCleaner.shutdown();
         }
         if (this.anticacheManager != null) {
             this.anticacheManager.shutdown();
@@ -2517,11 +2539,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * Clean-up all of the state information about a RemoteTransaction that is finished
-     * <B>Note:</B> This should only be invoked for non-local distributed txns
+     * <B>NOTE:</B> You should not be calling this directly. Use queueDeleteTransaction() instead!
      * @param ts
      * @param status
      */
-    private void deleteRemoteTransaction(RemoteTransaction ts, Status status) {
+    protected void deleteRemoteTransaction(RemoteTransaction ts, Status status) {
         // Nothing else to do for RemoteTransactions other than to just
         // return the object back into the pool
         final Long txn_id = ts.getTransactionId();
@@ -2554,10 +2576,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     /**
      * Clean-up all of the state information about a LocalTransaction that is finished
+     * <B>NOTE:</B> You should not be calling this directly. Use queueDeleteTransaction() instead!
      * @param ts
      * @param status
      */
-    private void deleteLocalTransaction(LocalTransaction ts, final Status status) {
+    protected void deleteLocalTransaction(LocalTransaction ts, final Status status) {
         final Long txn_id = ts.getTransactionId();
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
@@ -2731,8 +2754,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private void processPeriodicWork() {
         // if (trace.val) LOG.trace("Checking for PeriodicWork...");
 
-        // We want to do this here just so that the time is always
-        // moving forward.
+        // We want to do this here just so that the time is always moving forward.
         EstTimeUpdater.update(System.currentTimeMillis());
         
         if (this.clientInterface != null) {
@@ -2751,52 +2773,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        // Delete txn handles
-        Long txn_id = null;
-        if (hstore_conf.site.profiling) this.profiler.cleanup.start();
-        for (Entry<Status, Queue<Long>> e : this.deletable_txns.entrySet()) {
-            Status status = e.getKey();
-            Queue<Long> queue = e.getValue();
-            int limit = 1000;
-            while ((txn_id = queue.poll()) != null) {
-                // It's ok for us to not have a transaction handle, because it could be
-                // for a remote transaction that told us that they were going to need one
-                // of our partitions but then they never actually sent work to us
-                AbstractTransaction ts = this.inflight_txns.get(txn_id);
-                if (ts != null) {
-                    assert(txn_id.equals(ts.getTransactionId())) :
-                        String.format("Mismatched %s - Expected[%d] != Actual[%s]",
-                                      ts, txn_id, ts.getTransactionId());
-                    // We need to check whether a txn is ready to be deleted
-                    if (ts.isDeletable()) {
-                        if (ts instanceof RemoteTransaction) {
-                            this.deleteRemoteTransaction((RemoteTransaction)ts, status);    
-                        }
-                        else {
-                            this.deleteLocalTransaction((LocalTransaction)ts, status);
-                        }
-                    }
-                    // We can't delete this yet, so we'll just stop checking
-                    else {
-                        if (trace.val) LOG.trace(String.format("%s - Cannot delete %s at this point [status=%s]\n%s",
-                                         ts, ts.getClass().getSimpleName(), status, ts.debug()));
-                        this.deletable_txns_requeue.add(txn_id);
-                    }
-                } else if (debug.val) {
-                    LOG.warn(String.format("Ignoring clean-up request for txn #%d because we do not have a handle " +
-                             "[status=%s]", txn_id, status));
-                }
-                if (limit-- < 0) break;
-            } // WHILE
-            if (this.deletable_txns_requeue.isEmpty() == false) {
-                if (trace.val) LOG.trace(String.format("Adding %d undeletable txns back to deletable queue",
-                                         this.deletable_txns_requeue.size()));
-                queue.addAll(this.deletable_txns_requeue);
-                this.deletable_txns_requeue.clear();
-            }
-        } // FOR
-        if (hstore_conf.site.profiling) this.profiler.cleanup.stop();
-
         return;
     }
 

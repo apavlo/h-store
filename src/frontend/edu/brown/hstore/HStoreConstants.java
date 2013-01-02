@@ -41,13 +41,13 @@ public abstract class HStoreConstants {
     // ----------------------------------------------------------------------------
     
     public static final String THREAD_NAME_PERIODIC = "periodic";
-    public static final String THREAD_NAME_CLEANUP = "cleanup";
     public static final String THREAD_NAME_LISTEN = "listen";
     public static final String THREAD_NAME_COORDINATOR = "coord";
     public static final String THREAD_NAME_PREPROCESSOR = "pre";
     public static final String THREAD_NAME_POSTPROCESSOR = "post";
     public static final String THREAD_NAME_HELPER = "help";
     public static final String THREAD_NAME_TXNQUEUE = "queue";
+    public static final String THREAD_NAME_TXNCLEANER = "cleaner";
     public static final String THREAD_NAME_COMMANDLOGGER = "cmdlg";
     public static final String THREAD_NAME_VOLTNETWORK = "voltnetwork";
     public static final String THREAD_NAME_ANTICACHE = "anticache";
