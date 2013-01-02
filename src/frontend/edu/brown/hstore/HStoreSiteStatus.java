@@ -241,7 +241,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Map<String, Object> threadInfo = null;
         Map<String, Object> cpuThreads = null;
         if (show_threads) {
-            // threadInfo = this.threadInfo();
+            threadInfo = this.threadInfo();
             HStoreThreadManager threadManager = hstore_site.getThreadManager();
             HStoreThreadManager.Debug threadManagerDebug = threadManager.getDebugContext();
             

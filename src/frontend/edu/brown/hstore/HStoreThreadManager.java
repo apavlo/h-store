@@ -15,6 +15,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Host;
@@ -27,7 +28,6 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
@@ -52,6 +52,7 @@ public class HStoreThreadManager {
         CLEANER
     };
     
+    private static final Pattern THREAD_NAME_SLITTER = Pattern.compile("\\-");
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -293,20 +294,16 @@ public class HStoreThreadManager {
         if (debug.val)
             LOG.debug(String.format("Registering EE Thread %s to execute on CPUs %s",
                       t.getName(), this.getCPUIds(affinity)));
-        
-        this.disable = (ThreadUtils.setThreadAffinity(affinity) == false);
-        if (this.disable) {
-            LOG.warn("Unable to set CPU affinity for thread '" + t.getName() + "'. Disabling feature");
+        if (this.registerThread(t, affinity) == false) {
             return (false);
         }
-        this.registerThread(affinity);
         
-        final boolean endingAffinity[] = ThreadUtils.getThreadAffinity();
-        for (int ii = 0; ii < endingAffinity.length; ii++) {
-            if (trace.val && endingAffinity[ii])
-                LOG.trace(String.format("NEW AFFINITY %s -> CPU[%d]", partition, ii));
-            affinity[ii] = false;
-        } // FOR
+//        final boolean endingAffinity[] = ThreadUtils.getThreadAffinity();
+//        for (int ii = 0; ii < endingAffinity.length; ii++) {
+//            if (trace.val && endingAffinity[ii])
+//                LOG.trace(String.format("NEW AFFINITY %s -> CPU[%d]", partition, ii));
+//            affinity[ii] = false;
+//        } // FOR
         if (debug.val)
             LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s\n%s",
                       t.getName(), this.getCPUIds(affinity), this.debug()));
@@ -314,14 +311,16 @@ public class HStoreThreadManager {
     }
     
     /**
-     * Set the CPU affinity for a non-EE thread
+     * Set the CPU affinity for the current non-EE thread
+     * This thread cannot run on the EE's cores
      */
     public synchronized boolean registerProcessingThread() {
         if (this.disable) return (false);
         
         boolean affinity[] = this.defaultAffinity;
         Thread t = Thread.currentThread();
-        String suffix = CollectionUtil.last(t.getName().split("\\-"));
+        String nameParts[] = THREAD_NAME_SLITTER.split(t.getName());
+        String suffix = nameParts[1];
         if (this.utilityAffinities.containsKey(suffix)) {
             affinity = this.utilityAffinities.get(suffix); 
         }
@@ -329,8 +328,17 @@ public class HStoreThreadManager {
         if (debug.val)
             LOG.debug(String.format("Registering Processing Thread %s to execute on CPUs %s",
                       t.getName(), this.getCPUIds(affinity)));
+        if (this.registerThread(t, affinity) == false) {
+            return (false);
+        }
         
-        // This thread cannot run on the EE's cores
+        if (debug.val)
+            LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s\n%s",
+                      t.getName(), this.getCPUIds(affinity), this.debug()));
+        return (true);
+    }
+    
+    private boolean registerThread(Thread t, boolean affinity[]) {
         // If this fails (such as on OS X for some weird reason), we'll
         // just print a warning rather than crash
         try {
@@ -344,16 +352,7 @@ public class HStoreThreadManager {
             LOG.warn("Unable to set CPU affinity for thread '" + t.getName() + "'. Disabling feature");
             return (false);
         }
-        this.registerThread(this.defaultAffinity);
         
-        if (debug.val)
-            LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s\n%s",
-                      t.getName(), this.getCPUIds(affinity), this.debug()));
-        return (true);
-    }
-    
-    private void registerThread(boolean affinity[]) {
-        Thread t = Thread.currentThread();
         for (int i = 0; i < affinity.length; i++) {
             if (affinity[i]) {
                 Set<Thread> s = this.cpu_threads.get(i);
@@ -365,6 +364,8 @@ public class HStoreThreadManager {
             }
         } // FOR
         this.all_threads.add(t);
+        
+        return (true);
     }
     
     /**
