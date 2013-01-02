@@ -42,6 +42,10 @@ public class TransactionCleaner implements Runnable, Shutdownable {
      */
     private final Map<Status, Queue<Long>> deletable_txns;
     
+    /**
+     * Two sets of queues that we can use to requeue txns that are not
+     * ready to be deleted. We will swap in between them as needed.
+     */
     private final Map<Status, Queue<Long>> deletable_txns_requeue[];
     private int deletable_txns_index = 0;
     
@@ -80,8 +84,8 @@ public class TransactionCleaner implements Runnable, Shutdownable {
             for (Entry<Status, Queue<Long>> e : this.deletable_txns.entrySet()) {
                 Status status = e.getKey();
                 Queue<Long> queue = e.getValue();
-                if (this.deletable_txns_requeue[swap_index].isEmpty() == false) {
-                    Queue<Long> swap_queue = this.deletable_txns_requeue[swap_index].get(status);
+                Queue<Long> swap_queue = this.deletable_txns_requeue[swap_index].get(status);
+                if (swap_queue.isEmpty() == false) {
                     queue.addAll(swap_queue);
                     swap_queue.clear();
                 }
