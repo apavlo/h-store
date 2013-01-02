@@ -90,7 +90,7 @@ public class Vote extends VoltProcedure {
         // Post the vote
         TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        voltExecuteSQL();
+        voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
         return VoterConstants.VOTE_SUCCESSFUL;

@@ -262,6 +262,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         if (trace.val) LOG.trace(String.format("Partition %d :: checkQueueState(afterPoll=%s) [current=%s]",
                                  this.partitionId, afterPoll, this.state));
         QueueState newState = (afterPoll ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
+        long currentTimestamp = -1l;
         AbstractTransaction ts = super.peek();
         Long txnId = null;
         if (ts == null) {
@@ -293,7 +294,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                                          this.partitionId, txnId, newState, this.blockTimestamp));
             }
             // Check whether it's safe to unblock this mofo
-            else if (EstTime.currentTimeMillis() < this.blockTimestamp) {
+            else if ((currentTimestamp = EstTime.currentTimeMillis()) < this.blockTimestamp) {
                 newState = QueueState.BLOCKED_SAFETY;
                 if (debug.val) LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime[%d] - current[%d] = %d)",
                                          this.partitionId, txnId, newState,
@@ -315,7 +316,7 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                         if (trace.val) LOG.trace(String.format("Partition %d :: NewState=%s --> %s",
                                                  this.partitionId, newState, ts));
                         long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(ts.getTransactionId().longValue());
-                        long currentTimestamp = EstTime.currentTimeMillis();
+                        if (currentTimestamp == -1) currentTimestamp = EstTime.currentTimeMillis();
                         
                         // Calculate how long we need to wait before this txn is safe to run
                         // If we're blocking on "safety", then we can use an offset based 
@@ -358,7 +359,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
                         }
                     }
                     else if (newState == QueueState.UNBLOCKED) {
-                        if (this.blockTimestamp > EstTime.currentTimeMillis()) {
+                        if (currentTimestamp == -1) currentTimestamp = EstTime.currentTimeMillis();
+                        if (this.blockTimestamp > currentTimestamp) {
                             newState = QueueState.BLOCKED_SAFETY;
                         }
                     }

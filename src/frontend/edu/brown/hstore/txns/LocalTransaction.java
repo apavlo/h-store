@@ -31,7 +31,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -434,8 +433,8 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public void initRound(int partition, long undoToken) {
         if (debug.val) LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
-                                       this, this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
-                                       partition, undoToken));
+                                 this, this.round_ctr[partition],
+                                 partition, undoToken));
         
         // SAME SITE, DIFFERENT PARTITION
         if (this.base_partition != partition) {
@@ -455,7 +454,7 @@ public class LocalTransaction extends AbstractTransaction {
                               this, partition);
             assert(this.state.queued_results.isEmpty()) : 
                 String.format("Trying to initialize ROUND #%d for %s but there are %d queued results",
-                               this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                               this.round_ctr[partition],
                                this, this.state.queued_results.size());
         }
         
@@ -490,11 +489,10 @@ public class LocalTransaction extends AbstractTransaction {
         }
         
         // SAME SITE, SAME PARTITION
-        int base_partition_offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.state.output_order.isEmpty());
         assert(this.state.batch_size > 0);
         if (debug.val) LOG.debug(String.format("%s - Starting ROUND #%d on partition %d with %d queued Statements [blocked=%d]", 
-                                       this, this.round_ctr[base_partition_offset],
+                                       this, this.round_ctr[partition],
                                        partition, this.state.batch_size, this.state.blocked_tasks.size()));
    
         if (this.predict_singlePartition == false) this.state.lock.lock();
@@ -506,7 +504,7 @@ public class LocalTransaction extends AbstractTransaction {
                 for (DependencyInfo dinfo : this.state.dependencies.values()) {
                     // Add this DependencyInfo our output list if it's being used in this round for this txn
                     // and if it is not an internal dependency
-                    if (dinfo.inSameTxnRound(this.txn_id, this.round_ctr[base_partition_offset]) &&
+                    if (dinfo.inSameTxnRound(this.txn_id, this.round_ctr[partition]) &&
                         dinfo.isInternal() == false && dinfo.getStatementIndex() == stmt_index) {
                         this.state.output_order.add(dinfo.getDependencyId());
                     }
@@ -542,7 +540,7 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public void finishRound(int partition) {
         if (debug.val) LOG.debug(String.format("%s - Finishing ROUND #%d on partition %d", 
-                                       this, this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)], partition));
+                                 this, this.round_ctr[partition], partition));
         
         // SAME SITE, DIFFERENT PARTITION
         if (this.base_partition != partition) {
@@ -555,11 +553,11 @@ public class LocalTransaction extends AbstractTransaction {
         // SAME SITE, SAME PARTITION
         assert(this.state.dependency_ctr == this.state.received_ctr) :
             String.format("Trying to finish ROUND #%d on partition %d for %s before it was started",
-                          this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                          this.round_ctr[partition],
                           partition, this);
         assert(this.state.queued_results.isEmpty()) :
             String.format("Trying to finish ROUND #%d on partition %d for %s but there are %d queued results",
-                          this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                          this.round_ctr[partition],
                           partition, this, this.state.queued_results.size());
         
         super.finishRound(partition);
@@ -586,7 +584,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param partition The partition to finish this txn on
      */
     public void fastFinishRound(int partition) {
-        this.round_state[hstore_site.getLocalPartitionOffset(partition)] = RoundState.STARTED;
+        this.round_state[partition] = RoundState.STARTED;
         super.finishRound(partition);
         if (this.base_partition == partition) {
             assert(this.state != null) : "Unexpected null ExecutionState for " + this;
@@ -989,17 +987,16 @@ public class LocalTransaction extends AbstractTransaction {
     private DependencyInfo getOrCreateDependencyInfo(int stmt_index, Integer dep_id) {
         Map<Integer, DependencyInfo> stmt_dinfos = this.state.dependencies;
         DependencyInfo dinfo = stmt_dinfos.get(dep_id);
-        int base_partition_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
-        int currentRound = this.round_ctr[base_partition_offset]; 
+        int currentRound = this.round_ctr[this.base_partition]; 
         
         if (dinfo != null) {
             if (debug.val) LOG.debug(String.format("%s - Reusing DependencyInfo[%d] for %s. " +
-                                           "Checking whether it needs to be reset [currentRound=%d / lastRound=%d lastTxn=%s]",
-                                           this, dinfo.hashCode(), debugStmtDep(stmt_index, dep_id),
-                                           currentRound, dinfo.getRound(), dinfo.getTransactionId()));
+                                     "Checking whether it needs to be reset [currentRound=%d / lastRound=%d lastTxn=%s]",
+                                     this, dinfo.hashCode(), debugStmtDep(stmt_index, dep_id),
+                                     currentRound, dinfo.getRound(), dinfo.getTransactionId()));
             if (dinfo.inSameTxnRound(this.txn_id, currentRound) == false) {
                 if (debug.val) LOG.debug(String.format("%s - Clearing out DependencyInfo[%d].",
-                                               this, dinfo.hashCode()));
+                                         this, dinfo.hashCode()));
                 dinfo.finish();
             }
         } else {
@@ -1063,8 +1060,8 @@ public class LocalTransaction extends AbstractTransaction {
      * @param fragment
      */
     public boolean addWorkFragment(WorkFragment.Builder fragment) {
-        assert(this.round_state[hstore_site.getLocalPartitionOffset(this.base_partition)] == RoundState.INITIALIZED) :
-            String.format("Invalid round state %s for %s at partition %d", this.round_state[hstore_site.getLocalPartitionOffset(this.base_partition)], this, this.base_partition);
+        assert(this.round_state[this.base_partition] == RoundState.INITIALIZED) :
+            String.format("Invalid round state %s for %s at partition %d", this.round_state[this.base_partition], this, this.base_partition);
         
         // The partition that this task is being sent to for execution
         boolean blocked = false;
@@ -1194,11 +1191,10 @@ public class LocalTransaction extends AbstractTransaction {
         }
         if (stateLock == null) return;
         
-        final int base_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(result != null);
-        assert(this.round_state[base_offset] == RoundState.INITIALIZED || this.round_state[base_offset] == RoundState.STARTED) :
+        assert(this.round_state[this.base_partition] == RoundState.INITIALIZED || this.round_state[this.base_partition] == RoundState.STARTED) :
             String.format("Invalid round state %s for %s at partition %d",
-                          this.round_state[base_offset], this, this.base_partition);
+                          this.round_state[this.base_partition], this, this.base_partition);
         
         final int partition = key.getFirst().intValue();
         final int dependency_id = key.getSecond().intValue();
@@ -1213,7 +1209,7 @@ public class LocalTransaction extends AbstractTransaction {
             if (this.predict_singlePartition == false) stateLock.lock();
             try {
                 if (this.state == null) return;
-                if (this.round_state[base_offset] == RoundState.INITIALIZED) {
+                if (this.round_state[this.base_partition] == RoundState.INITIALIZED) {
                     assert(this.state.queued_results.containsKey(key) == false) : 
                         String.format("%s - Duplicate result %s",
                                       this, debugPartDep(partition, dependency_id));

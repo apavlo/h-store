@@ -35,7 +35,6 @@ import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
@@ -201,13 +200,12 @@ public class RemoteTransaction extends AbstractTransaction {
     public ProtoRpcController getTransactionPrefetchController(int partition) {
         assert(hstore_site.isLocalPartition(partition));
         
-        int offset = hstore_site.getLocalPartitionOffset(partition);
-        if (this.rpc_transactionPrefetch[offset] == null) {
-            this.rpc_transactionPrefetch[offset] = new ProtoRpcController();
+        if (this.rpc_transactionPrefetch[partition] == null) {
+            this.rpc_transactionPrefetch[partition] = new ProtoRpcController();
         } else {
-            this.rpc_transactionPrefetch[offset].reset();
+            this.rpc_transactionPrefetch[partition].reset();
         }
-        return (this.rpc_transactionPrefetch[offset]);
+        return (this.rpc_transactionPrefetch[partition]);
     }
     
     // ----------------------------------------------------------------------------
