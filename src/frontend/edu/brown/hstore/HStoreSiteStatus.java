@@ -467,7 +467,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             PartitionExecutor.Debug executorDebug = executor.getDebugContext();
             Queue<?> es_queue = executorDebug.getWorkQueue();
             TransactionInitPriorityQueue initQueue = queueManager.getInitQueue(partition);
-            TransactionInitPriorityQueue.Debug initQueueDebug = initQueue.getDebugContext();
+            // TransactionInitPriorityQueue.Debug initQueueDebug = initQueue.getDebugContext();
             AbstractTransaction current_dtxn = executorDebug.getCurrentDtxn();
             
             // Queue Information
@@ -504,10 +504,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 if (ts != null) {
                     PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
                     status += " " + ts;
-                    String spacer = StringUtil.repeat(" ", 5);
                     if (callback != null) {
-                        status += "\n" + spacer;
-                        status += String.format("ReceivedPartitions=%s / AllPartitions=%s",
+                        status += String.format("\nReceivedPartitions=%s / AllPartitions=%s",
                                                 callback.getReceivedPartitions(), callback.getPartitions());
                     }
                     // FULL TXN DEBUG

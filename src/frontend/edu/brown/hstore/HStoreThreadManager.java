@@ -93,8 +93,6 @@ public class HStoreThreadManager {
         HStoreConstants.THREAD_NAME_TXNQUEUE,
         HStoreConstants.THREAD_NAME_TXNCLEANER,
         HStoreConstants.THREAD_NAME_TXNCLEANER,
-        HStoreConstants.THREAD_NAME_TXNCLEANER,
-        HStoreConstants.THREAD_NAME_TXNCLEANER,
     };
     
     // ----------------------------------------------------------------------------

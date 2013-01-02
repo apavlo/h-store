@@ -514,8 +514,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Distributed Transaction Queue Manager
         this.txnQueueManager = new TransactionQueueManager(this);
         
-        // One Transaction Cleaner for every 4 partitions
-        int numCleaners = (int)Math.floor(num_local_partitions / 4.0);
+        // One Transaction Cleaner for every eight partitions
+        int numCleaners = (int)Math.floor(num_local_partitions / 8.0);
         for (int i = 0; i < numCleaners; i++) {
             this.txnCleaners.add(new TransactionCleaner(this));
         } // FOR
