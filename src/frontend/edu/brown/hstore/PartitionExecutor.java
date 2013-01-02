@@ -187,7 +187,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     private static final int WORK_QUEUE_POLL_TIME = 1; // milliseconds
-    private static final UtilityWorkMessage UTIL_WORK = new UtilityWorkMessage();
+    private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
     
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
@@ -872,7 +872,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // -------------------------------
                 work = this.getNext();
                 if (work == null) {
-                    if (this.initQueue.isEmpty()) {
+                    if (this.initQueue.isEmpty() && this.work_queue.isEmpty()) {
                         Thread.sleep(WORK_QUEUE_POLL_TIME);
                     }
                     continue;
@@ -966,10 +966,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Check if we have any utility work to do while we wait
         if (trace.val)
             LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
-        if (this.utilityWork()) return (UTIL_WORK);
+        if (this.utilityWork()) return (UTIL_WORK_MSG);
         
         // This is the bare minimum that we can do here...
-        EstTimeUpdater.update(System.currentTimeMillis());
+        // EstTimeUpdater.update(System.currentTimeMillis());
         return (null);
     }
     

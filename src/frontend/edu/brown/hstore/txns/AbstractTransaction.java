@@ -631,7 +631,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // ----------------------------------------------------------------------------
 
     @Override
-    public boolean equals(Object obj) {
+    public final boolean equals(Object obj) {
         if (obj instanceof AbstractTransaction) {
             AbstractTransaction other = (AbstractTransaction)obj;
             if (this.txn_id == null) {
@@ -643,7 +643,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     }
     
     @Override
-    public int compareTo(AbstractTransaction o) {
+    public final int compareTo(AbstractTransaction o) {
         if (this.txn_id == null) return (1);
         else if (o.txn_id == null) return (-1);
         return this.txn_id.compareTo(o.txn_id);
