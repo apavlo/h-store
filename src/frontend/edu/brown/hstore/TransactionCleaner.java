@@ -1,6 +1,9 @@
 package edu.brown.hstore;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -30,6 +33,9 @@ public class TransactionCleaner implements Runnable, Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    private static final int LIMIT_PER_ROUND = 10000;
+    
+    
     private final HStoreSite hstore_site;
     @SuppressWarnings("unused")
     private final HStoreConf hstore_conf;
@@ -40,13 +46,14 @@ public class TransactionCleaner implements Runnable, Shutdownable {
      * Queues for transactions that are ready to be cleaned up and deleted
      * There is one queue for each Status type
      */
-    private final Map<Status, Queue<Long>> deletable_txns;
+    private final Queue<Long> deletable_txns[];
+    private final Status statuses[];
     
     /**
      * Two sets of queues that we can use to requeue txns that are not
      * ready to be deleted. We will swap in between them as needed.
      */
-    private final Map<Status, Queue<Long>> deletable_txns_requeue[];
+    private final Collection<Long> deletable_txns_requeue[][];
     private int deletable_txns_index = 0;
     
     /**
@@ -57,14 +64,17 @@ public class TransactionCleaner implements Runnable, Shutdownable {
     public TransactionCleaner(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
-        this.deletable_txns = hstore_site.getDeletableQueues();
         this.inflight_txns = hstore_site.getInflightTxns();
+        this.statuses = new Status[Status.values().length];
+        this.deletable_txns = new Queue[this.statuses.length];
+        this.deletable_txns_requeue = new Collection[2][this.statuses.length];
         
-        this.deletable_txns_requeue = new Map[2];
-        for (int i = 0; i < this.deletable_txns_requeue.length; i++) {
-            this.deletable_txns_requeue[i] = new HashMap<Status, Queue<Long>>();
-            for (Status s : Status.values()) {
-                this.deletable_txns_requeue[i].put(s, new ConcurrentLinkedQueue<Long>());
+        int i = 0;
+        for (Entry<Status, Queue<Long>> e : hstore_site.getDeletableQueues().entrySet()) {
+            this.statuses[i] = e.getKey();
+            this.deletable_txns[i] = e.getValue();
+            for (int j = 0; j < this.deletable_txns_requeue.length; j++) {
+                this.deletable_txns_requeue[j][i] = new ArrayList<Long>();
             } // FOR
         } // FOR
     }
@@ -81,17 +91,17 @@ public class TransactionCleaner implements Runnable, Shutdownable {
             
             // if (hstore_conf.site.profiling) this.profiler.cleanup.start();
             boolean needsSleep = true;
-            for (Entry<Status, Queue<Long>> e : this.deletable_txns.entrySet()) {
-                Status status = e.getKey();
-                Queue<Long> queue = e.getValue();
-                Queue<Long> swap_queue = this.deletable_txns_requeue[swap_index].get(status);
+            for (int i = 0; i < this.statuses.length; i++) {
+                Status status = this.statuses[i];
+                Queue<Long> queue = this.deletable_txns[i];
+                Collection<Long> swap_queue = this.deletable_txns_requeue[swap_index][i];
                 if (swap_queue.isEmpty() == false) {
                     queue.addAll(swap_queue);
                     swap_queue.clear();
                 }
                 
-                Queue<Long> requeue = this.deletable_txns_requeue[cur_index].get(status);
-                int limit = 10000;
+                Collection<Long> requeue = this.deletable_txns_requeue[cur_index][i];
+                int limit = LIMIT_PER_ROUND;
                 while ((txn_id = queue.poll()) != null) {
                     // It's ok for us to not have a transaction handle, because it could be
                     // for a remote transaction that told us that they were going to need one
