@@ -462,22 +462,23 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             String partitionLabel = String.format("%02d", partition);
             partitionLabels.put(partition, partitionLabel);
             
-            PartitionExecutor es = hstore_site.getPartitionExecutor(partition);
-            if (es == null) continue;
-            PartitionExecutor.Debug dbg = es.getDebugContext();
-            Queue<?> es_queue = dbg.getWorkQueue();
-            TransactionInitPriorityQueue dtxn_queue = queueManager.getInitQueue(partition);
-            AbstractTransaction current_dtxn = dbg.getCurrentDtxn();
+            PartitionExecutor executor = hstore_site.getPartitionExecutor(partition);
+            if (executor == null) continue;
+            PartitionExecutor.Debug executorDebug = executor.getDebugContext();
+            Queue<?> es_queue = executorDebug.getWorkQueue();
+            TransactionInitPriorityQueue initQueue = queueManager.getInitQueue(partition);
+            TransactionInitPriorityQueue.Debug initQueueDebug = initQueue.getDebugContext();
+            AbstractTransaction current_dtxn = executorDebug.getCurrentDtxn();
             
             // Queue Information
             Map<String, Object> m = new LinkedHashMap<String, Object>();
             
             // Header
             m.put(String.format("%3d total / %3d queued / %3d blocked / %3d spec-exec\n",
-                                    es_queue.size(),
-                                    dbg.getWorkQueueSize(),
-                                    dbg.getBlockedWorkCount(),
-                                    dbg.getBlockedSpecExecCount()), null);
+                                es_queue.size(),
+                                initQueue.size(),
+                                executorDebug.getBlockedWorkCount(),
+                                executorDebug.getBlockedSpecExecCount()), null);
             
             // Execution Info
 //            status = String.format("%-5s [limit=%d, release=%d] %s",
@@ -485,24 +486,24 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
 //                                   (es_queue.isThrottled() ? "*THROTTLED* " : ""));
             // m.put("Exec Queue", status);
             
-            txn_id = dbg.getCurrentTxnId();
-            m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), dbg.getExecutionMode()));
+            txn_id = executorDebug.getCurrentTxnId();
+            m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), executorDebug.getExecutionMode()));
             m.put("Current DTXN", (current_dtxn == null ? "-" : current_dtxn));
             
-            txn_id = dbg.getLastExecutedTxnId();
+            txn_id = executorDebug.getLastExecutedTxnId();
             m.put("Last Executed Txn", (txn_id != null ? "#"+txn_id : "-"));
             
-            txn_id = dbg.getLastCommittedTxnId();
+            txn_id = executorDebug.getLastCommittedTxnId();
             m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
             
             // TransactionQueueManager Info
-            status = String.format("%-5s", dtxn_queue.size());
+            status = initQueue.getQueueState().toString();
             txn_id = queueManagerDebug.getCurrentTransaction(partition);
             if (txn_id != null) {
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);
                 if (ts != null) {
                     PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
-                    status += ts;
+                    status += " " + ts;
                     String spacer = StringUtil.repeat(" ", 5);
                     if (callback != null) {
                         status += "\n" + spacer;
@@ -534,41 +535,41 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
             
             if (hstore_conf.site.exec_profiling) {
-                PartitionExecutorProfiler profiler = dbg.getProfiler();
+                PartitionExecutorProfiler profiler = executorDebug.getProfiler();
                 
                 // Execution Time
                 pm = profiler.exec_time;
-                last = lastExecTxnTimes.get(es);
+                last = lastExecTxnTimes.get(executor);
                 m.put("Txn Execution", this.formatProfileMeasurements(pm, last, true, true)); 
-                this.lastExecTxnTimes.put(es, new ProfileMeasurement(pm));
+                this.lastExecTxnTimes.put(executor, new ProfileMeasurement(pm));
                 invokedTxns.put(partition, (int)profiler.exec_time.getInvocations());
                 totalExecTxnTime.appendTime(pm);
                 
                 // Idle Time
-                last = lastExecIdleTimes.get(es);
+                last = lastExecIdleTimes.get(executor);
                 pm = profiler.idle_queue_time;
                 m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false)); 
-                this.lastExecIdleTimes.put(es, new ProfileMeasurement(pm));
+                this.lastExecIdleTimes.put(executor, new ProfileMeasurement(pm));
                 totalExecIdleTime.appendTime(pm);
                 
                 // Network Time
-                last = lastExecNetworkTimes.get(es);
+                last = lastExecNetworkTimes.get(executor);
                 pm = profiler.network_time;
                 m.put("Network Time", this.formatProfileMeasurements(pm, last, false, true)); 
-                this.lastExecNetworkTimes.put(es, new ProfileMeasurement(pm));
+                this.lastExecNetworkTimes.put(executor, new ProfileMeasurement(pm));
                 totalExecNetworkTime.appendTime(pm);
                 
                 // Utility Time
-                last = lastExecUtilityTimes.get(es);
+                last = lastExecUtilityTimes.get(executor);
                 pm = profiler.util_time;
                 m.put("Utility Time", this.formatProfileMeasurements(pm, last, false, true)); 
-                this.lastExecUtilityTimes.put(es, new ProfileMeasurement(pm));
+                this.lastExecUtilityTimes.put(executor, new ProfileMeasurement(pm));
             }
             
             String label = "    Partition[" + partitionLabel + "]";
             
             // Get additional partition info
-            Thread t = dbg.getExecutionThread();
+            Thread t = executorDebug.getExecutionThread();
             if (t != null && threadManagerDebug.isRegistered(t)) {
                 for (Integer cpu : threadManagerDebug.getCPUIds(t)) {
                     label += "\n       \u2192 CPU *" + cpu + "*";
