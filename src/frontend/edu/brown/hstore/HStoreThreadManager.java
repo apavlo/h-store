@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +52,7 @@ public class HStoreThreadManager {
     
     private boolean disable;
     
-    private final ScheduledThreadPoolExecutor m_periodicWorkThread;
+    private final ScheduledThreadPoolExecutor periodicWorkExecutor;
     private final int num_partitions;
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
     private final boolean defaultAffinity[];
@@ -66,6 +67,7 @@ public class HStoreThreadManager {
         HStoreConstants.THREAD_NAME_COMMANDLOGGER,
 //        HStoreConstants.THREAD_NAME_LISTEN,
         HStoreConstants.THREAD_NAME_CLEANUP,
+        HStoreConstants.THREAD_NAME_PERIODIC
     };
     
     // ----------------------------------------------------------------------------
@@ -79,7 +81,7 @@ public class HStoreThreadManager {
         
         // Periodic Work Thread
         String threadName = getThreadName(hstore_site, HStoreConstants.THREAD_NAME_PERIODIC);
-        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor(threadName,
+        this.periodicWorkExecutor = ThreadUtil.getScheduledThreadPoolExecutor(threadName,
                                                                               hstore_site.getExceptionHandler(),
                                                                               1,
                                                                               1024 * 128);
@@ -160,8 +162,34 @@ public class HStoreThreadManager {
     // PERIODIC WORK EXECUTOR
     // ----------------------------------------------------------------------------
     
+    /**
+     * Internal method to register our single periodic thread with ourself.
+     * This is a blocking call that will wait until the initialization
+     * thread is succesfully executed.
+     */
+    protected void initPerioidicThread() {
+        final CountDownLatch latch = new CountDownLatch(1);
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                HStoreThreadManager.this.registerProcessingThread();
+                latch.countDown();
+            }
+        };
+        this.scheduleWork(r);
+        
+        // Wait until it's finished 
+        boolean ret = false;
+        try {
+            ret = latch.await(1000, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException ex) {
+            // Ignore...
+        }
+        assert(ret) : "Failed to initialize perioidic thread";
+    }
+    
     public ScheduledThreadPoolExecutor getPeriodicWorkExecutor() {
-        return (this.m_periodicWorkThread);
+        return (this.periodicWorkExecutor);
     }
     
     /**
@@ -174,7 +202,7 @@ public class HStoreThreadManager {
      */
     public ScheduledFuture<?> schedulePeriodicWork(Runnable work, long initialDelay, long delay, TimeUnit unit) {
         assert(delay > 0);
-        return this.m_periodicWorkThread.scheduleWithFixedDelay(work, initialDelay, delay, unit);
+        return this.periodicWorkExecutor.scheduleWithFixedDelay(work, initialDelay, delay, unit);
     }
 
     /**
@@ -183,7 +211,7 @@ public class HStoreThreadManager {
      * @return
      */
     public ScheduledFuture<?> scheduleWork(Runnable work) {
-        return this.m_periodicWorkThread.schedule(work, 0, TimeUnit.MILLISECONDS);
+        return this.periodicWorkExecutor.schedule(work, 0, TimeUnit.MILLISECONDS);
     }
     
     /**
@@ -195,7 +223,7 @@ public class HStoreThreadManager {
      * @return
      */
     public ScheduledFuture<?> scheduleWork(Runnable work, long initialDelay, TimeUnit unit) {
-        return this.m_periodicWorkThread.schedule(work, initialDelay, unit);
+        return this.periodicWorkExecutor.schedule(work, initialDelay, unit);
     }
     
     

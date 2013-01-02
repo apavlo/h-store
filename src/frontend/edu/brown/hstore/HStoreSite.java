@@ -394,8 +394,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Status Monitor
      */
-    private HStoreSiteStatus status_monitor;
+    private final HStoreSiteStatus status_monitor;
     
+    /**
+     * Profiler
+     */
     private HStoreSiteProfiler profiler = new HStoreSiteProfiler();
     
     // ----------------------------------------------------------------------------
@@ -676,6 +679,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.profiler = null;
         }
         
+        this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
+        
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
     }
     
@@ -947,7 +952,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return ((T)this.inflight_txns.get(txn_id));
     }
 
-    
     /**
      * Return a thread-safe FastDeserializer
      * @return
@@ -1079,10 +1083,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
-        // Initialize Status Monitor
-        assert(hstore_conf.site.status_interval >= 0);
-        this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
-        
         // TransactionPreProcessors
         if (this.preProcessors != null) {
             for (TransactionPreProcessor tpp : this.preProcessors) {
@@ -1178,6 +1178,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Schedule all the periodic works
      */
     private void initPeriodicWorks() {
+        
+        // Make sure that we always initialize the periodic thread so that
+        // we can ensure that it only shows up on the cores that we want it to.
+        this.threadManager.initPerioidicThread();
+        
         this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
             @Override
             public void runImpl() {
@@ -2752,6 +2757,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (Entry<Status, Queue<Long>> e : this.deletable_txns.entrySet()) {
             Status status = e.getKey();
             Queue<Long> queue = e.getValue();
+            int limit = 1000;
             while ((txn_id = queue.poll()) != null) {
                 // It's ok for us to not have a transaction handle, because it could be
                 // for a remote transaction that told us that they were going to need one
@@ -2780,10 +2786,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     LOG.warn(String.format("Ignoring clean-up request for txn #%d because we do not have a handle " +
                              "[status=%s]", txn_id, status));
                 }
+                if (limit-- < 0) break;
             } // WHILE
             if (this.deletable_txns_requeue.isEmpty() == false) {
                 if (trace.val) LOG.trace(String.format("Adding %d undeletable txns back to deletable queue",
-                                 this.deletable_txns_requeue.size()));
+                                         this.deletable_txns_requeue.size()));
                 queue.addAll(this.deletable_txns_requeue);
                 this.deletable_txns_requeue.clear();
             }

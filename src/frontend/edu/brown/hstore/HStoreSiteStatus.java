@@ -183,11 +183,13 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     
     @Override
     public void runImpl() {
-        self = Thread.currentThread();
+        this.self = Thread.currentThread();
         // self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_DEBUGSTATUS));
         // this.hstore_site.getThreadManager().registerProcessingThread();
 
-        if (debug.val) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
+        if (debug.val)
+            LOG.debug(String.format("Invoking HStoreSite status monitor thread [interval=%d, kill=%s]",
+                      this.interval, hstore_conf.site.status_kill_if_hung));
         try {
             // Out we go!
             this.printStatus();
