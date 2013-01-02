@@ -278,10 +278,8 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             txnId = ts.getTransactionId();
             // HACK: Ignore null txnIds
             if (txnId == null) {
-                synchronized (this) {
-                    this.state = QueueState.BLOCKED_EMPTY;
-                    return (this.state);
-                } // SYNCH
+                LOG.warn(String.format("Partition %d :: Uninitialized transaction handle %s", this.partitionId, ts));
+                return (this.state);
             }
             assert(txnId != null) : "Null transaction id from " + txnId;
             
