@@ -606,9 +606,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * @return
      */
     public boolean isDeletable() {
-        if (this.isInitialized() == false) {
-            return (false);
-        }
+//        if (this.isInitialized() == false) {
+//            return (false);
+//        }
         if (this.prepareWrapper_callback.allCallbacksFinished() == false) {
             if (debug.val) LOG.warn(String.format("%s - %s is not finished", this,
                                     this.prepareWrapper_callback.getClass().getSimpleName()));

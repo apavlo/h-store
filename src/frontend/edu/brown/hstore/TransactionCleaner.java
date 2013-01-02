@@ -2,11 +2,8 @@ package edu.brown.hstore;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.Queue;
 
 import org.apache.log4j.Logger;
@@ -34,6 +31,7 @@ public class TransactionCleaner implements Runnable, Shutdownable {
     }
     
     private static final int LIMIT_PER_ROUND = 10000;
+    private static final int NUM_REQUEUE_LISTS = 3;
     
     
     private final HStoreSite hstore_site;
@@ -46,15 +44,15 @@ public class TransactionCleaner implements Runnable, Shutdownable {
      * Queues for transactions that are ready to be cleaned up and deleted
      * There is one queue for each Status type
      */
-    private final Queue<Long> deletable_txns[];
+    private final Queue<Long> deletables[];
     private final Status statuses[];
     
     /**
-     * Two sets of queues that we can use to requeue txns that are not
-     * ready to be deleted. We will swap in between them as needed.
+     * We'll maintain multiple sets of txns that need to get requeued for deletion.
+     * We'll cycle through them to add in a natural delay for waiting until a txn
+     * is fully ready to be deleted. This is probably only really necessary for distributed txns.
      */
-    private final Collection<Long> deletable_txns_requeue[][];
-    private int deletable_txns_index = 0;
+    private final Collection<Long> requeues[][];
     
     /**
      * Constructor
@@ -66,15 +64,15 @@ public class TransactionCleaner implements Runnable, Shutdownable {
         this.hstore_conf = hstore_site.getHStoreConf();
         this.inflight_txns = hstore_site.getInflightTxns();
         this.statuses = new Status[Status.values().length];
-        this.deletable_txns = new Queue[this.statuses.length];
-        this.deletable_txns_requeue = new Collection[2][this.statuses.length];
+        this.deletables = new Queue[this.statuses.length];
+        this.requeues = new Collection[NUM_REQUEUE_LISTS][this.statuses.length];
         
         int i = 0;
         for (Entry<Status, Queue<Long>> e : hstore_site.getDeletableQueues().entrySet()) {
             this.statuses[i] = e.getKey();
-            this.deletable_txns[i] = e.getValue();
-            for (int j = 0; j < this.deletable_txns_requeue.length; j++) {
-                this.deletable_txns_requeue[j][i] = new ArrayList<Long>();
+            this.deletables[i] = e.getValue();
+            for (int j = 0; j < this.requeues.length; j++) {
+                this.requeues[j][i] = new ArrayList<Long>();
             } // FOR
         } // FOR
     }
@@ -85,22 +83,22 @@ public class TransactionCleaner implements Runnable, Shutdownable {
         
         // Delete txn handles
         Long txn_id = null;
+        int cur_index = 0;
         while (this.shutdown == false) {
-            int cur_index = this.deletable_txns_index;
-            int swap_index = (cur_index == 1 ? 0 : 1);
+            int swap_index = (cur_index + 1) % NUM_REQUEUE_LISTS;
             
             // if (hstore_conf.site.profiling) this.profiler.cleanup.start();
             boolean needsSleep = true;
             for (int i = 0; i < this.statuses.length; i++) {
                 Status status = this.statuses[i];
-                Queue<Long> queue = this.deletable_txns[i];
-                Collection<Long> swap_queue = this.deletable_txns_requeue[swap_index][i];
+                Queue<Long> queue = this.deletables[i];
+                Collection<Long> swap_queue = this.requeues[swap_index][i];
                 if (swap_queue.isEmpty() == false) {
                     queue.addAll(swap_queue);
                     swap_queue.clear();
                 }
                 
-                Collection<Long> requeue = this.deletable_txns_requeue[cur_index][i];
+                Collection<Long> requeue = this.requeues[cur_index][i];
                 int limit = LIMIT_PER_ROUND;
                 while ((txn_id = queue.poll()) != null) {
                     // It's ok for us to not have a transaction handle, because it could be
@@ -137,7 +135,7 @@ public class TransactionCleaner implements Runnable, Shutdownable {
                 } // WHILE
             } // FOR
             if (needsSleep) ThreadUtil.sleep(10);
-            this.deletable_txns_index = (this.deletable_txns_index == 1 ? 0 : 1);
+            cur_index = swap_index;
             // if (hstore_conf.site.profiling) this.profiler.cleanup.stop();
         } // WHILE
     }

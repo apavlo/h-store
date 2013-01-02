@@ -423,7 +423,8 @@ public class CommandLogWriter implements Runnable, Shutdownable {
             }
         } // FOR
         if (txnCounter == 0) {
-            if (debug.val) LOG.debug("No transactions are in the current buffers. Not writing anything to disk");  
+            if (debug.val)
+                LOG.debug("No transactions are in the current buffers. Not writing anything to disk");  
             return;
         }
         
@@ -435,8 +436,9 @@ public class CommandLogWriter implements Runnable, Shutdownable {
             throw new RuntimeException("Failed to compress WAL buffer");
         }
         
-        if (debug.val) LOG.debug(String.format("Writing out %d bytes for %d txns [batchCtr=%d]",
-                                   compressed.limit(), txnCounter, this.commitBatchCounter)); 
+        if (debug.val)
+            LOG.debug(String.format("Writing out %d bytes for %d txns [batchCtr=%d]",
+                      compressed.limit(), txnCounter, this.commitBatchCounter)); 
         try {
             this.fstream.write(compressed);
             this.fstream.force(true);
@@ -471,7 +473,7 @@ public class CommandLogWriter implements Runnable, Shutdownable {
     }
     
     /**
-     * Write a completed transaction handle out to the WAL file
+     * Write a completed transaction handle out to the WAL file.
      * Returns true if the entry has been successfully written to disk and
      * the HStoreSite needs to send out the ClientResponse
      * @param ts

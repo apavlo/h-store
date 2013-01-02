@@ -759,27 +759,28 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public boolean isDeletable() {
         if (this.init_callback.allCallbacksFinished() == false) {
-            if (debug.val) LOG.warn(String.format("%s - %s is not finished", this,
-                            this.init_callback.getClass().getSimpleName()));
+            if (trace.val)
+                LOG.warn(String.format("%s - %s is not finished", this,
+                         this.init_callback.getClass().getSimpleName()));
             return (false);
         }
         if (this.dtxnState != null) {
             if (this.dtxnState.prepare_callback.allCallbacksFinished() == false) {
-                if (trace.val) LOG.warn(String.format("%s - %s is not finished", this,
-                                this.dtxnState.prepare_callback.getClass().getSimpleName()));
+                if (trace.val)
+                    LOG.warn(String.format("%s - %s is not finished", this,
+                             this.dtxnState.prepare_callback.getClass().getSimpleName()));
                 return (false);
             }
             if (this.dtxnState.finish_callback.allCallbacksFinished() == false) {
-                if (trace.val) LOG.warn(String.format("%s - %s is not finished", this,
-                                this.dtxnState.finish_callback.getClass().getSimpleName()));
+                if (trace.val)
+                    LOG.warn(String.format("%s - %s is not finished", this,
+                             this.dtxnState.finish_callback.getClass().getSimpleName()));
                 return (false);
             }
         }
-        else {
-            
-        }
         if (this.needs_restart) {
-            if (trace.val) LOG.warn(String.format("%s - Needs restart, can't delete now", this));
+            if (trace.val)
+                LOG.warn(String.format("%s - Needs restart, can't delete now", this));
             return (false);
         }
         return (super.isDeletable());
