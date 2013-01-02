@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -77,7 +78,7 @@ public class HStoreThreadManager {
      * will not automatically be pinned to those CPUs. The real assignment is performed down
      * in the EE. 
      */
-    private final Map<Integer, Set<Thread>> cpu_threads = new HashMap<Integer, Set<Thread>>();
+    private final Map<Integer, Set<Thread>> cpu_threads = new TreeMap<Integer, Set<Thread>>();
     
     /**
      * Internal mapping from ThreadGroupType to the ThreadGroup handle
