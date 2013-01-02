@@ -515,7 +515,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.txnQueueManager = new TransactionQueueManager(this);
         
         // One Transaction Cleaner for every eight partitions
-        int numCleaners = (int)Math.floor(num_local_partitions / 8.0);
+        int numCleaners = (int)Math.ceil(num_local_partitions / 8.0);
         for (int i = 0; i < numCleaners; i++) {
             this.txnCleaners.add(new TransactionCleaner(this));
         } // FOR
