@@ -319,7 +319,7 @@ public class HStoreThreadManager {
         boolean affinity[] = this.defaultAffinity;
         Thread t = Thread.currentThread();
         String nameParts[] = THREAD_NAME_SLITTER.split(t.getName());
-        String suffix = nameParts[1];
+        String suffix = (nameParts.length > 1 ? nameParts[1] : nameParts[0]); 
         if (this.utilityAffinities.containsKey(suffix)) {
             affinity = this.utilityAffinities.get(suffix); 
         }
