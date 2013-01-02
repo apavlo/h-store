@@ -69,8 +69,7 @@ public class HStoreThreadManager {
         HStoreConstants.THREAD_NAME_PERIODIC,
         HStoreConstants.THREAD_NAME_COORDINATOR,
         HStoreConstants.THREAD_NAME_TXNQUEUE,
-        HStoreConstants.THREAD_NAME_TXNCLEANER0,
-        HStoreConstants.THREAD_NAME_TXNCLEANER1,
+        HStoreConstants.THREAD_NAME_TXNCLEANER,
     };
     
     // ----------------------------------------------------------------------------
@@ -100,10 +99,9 @@ public class HStoreThreadManager {
             this.ee_core_offset = 0;
         }
         else if (this.num_cores <= host_partitions.size()) {
-//            if (debug.val)
-                LOG.warn(String.format("Unable to set CPU affinity on %s because there are %d partitions " +
-                		               "but only %d available cores",
-                                       host.getIpaddr(), host_partitions.size(), this.num_cores));
+            LOG.warn(String.format("Unable to set CPU affinity on %s because there are %d partitions " +
+                                     "but only %d available cores",
+                                    host.getIpaddr(), host_partitions.size(), this.num_cores));
             this.disable = true;
             this.ee_core_offset = 0;
         }
@@ -130,7 +128,8 @@ public class HStoreThreadManager {
                     }
                 } // FOR
             }
-            if (debug.val) LOG.debug("EE CPU Core Offset: " + ee_core_offset);
+            if (debug.val)
+                LOG.debug("EE CPU Core Offset: " + ee_core_offset);
             this.ee_core_offset = ee_core_offset;
             
             // Reserve the lowest cores for the various utility threads
@@ -147,7 +146,8 @@ public class HStoreThreadManager {
                     this.utilityAffinities.put(this.utility_suffixes[i], affinity);
                 } // FOR
             }
-            if (debug.val) LOG.debug("Default CPU Affinity: " + Arrays.toString(this.defaultAffinity));
+            if (debug.val)
+                LOG.debug("Default CPU Affinity: " + Arrays.toString(this.defaultAffinity));
         }
     }
     
@@ -248,7 +248,7 @@ public class HStoreThreadManager {
         // This doesn't seem to work on newer versions of OSX, so we'll just disable it
         } catch (UnsatisfiedLinkError ex) {
             LOG.warn("Unable to set CPU affinity for the ExecutionEngine thread for partition" + partition + ". " +
-            		 "Disabling feature in ExecutionEngine", ex);
+                     "Disabling feature in ExecutionEngine", ex);
             this.disable = true;
             return (false);
         }
@@ -269,7 +269,7 @@ public class HStoreThreadManager {
         
         if (debug.val)
             LOG.debug(String.format("Registering EE Thread %s to execute on CPUs %s",
-                                    t.getName(), this.getCPUIds(affinity)));
+                      t.getName(), this.getCPUIds(affinity)));
         
         this.disable = (ThreadUtils.setThreadAffinity(affinity) == false);
         if (this.disable) {
@@ -280,11 +280,13 @@ public class HStoreThreadManager {
         
         final boolean endingAffinity[] = ThreadUtils.getThreadAffinity();
         for (int ii = 0; ii < endingAffinity.length; ii++) {
-            if (trace.val && endingAffinity[ii]) LOG.trace(String.format("NEW AFFINITY %s -> CPU[%d]", partition, ii));
+            if (trace.val && endingAffinity[ii])
+                LOG.trace(String.format("NEW AFFINITY %s -> CPU[%d]", partition, ii));
             affinity[ii] = false;
         } // FOR
-        if (debug.val) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
-                                   t.getName(), this.getCPUIds(affinity)));
+        if (debug.val)
+            LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
+                      t.getName(), this.getCPUIds(affinity)));
         return (true);
     }
     
@@ -303,7 +305,7 @@ public class HStoreThreadManager {
         
         if (debug.val)
             LOG.debug(String.format("Registering Processing Thread %s to execute on CPUs %s",
-                                    t.getName(), this.getCPUIds(affinity)));
+                      t.getName(), this.getCPUIds(affinity)));
         
         // This thread cannot run on the EE's cores
         // If this fails (such as on OS X for some weird reason), we'll
@@ -321,8 +323,9 @@ public class HStoreThreadManager {
         }
         this.registerThread(this.defaultAffinity);
         
-        if (debug.val) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
-                                   t.getName(), this.getCPUIds(affinity)));
+        if (debug.val)
+            LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
+                      t.getName(), this.getCPUIds(affinity)));
         return (true);
     }
     

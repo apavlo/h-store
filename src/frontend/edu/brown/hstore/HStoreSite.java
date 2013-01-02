@@ -515,9 +515,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.txnQueueManager = new TransactionQueueManager(this);
         
         // Transaction Cleaner
-        // HACK: Let's only have two for now
-        this.txnCleaners.add(new TransactionCleaner(this));
-        this.txnCleaners.add(new TransactionCleaner(this));
+        for (int i = 0; i < num_local_partitions; i++) {
+            this.txnCleaners.add(new TransactionCleaner(this));
+        } // FOR
         
         // MapReduce Transaction helper thread
         if (catalogContext.getMapReduceProcedures().isEmpty() == false) { 
@@ -643,9 +643,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 // Initialize TransactionPostProcessors
                 if (num_postProcessors > 0) {
-                    if (debug.val) LOG.debug(String.format("Starting %d %s threads",
-                                     num_postProcessors,
-                                     TransactionPostProcessor.class.getSimpleName()));
+                    if (debug.val)
+                        LOG.debug(String.format("Starting %d %s threads",
+                                  num_postProcessors, TransactionPostProcessor.class.getSimpleName()));
                     _postProcessors = new ArrayList<TransactionPostProcessor>();
                     _postQueue = new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
                     for (int i = 0; i < num_postProcessors; i++) {
@@ -823,7 +823,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private void startMapReduceHelper() {
         assert(this.mr_helper_started == false);
-        if (debug.val) LOG.debug("Starting " + this.mr_helper.getClass().getSimpleName());
+        if (debug.val)
+            LOG.debug("Starting " + this.mr_helper.getClass().getSimpleName());
         Thread t = new Thread(this.mr_helper);
         t.setDaemon(true);
         t.setUncaughtExceptionHandler(this.exceptionHandler);
@@ -836,7 +837,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private void startAdHocHelper() {
         assert(this.adhoc_helper_started == false);
-        if (debug.val) LOG.debug("Starting " + this.asyncCompilerWork_thread.getClass().getSimpleName());
+        if (debug.val)
+            LOG.debug("Starting " + this.asyncCompilerWork_thread.getClass().getSimpleName());
         this.asyncCompilerWork_thread.start();
         this.adhoc_helper_started = true;
     }
@@ -1065,11 +1067,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Initializes all the pieces that we need to start this HStore site up
      */
     protected HStoreSite init() {
-        if (debug.val) LOG.debug("Initializing HStoreSite " + this.getSiteName());
+        if (debug.val)
+            LOG.debug("Initializing HStoreSite " + this.getSiteName());
         this.hstore_coordinator = this.initHStoreCoordinator();
         
         // First we need to tell the HStoreCoordinator to start-up and initialize its connections
-        if (debug.val) LOG.debug("Starting HStoreCoordinator for " + this.getSiteName());
+        if (debug.val)
+            LOG.debug("Starting HStoreCoordinator for " + this.getSiteName());
         this.hstore_coordinator.start();
 
         ThreadGroup auxGroup = this.threadManager.getThreadGroup(ThreadGroupType.AUXILIARY);
@@ -1094,10 +1098,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.start();
         
         // Start Transaction Cleaner
-        String names[] = { HStoreConstants.THREAD_NAME_TXNCLEANER0, HStoreConstants.THREAD_NAME_TXNCLEANER1 };
         int i = 0;
         for (TransactionCleaner cleaner : this.txnCleaners) {
-            String name = HStoreThreadManager.getThreadName(this, names[i++]);
+            String name = String.format("%s-%02d", HStoreThreadManager.getThreadName(this, HStoreConstants.THREAD_NAME_TXNCLEANER), i);
             t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.CLEANER), cleaner);
             t.setName(name);
             t.setDaemon(true);

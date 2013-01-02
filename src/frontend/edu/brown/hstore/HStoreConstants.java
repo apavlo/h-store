@@ -53,9 +53,7 @@ public abstract class HStoreConstants {
     public static final String THREAD_NAME_LOGGING = "logging";
     public static final String THREAD_NAME_MAPREDUCE = "mr";
     public static final String THREAD_NAME_DEBUGSTATUS = "status";
-    
-    public static final String THREAD_NAME_TXNCLEANER0 = "cleaner0";
-    public static final String THREAD_NAME_TXNCLEANER1 = "cleaner1";
+    public static final String THREAD_NAME_TXNCLEANER = "cleaner";
     
     // ----------------------------------------------------------------------------
     // EXECUTION STUFF
