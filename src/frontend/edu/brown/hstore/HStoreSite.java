@@ -1099,7 +1099,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         int i = 0;
         for (TransactionCleaner cleaner : this.txnCleaners) {
             String name = HStoreThreadManager.getThreadName(this, names[i++]);
-            t = new Thread(auxGroup, cleaner);
+            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.CLEANER), cleaner);
             t.setName(name);
             t.setDaemon(true);
             t.setUncaughtExceptionHandler(this.exceptionHandler);

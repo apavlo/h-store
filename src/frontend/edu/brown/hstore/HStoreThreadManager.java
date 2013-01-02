@@ -39,7 +39,8 @@ public class HStoreThreadManager {
         PROCESSING,
         EXECUTION,
         NETWORK,
-        AUXILIARY
+        AUXILIARY,
+        CLEANER
     };
     
     
