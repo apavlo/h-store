@@ -1097,17 +1097,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
-        // Start Transaction Cleaner
-        int i = 0;
-        for (TransactionCleaner cleaner : this.txnCleaners) {
-            String name = String.format("%s-%02d", HStoreThreadManager.getThreadName(this, HStoreConstants.THREAD_NAME_TXNCLEANER), i);
-            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.CLEANER), cleaner);
-            t.setName(name);
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(this.exceptionHandler);
-            t.start();
-        } // FOR
-        
         // TransactionPreProcessors
         if (this.preProcessors != null) {
             for (TransactionPreProcessor tpp : this.preProcessors) {
@@ -1141,6 +1130,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t.setUncaughtExceptionHandler(this.exceptionHandler);
             this.executor_threads[partition] = t;
             t.start();
+        } // FOR
+        
+        // Start Transaction Cleaners
+        int i = 0;
+        for (TransactionCleaner cleaner : this.txnCleaners) {
+            String name = String.format("%s-%02d", HStoreThreadManager.getThreadName(this, HStoreConstants.THREAD_NAME_TXNCLEANER), i);
+            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.CLEANER), cleaner);
+            t.setName(name);
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            t.start();
+            i += 1;
         } // FOR
         
         this.initPeriodicWorks();
