@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -32,6 +31,11 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
+/**
+ * The thread manager is used to schedule periodic work and assign threads to
+ * individual CPU cores down in the EE.
+ * @author pavlo
+ */
 public class HStoreThreadManager {
     private static final Logger LOG = Logger.getLogger(HStoreThreadManager.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -72,7 +76,7 @@ public class HStoreThreadManager {
      * will not automatically be pinned to those CPUs. The real assignment is performed down
      * in the EE. 
      */
-    private final Map<Integer, Set<Thread>> cpu_threads = new ConcurrentHashMap<Integer, Set<Thread>>();
+    private final Map<Integer, Set<Thread>> cpu_threads = new HashMap<Integer, Set<Thread>>();
     
     /**
      * Internal mapping from ThreadGroupType to the ThreadGroup handle
@@ -257,7 +261,7 @@ public class HStoreThreadManager {
      * Set the CPU affinity for the EE thread executing for the given partition
      * @param partition
      */
-    public boolean registerEEThread(Partition partition) {
+    public synchronized boolean registerEEThread(Partition partition) {
         if (this.disable) return (false);
         
         Thread t = Thread.currentThread();
@@ -312,7 +316,7 @@ public class HStoreThreadManager {
     /**
      * Set the CPU affinity for a non-EE thread
      */
-    public boolean registerProcessingThread() {
+    public synchronized boolean registerProcessingThread() {
         if (this.disable) return (false);
         
         boolean affinity[] = this.defaultAffinity;
@@ -348,13 +352,13 @@ public class HStoreThreadManager {
         return (true);
     }
     
-    private synchronized void registerThread(boolean affinity[]) {
+    private void registerThread(boolean affinity[]) {
         Thread t = Thread.currentThread();
         for (int i = 0; i < affinity.length; i++) {
             if (affinity[i]) {
                 Set<Thread> s = this.cpu_threads.get(i);
                 if (s == null) {
-                    s = Collections.synchronizedSet(new HashSet<Thread>());
+                    s = new HashSet<Thread>();
                     this.cpu_threads.put(i, s);
                 }
                 s.add(t);
@@ -363,6 +367,12 @@ public class HStoreThreadManager {
         this.all_threads.add(t);
     }
     
+    /**
+     * For the given affinity mapping, return the corresponding CPU Ids.
+     * This is for debugging
+     * @param affinity
+     * @return
+     */
     private Collection<Integer> getCPUIds(boolean affinity[]) {
         Collection<Integer> cpus = new ArrayList<Integer>();
         for (int i = 0; i < affinity.length; i++) {
@@ -438,14 +448,14 @@ public class HStoreThreadManager {
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
     
-    public String debug() {
+    public synchronized String debug() {
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         for (Entry<Integer, Set<Thread>> e : this.cpu_threads.entrySet()) {
             TreeSet<String> names = new TreeSet<String>();
             for (Thread t : e.getValue()) {
                 names.add(t.getName());
             } // FOR
-            m.put("CPU #" + e.getKey(), StringUtil.columns(names.toArray(new String[0])).trim());
+            m.put("CPU #" + e.getKey(), names.toString());
         } // FOR
         return (StringUtil.formatMaps(m));
     }
