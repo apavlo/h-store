@@ -74,6 +74,7 @@ public class TransactionCleaner implements Runnable, Shutdownable {
             for (int j = 0; j < this.requeues.length; j++) {
                 this.requeues[j][i] = new ArrayList<Long>();
             } // FOR
+            i += 1;
         } // FOR
     }
 
