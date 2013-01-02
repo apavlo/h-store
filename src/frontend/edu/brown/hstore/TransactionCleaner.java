@@ -1,10 +1,10 @@
 package edu.brown.hstore;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Queue;
 
 import org.apache.log4j.Logger;
 
@@ -34,6 +34,7 @@ public class TransactionCleaner implements Runnable, Shutdownable {
     @SuppressWarnings("unused")
     private final HStoreConf hstore_conf;
     private boolean shutdown = false;
+    private final Map<Long, AbstractTransaction> inflight_txns;
     
     /**
      * Queues for transactions that are ready to be cleaned up and deleted
@@ -41,19 +42,27 @@ public class TransactionCleaner implements Runnable, Shutdownable {
      */
     private final Map<Status, Queue<Long>> deletable_txns;
     
-    private final Map<Long, AbstractTransaction> inflight_txns;
-    
-    private final List<Long> deletable_txns_requeue = new ArrayList<Long>();
+    private final Map<Status, Queue<Long>> deletable_txns_requeue[];
+    private int deletable_txns_index = 0;
     
     /**
      * Constructor
      * @param hstore_site
      */
+    @SuppressWarnings("unchecked")
     public TransactionCleaner(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.deletable_txns = hstore_site.getDeletableQueues();
         this.inflight_txns = hstore_site.getInflightTxns();
+        
+        this.deletable_txns_requeue = new Map[2];
+        for (int i = 0; i < this.deletable_txns_requeue.length; i++) {
+            this.deletable_txns_requeue[i] = new HashMap<Status, Queue<Long>>();
+            for (Status s : Status.values()) {
+                this.deletable_txns_requeue[i].put(s, new ConcurrentLinkedQueue<Long>());
+            } // FOR
+        } // FOR
     }
 
     @Override
@@ -63,11 +72,22 @@ public class TransactionCleaner implements Runnable, Shutdownable {
         // Delete txn handles
         Long txn_id = null;
         while (this.shutdown == false) {
+            int cur_index = this.deletable_txns_index;
+            int swap_index = (cur_index == 1 ? 0 : 1);
+            
             // if (hstore_conf.site.profiling) this.profiler.cleanup.start();
             boolean needsSleep = true;
             for (Entry<Status, Queue<Long>> e : this.deletable_txns.entrySet()) {
                 Status status = e.getKey();
                 Queue<Long> queue = e.getValue();
+                if (this.deletable_txns_requeue[swap_index].isEmpty() == false) {
+                    Queue<Long> swap_queue = this.deletable_txns_requeue[swap_index].get(status);
+                    queue.addAll(swap_queue);
+                    swap_queue.clear();
+                }
+                
+                Queue<Long> requeue = this.deletable_txns_requeue[cur_index].get(status);
+                int limit = 10000;
                 while ((txn_id = queue.poll()) != null) {
                     // It's ok for us to not have a transaction handle, because it could be
                     // for a remote transaction that told us that they were going to need one
@@ -86,28 +106,24 @@ public class TransactionCleaner implements Runnable, Shutdownable {
                                 this.hstore_site.deleteLocalTransaction((LocalTransaction)ts, status);
                             }
                             needsSleep = false;
+                            limit--;
                         }
                         // We can't delete this yet, so we'll just stop checking
                         else {
                             if (trace.val)
                                 LOG.trace(String.format("%s - Cannot delete %s at this point [status=%s]\n%s",
                                           ts, ts.getClass().getSimpleName(), status, ts.debug()));
-                            this.deletable_txns_requeue.add(txn_id);
+                            requeue.add(txn_id);
                         }
                     } else if (debug.val) {
                         LOG.warn(String.format("Ignoring clean-up request for txn #%d because we do not have a handle " +
                                  "[status=%s]", txn_id, status));
                     }
+                    if (limit <= 0) break;
                 } // WHILE
-                if (this.deletable_txns_requeue.isEmpty() == false) {
-                    if (trace.val)
-                        LOG.trace(String.format("Adding %d undeletable txns back to deletable queue",
-                                  this.deletable_txns_requeue.size()));
-                    queue.addAll(this.deletable_txns_requeue);
-                    this.deletable_txns_requeue.clear();
-                }
             } // FOR
             if (needsSleep) ThreadUtil.sleep(10);
+            this.deletable_txns_index = (this.deletable_txns_index == 1 ? 0 : 1);
             // if (hstore_conf.site.profiling) this.profiler.cleanup.stop();
         } // WHILE
     }
