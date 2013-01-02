@@ -276,6 +276,13 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
             assert(ts.isInitialized()) :
                 String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, this.partitionId);
             txnId = ts.getTransactionId();
+            // HACK: Ignore null txnIds
+            if (txnId == null) {
+                synchronized (this) {
+                    this.state = QueueState.BLOCKED_EMPTY;
+                    return (this.state);
+                } // SYNCH
+            }
             assert(txnId != null) : "Null transaction id from " + txnId;
             
             // If this txnId is greater than the last safe one that we've seen, then we know
