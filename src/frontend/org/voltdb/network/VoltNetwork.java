@@ -168,7 +168,7 @@ import org.voltdb.utils.VoltLoggerFactory;
         m_logger.debug("Network Thread Pool Size: " + threadPoolSize);
 
         final ThreadFactory tf = new ThreadFactory() {
-            private ThreadGroup group = new ThreadGroup(Thread.currentThread().getThreadGroup(), "Network threads");
+            private ThreadGroup group = new ThreadGroup(Thread.currentThread().getThreadGroup(), "Network Threads");
             private int threadIndex = 0;
             @Override
             public Thread newThread(final Runnable run) {

@@ -37,6 +37,7 @@ public class HStoreThreadManager {
     public enum ThreadGroupType {
         PROCESSING,
         EXECUTION,
+        NETWORK,
         AUXILIARY
     };
     

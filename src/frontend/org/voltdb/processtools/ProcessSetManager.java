@@ -335,7 +335,7 @@ public class ProcessSetManager implements Shutdownable {
 
     /**
      * A list of all the processes that we have ever created
-     * This is just to give us an extract chance to remove anything that we may have
+     * This is just to give us an extra chance to remove anything that we may have
      * left laying around if we fail to shutdown cleanly.  
      */
     private static Collection<Process> ALL_PROCESSES = new HashSet<Process>();
@@ -345,7 +345,7 @@ public class ProcessSetManager implements Shutdownable {
             synchronized(ProcessSetManager.class) {
                 for (Process p : ALL_PROCESSES)
                     p.destroy();
-            }
+            } // SYNCH
         }
     }
     static {

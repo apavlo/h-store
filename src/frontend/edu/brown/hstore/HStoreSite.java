@@ -1058,21 +1058,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (debug.val) LOG.debug("Starting HStoreCoordinator for " + this.getSiteName());
         this.hstore_coordinator.start();
 
+        ThreadGroup auxGroup = this.threadManager.getThreadGroup(ThreadGroupType.AUXILIARY);
+        
         // Start TransactionQueueManager
-        Thread t = new Thread(this.txnQueueManager);
+        Thread t = new Thread(auxGroup, this.txnQueueManager);
         t.setDaemon(true);
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
         // Start VoltNetwork
         t = new Thread(this.voltNetwork);
-        t.setName(HStoreThreadManager.getThreadName(this, "voltnetwork"));
+        t.setName(HStoreThreadManager.getThreadName(this, HStoreConstants.THREAD_NAME_VOLTNETWORK));
         t.setDaemon(true);
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
         // Start CommandLogWriter
-        t = new Thread(this.commandLogger);
+        t = new Thread(auxGroup, this.commandLogger);
         t.setDaemon(true);
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();

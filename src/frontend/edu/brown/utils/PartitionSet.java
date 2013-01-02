@@ -45,7 +45,7 @@ import edu.brown.hstore.HStoreConstants;
 
 /**
  * Container class that represents a list of partitionIds
- * For now it's just a HashSet
+ * This is the fastest way to represent a list of partitions in the system.
  * @author pavlo
  */
 public class PartitionSet implements Collection<Integer>, JSONSerializable, FastSerializable {
@@ -54,24 +54,50 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     private boolean contains_null = false;
     private int[] values = null;
 
+    // ----------------------------------------------------------------------------
+    // CONSTRUCTORS
+    // ----------------------------------------------------------------------------
+    
     public PartitionSet() {
         // Nothing...
     }
     
+    /**
+     * Initialize PartitionSet from Integer Collection 
+     * @param partitions
+     */
     public PartitionSet(Collection<Integer> partitions) {
         this.addAll(partitions);
     }
     
-    public PartitionSet(PartitionSet partitions) {
-        this.addAll(partitions);
-    }
-    
+    /**
+     * Initialize PartitionSet from Integer array
+     * @param partitions
+     */
     public PartitionSet(Integer...partitions) {
         for (Integer partition : partitions)
             this.add(partition);
     }
     
-    public int[] values() {
+    /**
+     * Copy constructor
+     * @param partitions
+     */
+    public PartitionSet(PartitionSet partitions) {
+        this.addAll(partitions);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // API METHODS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Return a cached int array of the partition ids in this PartitionSet.
+     * This is the preferred way (i.e., faster) to iterate over the contents of the set. You will
+     * want to use this instead of using its iterator.
+     * @return
+     */
+    public final int[] values() {
         if (this.values == null) {
             int remaining = this.inner.cardinality();
             int size = remaining + (this.contains_null ? 1 : 0);
