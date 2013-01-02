@@ -433,7 +433,7 @@ public class HStoreThreadManager {
             for (Thread t : e.getValue()) {
                 names.add(t.getName());
             } // FOR
-            m.put("CPU #" + e.getKey(), StringUtil.columns(names.toArray(new String[0])));
+            m.put("CPU #" + e.getKey(), StringUtil.columns(names.toArray(new String[0])).trim());
         } // FOR
         return (StringUtil.formatMaps(m));
     }
