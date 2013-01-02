@@ -336,7 +336,8 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     public final boolean allCallbacksFinished() {
         if (this.isCanceled() == false && this.isInitialized()) {
             if (this.counter.get() != 0) return (false);
-            return ((this.isUnblocked() && this.unblockFinished) || (this.isAborted() && this.abortFinished));
+            return ((this.unblockInvoked.get() && this.unblockFinished) ||
+                    (this.abortInvoked.get() && this.abortFinished));
         }
         return (true);
     }
