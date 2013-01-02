@@ -12,6 +12,7 @@ public class TestHStoreThreadManager extends BaseTestCase {
 
     HStoreConf hstore_conf = HStoreConf.singleton();
     HStoreThreadManager manager;
+    HStoreThreadManager.Debug managerDebug;
     
     @Override
     protected void setUp() throws Exception {
@@ -21,6 +22,8 @@ public class TestHStoreThreadManager extends BaseTestCase {
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         MockHStoreSite hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, hstore_conf);
         this.manager = new HStoreThreadManager(hstore_site);
+        this.managerDebug = this.manager.getDebugContext();
+        
         EELibraryLoader.loadExecutionEngineLibrary(true);
     }
     
@@ -35,7 +38,7 @@ public class TestHStoreThreadManager extends BaseTestCase {
         boolean ret = manager.registerProcessingThread();
         assertTrue(ret);
         assertTrue(manager.isEnabled());
-        assertTrue(manager.isRegistered(self));
+        assertTrue(managerDebug.isRegistered(self));
     }
     
 }
