@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -62,9 +63,20 @@ public class HStoreThreadManager {
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
     private final boolean defaultAffinity[];
     private final Set<Thread> all_threads = new HashSet<Thread>();
-    private final Map<Integer, Set<Thread>> cpu_threads = new HashMap<Integer, Set<Thread>>();
-    private final int ee_core_offset;
     
+    private final int ee_core_offset;
+
+    /**
+     * Mapping from the CPU Id# to the Threads that pinned to it.
+     * This is just for debugging purposes. If you modify this map, the threads
+     * will not automatically be pinned to those CPUs. The real assignment is performed down
+     * in the EE. 
+     */
+    private final Map<Integer, Set<Thread>> cpu_threads = new ConcurrentHashMap<Integer, Set<Thread>>();
+    
+    /**
+     * Internal mapping from ThreadGroupType to the ThreadGroup handle
+     */
     private final Map<ThreadGroupType, ThreadGroup> threadGroups = new HashMap<ThreadGroupType, ThreadGroup>();
     
     private final Map<String, boolean[]> utilityAffinities = new HashMap<String, boolean[]>();
@@ -251,7 +263,7 @@ public class HStoreThreadManager {
         Thread t = Thread.currentThread();
         boolean affinity[] = null;
         try {
-            affinity = org.voltdb.utils.ThreadUtils.getThreadAffinity();
+            affinity = ThreadUtils.getThreadAffinity();
         // This doesn't seem to work on newer versions of OSX, so we'll just disable it
         } catch (UnsatisfiedLinkError ex) {
             LOG.warn("Unable to set CPU affinity for the ExecutionEngine thread for partition" + partition + ". " +
@@ -342,7 +354,7 @@ public class HStoreThreadManager {
             if (affinity[i]) {
                 Set<Thread> s = this.cpu_threads.get(i);
                 if (s == null) {
-                    s = new HashSet<Thread>();
+                    s = Collections.synchronizedSet(new HashSet<Thread>());
                     this.cpu_threads.put(i, s);
                 }
                 s.add(t);
