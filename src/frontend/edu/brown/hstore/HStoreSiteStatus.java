@@ -12,7 +12,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -465,7 +464,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             PartitionExecutor executor = hstore_site.getPartitionExecutor(partition);
             if (executor == null) continue;
             PartitionExecutor.Debug executorDebug = executor.getDebugContext();
-            Queue<?> es_queue = executorDebug.getWorkQueue();
             TransactionInitPriorityQueue initQueue = queueManager.getInitQueue(partition);
             // TransactionInitPriorityQueue.Debug initQueueDebug = initQueue.getDebugContext();
             AbstractTransaction current_dtxn = executorDebug.getCurrentDtxn();
@@ -474,8 +472,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             Map<String, Object> m = new LinkedHashMap<String, Object>();
             
             // Header
-            m.put(String.format("%3d total / %3d queued / %3d blocked / %3d spec-exec\n",
-                                es_queue.size(),
+            m.put(String.format("%3d queued / %3d blocked / %3d spec-exec\n",
                                 initQueue.size(),
                                 executorDebug.getBlockedWorkCount(),
                                 executorDebug.getBlockedSpecExecCount()), null);
