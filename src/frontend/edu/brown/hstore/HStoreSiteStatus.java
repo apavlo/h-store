@@ -87,7 +87,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     private final HStoreSite.Debug siteDebug;
     private final HStoreConf hstore_conf;
     private final int interval; // milliseconds
-    private final TreeMap<Integer, PartitionExecutor> executors;
     
     private final Set<AbstractTransaction> last_finishedTxns;
     private final Set<AbstractTransaction> cur_finishedTxns;
@@ -158,11 +157,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             this.cur_finishedTxns = null;
         }
         
-        this.executors = new TreeMap<Integer, PartitionExecutor>();
-        for (Integer partition : hstore_site.getLocalPartitionIds()) {
-            this.executors.put(partition, hstore_site.getPartitionExecutor(partition));
-        } // FOR
-
         // Print a debug message when the first non-sysproc shows up
         this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<HStoreSite>() {
             @Override
@@ -175,7 +169,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         // Pre-Compute Header
         this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), hstore_site.getSiteName());
-        this.header.put("Number of Partitions", this.executors.size());
+        this.header.put("Number of Partitions", hstore_site.getLocalPartitionIds().size());
         
         // Pre-Compute TransactionProfile Information
         this.initTxnProfileInfo(hstore_site.getCatalogContext().database);
@@ -461,12 +455,11 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         String status = null;
         Long txn_id = null;
         ProfileMeasurement last = null;
-        for (Entry<Integer, PartitionExecutor> e : this.executors.entrySet()) {
-            int partition = e.getKey().intValue();
+        for (int partition : hstore_site.getLocalPartitionIds().values()) {
             String partitionLabel = String.format("%02d", partition);
             partitionLabels.put(partition, partitionLabel);
             
-            PartitionExecutor es = e.getValue();
+            PartitionExecutor es = hstore_site.getPartitionExecutor(partition);
             if (es == null) continue;
             PartitionExecutor.Debug dbg = es.getDebugContext();
             Queue<?> es_queue = dbg.getWorkQueue();
@@ -716,8 +709,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     private Map<String, String> batchPlannerInfo() {
         // First get all the BatchPlanners that we have
         Collection<BatchPlanner> bps = new HashSet<BatchPlanner>();
-        for (PartitionExecutor es : this.executors.values()) {
-            PartitionExecutor.Debug dbg = es.getDebugContext();
+        for (int partition : hstore_site.getLocalPartitionIds().values()) {
+            PartitionExecutor executor = hstore_site.getPartitionExecutor(partition);
+            if (executor == null) continue;
+            PartitionExecutor.Debug dbg = executor.getDebugContext();
             bps.addAll(dbg.getBatchPlanners());
         } // FOR
         Map<Procedure, ProfileMeasurement[]> proc_totals = new HashMap<Procedure, ProfileMeasurement[]>();
