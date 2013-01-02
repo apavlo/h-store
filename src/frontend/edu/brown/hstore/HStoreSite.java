@@ -2597,18 +2597,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
-        if (debug.val) LOG.debug(String.format("About to delete %s [%s]", ts, status));
-       
-        if (trace.val) LOG.trace(ts + " - State before delete:\n" + ts.debug());
+        if (debug.val) {
+            LOG.debug(String.format("About to delete %s [%s]", ts, status));
+            if (trace.val) LOG.trace(ts + " - State before delete:\n" + ts.debug());
+        }
+        
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
-        
-        // Make sure we completely remove it from the TransactionQueueManager
-//        for (int partition : ts.getPredictTouchedPartitions().values()) {
-//            if (this.local_partitions.contains(partition)) {
-//                this.txnQueueManager.getInitQueue(partition).cleanup(txn_id);
-//            }
-//        } // FOR
         
         // Clean-up any extra information that we may have for the txn
         TransactionEstimator t_estimator = null;
@@ -2691,7 +2686,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Update additional transaction profiling counters
         if (hstore_conf.site.txn_counters) {
-            
             // Speculative Execution Counters
             if (ts.isSpeculative() && status != Status.ABORT_SPECULATIVE) {
                 TransactionCounter.SPECULATIVE.inc(catalog_proc);
@@ -2737,17 +2731,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         AbstractTransaction rm = this.inflight_txns.remove(txn_id);
         assert(rm == null || rm == ts) : String.format("%s != %s", ts, rm);
-        if (trace.val) LOG.trace(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
+        if (trace.val)
+            LOG.trace(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
         assert(ts.isInitialized()) : "Trying to return uninitialized txn #" + txn_id;
         if (hstore_conf.site.pool_txn_enable) {
             if (debug.val) {
                 LOG.warn(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
-                          ts, ts.getClass().getSimpleName(), ts.hashCode()));
+                         ts, ts.getClass().getSimpleName(), ts.hashCode()));
                 if (debug.val) this.deletable_last.add(ts.toString());
-//                this.deletable_last.add(ts.debug());
             }
-            if (ts.isMapReduce()) {
+            if (this.mr_helper_started == true && ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
             } else {
                 this.objectPools.getLocalTransactionPool(base_partition).returnObject(ts);

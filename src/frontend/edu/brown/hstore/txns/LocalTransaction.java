@@ -755,7 +755,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.needs_restart = false;
     }
     
-
     @Override
     public boolean isDeletable() {
         if (this.init_callback.allCallbacksFinished() == false) {
