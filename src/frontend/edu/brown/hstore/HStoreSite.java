@@ -304,7 +304,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Transaction Handle Cleaner
      */
-    private final TransactionCleaner txnCleaner;
+    private final List<TransactionCleaner> txnCleaners = new ArrayList<TransactionCleaner>();
     
     /**
      * MapReduceHelperThread
@@ -516,7 +516,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.txnQueueManager = new TransactionQueueManager(this);
         
         // Transaction Cleaner
-        this.txnCleaner = new TransactionCleaner(this);
+        // HACK: Let's only have two for now
+        this.txnCleaners.add(new TransactionCleaner(this));
+        this.txnCleaners.add(new TransactionCleaner(this));
         
         // MapReduce Transaction helper thread
         if (catalogContext.getMapReduceProcedures().isEmpty() == false) { 
@@ -1093,10 +1095,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.start();
         
         // Start Transaction Cleaner
-        t = new Thread(auxGroup, this.txnCleaner);
-        t.setDaemon(true);
-        t.setUncaughtExceptionHandler(this.exceptionHandler);
-        t.start();
+        String names[] = { HStoreConstants.THREAD_NAME_TXNCLEANER0, HStoreConstants.THREAD_NAME_TXNCLEANER1 };
+        int i = 0;
+        for (TransactionCleaner cleaner : this.txnCleaners) {
+            String name = HStoreThreadManager.getThreadName(this, names[i++]);
+            t = new Thread(auxGroup, cleaner);
+            t.setName(name);
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            t.start();
+        } // FOR
         
         // TransactionPreProcessors
         if (this.preProcessors != null) {
@@ -1356,13 +1364,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.commandLogger != null) {
             this.commandLogger.prepareShutdown(error);
         }
-        if (this.txnCleaner != null) {
-            this.txnCleaner.prepareShutdown(error);
-        }
         if (this.anticacheManager != null) {
             this.anticacheManager.prepareShutdown(error);
         }
-        
+        for (TransactionCleaner t : this.txnCleaners) {
+            t.prepareShutdown(error);
+        } // FOR
+
         if (this.adhoc_helper_started) {
             if (this.asyncCompilerWork_thread != null)
                 this.asyncCompilerWork_thread.prepareShutdown(error);
@@ -1434,12 +1442,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.commandLogger != null) {
             this.commandLogger.shutdown();
         }
-        if (this.txnCleaner != null) {
-            this.txnCleaner.shutdown();
-        }
         if (this.anticacheManager != null) {
             this.anticacheManager.shutdown();
         }
+        for (TransactionCleaner t : this.txnCleaners) {
+            t.shutdown();
+        } // FOR
       
         // this.threadManager.getPeriodicWorkExecutor().shutdown();
         

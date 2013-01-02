@@ -58,14 +58,13 @@ public class TransactionCleaner implements Runnable, Shutdownable {
 
     @Override
     public void run() {
-        Thread self = Thread.currentThread();
-        self.setName(HStoreThreadManager.getThreadName(this.hstore_site, HStoreConstants.THREAD_NAME_TXNCLEANER));
-        hstore_site.getThreadManager().registerProcessingThread();
+        this.hstore_site.getThreadManager().registerProcessingThread();
         
         // Delete txn handles
         Long txn_id = null;
         while (this.shutdown == false) {
             // if (hstore_conf.site.profiling) this.profiler.cleanup.start();
+            boolean needsSleep = true;
             for (Entry<Status, Queue<Long>> e : this.deletable_txns.entrySet()) {
                 Status status = e.getKey();
                 Queue<Long> queue = e.getValue();
@@ -86,6 +85,7 @@ public class TransactionCleaner implements Runnable, Shutdownable {
                             else {
                                 this.hstore_site.deleteLocalTransaction((LocalTransaction)ts, status);
                             }
+                            needsSleep = false;
                         }
                         // We can't delete this yet, so we'll just stop checking
                         else {
@@ -107,7 +107,7 @@ public class TransactionCleaner implements Runnable, Shutdownable {
                     this.deletable_txns_requeue.clear();
                 }
             } // FOR
-            ThreadUtil.sleep(10); // Sleep...
+            if (needsSleep) ThreadUtil.sleep(10);
             // if (hstore_conf.site.profiling) this.profiler.cleanup.stop();
         } // WHILE
     }
