@@ -2724,6 +2724,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private void processPeriodicWork() {
         // if (trace.val) LOG.trace("Checking for PeriodicWork...");
 
+        // We want to do this here just so that the time is always
+        // moving forward.
         EstTimeUpdater.update(System.currentTimeMillis());
         
         if (this.clientInterface != null) {
@@ -2898,11 +2900,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     private HStoreSite.Debug cachedDebugContext;
     public HStoreSite.Debug getDebugContext() {
-        if (cachedDebugContext == null) {
+        if (this.cachedDebugContext == null) {
             // We don't care if we're thread-safe here...
-            cachedDebugContext = new HStoreSite.Debug(); 
+            this.cachedDebugContext = new HStoreSite.Debug(); 
         }
-        return cachedDebugContext;
+        return this.cachedDebugContext;
     }
 
 }

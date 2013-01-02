@@ -544,7 +544,7 @@ public class ProcessSetManager implements Shutdownable {
     
     public synchronized Map<String, Integer> joinAll() {
         Map<String, Integer> retvals = new HashMap<String, Integer>();
-        Long wait = 10000l;
+        Long wait = 5000l;
         for (String processName : m_processes.keySet()) {
             Pair<Integer, Boolean> p = this.joinProcess(processName, wait);
             if (p.getSecond() && wait != null) {
@@ -557,7 +557,7 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     public int joinProcess(String processName) {
-        return joinProcess(processName, null).getFirst();
+        return this.joinProcess(processName, null).getFirst();
     }
     
     /**
@@ -573,7 +573,8 @@ public class ProcessSetManager implements Shutdownable {
         pd.stderr.expectDeath.set(true);
 
         final CountDownLatch latch = new CountDownLatch(1);
-        Thread t = new Thread() {
+        final String name = String.format("%s Killer [%s]", this.getClass().getSimpleName(), processName); 
+        Thread t = new Thread(name) {
             public void run() {
                 try {
                     pd.process.waitFor();
@@ -590,10 +591,11 @@ public class ProcessSetManager implements Shutdownable {
         
         boolean timeout = false;
         try {
-            if (millis != null)
+            if (millis != null) {
                 timeout = (latch.await(millis, TimeUnit.MILLISECONDS) == false);
-            else
+            } else {
                 latch.await();
+            }
         } catch (InterruptedException ex) {
             // Ignore...
         }
@@ -602,6 +604,11 @@ public class ProcessSetManager implements Shutdownable {
         return Pair.of(retval, timeout);
     }
 
+    /**
+     * Forcibly kill the process and return its exit code
+     * @param processName
+     * @return
+     */
     public int killProcess(String processName) {
         ProcessData pd = m_processes.get(processName);
         if (pd != null) {

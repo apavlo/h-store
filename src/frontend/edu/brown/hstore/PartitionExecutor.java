@@ -104,7 +104,6 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
-import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
@@ -1143,7 +1142,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (ts.isPredictSinglePartition() && ts.isMapReduce() == false && ts.isSysProc() == false) {
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
             
-            // TODO: If we are in the middle of a distributed txn at this partition, then we can't
+            // If we are in the middle of a distributed txn at this partition, then we can't
             // just go and fire off this txn. We actually need to use our SpecExecScheduler to
             // decide whether it is safe to speculatively execute this txn. But the problem is that
             // the SpecExecScheduler is only examining the work queue when utilityWork() is called
@@ -2439,7 +2438,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                inputDepIds,
                                                this.tmp_EEdependencies);
             if (result == null) {
-                LOG.warn(String.format("Output DependencySet for %s in %s is null?", Arrays.toString(fragmentIds), ts));
+                LOG.warn(String.format("Output DependencySet for %s in %s is null?",
+                         Arrays.toString(fragmentIds), ts));
             }
         }
         return (result);
@@ -2475,16 +2475,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
         }
 
-        if (trace.val) LOG.trace(String.format("Txn #%d - BATCHPLAN:\n" +
-                                       "  fragmentIds:   %s\n" + 
-                                       "  fragmentCount: %s\n" +
-                                       "  output_depIds: %s\n" +
-                                       "  input_depIds:  %s",
-                                       ts.getTransactionId(),
-                                       Arrays.toString(plan.getFragmentIds()),
-                                       plan.getFragmentCount(),
-                                       Arrays.toString(plan.getOutputDependencyIds()),
-                                       Arrays.toString(plan.getInputDependencyIds())));
+        if (trace.val)
+            LOG.trace(String.format("Txn #%d - BATCHPLAN:\n" +
+                                    "  fragmentIds:   %s\n" + 
+                                    "  fragmentCount: %s\n" +
+                                    "  output_depIds: %s\n" +
+                                    "  input_depIds:  %s",
+                                    ts.getTransactionId(),
+                                    Arrays.toString(plan.getFragmentIds()),
+                                    plan.getFragmentCount(),
+                                    Arrays.toString(plan.getOutputDependencyIds()),
+                                    Arrays.toString(plan.getInputDependencyIds())));
         
         // NOTE: There are no dependencies that we need to pass in because the entire
         // batch is local to this partition.
@@ -2503,7 +2504,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             ts.fastFinishRound(this.partitionId);    
         }
         // assert(result != null) : "Unexpected null DependencySet result for " + ts; 
-        if (trace.val) LOG.trace("Output:\n" + result);
+        if (trace.val)
+            LOG.trace("Output:\n" + result);
         return (result != null ? result.dependencies : null);
     }
     
@@ -2560,8 +2562,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         // pass attached dependencies to the EE (for non-sysproc work).
         if (input_deps != null && input_deps.isEmpty() == false) {
-            if (debug.val) LOG.debug(String.format("%s - Stashing %d InputDependencies at partition %d",
-                             ts, input_deps.size(), this.partitionId));
+            if (debug.val)
+                LOG.debug(String.format("%s - Stashing %d InputDependencies at partition %d",
+                          ts, input_deps.size(), this.partitionId));
             this.ee.stashWorkUnitDependencies(input_deps);
         }
         
@@ -2583,7 +2586,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Check whether the txn has only exeuted read-only queries up to this point
         if (ts.isExecReadOnly(this.partitionId)) {
             if (readonly == false) {
-                if (trace.val) LOG.trace(String.format("%s - Marking txn as not read-only %s", ts, Arrays.toString(fragmentIds))); 
+                if (trace.val)
+                    LOG.trace(String.format("%s - Marking txn as not read-only %s",
+                              ts, Arrays.toString(fragmentIds))); 
                 ts.markExecNotReadOnly(this.partitionId);
             }
             
@@ -2606,8 +2611,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 String.format("Trying to execute work using undoToken %d for %s but " +
                 		      "it is less than the last committed undoToken %d at partition %d",
                               undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
-            if (trace.val) LOG.trace(String.format("%s - Executing fragments %s at partition %d [undoToken=%d]",
-                             ts, Arrays.toString(fragmentIds), this.partitionId, undoToken));
+            if (trace.val)
+                LOG.trace(String.format("%s - Executing fragments %s at partition %d [undoToken=%d]",
+                          ts, Arrays.toString(fragmentIds), this.partitionId, undoToken));
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                             fragmentIds,
                             batchSize,
@@ -2620,8 +2626,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             undoToken);
             
         } catch (SerializableException ex) {
-            if (debug.val) LOG.error(String.format("%s - Unexpected error in the ExecutionEngine on partition %d",
-                             ts, this.partitionId), ex);
+            if (debug.val)
+                LOG.error(String.format("%s - Unexpected error in the ExecutionEngine on partition %d",
+                          ts, this.partitionId), ex);
             error = ex;
             throw ex;
         } catch (Throwable ex) {
@@ -2662,7 +2669,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     public void loadTable(AbstractTransaction ts, String clusterName, String databaseName, String tableName, VoltTable data, int allowELT) throws VoltAbortException {
         Table table = this.catalogContext.database.getTables().getIgnoreCase(tableName);
         if (table == null) {
-            throw new VoltAbortException("table '" + tableName + "' does not exist in database " + clusterName + "." + databaseName);
+            throw new VoltAbortException("Table '" + tableName + "' does not exist in database " + clusterName + "." + databaseName);
         }
 
         ts.markExecutedWork(this.partitionId);
@@ -2782,7 +2789,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 } // SYNCH
             }
             else if (debug.val) {
-                if (trace.val) LOG.warn("\n" + EstimatorUtil.mispredictDebug(ts, planner, batchStmts, batchParams));
+                if (trace.val)
+                    LOG.warn("\n" + EstimatorUtil.mispredictDebug(ts, planner, batchStmts, batchParams));
                 LOG.debug(ts + " - Aborting and restarting mispredicted txn.");
             }
             throw ex;
@@ -2793,18 +2801,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // If the BatchPlan only has WorkFragments that are for this partition, then
         // we can use the fast-path executeLocalPlan() method
         if (plan.isSingledPartitionedAndLocal()) {
-            if (trace.val) LOG.trace(ts + " - Sending BatchPlan directly to the ExecutionEngine");
+            if (trace.val)
+                LOG.trace(ts + " - Sending BatchPlan directly to the ExecutionEngine");
             results = this.executeLocalPlan(ts, plan, batchParams);
         }
         // Otherwise, we need to generate WorkFragments and then send the messages out 
         // to our remote partitions using the HStoreCoordinator
         else {
-            if (trace.val) LOG.trace(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
+            if (trace.val)
+                LOG.trace(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
             ExecutionState execState = ts.getExecutionState();
             execState.tmp_partitionFragments.clear();
             plan.getWorkFragmentsBuilders(ts.getTransactionId(), execState.tmp_partitionFragments);
-            if (trace.val) LOG.trace(String.format("%s - Got back %d work fragments",
-                             ts, execState.tmp_partitionFragments.size()));
+            if (trace.val)
+                LOG.trace(String.format("%s - Got back %d work fragments",
+                          ts, execState.tmp_partitionFragments.size()));
 
             // Block until we get all of our responses.
             results = this.dispatchWorkFragments(ts, batchParams, batchSize, execState.tmp_partitionFragments);
@@ -2857,8 +2868,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 } catch (Exception ex) {
                     throw new ServerFaultException(String.format("Failed to serialize output dependency %d for %s", result.depIds[i], ts), ex);
                 }
-                if (trace.val) LOG.trace(String.format("%s - Serialized Output Dependency %d\n%s",
-                                               ts, result.depIds[i], result.dependencies[i]));  
+                if (trace.val)
+                    LOG.trace(String.format("%s - Serialized Output Dependency %d\n%s",
+                              ts, result.depIds[i], result.dependencies[i]));  
             } // FOR
             this.fs.getBBContainer().discard();
         }
@@ -2876,8 +2888,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(ts != null);
         Long txn_id = ts.getTransactionId();
 
-        if (trace.val) LOG.trace(String.format("%s - Wrapping %d WorkFragments into a TransactionWorkRequest",
-                         ts, fragmentBuilders.size()));
+        if (trace.val)
+            LOG.trace(String.format("%s - Wrapping %d WorkFragments into a TransactionWorkRequest",
+                      ts, fragmentBuilders.size()));
         
         // If our transaction was originally designated as a single-partitioned, then we need to make
         // sure that we don't touch any partition other than our local one. If we do, then we need abort
