@@ -309,10 +309,13 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     
     @Override
     public final void finish() {
-        if (debug.val) LOG.debug(String.format("%s - Finishing %s [hashCode=%d]",
-                                   this.ts, this.getClass().getSimpleName(), this.hashCode()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Finishing %s [hashCode=%d]",
+                      this.ts, this.getClass().getSimpleName(), this.hashCode()));
         this.abortInvoked.lazySet(false);
+        this.abortFinished = false;
         this.unblockInvoked.lazySet(false);
+        this.unblockFinished = false;
         this.canceled.lazySet(false);
         this.finishImpl();
         this.partitions.clear();
@@ -334,7 +337,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * and have finished their processing
      */
     public final boolean allCallbacksFinished() {
-        if (this.isCanceled() == false && this.isInitialized()) {
+        if (this.canceled.get() == false && this.isInitialized()) {
             if (this.counter.get() != 0) return (false);
             return ((this.unblockInvoked.get() && this.unblockFinished) ||
                     (this.abortInvoked.get() && this.abortFinished));

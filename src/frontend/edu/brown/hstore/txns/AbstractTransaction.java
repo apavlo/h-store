@@ -150,7 +150,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // CALLBACKS
     // ----------------------------------------------------------------------------
     
-    // protected final TransactionInitQueueCallback initQueue_callback;
     protected final TransactionPrepareWrapperCallback prepareWrapper_callback;
     
     // ----------------------------------------------------------------------------
@@ -341,12 +340,14 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     @Override
     public void finish() {
+        if (this.predict_singlePartition == false) {
+            this.prepareWrapper_callback.finish();
+        }
+        
         this.predict_singlePartition = false;
         this.predict_abortable = true;
         this.predict_readOnly = false;
         this.predict_tState = null;
-        
-        this.prepareWrapper_callback.finish();
         
         this.pending_error = null;
         this.status = null;
@@ -379,8 +380,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
             this.writeTables[partition].clear();
         } // FOR
 
-        if (debug.val) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
-                                 this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
+        if (debug.val)
+            LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
+                      this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         
         this.deletable.lazySet(false);
         this.catalog_proc = null;
@@ -609,10 +611,12 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
 //        if (this.isInitialized() == false) {
 //            return (false);
 //        }
-        if (this.prepareWrapper_callback.allCallbacksFinished() == false) {
-            if (debug.val) LOG.warn(String.format("%s - %s is not finished", this,
-                                    this.prepareWrapper_callback.getClass().getSimpleName()));
-            return (false);
+        if (this.predict_singlePartition == false) {
+            if (this.prepareWrapper_callback.allCallbacksFinished() == false) {
+                if (debug.val) LOG.warn(String.format("%s - %s is not finished", this,
+                                        this.prepareWrapper_callback.getClass().getSimpleName()));
+                return (false);
+            }
         }
         return (this.deletable.compareAndSet(false, true));
     }
