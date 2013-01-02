@@ -14,7 +14,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
- *
  * Based on org.apache.commons.pool.impl.StackObjectPool
  * @author pavlo
  * @param <T>
@@ -42,22 +41,27 @@ public class FastObjectPool<T> extends BaseObjectPool {
     /** 
      * My pool.
      */
-    private Queue<T> _pool = null;
+    private Queue<T> pool = null;
 
     /** 
      * My {@link PoolableObjectFactory}.
      */
-    private PoolableObjectFactory _factory = null;
+    private PoolableObjectFactory factory = null;
     
     /** 
      * The cap on the number of "sleeping" instances in the pool. 
      */
-    private int _maxSleeping = DEFAULT_MAX_SLEEPING;
+    private int maxSleeping = DEFAULT_MAX_SLEEPING;
     
     /**
      * Number of objects borrowed but not yet returned to the pool.
      */
-    private final AtomicInteger _numActive = new AtomicInteger(0);
+    private final AtomicInteger numActive = new AtomicInteger(0);
+    
+    /**
+     * Number of objects sitting in the pool
+     */
+    private final AtomicInteger numInactive = new AtomicInteger(0);
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -72,9 +76,9 @@ public class FastObjectPool<T> extends BaseObjectPool {
     }
 
     public FastObjectPool(PoolableObjectFactory factory, int maxIdle, int initIdleCapacity) {
-        this._factory = factory;
-        _maxSleeping = (maxIdle < 0 ? DEFAULT_MAX_SLEEPING : maxIdle);
-        _pool = new ConcurrentLinkedQueue<T>();
+        this.factory = factory;
+        maxSleeping = (maxIdle < 0 ? DEFAULT_MAX_SLEEPING : maxIdle);
+        pool = new ConcurrentLinkedQueue<T>();
     }
     
     @SuppressWarnings("unchecked")
@@ -82,28 +86,31 @@ public class FastObjectPool<T> extends BaseObjectPool {
     public T borrowObject() throws Exception {
         assertOpen();
         boolean newlyCreated = false;
-        T obj = _pool.poll();
+        T obj = this.pool.poll();
         if (obj == null) {
-            if (null == _factory) {
+            if (null == this.factory) {
                 throw new NoSuchElementException();
             } else {
-                obj = (T)_factory.makeObject();
+                obj = (T)this.factory.makeObject();
                 if (obj == null) {
                     throw new NoSuchElementException("PoolableObjectFactory.makeObject() returned null.");
                 }
                 newlyCreated = true;
             }
         }
+        else {
+            this.numInactive.decrementAndGet();
+        }
         assert(obj != null);
         try {
-            _factory.activateObject(obj);
-            if (!_factory.validateObject(obj)) {
+            this.factory.activateObject(obj);
+            if (!this.factory.validateObject(obj)) {
                 throw new Exception("ValidateObject failed");
             }
         } catch (Throwable ex) {
             PoolUtils.checkRethrow(ex);
             try {
-                _factory.destroyObject(obj);
+                this.factory.destroyObject(obj);
             } catch (Throwable t2) {
                 PoolUtils.checkRethrow(t2);
                 // swallowed
@@ -116,7 +123,7 @@ public class FastObjectPool<T> extends BaseObjectPool {
                     ex.getMessage());
             }
         }
-        _numActive.incrementAndGet();
+        this.numActive.incrementAndGet();
         
         if (debug.val)
             LOG.debug(String.format("Retrieved %s from ObjectPool [hashCode=%d]",
@@ -130,40 +137,35 @@ public class FastObjectPool<T> extends BaseObjectPool {
         @SuppressWarnings("unchecked")
         T t = (T)obj;
         
-        if (isClosed() || _factory == null) return;
+        if (isClosed() || this.factory == null) return;
         boolean success = true;
         
         try {
-            _factory.passivateObject(obj);
+            this.factory.passivateObject(obj);
         } catch(Exception e) {
             success = false;
         }
-        
-//        if (!_factory.validateObject(obj)) {
-//            success = false;
-//        } else {
-//            
-//        }
 
         boolean shouldDestroy = !success;
-        this._numActive.decrementAndGet();
+        this.numActive.decrementAndGet();
+        int poolSize = this.numInactive.incrementAndGet();
         if (success) {
             Object toBeDestroyed = null;
-            if (_pool.size() >= _maxSleeping) {
+            if (poolSize >= maxSleeping) {
                 shouldDestroy = true;
-                toBeDestroyed = _pool.poll(); // remove the stalest object
+                toBeDestroyed = this.pool.poll(); // remove the stalest object
             }
             if (debug.val)
                 LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
-                                        t.getClass().getSimpleName(), t.hashCode()));
-            _pool.offer(t);
+                          t.getClass().getSimpleName(), t.hashCode()));
+            this.pool.offer(t);
             // swap returned obj with the stalest one so it can be destroyed
             if (toBeDestroyed != null) obj = toBeDestroyed; 
         }
 
         if (shouldDestroy) { // by constructor, shouldDestroy is false when _factory is null
             try {
-                _factory.destroyObject(obj);
+                this.factory.destroyObject(obj);
             } catch(Exception e) {
                 // ignored
             }
@@ -172,9 +174,9 @@ public class FastObjectPool<T> extends BaseObjectPool {
     
     @Override
     public void invalidateObject(Object obj) throws Exception {
-        _numActive.decrementAndGet();
-        if (null != _factory) {
-            _factory.destroyObject(obj);
+        this.numActive.decrementAndGet();
+        if (null != factory) {
+            this.factory.destroyObject(obj);
         }
     }
 
@@ -185,7 +187,7 @@ public class FastObjectPool<T> extends BaseObjectPool {
      * @return the number of instances currently idle in this pool
      */
     public int getNumIdle() {
-        return _pool.size();
+        return this.numInactive.get();
     }
 
     /**
@@ -194,7 +196,7 @@ public class FastObjectPool<T> extends BaseObjectPool {
      * @return the number of instances currently borrowed from this pool
      */
     public int getNumActive() {
-        return _numActive.get();
+        return this.numActive.get();
     }
 
     /**
@@ -202,15 +204,16 @@ public class FastObjectPool<T> extends BaseObjectPool {
      * exceptions thrown by {@link PoolableObjectFactory#destroyObject(Object)}.
      */
     public void clear() {
-        if (null != _factory) {
+        if (null != factory) {
             T t = null;
-            while ((t = _pool.poll()) != null) {
+            while ((t = this.pool.poll()) != null) {
                 try {
-                    _factory.destroyObject(t);
+                    this.factory.destroyObject(t);
                 } catch(Exception e) {
                     // ignore error, keep destroying the rest
                 }
             } // WHILE
+            this.numInactive.lazySet(0);
         }
     }
     
@@ -221,7 +224,7 @@ public class FastObjectPool<T> extends BaseObjectPool {
      * @since 1.5.5
      */
     public PoolableObjectFactory getFactory() {
-        return _factory;
+        return this.factory;
     }
 
 }
