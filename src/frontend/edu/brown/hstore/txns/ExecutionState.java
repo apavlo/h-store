@@ -18,6 +18,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -61,7 +62,8 @@ public class ExecutionState implements Poolable {
     public final ParameterSetArrayCache procParameterSets = new ParameterSetArrayCache(10);
     
     /**
-     * 
+     * Reusable list of WorkFragment builders. The builders are not reusable
+     * but the list is.
      */
     public final List<WorkFragment.Builder> tmp_partitionFragments = new ArrayList<WorkFragment.Builder>(); 
     
@@ -161,10 +163,6 @@ public class ExecutionState implements Poolable {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
     
-    protected Thread getExecutionThread() {
-        return (this.executor.getExecutionThread());
-    }
-    
     public LinkedBlockingDeque<Collection<WorkFragment.Builder>> getUnblockedWorkFragmentsQueue() {
         return (this.unblocked_tasks);
     }
@@ -179,10 +177,6 @@ public class ExecutionState implements Poolable {
         return this.dependency_latch;
     }
     
-    public int getDependencyCount() { 
-        return (this.dependency_ctr);
-    }
-    
     /**
      * Returns true if this transaction still has WorkFragments
      * that need to be dispatched to the appropriate PartitionExecutor 
@@ -192,31 +186,6 @@ public class ExecutionState implements Poolable {
         return (this.still_has_tasks);
     }
 
-    // ----------------------------------------------------------------------------
-    // TESTING STUFF
-    // ----------------------------------------------------------------------------
-    
-    protected Collection<WorkFragment.Builder> getBlockedWorkFragments() {
-        return (this.blocked_tasks);
-    }
-    
-    
-    protected List<Integer> getOutputOrder() {
-        return (this.output_order);
-    }
-    
-    /**
-     * Return the number of statements that have been queued up in the last batch
-     * @return
-     */
-    protected int getStatementCount() {
-        return (this.batch_size);
-    }
-    
-    protected Map<Integer, DependencyInfo> getStatementDependencies(int stmt_index) {
-        return (this.dependencies); // [stmt_index]);
-    }
-    
     // ----------------------------------------------------------------------------
     // EXECUTION ROUNDS
     // ----------------------------------------------------------------------------
@@ -251,5 +220,40 @@ public class ExecutionState implements Poolable {
     @Override
     public void finish() {
         this.procParameterSets.reset();
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    public class Debug implements DebugContext {
+        public int getDependencyCount() { 
+            return (dependency_ctr);
+        }
+        public Collection<WorkFragment.Builder> getBlockedWorkFragments() {
+            return (blocked_tasks);
+        }
+        public List<Integer> getOutputOrder() {
+            return (output_order);
+        }
+        /**
+         * Return the number of statements that have been queued up in the last batch
+         * @return
+         */
+        public int getStatementCount() {
+            return (batch_size);
+        }
+        public Map<Integer, DependencyInfo> getStatementDependencies(int stmt_index) {
+            return (dependencies); // [stmt_index]);
+        }
+    }
+    
+    private Debug cachedDebugContext;
+    public Debug getDebugContext() {
+        if (this.cachedDebugContext == null) {
+            // We don't care if we're thread-safe here...
+            this.cachedDebugContext = new Debug();
+        }
+        return this.cachedDebugContext;
     }
 }

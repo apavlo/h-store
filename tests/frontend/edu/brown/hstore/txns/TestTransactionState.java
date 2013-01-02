@@ -74,6 +74,7 @@ public class TestTransactionState extends BaseTestCase {
     
     private LocalTransaction ts;
     private ExecutionState execState;
+    private ExecutionState.Debug execStateDebug;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
@@ -124,6 +125,7 @@ public class TestTransactionState extends BaseTestCase {
         assertNotNull(executor);
         
         this.execState = new ExecutionState(executor);
+        this.execStateDebug = this.execState.getDebugContext();
         this.ts = new LocalTransaction(hstore_site);
         this.ts.testInit(TXN_ID,
                          LOCAL_PARTITION,
@@ -189,18 +191,18 @@ public class TestTransactionState extends BaseTestCase {
         
 //        System.err.println(this.ts.toString());
         assertEquals(NUM_EXPECTED_DEPENDENCIES, latch.getCount());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execState.getOutputOrder().size());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execStateDebug.getOutputOrder().size());
         
         // Although there will be a single blocked FragmentTaskMessage, it will contain
         // the same number of PlanFragments as we have duplicate Statements
-        System.err.println(this.execState.getBlockedWorkFragments());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execState.getBlockedWorkFragments().size());
+        System.err.println(this.execStateDebug.getBlockedWorkFragments());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execStateDebug.getBlockedWorkFragments().size());
         
         // We now need to make sure that our output order is correct
         // We should be getting back the same number of results as how
         // many Statements that we queued up
         for (int i = 0; i < NUM_DUPLICATE_STATEMENTS; i++) {
-            Integer dependency_id = this.execState.getOutputOrder().get(i);
+            Integer dependency_id = this.execStateDebug.getOutputOrder().get(i);
             assertNotNull(dependency_id);
             assert(this.output_dependency_ids.contains(dependency_id));
             assertNotNull(this.ts.getDependencyInfo(dependency_id));
@@ -216,13 +218,13 @@ public class TestTransactionState extends BaseTestCase {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
         
-        assertEquals(NUM_EXPECTED_DEPENDENCIES, this.execState.getDependencyCount());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execState.getStatementCount());
+        assertEquals(NUM_EXPECTED_DEPENDENCIES, this.execStateDebug.getDependencyCount());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execStateDebug.getStatementCount());
         
         // For each Statement that we have queued, make sure that they have the proper
         // partitions setup for the dependencies that we expect to show up
         for (int i = 0; i < NUM_DUPLICATE_STATEMENTS; i++) {
-            Map<Integer, DependencyInfo> stmt_dinfos = this.execState.getStatementDependencies(i);
+            Map<Integer, DependencyInfo> stmt_dinfos = this.execStateDebug.getStatementDependencies(i);
             assertNotNull(stmt_dinfos);
             assertFalse(stmt_dinfos.isEmpty());
             
