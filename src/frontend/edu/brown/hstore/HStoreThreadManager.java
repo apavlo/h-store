@@ -6,8 +6,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -21,6 +24,7 @@ import org.voltdb.utils.ThreadUtils;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -288,8 +292,8 @@ public class HStoreThreadManager {
             affinity[ii] = false;
         } // FOR
         if (debug.val)
-            LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
-                      t.getName(), this.getCPUIds(affinity)));
+            LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s\n%s",
+                      t.getName(), this.getCPUIds(affinity), this.debug()));
         return (true);
     }
     
@@ -327,8 +331,8 @@ public class HStoreThreadManager {
         this.registerThread(this.defaultAffinity);
         
         if (debug.val)
-            LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
-                      t.getName(), this.getCPUIds(affinity)));
+            LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s\n%s",
+                      t.getName(), this.getCPUIds(affinity), this.debug()));
         return (true);
     }
     
@@ -353,29 +357,6 @@ public class HStoreThreadManager {
             if (affinity[i]) cpus.add(i);
         }
         return (cpus);
-    }
-    
-    /**
-     * Returns all the CPU ids that the given Thread is allowed to execute on  
-     * @param t
-     * @return
-     */
-    public Collection<Integer> getCPUIds(Thread t) {
-        Collection<Integer> cpus = new HashSet<Integer>();
-        for (Integer cpu : this.cpu_threads.keySet()) {
-            if (this.cpu_threads.get(cpu).contains(t)) {
-                cpus.add(cpu);
-            }
-        } // FOR
-        return (cpus);
-    }
-
-    public boolean isRegistered(Thread t) {
-        return (this.all_threads.contains(t));
-    }
-    
-    public Map<Integer, Set<Thread>> getCPUThreads() {
-        return Collections.unmodifiableMap(this.cpu_threads);
     }
     
     /**
@@ -439,6 +420,53 @@ public class HStoreThreadManager {
             suffix = String.format("-%03d", partition.intValue());
         }
         return (String.format("H%02d%s", site_id, suffix));
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    public String debug() {
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        for (Entry<Integer, Set<Thread>> e : this.cpu_threads.entrySet()) {
+            TreeSet<String> names = new TreeSet<String>();
+            for (Thread t : e.getValue()) {
+                names.add(t.getName());
+            } // FOR
+            m.put("CPU #" + e.getKey(), StringUtil.columns(names.toArray(new String[0])));
+        } // FOR
+        return (StringUtil.formatMaps(m));
+    }
+    
+    public class Debug implements DebugContext {
+        public Map<Integer, Set<Thread>> getCPUThreads() {
+            return Collections.unmodifiableMap(cpu_threads);
+        }
+        public boolean isRegistered(Thread t) {
+            return (all_threads.contains(t));
+        }
+        /**
+         * Returns all the CPU ids that the given Thread is allowed to execute on  
+         * @param t
+         * @return
+         */
+        public Collection<Integer> getCPUIds(Thread t) {
+            Collection<Integer> cpus = new HashSet<Integer>();
+            for (Integer cpu : cpu_threads.keySet()) {
+                if (cpu_threads.get(cpu).contains(t)) {
+                    cpus.add(cpu);
+                }
+            } // FOR
+            return (cpus);
+        }
+    }
+    
+    private Debug cachedDebugContext;
+    public Debug getDebugContext() {
+        if (this.cachedDebugContext == null) {
+            this.cachedDebugContext = new Debug();
+        }
+        return (this.cachedDebugContext);
     }
     
 }

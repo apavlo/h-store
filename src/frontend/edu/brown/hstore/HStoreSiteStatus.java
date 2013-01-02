@@ -241,10 +241,12 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Map<String, Object> threadInfo = null;
         Map<String, Object> cpuThreads = null;
         if (show_threads) {
-            threadInfo = this.threadInfo();
+            // threadInfo = this.threadInfo();
+            HStoreThreadManager threadManager = hstore_site.getThreadManager();
+            HStoreThreadManager.Debug threadManagerDebug = threadManager.getDebugContext();
             
             cpuThreads = new LinkedHashMap<String, Object>();
-            for (Entry<Integer, Set<Thread>> e : hstore_site.getThreadManager().getCPUThreads().entrySet()) {
+            for (Entry<Integer, Set<Thread>> e : threadManagerDebug.getCPUThreads().entrySet()) {
                 TreeSet<String> names = new TreeSet<String>();
                 for (Thread t : e.getValue())
                     names.add(t.getName());
@@ -443,7 +445,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         ProfileMeasurement pm = null;
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
         TransactionQueueManager.Debug queueManagerDebug = queueManager.getDebugContext();
-        HStoreThreadManager thread_manager = hstore_site.getThreadManager();
+        HStoreThreadManager threadManager = hstore_site.getThreadManager();
+        HStoreThreadManager.Debug threadManagerDebug = threadManager.getDebugContext();
         
         ProfileMeasurement totalExecTxnTime = new ProfileMeasurement();
         ProfileMeasurement totalExecIdleTime = new ProfileMeasurement();
@@ -566,8 +569,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
             // Get additional partition info
             Thread t = dbg.getExecutionThread();
-            if (t != null && thread_manager.isRegistered(t)) {
-                for (Integer cpu : thread_manager.getCPUIds(t)) {
+            if (t != null && threadManagerDebug.isRegistered(t)) {
+                for (Integer cpu : threadManagerDebug.getCPUIds(t)) {
                     label += "\n       \u2192 CPU *" + cpu + "*";
                 } // FOR
             }
@@ -798,8 +801,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
      * @return
      */
     private Map<String, Object> threadInfo() {
-        HStoreThreadManager manager = hstore_site.getThreadManager();
-        assert(manager != null);
+        HStoreThreadManager threadManager = hstore_site.getThreadManager();
+        HStoreThreadManager.Debug threadManagerDebug = threadManager.getDebugContext();
         
         final Map<String, Object> m_thread = new LinkedHashMap<String, Object>();
         final Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
@@ -811,7 +814,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             StackTraceElement stack[] = threads.get(t);
             
             String name = StringUtil.abbrv(t.getName(), 24, true);
-            if (manager.isRegistered(t) == false) {
+            if (threadManagerDebug.isRegistered(t) == false) {
                 name += " *UNREGISTERED*";
             }
             
