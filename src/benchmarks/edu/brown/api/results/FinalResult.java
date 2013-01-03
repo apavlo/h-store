@@ -19,7 +19,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.HistogramUtil;
 import edu.brown.statistics.ObjectHistogram;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.MathUtil;
