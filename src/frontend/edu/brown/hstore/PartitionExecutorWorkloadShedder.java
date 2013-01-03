@@ -140,6 +140,11 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
         int idx = 0;
         for (AbstractTransaction ts : this.queues[partition]) {
             if (idx++ < offset) continue;
+            
+            // Skip this is if it's not initialized. Yes, I know that this
+            // is a race condition but it's good enough for now
+            if (ts.isInitialized() == false) continue;
+            
             if (debug.val)
                 LOG.debug(String.format("Rejecting " + ts + " at partition " + partition));
             this.queueManager.lockQueueFinished(ts, Status.ABORT_REJECT, partition);
