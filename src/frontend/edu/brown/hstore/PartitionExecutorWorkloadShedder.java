@@ -147,7 +147,13 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
             
             if (debug.val)
                 LOG.debug(String.format("Rejecting " + ts + " at partition " + partition));
-            this.queueManager.lockQueueFinished(ts, Status.ABORT_REJECT, partition);
+            try {
+                this.queueManager.lockQueueFinished(ts, Status.ABORT_REJECT, partition);
+            } catch (Throwable ex) {
+                String msg = String.format("Unexpected error when trying to reject %s at partition %d",
+                                           ts, partition);
+                LOG.error(msg, ex);
+            }
         } // FOR
     }
 
