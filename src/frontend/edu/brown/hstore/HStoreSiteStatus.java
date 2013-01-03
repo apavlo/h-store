@@ -462,7 +462,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // EXECUTION ENGINES
         Map<Integer, String> partitionLabels = new HashMap<Integer, String>();
         ObjectHistogram<Integer> invokedTxns = new ObjectHistogram<Integer>();
-        String status = null;
         Long txn_id = null;
         ProfileMeasurement last = null;
         for (int partition : hstore_site.getLocalPartitionIds().values()) {
@@ -485,12 +484,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                 executorDebug.getBlockedWorkCount(),
                                 executorDebug.getBlockedSpecExecCount()), null);
             
-            // Execution Info
-//            status = String.format("%-5s [limit=%d, release=%d] %s",
-//                                   es_queue.size(), es_queue.getQueueMax(), es_queue.getQueueRelease(),
-//                                   (es_queue.isThrottled() ? "*THROTTLED* " : ""));
-            // m.put("Exec Queue", status);
-            
             txn_id = executorDebug.getCurrentTxnId();
             m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), executorDebug.getExecutionMode()));
             m.put("Current DTXN", (current_dtxn == null ? "-" : current_dtxn));
@@ -502,34 +495,39 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
             
             // TransactionQueueManager Info
-            status = initQueue.getQueueState().toString();
+            String queueStatus0 = String.format("%s [limit=%d, release=%d] %s",
+                                                initQueue.getQueueState(),
+                                                initQueue.getThrottleThreshold(),
+                                                initQueue.getThrottleRelease(),
+                                                (initQueue.isThrottled() ? "*THROTTLED* " : ""));
+            String queueStatus1 = "";
             txn_id = queueManagerDebug.getCurrentTransaction(partition);
             if (txn_id != null) {
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);
                 if (ts != null) {
                     PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
-                    status += " " + ts;
+                    queueStatus0 += " / " + ts;
                     if (callback != null) {
-                        status += String.format("\nReceivedPartitions=%s / AllPartitions=%s",
-                                                callback.getReceivedPartitions(), callback.getPartitions());
+                        queueStatus1 += String.format("ReceivedPartitions=%s / AllPartitions=%s",
+                                                      callback.getReceivedPartitions(), callback.getPartitions());
                     }
                     // FULL TXN DEBUG
                     // status += "\n" + StringUtil.prefix(ts.debug(), spacer);
                 }
             }
             else if (queueManagerDebug.isLocked(partition)) {
-                status += "\nWARNING: Queue is locked but without a txn!";
+                queueStatus1 += "WARNING: Queue is locked but without a txn!";
             }
+            
             // TransactionQueueManager - Blocked
             if (queueManagerDebug.getBlockedQueueSize() > 0) {
-                status += "\nBlocked: " + queueManagerDebug.getBlockedQueueSize();
+                queueStatus1 += "Blocked: " + queueManagerDebug.getBlockedQueueSize();
             }
             // TransactionQueueManager - Requeued Txns
             if (queueManagerDebug.getRestartQueueSize() > 0) {
-                status += "\nRequeues: " + queueManagerDebug.getRestartQueueSize();
+                queueStatus1 += "Requeues: " + queueManagerDebug.getRestartQueueSize();
             }
-            m.put("Lock Queue", status);
-            
+            m.put("Lock Queue", queueStatus0 + (queueStatus1.isEmpty() ? "" : "\n" + queueStatus1));
             
 //            if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
 //                LOG.warn(String.format("Partition %d is throttled when it should not be! [inflight=%d, release=%d]",

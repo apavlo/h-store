@@ -448,7 +448,8 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         // This is actually bad and should never happen. But for the sake of trying
         // to get the experiments working, we're just going to ignore it...
         if (callback.isInitialized() == false) {
-            LOG.warn(String.format("Unexpected uninitialized %s for %s [partition=%d]", callback.getClass().getSimpleName(), ts, partition));
+            LOG.warn(String.format("Unexpected uninitialized %s for %s [partition=%d]",
+                     callback.getClass().getSimpleName(), ts, partition));
             return (false);
         }
         
@@ -497,17 +498,14 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
             return (false);
         }
         // Our queue is overloaded. We have to reject the txnId!
-        else if (this.lockQueues[partition].offer(ts) == false) {
+        else if (this.lockQueues[partition].offer(ts, ts.isSysProc()) == false) {
             if (debug.val)
                 LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
             	          "Throttling %s until id is greater than %s " +
             		      "[locked=%s, queueSize=%d]",
                           partition, ts, next_safe_id,
                           this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
-            this.rejectTransaction(ts,
-                                   Status.ABORT_REJECT,
-                                   partition,
-                                   next_safe_id);
+            this.rejectTransaction(ts, Status.ABORT_REJECT, partition, next_safe_id);
             return (false);
         }
         if (trace.val)
@@ -712,8 +710,9 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
      * @param last_txn_id
      */
     private void checkBlockedQueue() {
-        if (trace.val) LOG.trace(String.format("Checking whether we can release %d blocked dtxns",
-                                 this.blockedQueue.size()));
+        if (trace.val)
+            LOG.trace(String.format("Checking whether we can release %d blocked dtxns",
+                      this.blockedQueue.size()));
         
         while (this.blockedQueue.isEmpty() == false) {
             LocalTransaction ts = this.blockedQueue.peek();
@@ -733,8 +732,9 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
             TransactionIdManager txnIdManager = hstore_site.getTransactionIdManager(ts.getBasePartition());
             Long last_txn_id = txnIdManager.getLastTxnId();
             if (releaseTxnId.compareTo(last_txn_id) < 0) {
-                if (debug.val) LOG.debug(String.format("Releasing blocked %s because the lastest txnId was #%d [release=%d]",
-                                               ts, last_txn_id, releaseTxnId));
+                if (debug.val)
+                    LOG.debug(String.format("Releasing blocked %s because the lastest txnId was #%d [release=%d]",
+                              ts, last_txn_id, releaseTxnId));
                 this.blockedQueue.remove();
                 this.blockedQueueTransactions.remove(ts);
                 this.hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
@@ -757,17 +757,20 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
      * @param status
      */
     public void restartTransaction(LocalTransaction ts, Status status) {
-        if (debug.val) LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
+        if (debug.val)
+            LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
         ts.markNeedsRestart();
         
         if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
-            if (debug.val) LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));
+            if (debug.val)
+                LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
             ts.unmarkNeedsRestart();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
             return;
         }
-        if (debug.val) LOG.debug(String.format("%s - Successfully added txn to restart queue.", ts));
+        if (debug.val)
+            LOG.debug(String.format("%s - Successfully added txn to restart queue.", ts));
         if (this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();
     }
@@ -778,9 +781,11 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
             LocalTransaction ts = pair.getFirst();
             Status status = pair.getSecond();
             
-            if (debug.val) LOG.debug(String.format("%s - Ready to restart transaction [status=%s]", ts, status));
+            if (debug.val)
+                LOG.debug(String.format("%s - Ready to restart transaction [status=%s]", ts, status));
             Status ret = this.hstore_site.transactionRestart(ts, status);
-            if (debug.val) LOG.debug(String.format("%s - Got return result %s after restarting", ts, ret));
+            if (debug.val)
+                LOG.debug(String.format("%s - Got return result %s after restarting", ts, ret));
             
             ts.unmarkNeedsRestart();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
