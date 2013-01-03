@@ -430,8 +430,11 @@ public final class HStoreConf {
         public boolean exec_deferrable_queries;
         
         @ConfigProperty(
-            description="", // TODO
-            defaultInt=20000,
+            description="How often in milliseconds should the HStoreSite check for periodic work. " +
+            		    "This work includes checking for dead network connections and processing any " +
+            		    "ad-hoc SQL invocatons. You probably do not need to change this unless you " +
+            		    "want a lower latency for ad-hoc SQL queries.",
+            defaultInt=50,
             experimental=false
         )
         public int exec_periodic_interval;
