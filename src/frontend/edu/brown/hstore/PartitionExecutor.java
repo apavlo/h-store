@@ -947,7 +947,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         //      current dtxn at this partition and then keep checking the queue
         //      for more work.
         AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
-        if (next == null) next = this.queueManager.checkLockQueue(this.partitionId); // HACK
+        // if (next == null) next = this.queueManager.checkLockQueue(this.partitionId); // HACK
         if (next != null) {
             // If this a single-partition txn, then we'll want to execute it
             // right away
