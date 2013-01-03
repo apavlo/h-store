@@ -12,6 +12,7 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -22,7 +23,7 @@ import edu.brown.utils.StringUtil;
  * free up slots in the ClientInterface 
  * @author pavlo
  */
-public class PartitionExecutorWorkloadShedder implements Runnable, Shutdownable {
+public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(PartitionExecutorWorkloadShedder.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -71,12 +72,15 @@ public class PartitionExecutorWorkloadShedder implements Runnable, Shutdownable 
     }
 
     @Override
-    public void run() {
+    public void runImpl() {
         if (this.initialized == false) {
             this.init();
             this.initialized = true;
         }
          
+        if (debug.val)
+            LOG.debug("Checking to see whether partition queues are skewed");
+        
         // Go through and get the queue size for each PartitionExecutor
         int total = 0;
         int sizes[] = new int[this.partitions.size()];
@@ -122,6 +126,11 @@ public class PartitionExecutorWorkloadShedder implements Runnable, Shutdownable 
         }
     }
     
+    /**
+     * Grab the last items from the partition's workload queue and reject the txns
+     * @param partition
+     * @param to_remove
+     */
     protected void shedWork(int partition, int to_remove) {
         if (debug.val)
             LOG.debug(String.format("Attempting to shed workload from partition %d", partition));
