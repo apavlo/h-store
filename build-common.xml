@@ -88,6 +88,7 @@
 <arg value="site.cpu_affinity=${site.cpu_affinity}" />
 <arg value="site.cpu_affinity_one_partition_per_core=${site.cpu_affinity_one_partition_per_core}" />
 <arg value="site.cpu_partition_blacklist=${site.cpu_partition_blacklist}" />
+<arg value="site.cpu_utility_blacklist=${site.cpu_utility_blacklist}" />
 <arg value="site.exec_ee_log_level=${site.exec_ee_log_level}" />
 <arg value="site.exec_profiling=${site.exec_profiling}" />
 <arg value="site.exec_speculative_execution=${site.exec_speculative_execution}" />
@@ -136,6 +137,8 @@
 <arg value="site.network_startup_wait=${site.network_startup_wait}" />
 <arg value="site.network_startup_retries=${site.network_startup_retries}" />
 <arg value="site.network_incoming_max_per_partition=${site.network_incoming_max_per_partition}" />
+<arg value="site.network_incoming_limit_txns=${site.network_incoming_limit_txns}" />
+<arg value="site.network_incoming_limit_bytes=${site.network_incoming_limit_bytes}" />
 <arg value="site.txn_client_debug=${site.txn_client_debug}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_counters=${site.txn_counters}" />

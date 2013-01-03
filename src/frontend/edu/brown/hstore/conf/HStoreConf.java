@@ -203,6 +203,15 @@ public final class HStoreConf {
         )
         public String cpu_partition_blacklist;
         
+        @ConfigProperty(
+            description="Comma-separated list of CPU Ids (starting at zero) that the HStoreSite's " +
+                        "utility should not be scheduled to execute on. This is used whenever we need to do" +
+                        "scaling experiments and want to avoid hyper-threading cores.",
+            defaultNull=true,
+            experimental=true
+        )
+        public String cpu_utility_blacklist;
+        
         // ----------------------------------------------------------------------------
         // Execution Options
         // ----------------------------------------------------------------------------
@@ -642,9 +651,27 @@ public final class HStoreConf {
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will block the network connections.",
             defaultInt=5000,
+            replacedBy="site.network_incoming_limit_txns",
             experimental=false
         )
+        @Deprecated
         public int network_incoming_max_per_partition;
+        
+        @ConfigProperty(
+            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+                        "from clients and will block the network connections.",
+            defaultInt=5000,
+            experimental=false
+        )
+        public int network_incoming_limit_txns;
+        
+        @ConfigProperty(
+            description="Max number of bytes in the queued transactions before an HStoreSite will " +
+            		    "stop accepting new requests from clients and will block the network connections.",
+            defaultLong=67108864,
+            experimental=false
+        )
+        public long network_incoming_limit_bytes;
         
         // ----------------------------------------------------------------------------
         // Transaction Execution Options

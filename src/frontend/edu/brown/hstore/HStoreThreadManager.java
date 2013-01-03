@@ -77,6 +77,13 @@ public class HStoreThreadManager {
     private final Set<Integer> partitionBlacklist = new HashSet<Integer>();
     
     /**
+     * Set of CPU ids that the utility threads will not be 
+     * allowed to execute on.
+     * @see HStoreConf.site.cpu_partition_blacklist
+     */
+    private final Set<Integer> utilityBlacklist = new HashSet<Integer>();
+
+    /**
      * Mapping from Partition to individual CPU id
      * Note that this will contain all of the Partitions at this host
      */
@@ -133,6 +140,26 @@ public class HStoreThreadManager {
             if (debug.val)
                 LOG.debug("Partition CPU Blacklist: " + this.partitionBlacklist);
         }
+        // Partition Blacklist
+        if (hstore_conf.site.cpu_utility_blacklist != null) {
+            for (String part : hstore_conf.site.cpu_utility_blacklist.split(",")) {
+                part = part.trim();
+                if (part.isEmpty()) continue;
+                
+                int cpuId = -1;
+                try {
+                    cpuId = Integer.parseInt(part);
+                    assert(cpuId >= 0);
+                } catch (Throwable ex) {
+                    LOG.error("Invalid CPU Id for utility blacklist '" + part + "'", ex);
+                    break;
+                }
+                this.utilityBlacklist.add(cpuId);
+            } // FOR
+            if (debug.val)
+                LOG.debug("Utility CPU Blacklist: " + this.utilityBlacklist);
+        }
+        
         
         // Periodic Work Thread
         String threadName = getThreadName(hstore_site, HStoreConstants.THREAD_NAME_PERIODIC);
@@ -142,6 +169,9 @@ public class HStoreThreadManager {
                                                                               1024 * 128);
         this.defaultAffinity = new boolean[this.num_cores];
         Arrays.fill(this.defaultAffinity, true);
+        for (int cpu : this.utilityBlacklist) {
+            this.defaultAffinity[cpu] = false;
+        } // FOR
         
         Host host = hstore_site.getHost();
         Collection<Partition> host_partitions = CatalogUtil.getPartitionsForHost(host);

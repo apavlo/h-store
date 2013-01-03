@@ -87,10 +87,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
     
     
     // TODO: Move this into HStoreConf
-    private int MAX_DESIRED_PENDING_BYTES = 67108864;
+    private int MAX_DESIRED_PENDING_BYTES;
     private final double MAX_DESIRED_PENDING_BYTES_RELEASE = 0.8;
     
-    private int MAX_DESIRED_PENDING_TXNS; //  = 15000;
+    private int MAX_DESIRED_PENDING_TXNS;
     private final double MAX_DESIRED_PENDING_TXNS_RELEASE = 0.8;
     
     // ----------------------------------------------------------------------------
@@ -701,7 +701,9 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
 
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
         int num_partitions = hstore_site.getLocalPartitionIds().size();
-        this.MAX_DESIRED_PENDING_TXNS = (int)(hstore_conf.site.network_incoming_max_per_partition * num_partitions);
+        
+        this.MAX_DESIRED_PENDING_BYTES = (int)(hstore_conf.site.network_incoming_limit_bytes * num_partitions);
+        this.MAX_DESIRED_PENDING_TXNS = (int)(hstore_conf.site.network_incoming_limit_txns * num_partitions);
         
         // Backpressure EventObservers
         this.onBackPressure.addObserver(this.onBackPressureObserver);
@@ -720,7 +722,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable, Conf
     @Override
     public void updateConf(HStoreConf hstore_conf) {
         int num_partitions = hstore_site.getLocalPartitionIds().size();
-        this.MAX_DESIRED_PENDING_TXNS = (int)(hstore_conf.site.network_incoming_max_per_partition * num_partitions);
+        this.MAX_DESIRED_PENDING_TXNS = (int)(hstore_conf.site.network_incoming_limit_txns * num_partitions);
+        this.MAX_DESIRED_PENDING_BYTES = (int)(hstore_conf.site.network_incoming_limit_bytes * num_partitions);
     }
     
     public void startAcceptingConnections() throws IOException {
