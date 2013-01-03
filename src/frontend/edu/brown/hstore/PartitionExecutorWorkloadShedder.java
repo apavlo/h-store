@@ -95,7 +95,7 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
         if (total > 0) {
             double avg = MathUtil.arithmeticMean(sizes);
             double stdev = MathUtil.stdev(sizes);
-            int threshold = (int)(avg + (stdev * 1.0));
+            int threshold = (int)(avg + (stdev * 2.0));
             
             // *********************************** DEBUG ***********************************
             if (debug.val) {
