@@ -68,7 +68,6 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
         this.hstore_conf.site.txn_incoming_delay = 5;
         this.hstore_conf.site.exec_voltdb_procinfo = true;
         this.hstore_conf.site.exec_force_singlepartitioned = false;
-        this.hstore_conf.site.queue_shedder_delay = 999999;
         this.hstore_conf.site.queue_shedder_interval = 999999;
         
         this.hstore_site = this.createHStoreSite(catalog_site, hstore_conf);

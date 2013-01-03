@@ -428,6 +428,13 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_deferrable_queries;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=20000,
+            experimental=false
+        )
+        public int exec_periodic_interval;
 
         // ----------------------------------------------------------------------------
         // Speculative Execution Options
@@ -696,13 +703,6 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean queue_profiling;
-        
-        @ConfigProperty(
-            description="", // TODO
-            defaultInt=20000,
-            experimental=false
-        )
-        public int queue_shedder_delay;
         
         @ConfigProperty(
             description="", // TODO

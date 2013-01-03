@@ -1233,7 +1233,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     ex.printStackTrace();
                 }
             }
-        }, 0, 50, TimeUnit.MILLISECONDS);
+        }, 0, hstore_conf.site.exec_periodic_interval, TimeUnit.MILLISECONDS);
         
         // HStoreStatus
         if (hstore_conf.site.status_enable) {
@@ -1247,7 +1247,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Workload Shedder
         this.threadManager.schedulePeriodicWork(
                 this.workloadShedder,
-                hstore_conf.site.queue_shedder_delay,
+                hstore_conf.site.queue_shedder_interval,
                 hstore_conf.site.queue_shedder_interval,
                 TimeUnit.MILLISECONDS);
         

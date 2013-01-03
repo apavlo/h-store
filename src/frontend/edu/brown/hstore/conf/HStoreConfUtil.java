@@ -22,12 +22,34 @@ public abstract class HStoreConfUtil {
     public static final String groups[] = { "global", "client", "site" };
     public static final String navigationLink = "[previous] [next]";
     
-    static final Pattern REGEX_URL = Pattern.compile("(http[s]?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
-    static final String REGEX_URL_REPLACE = "<a href=\"$1\">$1</a>";
+    private static final Pattern REGEX_URL = Pattern.compile("(http[s]?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
+    private static final String REGEX_URL_REPLACE = "<a href=\"$1\">$1</a>";
     
-    static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
-    static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">$1.$2</a>";
+    private static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
+    private static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">$1.$2</a>";
 
+    private static final Map<String, String> PREFIX_LABELS = new HashMap<String, String>();
+    static {
+        PREFIX_LABELS.put("exec", "Execution");
+        PREFIX_LABELS.put("specexec", "Speculative Execution");
+        PREFIX_LABELS.put("commandlog", "Command Logging");
+        PREFIX_LABELS.put("anticache", "Anti-Caching");
+        PREFIX_LABELS.put("mr", "MapReduce");
+        PREFIX_LABELS.put("network", "Network");
+        PREFIX_LABELS.put("txn", "Transaction");
+        PREFIX_LABELS.put("queue", "Workload Queue");
+        PREFIX_LABELS.put("mappings", "Parameter Mappings");
+        PREFIX_LABELS.put("markov", "Transaction Prediction Models");
+        PREFIX_LABELS.put("planner", "Runtime SQL Batch Planner");
+        PREFIX_LABELS.put("coordinator", "Cluster Coordinator");
+        PREFIX_LABELS.put("trace", "Workload Traces");
+        PREFIX_LABELS.put("status", "Site Debug Status");
+        PREFIX_LABELS.put("pool", "Object Pools");
+        PREFIX_LABELS.put("log", "Debug Logging");
+        PREFIX_LABELS.put("codespeed", "Codespeed API");
+        PREFIX_LABELS.put("output", "Benchmark Output Control");
+    }
+    
     // ----------------------------------------------------------------------------
     // HTML OUTPUT METHODS
     // ----------------------------------------------------------------------------

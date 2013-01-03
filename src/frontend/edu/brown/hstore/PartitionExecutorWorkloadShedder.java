@@ -156,8 +156,8 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
             // is a race condition but it's good enough for now
             if (ts.isInitialized() == false) continue;
             
-            if (debug.val)
-                LOG.debug(String.format("Rejecting " + ts + " at partition " + partition));
+            if (trace.val)
+                LOG.trace(String.format("Rejecting " + ts + " at partition " + partition));
             try {
                 this.queueManager.lockQueueFinished(ts, Status.ABORT_REJECT, partition);
                 this.shed_total[partition]++;
