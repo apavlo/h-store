@@ -98,14 +98,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * @param hstore_site
      */
     public TransactionInitPriorityQueue(int partitionId, int waitTime, int throttle_threshold, double throttle_release) {
-        // Throttling Queue Initialization
-        super(new PriorityBlockingQueue<AbstractTransaction>(),
-                throttle_threshold,
-                throttle_release,
-                0,
-                throttle_threshold
-        );
-        this.setAllowIncrease(false);
+        super(new PriorityBlockingQueue<AbstractTransaction>(), throttle_threshold, throttle_release);
         
         this.partitionId = partitionId;
         this.waitTime = waitTime;

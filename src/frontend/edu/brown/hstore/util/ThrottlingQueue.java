@@ -42,6 +42,10 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     
     private final ProfileMeasurement throttle_time;
          
+    // ----------------------------------------------------------------------------
+    // CONSTRUCTORS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Constructor
      * @param queue The original queue
@@ -66,6 +70,23 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         
         this.throttle_time = new ProfileMeasurement("THROTTLING");
     }
+    
+    /**
+     * Constructor with threshold auto-increase disbled.
+     * @param queue The original queue
+     * @param throttleThreshold The initial max size of the queue before it is throttled.
+     * @param throttleReleaseFactor The release factor for when the queue will be unthrottled.
+     */
+    public ThrottlingQueue(BlockingQueue<E> queue,
+                           int throttleThreshold,
+                           double throttleReleaseFactor) {
+        this(queue, throttleThreshold, throttleReleaseFactor, 0, throttleThreshold);
+        this.allow_increase = false;
+    }
+
+    // ----------------------------------------------------------------------------
+    // INTERNAL METHODS
+    // ----------------------------------------------------------------------------
     
     private void computeReleaseThreshold() {
         this.throttleRelease = Math.max((int)(this.throttleThreshold * this.throttleReleaseFactor), 1);
