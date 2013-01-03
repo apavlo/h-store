@@ -122,6 +122,14 @@ public abstract class MathUtil {
         }
         return sum / (double) values.length;
     }
+    
+    public static final double arithmeticMean(final int[] values) {
+        int sum = 0;
+        for (int v : values) {
+            sum += v;
+        }
+        return sum / (double) values.length;
+    }
 
     public static final double weightedMean(final double[] values, final double[] weights) {
         double total = 0.0d;
@@ -204,6 +212,24 @@ public abstract class MathUtil {
         double mean = MathUtil.arithmeticMean(data);
         double sum = 0;
         for (double d : data) {
+            sum += Math.pow((d - mean), 2);
+        } // FOR
+        return Math.sqrt(sum / (data.length - 1));
+    }
+    
+    /**
+     * Compute standard deviation Derived from
+     * http://nscraps.com/Java/720-java-calculate-standard-deviation.htm
+     * @param data
+     * @return
+     */
+    public static double stdev(int...data) {
+        if (data.length < 2) {
+            return Double.NaN;
+        }
+        double mean = MathUtil.arithmeticMean(data);
+        double sum = 0;
+        for (int d : data) {
             sum += Math.pow((d - mean), 2);
         } // FOR
         return Math.sqrt(sum / (data.length - 1));

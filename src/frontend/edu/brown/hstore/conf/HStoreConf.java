@@ -697,6 +697,20 @@ public final class HStoreConf {
         )
         public boolean queue_profiling;
         
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=20000,
+            experimental=false
+        )
+        public int queue_shedder_delay;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=20000,
+            experimental=false
+        )
+        public int queue_shedder_interval;
+        
         // ----------------------------------------------------------------------------
         // Parameter Mapping Options
         // ----------------------------------------------------------------------------
