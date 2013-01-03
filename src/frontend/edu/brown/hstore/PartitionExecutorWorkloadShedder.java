@@ -104,8 +104,7 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
         // If a partition is above the threshold, then we want to shed work from its queue
         if (total > 0) {
             double avg = MathUtil.arithmeticMean(sizes);
-            double stdev = MathUtil.stdev(sizes);
-            int threshold = (int)(avg + (stdev * hstore_conf.site.queue_shedder_stdev_multiplier));
+            int threshold = (int)(avg * hstore_conf.site.queue_shedder_stdev_multiplier);
             
             // *********************************** DEBUG ***********************************
             if (debug.val) {
@@ -116,7 +115,6 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
                 maps[idx] = new LinkedHashMap<String, Object>();
                 maps[idx].put("Total", total);
                 maps[idx].put("Average", avg);
-                maps[idx].put("Stdev", stdev);
                 maps[idx].put("Threshold", threshold);
                 
                 maps[++idx] = new LinkedHashMap<String, Object>();
