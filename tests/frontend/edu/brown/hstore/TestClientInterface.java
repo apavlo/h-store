@@ -49,7 +49,7 @@ public class TestClientInterface extends BaseTestCase {
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.profiling = true;
         this.hstore_conf.site.pool_profiling = true;
-        this.hstore_conf.site.network_incoming_max_per_partition = 1;
+        this.hstore_conf.site.network_incoming_limit_txns = 1;
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
         this.clientInterface = this.hstore_site.getClientInterface();
