@@ -11,7 +11,6 @@ import org.apache.log4j.Logger;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.profilers.ProfileMeasurementUtil;
 
 /**
  * Creates a wrapper around a queue that provides a dynamic limit on the
@@ -34,121 +33,146 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     private volatile int size;
     
     private boolean throttled;
-    private int queue_max;
-    private int queue_release;
-    private double queue_release_factor;
-    private int queue_increase;
-    private int queue_increase_max;
+    private int throttleThreshold;
+    private int throttleRelease;
+    private double throttleReleaseFactor;
+    private int throttleThresholdIncrease;
+    private int throttleThresholdMaxSize;
+    private boolean allow_increase = false;
+    
     private final ProfileMeasurement throttle_time;
-    private boolean allow_increase;
          
     /**
      * Constructor
-     * @param queue
-     * @param queue_max
-     * @param queue_release
-     * @param queue_increase
-     * @param queue_increase_max
+     * @param queue The original queue
+     * @param throttleThreshold The initial max size of the queue before it is throttled.
+     * @param throttleReleaseFactor The release factor for when the queue will be unthrottled.
+     * @param throttleThresholdIncrease The increase delta for when we will increase the max size.
+     * @param throttleThresholdMaxSize The maximum size of the queue.
      */
     public ThrottlingQueue(BlockingQueue<E> queue,
-                           int queue_max,
-                           double queue_release,
-                           int queue_increase,
-                           int queue_increase_max) {
+                           int throttleThreshold,
+                           double throttleReleaseFactor,
+                           int throttleThresholdIncrease,
+                           int throttleThresholdMaxSize) {
         this.queue = queue;
         this.throttled = false;
         
-        this.setQueueMax(queue_max);
-        this.setQueueIncrease(queue_increase);
-        this.setQueueIncreaseMax(queue_increase_max);
-        this.setQueueReleaseFactor(queue_release);
+        this.throttleThreshold = throttleThreshold;
+        this.throttleReleaseFactor = throttleReleaseFactor;
+        this.throttleThresholdIncrease = throttleThresholdIncrease;
+        this.throttleThresholdMaxSize = throttleThresholdMaxSize;
+        this.computeReleaseThreshold();
         
-        this.throttle_time = new ProfileMeasurement("throttling");
-//        if (hstore_site.getHStoreConf().site.status_show_executor_info) {
-//            this.throttle_time.resetOnEvent(hstore_site.getStartWorkloadObservable());
-//        }
+        this.throttle_time = new ProfileMeasurement("THROTTLING");
     }
+    
+    private void computeReleaseThreshold() {
+        this.throttleRelease = Math.max((int)(this.throttleThreshold * this.throttleReleaseFactor), 1);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
 
-    public void setQueueIncrease(int queue_increase) {
-        this.queue_increase = queue_increase;
-        this.allow_increase = (this.queue_increase > 0);
+    /**
+     * Returns true if this queue is currently throttled.
+     * @return
+     */
+    public boolean isThrottled() {
+        return (this.throttled);
     }
     
-    public void setQueueIncreaseMax(int queue_increase_max) {
-        this.queue_increase_max = queue_increase_max;
+    /**
+     * Get the maximum size of the queue before it will throttle new additions.
+     * @return
+     */
+    public int getThrottleThreshold() {
+        return (this.throttleThreshold);
+    }
+    /**
+     * Set the maximum size of the queue before it will throttle new additions.
+     * @param size
+     */
+    public void setThrottleThreshold(int size) {
+        assert(size >= 0);
+        this.throttleThreshold = size;
+        this.computeReleaseThreshold();
     }
     
-    public void setQueueMax(int queue_max) {
-        this.queue_max = queue_max;
+    public void setThrottleReleaseFactor(double queue_release_factor) {
+        this.throttleReleaseFactor = queue_release_factor;
+        this.computeReleaseThreshold();
+    }
+    public double getThrottleReleaseFactor() {
+        return (this.throttleReleaseFactor);
+    }
+    /**
+     * Return the size of the queue that much be reached before a 
+     * throttled queue will be allowed to take new additions.
+     * @return
+     */
+    public int getThrottleRelease() {
+        return (this.throttleRelease);
     }
     
-    public void setQueueReleaseFactor(double queue_release_factor) {
-        this.queue_release_factor = queue_release_factor;
-        this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
+    /**
+     * Return the value that this ThrottlingQueue will automatically increase
+     * the throttle threshold if the size of this queue goes to zero.
+     * This will only matter if allow_increase is set to true.
+     * @return
+     */
+    public int getThrottleThresholdIncreaseDelta() {
+        return (this.throttleThresholdIncrease);
+    }
+    /**
+     * Set the delta that the queue will automatically increase the throttle
+     * threshold if the size of this queue goes to zero. 
+     * This will only matter if allow_increase is set to true.
+     * @param delta
+     */
+    public void setThrottleThresholdIncreaseDelta(int delta) {
+        this.throttleThresholdIncrease = delta;
+    }
+    
+    /**
+     * Set the max size of the throttling threshold. If this queue is allowed
+     * to increase the threshold whenever the queue is empty, then this is
+     * the maximum size that the threshold will be allowed to increase to.
+     * @param size
+     */
+    public void setThrottleThresholdMaxSize(int size) {
+        this.throttleThresholdMaxSize = size;
+    }
+    public int getThrottleThresholdMaxSize() {
+        return (this.throttleThresholdMaxSize);
+    }
+    
+    /**
+     * If the allow_increase flag is set to true, then the
+     * throttle threshold will be allowed to automatically grow
+     * whenever the the size of the queue is zero.
+     * @param allow_increase
+     */
+    public void setAllowIncrease(boolean allow_increase) {
+        this.allow_increase = allow_increase;
+    }
+    
+    protected final Queue<E> getQueue() {
+        return (this.queue);
     }
     
     public ProfileMeasurement getThrottleTime() {
         return (this.throttle_time);
     }
-    protected final Queue<E> getQueue() {
-        return (this.queue);
-    }
-    public boolean isThrottled() {
-        return (this.throttled);
-    }
-    public int getQueueMax() {
-        return (this.queue_max);
-    }
-    public int getQueueRelease() {
-        return (this.queue_release);
-    }
-    public int getQueueIncrease() {
-        return (this.queue_increase);
-    }
+    
+    // ----------------------------------------------------------------------------
+    // THROTTLING QUEUE API METHODS
+    // ----------------------------------------------------------------------------
     
     /**
-     * Check whether the size of this queue is greater than our max limit
-     * We don't need to worry if this is 100% accurate, so we won't block here
-     */
-    public void checkThrottling(boolean increase) {
-        // If they're not throttled, then we should check whether
-        // we need to throttle them
-        if (this.throttled == false) {
-            // If they've gone above the current queue max size, then
-            // they are throtttled!
-            if (this.size >= this.queue_max)
-                this.throttled = true;
-            
-            // Or if the queue is completely empty and we're allowe to increase
-            // the max limit, then we'll go ahead and do that for them here
-            else if (increase && this.size == 0) {
-                synchronized (this) {
-                    this.queue_max = Math.min(this.queue_increase_max, (this.queue_max + this.queue_increase));
-                    this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
-                } // SYNCH
-            }
-        }
-        // If we're throttled and we've gone below our release
-        // threshold, then we can go ahead and unthrottle them
-        else if (this.size <= this.queue_release) {
-            if (debug.val) LOG.debug(String.format("Unthrottling queue [size=%d > release=%d]",
-                                                     this.size, this.queue_release));
-            this.throttled = false;
-        }
-    }
-    
-    @Override
-    public boolean add(E e) {
-        return (this.offer(e, false));
-    }
-    @Override
-    public boolean offer(E e) {
-        return this.offer(e, false);
-    }
-    /**
-     * Offer an element to the queue. If force is true,
-     * then it will always be inserted and not count against
-     * the throttling counter.
+     * Offer an element to the queue. If force is true, then the element will
+     * always be inserted and not count against the throttling counter.
      * @param e
      * @param force
      * @return
@@ -168,6 +192,50 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         return (ret);
     }
     
+    /**
+     * Check whether the size of this queue is greater than our max limit
+     * We don't need to worry if this is 100% accurate, so we won't block here
+     */
+    public void checkThrottling(boolean increase) {
+        // If they're not throttled, then we should check whether
+        // we need to throttle them
+        if (this.throttled == false) {
+            // If they've gone above the current queue max size, then
+            // they are throtttled!
+            if (this.size >= this.throttleThreshold)
+                this.throttled = true;
+            
+            // Or if the queue is completely empty and we're allowe to increase
+            // the max limit, then we'll go ahead and do that for them here
+            else if (increase && this.size == 0) {
+                synchronized (this) {
+                    this.throttleThreshold = Math.min(this.throttleThresholdMaxSize, (this.throttleThreshold + this.throttleThresholdIncrease));
+                    this.throttleRelease = Math.max((int)(this.throttleThreshold * this.throttleReleaseFactor), 1);
+                } // SYNCH
+            }
+        }
+        // If we're throttled and we've gone below our release
+        // threshold, then we can go ahead and unthrottle them
+        else if (this.size <= this.throttleRelease) {
+            if (debug.val)
+                LOG.debug(String.format("Unthrottling queue [size=%d > release=%d]",
+                          this.size, this.throttleRelease));
+            this.throttled = false;
+        }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // QUEUE API METHODS
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public boolean add(E e) {
+        return (this.offer(e, false));
+    }
+    @Override
+    public boolean offer(E e) {
+        return this.offer(e, false);
+    }
     @Override
     public void put(E e) throws InterruptedException {
         boolean ret = this.queue.offer(e);
@@ -177,7 +245,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return;
     }
-
     @Override
     public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
         boolean ret = this.queue.offer(e, timeout, unit);
@@ -187,7 +254,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return (ret);
     }
-    
     @Override
     public boolean remove(Object o) {
         boolean ret = this.queue.remove(o);
@@ -206,7 +272,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return (e);
     }
-
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
         E e = this.queue.poll(timeout, unit);
@@ -216,7 +281,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return (e);
     }
-    
     @Override
     public E remove() {
         E e = this.queue.remove();
@@ -226,7 +290,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return (e);
     }
-
     @Override
     public E take() throws InterruptedException {
         E e = this.queue.take();
@@ -236,12 +299,10 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return (e);
     }
-
     @Override
     public int remainingCapacity() {
         return (this.queue.remainingCapacity());
     }
-
     @Override
     public int drainTo(Collection<? super E> c) {
         int ret = this.queue.drainTo(c);
@@ -251,7 +312,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return (ret);
     }
-
     @Override
     public int drainTo(Collection<? super E> c, int maxElements) {
         int ret = this.queue.drainTo(c, maxElements);
@@ -261,10 +321,9 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return (ret);
     }
-    
     @Override
     public void clear() {
-        if (this.throttled) ProfileMeasurementUtil.stop(true, this.throttle_time);
+        if (this.throttled) this.throttle_time.stopIfStarted();
         this.throttled = false;
         this.size = 0;
         this.queue.clear();
@@ -328,10 +387,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     public String toString() {
         return String.format("%s [max=%d / release=%d / increase=%d]",
                              this.queue.toString(),
-                             this.queue_max, this.queue_release, this.queue_increase);
-    }
-
-    public void setAllowIncrease(boolean allow_increase) {
-        this.allow_increase = allow_increase;
+                             this.throttleThreshold, this.throttleRelease, this.throttleThresholdIncrease);
     }
 }

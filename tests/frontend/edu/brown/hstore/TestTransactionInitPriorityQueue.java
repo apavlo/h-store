@@ -89,6 +89,53 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     
     /**
+     * testThrottling
+     */
+    @Test
+    public void testThrottling() throws Exception {
+        // Always start off as empty
+        QueueState state = this.queue.checkQueueState();
+        assertEquals(QueueState.BLOCKED_EMPTY, state);
+        
+        int max = NUM_TXNS / 2;
+        this.queue.setAllowIncrease(false);
+        this.queue.setThrottleThreshold(max);
+        
+        // Add in the first half of the txns. These should
+        // all get inserted with out get blocked
+        Collection<AbstractTransaction> added = this.loadQueue(max);
+        assertEquals(max, added.size());
+        assertTrue(this.queue.isThrottled());
+        
+        // Now when we add in the rest, we should immediately get blocked
+        for (int i = 0; i < NUM_TXNS; i++) {
+            Collection<AbstractTransaction> afterThrottle = null;
+            try {
+                afterThrottle = this.loadQueue(1);
+            } catch (AssertionError ex) {
+                // IGNORE
+            }
+            assertNull(afterThrottle);
+        } // FOR
+        assertEquals(max, added.size());
+        assertTrue(this.queue.isThrottled());
+
+        // Make sure that we get unthrottled after we release
+        // enough txns
+        int release = this.queue.getThrottleRelease();
+        for (int i = 0, cnt = (max - release); i < cnt; i++) {
+            ThreadUtil.sleep(TXN_DELAY);
+            EstTimeUpdater.update(System.currentTimeMillis());
+            this.queue.checkQueueState();
+            AbstractTransaction ts = this.queue.poll();
+            assertNotNull("i="+i, ts);
+        } // FOR
+        System.err.println(this.queue.debug());
+        assertFalse(this.queue.toString(), this.queue.isThrottled());
+    }
+    
+    
+    /**
      * testQueueState
      */
     @Test

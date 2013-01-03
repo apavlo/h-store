@@ -1,5 +1,6 @@
 package edu.brown.hstore;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -61,7 +62,10 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
     /**
      * 
      */
-    private int wait_time;
+    private int initWaitTime;
+    
+    private int initThrottleThreshold;
+    private double initThrottleRelease;
     
     // ----------------------------------------------------------------------------
     // TRANSACTION PARTITION LOCKS QUEUES
@@ -157,34 +161,38 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
      */
     @SuppressWarnings("unchecked")
     public TransactionQueueManager(HStoreSite hstore_site) {
-        CatalogContext catalogContext = hstore_site.getCatalogContext();
-        PartitionSet allPartitions = catalogContext.getAllPartitionIds();
-        this.localPartitions = hstore_site.getLocalPartitionIds();
-        int num_partitions = allPartitions.size();
-        
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
+        
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
+        PartitionSet allPartitions = catalogContext.getAllPartitionIds();
+        int num_partitions = allPartitions.size();
+        this.localPartitions = hstore_site.getLocalPartitionIds();
         this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
-        this.lockQueuesBlocked = new boolean[this.lockQueues.length];
-        this.lockQueuesLastTxn = new Long[this.lockQueues.length];
+        this.lockQueuesBlocked = new boolean[num_partitions];
+        this.lockQueuesLastTxn = new Long[num_partitions];
         this.initQueues = new Queue[num_partitions];
         this.profilers = new TransactionQueueManagerProfiler[num_partitions];
         
+        // Use updateConf() to initialize our internal values from the HStoreConf
         this.updateConf(this.hstore_conf);
         
-        // Allocate transaction queues
-        for (int partition : allPartitions.values()) {
-            this.lockQueuesLastTxn[partition] = Long.valueOf(-1);
-            if (this.hstore_site.isLocalPartition(partition)) {
-                this.lockQueues[partition] = new TransactionInitPriorityQueue(partition, this.wait_time);
-                this.lockQueuesBlocked[partition] = false;
-                this.initQueues[partition] = new ConcurrentLinkedQueue<AbstractTransaction>();
-                this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
-            }
+        // Initialize internal queues
+        for (int partition : this.localPartitions.values()) {
+            this.initQueues[partition] = new ConcurrentLinkedQueue<AbstractTransaction>();
+            this.lockQueues[partition] = new TransactionInitPriorityQueue(partition,
+                                                                          this.initWaitTime,
+                                                                          this.initThrottleThreshold,
+                                                                          this.initThrottleRelease);
+            this.lockQueuesBlocked[partition] = false;
+            this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
         } // FOR
+        Arrays.fill(this.lockQueuesLastTxn, Long.valueOf(-1l));
         
-        if (debug.val) LOG.debug(String.format("Created %d TransactionInitQueues for %s",
-                                 num_partitions, hstore_site.getSiteName()));
+        if (debug.val)
+            LOG.debug(String.format("Created %d %s for %s",
+                      num_partitions, TransactionInitPriorityQueue.class.getSimpleName(),
+                      hstore_site.getSiteName()));
     }
     
     /**
@@ -206,7 +214,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         while (this.stop == false) {
             // if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
-                this.checkFlag.tryAcquire(this.wait_time, TimeUnit.MILLISECONDS);
+                this.checkFlag.tryAcquire(this.initWaitTime, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 // Nothing...
             } finally {
@@ -792,11 +800,22 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         // HACK: If there is only one site in the cluster, then we can
         // set the wait time to 1ms
         if (hstore_site.getCatalogContext().numberOfSites == -1) { // XXX
-            this.wait_time = 1;
+            this.initWaitTime = 1;
         }
         else {
-            this.wait_time = hstore_conf.site.txn_incoming_delay;            
+            this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
         }
+
+        this.initThrottleThreshold = (int)Math.ceil(hstore_conf.site.network_incoming_limit_txns /
+                                                    (double)this.localPartitions.size());
+        this.initThrottleRelease = hstore_conf.site.queue_dtxn_release_factor;
+        for (TransactionInitPriorityQueue queue : this.lockQueues) {
+            if (queue != null) {
+                queue.setThrottleThreshold(this.initThrottleThreshold);
+                queue.setThrottleReleaseFactor(this.initThrottleRelease);
+            }
+        } // FOR
+        
     }
     
     @Override
@@ -826,7 +845,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
 
         // Basic Information
         m[++idx] = new LinkedHashMap<String, Object>();
-        m[idx].put("Wait Time", this.wait_time + " ms");
+        m[idx].put("Wait Time", this.initWaitTime + " ms");
         m[idx].put("# of Blocked Txns", this.blockedQueue.size());
         
         // Local Partitions

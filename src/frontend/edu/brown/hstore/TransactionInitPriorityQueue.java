@@ -10,6 +10,7 @@ import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -31,8 +32,8 @@ import edu.brown.utils.StringUtil;
  * <B>NOTE:</B> Do not put any synchronized blocks in this. All synchronization
  * should be done by the caller.
  */
-public class TransactionInitPriorityQueue extends PriorityBlockingQueue<AbstractTransaction> {
-    private static final long serialVersionUID = 573677483413142310L;
+public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransaction> {
+//    private static final long serialVersionUID = 573677483413142310L;
     protected static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -90,14 +91,24 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     
     /**
      * Constructor
-     * @param hstore_site
      * @param partitionId
-     * @param wait
+     * @param waitTime
+     * @param throttle_threshold TODO
+     * @param throttle_release TODO
+     * @param hstore_site
      */
-    public TransactionInitPriorityQueue(int partitionId, int wait) {
-        super();
+    public TransactionInitPriorityQueue(int partitionId, int waitTime, int throttle_threshold, double throttle_release) {
+        // Throttling Queue Initialization
+        super(new PriorityBlockingQueue<AbstractTransaction>(),
+                throttle_threshold,
+                throttle_release,
+                0,
+                throttle_threshold
+        );
+        this.setAllowIncrease(false);
+        
         this.partitionId = partitionId;
-        this.waitTime = wait;
+        this.waitTime = waitTime;
         
         if (HStoreConf.singleton().site.queue_profiling) {
             this.profiler = new TransactionInitPriorityQueueProfiler();
@@ -434,8 +445,10 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
     
     public String debug() {
         long timestamp = EstTime.currentTimeMillis();
+        AbstractTransaction peek = super.peek();
+        
         @SuppressWarnings("unchecked")
-        Map<String, Object> m[] = new Map[2];
+        Map<String, Object> m[] = new Map[3];
         int i = -1;
         
         m[++i] = new LinkedHashMap<String, Object>();
@@ -448,7 +461,14 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Abstract
         m[i].put("Last Safe Txn", this.lastSafeTxnId);
         
         m[++i] = new LinkedHashMap<String, Object>();
-        m[i].put("Peek Txn", super.peek());
+        m[i].put("Throttled", super.isThrottled());
+        m[i].put("Threshold", super.getThrottleThreshold());
+        m[i].put("Release", super.getThrottleRelease());
+        m[i].put("Increase Delta", super.getThrottleThresholdIncreaseDelta());
+        m[i].put("Max Size", super.getThrottleThresholdMaxSize());
+
+        m[++i] = new LinkedHashMap<String, Object>();
+        m[i].put("Peek Txn", (peek == null ? "null" : peek));
         m[i].put("Wait Time", this.waitTime + " ms");
         m[i].put("Current Time", timestamp);
         m[i].put("Blocked Time", (this.blockTimestamp > 0 ? this.blockTimestamp + (this.blockTimestamp < timestamp ? " **PASSED**" : "") : "--"));

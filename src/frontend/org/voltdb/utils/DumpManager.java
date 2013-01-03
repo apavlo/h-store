@@ -44,6 +44,7 @@ import org.voltdb.debugstate.VoltThreadContext;
  * unsafe reads and safe reads. It's also just fine to do both.</p>
  *
  */
+@Deprecated
 public class DumpManager extends Thread {
 
     /**

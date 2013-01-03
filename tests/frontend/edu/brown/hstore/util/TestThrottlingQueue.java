@@ -45,10 +45,10 @@ public class TestThrottlingQueue extends BaseTestCase {
         
         // Now if we can't add a new one until we pop off 
         // enough items that put us below the release level
-        while (queue.size() > queue.getQueueRelease()) {
+        while (queue.size() > queue.getThrottleRelease()) {
             ret = queue.offer(rng.astring(10, 20));
             assertFalse("Size: " + queue.size() + " / " +
-                        "Release: " + queue.getQueueRelease(), ret);
+                        "Release: " + queue.getThrottleRelease(), ret);
             assertTrue(queue.isThrottled());
             
             String item = this.queue.poll();
