@@ -58,6 +58,7 @@ public class HStoreThreadManager {
     // DATA MEMBERS
     // ----------------------------------------------------------------------------
 
+    @SuppressWarnings("unused")
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     
@@ -129,6 +130,8 @@ public class HStoreThreadManager {
                 }
                 this.partitionBlacklist.add(cpuId);
             } // FOR
+            if (debug.val)
+                LOG.debug("Partition CPU Blacklist: " + this.partitionBlacklist);
         }
         
         // Periodic Work Thread
