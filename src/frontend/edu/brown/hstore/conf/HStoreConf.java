@@ -711,6 +711,16 @@ public final class HStoreConf {
         )
         public int queue_shedder_interval;
         
+        @ConfigProperty(
+            description="This parameter is used by the PartitionExecutorWorkloadShedder to determine " +
+            		    "a partition's queue is overloaded. The threshold is defined as the average " +
+            		    "size of all of the queues at a given HStoreSite plus the standard deviation " +
+            		    "multiplied by the value of this parameter.",
+            defaultDouble=2.0,
+            experimental=false
+        )
+        public double queue_shedder_stdev_multiplier;
+        
         // ----------------------------------------------------------------------------
         // Parameter Mapping Options
         // ----------------------------------------------------------------------------

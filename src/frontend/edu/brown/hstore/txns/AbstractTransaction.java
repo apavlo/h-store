@@ -112,7 +112,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     private AtomicBoolean deletable = new AtomicBoolean(false);
     
     // ----------------------------------------------------------------------------
-    // Attached Data Structures
+    // ATTACHED DATA STRUCTURES
     // ----------------------------------------------------------------------------
 
     /**

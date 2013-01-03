@@ -38,7 +38,12 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
     private boolean shutdown = false;
     private boolean initialized = false;
     
+    // ----------------------------------------------------------------------------
+    // PER PARTITION DATA MEMBERS
+    // ----------------------------------------------------------------------------
+    
     private final int last_sizes[];
+    private final long shed_total[];
     private final PartitionExecutor executors[];
     private final TransactionInitPriorityQueue queues[];
     
@@ -54,10 +59,12 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
         
         int numPartitions = hstore_site.getCatalogContext().numberOfPartitions;
         this.last_sizes = new int[numPartitions];
+        this.shed_total = new long[numPartitions];
         this.executors = new PartitionExecutor[numPartitions];
         this.queues = new TransactionInitPriorityQueue[numPartitions];
         
         Arrays.fill(this.last_sizes, 0);
+        Arrays.fill(this.shed_total, 0);
     }
     
     protected void init() {
@@ -74,8 +81,12 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
     @Override
     public void runImpl() {
         if (this.initialized == false) {
-            this.init();
-            this.initialized = true;
+            synchronized (this) {
+                if (this.initialized == false) {
+                    this.init();
+                    this.initialized = true;
+                }
+            } // SYNCH
         }
          
         if (debug.val)
@@ -90,12 +101,11 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
             total += this.last_sizes[partition];
         } // FOR
         
-        // If a partition is two stdevs above the mean, then we will 
-        // want to shed work from its queue
+        // If a partition is above the threshold, then we want to shed work from its queue
         if (total > 0) {
             double avg = MathUtil.arithmeticMean(sizes);
             double stdev = MathUtil.stdev(sizes);
-            int threshold = (int)(avg + (stdev * 2.0));
+            int threshold = (int)(avg + (stdev * hstore_conf.site.queue_shedder_stdev_multiplier));
             
             // *********************************** DEBUG ***********************************
             if (debug.val) {
@@ -133,7 +143,8 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
      */
     protected void shedWork(int partition, int to_remove) {
         if (debug.val)
-            LOG.debug(String.format("Attempting to shed workload from partition %d", partition));
+            LOG.debug(String.format("Attempting to shed %d out of %d txns from from partition %d",
+                      to_remove, this.last_sizes[partition], partition));
         
         // Grab txns from the back of the queue and reject them
         int offset = this.last_sizes[partition] - to_remove;
@@ -149,6 +160,7 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
                 LOG.debug(String.format("Rejecting " + ts + " at partition " + partition));
             try {
                 this.queueManager.lockQueueFinished(ts, Status.ABORT_REJECT, partition);
+                this.shed_total[partition]++;
             } catch (Throwable ex) {
                 String msg = String.format("Unexpected error when trying to reject %s at partition %d",
                                            ts, partition);

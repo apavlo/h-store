@@ -144,6 +144,7 @@
 <arg value="site.queue_profiling=${site.queue_profiling}" />
 <arg value="site.queue_shedder_delay=${site.queue_shedder_delay}" />
 <arg value="site.queue_shedder_interval=${site.queue_shedder_interval}" />
+<arg value="site.queue_shedder_stdev_multiplier=${site.queue_shedder_stdev_multiplier}" />
 <arg value="site.mappings_path=${site.mappings_path}" />
 <arg value="site.markov_enable=${site.markov_enable}" />
 <arg value="site.markov_singlep_updates=${site.markov_singlep_updates}" />
