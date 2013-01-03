@@ -42,8 +42,8 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
     // PER PARTITION DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    private final int last_sizes[];
-    private final long shed_total[];
+    private final int lastQueueSize[];
+    private final long totalRemoved[];
     private final PartitionExecutor executors[];
     private final TransactionInitPriorityQueue queues[];
     
@@ -58,13 +58,13 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
         this.queueManager = hstore_site.getTransactionQueueManager();
         
         int numPartitions = hstore_site.getCatalogContext().numberOfPartitions;
-        this.last_sizes = new int[numPartitions];
-        this.shed_total = new long[numPartitions];
+        this.lastQueueSize = new int[numPartitions];
+        this.totalRemoved = new long[numPartitions];
         this.executors = new PartitionExecutor[numPartitions];
         this.queues = new TransactionInitPriorityQueue[numPartitions];
         
-        Arrays.fill(this.last_sizes, 0);
-        Arrays.fill(this.shed_total, 0);
+        Arrays.fill(this.lastQueueSize, 0);
+        Arrays.fill(this.totalRemoved, 0);
     }
     
     protected void init() {
@@ -97,8 +97,8 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
         int sizes[] = new int[this.partitions.size()];
         int offset = 0;
         for (int partition : this.partitions.values()) {
-            this.last_sizes[partition] = sizes[offset++] = this.queues[partition].size();
-            total += this.last_sizes[partition];
+            this.lastQueueSize[partition] = sizes[offset++] = this.queues[partition].size();
+            total += this.lastQueueSize[partition];
         } // FOR
         
         // If a partition is above the threshold, then we want to shed work from its queue
@@ -121,7 +121,7 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
                 
                 maps[++idx] = new LinkedHashMap<String, Object>();
                 for (int partition : this.partitions.values()) {
-                    maps[idx].put("Partition " + partition, this.last_sizes[partition]);
+                    maps[idx].put("Partition " + partition, this.lastQueueSize[partition]);
                 } // FOR
                 
                 LOG.debug("Queue Stats:\n" + StringUtil.formatMaps(maps));
@@ -129,8 +129,8 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
             // *********************************** DEBUG ***********************************
             
             for (int partition : this.partitions.values()) {
-                if (threshold < this.last_sizes[partition]) {
-                    this.shedWork(partition, this.last_sizes[partition] - threshold);
+                if (threshold < this.lastQueueSize[partition]) {
+                    this.shedWork(partition, this.lastQueueSize[partition] - threshold);
                 }
             } // FOR
         }
@@ -144,11 +144,12 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
     protected void shedWork(int partition, int to_remove) {
         if (debug.val)
             LOG.debug(String.format("Attempting to shed %d out of %d txns from from partition %d",
-                      to_remove, this.last_sizes[partition], partition));
+                      to_remove, this.lastQueueSize[partition], partition));
         
         // Grab txns from the back of the queue and reject them
-        int offset = this.last_sizes[partition] - to_remove;
+        int offset = this.lastQueueSize[partition] - to_remove;
         int idx = 0;
+        int removed = 0;
         for (AbstractTransaction ts : this.queues[partition]) {
             if (idx++ < offset) continue;
             
@@ -160,13 +161,19 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
                 LOG.trace(String.format("Rejecting " + ts + " at partition " + partition));
             try {
                 this.queueManager.lockQueueFinished(ts, Status.ABORT_REJECT, partition);
-                this.shed_total[partition]++;
+                removed++;
             } catch (Throwable ex) {
                 String msg = String.format("Unexpected error when trying to reject %s at partition %d",
                                            ts, partition);
                 LOG.error(msg, ex);
             }
         } // FOR
+        this.totalRemoved[partition] += removed;
+        
+        if (debug.val)
+            LOG.debug(String.format("Removed %d txns from %d [origSize=%d, newSize=%d, totalRemoved=%d]",
+                      removed, partition,
+                      this.lastQueueSize[partition], this.queues[partition].size(), this.totalRemoved[partition]));
     }
 
     
