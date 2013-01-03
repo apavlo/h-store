@@ -192,7 +192,7 @@ public class CommandLogWriter implements Runnable, Shutdownable {
         this.numWritingLocks = num_partitions;
         
         // hack, set arbitrarily high to avoid contention for log buffer
-        this.group_commit_size = (hstore_conf.site.network_incoming_max_per_partition * num_partitions); 
+        this.group_commit_size = Math.max(10000, (hstore_conf.site.network_incoming_max_per_partition * num_partitions)); 
         
         if (debug.val) {
             LOG.debug("group_commit_size: " + this.group_commit_size);
