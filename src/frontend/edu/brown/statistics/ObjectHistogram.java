@@ -257,7 +257,6 @@ public class ObjectHistogram<X> implements Histogram<X> {
         this.dirty = false;
     }
     
-    
     /**
      * Get the number of samples entered into the histogram using the put methods
      * @return
@@ -276,97 +275,6 @@ public class ObjectHistogram<X> implements Histogram<X> {
     }
     
     /**
-     * Get the smallest value entered into the histogram
-     * This assumes that the values implement the Comparable interface
-     * @return
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public X getMinValue() {
-        this.calculateInternalValues();
-        return ((X)this.min_value);
-    }
-
-    /**
-     * Get the largest value entered into the histogram
-     * This assumes that the values implement the Comparable interface
-     * @return
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public X getMaxValue() {
-        this.calculateInternalValues();
-        return ((X)this.max_value);
-    }
-
-    /**
-     * Return the number of samples for the value with the smallest number of samples in the histogram
-     * @return
-     */
-    public long getMinCount() {
-        this.calculateInternalValues();
-        return (this.min_count);
-    }
-
-    /**
-     * Return the value with the smallest number of samples TODO: There might be
-     * more than one value with the samples. This return a set
-     * 
-     * @return
-     */
-    @SuppressWarnings("unchecked")
-    @Deprecated
-    public <T> T getMinCountValue() {
-        this.calculateInternalValues();
-        return ((T) CollectionUtil.first(this.min_count_values));
-    }
-
-    /**
-     * Return the set values with the smallest number of samples
-     * @return
-     */
-    @Override
-    public Collection<X> getMinCountValues() {
-        this.calculateInternalValues();
-        return (this.min_count_values);
-    }
-
-    /**
-     * Return the number of samples for the value with the greatest number of
-     * samples in the histogram
-     * 
-     * @return
-     */
-    @Override
-    public long getMaxCount() {
-        this.calculateInternalValues();
-        return (this.max_count);
-    }
-
-    /**
-     * Return the value with the greatest number of samples TODO: There might be
-     * more than one value with the samples. This return a set
-     * 
-     * @return
-     */
-    @SuppressWarnings("unchecked")
-    @Deprecated
-    public <T> T getMaxCountValue() {
-        this.calculateInternalValues();
-        return ((T) CollectionUtil.first(this.max_count_values));
-    }
-
-    /**
-     * Return the set values with the greatest number of samples
-     * @return
-     */
-    @Override
-    public Collection<X> getMaxCountValues() {
-        this.calculateInternalValues();
-        return (this.max_count_values);
-    }
-
-    /**
      * Return the internal variable for what we "think" the type is for this
      * Histogram Use this at your own risk
      * 
@@ -376,15 +284,10 @@ public class ObjectHistogram<X> implements Histogram<X> {
         return (this.value_type);
     }
 
-    /**
-     * Return all the values stored in the histogram
-     * @return
-     */
     @Override
     public Collection<X> values() {
         return (Collections.unmodifiableCollection(this.histogram.keySet()));
     }
-    
     @Override
     public Collection<X> getValuesForCount(long count) {
         Set<X> ret = new HashSet<X>();
@@ -394,10 +297,6 @@ public class ObjectHistogram<X> implements Histogram<X> {
         } // FOR
         return (ret);
     }
-    
-    /**
-     * Reset the histogram's internal data
-     */
     @Override
     public synchronized void clear() {
         this.histogram.clear();
@@ -411,11 +310,6 @@ public class ObjectHistogram<X> implements Histogram<X> {
         assert(this.histogram.isEmpty());
         this.dirty = true;
     }
-    
-    /**
-     * Clear all the values stored in the histogram. The keys are only kept if
-     * KeepZeroEntries is enabled, otherwise it does the same thing as clear()
-     */
     @Override
     public synchronized void clearValues() {
         if (this.keep_zero_entries) {
@@ -436,10 +330,6 @@ public class ObjectHistogram<X> implements Histogram<X> {
         this.dirty = true;
     }
     
-    /**
-     * Returns true if there are no entries in this histogram
-     * @return
-     */
     @Override
     public boolean isEmpty() {
         return (this.histogram.isEmpty());
@@ -449,60 +339,29 @@ public class ObjectHistogram<X> implements Histogram<X> {
     // PUT METHODS
     // ----------------------------------------------------------------------------
 
-    /**
-     * Increments the number of occurrences of this particular value by delta
-     * @param value the value to be added to the histogram
-     * @param delta
-     * @return the new count for value
-     */
     @Override
     public synchronized long put(X value, long delta) {
         return this._put(value, delta);
     }
-    
-    /**
-     * Increments the number of occurrences of this particular value i
-     * @param value the value to be added to the histogram
-     * @return the new count for value
-     */
     @Override
     public synchronized long put(X value) {
         return this._put(value, 1);
     }
-    
-    /**
-     * Increment all values in the histogram by one
-     */
     @Override
     public void putAll() {
         this.put(this.histogram.keySet(), 1);
     }
-    
-    /**
-     * Increment multiple values by one
-     * @param values
-     */
     @Override
     public void put(Collection<X> values) {
         this.put(values, 1);
     }
-    
-    /**
-     * Increment multiple values by the given count
-     * @param values
-     * @param count
-     */
     @Override
     public synchronized void put(Collection<X> values, long count) {
         for (X v : values) {
             this._put(v, count);
         } // FOR
     }
-    
-    /**
-     * Add all the entries from the provided Histogram into this objects totals
-     * @param other
-     */
+    @Override
     public synchronized void put(Histogram<X> other) {
         if (other == this || other == null) return;
         if (other instanceof ObjectHistogram) {
@@ -522,23 +381,11 @@ public class ObjectHistogram<X> implements Histogram<X> {
     // DECREMENT METHODS
     // ----------------------------------------------------------------------------
     
-    /**
-     * Remove the given count from the total of the value by delta
-     * @param value
-     * @param delta
-     * @return the new count for value
-     */
     @Override
     public synchronized long dec(X value, long delta) {
         assert(this.histogram.containsKey(value));
         return this._put(value, delta * -1);
     }
-    
-    /**
-     * Decrement the count for the given value by one in the histogram
-     * @param value
-     * @return the new count for value
-     */
     @Override
     public synchronized long dec(X value) {
         return this._put(value, -1);
@@ -568,6 +415,43 @@ public class ObjectHistogram<X> implements Histogram<X> {
                 this._put(value, -1 * other.get(value));
             } // FOR
         }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // MIN/MAX METHODS
+    // ----------------------------------------------------------------------------
+    
+    @SuppressWarnings("unchecked")
+    @Override
+    public X getMinValue() {
+        this.calculateInternalValues();
+        return ((X)this.min_value);
+    }
+    @SuppressWarnings("unchecked")
+    @Override
+    public X getMaxValue() {
+        this.calculateInternalValues();
+        return ((X)this.max_value);
+    }
+    @Override
+    public long getMinCount() {
+        this.calculateInternalValues();
+        return (this.min_count);
+    }
+    @Override
+    public Collection<X> getMinCountValues() {
+        this.calculateInternalValues();
+        return (this.min_count_values);
+    }
+    @Override
+    public long getMaxCount() {
+        this.calculateInternalValues();
+        return (this.max_count);
+    }
+    @Override
+    public Collection<X> getMaxCountValues() {
+        this.calculateInternalValues();
+        return (this.max_count_values);
     }
     
     // ----------------------------------------------------------------------------
