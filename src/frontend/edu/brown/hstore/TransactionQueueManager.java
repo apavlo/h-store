@@ -811,8 +811,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
             this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
         }
 
-        this.initThrottleThreshold = (int)Math.ceil(hstore_conf.site.network_incoming_limit_txns /
-                                                    (double)this.localPartitions.size());
+        this.initThrottleThreshold = hstore_conf.site.network_incoming_limit_txns;
         this.initThrottleRelease = hstore_conf.site.queue_dtxn_release_factor;
         for (TransactionInitPriorityQueue queue : this.lockQueues) {
             if (queue != null) {
