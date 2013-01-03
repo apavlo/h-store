@@ -1,89 +1,44 @@
 package edu.brown.hstore;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.voltdb.ClientResponseDebug;
-import org.voltdb.ClientResponseImpl;
-import org.voltdb.ParameterSet;
-import org.voltdb.SysProcSelector;
-import org.voltdb.VoltProcedure;
 import org.voltdb.VoltSystemProcedure;
-import org.voltdb.VoltTable;
-import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
-import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcedureCallback;
 import org.voltdb.regressionsuites.specexecprocs.DtxnTester;
 import org.voltdb.sysprocs.ExecutorStatus;
-import org.voltdb.sysprocs.Statistics;
-import org.voltdb.utils.EstTime;
-import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.HStoreSiteTestUtil;
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
-import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
-import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
-import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
-import edu.brown.benchmark.tm1.procedures.UpdateLocation;
-import edu.brown.catalog.CatalogUtil;
-import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.callbacks.MockClientCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
-import edu.brown.pools.TypedObjectPool;
-import edu.brown.pools.TypedPoolableObjectFactory;
-import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.EventObservable;
-import edu.brown.utils.EventObserver;
-import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ThreadUtil;
 
+/**
+ * PartitionExecutorWorkloadShedder Tests!
+ * @author pavlo
+ */
 public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
     
-    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = GetNewDestination.class;
-    private static final long CLIENT_HANDLE = 1l;
     private static final int NUM_PARTITIONS = 3;
-    private static final int NUM_TUPLES = 10;
     private static final int NUM_TXNS = 100;
     private static final int BASE_PARTITION = 0;
     private static final int NOTIFY_TIMEOUT = 2500; // ms
     
     private HStoreSite hstore_site;
-    private HStoreSite.Debug hstore_debug;
-    private HStoreObjectPools objectPools;
     private HStoreConf hstore_conf;
-    private TransactionQueueManager.Debug queue_debug;
+    private TransactionQueueManager queueManager;
     private Client client;
     private PartitionExecutorWorkloadShedder workloadShedder;
-
-    private static final ParameterSet PARAMS = new ParameterSet(
-        new Long(0), // S_ID
-        new Long(1), // SF_TYPE
-        new Long(2), // START_TIME
-        new Long(3)  // END_TIME
-    );
 
     private final TM1ProjectBuilder builder = new TM1ProjectBuilder() {
         {
@@ -116,12 +71,10 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
         this.hstore_conf.site.queue_shedder_delay = 999999;
         this.hstore_conf.site.queue_shedder_interval = 999999;
         
-        this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
-        this.objectPools = this.hstore_site.getObjectPools();
-        this.hstore_debug = this.hstore_site.getDebugContext();
-        this.queue_debug = this.hstore_site.getTransactionQueueManager().getDebugContext();
+        this.hstore_site = this.createHStoreSite(catalog_site, hstore_conf);
+        this.queueManager = this.hstore_site.getTransactionQueueManager();
         this.workloadShedder = this.hstore_site.getWorkloadShedder();
-        this.client = createClient();
+        this.client = this.createClient();
         
         this.workloadShedder.init();
     }
@@ -143,18 +96,7 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
         assertEquals(Status.OK, cr.getStatus());
     }
     
-    // --------------------------------------------------------------------------------------------
-    // TEST CASES
-    // --------------------------------------------------------------------------------------------
-    
-    /**
-     * testShedWorkSinglePartition
-     */
-    @Test
-    public void testShedWorkSinglePartition() throws Exception {
-        // Make sure that we can properly shed single-partitions from our
-        // queue and not leave anything hanging around.
-        
+    private void invokeTest(Procedure reject_proc) throws Exception {
         // Submit our first dtxn that will block until we tell it to go
         DtxnTester.NOTIFY_BEFORE.drainPermits();
         DtxnTester.LOCK_BEFORE.drainPermits();
@@ -169,13 +111,16 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
         boolean result = DtxnTester.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         
-        // Send a bunch of single-partition txns that will get queued up at a single partition.
-        catalog_proc = this.getProcedure(GetSubscriberData.class);
+        // Send a bunch of dtxns that will get queued up at all of the partitions
         LatchableProcedureCallback rejectedCallback = new LatchableProcedureCallback(NUM_TXNS);
         for (int i = 0; i < NUM_TXNS; i++) {
-            this.client.callProcedure(rejectedCallback, catalog_proc.getName(), params);
+            this.client.callProcedure(rejectedCallback, reject_proc.getName(), params);
         } // FOR
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
+        
+        // Make sure that our boys are in the queue
+        TransactionInitPriorityQueue queue = this.queueManager.getInitQueue(BASE_PARTITION);
+        assertEquals(NUM_TXNS, queue.size());
         
         // Now invoke the workload shedder directly
         this.workloadShedder.shedWork(BASE_PARTITION, NUM_TXNS);
@@ -204,6 +149,30 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
         ThreadUtil.sleep(NOTIFY_TIMEOUT*2);
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testShedWorkMultiPartition
+     */
+    @Test
+    public void testShedWorkMultiPartition() throws Exception {
+        // Make sure that we can properly shed distributed txns from our
+        // queue and not leave anything hanging around.
+        this.invokeTest(this.getProcedure(DtxnTester.class));
+    }
+    
+    /**
+     * testShedWorkSinglePartition
+     */
+    @Test
+    public void testShedWorkSinglePartition() throws Exception {
+        // Make sure that we can properly shed single-partitions from our
+        // queue and not leave anything hanging around.
+        this.invokeTest(this.getProcedure(GetSubscriberData.class));
     }
     
 
