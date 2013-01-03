@@ -51,10 +51,10 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
      * @param queue_increase_max
      */
     public ThrottlingQueue(BlockingQueue<E> queue,
-                            int queue_max,
-                            double queue_release,
-                            int queue_increase,
-                            int queue_increase_max) {
+                           int queue_max,
+                           double queue_release,
+                           int queue_increase,
+                           int queue_increase_max) {
         this.queue = queue;
         this.throttled = false;
         

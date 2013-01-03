@@ -833,25 +833,31 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Start the MapReduceHelper Thread
      */
     private void startMapReduceHelper() {
-        assert(this.mr_helper_started == false);
-        if (debug.val)
-            LOG.debug("Starting " + this.mr_helper.getClass().getSimpleName());
-        Thread t = new Thread(this.mr_helper);
-        t.setDaemon(true);
-        t.setUncaughtExceptionHandler(this.exceptionHandler);
-        t.start();
-        this.mr_helper_started = true;
+        synchronized (this.mr_helper) {
+            if (this.mr_helper_started) return;
+            if (debug.val)
+                LOG.debug("Starting " + this.mr_helper.getClass().getSimpleName());
+            
+            Thread t = new Thread(this.mr_helper);
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            t.start();
+            this.mr_helper_started = true;
+        } // SYNCH
     }
     
     /**
      * Start threads for processing AdHoc queries 
      */
     private void startAdHocHelper() {
-        assert(this.adhoc_helper_started == false);
-        if (debug.val)
-            LOG.debug("Starting " + this.asyncCompilerWork_thread.getClass().getSimpleName());
-        this.asyncCompilerWork_thread.start();
-        this.adhoc_helper_started = true;
+        synchronized (this.asyncCompilerWork_thread) {
+            if (this.adhoc_helper_started) return;
+        
+            if (debug.val)
+                LOG.debug("Starting " + this.asyncCompilerWork_thread.getClass().getSimpleName());
+            this.asyncCompilerWork_thread.start();
+            this.adhoc_helper_started = true;
+        } // SYNCH
     }
     
     /**
@@ -1603,8 +1609,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
         int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
-        if (trace.val) LOG.trace(String.format("Raw Request: clientHandle=%d / procId=%d / basePartition=%d",
-                         client_handle, procId, base_partition));
+        if (trace.val)
+            LOG.trace(String.format("Raw Request: clientHandle=%d / procId=%d / basePartition=%d",
+                      client_handle, procId, base_partition));
         
         // Optimization: We can get the Procedure catalog handle from its procId
         Procedure catalog_proc = catalogContext.getProcedureById(procId);
@@ -1647,9 +1654,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } 
         assert(procParams != null) :
             "The parameters object is null for new txn from client #" + client_handle;
-        if (debug.val) LOG.debug(String.format("Received new stored procedure invocation request for %s " +
-                         "[handle=%d]",
-                         catalog_proc.getName(), client_handle));
+        if (debug.val)
+            LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d]",
+                      catalog_proc.getName(), client_handle));
         
         // System Procedure Check
         // If this method returns true, then we want to halt processing the
@@ -1696,7 +1703,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // 2012-12-24 - We always want the network threads to do the initialization
-        if (trace.val) LOG.trace("Initializing transaction request using network processing thread");
+        if (trace.val)
+            LOG.trace("Initializing transaction request using network processing thread");
         LocalTransaction ts = this.txnInitializer.createLocalTransaction(
                                         buffer,
                                         timestamp,
@@ -1706,7 +1714,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                         procParams,
                                         clientCallback);
         this.transactionQueue(ts);
-        if (trace.val) LOG.trace(String.format("Finished initial processing of new txn."));
+        if (trace.val)
+            LOG.trace(String.format("Finished initial processing of new txn."));
         EstTimeUpdater.update(System.currentTimeMillis());
 //        if (hstore_conf.site.network_profiling) {
 //            ProfileMeasurement.swap(this.profiler.network_processing_time, this.profiler.network_idle_time);
@@ -1851,10 +1860,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.startMapReduceHelper();
         }
                 
-        if (debug.val) LOG.debug(String.format("%s - Dispatching %s transaction to execute at partition %d " +
-        		         "[handle=%d]",
-                         ts, (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), 
-                         ts.getBasePartition(), ts.getClientHandle()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Dispatching %s transaction to execute at partition %d [handle=%d]",
+                      ts, (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), 
+                      ts.getBasePartition(), ts.getClientHandle()));
         
         // This callback prevents us from making additional requests to the Dtxn.Coordinator until
         // we get hear back about our our initialization request
