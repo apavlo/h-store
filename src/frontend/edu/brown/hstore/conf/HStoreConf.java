@@ -157,6 +157,19 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean preload;
+        
+        @ConfigProperty(
+            description="Enable profiling for the HStoreSite. " +
+                        "This data can be retrieved using the @Statistics sysproc.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean profiling;
+        
+        // ----------------------------------------------------------------------------
+        // CPU Options
+        // ----------------------------------------------------------------------------
+        
 
         @ConfigProperty(
             description="When enabled, the PartitionExecutor threads will be pinned to the first n CPU cores (where " +
@@ -180,12 +193,15 @@ public final class HStoreConf {
         public boolean cpu_affinity_one_partition_per_core;
         
         @ConfigProperty(
-            description="Enable profiling for the HStoreSite. " +
-                        "This data can be retrieved using the @Statistics sysproc.",
-            defaultBoolean=false,
-            experimental=false
+            description="Comma-separated list of CPU Ids (starting at zero) that the PartitionExecutors " +
+            		    "should not be scheduled to execute on. This is used whenever we need to do" +
+            		    "scaling experiments and want to avoid hyper-threading cores. We will always " +
+            		    "avoid executing on the first CPU by default because that's where the JVM likes to " +
+            		    "execute system threads.",
+            defaultString="0",
+            experimental=true
         )
-        public boolean profiling;
+        public String cpu_partition_blacklist;
         
         // ----------------------------------------------------------------------------
         // Execution Options

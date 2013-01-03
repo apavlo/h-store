@@ -21,7 +21,6 @@ import java.util.regex.Pattern;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
-import org.voltdb.catalog.Site;
 import org.voltdb.utils.ThreadUtils;
 
 import edu.brown.catalog.CatalogUtil;
@@ -65,13 +64,23 @@ public class HStoreThreadManager {
     private boolean disable;
     
     private final ScheduledThreadPoolExecutor periodicWorkExecutor;
-    private final int num_partitions;
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
     private final boolean defaultAffinity[];
     private final Set<Thread> all_threads = new HashSet<Thread>();
     
-    private final int ee_core_offset;
-
+    /**
+     * Set of CPU ids that the PartitionExecutor threads will not be 
+     * allowed to execute on.
+     * @see HStoreConf.site.cpu_partition_blacklist
+     */
+    private final Set<Integer> partitionBlacklist = new HashSet<Integer>();
+    
+    /**
+     * Mapping from Partition to individual CPU id
+     * Note that this will contain all of the Partitions at this host
+     */
+    private final Map<Partition, Integer> partitionCPUs = new HashMap<Partition, Integer>(); 
+    
     /**
      * Mapping from the CPU Id# to the Threads that pinned to it.
      * This is just for debugging purposes. If you modify this map, the threads
@@ -102,7 +111,25 @@ public class HStoreThreadManager {
     public HStoreThreadManager(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
-        this.num_partitions = this.hstore_site.getLocalPartitionIds().size();
+        
+        // Partition Blacklist
+        // Note that we assume that all sites on the same node have the same blacklist
+        if (hstore_conf.site.cpu_partition_blacklist != null) {
+            for (String part : hstore_conf.site.cpu_partition_blacklist.split(",")) {
+                part = part.trim();
+                if (part.isEmpty()) continue;
+                
+                int cpuId = -1;
+                try {
+                    cpuId = Integer.parseInt(part);
+                    assert(cpuId >= 0);
+                } catch (Throwable ex) {
+                    LOG.error("Invalid CPU Id for partition blacklist '" + part + "'", ex);
+                    break;
+                }
+                this.partitionBlacklist.add(cpuId);
+            } // FOR
+        }
         
         // Periodic Work Thread
         String threadName = getThreadName(hstore_site, HStoreConstants.THREAD_NAME_PERIODIC);
@@ -114,49 +141,39 @@ public class HStoreThreadManager {
         Arrays.fill(this.defaultAffinity, true);
         
         Host host = hstore_site.getHost();
-        Collection<Site> sites = CatalogUtil.getSitesForHost(host);
         Collection<Partition> host_partitions = CatalogUtil.getPartitionsForHost(host);
         
         if (hstore_conf.site.cpu_affinity == false) {
             this.disable = true;
-            this.ee_core_offset = 0;
         }
         else if (this.num_cores <= host_partitions.size()) {
             LOG.warn(String.format("Unable to set CPU affinity on %s because there are %d partitions " +
-                                     "but only %d available cores",
-                                    host.getIpaddr(), host_partitions.size(), this.num_cores));
+                     "but only %d available cores",
+                     host.getIpaddr(), host_partitions.size(), this.num_cores));
             this.disable = true;
-            this.ee_core_offset = 0;
         }
+        
+        // Calculate what cores the partitions + utility threads are allowed
+        // to execute on at this HStoreSite. We have to be careful about considering
+        // other sites that may be on the same host (for testing).
         else {
-            // IMPORTANT: There is a funkiness with the JVM on linux where the first core
-            // is always used for internal system threads. So if we put anything
-            // import on the first core, then it will always run slower.
-            int ee_core_offset = 0;
-            if (this.num_cores > 4 && this.num_partitions < this.num_cores) {
-                ee_core_offset = 1;
-            }
-            for (int i = 0; i < host_partitions.size(); i++) {
-                this.defaultAffinity[i+ee_core_offset] = false;
+            
+            // Now figure out where the partition threads are allowed to execute
+            // Note that we are doing this for all of the partitions at this host
+            int cpuId = 0;
+            for (Partition partition : host_partitions) {
+                while (this.partitionBlacklist.contains(cpuId)) {
+                    cpuId++;
+                } // WHILE
+                partitionCPUs.put(partition, cpuId);
+                this.defaultAffinity[cpuId] = false;
+                cpuId++;
             } // FOR
-            
-            // IMPORTANT: If there are multiple sites at this node, then we need
-            // to make sure that we offset ourselves so that we don't overlap.
-            if (sites.size() != 1) {
-                for (Site site : sites) {
-                    if (site != hstore_site.getSite()) {
-                        ee_core_offset += site.getPartitions().size();
-                    } else {
-                        break;
-                    }
-                } // FOR
-            }
-            if (debug.val)
-                LOG.debug("EE CPU Core Offset: " + ee_core_offset);
-            this.ee_core_offset = ee_core_offset;
-            
-            // Reserve the lowest cores for the various utility threads
-            if ((this.num_cores - this.num_partitions) > this.utility_suffixes.length) {
+
+            // Reserve the highest cores for the various utility threads
+            // We want to pin these threads to a single core to make it easier to identify
+            // what when one of them eats too much of it.
+            if ((this.num_cores - host_partitions.size()) > this.utility_suffixes.length) {
                 for (int i = 0; i < this.utility_suffixes.length; i++) {
                     boolean affinity[] = this.utilityAffinities.get(this.utility_suffixes[i]);
                     if (affinity == null) {
@@ -279,14 +296,17 @@ public class HStoreThreadManager {
         Arrays.fill(affinity, false);
         
         // Only allow this EE to execute on a single core
-        if (hstore_site.getHStoreConf().site.cpu_affinity_one_partition_per_core) {
-            int core = partition.getRelativeIndex()-1 % affinity.length; 
-            affinity[core+this.ee_core_offset] = true;
+        if (hstore_conf.site.cpu_affinity_one_partition_per_core) {
+            int core = this.partitionCPUs.get(partition);
+            affinity[core] = true;
         }
-        // Allow this EE to run on any of the lower cores
+        // Allow this EE to run on any of the lower cores allocated for this Site
         else {
-            for (int i = 0; i < this.num_partitions; i++) {
-                affinity[i+this.ee_core_offset] = true;
+            for (Partition p : this.partitionCPUs.keySet()) {
+                if (p.getParent().equals(partition.getParent())) {
+                    int core = this.partitionCPUs.get(p);
+                    affinity[core] = true;    
+                }
             } // FOR
         }
         

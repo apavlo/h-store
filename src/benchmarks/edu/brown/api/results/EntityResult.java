@@ -2,7 +2,6 @@ package edu.brown.api.results;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -11,10 +10,8 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.HistogramUtil;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
-import edu.brown.utils.MathUtil;
 
 public class EntityResult implements JSONSerializable {
     public long txnCount;
