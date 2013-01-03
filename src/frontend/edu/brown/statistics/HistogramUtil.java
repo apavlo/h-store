@@ -3,14 +3,25 @@ package edu.brown.statistics;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.apache.log4j.Logger;
+
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.MathUtil;
 
 public abstract class HistogramUtil {
+    private static final Logger LOG = Logger.getLogger(HistogramUtil.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     public static final String DELIMITER = "\t";
     public static final String MARKER = "*";
@@ -147,6 +158,33 @@ public abstract class HistogramUtil {
         } // FOR
         assert(idx == values.length) : idx + "!=" + values.length;
         return (MathUtil.stdev(values));
+    }
+    
+    /**
+     * Return a map where the values of the Histogram are mapped to doubles in
+     * the range [-1.0, 1.0]
+     * @return
+     */
+    public static <T> Map<T, Double> normalize(Histogram<T> h) {
+        double delta = 2.0d / (double) (h.getValueCount() - 1);
+        if (trace.val) {
+            LOG.trace("# of Values = " + h.getValueCount());
+            LOG.trace("Delta Step  = " + delta);
+        }
+
+        // We only want to round the values that we put into the map. If you
+        // round the current counter than we will always be off at the end
+        Map<T, Double> normalized = new HashMap<T, Double>();
+        int precision = 10;
+        double current = -1.0d;
+        for (T k : h.values()) {
+            normalized.put(k, MathUtil.roundToDecimals(current, precision));
+            if (trace.val)
+                LOG.trace(k + " => " + current + " / " + normalized.get(k));
+            current += delta;
+        } // FOR
+        assert(h.getValueCount() == normalized.size());
+        return (normalized);
     }
     
 }

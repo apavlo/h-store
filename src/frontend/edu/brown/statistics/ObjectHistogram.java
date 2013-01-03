@@ -53,7 +53,6 @@ import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONUtil;
-import edu.brown.utils.MathUtil;
 
 /**
  * A very nice and simple generic Histogram
@@ -446,10 +445,6 @@ public class ObjectHistogram<X> implements Histogram<X> {
         return (this.histogram.isEmpty());
     }
     
-    public boolean isSkewed(double skewindication) {
-        return (this.getStandardDeviation() > skewindication);
-    }
-    
     // ----------------------------------------------------------------------------
     // PUT METHODS
     // ----------------------------------------------------------------------------
@@ -631,67 +626,6 @@ public class ObjectHistogram<X> implements Histogram<X> {
         return (this.histogram.containsKey(value));
     }
     
-    /**
-     * @return the standard deviation of the number of occurrences of each value
-     *         so for a histogram: 4 * 5 ** 6 **** 7 ******* It would give the
-     *         mean:(1+2+4+7)/4 = 3.5 and deviations: 4 6.25 5 2.25 6 0.25 7
-     *         12.5 Giving us a standard deviation of (drum roll): 2.3
-     */
-    public double getStandardDeviation() {
-        double average = getMeanOfOccurences();
-        double[] deviance = new double[histogram.values().size()];
-        int index = 0;
-        double sumdeviance = 0;
-        for (long i : histogram.values()) {
-            deviance[index] = Math.pow(i * 1.0 - average, 2);
-            sumdeviance += deviance[index];
-            index++;
-        }
-        return (Math.sqrt(sumdeviance / deviance.length));
-    }
-
-    /**
-     * @return The mean of the occurrences of the particular histogram.
-     */
-    private double getMeanOfOccurences() {
-        int sum = 0;
-        for (long i : this.histogram.values()) {
-            sum += i;
-        }
-        return (sum / (double) this.histogram.values().size());
-    }
-
-    /**
-     * Return a map where the values of the Histogram are mapped to doubles in
-     * the range [-1.0, 1.0]
-     * 
-     * @return
-     */
-    @SuppressWarnings("unchecked")
-    public <T> Map<T, Double> normalize() {
-        final boolean trace = LOG.isTraceEnabled();
-
-        double delta = 2.0d / (double) (this.getValueCount() - 1);
-        if (trace) {
-            LOG.trace("# of Values = " + this.getValueCount());
-            LOG.trace("Delta Step  = " + delta);
-        }
-
-        // We only want to round the values that we put into the map. If you
-        // round the current counter than we will always be off at the end
-        Map<T, Double> normalized = new HashMap<T, Double>();
-        int precision = 10;
-        double current = -1.0d;
-        for (T k : (Set<T>) this.histogram.keySet()) {
-            normalized.put(k, MathUtil.roundToDecimals(current, precision));
-            if (trace)
-                LOG.trace(k + " => " + current + " / " + normalized.get(k));
-            current += delta;
-        } // FOR
-        assert (this.histogram.size() == normalized.size());
-        return (normalized);
-    }
-
     // ----------------------------------------------------------------------------
     // DEBUG METHODS
     // ----------------------------------------------------------------------------

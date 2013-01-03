@@ -33,6 +33,7 @@ import edu.brown.markov.features.AbstractFeature;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
 import edu.brown.markov.features.TransactionIdFeature;
+import edu.brown.statistics.HistogramUtil;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -287,7 +288,7 @@ public class FeatureSet implements JSONSerializable {
             normalized_values = new ArrayList<Map<Object,Double>>();
             for (String key : export_attrs) {
                 if (normalize_ignore.contains(key) == false) {
-                    normalized_values.add(this.attribute_histograms.get(key).normalize());
+                    normalized_values.add(HistogramUtil.normalize(this.attribute_histograms.get(key)));
                 } else {
                     normalized_values.add(null);
                 }
