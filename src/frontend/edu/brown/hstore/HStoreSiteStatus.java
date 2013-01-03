@@ -111,6 +111,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
      */
     private final Map<PartitionExecutor, ProfileMeasurement> lastExecTxnTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
     private final Map<PartitionExecutor, ProfileMeasurement> lastExecIdleTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
+    private final Map<PartitionExecutor, ProfileMeasurement> lastSleepIdleTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
     private final Map<PartitionExecutor, ProfileMeasurement> lastExecNetworkTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
     private final Map<PartitionExecutor, ProfileMeasurement> lastExecUtilityTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
 
@@ -449,6 +450,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         ProfileMeasurement totalExecTxnTime = new ProfileMeasurement();
         ProfileMeasurement totalExecIdleTime = new ProfileMeasurement();
+        ProfileMeasurement totalSleepIdleTime = new ProfileMeasurement();
         ProfileMeasurement totalExecNetworkTime = new ProfileMeasurement();
         
         // EXECUTION ENGINES
@@ -547,6 +549,13 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 this.lastExecIdleTimes.put(executor, new ProfileMeasurement(pm));
                 totalExecIdleTime.appendTime(pm);
                 
+                // Sleep Time
+                last = lastSleepIdleTimes.get(executor);
+                pm = profiler.sleep_time;
+                m.put("Sleep Time", this.formatProfileMeasurements(pm, last, false, false)); 
+                this.lastSleepIdleTimes.put(executor, new ProfileMeasurement(pm));
+                totalSleepIdleTime.appendTime(pm);
+                
                 // Network Time
                 last = lastExecNetworkTimes.get(executor);
                 pm = profiler.network_time;
@@ -576,8 +585,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         if (hstore_conf.site.exec_profiling) {
             m_exec.put("Total Txn Execution", this.formatProfileMeasurements(totalExecTxnTime, null, true, true));
-            m_exec.put("Total Idle Execution", this.formatProfileMeasurements(totalExecIdleTime, null, true, true));
-            m_exec.put("Total Network Execution", this.formatProfileMeasurements(totalExecNetworkTime, null, true, true));
+            m_exec.put("Total Idle Time", this.formatProfileMeasurements(totalExecIdleTime, null, true, true));
+            m_exec.put("Total Sleep Time", this.formatProfileMeasurements(totalSleepIdleTime, null, true, true));
+            m_exec.put("Total Network Time", this.formatProfileMeasurements(totalExecNetworkTime, null, true, true));
             m_exec.put(" ", null);
         }
         
@@ -600,7 +610,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     }
     
     private String formatProfileMeasurements(ProfileMeasurement pm, ProfileMeasurement last,
-                                              boolean showInvocations, boolean compareLastAvg) {
+                                             boolean showInvocations, boolean compareLastAvg) {
         String value = "";
         if (showInvocations) {
             value += String.format("%d txns / ", pm.getInvocations()); 

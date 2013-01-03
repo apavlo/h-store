@@ -47,6 +47,11 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     public final ProfileMeasurement idle_2pc_remote_time = new ConcurrentProfileMeasurement("IDLE_TWO_PHASE_REMOTE");
     
     /**
+     * How much time it this PartitionExecutor spent sleeping waiting for work 
+     */
+    public final ProfileMeasurement sleep_time = new ProfileMeasurement("SLEEP");
+    
+    /**
      * How much time it takes for this PartitionExecutor to 
      * execute a transaction
      */

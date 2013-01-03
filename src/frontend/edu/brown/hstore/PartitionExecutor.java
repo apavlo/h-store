@@ -872,7 +872,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 work = this.getNext();
                 if (work == null) {
                     if (this.initQueue.isEmpty() && this.work_queue.isEmpty()) {
+                        if (hstore_conf.site.exec_profiling) this.profiler.sleep_time.start();
                         Thread.sleep(WORK_QUEUE_POLL_TIME);
+                        if (hstore_conf.site.exec_profiling) this.profiler.sleep_time.stopIfStarted();
                     }
                     continue;
                 }
