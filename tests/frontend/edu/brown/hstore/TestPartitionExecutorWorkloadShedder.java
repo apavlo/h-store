@@ -66,7 +66,7 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
     private static final long CLIENT_HANDLE = 1l;
     private static final int NUM_PARTITIONS = 3;
     private static final int NUM_TUPLES = 10;
-    private static final int NUM_TXNS = 200;
+    private static final int NUM_TXNS = 100;
     private static final int BASE_PARTITION = 0;
     private static final int NOTIFY_TIMEOUT = 2500; // ms
     
@@ -111,8 +111,8 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
         this.hstore_conf.site.status_interval = 4000;
         this.hstore_conf.site.anticache_enable = false;
         this.hstore_conf.site.txn_incoming_delay = 5;
-        this.hstore_conf.site.exec_voltdb_procinfo = false;
-        this.hstore_conf.site.exec_force_singlepartitioned = true;
+        this.hstore_conf.site.exec_voltdb_procinfo = true;
+        this.hstore_conf.site.exec_force_singlepartitioned = false;
         this.hstore_conf.site.queue_shedder_delay = 999999;
         this.hstore_conf.site.queue_shedder_interval = 999999;
         
@@ -122,6 +122,8 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
         this.queue_debug = this.hstore_site.getTransactionQueueManager().getDebugContext();
         this.workloadShedder = this.hstore_site.getWorkloadShedder();
         this.client = createClient();
+        
+        this.workloadShedder.init();
     }
     
     @Override
@@ -146,11 +148,12 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     
     /**
-     * testWorkloadShedding
+     * testShedWorkSinglePartition
      */
     @Test
-    public void testSinglePartitionTxn() throws Exception {
-        LatchableProcedureCallback callback = new LatchableProcedureCallback(NUM_TXNS + 1);
+    public void testShedWorkSinglePartition() throws Exception {
+        // Make sure that we can properly shed single-partitions from our
+        // queue and not leave anything hanging around.
         
         // Submit our first dtxn that will block until we tell it to go
         DtxnTester.NOTIFY_BEFORE.drainPermits();
@@ -159,7 +162,8 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
         DtxnTester.LOCK_AFTER.drainPermits();
         Procedure catalog_proc = this.getProcedure(DtxnTester.class);
         Object params[] = new Object[]{ BASE_PARTITION };
-        this.client.callProcedure(callback, catalog_proc.getName(), params);
+        LatchableProcedureCallback dtxnCallback = new LatchableProcedureCallback(1);
+        this.client.callProcedure(dtxnCallback, catalog_proc.getName(), params);
         
         // Block until we know that the txn has started running
         boolean result = DtxnTester.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
@@ -167,14 +171,37 @@ public class TestPartitionExecutorWorkloadShedder extends BaseTestCase {
         
         // Send a bunch of single-partition txns that will get queued up at a single partition.
         catalog_proc = this.getProcedure(GetSubscriberData.class);
+        LatchableProcedureCallback rejectedCallback = new LatchableProcedureCallback(NUM_TXNS);
         for (int i = 0; i < NUM_TXNS; i++) {
-            this.client.callProcedure(callback, catalog_proc.getName(), params);
+            this.client.callProcedure(rejectedCallback, catalog_proc.getName(), params);
         } // FOR
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
         
         // Now invoke the workload shedder directly
-        this.workloadShedder.run();
+        this.workloadShedder.shedWork(BASE_PARTITION, NUM_TXNS);
         
+        // Ok, so let's release the blocked dtxn. This will allow everyone 
+        // else to come to the party
+        DtxnTester.LOCK_AFTER.release();
+        DtxnTester.LOCK_BEFORE.release();
+        result = dtxnCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("DTXN LATCH --> " + dtxnCallback.latch, result);
+        
+        // The DTXN guy should be legit
+        assertEquals(1, dtxnCallback.responses.size());
+        ClientResponse dtxnCR = CollectionUtil.first(dtxnCallback.responses);
+        assertEquals(dtxnCR.toString(), Status.OK, dtxnCR.getStatus());
+        
+        // All other txns should have been rejected
+        result = rejectedCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("REJECTED LATCH --> " + rejectedCallback.latch, result);
+        assertEquals(NUM_TXNS, rejectedCallback.responses.size());
+        for (ClientResponse cr : rejectedCallback.responses) {
+            assertEquals(cr.toString(), Status.ABORT_REJECT, cr.getStatus());
+        } // FOR
+        
+        // Make sure that everyone was cleaned up properly
+        ThreadUtil.sleep(NOTIFY_TIMEOUT*2);
         HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }

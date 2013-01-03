@@ -82,6 +82,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
             default:
                 throw new RuntimeException(String.format("Unexpected status %s for %s", status, this.ts));
         } // SWITCH
+        this.clearCounter();
     }
 
     @Override

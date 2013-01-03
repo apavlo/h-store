@@ -220,8 +220,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     private final void unblock() {
         if (this.canceled.get() == false && this.abortInvoked.get() == false) {
             if (this.unblockInvoked.compareAndSet(false, true)) {
-                if (debug.val) LOG.debug(String.format("%s - Invoking %s.unblockCallback() [hashCode=%d]",
-                                           this.ts, this.getClass().getSimpleName(), this.hashCode()));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Invoking %s.unblockCallback() [hashCode=%d]",
+                              this.ts, this.getClass().getSimpleName(), this.hashCode()));
                 this.unblockCallback();
                 this.unblockFinished = true;
             } else {
@@ -259,6 +260,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         // If this is the first response that told us to abort, then we'll
         // send the abort message out
         if (this.canceled.get() == false && this.abortInvoked.compareAndSet(false, true)) {
+            if (debug.val)
+                LOG.debug(String.format("%s - Invoking %s.abortCallback() [hashCode=%d]",
+                          this.ts, this.getClass().getSimpleName(), this.hashCode()));
             this.abortCallback(status);
             this.abortFinished = true;
             
@@ -343,5 +347,20 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                     (this.abortInvoked.get() && this.abortFinished));
         }
         return (true);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public String toString() {
+        return String.format("%s[Invoked=%s / Aborted=%s / Canceled=%s / Counter=%d/%d] / Deletable=%s",
+                             this.getClass().getSimpleName(), 
+                             this.unblockInvoked.get(),
+                             this.abortInvoked.get(),
+                             this.canceled.get(),
+                             this.counter.get(), this.getOrigCounter(),
+                             this.allCallbacksFinished()); 
     }
 }

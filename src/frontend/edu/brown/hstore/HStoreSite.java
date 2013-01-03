@@ -2117,8 +2117,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void transactionReject(LocalTransaction ts, Status status) {
         assert(ts.isInitialized());
-        if (debug.val) LOG.debug(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
-                         ts, status, ts.getClientHandle()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
+                      ts, status, ts.getClientHandle()));
         
         String msg = this.REJECTION_MESSAGE + " - [0]";
         ts.setStatus(status);
@@ -2304,7 +2305,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 break;
             } // WHILE
         } else {
-//            if (debug.val)
+            if (debug.val)
                 LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
             predict_touchedPartitions = this.catalogContext.getAllPartitionIds();
         }
@@ -2339,7 +2340,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             predict_touchedPartitions.add(base_partition);
         }
         if (predict_touchedPartitions.isEmpty()) {
-            if (debug.val) LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s", orig_ts, orig_ts.debug()));
+            if (debug.val)
+                LOG.warn(String.format("Restarting %s as a dtxn using all partitions\n%s",
+                         orig_ts, orig_ts.debug()));
             predict_touchedPartitions = this.catalogContext.getAllPartitionIds();
         }
         

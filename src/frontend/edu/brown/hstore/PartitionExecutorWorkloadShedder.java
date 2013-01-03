@@ -6,7 +6,9 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -31,6 +33,7 @@ public class PartitionExecutorWorkloadShedder implements Runnable, Shutdownable 
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final PartitionSet partitions;
+    private final TransactionQueueManager queueManager;
     private boolean shutdown = false;
     private boolean initialized = false;
     
@@ -46,6 +49,7 @@ public class PartitionExecutorWorkloadShedder implements Runnable, Shutdownable 
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.partitions = hstore_site.getLocalPartitionIds();
+        this.queueManager = hstore_site.getTransactionQueueManager();
         
         int numPartitions = hstore_site.getCatalogContext().numberOfPartitions;
         this.last_sizes = new int[numPartitions];
@@ -55,22 +59,15 @@ public class PartitionExecutorWorkloadShedder implements Runnable, Shutdownable 
         Arrays.fill(this.last_sizes, 0);
     }
     
-    private void init() {
+    protected void init() {
         if (debug.val)
             LOG.debug("Initializing " + this.getClass().getSimpleName());
         
         this.hstore_site.getThreadManager().registerProcessingThread();
-        
-        TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
         for (int partition : this.partitions.values()) {
             this.executors[partition] = hstore_site.getPartitionExecutor(partition);
-            this.queues[partition] = queueManager.getInitQueue(partition);
+            this.queues[partition] = this.queueManager.getInitQueue(partition);
         } // FOR
-    }
-    
-    private void shedWork(int partition) {
-        if (debug.val)
-            LOG.debug(String.format("Attempting to shed workload from partition %d", partition));
     }
 
     @Override
@@ -119,11 +116,27 @@ public class PartitionExecutorWorkloadShedder implements Runnable, Shutdownable 
             
             for (int partition : this.partitions.values()) {
                 if (threshold < this.last_sizes[partition]) {
-                    this.shedWork(partition);
+                    this.shedWork(partition, this.last_sizes[partition] - threshold);
                 }
             } // FOR
         }
     }
+    
+    protected void shedWork(int partition, int to_remove) {
+        if (debug.val)
+            LOG.debug(String.format("Attempting to shed workload from partition %d", partition));
+        
+        // Grab txns from the back of the queue and reject them
+        int offset = this.last_sizes[partition] - to_remove;
+        int idx = 0;
+        for (AbstractTransaction ts : this.queues[partition]) {
+            if (idx++ < offset) continue;
+            if (debug.val)
+                LOG.debug(String.format("Rejecting " + ts + " at partition " + partition));
+            this.queueManager.lockQueueFinished(ts, Status.ABORT_REJECT, partition);
+        } // FOR
+    }
+
     
     @Override
     public boolean isShuttingDown() {

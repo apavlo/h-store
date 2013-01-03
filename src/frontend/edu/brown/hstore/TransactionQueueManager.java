@@ -570,7 +570,8 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         // This is a local transaction that is still waiting for this partition (i.e., it hasn't
         // been rejected yet). That means we will want to decrement the counter its Transaction
         if (removed && status != Status.OK) {
-            if (debug.val) LOG.debug(String.format("Removed %s from partition %d queue", ts, partition));
+            if (debug.val)
+                LOG.debug(String.format("Removed %s from partition %d queue", ts, partition));
             PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
             try {
                 if (callback.isAborted() == false) callback.abort(status);
