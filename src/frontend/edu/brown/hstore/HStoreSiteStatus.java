@@ -23,6 +23,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
+import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -350,33 +351,39 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // Check to see how many of them are marked as finished
         // There is no guarantee that this will be accurate because txns could be swapped out
         // by the time we get through it all
-        int inflight_finished = 0;
         int inflight_zombies = 0;
-        if (this.cur_finishedTxns != null) this.cur_finishedTxns.clear();
-        for (AbstractTransaction ts : siteDebug.getInflightTransactions()) {
-           if (ts instanceof LocalTransaction) {
-//               LocalTransaction local_ts = (LocalTransaction)ts;
-//               ClientResponse cr = local_ts.getClientResponse();
-//               if (cr.getStatus() != null) {
-//                   inflight_finished++;
-//                   // Check for Zombies!
-//                   if (this.cur_finishedTxns != null && local_ts.isPredictSinglePartition() == false) {
-//                       if (this.last_finishedTxns.contains(ts)) {
-//                           inflight_zombies++;
-//                       }
-//                       this.cur_finishedTxns.add(ts);
-//                   }
-//               }
-           }
-        } // FOR
+//        if (this.cur_finishedTxns != null) this.cur_finishedTxns.clear();
+//        for (AbstractTransaction ts : siteDebug.getInflightTransactions()) {
+//           if (ts instanceof LocalTransaction) {
+////               LocalTransaction local_ts = (LocalTransaction)ts;
+////               ClientResponse cr = local_ts.getClientResponse();
+////               if (cr.getStatus() != null) {
+////                   inflight_finished++;
+////                   // Check for Zombies!
+////                   if (this.cur_finishedTxns != null && local_ts.isPredictSinglePartition() == false) {
+////                       if (this.last_finishedTxns.contains(ts)) {
+////                           inflight_zombies++;
+////                       }
+////                       this.cur_finishedTxns.add(ts);
+////                   }
+////               }
+//           }
+//        } // FOR
         
-        siteInfo.put("InFlight Txns", String.format("%d total / %d queued / %d finished / %d deletable [totalMin=%d, totalMax=%d]",
-                        inflight_cur,
-                        inflight_local,
-                        inflight_finished,
-                        this.siteDebug.getDeletableTxnCount(),
-                        this.inflight_min,
-                        this.inflight_max
+        // CommandLogWriter
+        int inflight_cmdlog = 0;
+        CommandLogWriter cmdLogger = hstore_site.getCommandLogWriter();
+        if (cmdLogger != null) {
+            inflight_cmdlog = cmdLogger.getTotalTxnCount();
+        }
+        
+        siteInfo.put("InFlight Txns", String.format("%d total / %d queued / %d cmdlog / %d deletable [totalMin=%d, totalMax=%d]",
+                        inflight_cur,       // total
+                        inflight_local,     // queued
+                        inflight_cmdlog,    // cmdlog
+                        this.siteDebug.getDeletableTxnCount(), // deletable
+                        this.inflight_min,  // totalMin
+                        this.inflight_max   // totalMax
         ));
         
         if (this.cur_finishedTxns != null) {

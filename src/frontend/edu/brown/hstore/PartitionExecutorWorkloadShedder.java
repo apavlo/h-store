@@ -171,7 +171,7 @@ public class PartitionExecutorWorkloadShedder extends ExceptionHandlingRunnable 
         this.totalRemoved[partition] += removed;
         
         if (debug.val)
-            LOG.debug(String.format("Removed %d txns from %d [origSize=%d, newSize=%d, totalRemoved=%d]",
+            LOG.debug(String.format("Removed %d txns from partition %d [origSize=%d, newSize=%d, totalRemoved=%d]",
                       removed, partition,
                       this.lastQueueSize[partition], this.queues[partition].size(), this.totalRemoved[partition]));
     }

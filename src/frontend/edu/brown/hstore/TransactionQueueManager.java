@@ -298,7 +298,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
     // ----------------------------------------------------------------------------
 
     protected int checkInitQueue(int partition) {
-        if (hstore_conf.site.queue_profiling) profilers[partition].init_queue.start();
+        if (hstore_conf.site.queue_profiling) profilers[partition].init_time.start();
         // Process initialization queue
         AbstractTransaction next_init = null;
         int added = 0;
@@ -308,7 +308,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
                 added++;
             }
         } // WHILE
-        if (hstore_conf.site.queue_profiling) profilers[partition].init_queue.stop();
+        if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stop();
         return (added);
     }
     
@@ -329,14 +329,14 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
      * Returns true if we released a transaction at at least one partition
      */
     protected AbstractTransaction checkLockQueue(int partition) {
-        if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.start();
+        if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.start();
         if (trace.val) LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
                                  partition, this.lockQueues[partition].size()));
         
         if (this.lockQueuesBlocked[partition] != false) {
             if (trace.val) LOG.warn(String.format("Partition %d is already executing transaction %d. Skipping...",
                                     partition, this.lockQueuesLastTxn[partition]));
-            if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.stop();
+            if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stop();
             return (null);
         }
         
@@ -384,7 +384,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
                               "[queueSize=%d]",
                               partition, nextTxn, this.lockQueuesLastTxn[partition],
                               this.lockQueues[partition].size()));
-                if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.stop();
+                if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stop();
                 this.rejectTransaction(nextTxn,
                                        Status.ABORT_RESTART,
                                        partition,
@@ -416,7 +416,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         if (debug.val && nextTxn != null && nextTxn.isPredictSinglePartition() == false)
             LOG.debug(String.format("Finished processing lock queue for partition %d [next=%s]",
                       partition, nextTxn));
-        if (hstore_conf.site.queue_profiling) profilers[partition].lock_queue.stop();
+        if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stop();
         return (nextTxn);
     }
     

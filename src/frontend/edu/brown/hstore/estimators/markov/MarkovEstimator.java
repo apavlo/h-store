@@ -181,7 +181,7 @@ public class MarkovEstimator extends TransactionEstimator {
         if (markov == null) {
             if (debug.val) LOG.debug(String.format("%s - No MarkovGraph is available for transaction",
                              AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-            if (this.profiler != null) this.profiler.time_start.appendTime(timestamp);
+            if (this.profiler != null) this.profiler.start_time.appendTime(timestamp);
             return (null);
         }
         
@@ -231,7 +231,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // initialized it properly.
         state.addInitialEstimate(initialEst);
         
-        if (this.profiler != null) this.profiler.time_start.appendTime(timestamp);
+        if (this.profiler != null) this.profiler.start_time.appendTime(timestamp);
         return (state);
     }
     
@@ -346,7 +346,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // everything. This prevents other threads from accessing it before we have
         // initialized it properly.
         state.addEstimate(estimate);
-        if (this.profiler != null) this.profiler.time_update.appendTime(timestamp);
+        if (this.profiler != null) this.profiler.update_time.appendTime(timestamp);
         return (estimate);
     }
 
@@ -359,7 +359,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // The transaction for the given txn_id is in limbo, so we just want to remove it
         if (status == Status.ABORT_MISPREDICT) {
             state.getMarkovGraph().incrementMispredictionCount();
-            if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
+            if (this.profiler != null) this.profiler.finish_time.appendTime(timestamp);
             return;
         }
 
@@ -383,7 +383,7 @@ public class MarkovEstimator extends TransactionEstimator {
             // what this transaction actually did
             MarkovVertex next_v = markov.getFinishVertex(status);
             if (next_v == null) {
-                if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
+                if (this.profiler != null) this.profiler.finish_time.appendTime(timestamp);
                 return;
             }
             
@@ -420,7 +420,7 @@ public class MarkovEstimator extends TransactionEstimator {
                       markov, markov.getGraphId(), txn_id,
                       this.cached_paths.containsKey(markov), state.getInitialEstimate().isValid()));
         }
-        if (this.profiler != null) this.profiler.time_finish.appendTime(timestamp);
+        if (this.profiler != null) this.profiler.finish_time.appendTime(timestamp);
         return;
     }
     
@@ -474,7 +474,7 @@ public class MarkovEstimator extends TransactionEstimator {
                     MarkovPathEstimator.fastEstimation(est, initialPath, currentVertex);
                     compute_path = false;
                 } finally {
-                    if (this.profiler != null) this.profiler.time_fast_estimate.appendTime(timestamp);
+                    if (this.profiler != null) this.profiler.fastest_time.appendTime(timestamp);
                 }
             }
         }
@@ -500,7 +500,7 @@ public class MarkovEstimator extends TransactionEstimator {
                     MarkovPathEstimator.fastEstimation(est, cached, currentVertex);
                     compute_path = false;
                 } finally {
-                    if (this.profiler != null) this.profiler.time_cached_estimate.appendTime(timestamp);
+                    if (this.profiler != null) this.profiler.cachedest_time.appendTime(timestamp);
                 }
             }
         }
@@ -536,7 +536,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 LOG.error(msg, ex);
                 throw new RuntimeException(msg, ex);
             } finally {
-                if (this.profiler != null) this.profiler.time_full_estimate.appendTime(timestamp);
+                if (this.profiler != null) this.profiler.fullest_time.appendTime(timestamp);
             }
             
             this.pathEstimatorsPool.returnObject(pathEstimator);
@@ -621,7 +621,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // Update the state information
         state.setCurrent(next_v, next_e);
         if (trace.val) LOG.trace("Updated State Information for Txn #" + state.getTransactionId() + ":\n" + state);
-        if (this.profiler != null) this.profiler.time_consume.appendTime(timestamp);
+        if (this.profiler != null) this.profiler.consume_time.appendTime(timestamp);
         return (next_v);
     }
 

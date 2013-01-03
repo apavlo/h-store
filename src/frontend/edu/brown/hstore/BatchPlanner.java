@@ -560,7 +560,7 @@ public class BatchPlanner {
         if (hstore_conf.site.planner_profiling) {
             if (this.profiler == null)
                 this.profiler = new BatchPlannerProfiler();
-            this.profiler.time_plan.start();
+            this.profiler.plan_time.start();
             this.profiler.transactions.incrementAndGet();
         }
         if (debug.val) {
@@ -644,7 +644,7 @@ public class BatchPlanner {
                     LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id,
                               base_partition, Arrays.toString(this.catalog_stmts)));
                 if (hstore_conf.site.planner_profiling && profiler != null) {
-                    profiler.time_plan.stop();
+                    profiler.plan_time.stop();
                     profiler.cached.incrementAndGet();
                 }
                 touched_partitions.put(base_partition, this.nonReplicatedStmtCount);
@@ -754,11 +754,11 @@ public class BatchPlanner {
 
                         // PARTITION ESTIMATOR
                         if (hstore_conf.site.planner_profiling && profiler != null)
-                            ProfileMeasurementUtil.swap(profiler.time_plan, profiler.time_partitionEstimator);
+                            ProfileMeasurementUtil.swap(profiler.plan_time, profiler.partest_time);
                         this.p_estimator.getAllFragmentPartitions(frag_partitions, stmt_all_partitions,
                                 fragments.values(), params, base_partition);
                         if (hstore_conf.site.planner_profiling && profiler != null)
-                            ProfileMeasurementUtil.swap(profiler.time_partitionEstimator, profiler.time_plan);
+                            ProfileMeasurementUtil.swap(profiler.partest_time, profiler.plan_time);
 
                         int stmt_all_partitions_size = stmt_all_partitions.size();
                         if (is_singlePartition && stmt_all_partitions_size > 1) {
@@ -934,7 +934,7 @@ public class BatchPlanner {
         plan.rounds_length = graph.num_rounds;
 
         if (hstore_conf.site.planner_profiling && profiler != null)
-            profiler.time_plan.stop();
+            profiler.plan_time.stop();
 
         // Create the MispredictException if any Statement in the loop above hit
         // it. We don't want to throw it because whoever called us may want to look
@@ -974,7 +974,7 @@ public class BatchPlanner {
                                                final List<WorkFragment.Builder> builders) {
 
         if (hstore_conf.site.planner_profiling && profiler != null)
-            profiler.time_partitionFragments.start();
+            profiler.fragment_time.start();
         if (debug.val)
             LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]",
                       txn_id, plan.base_partition));
@@ -1068,7 +1068,7 @@ public class BatchPlanner {
         if (debug.val)
             LOG.debug("Created " + builders.size() + " WorkFragment(s) for txn #" + txn_id);
         if (hstore_conf.site.planner_profiling && profiler != null)
-            profiler.time_partitionFragments.stop();
+            profiler.fragment_time.stop();
     }
 
     /**
@@ -1079,7 +1079,7 @@ public class BatchPlanner {
      */
     protected PlanGraph buildPlanGraph(BatchPlanner.BatchPlan plan) {
         if (hstore_conf.site.planner_profiling && profiler != null)
-            ProfileMeasurementUtil.swap(profiler.time_plan, profiler.time_planGraph);
+            ProfileMeasurementUtil.swap(profiler.plan_time, profiler.graph_time);
         PlanGraph graph = new PlanGraph();
 
         this.sorted_vertices.clear();
@@ -1157,7 +1157,7 @@ public class BatchPlanner {
         graph.sorted_vertices = this.sorted_vertices.toArray(new PlanVertex[0]);
 
         if (hstore_conf.site.planner_profiling && profiler != null)
-            ProfileMeasurementUtil.swap(profiler.time_planGraph, profiler.time_plan);
+            ProfileMeasurementUtil.swap(profiler.graph_time, profiler.plan_time);
         return (graph);
     }
 

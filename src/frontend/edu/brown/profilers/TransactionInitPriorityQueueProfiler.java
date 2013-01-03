@@ -22,7 +22,7 @@ public class TransactionInitPriorityQueueProfiler extends AbstractProfiler {
     
     {
         for (QueueState s : QueueState.values()) {
-            this.queueStates.put(s, new ProfileMeasurement(s.name()));
+            this.queueStates.put(s, new ProfileMeasurement(s.name().toUpperCase()));
         } // FOR
     }
     
