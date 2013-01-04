@@ -224,6 +224,8 @@ public class HStoreThreadManager {
             if (debug.val)
                 LOG.debug("Default CPU Affinity: " + Arrays.toString(this.defaultAffinity));
         }
+        
+        org.voltdb.EELibraryLoader.loadExecutionEngineLibrary(true);
     }
     
     public synchronized ThreadGroup getThreadGroup(ThreadGroupType type) {
