@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.collections15.buffer.CircularFifoBuffer;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
@@ -192,8 +193,8 @@ class Distributer {
     class NodeConnection extends VoltProtocolHandler implements org.voltdb.network.QueueMonitor {
         private final AtomicInteger m_callbacksToInvoke = new AtomicInteger(0);
         private final HashMap<Long, CallbackValues> m_callbacks;
-        private final HashMap<String, ProcedureStats> m_stats
-            = new HashMap<String, ProcedureStats>();
+        private final HashMap<String, ProcedureStats> m_stats = new HashMap<String, ProcedureStats>();
+        private final CircularFifoBuffer<Long> lastSeenClientHandles = new CircularFifoBuffer<Long>(100);
         private final int m_hostId;
         private final long m_connectionId;
         private Connection m_connection;
@@ -275,55 +276,46 @@ class Distributer {
                 LOG.error("Invalid ClientResponse object returned by " + this, e);
                 return;
             }
-            ProcedureCallback cb = null;
-            long callTime = 0;
-            int delta = 0;
-            
             if (response == null) {
                 LOG.warn("Got back null ClientResponse. Ignoring...");
                 return;
             }
             
-            final long clientHandle = response.getClientHandle();
+            final Long clientHandle = new Long(response.getClientHandle());
             final Status status = response.getStatus();
-            final int restart_counter = response.getRestartCounter();
-            
-            boolean abort = false;
-            boolean error = false;
-            
+            final long now = System.currentTimeMillis();
             CallbackValues stuff = null;
-            long now = System.currentTimeMillis();
             synchronized (this) {
                 stuff = m_callbacks.remove(clientHandle);
-            
                 if (stuff != null) {
-                    callTime = stuff.time;
-                    delta = (int)(now - callTime);
-                    cb = stuff.callback;
                     m_invocationsCompleted++;
-                    
-                    if (debug.get()) {
-                        Map<String, Object> m0 = new LinkedHashMap<String, Object>();
-                        m0.put("Txn #", response.getTransactionId());
-                        m0.put("Status", response.getStatus());
-                        m0.put("ClientHandle", clientHandle);
-                        m0.put("RestartCounter", restart_counter);
-                        
-                        Map<String, Object> m1 = new LinkedHashMap<String, Object>();
-                        m1.put("Connection", this);
-                        m1.put("Completed Invocations", m_invocationsCompleted);
-                        m1.put("Error Invocations", m_invocationErrors);
-                        m1.put("Abort Invocations", m_invocationAborts);
-                        LOG.debug("ClientResponse Information:\n" + StringUtil.formatMaps(m0, m1));
-                    }
-
-                } else {
-                    LOG.warn(String.format("Failed to get callback for client handle #%d from %s\n%s",
-                                           clientHandle, this, response.toString())); 
+                    this.lastSeenClientHandles.add(clientHandle);
                 }
             } // SYNCH
 
             if (stuff != null) {
+                long callTime = stuff.time;
+                int delta = (int)(now - callTime);
+                ProcedureCallback cb = stuff.callback;
+                boolean abort = false;
+                boolean error = false;
+                
+                if (debug.val) {
+                    Map<String, Object> m0 = new LinkedHashMap<String, Object>();
+                    m0.put("Txn #", response.getTransactionId());
+                    m0.put("Status", response.getStatus());
+                    m0.put("ClientHandle", clientHandle);
+                    m0.put("RestartCounter", response.getRestartCounter());
+                    m0.put("Callback", (cb != null ? cb.getClass().getSimpleName() : null));
+                    
+                    Map<String, Object> m1 = new LinkedHashMap<String, Object>();
+                    m1.put("Connection", this);
+                    m1.put("Completed Invocations", m_invocationsCompleted);
+                    m1.put("Error Invocations", m_invocationErrors);
+                    m1.put("Abort Invocations", m_invocationAborts);
+                    LOG.debug("ClientResponse Information:\n" + StringUtil.formatMaps(m0, m1));
+                }
+                
                 if (status == Status.ABORT_USER || status == Status.ABORT_GRACEFUL) {
                     m_invocationAborts++;
                     abort = true;
@@ -335,21 +327,27 @@ class Distributer {
                 if (m_nanoseconds) clusterRoundTrip /= 1000000; 
                 if (clusterRoundTrip < 0) clusterRoundTrip = 0;
                 
-                updateStats(stuff.name, delta, clusterRoundTrip, abort, error, restart_counter);
-            }
-
-            if (cb != null) {
-                response.setClientRoundtrip(delta);
-                try {
-                    cb.clientCallback(response);
-                } catch (Exception e) {
-                    uncaughtException(cb, response, e);
+                this.updateStats(stuff.name, delta, clusterRoundTrip, abort, error, response.getRestartCounter());
+                
+                if (cb != null) {
+                    response.setClientRoundtrip(delta);
+                    try {
+                        cb.clientCallback(response);
+                    } catch (Exception e) {
+                        uncaughtException(cb, response, e);
+                    }
+                    m_callbacksToInvoke.decrementAndGet();
+                } else if (m_isConnected) {
+                    // TODO: what's the right error path here?
+                    LOG.warn("No callback available for clientHandle " + clientHandle);
                 }
-                m_callbacksToInvoke.decrementAndGet();
-            } else if (m_isConnected) {
-                // TODO: what's the right error path here?
-                LOG.warn("No callback available for clientHandle " + clientHandle);
-//                assert(false);
+            }
+            else {
+                LOG.warn(String.format("Failed to get callback for client handle #%d from %s\n%s" +
+                                       "\nLast Seen Handles: wasSeen=%s\n%s",
+                                       clientHandle, this, response.toString(),
+                                       this.lastSeenClientHandles.contains(clientHandle),
+                                       StringUtil.join("\n", this.lastSeenClientHandles))); 
             }
         }
 
@@ -526,9 +524,9 @@ class Distributer {
         m_hostname = hostname;
         m_nanoseconds = nanoseconds;
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Created new Distributer for %s [multiThread=%s]",
-                                    m_hostname, m_useMultipleThreads));
+                      m_hostname, m_useMultipleThreads));
 
 //        new Thread() {
 //            @Override
@@ -578,9 +576,9 @@ class Distributer {
 //    }
 
     public synchronized void createConnection(Integer site_id, String host, int port, String program, String password) throws UnknownHostException, IOException {
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(String.format("Creating new connection [site=%s, host=%s, port=%d]",
-                                    HStoreThreadManager.formatSiteName(site_id), host, port));
+                      HStoreThreadManager.formatSiteName(site_id), host, port));
             LOG.debug("Trying for an authenticated connection...");
         }
         Object connectionStuff[] = null;
@@ -588,10 +586,10 @@ class Distributer {
             connectionStuff =
             ConnectionUtil.getAuthenticatedConnection(host, program, password, port);
         } catch (Exception ex) {
-            LOG.error("Failed to get connection to " + host + ":" + port, (debug.get() ? ex : null));
+            LOG.error("Failed to get connection to " + host + ":" + port, (debug.val ? ex : null));
             throw new IOException(ex);
         }
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug("We now have an authenticated connection. Let's grab the socket...");
         final SocketChannel aChannel = (SocketChannel)connectionStuff[0];
         final long numbers[] = (long[])connectionStuff[1];
@@ -600,7 +598,7 @@ class Distributer {
             int addr = (int)numbers[3];
             m_clusterInstanceId = new Object[] { timestamp, addr };
             if (m_statsLoader != null) {
-                if (debug.get()) LOG.debug("statsLoader = " + m_statsLoader);
+                if (debug.val) LOG.debug("statsLoader = " + m_statsLoader);
                 try {
                     m_statsLoader.start( timestamp, addr);
                 } catch (Exception e) {
@@ -620,7 +618,7 @@ class Distributer {
         NodeConnection cxn = new NodeConnection(numbers);
         m_connections.add(cxn);
         if (site_id != null) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Created connection for Site %s: %s", HStoreThreadManager.formatSiteName(site_id), cxn));
             synchronized (m_connectionSiteXref) {
                 Collection<NodeConnection> nc = m_connectionSiteXref.get(site_id);
@@ -636,7 +634,7 @@ class Distributer {
         cxn.m_hostname = c.getHostname();
         cxn.m_port = port;
         cxn.m_connection = c;
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug("From what I can tell, we have a connection: " + cxn);
     }
 
@@ -695,7 +693,7 @@ class Distributer {
             }
         }
         
-        if (trace.get()) LOG.trace(invocation.toString() + " ::: ignoreBackpressure->" + ignoreBackpressure);
+        if (trace.val) LOG.trace(invocation.toString() + " ::: ignoreBackpressure->" + ignoreBackpressure);
         
         // If we didn't get a direct site connection then we'll grab the next 
         // connection in our round-robin look up
@@ -712,7 +710,7 @@ class Distributer {
                         String msg = String.format("Failed to get connection #%d / %d", idx, totalConnections);
                         throw new RuntimeException(msg, ex);
                     }
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
                     // queuedInvocations += cxn.m_callbacks.size();
                     if (cxn.hadBackPressure() == false || ignoreBackpressure) {
@@ -735,9 +733,9 @@ class Distributer {
          * createWork synchronizes on an individual connection which allows for more concurrency
          */
         if (cxn != null) {
-            if (debug.get()) 
+            if (debug.val) 
                 LOG.debug(String.format("Queuing new %s Request at %s [clientHandle=%d, siteId=%s]",
-                                        invocation.getProcName(), cxn, invocation.getClientHandle(), site_id));
+                          invocation.getProcName(), cxn, invocation.getClientHandle(), site_id));
             
             if (m_useMultipleThreads) {
                 cxn.createWork(now, invocation.getClientHandle(), invocation.getProcName(), invocation, cb);
