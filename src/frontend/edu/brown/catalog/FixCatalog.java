@@ -126,8 +126,10 @@ public abstract class FixCatalog {
               // LOG.debug("Added " + ctr + " partitions for " + catalog_host);
         } // FOR
         catalog_clus.setNum_partitions(partition_ctr);
-        LOG.info(String.format("Updated host information in catalog with %d hosts and %d partitions",
-                               catalog_clus.getHosts().size(), partition_ctr));
+        LOG.info(String.format("Updated host information in catalog with %d host%s and %d partitions",
+                               catalog_clus.getHosts().size(),
+                               (catalog_clus.getHosts().size() > 1 ? "s" : ""),
+                               partition_ctr));
         return (catalog);
     }
     
