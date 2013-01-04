@@ -202,7 +202,7 @@ public class TransactionInitQueueCallback extends AbstractTransactionCallback<Ab
             } // FOR
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
-            this.clearCounter();
+            // this.clearCounter();
         }
         return (false);
     }
