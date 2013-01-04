@@ -946,7 +946,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         //  (2) If it's as distribued txn, then we'll want to just set it as our 
         //      current dtxn at this partition and then keep checking the queue
         //      for more work.
+        
+        if (hstore_conf.site.exec_profiling) profiler.poll_queue_time.start();
         AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
+        if (hstore_conf.site.exec_profiling) profiler.poll_queue_time.stop();
+        
         if (next != null) {
             // If this a single-partition txn, then we'll want to execute it right away
             if (next.isPredictSinglePartition()) {
@@ -955,7 +959,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             else {
                 this.setCurrentDtxn(next);
                 this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_dtxn_time.start();
+                if (hstore_conf.site.exec_profiling) profiler.idle_queue_dtxn_time.start();
             }
         }
         

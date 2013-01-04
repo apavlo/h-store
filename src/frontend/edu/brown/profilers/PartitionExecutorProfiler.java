@@ -69,6 +69,11 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     public final ProfileMeasurement util_time = new ProfileMeasurement("UTILITY");
     
     /**
+     * How much time the PartitionExecutor spends polling it's init queue
+     */
+    public final ProfileMeasurement poll_queue_time = new ConcurrentProfileMeasurement("POLL_QUEUE");
+    
+    /**
      * How much time did this PartitionExecutor spend in the spec exec conflict checker
      */
     public final ProfileMeasurement conflicts_time = new ProfileMeasurement("CONFLICTS");
