@@ -177,15 +177,27 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * It is safe to call this from any thread if you need to
      */
     @Override
-    public boolean offer(AbstractTransaction ts) {
+    public boolean offer(AbstractTransaction ts, boolean force) {
         assert(ts != null);
         assert(ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, this.partitionId);
         
-        boolean retval = super.offer(ts);
+        boolean retval = super.offer(ts, force);
         if (debug.val) LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
         if (retval) this.checkQueueState(false);
         return retval;
+    }
+    
+    @Override
+    @Deprecated
+    public boolean offer(AbstractTransaction e) {
+        return super.offer(e, false);
+    }
+    
+    @Override
+    @Deprecated
+    public void put(AbstractTransaction e) throws InterruptedException {
+        super.offer(e, false);
     }
 
     @Override

@@ -108,7 +108,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     }
     
     private LocalTransaction addToQueue(LocalTransaction ts) {
-        this.work_queue.offer(ts);
+        this.work_queue.offer(ts, false);
         return (ts);
     }
     
