@@ -32,6 +32,8 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
 import edu.brown.statistics.ObjectHistogram;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
@@ -184,7 +186,6 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
                                                                           this.initWaitTime,
                                                                           this.initThrottleThreshold,
                                                                           this.initThrottleRelease);
-            this.lockQueues[partition].setAllowIncrease(true);
             this.lockQueues[partition].setThrottleThresholdIncreaseDelta(100);
             this.lockQueues[partition].setThrottleThresholdMaxSize(this.initThrottleThreshold*2);
             
@@ -192,6 +193,17 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
             this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
         } // FOR
         Arrays.fill(this.lockQueuesLastTxn, Long.valueOf(-1l));
+        
+        // Add a EventObservable that will tell us when the first non-sysproc
+        // request arrives from a client. This will then tell the queues that its ok
+        // to increase their limits if they're empty
+        hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<HStoreSite>() {
+            public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
+                for (TransactionInitPriorityQueue queue : lockQueues) {
+                    if (queue != null) queue.setAllowIncrease(true);
+                } // FOR
+            };
+        });
         
         if (debug.val)
             LOG.debug(String.format("Created %d %s for %s",
