@@ -114,15 +114,12 @@ public class ResultsPrinter implements BenchmarkInterest {
              .append(String.format("stdev:" + RESULT_FORMAT, fr.getTotalStdDevLatency()))
              .append("]");
         
-        String txnInfo = String.format("Total:%d / Distributed:%d (%.1f%%)",
+        String txnInfo = String.format("Total:%d / Distributed:%d (%.1f%%) / SpecExec:%d (%.1f%%)",
                                         fr.getTotalTxnCount(),
                                         fr.getTotalDtxnCount(),
-                                        (fr.getTotalDtxnCount() / (double)fr.getTotalTxnCount())*100);
-        if (fr.getTotalSpecExecCount() > 0) {
-            txnInfo += String.format(" / SpecExec:%d (%.1f%%)",
+                                        (fr.getTotalDtxnCount() / (double)fr.getTotalTxnCount())*100,
                                         fr.getTotalSpecExecCount(),
                                         (fr.getTotalSpecExecCount() / (double)fr.getTotalTxnCount())*100);
-        }
         
         
         Map<String, Object> m = new LinkedHashMap<String, Object>();
