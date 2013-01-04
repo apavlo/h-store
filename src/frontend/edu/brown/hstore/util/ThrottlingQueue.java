@@ -21,7 +21,7 @@ import edu.brown.profilers.ProfileMeasurement;
  * @author pavlo
  * @param <E>
  */
-public class ThrottlingQueue<E> implements BlockingQueue<E> {
+public class ThrottlingQueue<E> implements Queue<E> {
     private static final Logger LOG = Logger.getLogger(ThrottlingQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -29,7 +29,7 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final BlockingQueue<E> queue;
+    private final Queue<E> queue;
     private volatile int size;
     
     private boolean throttled;
@@ -54,7 +54,7 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
      * @param throttleThresholdIncrease The increase delta for when we will increase the max size.
      * @param throttleThresholdMaxSize The maximum size of the queue.
      */
-    public ThrottlingQueue(BlockingQueue<E> queue,
+    public ThrottlingQueue(Queue<E> queue,
                            int throttleThreshold,
                            double throttleReleaseFactor,
                            int throttleThresholdIncrease,
@@ -77,7 +77,7 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
      * @param throttleThreshold The initial max size of the queue before it is throttled.
      * @param throttleReleaseFactor The release factor for when the queue will be unthrottled.
      */
-    public ThrottlingQueue(BlockingQueue<E> queue,
+    public ThrottlingQueue(Queue<E> queue,
                            int throttleThreshold,
                            double throttleReleaseFactor) {
         this(queue, throttleThreshold, throttleReleaseFactor, 0, throttleThreshold);
@@ -257,24 +257,24 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     public boolean offer(E e) {
         return this.offer(e, false);
     }
-    @Override
-    public void put(E e) throws InterruptedException {
-        boolean ret = this.queue.offer(e);
-        if (ret) {
-            this.size = this.queue.size();
-            this.checkThrottling(this.allow_increase);
-        }
-        return;
-    }
-    @Override
-    public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
-        boolean ret = this.queue.offer(e, timeout, unit);
-        if (ret) {
-            this.size = this.queue.size();
-            this.checkThrottling(this.allow_increase);
-        }
-        return (ret);
-    }
+//    @Override
+//    public void put(E e) throws InterruptedException {
+//        boolean ret = this.queue.offer(e);
+//        if (ret) {
+//            this.size = this.queue.size();
+//            this.checkThrottling(this.allow_increase);
+//        }
+//        return;
+//    }
+//    @Override
+//    public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
+//        boolean ret = this.queue.offer(e, timeout, unit);
+//        if (ret) {
+//            this.size = this.queue.size();
+//            this.checkThrottling(this.allow_increase);
+//        }
+//        return (ret);
+//    }
     @Override
     public boolean remove(Object o) {
         boolean ret = this.queue.remove(o);
@@ -293,15 +293,15 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return (e);
     }
-    @Override
-    public E poll(long timeout, TimeUnit unit) throws InterruptedException {
-        E e = this.queue.poll(timeout, unit);
-        if (e != null) {
-            this.size = this.queue.size();
-            this.checkThrottling(this.allow_increase);
-        }
-        return (e);
-    }
+//    @Override
+//    public E poll(long timeout, TimeUnit unit) throws InterruptedException {
+//        E e = this.queue.poll(timeout, unit);
+//        if (e != null) {
+//            this.size = this.queue.size();
+//            this.checkThrottling(this.allow_increase);
+//        }
+//        return (e);
+//    }
     @Override
     public E remove() {
         E e = this.queue.remove();
@@ -311,37 +311,37 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         }
         return (e);
     }
-    @Override
-    public E take() throws InterruptedException {
-        E e = this.queue.take();
-        if (e != null) {
-            this.size = this.queue.size();
-            this.checkThrottling(this.allow_increase);
-        }
-        return (e);
-    }
-    @Override
-    public int remainingCapacity() {
-        return (this.queue.remainingCapacity());
-    }
-    @Override
-    public int drainTo(Collection<? super E> c) {
-        int ret = this.queue.drainTo(c);
-        if (ret > 0) {
-            this.size -= ret;
-            this.checkThrottling(this.allow_increase);
-        }
-        return (ret);
-    }
-    @Override
-    public int drainTo(Collection<? super E> c, int maxElements) {
-        int ret = this.queue.drainTo(c, maxElements);
-        if (ret > 0) {
-            this.size = this.queue.size();
-            this.checkThrottling(this.allow_increase);
-        }
-        return (ret);
-    }
+//    @Override
+//    public E take() throws InterruptedException {
+//        E e = this.queue.take();
+//        if (e != null) {
+//            this.size = this.queue.size();
+//            this.checkThrottling(this.allow_increase);
+//        }
+//        return (e);
+//    }
+//    @Override
+//    public int remainingCapacity() {
+//        return (this.queue.remainingCapacity());
+//    }
+//    @Override
+//    public int drainTo(Collection<? super E> c) {
+//        int ret = this.queue.drainTo(c);
+//        if (ret > 0) {
+//            this.size -= ret;
+//            this.checkThrottling(this.allow_increase);
+//        }
+//        return (ret);
+//    }
+//    @Override
+//    public int drainTo(Collection<? super E> c, int maxElements) {
+//        int ret = this.queue.drainTo(c, maxElements);
+//        if (ret > 0) {
+//            this.size = this.queue.size();
+//            this.checkThrottling(this.allow_increase);
+//        }
+//        return (ret);
+//    }
     @Override
     public void clear() {
         if (this.throttled) this.throttle_time.stopIfStarted();
