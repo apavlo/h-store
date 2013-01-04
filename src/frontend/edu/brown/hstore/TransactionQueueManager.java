@@ -138,7 +138,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
      * A queue of transactions that need to be added to the lock queues at the partitions 
      * at this site.
      */
-    private final Queue<AbstractTransaction> initQueues[];// = new ConcurrentLinkedQueue<AbstractTransaction>(); 
+    private final Queue<AbstractTransaction> initQueues[]; 
     
     // ----------------------------------------------------------------------------
     // TRANSACTIONS THAT NEED TO BE REQUEUED
@@ -184,6 +184,10 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
                                                                           this.initWaitTime,
                                                                           this.initThrottleThreshold,
                                                                           this.initThrottleRelease);
+            this.lockQueues[partition].setAllowIncrease(true);
+            this.lockQueues[partition].setThrottleThresholdIncreaseDelta(100);
+            this.lockQueues[partition].setThrottleThresholdMaxSize(this.initThrottleThreshold*2);
+            
             this.lockQueuesBlocked[partition] = false;
             this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
         } // FOR

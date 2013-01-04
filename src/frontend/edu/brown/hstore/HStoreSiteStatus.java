@@ -495,20 +495,19 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
             
             // TransactionQueueManager Info
-            String queueStatus0 = String.format("%s [limit=%d, release=%d] %s",
-                                                initQueue.getQueueState(),
-                                                initQueue.getThrottleThreshold(),
-                                                initQueue.getThrottleRelease(),
-                                                (initQueue.isThrottled() ? "*THROTTLED* " : ""));
-            String queueStatus1 = "";
+            String queueStatus = String.format("%s [limit=%d, release=%d] %s",
+                                               initQueue.getQueueState(),
+                                               initQueue.getThrottleThreshold(),
+                                               initQueue.getThrottleRelease(),
+                                               (initQueue.isThrottled() ? "*THROTTLED* " : ""));
             txn_id = queueManagerDebug.getCurrentTransaction(partition);
             if (txn_id != null) {
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);
                 if (ts != null) {
                     PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
-                    queueStatus0 += "/ " + ts;
+                    queueStatus += "\n" + ts;
                     if (callback != null) {
-                        queueStatus1 += String.format("ReceivedPartitions=%s / AllPartitions=%s",
+                        queueStatus += String.format("\nReceivedPartitions=%s / AllPartitions=%s",
                                                       callback.getReceivedPartitions(), callback.getPartitions());
                     }
                     // FULL TXN DEBUG
@@ -516,18 +515,18 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 }
             }
             else if (queueManagerDebug.isLocked(partition)) {
-                queueStatus1 += "WARNING: Queue is locked but without a txn!";
+                queueStatus += "\nWARNING: Queue is locked but without a txn!";
             }
             
             // TransactionQueueManager - Blocked
             if (queueManagerDebug.getBlockedQueueSize() > 0) {
-                queueStatus1 += "Blocked: " + queueManagerDebug.getBlockedQueueSize();
+                queueStatus += "\nBlocked: " + queueManagerDebug.getBlockedQueueSize();
             }
             // TransactionQueueManager - Requeued Txns
             if (queueManagerDebug.getRestartQueueSize() > 0) {
-                queueStatus1 += "Requeues: " + queueManagerDebug.getRestartQueueSize();
+                queueStatus += "\nRequeues: " + queueManagerDebug.getRestartQueueSize();
             }
-            m.put("Lock Queue", queueStatus0 + (queueStatus1.isEmpty() ? "" : "\n" + queueStatus1));
+            m.put("Lock Queue", queueStatus);
             
 //            if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
 //                LOG.warn(String.format("Partition %d is throttled when it should not be! [inflight=%d, release=%d]",
