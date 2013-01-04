@@ -2482,9 +2482,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
         if (debug.val)
-            LOG.debug(String.format("Txn %s - Sending back ClientResponse [status=%s%s]",
+            LOG.debug(String.format("Txn %s - Sending back ClientResponse [handle=%d, status=%s%s]",
                       (cresponse.getTransactionId() == -1 ? "<NONE>" : "#"+cresponse.getTransactionId()),
-                      status,
+                      cresponse.getClientHandle(), status,
                       (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null ?
                       "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
         
