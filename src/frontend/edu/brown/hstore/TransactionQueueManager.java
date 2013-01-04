@@ -186,7 +186,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
                                                                           this.initWaitTime,
                                                                           this.initThrottleThreshold,
                                                                           this.initThrottleRelease);
-            this.lockQueues[partition].setThrottleThresholdIncreaseDelta(100);
+            this.lockQueues[partition].setThrottleThresholdIncreaseDelta(50);
             this.lockQueues[partition].setThrottleThresholdMaxSize(this.initThrottleThreshold*2);
             
             this.lockQueuesBlocked[partition] = false;
@@ -827,7 +827,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
             this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
         }
 
-        this.initThrottleThreshold = hstore_conf.site.network_incoming_limit_txns;
+        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * 0.75);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (TransactionInitPriorityQueue queue : this.lockQueues) {
             if (queue != null) {
