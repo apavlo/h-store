@@ -2486,7 +2486,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null) {
                 extra = "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace());
             }
-            if (status == Status.OK && cresponse.getResults().length > 0) {
+            if (trace.val && status == Status.OK && cresponse.getResults().length > 0) {
                 extra += "\n" + cresponse.getResults()[0];
             }
             LOG.debug(String.format("Txn %s - Sending back ClientResponse [handle=%d, status=%s]%s",
