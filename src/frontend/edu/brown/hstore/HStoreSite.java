@@ -250,7 +250,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //    private VoltProcedureListener voltListeners[];
 //    private final NIOEventLoop procEventLoops[];
     
-    private VoltNetwork voltNetwork;
+    private final VoltNetwork voltNetwork;
     private ClientInterface clientInterface;
     
     // ----------------------------------------------------------------------------
@@ -439,8 +439,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
              this.deletable_txns.put(s, new ConcurrentLinkedQueue<Long>());
          } // FOR
         
-        // **IMPORTANT**
-        // We have to setup the partition offsets before we do anything else here
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
         
@@ -573,7 +571,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // NETWORK SETUP
         // -------------------------------
         
-        this.voltNetwork = new VoltNetwork();
+        this.voltNetwork = new VoltNetwork(this.threadManager);
         this.clientInterface = ClientInterface.create(this,
                                                       this.voltNetwork,
                                                       catalog_site.getProc_port(),

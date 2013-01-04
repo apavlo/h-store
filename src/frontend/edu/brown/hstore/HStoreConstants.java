@@ -48,12 +48,14 @@ public abstract class HStoreConstants {
     public static final String THREAD_NAME_HELPER = "help";
     public static final String THREAD_NAME_TXNQUEUE = "queue";
     public static final String THREAD_NAME_COMMANDLOGGER = "cmdlg";
-    public static final String THREAD_NAME_VOLTNETWORK = "voltnetwork";
     public static final String THREAD_NAME_ANTICACHE = "anticache";
     public static final String THREAD_NAME_LOGGING = "logging";
     public static final String THREAD_NAME_MAPREDUCE = "mr";
     public static final String THREAD_NAME_DEBUGSTATUS = "status";
     public static final String THREAD_NAME_TXNCLEANER = "cleaner";
+    
+    public static final String THREAD_NAME_VOLTNETWORK = "voltnetwork";
+    public static final String THREAD_NAME_INCOMINGNETWORK= "incoming";
     
     // ----------------------------------------------------------------------------
     // EXECUTION STUFF
