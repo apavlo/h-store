@@ -1877,8 +1877,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private void executeTransaction(LocalTransaction ts) {
         this.currentTxn = ts;
         assert(ts.isInitialized()) : "Unexpected uninitialized transaction request: " + ts;
-        if (trace.val) LOG.trace(String.format("%s - Attempting to execute transaction on partition %d",
-                         ts, this.partitionId));
+        if (trace.val)
+            LOG.trace(String.format("%s - Attempting to execute transaction on partition %d",
+                      ts, this.partitionId));
         
         // If this is a MapReduceTransaction handle, we actually want to get the 
         // inner LocalTransaction handle for this partition. The MapReduceTransaction
@@ -1939,8 +1940,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
             // 2011-11-14: We don't want to set the execution mode here, because we know that we
             //             can check whether we were read-only after the txn finishes
-            if (debug.val) LOG.debug(String.format("Marking %s as current DTXN on Partition %d [isLocal=%s, execMode=%s]",
-                             ts, this.partitionId, true, this.currentExecMode));                    
+            if (debug.val)
+                LOG.debug(String.format("Marking %s as current DTXN on Partition %d [isLocal=%s, execMode=%s]",
+                          ts, this.partitionId, true, this.currentExecMode));                    
         }
         // -------------------------------
         // SINGLE-PARTITION TXN
@@ -1956,16 +1958,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // need to block the transaction and return back to the queue. This is easier than 
                 // having to set all sorts of crazy locks
                 if (this.currentExecMode == ExecutionMode.DISABLED || hstore_conf.site.specexec_enable == false) {
-                    if (debug.val) LOG.debug(String.format("%s - Blocking single-partition %s until dtxn finishes [mode=%s]",
-                                     this.currentDtxn, ts, this.currentExecMode));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Blocking single-partition %s until dtxn finishes [mode=%s]",
+                                  this.currentDtxn, ts, this.currentExecMode));
                     this.blockTransaction(ts);
                     return;
                 }
                 
                 SpeculationType specType = this.calculateSpeculationType();
                 ts.setSpeculative(specType);
-                if (debug.val) LOG.debug(String.format("%s - Speculatively executing %s while waiting for dtxn [%s]",
-                                 this.currentDtxn, ts, specType));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Speculatively executing %s while waiting for dtxn [%s]",
+                              this.currentDtxn, ts, specType));
                 assert(ts.isSpeculative()) : ts + " was not marked as being speculative!";
             }
         }
@@ -1982,7 +1986,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         if (debug.val) {
             LOG.debug(String.format("%s - Starting execution of txn [txnMode=%s, mode=%s]",
-                                    ts, before_mode, this.currentExecMode));
+                      ts, before_mode, this.currentExecMode));
             if (trace.val) LOG.trace("Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
         }
         
