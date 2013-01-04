@@ -24,16 +24,16 @@ CLIENT_HOSTS=( \
 BASE_CLIENT_THREADS=1
 BASE_SITE_MEMORY=2048
 BASE_SITE_MEMORY_PER_PARTITION=1024
-BASE_PROJECT="voter"
+BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
 
 BASE_ARGS=( \
    
     # SITE DEBUG
-#    "-Dsite.status_enable=true" \
-#    "-Dsite.status_interval=10000" \
-#    "-Dsite.status_show_executor_info=true" \
-#    "-Dsite.exec_profiling=true" \
+    "-Dsite.status_enable=true" \
+    "-Dsite.status_interval=10000" \
+    "-Dsite.status_show_executor_info=true" \
+    "-Dsite.exec_profiling=true" \
 #     "-Dsite.status_show_txn_info=true" \
 #     "-Dsite.network_profiling=false" \
 #     "-Dsite.log_backup=true" \
@@ -45,17 +45,15 @@ BASE_ARGS=( \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-    "-Dsite.pool_localtxnstate_idle=12000" \
-    "-Dsite.network_incoming_limit_txns=8000" \
+    "-Dsite.pool_localtxnstate_idle=14000" \
+    "-Dsite.network_incoming_limit_txns=10000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=1" \
-    "-Dsite.queue_shedder_interval=99999999" \
-    "-Dsite.queue_shedder_stdev_multiplier=2.0" \
     
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=12000" \
+    "-Dclient.txnrate=15000" \
     "-Dclient.warmup=60000" \
     "-Dclient.duration=180000 "\
     "-Dclient.shared_connection=false" \
@@ -83,9 +81,11 @@ EVICTABLE_TABLES=( \
     "votes" \
 )
 EVICTABLES=""
-for t in ${EVICTABLE_TABLES[@]}; do
-    EVICTABLES="${t},${EVICTABLES}"
-done
+if [ "$ENABLE_ANTICACHE" = "true" ]; then
+    for t in ${EVICTABLE_TABLES[@]}; do
+        EVICTABLES="${t},${EVICTABLES}"
+    done
+fi
 
 # Compile
 HOSTS_TO_UPDATE=("$SITE_HOST")
@@ -106,7 +106,7 @@ for HOST in ${HOSTS_TO_UPDATE[@]}; do
 done
 wait
 
-for i in `seq 2 10`; do
+for i in `seq 8 8`; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
