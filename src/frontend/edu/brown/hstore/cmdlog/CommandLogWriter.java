@@ -119,10 +119,21 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             this.nextPos = 0; 
         }
         public LogEntry next(LocalTransaction ts, ClientResponseImpl cresponse) {
-            // TODO: The internal pointer to the next element does not need to be atomic
+            // Check that they don't try add the same txn twice right after each other
+            if (hstore_conf.site.jvm_asserts) {
+                LogEntry prev = this.buffer[this.previous()];
+                if (prev.isInitialized()) {
+                    assert(ts.getTransactionId().equals(prev.getTransactionId())) :
+                        String.format("Trying to queue %s in the %s twice\n%s",
+                                      ts, CommandLogWriter.class.getSimpleName(), prev);
+                }
+            }
+            
+            // The internal pointer to the next element does not need to be atomic because 
+            // we are going to maintain separate buffers for each partition.
             // But we need to think about what happens if we are about to wrap around and we
             // haven't been flushed to disk yet.
-            LogEntry ret = this.buffer[nextPos].init(ts, cresponse); 
+            LogEntry ret = this.buffer[this.nextPos].init(ts, cresponse); 
             this.nextPos = (this.nextPos + 1) % this.buffer.length;;
             return ret;
         }
@@ -136,6 +147,9 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         }
         public int size() {
             return ((this.nextPos + this.buffer.length) - this.startPos) % this.buffer.length;
+        }
+        private int previous() {
+            return ((this.nextPos == 0 ? this.buffer.length : this.nextPos) - 1);
         }
         @Override
         public String toString() {
@@ -410,13 +424,12 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         this.singletonSerializer.clear();
         int txnCounter = 0;
         for (int i = 0; i < eb.length; i++) {
-            CircularLogEntryBuffer buffer = eb[i];
             try {
                 assert(this.singletonSerializer != null);
-                int size = buffer.buffer.length;
-                int position = buffer.startPos;
-                while (position != buffer.nextPos) {
-                    WriterLogEntry entry = buffer.buffer[position++];
+                int size = eb[i].buffer.length;
+                int position = eb[i].startPos;
+                while (position != eb[i].nextPos) {
+                    WriterLogEntry entry = eb[i].buffer[position++];
                     try {
                         this.singletonSerializer.writeObject(entry);
                         txnCounter++;
@@ -425,7 +438,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                     }
                     if (debug.val)
                         LOG.debug(String.format("Prepared txn #%d for group commit batch #%d",
-                                                entry.getTransactionId(), this.commitBatchCounter));
+                                  entry.getTransactionId(), this.commitBatchCounter));
                     if (position >= size) position = 0;
                 } // WHILE
             } catch (Exception e) {
