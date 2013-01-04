@@ -26,7 +26,7 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
      * How much time the PartitionExecutor was idle waiting for
      * work to do in its queue. (SP2.remote)
      */
-    public final ProfileMeasurement idle_queue_time = new ConcurrentProfileMeasurement("IDLE_QUEUE");
+    public final ProfileMeasurement idle_queue_time = new ProfileMeasurement("IDLE_QUEUE");
     
     /**
      * How much time the PartitionExecutor was idle waiting for
@@ -71,7 +71,7 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     /**
      * How much time the PartitionExecutor spends polling it's init queue
      */
-    public final ProfileMeasurement poll_queue_time = new ConcurrentProfileMeasurement("POLL_QUEUE");
+    public final ProfileMeasurement poll_queue_time = new ProfileMeasurement("POLL_QUEUE");
     
     /**
      * How much time did this PartitionExecutor spend in the spec exec conflict checker

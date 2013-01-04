@@ -899,8 +899,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 try {
                 	this.processInternalMessage(work);
                 } finally {
-                	if (hstore_conf.site.exec_profiling)
-                	    ProfileMeasurementUtil.swap(profiler.exec_time, profiler.idle_queue_time);
+                	if (hstore_conf.site.exec_profiling) profiler.exec_time.stopIfStarted();
                 }
                 
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
