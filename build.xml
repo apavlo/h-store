@@ -1912,7 +1912,6 @@ UTILITIES
     <basename property="jar.filename" file="${jar}"/>
     <property name="jar.backup" location="${global.temp_dir}/backup/${jar.filename}" />
     <copy file="${jar}" tofile="${jar.backup}" />
-    <echo message="Copied back-up to ${jar.backup}" />
     <unjar src="${jar}" dest="${global.temp_dir}/fixcatalog/"/>
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.FixCatalog">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -1934,7 +1933,6 @@ UTILITIES
     </java>
    <jar destfile="${jar}" basedir="${global.temp_dir}/fixcatalog/"/>
    <delete includeemptydirs="true" dir="${global.temp_dir}/fixcatalog" failonerror='false'/>
-   <echo message="Updated catalog in jar file ${jar}" />
 </target>
 
 <target name='catalog-info'

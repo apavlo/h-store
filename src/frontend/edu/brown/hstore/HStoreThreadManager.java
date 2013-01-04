@@ -197,7 +197,7 @@ public class HStoreThreadManager {
                 while (this.partitionBlacklist.contains(cpuId)) {
                     cpuId++;
                 } // WHILE
-                partitionCPUs.put(partition, cpuId);
+                this.partitionCPUs.put(partition, cpuId);
                 this.defaultAffinity[cpuId] = false;
                 cpuId++;
             } // FOR
@@ -205,7 +205,7 @@ public class HStoreThreadManager {
             // Reserve the highest cores for the various utility threads
             // We want to pin these threads to a single core to make it easier to identify
             // what when one of them eats too much of it.
-            if ((this.num_cores - host_partitions.size()) > this.utility_suffixes.length) {
+            if ((this.num_cores - host_partitions.size()) > this.utility_suffixes.length+2) {
                 for (int i = 0; i < this.utility_suffixes.length; i++) {
                     boolean affinity[] = this.utilityAffinities.get(this.utility_suffixes[i]);
                     if (affinity == null) {
@@ -372,10 +372,15 @@ public class HStoreThreadManager {
         
         boolean affinity[] = this.defaultAffinity;
         Thread t = Thread.currentThread();
+        
+        // Check whether this is as utility thread that we want to pin
+        // to a certain number of cores
         String nameParts[] = THREAD_NAME_SLITTER.split(t.getName());
         String suffix = (nameParts.length > 1 ? nameParts[1] : nameParts[0]); 
         if (this.utilityAffinities.containsKey(suffix)) {
             affinity = this.utilityAffinities.get(suffix); 
+            if (trace.val)
+                LOG.trace("Using utility affinity for '" + suffix + "'");
         }
         
         if (debug.val)
