@@ -2481,12 +2481,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (debug.val)
-            LOG.debug(String.format("Txn %s - Sending back ClientResponse [handle=%d, status=%s%s]",
+        if (debug.val) {
+            String extra = "";
+            if (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null) {
+                extra = "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace());
+            }
+            if (status == Status.OK && cresponse.getResults().length > 0) {
+                extra += "\n" + cresponse.getResults()[0];
+            }
+            LOG.debug(String.format("Txn %s - Sending back ClientResponse [handle=%d, status=%s]%s",
                       (cresponse.getTransactionId() == -1 ? "<NONE>" : "#"+cresponse.getTransactionId()),
-                      cresponse.getClientHandle(), status,
-                      (status == Status.ABORT_UNEXPECTED && cresponse.getException() != null ?
-                      "\n" + StringUtil.join("\n", cresponse.getException().getStackTrace()) : "")));
+                      cresponse.getClientHandle(), status, extra));
+        }
         
         long now = -1;
         if (hstore_conf.global.nanosecond_latencies) {
