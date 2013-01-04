@@ -374,12 +374,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final int local_partition_offsets[];
     
-    /**
-     * For a given offset from LOCAL_PARTITION_OFFSETS, this array
-     * will contain the partition id
-     */
-    private final int local_partition_reverse[];
-    
     // ----------------------------------------------------------------------------
     // TRANSACTION ESTIMATION
     // ----------------------------------------------------------------------------
@@ -475,12 +469,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Offset Hack
         this.local_partition_offsets = new int[num_partitions];
         Arrays.fill(this.local_partition_offsets, HStoreConstants.NULL_PARTITION_ID);
-        this.local_partition_reverse = new int[num_local_partitions];
         int offset = 0;
         for (int partition : this.local_partitions) {
-            this.local_partition_offsets[partition] = offset;
-            this.local_partition_reverse[offset] = partition; 
-            offset++;
+            this.local_partition_offsets[partition] = offset++;
         } // FOR
         
         // Object Pools
@@ -2577,19 +2568,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.remoteTxnEstimator.destroyEstimatorState(t_state);
         }
         
-//        // Make sure we completely remove it from the TransactionQueueManager
-//        for (int partition : ts.getPredictTouchedPartitions().values()) {
-//            if (this.local_partitions.contains(partition)) {
-//                this.txnQueueManager.getInitQueue(partition).cleanup(txn_id);
-//            }
-//        } // FOR
-        
         if (hstore_conf.site.pool_txn_enable) {
             if (debug.val) {
                 LOG.warn(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                           ts, ts.getClass().getSimpleName(), ts.hashCode()));
-                if (debug.val) this.deletable_last.add(ts.toString());
-//                this.deletable_last.add(ts.debug());
+                this.deletable_last.add(String.format("%s :: %s", ts, status));
             }
             this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
         }
@@ -2749,7 +2732,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (debug.val) {
                 LOG.warn(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                          ts, ts.getClass().getSimpleName(), ts.hashCode()));
-                if (debug.val) this.deletable_last.add(ts.toString());
+                this.deletable_last.add(String.format("%s :: %s", ts, status));
             }
             if (this.mr_helper_started == true && ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
@@ -2813,7 +2796,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 ClientResponseImpl errorResponse =
                         new ClientResponseImpl(-1,
                                                result.clientHandle,
-                                               this.local_partition_reverse[0],
+                                               this.local_partitions.get(),
                                                Status.ABORT_UNEXPECTED,
                                                HStoreConstants.EMPTY_RESULT,
                                                result.errorMsg);
