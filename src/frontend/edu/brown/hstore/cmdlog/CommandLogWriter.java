@@ -123,7 +123,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             if (hstore_conf.site.jvm_asserts) {
                 LogEntry prev = this.buffer[this.previous()];
                 if (prev.isInitialized()) {
-                    assert(ts.getTransactionId().equals(prev.getTransactionId())) :
+                    assert(ts.getTransactionId().equals(prev.getTransactionId()) == false) :
                         String.format("Trying to queue %s in the %s twice\n%s",
                                       ts, CommandLogWriter.class.getSimpleName(), prev);
                 }
