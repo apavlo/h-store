@@ -40,7 +40,8 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     private int throttleThresholdMaxSize;
     private boolean allow_increase = false;
     
-    private final ProfileMeasurement throttle_time;
+    private final ProfileMeasurement throttle_time = new ProfileMeasurement("THROTTLING");
+    private boolean throttle_time_enabled = false;
          
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -67,8 +68,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         this.throttleThresholdIncrease = throttleThresholdIncrease;
         this.throttleThresholdMaxSize = throttleThresholdMaxSize;
         this.computeReleaseThreshold();
-        
-        this.throttle_time = new ProfileMeasurement("THROTTLING");
     }
     
     /**
@@ -183,6 +182,10 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         return (this.queue);
     }
     
+    public void enableThrottleTime(boolean val) {
+        this.throttle_time_enabled = val;
+    }
+    
     public ProfileMeasurement getThrottleTime() {
         return (this.throttle_time);
     }
@@ -223,8 +226,10 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         if (this.throttled == false) {
             // If they've gone above the current queue max size, then
             // they are throtttled!
-            if (this.size >= this.throttleThreshold)
+            if (this.size >= this.throttleThreshold) {
+                if (this.throttle_time_enabled) this.throttle_time.start();
                 this.throttled = true;
+            }
             
             // Or if the queue is completely empty and we're allowe to increase
             // the max limit, then we'll go ahead and do that for them here
@@ -241,6 +246,7 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
             if (debug.val)
                 LOG.debug(String.format("Unthrottling queue [size=%d > release=%d]",
                           this.size, this.throttleRelease));
+            if (this.throttle_time_enabled) this.throttle_time.stopIfStarted();
             this.throttled = false;
         }
     }
@@ -344,7 +350,7 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     }
     @Override
     public void clear() {
-        if (this.throttled) this.throttle_time.stopIfStarted();
+        if (this.throttle_time_enabled && this.throttled) this.throttle_time.stopIfStarted();
         this.throttled = false;
         this.size = 0;
         this.queue.clear();

@@ -56,6 +56,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.CommandLogWriterProfiler;
 import edu.brown.profilers.ProfileMeasurementUtil;
+import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -64,7 +65,7 @@ import edu.brown.utils.StringUtil;
  * @author pavlo
  * @author debrabant
  */
-public class CommandLogWriter implements Runnable, Shutdownable {
+public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(CommandLogWriter.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -242,7 +243,7 @@ public class CommandLogWriter implements Runnable, Shutdownable {
      * Separate thread for writing out entries to the log
      */
     @Override
-    public void run() {
+    public void runImpl() {
         Thread self = Thread.currentThread();
         self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COMMANDLOGGER));
         hstore_site.getThreadManager().registerProcessingThread();

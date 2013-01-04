@@ -34,6 +34,7 @@ import edu.brown.profilers.TransactionQueueManagerProfiler;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
@@ -41,7 +42,7 @@ import edu.brown.utils.StringUtil;
  * 
  * @author pavlo
  */
-public class TransactionQueueManager implements Runnable, Shutdownable, Configurable {
+public class TransactionQueueManager extends ExceptionHandlingRunnable implements Shutdownable, Configurable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -220,7 +221,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
      * Otherwise, it will wake up when something else gets added to a queue.
      */
     @Override
-    public void run() {
+    public void runImpl() {
         Thread self = Thread.currentThread();
         self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_TXNQUEUE));
         this.hstore_site.getThreadManager().registerProcessingThread();

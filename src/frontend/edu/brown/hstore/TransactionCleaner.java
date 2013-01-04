@@ -16,13 +16,14 @@ import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.ThreadUtil;
 
 /**
  * Simple thread that will rip through the deletable threads and remove txn handles
  * @author pavlo
  */
-public class TransactionCleaner implements Runnable, Shutdownable {
+public class TransactionCleaner extends ExceptionHandlingRunnable implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(TransactionCleaner.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -79,7 +80,7 @@ public class TransactionCleaner implements Runnable, Shutdownable {
     }
 
     @Override
-    public void run() {
+    public void runImpl() {
         this.hstore_site.getThreadManager().registerProcessingThread();
         
         // Delete txn handles
