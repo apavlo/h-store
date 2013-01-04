@@ -14,7 +14,7 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
      * How much time the PartitionExecutor was idle waiting for responses 
      * from queries on remote partitions. (SP1)
      */
-    public final ProfileMeasurement idle_dtxn_query_response_time = new ConcurrentProfileMeasurement("IDLE_DTXN_QUERY");
+    public final ProfileMeasurement idle_dtxn_query_time = new ConcurrentProfileMeasurement("IDLE_DTXN_QUERY");
     
     /**
      * How much time the PartitionExecutor was idle waiting for
