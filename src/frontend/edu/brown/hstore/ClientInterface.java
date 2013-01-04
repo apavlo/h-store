@@ -655,31 +655,16 @@ public class ClientInterface implements Shutdownable, Configurable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Static factory method to easily create a ClientInterface with the default
-     * settings.
-     */
-    public static ClientInterface create(
-            HStoreSite hstore_site,
-            VoltNetwork network,
-            int port,
-            SnapshotSchedule schedule) {
-        return new ClientInterface(hstore_site, port, network, schedule);
-    }
-
-    /**
      * Constructor
      * @param hstore_site
      * @param port
      * @param network
      * @param schedule
      */
-    protected ClientInterface(HStoreSite hstore_site,
-                              int port,
-                              VoltNetwork network,
-                              SnapshotSchedule schedule) {
+    protected ClientInterface(HStoreSite hstore_site, int port) {
         
         this.hstore_site = hstore_site;
-        this.acceptor = new ClientAcceptor(port, network);
+        this.acceptor = new ClientAcceptor(port, hstore_site.getVoltNetwork());
 
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
         int num_partitions = hstore_site.getLocalPartitionIds().size();
