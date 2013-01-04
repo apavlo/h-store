@@ -812,7 +812,7 @@ public class TransactionQueueManager implements Runnable, Shutdownable, Configur
         }
 
         this.initThrottleThreshold = hstore_conf.site.network_incoming_limit_txns;
-        this.initThrottleRelease = hstore_conf.site.queue_dtxn_release_factor;
+        this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (TransactionInitPriorityQueue queue : this.lockQueues) {
             if (queue != null) {
                 queue.setThrottleThreshold(this.initThrottleThreshold);

@@ -328,13 +328,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final AntiCacheManager anticacheManager;
     
     /**
-     * Partition Executor Workload Shedder
-     * This will automatically reject txns from partitions' queues if
-     * they are too slow, causing other partitions to sit idle.
-     */
-    private final PartitionExecutorWorkloadShedder workloadShedder;
-    
-    /**
      * This catches any exceptions that are thrown in the various
      * threads spawned by this HStoreSite
      */
@@ -575,9 +568,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             this.anticacheManager = null;
         }
-        
-        // Workload Shedder
-        this.workloadShedder = new PartitionExecutorWorkloadShedder(this);
         
         // -------------------------------
         // NETWORK SETUP
@@ -891,9 +881,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public AntiCacheManager getAntiCacheManager() {
         return (this.anticacheManager);
-    }
-    public PartitionExecutorWorkloadShedder getWorkloadShedder() {
-        return (this.workloadShedder);
     }
     public ClientInterface getClientInterface() {
         return (this.clientInterface);
@@ -1246,13 +1233,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 hstore_conf.site.status_interval,
                 TimeUnit.MILLISECONDS);
         }
-        
-        // Workload Shedder
-        this.threadManager.schedulePeriodicWork(
-                this.workloadShedder,
-                hstore_conf.site.queue_shedder_interval,
-                hstore_conf.site.queue_shedder_interval,
-                TimeUnit.MILLISECONDS);
         
         // AntiCache Memory Monitor
         if (this.anticacheManager != null) {
