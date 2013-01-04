@@ -2,7 +2,6 @@ package edu.brown.hstore;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
@@ -99,8 +98,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * @param hstore_site
      */
     public TransactionInitPriorityQueue(int partitionId, int waitTime, int throttle_threshold, double throttle_release) {
-        // super(new PriorityBlockingQueue<AbstractTransaction>(), throttle_threshold, throttle_release);
-        super(new PriorityQueue<AbstractTransaction>(), throttle_threshold, throttle_release);
+        super(new PriorityBlockingQueue<AbstractTransaction>(), throttle_threshold, throttle_release);
         
         this.partitionId = partitionId;
         this.waitTime = waitTime;
