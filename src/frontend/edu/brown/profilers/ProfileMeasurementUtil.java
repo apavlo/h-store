@@ -32,7 +32,7 @@ public abstract class ProfileMeasurementUtil {
     public static void swap(long timestamp, ProfileMeasurement to_stop, ProfileMeasurement to_start) {
         if (debug.val)
             LOG.debug(String.format("SWAP %s -> %s", to_stop, to_start));
-        to_stop.stop(timestamp);
+        to_stop.stopIfStarted(timestamp);
         to_start.start(timestamp);
     }
 

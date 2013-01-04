@@ -163,6 +163,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -862,7 +863,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (debug.val)
             LOG.debug("Starting PartitionExecutor run loop...");
         try {
-            if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.start();
             while (this.stop == false && this.isShuttingDown() == false) {
                 this.currentTxnId = null;
                 
@@ -872,9 +872,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 work = this.getNext();
                 if (work == null) {
                     if (this.initQueue.isEmpty() && this.work_queue.isEmpty()) {
-                        if (hstore_conf.site.exec_profiling) this.profiler.sleep_time.start();
+                        if (hstore_conf.site.exec_profiling)
+                            ProfileMeasurementUtil.swap(profiler.idle_queue_time, profiler.sleep_time);
                         Thread.sleep(WORK_QUEUE_POLL_TIME);
-                        if (hstore_conf.site.exec_profiling) this.profiler.sleep_time.stopIfStarted();
+                        if (hstore_conf.site.exec_profiling)
+                            ProfileMeasurementUtil.swap(profiler.sleep_time, profiler.idle_queue_time);
                     }
                     continue;
                 }
@@ -890,22 +892,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // -------------------------------
                 if (hstore_conf.site.exec_profiling) {
                     long timestamp = ProfileMeasurement.getTime();
-                    if (this.currentDtxn != null) this.profiler.idle_queue_dtxn_time.stopIfStarted(timestamp);
-                    this.profiler.idle_queue_time.stopIfStarted(timestamp);
-                    this.profiler.exec_time.start(timestamp);
+                    if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted(timestamp);
+                    profiler.idle_queue_time.stopIfStarted(timestamp);
+                    profiler.exec_time.start(timestamp);
                 }
                 try {
                 	this.processInternalMessage(work);
                 } finally {
-                	if (hstore_conf.site.exec_profiling) {
-                	    long timestamp = ProfileMeasurement.getTime();
-                	    this.profiler.exec_time.stopIfStarted(timestamp);
-                	    this.profiler.idle_queue_time.start(timestamp);
-                	}
+                	if (hstore_conf.site.exec_profiling)
+                	    ProfileMeasurementUtil.swap(profiler.exec_time, profiler.idle_queue_time);
                 }
                 
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                 this.tick();
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.start();
             } // WHILE
         } catch (InterruptedException ex) {
             // IGNORE!
@@ -947,10 +947,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         //      current dtxn at this partition and then keep checking the queue
         //      for more work.
         AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
-        // if (next == null) next = this.queueManager.checkLockQueue(this.partitionId); // HACK
         if (next != null) {
-            // If this a single-partition txn, then we'll want to execute it
-            // right away
+            // If this a single-partition txn, then we'll want to execute it right away
             if (next.isPredictSinglePartition()) {
                 return ((LocalTransaction)next).getStartTxnMessage();
             }
