@@ -2,7 +2,10 @@ package edu.brown.hstore.conf;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
@@ -15,7 +18,10 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
-
+/**
+ * Utility code for HStoreConf
+ * @author pavlo
+ */
 public abstract class HStoreConfUtil {
     private static final Logger LOG = Logger.getLogger(HStoreConfUtil.class);
 
@@ -28,9 +34,15 @@ public abstract class HStoreConfUtil {
     private static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
     private static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">$1.$2</a>";
 
+    private static final String NO_PREFIX_MARKER = "*NONE*";
+    
     private static final Map<String, String> PREFIX_LABELS = new HashMap<String, String>();
     static {
+        // If the parameter doesn't have a prefix, then it will get this one
+        PREFIX_LABELS.put(NO_PREFIX_MARKER, "System &amp; Environment");
+        
         PREFIX_LABELS.put("exec", "Execution");
+        PREFIX_LABELS.put("cpu", "CPU Affinity");
         PREFIX_LABELS.put("specexec", "Speculative Execution");
         PREFIX_LABELS.put("commandlog", "Command Logging");
         PREFIX_LABELS.put("anticache", "Anti-Caching");
@@ -72,9 +84,8 @@ public abstract class HStoreConfUtil {
     
     public static String makeHTML(HStoreConf conf, String group) {
         final Conf handle = conf.getHandles().get(group);
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("<ul class=\"property-list\">\n\n");
+        final StringBuilder sb = new StringBuilder().append("\n");
+        final Map<Field, ConfigProperty> props = handle.getConfigProperties();
         
         // Parameters:
         //  (1) parameter
@@ -90,70 +101,101 @@ public abstract class HStoreConfUtil {
                                 "@@DEP_FULL@@" +
                                 "<tr><td colspan=\"2\">@@DESC@@</td></tr>\n" +
                                 "</table></li>\n\n";
-        
-        
-        Map<String, String> values = new HashMap<String, String>();
-        for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
-            Field f = e.getKey();
-            ConfigProperty cp = e.getValue();
+        // Configuraiton Section Header
+        final String sectStart = "<ul class=\"property-list\">\n\n";
+        final Pattern sectSplitter = Pattern.compile("_");
 
-            // PROP
-            values.put("PROP", f.getName());
-            values.put("PROPFULL", String.format("%s.%s", group, f.getName()));
-            
-            // DEFAULT
-            Object defaultValue = conf.getDefaultValue(f, cp);
-            if (defaultValue != null) {
-                String value = defaultValue.toString();
-                Matcher m = REGEX_CONFIG.matcher(value);
-                if (m.find()) value = m.replaceAll(REGEX_CONFIG_REPLACE);
-                defaultValue = value;
+        // First split the fields based on their section names.
+        // We will use a special marker to indicate that the field does not belong
+        // to any section. We want that section to always come first.
+        Map<String, List<Field>> sectFields = new LinkedHashMap<String, List<Field>>(); 
+        sectFields.put(NO_PREFIX_MARKER, new ArrayList<Field>());
+        for (Field f : props.keySet()) {
+            String prefix = sectSplitter.split(f.getName(), 2)[0];
+            if (PREFIX_LABELS.containsKey(prefix) == false) {
+                sectFields.get(NO_PREFIX_MARKER).add(f);
             }
-            values.put("DEFAULT", (defaultValue != null ? defaultValue.toString() : "null"));
-            
-            // TYPE
-            values.put("TYPE", f.getType().getSimpleName().toLowerCase());
-            
-            // EXPERIMENTAL
-            if (cp.experimental()) {
-                values.put("EXP", " <b class=\"experimental\">Experimental</b>");
-            } else {
-                values.put("EXP", "");   
+            else {
+                if (sectFields.containsKey(prefix) == false) {
+                    sectFields.put(prefix, new ArrayList<Field>());
+                }
+                sectFields.get(prefix).add(f);
             }
-            
-            // DEPRECATED
-            if (cp.replacedBy() != null && !cp.replacedBy().isEmpty()) {
-                String replacedBy = "${" + cp.replacedBy() + "}";
-                Matcher m = REGEX_CONFIG.matcher(replacedBy);
-                if (m.find()) replacedBy = m.replaceAll(REGEX_CONFIG_REPLACE);
-                values.put("DEP", " <b class=\"deprecated\">Deprecated</b>");
-                values.put("DEP_FULL", "<tr><td class=\"prop-replaced\">Replaced By:</td><td><tt>" + replacedBy + "</tt></td>\n");
-            } else {
-                values.put("DEP", "");   
-                values.put("DEP_FULL", "");
-            }
-            
-            // DESC
-            String desc = cp.description();
-            
-            // Create links to remote sites
-            Matcher m = REGEX_URL.matcher(desc);
-            if (m.find()) desc = m.replaceAll(REGEX_URL_REPLACE);
-            
-            // Create links to other parameters
-            m = REGEX_CONFIG.matcher(desc);
-            if (m.find()) desc = m.replaceAll(REGEX_CONFIG_REPLACE);
-            values.put("DESC", desc);
-            
-            // CREATE HTML FROM TEMPLATE
-            String copy = template;
-            for (String key : values.keySet()) {
-                copy = copy.replace("@@" + key.toUpperCase() + "@@", values.get(key));
-            }
-            sb.append(copy);
         } // FOR
-        sb.append("</ul>\n");
-        return (sb.toString());
+
+        Map<String, String> values = new HashMap<String, String>();
+        for (String sectPrefix : sectFields.keySet()) {
+            String sectName = String.format("%s Parameters", PREFIX_LABELS.get(sectPrefix)); 
+            // Wordpress adds extra <p> with this
+            // sb.append(String.format("\n<!-- %s -->", sectName.toUpperCase()));
+            if (sectPrefix != NO_PREFIX_MARKER) {
+                sb.append(String.format("<a name=\"%s\"></a>", sectPrefix));
+            }
+            sb.append(String.format("<h2 class=\"property-list\">%s</h2>\n", sectName));
+            sb.append(sectStart);
+        
+            for (Field f : sectFields.get(sectPrefix)) {
+                ConfigProperty cp = props.get(f);
+                values.clear();
+    
+                // PROP
+                values.put("PROP", f.getName());
+                values.put("PROPFULL", String.format("%s.%s", group, f.getName()));
+                
+                // DEFAULT
+                Object defaultValue = conf.getDefaultValue(f, cp);
+                if (defaultValue != null) {
+                    String value = defaultValue.toString();
+                    Matcher m = REGEX_CONFIG.matcher(value);
+                    if (m.find()) value = m.replaceAll(REGEX_CONFIG_REPLACE);
+                    defaultValue = value;
+                }
+                values.put("DEFAULT", (defaultValue != null ? defaultValue.toString() : "null"));
+                
+                // TYPE
+                values.put("TYPE", f.getType().getSimpleName().toLowerCase());
+                
+                // EXPERIMENTAL
+                if (cp.experimental()) {
+                    values.put("EXP", " <b class=\"experimental\">Experimental</b>");
+                } else {
+                    values.put("EXP", "");   
+                }
+                
+                // DEPRECATED
+                if (cp.replacedBy() != null && !cp.replacedBy().isEmpty()) {
+                    String replacedBy = "${" + cp.replacedBy() + "}";
+                    Matcher m = REGEX_CONFIG.matcher(replacedBy);
+                    if (m.find()) replacedBy = m.replaceAll(REGEX_CONFIG_REPLACE);
+                    values.put("DEP", " <b class=\"deprecated\">Deprecated</b>");
+                    values.put("DEP_FULL", "<tr><td class=\"prop-replaced\">Replaced By:</td><td><tt>" + replacedBy + "</tt></td>\n");
+                } else {
+                    values.put("DEP", "");   
+                    values.put("DEP_FULL", "");
+                }
+                
+                // DESC
+                String desc = cp.description();
+                
+                // Create links to remote sites
+                Matcher m = REGEX_URL.matcher(desc);
+                if (m.find()) desc = m.replaceAll(REGEX_URL_REPLACE);
+                
+                // Create links to other parameters
+                m = REGEX_CONFIG.matcher(desc);
+                if (m.find()) desc = m.replaceAll(REGEX_CONFIG_REPLACE);
+                values.put("DESC", desc);
+                
+                // CREATE HTML FROM TEMPLATE
+                String copy = template;
+                for (String key : values.keySet()) {
+                    copy = copy.replace("@@" + key.toUpperCase() + "@@", values.get(key));
+                }
+                sb.append(copy);
+            } // FOR
+            sb.append("</ul>");
+        } // SECTION
+        return (sb.toString().trim());
     }
     
     // ----------------------------------------------------------------------------
