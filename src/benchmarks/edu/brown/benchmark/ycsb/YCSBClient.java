@@ -4,7 +4,7 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *                                   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -26,56 +26,27 @@
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
-
 package edu.brown.benchmark.ycsb;
 
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
-import java.util.Map;
-import java.util.List; 
-import java.util.LinkedList; 
 
 import org.apache.log4j.Logger;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
-import edu.brown.benchmark.ycsb.YCSBUtil; 
-
-import edu.brown.benchmark.ycsb.distributions.CounterGenerator;
+import edu.brown.benchmark.ycsb.distributions.CustomSkewGenerator;
 import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
-import edu.brown.benchmark.ycsb.distributions.CustomSkewGenerator; 
-
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.ObjectHistogram;
 
-
 public class YCSBClient extends BenchmarkComponent {
-	
-    private int transaction_count = 0; 
-    
-	private CustomSkewGenerator readRecord; 
-	//private ZipfianGenerator readRecord;
-    private  CustomSkewGenerator insertRecord;
-    private ZipfianGenerator randScan;
-	
-	private List<String> value_list; 
-	
-	private final FlatHistogram<Transaction> txnWeights;
-    
-    private final double SIGMA = 1.4; 
-    
-    private Histogram<Integer> zipf_histogram; 
-
-	private Random rand_gen; 
-	
-	Client client; 
-    
     private static final Logger LOG = Logger.getLogger(YCSBClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -83,6 +54,16 @@ public class YCSBClient extends BenchmarkComponent {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    private CustomSkewGenerator readRecord; 
+    private  CustomSkewGenerator insertRecord;
+    private ZipfianGenerator randScan;
+    private List<String> value_list; 
+    private final FlatHistogram<Transaction> txnWeights;
+    private Random rand_gen;
+    
+    // private ZipfianGenerator readRecord;
+    // private final double SIGMA = 1.4; 
+    
     public static void main(String args[]) {
         BenchmarkComponent.main(YCSBClient.class, args, false);
     }
@@ -90,36 +71,30 @@ public class YCSBClient extends BenchmarkComponent {
     public YCSBClient(String args[]) {
         super(args);
 
-		rand_gen = new Random(); 
-		
-		int init_record_count = YCSBConstants.NUM_RECORDS;  
-	
-        randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
-		
-		value_list = new LinkedList<String>(); 
-		
-		// initialize distribution generators 
-		synchronized (YCSBClient.class) {
+        this.rand_gen = new Random(); 
+        this.randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
+        this.value_list = new LinkedList<String>(); 
+        
+        int init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * this.getScaleFactor()); 
+                
+        // initialize distribution generators 
+        synchronized (YCSBClient.class) { // XXX: Why do we need to lock this?
             // We must know where to start inserting
-            if (insertRecord == null) 
-{
-				insertRecord = new CustomSkewGenerator(init_record_count, 
-													YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
-													YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+            if (insertRecord == null) {
+                insertRecord = new CustomSkewGenerator(this.rand_gen, init_record_count, 
+                                                    YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+                                                    YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
 
             }
 
-			if(readRecord == null)
-			{
-				readRecord = new CustomSkewGenerator(init_record_count, 
-													YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
-													YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
-			}
-		}  // end SYNC
+            if (readRecord == null) {
+                readRecord = new CustomSkewGenerator(this.rand_gen, init_record_count, 
+                                                    YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+                                                    YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+            }
+        }  // end SYNC
         
-        zipf_histogram = new Histogram<Integer>(); 
-		
-		// Initialize the sampling table
+        // Initialize the sampling table
         ObjectHistogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
         for (Transaction t : Transaction.values()) {
             Integer weight = this.getTransactionWeight(t.callName);
@@ -127,21 +102,16 @@ public class YCSBClient extends BenchmarkComponent {
             txns.put(t, weight);
         } // FOR
         assert(txns.getSampleCount() == 100) : txns;
-        Random rand = new Random(); // FIXME
-        this.txnWeights = new FlatHistogram<Transaction>(rand, txns);
+        this.txnWeights = new FlatHistogram<Transaction>(this.rand_gen, txns);
     }
-	
-	public static enum Transaction {
-		INSERT_RECORD("Insert Record", YCSBConstants.FREQUENCY_INSERT_RECORD),
-		
-		DELETE_RECORD("Delete Record", YCSBConstants.FREQUENCY_DELETE_RECORD), 
-				
-		READ_RECORD("Read Record", YCSBConstants.FREQUENCY_READ_RECORD), 
-		
-		SCAN_RECORD("Scan Record", YCSBConstants.FREQUENCY_SCAN_RECORD), 
-		
-		UPDATE_RECORD("Update Record", YCSBConstants.FREQUENCY_UPDATE_RECORD);
-		
+    
+    public static enum Transaction {
+        INSERT_RECORD("Insert Record", YCSBConstants.FREQUENCY_INSERT_RECORD),
+        DELETE_RECORD("Delete Record", YCSBConstants.FREQUENCY_DELETE_RECORD), 
+        READ_RECORD("Read Record", YCSBConstants.FREQUENCY_READ_RECORD), 
+        SCAN_RECORD("Scan Record", YCSBConstants.FREQUENCY_SCAN_RECORD), 
+        UPDATE_RECORD("Update Record", YCSBConstants.FREQUENCY_UPDATE_RECORD);
+        
         /**
          * Constructor
          */
@@ -150,86 +120,87 @@ public class YCSBClient extends BenchmarkComponent {
             this.callName = displayName.replace(" ", "");
             this.weight = weight;
         }
-		
+        
         public final String displayName;
         public final String callName;
         public final int weight; // probability (in terms of percentage) the transaction gets executed
-	
-	} // TRANSCTION ENUM
-	
+    
+    } // TRANSCTION ENUM
 
+    @SuppressWarnings("unused")
+    @Deprecated
     @Override
     public void runLoop() {
         try {
             Client client = this.getClientHandle();
             Random rand = new Random();
-			int key = -1; 
-			int scan_count; 
+            int key = -1; 
+            int scan_count; 
             
             int run_count = 0; 
-			
+            
             while (true) {
-				
-				runOnce(); 
+                
+                runOnce(); 
             } 
         } 
-		catch (IOException e) {
+        catch (IOException e) {
             
         }
     }
-	
-	@Override
+    
+    @Override
     protected boolean runOnce() throws IOException {
-		// pick random transaction to call, weighted by txnWeights
-		final Transaction target = this.txnWeights.nextValue(); 
-		int procIdx = target.ordinal(); 
-		String procName = target.callName; 
-		
-		int key = 0; 
-		int scan_count = 0; 
-		
-		if (procName.equals("DeleteRecord")) {
-			
-			key = readRecord.nextInt(); 
-		} 
-		else if (procName.equals("InsertRecord")) {
-			
-			key = insertRecord.nextInt(); 
-			List<String> values = buildValues(10); 
-		} 
-		else if (procName.equals("ReadModifyWriteRecord")) {
-			
-			key = readRecord.nextInt(); 
-			List<String> values = buildValues(10); 
-		} 
-		else if (procName.equals("ReadRecord")) {
-			
-			key = readRecord.nextInt(); 
-		} 
-		else if (procName.equals("ScanRecord")) {
-			
-			key = readRecord.nextInt(); 
-			scan_count = randScan.nextInt(); 
-		} 
-		else if (procName.equals("UpdateRecord")) {
-			
-			key = readRecord.nextInt(); 
-		}
-		else {
-			key = readRecord.nextInt();
-		}
-		
-		Object procParams[] = new Object[]{ key };
-		Callback callback = new Callback(procIdx);
-		boolean response = this.getClientHandle().callProcedure(callback, procName, procParams);
-				
-		return response; 
-	}
-	
-	private List<String> buildValues(int numVals) {
+        // pick random transaction to call, weighted by txnWeights
+        final Transaction target = this.txnWeights.nextValue(); 
+        int procIdx = target.ordinal(); 
+        String procName = target.callName; 
+        
+        int key = 0; 
+        int scan_count = 0; 
+        
+        if (procName.equals("DeleteRecord")) {
+            
+            key = readRecord.nextInt(); 
+        } 
+        else if (procName.equals("InsertRecord")) {
+            
+            key = insertRecord.nextInt(); 
+            List<String> values = buildValues(10); 
+        } 
+        else if (procName.equals("ReadModifyWriteRecord")) {
+            
+            key = readRecord.nextInt(); 
+            List<String> values = buildValues(10); 
+        } 
+        else if (procName.equals("ReadRecord")) {
+            
+            key = readRecord.nextInt(); 
+        } 
+        else if (procName.equals("ScanRecord")) {
+            
+            key = readRecord.nextInt(); 
+            scan_count = randScan.nextInt(); 
+        } 
+        else if (procName.equals("UpdateRecord")) {
+            
+            key = readRecord.nextInt(); 
+        }
+        else {
+            key = readRecord.nextInt();
+        }
+        
+        Object procParams[] = new Object[]{ key };
+        Callback callback = new Callback(procIdx);
+        boolean response = this.getClientHandle().callProcedure(callback, procName, procParams);
+                
+        return response; 
+    }
+    
+    private List<String> buildValues(int numVals) {
         this.value_list.clear();
         for (int i = 0; i < numVals; i++) {
-            this.value_list.add(YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH,YCSBConstants.COLUMN_LENGTH));
+            this.value_list.add(YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH));
         }
         return this.value_list;
     }

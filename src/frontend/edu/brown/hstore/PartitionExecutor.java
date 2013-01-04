@@ -1693,19 +1693,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         boolean ret = this.work_queue.offer(work); // , true);
         assert(ret);
         ts.markQueuedWork(this.partitionId);
-        if (debug.val) LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
-                         ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
+                      ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
 
     /**
      * Add a new work message to our utility queue 
      * @param work
      */
-//    public void queueUtilityWork(InternalMessage work) {
-//        if (debug.val) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
-//                                   this.partitionId, work));
-//        this.utility_queue.offer(work);
-//    }
+    public void queueUtilityWork(InternalMessage work) {
+        if (debug.val)
+            LOG.debug(String.format("Queuing utility work on partition %d\n%s",
+                      this.partitionId, work));
+        this.work_queue.offer(work);
+    }
 
     
     /**

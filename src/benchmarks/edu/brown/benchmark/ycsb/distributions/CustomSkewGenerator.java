@@ -29,7 +29,7 @@ import java.util.Random;
 
 public class CustomSkewGenerator extends IntegerGenerator
 {
-	private Random rand; 
+	private final Random rand; 
 	
 	int hot_data_access_skew; 
 	int warm_data_access_skew; 
@@ -41,11 +41,11 @@ public class CustomSkewGenerator extends IntegerGenerator
 	int hot_data_max; 	// integers in the range 0 < x < hot_data_max will represent the "hot" numbers getting hot_data_access_skew% of the accesses 
 	int warm_data_max;  // integers in the range hot_data_max < x < warm_data_max will represent the "warm" numbers
 	
-	public CustomSkewGenerator(int _max, int _hot_data_access_skew, int _hot_data_size, int _warm_data_access_skew, int _warm_data_size)
+	public CustomSkewGenerator(Random rand, int _max, int _hot_data_access_skew, int _hot_data_size, int _warm_data_access_skew, int _warm_data_size)
 	{
 		assert(_hot_data_access_skew + _warm_data_access_skew <= 100) : "Workload skew cannot be more than 100%."; 
 		
-		rand = new Random(); 
+		this.rand = rand; 
 				
 		hot_data_access_skew = _hot_data_access_skew; 
 		warm_data_access_skew = _warm_data_access_skew; 

@@ -4,6 +4,7 @@ import java.util.Random;
 
 import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.benchmark.ycsb.distributions.CustomSkewGenerator;
 
 public class TestCustomSkew extends BaseTestCase {
@@ -26,8 +27,8 @@ public class TestCustomSkew extends BaseTestCase {
 		
         for (int i = 0; i < 3; i++) {
 	
-			CustomSkewGenerator custom_skew = new CustomSkewGenerator(max, hot_data_skew, hot_data_size, warm_data_skew, warm_data_size); 
-            Histogram<Integer> h = new Histogram<Integer>(); 
+			CustomSkewGenerator custom_skew = new CustomSkewGenerator(rand, max, hot_data_skew, hot_data_size, warm_data_skew, warm_data_size); 
+            Histogram<Integer> h = new ObjectHistogram<Integer>(); 
 
 			System.out.println("Generating " + hot_data_skew + "/" + hot_data_size + "-" + warm_data_skew + "/" + warm_data_size + " distribution."); 
             for (int j = 0; j < 100000; j++) {
