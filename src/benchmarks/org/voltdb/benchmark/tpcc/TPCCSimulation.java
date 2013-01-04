@@ -432,7 +432,7 @@ public class TPCCSimulation {
         // Whether to force this transaction to be multi-partitioned
         if (allow_remote && remote_warehouses == 0) {
             if (config.neworder_multip_mix > 0 && (generator.number(1, 100) <= config.neworder_multip_mix)) {
-                if (trace.get()) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
+                if (trace.val) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
                 // Flip a random one
                 int idx = generator.number(0, ol_cnt-1);
                 short remote_w_id;
@@ -448,7 +448,7 @@ public class TPCCSimulation {
             }
         }
 
-        if (trace.get())
+        if (trace.val)
             LOG.trace("newOrder(W_ID=" + warehouse_id + ") -> [" +
                       "local_warehouses=" + local_warehouses + ", " +
                       "remote_warehouses=" + remote_warehouses + "]");

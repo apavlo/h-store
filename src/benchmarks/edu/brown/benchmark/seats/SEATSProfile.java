@@ -358,11 +358,11 @@ public class SEATSProfile {
             
             if (is_airline) {
                 this.airport_histograms.put(name, h);
-                if (trace.get()) 
+                if (trace.val) 
                     LOG.trace(String.format("Loaded %d records for %s airport histogram", h.getValueCount(), name));
             } else {
                 this.histograms.put(name, h);
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(String.format("Loaded %d records for %s histogram", h.getValueCount(), name));
             }
         } // WHILE

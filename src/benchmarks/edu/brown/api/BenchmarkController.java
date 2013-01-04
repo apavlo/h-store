@@ -431,7 +431,7 @@ public class BenchmarkController {
             m_launchHosts = new HashMap<Integer, Set<Pair<String,Integer>>>();
             int site_id = HStoreConstants.FIRST_PARTITION_ID;
             for (String host : m_config.hosts) {
-                if (trace.get()) LOG.trace(String.format("Creating host info for %s: %s:%d",
+                if (trace.val) LOG.trace(String.format("Creating host info for %s: %s:%d",
                                                          HStoreThreadManager.formatSiteName(site_id), host, HStoreConstants.DEFAULT_PORT));
                 
                 Set<Pair<String, Integer>> s = new HashSet<Pair<String,Integer>>();
@@ -446,7 +446,7 @@ public class BenchmarkController {
             for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
                 Pair<String, Integer> p = CollectionUtil.first(e.getValue());
                 assert(p != null);
-                if (trace.get())
+                if (trace.val)
                     LOG.trace(String.format("Retrieved host info for %s from catalog: %s:%d",
                                            HStoreThreadManager.formatSiteName(e.getKey()),
                                            p.getFirst(), p.getSecond()));
@@ -582,7 +582,7 @@ public class BenchmarkController {
             }
             String opt = String.format("-D%s=%s", e.getKey(), value);
             siteBaseCommand.add(opt);
-            if (trace.get()) 
+            if (trace.val) 
                 LOG.trace("  " + opt);
         } // FOR
 
@@ -619,7 +619,7 @@ public class BenchmarkController {
             String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, siteCommand);
             String fullCommand = StringUtil.join(" ", exec_command);
             resultsUploader.setCommandLineForHost(host, fullCommand);
-            if (trace.get()) LOG.trace("START " + HStoreThreadManager.formatSiteName(site_id) + ": " + fullCommand);
+            if (trace.val) LOG.trace("START " + HStoreThreadManager.formatSiteName(site_id) + ": " + fullCommand);
             m_sitePSM.startProcess(host_id, exec_command);
             hosts_started++;
         } // FOR
@@ -675,7 +675,7 @@ public class BenchmarkController {
             if (lthreads > 6) lthreads = 6;
         }
         int loaderheap = 1024 * lthreads;
-        if (trace.get()) LOG.trace("LOADER HEAP " + loaderheap);
+        if (trace.val) LOG.trace("LOADER HEAP " + loaderheap);
 
         String debugString = "";
         if (m_config.listenForDebugger) {
@@ -735,7 +735,7 @@ public class BenchmarkController {
 //        if (true || m_config.localmode) {
         
         try {
-            if (trace.get()) {
+            if (trace.val) {
                 LOG.trace("Loader Class: " + m_loaderClass);
                 LOG.trace("Parameters: " + StringUtil.join(" ", allLoaderArgs));
             }
@@ -818,7 +818,7 @@ public class BenchmarkController {
             }
             String opt = String.format("%s=%s", e.getKey(), value);
             allClientArgs.add(opt);
-            if (trace.get()) 
+            if (trace.val) 
                 LOG.trace("  " + opt);
         } // FOR
 
@@ -914,7 +914,7 @@ public class BenchmarkController {
                     String fullCommand = StringUtil.join(" ", args);
     
                     resultsUploader.setCommandLineForClient(clientHostId, fullCommand);
-                    if (trace.get()) LOG.trace("Client Commnand: " + fullCommand);
+                    if (trace.val) LOG.trace("Client Commnand: " + fullCommand);
                     m_clientPSM.startProcess(clientHostId, args);
                 }
             });
@@ -968,7 +968,7 @@ public class BenchmarkController {
             for (Pair<String, Integer> p : m_launchHosts.get(catalog_site.getId())) {
                 String address = String.format("%s:%d:%d", p.getFirst(), p.getSecond(), catalog_site.getId());
                 params.add("HOST=" + address);
-                if (trace.get()) 
+                if (trace.val) 
                     LOG.trace(String.format("HStoreSite %s: %s", HStoreThreadManager.formatSiteName(catalog_site.getId()), address));
                 break;
             } // FOR
@@ -1437,7 +1437,7 @@ public class BenchmarkController {
                 for (int i = 1; i < row.length; i++) {
                     if (stdevs[i] != null) {
                         row[i] = MathUtil.geometricMean(CollectionUtil.toDoubleArray(stdevs[i]));
-                        if (trace.get()) 
+                        if (trace.val) 
                             LOG.trace(String.format("%s STDEV -> %s -> %s", procName, stdevs[i], row[i]));
                     }
                 } // FOR
@@ -1970,7 +1970,7 @@ public class BenchmarkController {
         // Initialize HStoreConf
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
         HStoreConf hstore_conf = HStoreConf.init(hstore_conf_path, vargs);
-        if (trace.get()) 
+        if (trace.val) 
             LOG.trace("HStore Conf '" + hstore_conf_path.getName() + "'\n" + hstore_conf.toString(true));
         
         if (hstore_conf.client.duration < 1000) {
@@ -2102,7 +2102,7 @@ public class BenchmarkController {
         siteParams.putAll(loadedArgs);
         config.clientParameters.putAll(clientParams);
         config.siteParameters.putAll(siteParams);
-        if (trace.get()) LOG.trace("Benchmark Configuration\n" + config.toString());
+        if (trace.val) LOG.trace("Benchmark Configuration\n" + config.toString());
         
         // ACTUALLY RUN THE BENCHMARK
         BenchmarkController controller = new BenchmarkController(config, catalogContext);

@@ -324,7 +324,7 @@ public class SEATSClient extends BenchmarkComponent {
     
         if (this.noClientConnections() == false) {
             this.profile.loadProfile(this.getClientHandle());
-            if (trace.get()) LOG.trace("Airport Max Customer Id:\n" + this.profile.airport_max_customer_id);
+            if (trace.val) LOG.trace("Airport Max Customer Id:\n" + this.profile.airport_max_customer_id);
         
             // Make sure we have the information we need in the BenchmarkProfile
             String error_msg = null;
@@ -545,7 +545,7 @@ public class SEATSClient extends BenchmarkComponent {
             c_id = r.customer_id.encode();
         }
         
-        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        if (trace.val) LOG.trace("Calling " + txn.getExecName());
         Object params[] = new Object[]{
             f_id,           // [0] f_id
             c_id,           // [1] c_id
@@ -554,7 +554,7 @@ public class SEATSClient extends BenchmarkComponent {
             ff_al_id,       // [4] ff_al_id
         };
         
-        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        if (trace.val) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
 
         return new Pair<Object[], ProcedureCallback>(params, new DeleteReservationCallback(r));
@@ -638,7 +638,7 @@ public class SEATSClient extends BenchmarkComponent {
             stop_date,
             distance
         };
-        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        if (trace.val) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new FindFlightsCallback());
     }
@@ -676,7 +676,7 @@ public class SEATSClient extends BenchmarkComponent {
                 int seatnum = (int)results[0].getLong(1);
               
                 // We first try to get a CustomerId based at this departure airport
-                if (trace.get())
+                if (trace.val)
                     LOG.trace("Looking for a random customer to fly on " + element);
                 CustomerId customer_id = profile.getRandomCustomerId(airport_depart_id);
               
@@ -686,7 +686,7 @@ public class SEATSClient extends BenchmarkComponent {
                 int tries = SEATSConstants.FLIGHTS_NUM_SEATS;
                 while (tries-- > 0 && (customer_id == null)) { //  || isCustomerBookedOnFlight(customer_id, flight_id))) {
                     customer_id = profile.getRandomCustomerId();
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace("RANDOM CUSTOMER: " + customer_id);
                 } // WHILE
                 assert(customer_id != null) :
@@ -698,7 +698,7 @@ public class SEATSClient extends BenchmarkComponent {
                                                 seatnum);
                 seats.set(seatnum);
                 tmp_reservations.add(r);
-                if (trace.get())
+                if (trace.val)
                     LOG.trace("QUEUED INSERT: " + element + " / " + element.encode() + " -> " + customer_id);
             } // WHILE
           
@@ -732,7 +732,7 @@ public class SEATSClient extends BenchmarkComponent {
         Object params[] = new Object[] {
             flight_id.encode()
         };
-        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        if (trace.val) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new FindOpenSeatsCallback(flight_id));
     }
@@ -882,7 +882,7 @@ public class SEATSClient extends BenchmarkComponent {
             price,
             attributes
         };
-        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        if (trace.val) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new NewReservationCallback(reservation));
     }
@@ -938,7 +938,7 @@ public class SEATSClient extends BenchmarkComponent {
             attr1
         };
 
-        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        if (trace.val) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new UpdateCustomerCallback(customer_id));
     }
@@ -970,7 +970,7 @@ public class SEATSClient extends BenchmarkComponent {
         LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_UPDATES);
         assert(cache != null) : "Unexpected " + CacheType.PENDING_UPDATES;
         
-        if (trace.get())
+        if (trace.val)
             LOG.trace("Let's look for a Reservation that we can update");
         
         // Pull off the first pending seat change and throw that ma at the server
@@ -998,7 +998,7 @@ public class SEATSClient extends BenchmarkComponent {
             value
         };
         
-        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        if (trace.val) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new UpdateReservationCallback(r));
     }

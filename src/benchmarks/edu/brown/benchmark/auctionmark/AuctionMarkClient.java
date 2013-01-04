@@ -584,7 +584,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
         int total = 0;
         for (Transaction t : Transaction.values()) {
             for (int i = 0, cnt = this.weights.get(t); i < cnt; i++) {
-                if (trace.get())
+                if (trace.val)
                     LOG.trace("xact " + total + " = " + t + ":" + t.getCallName());
                 this.xacts[total++] = t;
             } // FOR
@@ -666,7 +666,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
             // Otherwise randomly pick a transaction based on their distribution weights
             else {
                 int idx = profile.rng.number(0, this.xacts.length - 1);
-                if (trace.get()) {
+                if (trace.val) {
                     LOG.trace("idx = " + idx);
                     LOG.trace("random txn = " + this.xacts[idx].getDisplayName());
                 }
@@ -679,7 +679,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
             // Example: NewBid can only be executed if there are item_ids retrieved by an earlier call by GetItem
             if (tempTxn.canExecute(this)) {
                 txn = tempTxn;
-                if (trace.get()) LOG.trace("CAN EXECUTE: " + txn);
+                if (trace.val) LOG.trace("CAN EXECUTE: " + txn);
                 try {
                     params = txn.generateParams(this);
                 } catch (Throwable ex) {
@@ -741,7 +741,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (trace.get()) LOG.trace("clientCallback(cid = " + getClientId() + "):: txn = " + txn.getDisplayName());
+            if (trace.val) LOG.trace("clientCallback(cid = " + getClientId() + "):: txn = " + txn.getDisplayName());
             incrementTransactionCounter(clientResponse, this.txn.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (clientResponse.getStatus() == Status.OK) {

@@ -469,7 +469,7 @@ public class AuctionMarkProfile {
         assert(this.clientStartTime != null);
         TimestampType now = new TimestampType();
         TimestampType time = AuctionMarkProfile.getScaledTimestamp(this.benchmarkStartTime, this.clientStartTime, now);
-        if (trace.get())
+        if (trace.val)
             LOG.trace(String.format("Scaled:%d / Now:%d / BenchmarkStart:%d / ClientStart:%d",
                                    time.getMSTime(), now.getMSTime(), this.benchmarkStartTime.getMSTime(), this.clientStartTime.getMSTime()));
         return (time);
@@ -597,7 +597,7 @@ public class AuctionMarkProfile {
             if (exclude != null && exclude.length > 0) {
                 for (UserId ex : exclude) {
                     if (ex != null && ex.equals(user_id)) {
-                        if (trace.get()) LOG.trace("Excluding " + user_id);
+                        if (trace.val) LOG.trace("Excluding " + user_id);
                         user_id = null;
                         break;
                     }
@@ -607,7 +607,7 @@ public class AuctionMarkProfile {
             
             // If we don't care about skew, then we're done right here
             if (skew == false || this.window_size == null) {
-                if (trace.get()) LOG.trace("Selected " + user_id);
+                if (trace.val) LOG.trace("Selected " + user_id);
                 break;
             }
             
@@ -617,7 +617,7 @@ public class AuctionMarkProfile {
                 this.window_histogram.put(partition);
                 break;
             }
-            if (trace.get()) LOG.trace("Skipping " + user_id);
+            if (trace.val) LOG.trace("Skipping " + user_id);
             user_id = null;
         } // WHILE
         assert(user_id != null) : String.format("Failed to select a random UserId " +
@@ -789,7 +789,7 @@ public class AuctionMarkProfile {
             ret = ItemStatus.OPEN;
         }
         
-        if (trace.get())
+        if (trace.val)
             LOG.trace(String.format("%s - #%d [%s]", ret, itemInfo.itemId.encode(), itemInfo.getEndDate()));
         
         return (ret);
@@ -812,7 +812,7 @@ public class AuctionMarkProfile {
             Integer partition = null;
             int idx = -1;
             
-            if (trace.get()) 
+            if (trace.val) 
                 LOG.trace(String.format("Getting random ItemInfo [numItems=%d, currentTime=%s, needCurrentPrice=%s]",
                                        num_items, currentTime, needCurrentPrice));
             long tries = 1000;
@@ -833,7 +833,7 @@ public class AuctionMarkProfile {
                 // the current timestamp
                 if (needFutureEndDate) {
                     boolean compareTo = (temp.getEndDate().compareTo(currentTime) < 0);
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace("CurrentTime:" + currentTime + " / EndTime:" + temp.getEndDate() + " [compareTo=" + compareTo + "]");
                     if (temp.hasEndDate() == false || compareTo) {
                         continue;

@@ -405,7 +405,7 @@ public abstract class BenchmarkComponent {
      * @param args
      */
     public BenchmarkComponent(String args[]) {
-    	LOG.debug("Benchmark Component debugging");
+    	if (debug.val) LOG.debug("Benchmark Component debugging");
         // Initialize HStoreConf
         String hstore_conf_path = null;
         for (int i = 0; i < args.length; i++) {
@@ -427,7 +427,7 @@ public abstract class BenchmarkComponent {
             HStoreConf.singleton().loadFromArgs(args);
         }
         m_hstoreConf = HStoreConf.singleton();
-        if (trace.get()) LOG.trace("HStore Conf\n" + m_hstoreConf.toString(true));
+        if (trace.val) LOG.trace("HStore Conf\n" + m_hstoreConf.toString(true));
         
         int transactionRate = m_hstoreConf.client.txnrate;
         boolean blocking = m_hstoreConf.client.blocking;
@@ -559,7 +559,7 @@ public abstract class BenchmarkComponent {
                 m_extraParams.put(parts[0].toUpperCase(), parts[1]);
             }
         }
-        if (trace.get()) {
+        if (trace.val) {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("BenchmarkComponent", componentParams);
             m.put("Extra Client", m_extraParams);
@@ -997,7 +997,7 @@ public abstract class BenchmarkComponent {
         int byteCount = vt.getUnderlyingBufferSize();
         long byteTotal = m_tableBytes.get(tableName, 0);
         
-        if (trace.get()) LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
+        if (trace.val) LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
                                    tableName.toUpperCase(), rowCount, rowTotal, byteCount, byteTotal));
         
         // Load up this dirty mess...
@@ -1032,7 +1032,7 @@ public abstract class BenchmarkComponent {
             } // SYNCH
             assert(cr != null);
             assert(cr.getStatus() == Status.OK);
-            if (trace.get()) LOG.trace(String.format("Load %s: txn #%d / %s / %d",
+            if (trace.val) LOG.trace(String.format("Load %s: txn #%d / %s / %d",
                                        tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
         } else {
             cr = m_dummyResponse;
@@ -1144,7 +1144,7 @@ public abstract class BenchmarkComponent {
             }
         } // FOR
         
-        if (trace.get())
+        if (trace.val)
             LOG.trace(String.format("Creating WorkloadStatistics for %d tables [totalRows=%d, totalBytes=%d",
                                     m_tableStatsData.size(), m_tableTuples.getSampleCount(), m_tableBytes.getSampleCount()));
         WorkloadStatistics stats = new WorkloadStatistics(catalog_db);

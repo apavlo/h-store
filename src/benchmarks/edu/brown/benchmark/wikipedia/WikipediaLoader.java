@@ -275,7 +275,7 @@ public class WikipediaLoader extends Loader {
         Set<Long> userPages = new HashSet<Long>();
         for (int user_id = 1; user_id <= util.num_users; user_id++) {
             int num_watches = util.h_watchPageCount.nextInt();
-            if (trace.get()) LOG.trace(user_id + " => " + num_watches);
+            if (trace.val) LOG.trace(user_id + " => " + num_watches);
             
             userPages.clear();
             for (int i = 0; i < num_watches; i++) {
@@ -297,7 +297,7 @@ public class WikipediaLoader extends Loader {
             } // FOR
 
             if (batchSize >= WikipediaConstants.BATCH_SIZE) {
-                if (trace.get()) LOG.trace("watchList(batch):\n" + vt);
+                if (trace.val) LOG.trace("watchList(batch):\n" + vt);
                 this.loadVoltTable(watchTable.getName(), vt);
                 vt.clearRowData();
                 batchSize = 0;
@@ -309,7 +309,7 @@ public class WikipediaLoader extends Loader {
             }
         } // FOR
         if (batchSize > 0) {
-            if (trace.get()) LOG.trace("watchList(<batch):\n" + vt);
+            if (trace.val) LOG.trace("watchList(<batch):\n" + vt);
             this.loadVoltTable(watchTable.getName(), vt);
             vt.clearRowData();
         }
@@ -350,7 +350,7 @@ public class WikipediaLoader extends Loader {
             
             // Generate what the new revision is going to be
             int old_text_length = h_textLength.nextValue().intValue();
-            if (trace.get()) LOG.trace("Max length:" + max_text_length + " old_text_length:" + old_text_length);
+            if (trace.val) LOG.trace("Max length:" + max_text_length + " old_text_length:" + old_text_length);
             assert(old_text_length > 0);
             assert(old_text_length < max_text_length);
             char old_text[] = TextGenerator.randomChars(randGenerator, old_text_length);
@@ -404,7 +404,7 @@ public class WikipediaLoader extends Loader {
                 row[col++] = 0;                     // rev_parent_id
                 vtRev.addRow(row);
                 
-                if (trace.get()) LOG.trace(String.format("%s [pageId=%05d / revId=%05d]",
+                if (trace.val) LOG.trace(String.format("%s [pageId=%05d / revId=%05d]",
                                                          revTable.getName(), pageId, rev_id));
                 batchBytes += old_text.length;
                 batchSize++;

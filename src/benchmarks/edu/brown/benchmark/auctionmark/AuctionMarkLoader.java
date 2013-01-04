@@ -413,12 +413,12 @@ public class AuctionMarkLoader extends BenchmarkComponent {
                 if (random_str_regex.matcher(catalog_col.getName()).matches()) {
                     assert(catalog_col.getType() == VoltType.STRING.getValue()) : catalog_col.fullName();
                     this.random_str_cols.add(catalog_col);
-                    if (trace.get()) LOG.trace("Random String Column: " + catalog_col.fullName());
+                    if (trace.val) LOG.trace("Random String Column: " + catalog_col.fullName());
                 }
                 else if (random_int_regex.matcher(catalog_col.getName()).matches()) {
                     assert(catalog_col.getType() != VoltType.STRING.getValue()) : catalog_col.fullName();
                     this.random_int_cols.add(catalog_col);
-                    if (trace.get()) LOG.trace("Random Integer Column: " + catalog_col.fullName());
+                    if (trace.val) LOG.trace("Random Integer Column: " + catalog_col.fullName());
                 }
             } // FOR
             if (debug.val) {
@@ -468,7 +468,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         @SuppressWarnings("unchecked")
         public void updateSubTableGenerators(Object obj) {
             // Queue up this item for our multi-threaded sub-generators
-            if (trace.get())
+            if (trace.val)
                 LOG.trace(String.format("%s: Updating %d sub-generators with %s: %s",
                                         this.tableName, this.sub_generators.size(), obj, this.sub_generators));
             for (@SuppressWarnings("rawtypes") SubTableGenerator sub_generator : this.sub_generators) {
@@ -583,7 +583,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
          * 
          */
         public void generateBatch() {
-            if (trace.get()) LOG.trace(String.format("%s: Generating new batch", this.getTableName()));
+            if (trace.val) LOG.trace(String.format("%s: Generating new batch", this.getTableName()));
             long batch_count = 0;
             while (this.hasMore() && this.table.getRowCount() < this.batchSize) {
                 this.addRow();
@@ -891,7 +891,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
                 long num_items = randomNumItems.nextInt();
                 profile.users_per_item_count.put(num_items);
             } // FOR
-            if (trace.get())
+            if (trace.val)
                 LOG.trace("Users Per Item Count:\n" + profile.users_per_item_count);
             this.idGenerator = new UserIdGenerator(profile.users_per_item_count, getNumClients());
             assert(this.idGenerator.hasNext());

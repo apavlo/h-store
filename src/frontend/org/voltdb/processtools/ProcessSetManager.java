@@ -144,7 +144,7 @@ public class ProcessSetManager implements Shutdownable {
                 // IGNORE
             } finally {
                 synchronized (ProcessSetManager.this) {
-                    if (shutting_down == false && debug.get()) {
+                    if (debug.val && shutting_down == false) {
                         String msg = String.format("'%s' has stopped [wasAlive=%s]", this.name, this.is_alive);
                         LOG.warn(msg);
                     }
