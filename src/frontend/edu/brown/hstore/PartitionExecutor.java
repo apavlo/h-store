@@ -1985,8 +1985,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
         if (debug.val) {
-            LOG.debug(String.format("%s - Starting execution of txn [txnMode=%s, mode=%s]",
-                      ts, before_mode, this.currentExecMode));
+            LOG.debug(String.format("%s - Starting execution of txn on partition %d [txnMode=%s, mode=%s]",
+                      ts, this.partitionId, before_mode, this.currentExecMode));
             if (trace.val) LOG.trace("Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
         }
         

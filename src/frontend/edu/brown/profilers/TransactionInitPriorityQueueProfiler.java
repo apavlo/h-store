@@ -9,10 +9,9 @@ import edu.brown.statistics.FastIntHistogram;
 public class TransactionInitPriorityQueueProfiler extends AbstractProfiler {
 
     /**
-     * The amount of time that a txn has to spend waiting
+     * The amount of time that a txn has to spend waiting in milliseconds
      */
     public final FastIntHistogram waitTimes = new FastIntHistogram();
-    
     
     /**
      * The number of times that we spent in the different

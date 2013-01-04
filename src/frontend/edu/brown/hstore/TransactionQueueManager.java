@@ -309,6 +309,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // Process initialization queue
         AbstractTransaction next_init = null;
+        int limit = 10000;
         int added = 0;
         while ((next_init = this.initQueue.poll()) != null) {
             PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
@@ -329,6 +330,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 }
             } // FOR
             if (ret) added++;
+            if (limit-- == 0) break;
         } // WHILE
         
         return (added);
@@ -440,7 +442,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     
     /**
      * Add a new transaction to this queue manager.
-     * Returns true if the transaction was successfully inserted at all partitions
+     * Returns true if the transaction was successfully inserted at all partitions.
      * <B>Note:</B> This should not be called directly. You probably want to use initTransaction().
      * @param ts
      * @param partitions
