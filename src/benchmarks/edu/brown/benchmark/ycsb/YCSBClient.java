@@ -30,52 +30,94 @@
 package edu.brown.benchmark.ycsb;
 
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Random;
+import java.util.Map;
+import java.util.List; 
+import java.util.LinkedList; 
+
+import org.apache.log4j.Logger;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.benchmark.ycsb.YCSBUtil; 
+
 import edu.brown.benchmark.ycsb.distributions.CounterGenerator;
 import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
+import edu.brown.benchmark.ycsb.distributions.CustomSkewGenerator; 
+
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.ObjectHistogram;
 
 
 public class YCSBClient extends BenchmarkComponent {
 	
-	private ZipfianGenerator readRecord;
-    private static CounterGenerator insertRecord;
+    private int transaction_count = 0; 
+    
+	private CustomSkewGenerator readRecord; 
+	//private ZipfianGenerator readRecord;
+    private  CustomSkewGenerator insertRecord;
     private ZipfianGenerator randScan;
 	
 	private List<String> value_list; 
 	
 	private final FlatHistogram<Transaction> txnWeights;
+    
+    private final double SIGMA = 1.4; 
+    
+    private Histogram<Integer> zipf_histogram; 
+
+	private Random rand_gen; 
 	
+	Client client; 
+    
+    private static final Logger LOG = Logger.getLogger(YCSBClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+
     public static void main(String args[]) {
         BenchmarkComponent.main(YCSBClient.class, args, false);
     }
 
     public YCSBClient(String args[]) {
         super(args);
+
+		rand_gen = new Random(); 
 		
-		int init_record_count = 0;  // XXX: fix this 
-		
-		// initialize distribution generators 
-		readRecord = new ZipfianGenerator(init_record_count);// pool for read keys
+		int init_record_count = YCSBConstants.NUM_RECORDS;  
+	
         randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
 		
 		value_list = new LinkedList<String>(); 
 		
+		// initialize distribution generators 
 		synchronized (YCSBClient.class) {
             // We must know where to start inserting
-            if (insertRecord == null) {
-                insertRecord = new CounterGenerator(init_record_count);
+            if (insertRecord == null) 
+{
+				insertRecord = new CustomSkewGenerator(init_record_count, 
+													YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+													YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+
             }
+
+			if(readRecord == null)
+			{
+				readRecord = new CustomSkewGenerator(init_record_count, 
+													YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+													YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+			}
 		}  // end SYNC
+        
+        zipf_histogram = new Histogram<Integer>(); 
 		
 		// Initialize the sampling table
         ObjectHistogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
@@ -93,9 +135,7 @@ public class YCSBClient extends BenchmarkComponent {
 		INSERT_RECORD("Insert Record", YCSBConstants.FREQUENCY_INSERT_RECORD),
 		
 		DELETE_RECORD("Delete Record", YCSBConstants.FREQUENCY_DELETE_RECORD), 
-		
-		//READ_MODIFY_WRITE_RECORD("read Modify Write Record", YCSBConstants.FREQUENCY_READ_MODIFY_WRITE_RECORD), 
-		
+				
 		READ_RECORD("Read Record", YCSBConstants.FREQUENCY_READ_RECORD), 
 		
 		SCAN_RECORD("Scan Record", YCSBConstants.FREQUENCY_SCAN_RECORD), 
@@ -125,6 +165,8 @@ public class YCSBClient extends BenchmarkComponent {
             Random rand = new Random();
 			int key = -1; 
 			int scan_count; 
+            
+            int run_count = 0; 
 			
             while (true) {
 				
@@ -187,7 +229,7 @@ public class YCSBClient extends BenchmarkComponent {
 	private List<String> buildValues(int numVals) {
         this.value_list.clear();
         for (int i = 0; i < numVals; i++) {
-            this.value_list.add(YCSBUtil.astring(1,100));
+            this.value_list.add(YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH,YCSBConstants.COLUMN_LENGTH));
         }
         return this.value_list;
     }
@@ -204,6 +246,7 @@ public class YCSBClient extends BenchmarkComponent {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
             incrementTransactionCounter(clientResponse, this.idx);
+
         }
     } // END CLASS
 

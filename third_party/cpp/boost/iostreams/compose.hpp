@@ -74,6 +74,8 @@ private:
                 is_std_io<Device>,  Device&,
                 else_,              Device
             >::type                                         value_type;
+    BOOST_STATIC_ASSERT(is_filter<Filter>::value);
+    BOOST_STATIC_ASSERT(is_device<Device>::value);
 public:
     typedef typename char_type_of<Filter>::type             char_type;
     struct category
@@ -140,6 +142,8 @@ private:
         !(is_convertible<first_mode, output>::value) ||
          (is_convertible<first_mode, dual_use>::value)
     );
+    BOOST_STATIC_ASSERT(is_filter<Filter1>::value);
+    BOOST_STATIC_ASSERT(is_filter<Filter2>::value);
 public:
     typedef typename char_type_of<Filter1>::type  char_type;
     struct category

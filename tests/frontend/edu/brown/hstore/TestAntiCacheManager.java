@@ -5,11 +5,15 @@ import java.io.File;
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.SysProcSelector;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.UnknownBlockAccessException;
 import org.voltdb.jni.ExecutionEngine;
+import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
@@ -17,6 +21,7 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.voter.VoterConstants;
 import edu.brown.benchmark.voter.VoterProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
@@ -39,10 +44,12 @@ public class TestAntiCacheManager extends BaseTestCase {
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
     private File anticache_dir;
+    private Client client;
     
     private PartitionExecutor executor;
     private ExecutionEngine ee;
     private Table catalog_tbl;
+    private int locators[];
 
     private final AbstractProjectBuilder builder = new VoterProjectBuilder() {
         {
@@ -60,6 +67,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         // Just make sure that the Table has the evictable flag set to true
         this.catalog_tbl = getTable(TARGET_TABLE);
         assertTrue(catalog_tbl.getEvictable());
+        this.locators = new int[] { catalog_tbl.getRelativeIndex() };
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         this.hstore_conf = HStoreConf.singleton();
@@ -73,19 +81,22 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertNotNull(this.executor);
         this.ee = executor.getExecutionEngine();
         assertNotNull(this.executor);
+        
+        this.client = createClient();
     }
     
     @Override
     protected void tearDown() throws Exception {
+        if (this.client != null) this.client.close();
         if (this.hstore_site != null) this.hstore_site.shutdown();
         FileUtil.deleteDirectory(this.anticache_dir);
     }
     
-    /**
-     * testEvictTuples
-     */
-    @Test
-    public void testEvictTuples() throws Exception {
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
+    
+    private void loadData() throws Exception {
         // Load in a bunch of dummy data for this table
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         assertNotNull(vt);
@@ -95,12 +106,14 @@ public class TestAntiCacheManager extends BaseTestCase {
             vt.addRow(row);
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
-
-        int locators[] = new int[] { catalog_tbl.getRelativeIndex() };
-        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
+    }
+    
+    private VoltTable evictData() throws Exception {
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
         System.err.println(VoltTableUtil.format(results));
         for (String col : statsFields) {
+			results[0].advanceRow(); 
             int idx = results[0].getColumnIndex(col);
             assertEquals(0, results[0].getLong(idx));    
         } // FOR
@@ -108,6 +121,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
         VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024);
+
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(evictResult));
         assertNotNull(evictResult);
@@ -116,12 +130,56 @@ public class TestAntiCacheManager extends BaseTestCase {
         evictResult.resetRowPosition();
         boolean adv = evictResult.advanceRow();
         assertTrue(adv);
+        return (evictResult);
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testReadEvictedTuples
+     
+    @Test
+    public void testReadEvictedTuples() throws Exception {
+        this.loadData();
+        
+        // We should have all of our tuples evicted
+        VoltTable evictResult = this.evictData();
+        long evicted = evictResult.getLong("TUPLES_EVICTED");
+        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
+        
+        // Now execute a query that needs to access data from this block
+        long expected = 1;
+        String sql = "SELECT * FROM " + TARGET_TABLE + " WHERE vote_id = " + expected;
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        ClientResponse cresponse = this.client.callProcedure(procName, sql);
+        assertEquals(Status.OK, cresponse.getStatus());
+        
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(1, results.length);
+        boolean adv = results[0].advanceRow();
+        assertTrue(adv);
+        assertEquals(expected, results[0].getLong(0));
+    }
+*/
+    
+    /**
+     * testEvictTuples
+     */
+    @Test
+    public void testEvictTuples() throws Exception {
+        this.loadData();
+        VoltTable evictResult = this.evictData();
+		evictResult.advanceRow(); 
 
         // Our stats should now come back with at least one block evicted
-        results = this.ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(results));
+
+		results[0].advanceRow(); 
         for (String col : statsFields) {
             assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
             if (col == "BLOCKS_EVICTED") {
@@ -138,27 +196,18 @@ public class TestAntiCacheManager extends BaseTestCase {
     @Test
     public void testEvictTuplesMultiple() throws Exception {
         // Just checks whether we can call evictBlock multiple times
-        
-        // Load in a bunch of dummy data for this table
-        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
-        assertNotNull(vt);
-        for (int i = 0; i < NUM_TUPLES; i++) {
-            Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
-            row[0] = Integer.valueOf(i);
-            vt.addRow(row);
-        } // FOR
-        this.executor.loadTable(1000l, catalog_tbl, vt, false);
+        this.loadData();
 
-        int locators[] = new int[] { catalog_tbl.getRelativeIndex() };
-        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
         System.err.println(VoltTableUtil.format(results));
+
+		results[0].advanceRow(); 
         for (String col : statsFields) {
             int idx = results[0].getColumnIndex(col);
             assertEquals(0, results[0].getLong(idx));    
         } // FOR
         System.err.println(StringUtil.repeat("=", 100));
-        
         
         // Now force the EE to evict our boys out in multiple rounds
         VoltTable evictResult = null;
@@ -196,5 +245,6 @@ public class TestAntiCacheManager extends BaseTestCase {
         }
         assertTrue(failed);
     }
+
     
 }

@@ -7,7 +7,7 @@
  *
  * See http://www.boost.org for most recent version including documentation.
  *
- * $Id: geometric_distribution.hpp 52492 2009-04-19 14:55:57Z steven_watanabe $
+ * $Id: geometric_distribution.hpp 60755 2010-03-22 00:45:06Z steven_watanabe $
  *
  * Revision history
  *  2001-02-18  moved to individual header files
@@ -30,7 +30,14 @@ namespace boost {
   using std::log;
 #endif
 
-// geometric distribution: p(i) = (1-p) * pow(p, i-1)   (integer)
+/**
+ * An instantiation of the class template @c geometric_distribution models
+ * a \random_distribution.  The distribution produces positive
+ * integers which are the number of bernoulli trials
+ * with probability @c p required to get one that fails.
+ *
+ * For the geometric distribution, \f$p(i) = (1-p) p^{i-1}\f$.
+ */
 template<class IntType = int, class RealType = double>
 class geometric_distribution
 {
@@ -38,8 +45,13 @@ public:
   typedef RealType input_type;
   typedef IntType result_type;
 
-  explicit geometric_distribution(const RealType& p_arg = RealType(0.5))
-    : _p(p_arg)
+  /**
+   * Contructs a new geometric_distribution with the paramter @c p.
+   *
+   * Requires: 0 < p < 1
+   */
+  explicit geometric_distribution(const RealType& p = RealType(0.5))
+    : _p(p)
   {
     assert(RealType(0) < _p && _p < RealType(1));
     init();
@@ -47,6 +59,9 @@ public:
 
   // compiler-generated copy ctor and assignment operator are fine
 
+  /**
+   * Returns: the distribution parameter @c p
+   */
   RealType p() const { return _p; }
   void reset() { }
 
@@ -80,6 +95,9 @@ public:
 #endif
 
 private:
+
+  /// \cond hide_private_functions
+
   void init()
   {
 #ifndef BOOST_NO_STDC_NAMESPACE
@@ -87,6 +105,8 @@ private:
 #endif
     _log_p = log(_p);
   }
+
+  /// \endcond
 
   RealType _p;
   RealType _log_p;

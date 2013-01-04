@@ -52,7 +52,16 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
+   // public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1MB
+    public static final long DEFAULT_MEMORY_THRESHOLD_MB = 2; 
+    
+    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 51200; // 50 kb
+    //public static final long DEFAULT_MEMORY_THRESHOLD_MB = 512; 
+
+    
+    
+    private boolean evicting;  
+
     
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY
@@ -80,6 +89,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     private final double memoryThreshold;
     private final Collection<Table> evictableTables;
     
+    private boolean evicted;
+    
     /**
      * 
      */
@@ -99,9 +110,18 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         @Override
         public void runImpl() {
             try {
-                if (hstore_conf.site.anticache_enable && checkEviction()) {
-                    executeEviction();
-                }
+                    // update all the partition sizes 
+                    for(Integer p: hstore_site.getLocalPartitionIds())
+                    {
+                        getPartitionSize(p.intValue()); 
+                    }
+    
+                    // check to see if we should start eviction
+                    if (hstore_conf.site.anticache_enable && checkEviction()) {
+                        evicted = true; 
+                        executeEviction(); 
+                    }
+
             } catch (Throwable ex) {
                 ex.printStackTrace();
             }
@@ -115,7 +135,9 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         @Override
         public void run(ClientResponseImpl parameter) {
             LOG.info("Eviction Response:\n" + VoltTableUtil.format(parameter.getResults()));
-            LOG.info(String.format("Execution Time: %.1f sec", parameter.getClusterRoundtrip() / 1000d));
+            LOG.info(String.format("Execution Time: %.1f sec\n", parameter.getClusterRoundtrip() / 1000d));
+            
+            evicting = false; 
         }
     };
     
@@ -128,6 +150,9 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
               HStoreConstants.THREAD_NAME_ANTICACHE,
               new LinkedBlockingQueue<QueueEntry>(),
               false);
+              
+              evicting = false; 
+            evicted = false; 
         
         // XXX: Do we want to use Runtime.getRuntime().maxMemory() instead?
         // XXX: We could also use Runtime.getRuntime().totalMemory() instead of getting table stats
@@ -137,7 +162,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
         
         CatalogContext catalogContext = hstore_site.getCatalogContext();
-        this.memoryThreshold = hstore_conf.site.anticache_threshold;
+        //this.memoryThreshold = hstore_conf.site.anticache_threshold;
+        this.memoryThreshold = DEFAULT_MEMORY_THRESHOLD_MB;
         this.evictableTables = catalogContext.getEvictableTables(); 
                 
         this.partitionSizes = new long[hstore_site.getLocalPartitionIds().size()];
@@ -183,9 +209,11 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         //       request asynchronously per partition. For now we're just going to
         //       block the AntiCacheManager until each of the requests are finished
         try {
+            LOG.info("Asking EE to read in evicted blocks.");
+    
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids);
         } catch (SerializableException ex) {
-            
+            LOG.info("Caught unexpected SerializableException."); 
         }
         
         // Now go ahead and requeue our transaction
@@ -215,6 +243,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         
         // TODO: We should check whether there are any other txns that are also blocked waiting
         // for these blocks. This will ensure that we don't try to read in blocks twice.
+
+        LOG.info("Queueing a transaction for partition " + partition);
         
         return (this.queue.offer(e));
     }
@@ -228,17 +258,35 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      * the eviction threshold.
      */
     protected boolean checkEviction() {
-        SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
-        LOG.info("Current Memory Status:\n" + stats);
+
+        if(evicting)
+            return false; 
+
+        //SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
+        //LOG.info("Current Memory Status:\n" + stats);
         
+        //double usage = (stats.javausedheapmem / (double)stats.javatotalheapmem) * 100; 
+
+        //LOG.info("Current Memory Usage: " + usage); 
         
-        // return (usage >= this.memoryThreshold);
-        return (false);
+        long total_size_kb = 0; 
+        for(int i = 0; i < hstore_site.getLocalPartitionIds().size(); i++)
+        {
+            total_size_kb += partitionSizes[i];  
+        }
+
+        LOG.info("Current Memory Usage: " + (total_size_kb/1024) + " MB"); 
+
+        return ((total_size_kb/1024) >= DEFAULT_MEMORY_THRESHOLD_MB);
     }
     
     protected void executeEviction() {
         // Invoke our special sysproc that will tell the EE to evict some blocks
         // to save us space.
+        
+        evicting = true; 
+
+        LOG.info("Evicting block."); 
 
         String tableNames[] = new String[this.evictableTables.size()];
         long evictBytes[] = new long[this.evictableTables.size()];
@@ -268,6 +316,14 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     // ----------------------------------------------------------------------------
     // MEMORY MANAGEMENT METHODS
     // ----------------------------------------------------------------------------
+
+    protected void getPartitionSize(int partition) {
+
+        // Queue up a utility work operation at the PartitionExecutor so
+        // that we can get the total size of the partition
+        hstore_site.getPartitionExecutor(partition).queueUtilityWork(this.statsMessage, true);
+
+    }
     
     protected void updatePartitionStats(VoltTable vt) {
         long totalSizeKb = 0;

@@ -44,6 +44,7 @@ namespace boost { namespace iostreams {
 template<typename Filter>
 class inverse {
 private:
+    BOOST_STATIC_ASSERT(is_filter<Filter>::value);
     typedef typename category_of<Filter>::type   base_category;
     typedef reference_wrapper<Filter>            filter_ref;
 public:

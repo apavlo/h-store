@@ -11,7 +11,7 @@
 #ifndef BOOST_UNORDERED_DETAIL_MOVE_HEADER
 #define BOOST_UNORDERED_DETAIL_MOVE_HEADER
 
-
+#include <boost/config.hpp>
 #include <boost/mpl/bool.hpp>
 #include <boost/mpl/and.hpp>
 #include <boost/mpl/or.hpp>
@@ -20,7 +20,20 @@
 #include <boost/type_traits/is_same.hpp>
 #include <boost/type_traits/is_class.hpp>
 #include <boost/utility/enable_if.hpp>
-#include <boost/unordered/detail/config.hpp>
+#include <boost/detail/workaround.hpp>
+
+/*************************************************************************************************/
+
+#if defined(BOOST_NO_SFINAE)
+#  define BOOST_UNORDERED_NO_HAS_MOVE_ASSIGN
+#elif defined(__GNUC__) && \
+    (__GNUC__ < 3 || __GNUC__ == 3 && __GNUC_MINOR__ <= 3)
+#  define BOOST_UNORDERED_NO_HAS_MOVE_ASSIGN
+#elif BOOST_WORKAROUND(BOOST_INTEL, < 900) || \
+    BOOST_WORKAROUND(__EDG_VERSION__, < 304) || \
+    BOOST_WORKAROUND(__BORLANDC__, BOOST_TESTED_AT(0x0593))
+#  define BOOST_UNORDERED_NO_HAS_MOVE_ASSIGN
+#endif
 
 /*************************************************************************************************/
 
@@ -96,6 +109,8 @@ struct move_from
 {
     explicit move_from(T& x) : source(x) { }
     T& source;
+private:
+    move_from& operator=(move_from const&);
 };
 
 /*************************************************************************************************/

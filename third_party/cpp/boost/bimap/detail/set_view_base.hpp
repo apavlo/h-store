@@ -25,6 +25,7 @@
 #include <boost/bimap/relation/support/get_pair_functor.hpp>
 #include <boost/bimap/relation/detail/to_mutable_relation_functor.hpp>
 #include <boost/bimap/relation/mutant_relation.hpp>
+#include <boost/bimap/container_adaptor/support/iterator_facade_converters.hpp>
 
 namespace boost {
 namespace bimaps {

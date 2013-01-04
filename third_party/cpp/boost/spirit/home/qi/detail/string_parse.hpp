@@ -1,11 +1,15 @@
 /*=============================================================================
-    Copyright (c) 2001-2007 Joel de Guzman
+    Copyright (c) 2001-2010 Joel de Guzman
 
     Distributed under the Boost Software License, Version 1.0. (See accompanying
     file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 ==============================================================================*/
 #if !defined(BOOST_SPIRIT_STRING_PARSE_APR_18_2006_1125PM)
 #define BOOST_SPIRIT_STRING_PARSE_APR_18_2006_1125PM
+
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #include <boost/spirit/home/qi/detail/assign_to.hpp>
 
@@ -26,7 +30,7 @@ namespace boost { namespace spirit { namespace qi { namespace detail
             ch = *++str;
         }
 
-        detail::assign_to(first, i, attr);
+        spirit::traits::assign_to(first, i, attr);
         first = i;
         return true;
     }
@@ -43,7 +47,7 @@ namespace boost { namespace spirit { namespace qi { namespace detail
         for (; stri != str_last; ++stri, ++i)
             if (i == last || (*stri != *i))
                 return false;
-        detail::assign_to(first, i, attr);
+        spirit::traits::assign_to(first, i, attr);
         first = i;
         return true;
     }
@@ -58,7 +62,7 @@ namespace boost { namespace spirit { namespace qi { namespace detail
         for (; *uc_i && *lc_i; ++uc_i, ++lc_i, ++i)
             if (i == last || ((*uc_i != *i) && (*lc_i != *i)))
                 return false;
-        detail::assign_to(first, i, attr);
+        spirit::traits::assign_to(first, i, attr);
         first = i;
         return true;
     }
@@ -76,7 +80,7 @@ namespace boost { namespace spirit { namespace qi { namespace detail
         for (; uc_i != uc_last; ++uc_i, ++lc_i, ++i)
             if (i == last || ((*uc_i != *i) && (*lc_i != *i)))
                 return false;
-        detail::assign_to(first, i, attr);
+        spirit::traits::assign_to(first, i, attr);
         first = i;
         return true;
     }

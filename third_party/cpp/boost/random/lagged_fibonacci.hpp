@@ -7,7 +7,7 @@
  *
  * See http://www.boost.org for most recent version including documentation.
  *
- * $Id: lagged_fibonacci.hpp 53871 2009-06-13 17:54:06Z steven_watanabe $
+ * $Id: lagged_fibonacci.hpp 60755 2010-03-22 00:45:06Z steven_watanabe $
  *
  * Revision history
  *  2001-02-18  moved to individual header files
@@ -80,6 +80,12 @@ namespace detail
 }
 #  endif
 
+/** 
+ * Instantiations of class template \lagged_fibonacci model a
+ * \pseudo_random_number_generator. It uses a lagged Fibonacci
+ * algorithm with two lags @c p and @c q:
+ * x(i) = x(i-p) + x(i-q) (mod 2<sup>w</sup>) with p > q.
+ */
 template<class UIntType, int w, unsigned int p, unsigned int q,
          UIntType val = 0>
 class lagged_fibonacci
@@ -91,24 +97,45 @@ public:
   BOOST_STATIC_CONSTANT(unsigned int, long_lag = p);
   BOOST_STATIC_CONSTANT(unsigned int, short_lag = q);
 
+  /**
+   * Returns: the smallest value that the generator can produce
+   */
   result_type min BOOST_PREVENT_MACRO_SUBSTITUTION () const { return 0; }
+  /**
+   * Returns: the largest value that the generator can produce
+   */
   result_type max BOOST_PREVENT_MACRO_SUBSTITUTION () const { return wordmask; }
 
+  /**
+   * Creates a new @c lagged_fibonacci generator and calls @c seed()
+   */
   lagged_fibonacci() { init_wordmask(); seed(); }
+  /**
+   * Creates a new @c lagged_fibonacci generator and calls @c seed(value)
+   */
   explicit lagged_fibonacci(uint32_t value) { init_wordmask(); seed(value); }
+  /**
+   * Creates a new @c lagged_fibonacci generator and calls @c seed(first, last)
+   */
   template<class It> lagged_fibonacci(It& first, It last)
   { init_wordmask(); seed(first, last); }
   // compiler-generated copy ctor and assignment operator are fine
 
 private:
+  /// \cond hide_private_members
   void init_wordmask()
   {
     wordmask = 0;
     for(int j = 0; j < w; ++j)
       wordmask |= (1u << j);
   }
+  /// \endcond
 
 public:
+  /**
+   * Sets the state of the generator to values produced by
+   * a \minstd_rand generator.
+   */
   void seed(uint32_t value = 331u)
   {
     minstd_rand0 gen(value);
@@ -117,6 +144,11 @@ public:
     i = long_lag;
   }
 
+  /**
+   * Sets the state of the generator to values from the iterator
+   * range [first, last).  If there are not enough elements in the
+   * range [first, last) throws @c std::invalid_argument.
+   */
   template<class It>
   void seed(It& first, It last)
   {
@@ -129,6 +161,9 @@ public:
       throw std::invalid_argument("lagged_fibonacci::seed");
   }
 
+  /**
+   * Returns: the next value of the generator
+   */
   result_type operator()()
   {
     if(i >= long_lag)
@@ -183,7 +218,10 @@ public:
 #endif
 
 private:
+  /// \cond hide_private_members
   void fill();
+  /// \endcond
+
   UIntType wordmask;
   unsigned int i;
   UIntType x[long_lag];
@@ -198,6 +236,8 @@ const unsigned int lagged_fibonacci<UIntType, w, p, q, val>::long_lag;
 template<class UIntType, int w, unsigned int p, unsigned int q, UIntType val>
 const unsigned int lagged_fibonacci<UIntType, w, p, q, val>::short_lag;
 #endif
+
+/// \cond hide_private_members
 
 template<class UIntType, int w, unsigned int p, unsigned int q, UIntType val>
 void lagged_fibonacci<UIntType, w, p, q, val>::fill()
@@ -257,6 +297,30 @@ BOOST_RANDOM_FIBONACCI_VAL(double, 44497,21034, 0.254135073399297, 1e-14)
 
 #undef BOOST_RANDOM_FIBONACCI_VAL
 
+/// \endcond
+
+/**
+ * Instantiations of class template @c lagged_fibonacci_01 model a
+ * \pseudo_random_number_generator. It uses a lagged Fibonacci
+ * algorithm with two lags @c p and @c q, evaluated in floating-point
+ * arithmetic: x(i) = x(i-p) + x(i-q) (mod 1) with p > q. See
+ *
+ *  @blockquote
+ *  "Uniform random number generators for supercomputers", Richard Brent,
+ *  Proc. of Fifth Australian Supercomputer Conference, Melbourne,
+ *  Dec. 1992, pp. 704-706.
+ *  @endblockquote
+ *
+ * @xmlnote
+ * The quality of the generator crucially depends on the choice
+ * of the parameters. User code should employ one of the sensibly
+ * parameterized generators such as \lagged_fibonacci607 instead.
+ * @endxmlnote
+ *
+ * The generator requires considerable amounts of memory for the storage
+ * of its state array. For example, \lagged_fibonacci607 requires about
+ * 4856 bytes and \lagged_fibonacci44497 requires about 350 KBytes.
+ */
 template<class RealType, int w, unsigned int p, unsigned int q>
 class lagged_fibonacci_01
 {
@@ -267,9 +331,12 @@ public:
   BOOST_STATIC_CONSTANT(unsigned int, long_lag = p);
   BOOST_STATIC_CONSTANT(unsigned int, short_lag = q);
 
+  /** Constructs a @c lagged_fibonacci_01 generator and calls @c seed(). */
   lagged_fibonacci_01() { init_modulus(); seed(); }
+  /** Constructs a @c lagged_fibonacci_01 generator and calls @c seed(value). */
   BOOST_RANDOM_DETAIL_ARITHMETIC_CONSTRUCTOR(lagged_fibonacci_01, uint32_t, value)
   { init_modulus(); seed(value); }
+  /** Constructs a @c lagged_fibonacci_01 generator and calls @c seed(gen). */
   BOOST_RANDOM_DETAIL_GENERATOR_CONSTRUCTOR(lagged_fibonacci_01, Generator, gen)
   { init_modulus(); seed(gen); }
   template<class It> lagged_fibonacci_01(It& first, It last)
@@ -277,6 +344,7 @@ public:
   // compiler-generated copy ctor and assignment operator are fine
 
 private:
+  /// \cond hide_private_members
   void init_modulus()
   {
 #ifndef BOOST_NO_STDC_NAMESPACE
@@ -285,18 +353,30 @@ private:
 #endif
     _modulus = pow(RealType(2), word_size);
   }
+  /// \endcond
 
 public:
+  /** Calls seed(331u). */
   void seed() { seed(331u); }
+  /**
+   * Constructs a \minstd_rand0 generator with the constructor parameter
+   * value and calls seed with it. Distinct seeds in the range
+   * [1, 2147483647) will produce generators with different states. Other
+   * seeds will be equivalent to some seed within this range. See
+   * \linear_congruential for details.
+   */
   BOOST_RANDOM_DETAIL_ARITHMETIC_SEED(lagged_fibonacci_01, uint32_t, value)
   {
     minstd_rand0 intgen(value);
     seed(intgen);
   }
 
-  // For GCC, moving this function out-of-line prevents inlining, which may
-  // reduce overall object code size.  However, MSVC does not grok
-  // out-of-line template member functions.
+  /**
+   * Sets the state of this @c lagged_fibonacci_01 to the values returned
+   * by p invocations of \uniform_01<code>\<RealType\>()(gen)</code>.
+   *
+   * Complexity: Exactly p invocations of gen.
+   */
   BOOST_RANDOM_DETAIL_GENERATOR_SEED(lagged_fibonacci, Generator, gen)
   {
     // use pass-by-reference, but wrap argument in pass_through_engine
@@ -407,7 +487,9 @@ public:
 #endif
 
 private:
+  /// \cond hide_private_members
   void fill();
+  /// \endcond
   unsigned int i;
   RealType x[long_lag];
   RealType _modulus;
@@ -426,6 +508,7 @@ const int lagged_fibonacci_01<RealType,w,p,q>::word_size;
 
 #endif
 
+/// \cond hide_private_members
 template<class RealType, int w, unsigned int p, unsigned int q>
 void lagged_fibonacci_01<RealType, w, p, q>::fill()
 {
@@ -446,17 +529,70 @@ void lagged_fibonacci_01<RealType, w, p, q>::fill()
   }
   i = 0;
 }
+/// \endcond
 
 } // namespace random
 
+#ifdef BOOST_RANDOM_DOXYGEN
+namespace detail {
+/**
+ * The specializations lagged_fibonacci607 ... lagged_fibonacci44497
+ * use well tested lags.
+ *
+ * See
+ *
+ *  @blockquote
+ *  "On the Periods of Generalized Fibonacci Recurrences", Richard P. Brent
+ *  Computer Sciences Laboratory Australian National University, December 1992
+ *  @endblockquote
+ *
+ * The lags used here can be found in
+ *
+ *  @blockquote
+ *  "Uniform random number generators for supercomputers", Richard Brent,
+ *  Proc. of Fifth Australian Supercomputer Conference, Melbourne,
+ *  Dec. 1992, pp. 704-706.
+ *  @endblockquote
+ */
+struct lagged_fibonacci_doc {};
+}
+#endif
+
+/**
+ * @copydoc boost::detail::lagged_fibonacci_doc
+ */
 typedef random::lagged_fibonacci_01<double, 48, 607, 273> lagged_fibonacci607;
+/**
+ * @copydoc boost::detail::lagged_fibonacci_doc
+ */
 typedef random::lagged_fibonacci_01<double, 48, 1279, 418> lagged_fibonacci1279;
+/**
+ * @copydoc boost::detail::lagged_fibonacci_doc
+ */
 typedef random::lagged_fibonacci_01<double, 48, 2281, 1252> lagged_fibonacci2281;
+/**
+ * @copydoc boost::detail::lagged_fibonacci_doc
+ */
 typedef random::lagged_fibonacci_01<double, 48, 3217, 576> lagged_fibonacci3217;
+/**
+ * @copydoc boost::detail::lagged_fibonacci_doc
+ */
 typedef random::lagged_fibonacci_01<double, 48, 4423, 2098> lagged_fibonacci4423;
+/**
+ * @copydoc boost::detail::lagged_fibonacci_doc
+ */
 typedef random::lagged_fibonacci_01<double, 48, 9689, 5502> lagged_fibonacci9689;
+/**
+ * @copydoc boost::detail::lagged_fibonacci_doc
+ */
 typedef random::lagged_fibonacci_01<double, 48, 19937, 9842> lagged_fibonacci19937;
+/**
+ * @copydoc boost::detail::lagged_fibonacci_doc
+ */
 typedef random::lagged_fibonacci_01<double, 48, 23209, 13470> lagged_fibonacci23209;
+/**
+ * @copydoc boost::detail::lagged_fibonacci_doc
+ */
 typedef random::lagged_fibonacci_01<double, 48, 44497, 21034> lagged_fibonacci44497;
 
 

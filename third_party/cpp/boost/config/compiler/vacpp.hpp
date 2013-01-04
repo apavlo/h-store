@@ -30,6 +30,14 @@
 #  define BOOST_NO_INITIALIZER_LISTS
 #endif
 
+#if (__IBMCPP__ <= 1110)
+// XL C++ V11.1 and earlier versions may not always value-initialize  
+// a temporary object T(), when T is a non-POD aggregate class type. 
+// Michael Wong (IBM Canada Ltd) has confirmed this issue and gave it 
+// high priority. -- Niels Dekker (LKEB), May 2010.
+#  define BOOST_NO_COMPLETE_VALUE_INITIALIZATION
+#endif
+
 //
 // On AIX thread support seems to be indicated by _THREAD_SAFE:
 //
@@ -72,11 +80,13 @@
 #define BOOST_NO_DELETED_FUNCTIONS
 #define BOOST_NO_EXPLICIT_CONVERSION_OPERATORS
 #define BOOST_NO_EXTERN_TEMPLATE
+#define BOOST_NO_FUNCTION_TEMPLATE_DEFAULT_ARGS
 #define BOOST_NO_LAMBDAS
 #define BOOST_NO_NULLPTR
 #define BOOST_NO_RAW_LITERALS
 #define BOOST_NO_RVALUE_REFERENCES
 #define BOOST_NO_SCOPED_ENUMS
+#define BOOST_NO_SFINAE_EXPR
 #define BOOST_NO_STATIC_ASSERT
 #define BOOST_NO_TEMPLATE_ALIASES
 #define BOOST_NO_UNICODE_LITERALS

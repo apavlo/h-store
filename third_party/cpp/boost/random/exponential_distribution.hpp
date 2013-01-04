@@ -7,7 +7,7 @@
  *
  * See http://www.boost.org for most recent version including documentation.
  *
- * $Id: exponential_distribution.hpp 52492 2009-04-19 14:55:57Z steven_watanabe $
+ * $Id: exponential_distribution.hpp 60755 2010-03-22 00:45:06Z steven_watanabe $
  *
  * Revision history
  *  2001-02-18  moved to individual header files
@@ -25,7 +25,11 @@
 
 namespace boost {
 
-// exponential distribution: p(x) = lambda * exp(-lambda * x)
+/**
+ * The exponential distribution has a single parameter lambda.
+ *
+ * It has \f$p(x) = \lambda e^{-\lambda x}\f$
+ */
 template<class RealType = double>
 class exponential_distribution
 {

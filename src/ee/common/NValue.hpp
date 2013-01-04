@@ -266,6 +266,14 @@ class NValue {
         assert(getValueType() == VALUE_TYPE_INTEGER);
         return *reinterpret_cast<const int32_t*>(m_data);
     }
+
+    /**
+     * Get the type of the value. This information is private
+     * to prevent code outside of NValue from branching based on the type of a value.
+     */
+    ValueType getValueType() const {
+        return static_cast<ValueType>(m_data[16]);
+    }
     
   private:
     /*
@@ -344,13 +352,7 @@ class NValue {
         reinterpret_cast<uint8_t*>(m_data)[16] = static_cast<uint8_t>(type);
     }
 
-    /**
-     * Get the type of the value. This information is private
-     * to prevent code outside of NValue from branching based on the type of a value.
-     */
-    ValueType getValueType() const {
-        return static_cast<ValueType>(m_data[16]);
-    }
+
 
     /**
      * An Object is something like a String that has a variable length

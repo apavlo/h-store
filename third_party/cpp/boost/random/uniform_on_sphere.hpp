@@ -7,7 +7,7 @@
  *
  * See http://www.boost.org for most recent version including documentation.
  *
- * $Id: uniform_on_sphere.hpp 52492 2009-04-19 14:55:57Z steven_watanabe $
+ * $Id: uniform_on_sphere.hpp 60755 2010-03-22 00:45:06Z steven_watanabe $
  *
  * Revision history
  *  2001-02-18  moved to individual header files
@@ -24,6 +24,16 @@
 
 namespace boost {
 
+/**
+ * Instantiations of class template uniform_on_sphere model a
+ * \random_distribution. Such a distribution produces random
+ * numbers uniformly distributed on the unit sphere of arbitrary
+ * dimension @c dim. The @c Cont template parameter must be a STL-like
+ * container type with begin and end operations returning non-const
+ * ForwardIterators of type @c Cont::iterator. Each invocation of the
+ * @c UniformRandomNumberGenerator shall result in a floating-point
+ * value in the range [0,1). 
+ */
 template<class RealType = double, class Cont = std::vector<RealType> >
 class uniform_on_sphere
 {
@@ -31,6 +41,10 @@ public:
   typedef RealType input_type;
   typedef Cont result_type;
 
+  /**
+   * Constructs a @c uniform_on_sphere distribution.
+   * @c dim is the dimension of the sphere.
+   */
   explicit uniform_on_sphere(int dim = 2) : _container(dim), _dim(dim) { }
 
   // compiler-generated copy ctor and assignment operator are fine

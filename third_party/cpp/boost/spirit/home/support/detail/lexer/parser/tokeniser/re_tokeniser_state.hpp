@@ -1,5 +1,5 @@
 // tokeniser_state.hpp
-// Copyright (c) 2007-2008 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2007-2009 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -46,7 +46,8 @@ struct basic_re_tokeniser_state
     }
 
     // prevent VC++ 7.1 warning:
-    const basic_re_tokeniser_state &operator = (const basic_re_tokeniser_state &rhs_)
+    const basic_re_tokeniser_state &operator =
+        (const basic_re_tokeniser_state &rhs_)
     {
         _start = rhs_._start;
         _end = rhs_._end;
