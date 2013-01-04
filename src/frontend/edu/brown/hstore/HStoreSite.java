@@ -571,7 +571,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // NETWORK SETUP
         // -------------------------------
         
-        this.voltNetwork = new VoltNetwork(this.threadManager);
+        this.voltNetwork = new VoltNetwork(this);
         this.clientInterface = ClientInterface.create(this,
                                                       this.voltNetwork,
                                                       catalog_site.getProc_port(),

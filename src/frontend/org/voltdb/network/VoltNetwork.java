@@ -83,6 +83,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltLoggerFactory;
 
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 
 /** Produces work for registered ports that are selected for read, write */
@@ -130,8 +131,8 @@ import edu.brown.hstore.HStoreThreadManager;
         this(true, true, null, null);
     }
     
-    public VoltNetwork(HStoreThreadManager threadManager) {
-        this(true, true, null, threadManager);
+    public VoltNetwork(HStoreSite hstore_site) {
+        this(true, true, null, hstore_site);
     }
     
     public VoltNetwork(boolean useExecutorService, boolean blockingSelect, Integer threads) {
@@ -143,7 +144,7 @@ import edu.brown.hstore.HStoreThreadManager;
      * If the network is not going to provide any threads provideOwnThread should be false
      * and runOnce should be called periodically
      **/
-    public VoltNetwork(boolean useExecutorService, boolean blockingSelect, Integer threads, final HStoreThreadManager threadManager) {
+    public VoltNetwork(boolean useExecutorService, boolean blockingSelect, Integer threads, final HStoreSite hstore_site) {
         m_thread = new Thread(this, "Volt Network");
         m_thread.setDaemon(true);
         m_useBlockingSelect = blockingSelect;
@@ -185,13 +186,17 @@ import edu.brown.hstore.HStoreThreadManager;
             private int threadIndex = 0;
             @Override
             public Thread newThread(final Runnable run) {
-                final String threadName = String.format("%s-%02d", HStoreConstants.THREAD_NAME_INCOMINGNETWORK, this.threadIndex++); 
+                String threadName = String.format("%s-%02d", HStoreConstants.THREAD_NAME_INCOMINGNETWORK, this.threadIndex++);
+                if (hstore_site != null) {
+                    threadName = HStoreThreadManager.getThreadName(hstore_site, threadName);
+                }
+                
                 final Thread t = new Thread(this.group, run, threadName) {
                     @Override
                     public void run() {
                         // HACK: Register the thread if we have an HStoreThreadManager
-                        if (threadManager != null) {
-                            threadManager.registerProcessingThread();
+                        if (hstore_site != null) {
+                            hstore_site.getThreadManager().registerProcessingThread();
                         }
                         try {
                             run.run();
