@@ -94,6 +94,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     private Procedure catalog_proc;
     
     protected Long txn_id = null;
+    protected Long last_txn_id = null; // FOR DEBUGGING
     protected long client_handle;
     protected int base_partition;
     protected Status status;
@@ -315,6 +316,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
         this.txn_id = txn_id;
+        this.last_txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
         this.parameters = parameters;
@@ -1070,6 +1072,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
             str = this.toStringImpl();
         } else {
             str = String.format("<Uninitialized-%s>", this.getClass().getSimpleName());
+            if (this.last_txn_id != null) str += String.format(" {LAST:%d}", this.last_txn_id);
         }
         // Include hashCode for debugging
         str += "/" + this.hashCode();
