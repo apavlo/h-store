@@ -180,7 +180,7 @@ public class MarkovLoader extends BenchmarkComponent {
         while (generator.hasMore()) {
             generator.addRow();
             if (table.getRowCount() >= batchSize) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format(tableName + ": loading %d rows (id %d of %d)", table.getRowCount(), generator.getCount(), tableSize));
                 loadTable(tableName, table);
                 table.clearRowData();
@@ -188,7 +188,7 @@ public class MarkovLoader extends BenchmarkComponent {
             this.table_sizes.get(tableName).incrementAndGet();
         } // WHILE
         if (table.getRowCount() > 0) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(tableName + ": loading final " + table.getRowCount() + " rows.");
             loadTable(tableName, table);
             table.clearRowData();

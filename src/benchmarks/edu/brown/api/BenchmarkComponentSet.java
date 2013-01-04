@@ -72,7 +72,7 @@ public class BenchmarkComponentSet implements Runnable {
             PipedOutputStream out = new PipedOutputStream(in);
             this.components.put(comp, new PrintWriter(out));
 
-            if (debug.get()) LOG.debug("Starting Client thread " + this.clientIds[i]);
+            if (debug.val) LOG.debug("Starting Client thread " + this.clientIds[i]);
             Thread t = new Thread(comp.createControlPipe(in));
             t.setDaemon(true);
             t.start();
@@ -87,14 +87,14 @@ public class BenchmarkComponentSet implements Runnable {
         String line = null;
         final BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         while (true) {
-            if (debug.get()) LOG.debug("Blocking on input stream for commands from BenchmarkController");
+            if (debug.val) LOG.debug("Blocking on input stream for commands from BenchmarkController");
             try {
                 line = in.readLine().trim();
             } catch (final IOException e) {
                 throw new RuntimeException("Error on standard input", e);
             }
 
-            if (debug.get()) LOG.debug("New Command: " + line);
+            if (debug.val) LOG.debug("New Command: " + line);
             for (PrintWriter out : this.components.values()) {
                 out.println(line);
                 out.flush();
@@ -132,7 +132,7 @@ public class BenchmarkComponentSet implements Runnable {
             }
         } // FOR
         
-        if (debug.get()) LOG.info(String.format("Starting %d BenchmarkComponent threads: %s",
+        if (debug.val) LOG.info(String.format("Starting %d BenchmarkComponent threads: %s",
                                                 clientIds.length, Arrays.toString(clientIds)));
         BenchmarkComponentSet bcs = new BenchmarkComponentSet(componentClass, clientIds, componentArgs);
         bcs.run(); // BLOCK!

@@ -66,7 +66,7 @@ public class ResultsChecker extends EventObservable<String> implements Benchmark
         assert(p != null);
         long txnDelta = p.getSecond();
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("CURRENT %d / LAST %d", txnDelta, this.lastDelta));
         
         if (this.lastDelta == 0 && txnDelta == 0) {

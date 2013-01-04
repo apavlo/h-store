@@ -108,7 +108,7 @@ public class VerticalPartitionPlanner {
     }
     
     public VerticalPartitionPlanner addVerticalPartition(MaterializedViewInfo catalog_view) {
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Adding " + catalog_view + " for discovering query optimizations");
         Table catalog_tbl = catalog_view.getParent();
         this.vp_views.put(catalog_tbl, catalog_view);
@@ -174,7 +174,7 @@ public class VerticalPartitionPlanner {
         } // FOR (procs)
 
         if (this.stmt_rewrites.size() > 0) {
-            if (trace.get()) {
+            if (trace.val) {
                 Map<String, Object> m = new LinkedHashMap<String, Object>();
                 for (Statement catalog_stmt : this.stmt_rewrites.keySet()) {
                     m.put(catalog_stmt.fullName(), this.stmt_rewrites.get(catalog_stmt));
@@ -196,7 +196,7 @@ public class VerticalPartitionPlanner {
         
         // Check whether the only table the query references is our replicated index
         Collection<Table> tables = CatalogUtil.getReferencedTables(dest);
-        if (debug.get()) LOG.debug(dest + " => " + tables);
+        if (debug.val) LOG.debug(dest + " => " + tables);
         dest.setReplicatedonly(tables.size() == 1);
     }
     
@@ -211,7 +211,7 @@ public class VerticalPartitionPlanner {
     protected boolean process(Statement catalog_stmt) throws Exception {
         // Always skip if there are no vertically partitioned tables
         if (this.vp_views.isEmpty()) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": There are no vertically partitioned tables.");
             return (false);
         }
@@ -219,7 +219,7 @@ public class VerticalPartitionPlanner {
         // We can only work our magic on SELECTs
         QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
         if (qtype != QueryType.SELECT) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": QueryType is " + qtype + ".");
             return (false);
         }
@@ -227,7 +227,7 @@ public class VerticalPartitionPlanner {
         // Check whether this query references a table that has a vertical partition
         Collection<Table> tables = CollectionUtils.intersection(this.vp_views.keySet(), CatalogUtil.getReferencedTables(catalog_stmt));
         if (tables.isEmpty()) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": It does not reference a vertical partitioning table.");
             return (false);
         }
@@ -238,7 +238,7 @@ public class VerticalPartitionPlanner {
         Collection<Column> stmt_cols = CollectionUtils.union(CatalogUtil.getReferencedColumns(catalog_stmt),
                                                              CatalogUtil.getOrderByColumns(catalog_stmt));
         if (stmt_cols.isEmpty()) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": Query does not reference any columns in its predicate or order-by clause.");
             return (false);
         }
@@ -261,7 +261,7 @@ public class VerticalPartitionPlanner {
             // (2) The partitioning_col is *not* in the predicate_cols
             // (3) At least one of the vertical partition's columns is in
             // predicate_cols
-            if (debug.get()) {
+            if (debug.val) {
                 Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("VerticalP", catalog_view.getName());
                 m.put("Partitioning Col", partitioning_col.fullName());
@@ -271,26 +271,26 @@ public class VerticalPartitionPlanner {
                 LOG.debug(String.format("Checking whether %s can use vertical partition for %s\n%s", catalog_stmt.fullName(), catalog_tbl.getName(), StringUtil.formatMaps(m)));
             }
 //            if (output_cols.contains(partitioning_col) == false) {
-//                if (debug.get())
+//                if (debug.val)
 //                    LOG.warn("Output Columns do not contain horizontal partitioning column");
 //            }
 //            else 
             if (view_cols.containsAll(output_cols) == false) {
-                if (debug.get())
+                if (debug.val)
                     LOG.warn("Vertical Partition columns do not contain output columns");
             }
             /** Is this needed?
             else if (stmt_cols.contains(partitioning_col) == true) {
-                if (debug.get())
+                if (debug.val)
                     LOG.warn("Statement Columns contains horizontal partition column");
             }
             **/
             else if (view_cols.containsAll(stmt_cols) == false) {
-                if (debug.get())
+                if (debug.val)
                     LOG.warn("The Vertical Partition Columns does not contain all of the Statement Columns " + CollectionUtils.subtract(view_cols, stmt_cols));
             }
             else {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("Valid VP Candidate: " + catalog_tbl);
                 StatementRewrite rewrite = this.stmt_rewrites.get(catalog_stmt);
                 if (rewrite == null) {
@@ -304,7 +304,7 @@ public class VerticalPartitionPlanner {
         // Check to make sure that we were able to generate a StatementRewrite candidate for this one
         StatementRewrite rewrite = this.stmt_rewrites.get(catalog_stmt);
         if (rewrite == null) {
-            if (debug.get())
+            if (debug.val)
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": Query does not have any valid vertical partitioning references.");
             return (false);
         }
@@ -313,7 +313,7 @@ public class VerticalPartitionPlanner {
         } catch (Throwable ex) {
             String msg = String.format("Failed to rewrite SQL for %s to use replicated secondary index on %s",
                                        catalog_stmt.fullName(), CatalogUtil.debug(rewrite.keySet()));
-            LOG.warn(msg, (debug.get() ? ex : null));
+            LOG.warn(msg, (debug.val ? ex : null));
             return (false);
         }
 
@@ -330,7 +330,7 @@ public class VerticalPartitionPlanner {
      * @throws Exception
      */
     protected String rewriteSQL(Statement catalog_stmt, Map<Table, Table> tbl_mapping) throws Exception {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Rewriting %s's SQL using %d mappings: %s", catalog_stmt.fullName(), tbl_mapping.size(), tbl_mapping));
         // This isn't perfect but it's good enough for our experiments
         Matcher m = SELECT_REGEX.matcher(catalog_stmt.getSqltext());
@@ -413,7 +413,7 @@ public class VerticalPartitionPlanner {
         }
 
         protected Map<Statement, Statement> getRewrittenQueryPlans() throws Exception {
-            if (debug.get()) {
+            if (debug.val) {
                 String temp = "";
                 for (String procName : this.rewritten_queries.values())
                     temp += String.format("\n%s: %s", procName, this.getStmtProcedureSQL(procName));
@@ -456,7 +456,7 @@ public class VerticalPartitionPlanner {
             String procName = String.format("%s_%s", catalog_stmt.getParent().getName(), catalog_stmt.getName());
             this.addStmtProcedure(procName, sql);
             this.rewritten_queries.put(catalog_stmt, procName);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Queued %s to generate new query plan\n%s", catalog_stmt.fullName(), sql));
         }
     }

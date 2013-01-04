@@ -126,7 +126,7 @@ public class ClientStatusThread extends Thread {
             final ControlState status = ControlState.get(parts[2]);
             assert(status != null) : "Unexpected ControlStatus '" + parts[2] + "'";
             
-            if (debug.get()) 
+            if (debug.val) 
                 LOG.debug(String.format("Client %s -> %s", clientName, status));
             
             // Make sure that we never go back in time!
@@ -139,7 +139,7 @@ public class ClientStatusThread extends Thread {
                 // READY
                 // ----------------------------------------------------------------------------
                 case READY: {
-                    if (debug.get()) LOG.debug(String.format("Got ready message for '%s'.", line.processName));
+                    if (debug.val) LOG.debug(String.format("Got ready message for '%s'.", line.processName));
                     controller.clientIsReady(clientName);
                     break;
                 }
@@ -158,7 +158,7 @@ public class ClientStatusThread extends Thread {
                     ResponseEntries newEntries = new ResponseEntries();
                     String json_line = getPayload(control_line, parts);
                     JSONObject json_object;
-                    if (debug.get()) LOG.debug("Processing response dump");
+                    if (debug.val) LOG.debug("Processing response dump");
                     try {
                         json_object = new JSONObject(json_line);
                         newEntries.fromJSON(json_object, catalog_db);
@@ -189,7 +189,7 @@ public class ClientStatusThread extends Thread {
                         throw new RuntimeException(ex);
                     }
                     assert(json_object != null);
-                    if (debug.get()) LOG.debug("Base Partitions:\n " + this.tc.basePartitions); 
+                    if (debug.val) LOG.debug("Base Partitions:\n " + this.tc.basePartitions); 
                     
 //                    this.results.clear();
 //                    for (String txnName : tc.transactions.values()) {
@@ -197,7 +197,7 @@ public class ClientStatusThread extends Thread {
 //                    } // FOR
                     
                     try {
-                        if (debug.get()) LOG.debug("UPDATE: " + line);
+                        if (debug.val) LOG.debug("UPDATE: " + line);
                         this.addPollResponseInfo(clientName, time, this.tc, null);
                     } catch (Throwable ex) {
                         List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);
@@ -223,7 +223,7 @@ public class ClientStatusThread extends Thread {
             
             this.lastTimestamps.put(clientName, time);
         } // WHILE
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Status thread is finished");
         this.finished = true;
     }

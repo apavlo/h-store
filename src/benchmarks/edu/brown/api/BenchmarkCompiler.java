@@ -52,7 +52,7 @@ public class BenchmarkCompiler {
                 assert(stmtName.isEmpty() == false) :
                     "Invalid statement name in deferrable entry '" + entry + "'";
                 m_projectBuilder.markStatementDeferrable(procName, stmtName);
-                if (debug.get()) LOG.debug(String.format("Marking %s.%s as deferrable in %s",
+                if (debug.val) LOG.debug(String.format("Marking %s.%s as deferrable in %s",
                                                          procName, stmtName, m_projectBuilder.getProjectName())); 
             } // FOR
         }
@@ -60,7 +60,7 @@ public class BenchmarkCompiler {
             for (String tableName : m_config.evictable) {
                 if (tableName.isEmpty()) continue;
                 m_projectBuilder.markTableEvictable(tableName);
-                if (debug.get()) LOG.debug(String.format("Marking table %s as evictable in %s",
+                if (debug.val) LOG.debug(String.format("Marking table %s as evictable in %s",
                                                          tableName, m_projectBuilder.getProjectName())); 
             } // FOR
         }

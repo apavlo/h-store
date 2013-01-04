@@ -490,7 +490,7 @@ public class VoltCompiler {
             compileXMLRootNode(project);
         } catch (final VoltCompilerException e) {
 //            compilerLog.l7dlog( Level.ERROR, LogKeys.compiler_VoltCompiler_FailedToCompileXML.name(), null);
-            if (debug.get()) {
+            if (debug.val) {
                 LOG.error(e.getMessage(), e);
             } else {
                 LOG.error(e.getMessage());
@@ -896,14 +896,14 @@ public class VoltCompiler {
         String prefix = "SYS_VP_" + catalog_tbl.getName() + "_";
         Pattern p = Pattern.compile(Pattern.quote(prefix) + "[\\d]+");
         for (Table otherTable : CatalogUtil.getSysTables(catalog_db)) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Checking whether '%s' matches prefix '%s'", otherTable, prefix));
             Matcher m = p.matcher(otherTable.getName());
             if (m.matches() == false) continue;
             
             // Check to make sure it's not the same vertical partition
             Collection<Column> otherColumns = otherTable.getColumns();
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("%s.%s <-> %s.%s", catalog_tbl.getName(), catalog_cols, otherTable.getName(), otherColumns));
             if (otherColumns.size() != colNames.size()) continue;
             boolean fail = false;
@@ -920,7 +920,7 @@ public class VoltCompiler {
         String viewName = String.format("%s%02d", prefix, next);
         assert(catalog_tbl.getViews().contains(viewName) == false);
         
-        if (debug.get()) 
+        if (debug.val) 
             LOG.debug(String.format("Next VerticalPartition name '%s' for %s", viewName, catalog_tbl)); 
         return (viewName);
     }
@@ -950,7 +950,7 @@ public class VoltCompiler {
         Database catalog_db = ((Database)catalog_tbl.getParent()); 
         
         String viewName = getNextVerticalPartitionName(catalog_tbl, catalog_cols);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Adding Vertical Partition %s for %s: %s", viewName, catalog_tbl, catalog_cols));
         
         // Create a new virtual table
@@ -973,7 +973,7 @@ public class VoltCompiler {
         if (partition_col instanceof VerticalPartitionColumn) {
             partition_col = ((VerticalPartitionColumn)partition_col).getHorizontalColumn();
         }
-        if (debug.get())
+        if (debug.val)
             LOG.debug(catalog_tbl.getName() + " Partition Column: " + partition_col);
         
         int i = 0;
@@ -993,7 +993,7 @@ public class VoltCompiler {
             virtual_col.setNullable(catalog_col.getNullable());
             virtual_col.setSize(catalog_col.getSize());
             virtual_col.setType(catalog_col.getType());
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Added VerticalPartition column %s", virtual_col.fullName()));
             
             // If they want an index, then we'll make one based on every column except for the column
@@ -1004,7 +1004,7 @@ public class VoltCompiler {
                     include = (((MultiColumn)partition_col).contains(catalog_col) == false);
                 }
                 else if (catalog_col.equals(partition_col)) {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug("VerticalParition -> " + catalog_col.fullName() + " = " + partition_col.fullName());
                     include = false;
                 }
@@ -1038,7 +1038,7 @@ public class VoltCompiler {
                 cref.setIndex(i++);
             } // FOR
             
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Created %s index '%s' for vertical partition '%s'",
                                         idxType, idxName, viewName)); 
         }

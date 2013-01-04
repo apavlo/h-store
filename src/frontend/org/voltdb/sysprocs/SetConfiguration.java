@@ -78,7 +78,7 @@ public class SetConfiguration extends VoltSystemProcedure {
                     m.put(confNames[i], confValues[i]);
                 } // FOR
                 hstore_conf.loadFromArgs(m);
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("Updating %d conf parameters on %s",
                               m.size(), executor.getHStoreSite().getSiteName()));
                 
@@ -96,7 +96,7 @@ public class SetConfiguration extends VoltSystemProcedure {
                     vt.addRow(row);
                 } // FOR
                 result = new DependencySet(DISTRIBUTE_ID, vt);
-                if (debug.get())
+                if (debug.val)
                     LOG.info(String.format("%s - Sending back result for partition %d",
                              m_localTxnState, this.executor.getPartitionId()));
                 break;
@@ -108,7 +108,7 @@ public class SetConfiguration extends VoltSystemProcedure {
                     String msg = "Missing site results";
                     throw new ServerFaultException(msg, txn_id);
                 }
-                if (debug.get())
+                if (debug.val)
                     LOG.debug("# of Results: " + siteResults.size() + "\n" +
                               StringUtil.join("\n************\n", siteResults));
                 

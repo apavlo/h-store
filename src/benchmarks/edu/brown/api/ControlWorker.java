@@ -58,7 +58,7 @@ class ControlWorker extends Thread {
                 }
                 cmp.runLoop();
             } else {
-                if (debug.get()) LOG.debug(String.format("Running rate controlled [m_txnRate=%d, m_txnsPerMillisecond=%f]", cmp.m_txnRate, cmp.m_txnsPerMillisecond));
+                if (debug.val) LOG.debug(String.format("Running rate controlled [m_txnRate=%d, m_txnsPerMillisecond=%f]", cmp.m_txnRate, cmp.m_txnsPerMillisecond));
                 this.rateControlledRunLoop();
             }
         } catch (Throwable ex) {
@@ -66,7 +66,7 @@ class ControlWorker extends Thread {
             throw new RuntimeException(ex);
         } finally {
             if (cmp.m_exitOnCompletion) {
-                if (debug.get()) LOG.debug(String.format("Stopping %s thread [id=%d]",
+                if (debug.val) LOG.debug(String.format("Stopping %s thread [id=%d]",
                                            this.getClass().getSimpleName(), cmp.getClientId()));
                         
                 return;
@@ -98,9 +98,9 @@ class ControlWorker extends Thread {
             // Check whether we are currently being paused
             // We will block until we're allowed to go again
             if (cmp.m_controlState == ControlState.PAUSED) {
-                if (debug.get()) LOG.debug("Pausing until control lock is released");
+                if (debug.val) LOG.debug("Pausing until control lock is released");
                 cmp.m_pauseLock.acquire();
-                if (debug.get()) LOG.debug("Control lock is released! Resuming execution! Tiger style!");
+                if (debug.val) LOG.debug("Control lock is released! Resuming execution! Tiger style!");
             }
             assert(cmp.m_controlState != ControlState.PAUSED) : "Unexpected " + cmp.m_controlState;
 
@@ -115,7 +115,7 @@ class ControlWorker extends Thread {
                     continue;
                 }
 
-                if (debug.get()) LOG.debug(String.format("Submitting %d txn requests from client #%d",
+                if (debug.val) LOG.debug(String.format("Submitting %d txn requests from client #%d",
                                            transactionsToCreate, cmp.getClientId()));
                 if (this.profiling) execute_time.start();
                 try {
@@ -130,7 +130,7 @@ class ControlWorker extends Thread {
                     hadErrors = true;
                     
                     // HACK: Sleep for a little bit to give time for the site logs to flush
-//                    if (debug.get()) 
+//                    if (debug.val) 
                     LOG.error("Failed to execute transaction: " + e.getMessage(), e);
                     ThreadUtil.sleep(5000);
                 } finally {

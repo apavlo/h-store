@@ -160,7 +160,7 @@ public class Statistics extends VoltSystemProcedure {
                                     catalogIds,
                                     interval,
                                     now);
-                    if (debug.get()) HOST_LOG.debug(pair.getFirst() + ":\n" + result);
+                    if (debug.val) HOST_LOG.debug(pair.getFirst() + ":\n" + result);
                     assert(result.getRowCount() >= 0);
                 }
                 else {
@@ -383,7 +383,7 @@ public class Statistics extends VoltSystemProcedure {
             };
             final long endTime = System.currentTimeMillis();
             final long delta = endTime - now;
-            if (debug.get()) HOST_LOG.debug("Statistics invocation of MANAGEMENT selector took " + delta + " milliseconds");
+            if (debug.val) HOST_LOG.debug("Statistics invocation of MANAGEMENT selector took " + delta + " milliseconds");
         } else {
             String msg = String.format("Invalid Statistics selector %s.\nValid Options: %s",
                                        selector, Arrays.toString(SysProcSelector.values()));

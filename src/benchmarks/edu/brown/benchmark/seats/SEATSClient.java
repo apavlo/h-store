@@ -348,7 +348,7 @@ public class SEATSClient extends BenchmarkComponent {
         // Create xact lookup array
         this.xacts = new RandomDistribution.FlatHistogram<Transaction>(rng, weights);
         assert(weights.getSampleCount() == 100) : "The total weight for the transactions is " + this.xacts.getSampleCount() + ". It needs to be 100";
-        if (debug.get()) LOG.debug("Transaction Execution Distribution:\n" + weights);
+        if (debug.val) LOG.debug("Transaction Execution Distribution:\n" + weights);
     }
     
     protected SEATSProfile getProfile() {
@@ -407,7 +407,7 @@ public class SEATSClient extends BenchmarkComponent {
         Transaction txn = null;
         while (tries-- > 0 && ret == null) {
             txn = this.xacts.nextValue();
-            if (debug.get()) LOG.debug("Attempting to execute " + txn);
+            if (debug.val) LOG.debug("Attempting to execute " + txn);
             switch (txn) {
                 case DELETE_RESERVATION: {
                     ret = this.getDeleteReservationParams();
@@ -467,7 +467,7 @@ public class SEATSClient extends BenchmarkComponent {
         LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(ctype);
         assert(cache != null);
         cache.add(r);
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Queued %s for %s [cache=%d]", r, ctype, cache.size()));
         while (cache.size() > ctype.limit) {
             cache.remove();
@@ -497,7 +497,7 @@ public class SEATSClient extends BenchmarkComponent {
                         cache.add(element);
                     } // SYNCH
                 }
-            } else if (debug.get()) {
+            } else if (debug.val) {
                 LOG.info("DeleteReservation " + clientResponse.getStatus() + ": " + clientResponse.getStatusString(), clientResponse.getException());
                 LOG.info("BUSTED ID: " + element.flight_id + " / " + element.flight_id.encode());
             }
@@ -578,7 +578,7 @@ public class SEATSClient extends BenchmarkComponent {
                     boolean added = profile.addFlightId(flight_id);
                     if (added) ctr++;
                 } // WHILE
-                if (debug.get()) LOG.debug(String.format("Added %d out of %d FlightIds to local cache",
+                if (debug.val) LOG.debug(String.format("Added %d out of %d FlightIds to local cache",
                                            ctr, results[0].getRowCount()));
             }
         }
@@ -620,7 +620,7 @@ public class SEATSClient extends BenchmarkComponent {
             start_date = new TimestampType(flightDate.getTime() - range);
             stop_date = new TimestampType(flightDate.getTime() + range);
             
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Using %s as look up in %s: %d / %s",
                                         flight_id, txn, flight_id.encode(), flightDate));
         }
@@ -658,7 +658,7 @@ public class SEATSClient extends BenchmarkComponent {
         public void clientCallbackImpl(ClientResponse clientResponse) {
             VoltTable[] results = clientResponse.getResults();
             if (results.length != 1) {
-                if (debug.get()) LOG.warn("Results is " + results.length);
+                if (debug.val) LOG.warn("Results is " + results.length);
                 return;
             }
             int rowCount = results[0].getRowCount();
@@ -713,7 +713,7 @@ public class SEATSClient extends BenchmarkComponent {
                         cache.remove();
                     } // WHILE
                 } // SYNCH
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("Stored %d pending inserts for %s [totalPendingInserts=%d]",
                               tmp_reservations.size(), element, cache.size()));
             }
@@ -768,27 +768,27 @@ public class SEATSClient extends BenchmarkComponent {
                 String msg = clientResponse.getStatusString();
                 ErrorType errorType = ErrorType.getErrorType(msg);
                 
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("Client %02d :: NewReservation %s [ErrorType=%s] - %s",
                                        getClientId(), clientResponse.getStatus(), errorType, clientResponse.getStatusString()),
                                        clientResponse.getException());
                 switch (errorType) {
                     case NO_MORE_SEATS: {
                         seats.set(0, SEATSConstants.FLIGHTS_NUM_SEATS);
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug(String.format("FULL FLIGHT: %s", element.flight_id));                        
                         break;
                     }
                     case CUSTOMER_ALREADY_HAS_SEAT: {
                         Set<FlightId> f_ids = getCustomerBookedFlights(element.customer_id);
                         f_ids.add(element.flight_id);
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug(String.format("ALREADY BOOKED: %s -> %s", element.customer_id, f_ids));
                         break;
                     }
                     case SEAT_ALREADY_RESERVED: {
                         seats.set(element.seatnum);
-                        if (debug.get())
+                        if (debug.val)
                             LOG.debug(String.format("ALREADY BOOKED SEAT: %s/%d -> %s",
                                                     element.customer_id, element.seatnum, seats));
                         break;
@@ -802,12 +802,12 @@ public class SEATSClient extends BenchmarkComponent {
                         break;
                     }
                     case UNKNOWN: {
-//                        if (debug.get()) 
+//                        if (debug.val) 
                             LOG.warn(msg);
                         break;
                     }
                     default: {
-                        if (debug.get()) LOG.debug("BUSTED ID: " + element.flight_id + " / " + element.flight_id.encode());
+                        if (debug.val) LOG.debug("BUSTED ID: " + element.flight_id + " / " + element.flight_id.encode());
                     }
                 } // SWITCH
             }
@@ -822,7 +822,7 @@ public class SEATSClient extends BenchmarkComponent {
         LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
         assert(cache != null) : "Unexpected " + CacheType.PENDING_INSERTS;
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Attempting to get a new pending insert Reservation [totalPendingInserts=%d]",
                                     cache.size()));
         while (reservation == null) {
@@ -831,7 +831,7 @@ public class SEATSClient extends BenchmarkComponent {
                 r = cache.poll();
             } // SYNCH
             if (r == null) {
-                if (debug.get())
+                if (debug.val)
                     LOG.warn("Unable to execute " + txn + " - No available reservations to insert");
                 break;
             }
@@ -839,25 +839,25 @@ public class SEATSClient extends BenchmarkComponent {
             seats = getSeatsBitSet(r.flight_id);
             
             if (isFlightFull(seats)) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("%s is full", r.flight_id));
                 continue;
             }
             // PAVLO: Not sure why this is always coming back as reserved? 
 //            else if (seats.get(r.seatnum)) {
-//                if (debug.get())
+//                if (debug.val)
 //                    LOG.debug(String.format("Seat #%d on %s is already booked", r.seatnum, r.flight_id));
 //                continue;
 //            }
             else if (isCustomerBookedOnFlight(r.customer_id, r.flight_id)) {
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("%s is already booked on %s", r.customer_id, r.flight_id));
                 continue;
             }
             reservation = r; 
         } // WHILE
         if (reservation == null) {
-            if (debug.get()) LOG.debug("Failed to find a valid pending insert Reservation\n" + this.toString());
+            if (debug.val) LOG.debug("Failed to find a valid pending insert Reservation\n" + this.toString());
             this.stopComputeTime(txn.displayName);
             return (null);
         }
@@ -902,7 +902,7 @@ public class SEATSClient extends BenchmarkComponent {
                 assert (results.length >= 1);
                 assert (results[0].getRowCount() == 1);
 //                assert (results[0].asScalarLong() == 1);
-            } else if (debug.get()) {
+            } else if (debug.val) {
                 LOG.debug("UpdateCustomer " + ": " + clientResponse.getStatusString(), clientResponse.getException());
             }
         }

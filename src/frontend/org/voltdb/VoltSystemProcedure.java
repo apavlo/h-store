@@ -150,7 +150,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
      */
     protected final VoltTable[] executeSysProcPlanFragmentsAsync(SynthesizedPlanFragment pfs[]) {
         LocalTransaction ts = (LocalTransaction)this.getTransactionState();
-        if (debug.get()) LOG.debug(ts + " - Preparing to execute " + pfs.length + " sysproc fragments");
+        if (debug.val) LOG.debug(ts + " - Preparing to execute " + pfs.length + " sysproc fragments");
         
         this.fragments.clear();
         ParameterSet parameters[] = new ParameterSet[pfs.length];
@@ -176,7 +176,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                 else {
                     partitions = new int[]{ this.executor.getPartitionId() };
                 }
-                if (debug.get()) LOG.debug(this.getClass() + " => " + Arrays.toString(partitions));
+                if (debug.val) LOG.debug(this.getClass() + " => " + Arrays.toString(partitions));
             }
             else {
                 partitions = new int[]{ pf.destPartitionId };
@@ -184,7 +184,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             
             // Create a WorkFragment for each target partition
             for (int destPartitionId : partitions) {
-                if (debug.get()) 
+                if (debug.val) 
                     LOG.debug(String.format("%s - Creating %s WorkFragment for partition %s [%d]",
                                             ts, this.getClass().getSimpleName(),
                                             destPartitionId, pf.fragmentId));
@@ -212,7 +212,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                 builder.setNeedsInput(needs_input);
                 this.fragments.add(builder);
                 
-                if (debug.get()) 
+                if (debug.val) 
                     LOG.debug(String.format("%s - WorkFragment.Builder\n%s", ts, builder));
             } // FOR
         } // FOR
@@ -287,7 +287,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             } // FOR
             assert(catalog_part != null) : "No partitions for " + catalog_site;
 
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("%s - Creating PlanFragment #%d for %s on %s",
                           this.m_localTxnState, distributeId, catalog_part, catalog_site));
             pfs[i] = new SynthesizedPlanFragment();

@@ -416,7 +416,7 @@ public class BenchmarkController {
      */
     public void setupBenchmark() {
         // Load the catalog that we just made
-        if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
+        if (debug.val) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
         this.initializeCatalog(CatalogUtil.loadCatalogContextFromJar(m_jarFileName));
         
         // Clear out any HStoreConf parameters that we're not suppose to
@@ -427,7 +427,7 @@ public class BenchmarkController {
         // Now figure out which hosts we really want to launch this mofo on
         Set<String> unique_hosts = new HashSet<String>();
         if (m_config.useCatalogHosts == false) {
-            if (debug.get()) LOG.debug("Creating host information from BenchmarkConfig");
+            if (debug.val) LOG.debug("Creating host information from BenchmarkConfig");
             m_launchHosts = new HashMap<Integer, Set<Pair<String,Integer>>>();
             int site_id = HStoreConstants.FIRST_PARTITION_ID;
             for (String host : m_config.hosts) {
@@ -441,7 +441,7 @@ public class BenchmarkController {
                 site_id++;
             } // FOR
         } else {
-            if (debug.get()) LOG.debug("Retrieving host information from catalog");
+            if (debug.val) LOG.debug("Retrieving host information from catalog");
             m_launchHosts = CatalogUtil.getExecutionSites(this.catalogContext.catalog);
             for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
                 Pair<String, Integer> p = CollectionUtil.first(e.getValue());
@@ -483,7 +483,7 @@ public class BenchmarkController {
             } // FOR
 
             
-            if (debug.get()) LOG.debug("Killing stragglers on " + threads.size() + " hosts");
+            if (debug.val) LOG.debug("Killing stragglers on " + threads.size() + " hosts");
             try {
                 ThreadUtil.runNewPool(threads, Math.min(25, threads.size())); 
             } catch (Exception e) {
@@ -516,7 +516,7 @@ public class BenchmarkController {
             LOG.info(String.format("Completed %s loading phase in %.2f sec",
                                    m_projectBuilder.getProjectName().toUpperCase(),
                                    load_time.getTotalThinkTimeSeconds()));
-        } else if (debug.get() && m_config.noLoader) {
+        } else if (debug.val && m_config.noLoader) {
             LOG.debug("Skipping data loading phase");
         }
 
@@ -531,7 +531,7 @@ public class BenchmarkController {
      */
     public void startSites() {
         LOG.info(makeHeader("BENCHMARK INITIALIZE"));
-        if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
+        if (debug.val) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
         
         // If they want to dump profiling information, then we need to make sure
@@ -649,7 +649,7 @@ public class BenchmarkController {
             ThreadUtil.sleep(sleep);
         }
         
-        if (debug.get()) LOG.debug("All remote HStoreSites are initialized");
+        if (debug.val) LOG.debug("All remote HStoreSites are initialized");
     }
     
     /**
@@ -750,7 +750,7 @@ public class BenchmarkController {
             
 //        }
 //        else {
-//            if (debug.get()) LOG.debug("Loader Command: " + loaderCommand.toString());
+//            if (debug.val) LOG.debug("Loader Command: " + loaderCommand.toString());
 //            String[] command = SSHTools.convert(
 //                    m_config.remoteUser,
 //                    m_config.clients[0],
@@ -947,7 +947,7 @@ public class BenchmarkController {
 
         // Kill Benchmark on Zero Results
         if (m_config.killOnZeroResults) {
-            if (debug.get()) LOG.debug("Will kill benchmark if results are zero for two poll intervals");
+            if (debug.val) LOG.debug("Will kill benchmark if results are zero for two poll intervals");
             ResultsChecker checker = new ResultsChecker(this.failure_observer);
             this.registerInterest(checker);
         }
@@ -981,7 +981,7 @@ public class BenchmarkController {
         assert(site_id != null);
         Pair<String, Integer> p = CollectionUtil.random(m_launchHosts.get(site_id));
         assert(p != null);
-        if (debug.get()) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreThreadManager.formatSiteName(site_id)));
+        if (debug.val) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreThreadManager.formatSiteName(site_id)));
         
         Client new_client = ClientFactory.createClient(128, null, false, null);
         try {
@@ -1026,15 +1026,15 @@ public class BenchmarkController {
             } // SYNCH
             
             if (skip) {
-                if (debug.get()) LOG.warn(String.format("Skipping duplicate file '%s' on client host '%s'", local_file, clientHost));
+                if (debug.val) LOG.warn(String.format("Skipping duplicate file '%s' on client host '%s'", local_file, clientHost));
             } else {
-                if (debug.get()) LOG.debug(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
+                if (debug.val) LOG.debug(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
                                                      param, local_file, remote_file, clientHost, clientId)); 
                 SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
                 files.put(remote_file, local_file);
                 m_clientFilesUploaded.incrementAndGet();
             }
-            if (debug.get()) LOG.debug(String.format("Uploaded File Parameter '%s': %s", param, remote_file));
+            if (debug.val) LOG.debug(String.format("Uploaded File Parameter '%s': %s", param, remote_file));
             newArgs.add(param + "=" + remote_file.getPath());
         } // FOR
         return (newArgs);
@@ -1091,7 +1091,7 @@ public class BenchmarkController {
             t.start();
             m_statusThreads.add(t);
         } // FOR
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Started %d %s",
                                     m_statusThreads.size(), ClientStatusThread.class.getSimpleName()));
 
@@ -1100,7 +1100,7 @@ public class BenchmarkController {
         
         // Spin on whether all clients are ready
         while (m_clientsNotReady.get() > 0 && this.stop == false) {
-            if (debug.get()) LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
+            if (debug.val) LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
             try {
                 Thread.sleep(500);
             } catch (InterruptedException ex) {
@@ -1127,7 +1127,7 @@ public class BenchmarkController {
             try {
                 Thread.sleep(hstore_conf.client.warmup);
             } catch (InterruptedException e) {
-                if (debug.get()) LOG.debug("Warm-up was interrupted!");
+                if (debug.val) LOG.debug("Warm-up was interrupted!");
             }
             
             if (this.stop == false) {
@@ -1172,16 +1172,16 @@ public class BenchmarkController {
             long sleep = nextIntervalTime - nowTime;
             try {
                 if (this.stop == false && sleep > 0) {
-                    if (debug.get()) LOG.debug(String.format("Sleeping for %.1f sec [pollIndex=%d]",
+                    if (debug.val) LOG.debug(String.format("Sleeping for %.1f sec [pollIndex=%d]",
                                                sleep / 1000d, m_pollIndex));
                     Thread.sleep(sleep);
                 }
             } catch (InterruptedException e) {
                 // Ignore...
-                if (debug.get()) LOG.debug(String.format("Interrupted! [pollIndex=%d / stop=%s]",
+                if (debug.val) LOG.debug(String.format("Interrupted! [pollIndex=%d / stop=%s]",
                                            m_pollIndex, this.stop));
             } finally {
-                if (debug.get()) LOG.debug(String.format("Awake! [pollIndex=%d / stop=%s]",
+                if (debug.val) LOG.debug(String.format("Awake! [pollIndex=%d / stop=%s]",
                                            m_pollIndex, this.stop));
             }
             nowTime = System.currentTimeMillis();
@@ -1191,7 +1191,7 @@ public class BenchmarkController {
                 m_pollIndex++;
 
                 // make all the clients poll
-                if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", ControlCommand.POLL, m_clients.size()));
+                if (debug.val) LOG.debug(String.format("Sending %s to %d clients", ControlCommand.POLL, m_clients.size()));
                 for (String clientName : m_clients)
                     m_clientPSM.writeToProcess(clientName, ControlCommand.POLL.name() + " " + m_pollIndex);
 
@@ -1232,7 +1232,7 @@ public class BenchmarkController {
                     this.resultsToRead.await();
                     for (ClientStatusThread t : m_statusThreads) {
                         if (t.isFinished() == false) {
-    //                        if (debug.get()) 
+    //                        if (debug.val) 
                                 LOG.info(String.format("ClientStatusThread '%s' asked to finish up", t.getName()));
     //                        System.err.println(StringUtil.join("\n", t.getStackTrace()));
                             t.interrupt();
@@ -1245,7 +1245,7 @@ public class BenchmarkController {
             }
             
             // Print out the final results
-//            if (debug.get())
+//            if (debug.val)
             if (hstore_conf.client.output_basepartitions || hstore_conf.client.output_status) {
                 LOG.info("Computing final benchmark results...");
             }
@@ -1253,7 +1253,7 @@ public class BenchmarkController {
                 String finalResults = interest.formatFinalResults(m_currentResults);
                 if (finalResults != null) System.out.println(finalResults);
             } // FOR
-        } else if (debug.get()) {
+        } else if (debug.val) {
             LOG.debug("Benchmark failed. Not displaying final results");
         }
     }
@@ -1264,13 +1264,13 @@ public class BenchmarkController {
      * @throws Exception
      */
     private void postProcessBenchmark(Client client) throws Exception {
-        if (debug.get()) LOG.debug("Performing post-processing on benchmark");
+        if (debug.val) LOG.debug("Performing post-processing on benchmark");
         
         // We have to tell all our clients to pause first
         m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
         
         // Then tell the cluster to drain all txns
-        if (debug.get()) LOG.debug("Draining execution queues on cluster");
+        if (debug.val) LOG.debug("Draining execution queues on cluster");
         ClientResponse cresponse = null;
         String procName = VoltSystemProcedure.procCallName(Quiesce.class);
         try {
@@ -1525,7 +1525,7 @@ public class BenchmarkController {
             Pair<String, Integer> p = CollectionUtil.first(m_launchHosts.get(site_id));
             assert(p != null) : "Invalid SiteId " + site_id;
             
-            if (debug.get()) LOG.debug(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreThreadManager.formatSiteName(site_id)));
+            if (debug.val) LOG.debug(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreThreadManager.formatSiteName(site_id)));
             SSHTools.copyFromRemote(output_directory, m_config.remoteUser, p.getFirst(), remote_path.getPath(), m_config.sshOptions);
             File local_file = new File(output_directory + "/" + remote_path.getName());
             markovs.put(partition_id, local_file);
@@ -1534,7 +1534,7 @@ public class BenchmarkController {
         } // FOR
         
         String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
-        if (debug.get()) LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
+        if (debug.val) LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
         MarkovGraphContainersUtil.combine(markovs, new_output, catalogContext.database);
         
         // Clean up the remote files
@@ -1554,13 +1554,13 @@ public class BenchmarkController {
         // if (this.cleaned) return;
         
         if (m_config.noExecute == false) {
-            if (debug.get()) 
+            if (debug.val) 
                 LOG.warn("Killing clients");
             m_clientPSM.shutdown();
         }
         
         if (m_config.noShutdown == false && this.failed == false) {
-            if (debug.get()) 
+            if (debug.val) 
                 LOG.warn("Killing HStoreSites");
             m_sitePSM.shutdown();
         }
@@ -1892,7 +1892,7 @@ public class BenchmarkController {
              * List of evictable tables
              */
             else if (parts[0].equalsIgnoreCase("EVICTABLE")) {
-                if (debug.get()) LOG.debug("EVICTABLE: " + parts[1]);
+                if (debug.val) LOG.debug("EVICTABLE: " + parts[1]);
                 evictable = parts[1].split(",");
             }
             /*
@@ -1900,7 +1900,7 @@ public class BenchmarkController {
              * Format: <ProcedureName>.<StatementName>
              */
             else if (parts[0].equalsIgnoreCase("DEFERRABLE")) {
-                if (debug.get()) LOG.debug("DEFERRABLE: " + parts[1]);
+                if (debug.val) LOG.debug("DEFERRABLE: " + parts[1]);
                 deferrable = parts[1].split(",");
             }
             /* Disable starting the database cluster  */
@@ -2142,7 +2142,7 @@ public class BenchmarkController {
                 System.exit(success ? 0 : -1);
             }
         } else {
-            if (debug.get()) LOG.debug("Skipping benchmark project compilation");
+            if (debug.val) LOG.debug("Skipping benchmark project compilation");
         }
 
         // EXECUTE BENCHMARK

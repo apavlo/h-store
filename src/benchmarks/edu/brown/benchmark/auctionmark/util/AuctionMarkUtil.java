@@ -57,7 +57,7 @@ public abstract class AuctionMarkUtil {
             dataDir = new File(tests_dir.getAbsolutePath() + File.separator + "benchmarks" + File.separator +
                                AuctionMarkProfile.class.getPackage().getName().replace('.', File.separatorChar) +
                                File.separator + "data").getCanonicalFile();
-            if (debug.get()) LOG.debug("Default data directory path = " + dataDir);
+            if (debug.val) LOG.debug("Default data directory path = " + dataDir);
             if (!dataDir.exists()) {
                 throw new RuntimeException("The default data directory " + dataDir + " does not exist");
             } else if (!dataDir.isDirectory()) {

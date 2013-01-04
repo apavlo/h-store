@@ -151,7 +151,7 @@ public abstract class BenchmarkComponent {
                     statsSettings,
                     catalog
             );
-            if (debug.get()) LOG.debug("Created new Client handle");
+            if (debug.val) LOG.debug("Created new Client handle");
         } else if (client == null) {
             globalClientLock.lock();
             try {
@@ -163,7 +163,7 @@ public abstract class BenchmarkComponent {
                             statsSettings,
                             catalog
                     );
-                    if (debug.get()) LOG.debug("Created new shared Client handle");
+                    if (debug.val) LOG.debug("Created new shared Client handle");
                 }
             } finally {
                 globalClientLock.unlock();
@@ -192,7 +192,7 @@ public abstract class BenchmarkComponent {
         globalPartitionPlanLock.lock();
         try {
             if (globalPartitionPlan != null) return;
-            if (debug.get()) LOG.debug("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
+            if (debug.val) LOG.debug("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
             globalPartitionPlan = new PartitionPlan();
             try {
                 globalPartitionPlan.load(partitionPlanPath, catalog_db);
@@ -420,10 +420,10 @@ public abstract class BenchmarkComponent {
         if (HStoreConf.isInitialized() == false) {
             assert(hstore_conf_path != null) : "Missing HStoreConf file";
             File f = new File(hstore_conf_path);
-            if (debug.get()) LOG.debug("Initializing HStoreConf from '" + f.getName() + "' along with input parameters");
+            if (debug.val) LOG.debug("Initializing HStoreConf from '" + f.getName() + "' along with input parameters");
             HStoreConf.init(f, args);
         } else {
-            if (debug.get()) LOG.debug("Initializing HStoreConf only with input parameters");
+            if (debug.val) LOG.debug("Initializing HStoreConf only with input parameters");
             HStoreConf.singleton().loadFromArgs(args);
         }
         m_hstoreConf = HStoreConf.singleton();
@@ -479,12 +479,12 @@ public abstract class BenchmarkComponent {
                 continue;
             }
             
-            if (debug.get()) componentParams.put(parts[0], parts[1]);
+            if (debug.val) componentParams.put(parts[0], parts[1]);
             
             if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
-                if (debug.get()) componentParams.put(parts[0], catalogPath);
+                if (debug.val) componentParams.put(parts[0], catalogPath);
             }
             else if (parts[0].equalsIgnoreCase("LOADER")) {
                 isLoader = Boolean.parseBoolean(parts[1]);
@@ -554,7 +554,7 @@ public abstract class BenchmarkComponent {
             }
             // If it starts with "benchmark.", then it always goes to the implementing class
             else if (parts[0].toLowerCase().startsWith(HStoreConstants.BENCHMARK_PARAM_PREFIX)) {
-                if (debug.get()) componentParams.remove(parts[0]);
+                if (debug.val) componentParams.remove(parts[0]);
                 parts[0] = parts[0].substring(HStoreConstants.BENCHMARK_PARAM_PREFIX.length());
                 m_extraParams.put(parts[0].toUpperCase(), parts[1]);
             }
@@ -596,7 +596,7 @@ public abstract class BenchmarkComponent {
         // If we were told to sleep, do that here before we try to load in the catalog
         // This is an attempt to keep us from overloading a single node all at once
         if (startupWait > 0) {
-            if (debug.get()) LOG.debug(String.format("Delaying client start-up by %.2f sec", startupWait/1000d));
+            if (debug.val) LOG.debug(String.format("Delaying client start-up by %.2f sec", startupWait/1000d));
             try {
                 Thread.sleep(startupWait);
             } catch (InterruptedException ex) {
@@ -625,9 +625,9 @@ public abstract class BenchmarkComponent {
                     // '*' is the default value
                     if (txnName.equals("*")) {
                         this.m_txnWeightsDefault = txnWeight;
-                        if (debug.get()) LOG.debug(String.format("Default Transaction Weight: %d", txnWeight));
+                        if (debug.val) LOG.debug(String.format("Default Transaction Weight: %d", txnWeight));
                     } else {
-                        if (debug.get()) LOG.debug(String.format("%s Transaction Weight: %d", txnName, txnWeight));
+                        if (debug.val) LOG.debug(String.format("%s Transaction Weight: %d", txnName, txnWeight));
                         this.m_txnWeights.put(txnName.toUpperCase(), txnWeight);
                     }
                 } catch (Throwable ex) {
@@ -679,7 +679,7 @@ public abstract class BenchmarkComponent {
         // If we need to call tick more frequently than when POLL is called,
         // then we'll want to use a separate thread
         if (m_tickInterval > 0 && isLoader == false) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Creating local thread that will call BenchmarkComponent.tick() every %.1f seconds",
                                         (m_tickInterval / 1000.0)));
             Runnable r = new Runnable() {
@@ -735,12 +735,12 @@ public abstract class BenchmarkComponent {
                 worker.start();
                 
                 // Wait for the worker to finish
-                if (debug.get()) LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...", clientMain.getClientId()));
+                if (debug.val) LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...", clientMain.getClientId()));
                 worker.join();
                 clientMain.invokeStopCallback();
             }
             else {
-                // if (debug.get()) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
+                // if (debug.val) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
                 // clientMain.start();
             }
         }
@@ -772,7 +772,7 @@ public abstract class BenchmarkComponent {
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to initialize StatsUploader", ex);
             }
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("StatsUploaderSettings:\n" + statsSettings);
         }
         Client new_client = BenchmarkComponent.getClient(
@@ -783,7 +783,7 @@ public abstract class BenchmarkComponent {
                 m_hstoreConf.client.shared_connection
         );
         if (m_blocking) { //  && isLoader == false) {
-            if (debug.get()) 
+            if (debug.val) 
                 LOG.debug(String.format("Using BlockingClient [concurrent=%d]",
                                         m_hstoreConf.client.blocking_concurrent));
             m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
@@ -808,7 +808,7 @@ public abstract class BenchmarkComponent {
             final int site_id = catalog_site.getId();
             final String host = catalog_site.getHost().getIpaddr();
             int port = catalog_site.getProc_port();
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Creating connection to %s at %s:%d",
                                         HStoreThreadManager.formatSiteName(site_id),
                                         host, port));
@@ -832,7 +832,7 @@ public abstract class BenchmarkComponent {
     
     private void createConnection(final Integer site_id, final String hostname, final int port)
         throws UnknownHostException, IOException {
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Requesting connection to %s %s:%d",
                 HStoreThreadManager.formatSiteName(site_id), hostname, port));
         m_voltClient.createConnection(site_id, hostname, port, m_username, m_password);
@@ -1015,7 +1015,7 @@ public abstract class BenchmarkComponent {
                         // If this thing was rejected, then we'll allow us to try again. 
                         cr = ex.getClientResponse();
                         if (cr.getStatus() == Status.ABORT_REJECT && tries > 0) {
-                            if (debug.get()) 
+                            if (debug.val) 
                                 LOG.warn(String.format("Loading data for %s was rejected. Going to try again\n%s",
                                          tableName, cr.toString()));
                             continue;
@@ -1243,10 +1243,10 @@ public abstract class BenchmarkComponent {
      * @param counter
      */
     protected final void invokeTickCallback(int counter) {
-        if (debug.get()) LOG.debug("New Tick Update: " + counter);
+        if (debug.val) LOG.debug("New Tick Update: " + counter);
         this.tickCallback(counter);
         
-        if (debug.get()) {
+        if (debug.val) {
             if (this.computeTime.isEmpty() == false) {
                 for (String txnName : this.computeTime.keySet()) {
                     ProfileMeasurement pm = this.computeTime.get(txnName);

@@ -134,7 +134,7 @@ public class TPCCSimulation {
         this.config = config;
 
         if (config.neworder_skew_warehouse) {
-            if (debug.get()) LOG.debug("Enabling W_ID Zipfian Skew: " + skewFactor);
+            if (debug.val) LOG.debug("Enabling W_ID Zipfian Skew: " + skewFactor);
             this.zipf = new RandomDistribution.Zipf(new Random(),
                                                     parameters.starting_warehouse,
                                                     parameters.last_warehouse+1,
@@ -148,7 +148,7 @@ public class TPCCSimulation {
         if (lastAssignedWarehouseId > parameters.last_warehouse)
             lastAssignedWarehouseId = 1;
         
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug(this.toString());
         }
         if (config.neworder_multip_remote) {

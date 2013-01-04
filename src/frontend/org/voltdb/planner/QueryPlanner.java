@@ -115,7 +115,7 @@ public class QueryPlanner {
         try {
             xmlSQL = m_HSQL.getXMLCompiledStatement(sql);
         } catch (HSQLParseException e) {
-            if (debug.get()) LOG.warn(String.format("Failed to retrieve compiled XML for %s.%s\n%s", procName, stmtName, sql));
+            if (debug.val) LOG.warn(String.format("Failed to retrieve compiled XML for %s.%s\n%s", procName, stmtName, sql));
             m_recentErrorMsg = e.getMessage();
             return null;
         }
@@ -308,7 +308,7 @@ public class QueryPlanner {
                 return (null);
             }
         } // FOR
-        if (debug.get()) LOG.debug(String.format("All columns are there for %s.%s: %s", procName, stmtName, bestPlan_columns));
+        if (debug.val) LOG.debug(String.format("All columns are there for %s.%s: %s", procName, stmtName, bestPlan_columns));
 
         // reset all the plan node ids for a given plan
         bestPlan.resetPlanNodeIds();
@@ -365,7 +365,7 @@ public class QueryPlanner {
         // split up the plan everywhere we see send/recieve into multiple plan fragments
         bestPlan = Fragmentizer.fragmentize(bestPlan, m_db);
         bestPlan.fullplan_json = json;
-        if (debug.get()) LOG.debug(String.format("Stored serialized JSON query plan for %s.%s", procName, stmtName));
+        if (debug.val) LOG.debug(String.format("Stored serialized JSON query plan for %s.%s", procName, stmtName));
         
         // PAVLO:
 //        if (singlePartition == false && procName.equalsIgnoreCase("GetTableCounts") && stmtName.equalsIgnoreCase("HistoryCount")) {

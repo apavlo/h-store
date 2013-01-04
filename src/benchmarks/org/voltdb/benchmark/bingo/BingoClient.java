@@ -90,7 +90,7 @@ public class BingoClient extends BenchmarkComponent {
                     if (clientResponse.getException() != null) {
                         clientResponse.getException().printStackTrace();
                     }
-                    if (debug.get() && clientResponse.getStatusString() != null) {
+                    if (debug.val && clientResponse.getStatusString() != null) {
                         LOG.warn(clientResponse.getStatusString());
                     }
                     return;
@@ -259,7 +259,7 @@ public class BingoClient extends BenchmarkComponent {
                 }
             };
 
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("[" + getClientId() + "] CREATE TOURNEY: " + t.tid);
             queued = this.getClientHandle().callProcedure(
                     callback,

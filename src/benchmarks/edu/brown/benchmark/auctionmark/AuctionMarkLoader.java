@@ -137,7 +137,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
     public AuctionMarkLoader(String[] args) {
         super(args);
 
-        if (debug.get())
+        if (debug.val)
             LOG.debug("AuctionMarkLoader::: numClients = " + this.getNumClients());
         
         int seed = 0;
@@ -305,7 +305,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         
         profile.saveProfile(this);
         LOG.info("Finished generating data for all tables");
-        if (debug.get()) LOG.debug("Table Sizes:\n" + this.getTableTupleCounts());
+        if (debug.val) LOG.debug("Table Sizes:\n" + this.getTableTupleCounts());
     }
 
     /**
@@ -329,7 +329,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         generator.markAsFinished();
         this.finished.add(tableName);
         LOG.info(String.format("*** FINISH %s - %d tuples - [%d / %d]", tableName, this.getTableTupleCount(tableName), this.finished.size(), this.generators.size()));
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug("Remaining Tables: " + CollectionUtils.subtract(this.generators.keySet(), this.finished));
         }
     }
@@ -403,7 +403,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
                         this.tableSize = Math.round(this.tableSize * profile.getScaleFactor());
                     }
                 } catch (NoSuchFieldException ex) {
-                    if (debug.get()) LOG.warn("No table size field for '" + tableName + "'", ex);
+                    if (debug.val) LOG.warn("No table size field for '" + tableName + "'", ex);
                 } catch (Exception ex) {
                     throw new RuntimeException("Missing field needed for '" + tableName + "'", ex);
                 } 
@@ -421,7 +421,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
                     if (trace.get()) LOG.trace("Random Integer Column: " + catalog_col.fullName());
                 }
             } // FOR
-            if (debug.get()) {
+            if (debug.val) {
                 if (this.random_str_cols.size() > 0) LOG.debug(String.format("%s Random String Columns: %s", tableName, CatalogUtil.debug(this.random_str_cols)));
                 if (this.random_int_cols.size() > 0) LOG.debug(String.format("%s Random Integer Columns: %s", tableName, CatalogUtil.debug(this.random_int_cols)));
             }
@@ -589,7 +589,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
                 this.addRow();
                 batch_count++;
             } // WHILE
-            if (debug.get()) LOG.debug(String.format("%s: Finished generating new batch of %d tuples", this.getTableName(), batch_count));
+            if (debug.val) LOG.debug(String.format("%s: Finished generating new batch of %d tuples", this.getTableName(), batch_count));
         }
 
         public void markAsFinished() {
@@ -1091,7 +1091,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             // I_UPDATED
             this.row[col++] = itemInfo.startDate;
 
-            if (debug.get())
+            if (debug.val)
                 this.endDateHistogram.put(sdf.format(itemInfo.endDate.asApproximateJavaDate()));
             
             this.updateSubTableGenerators(itemInfo);
@@ -1101,7 +1101,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         @Override
         public void markAsFinished() {
             super.markAsFinished();
-            if (debug.get()) LOG.debug("Item End Date Distribution:\n" + this.endDateHistogram);
+            if (debug.val) LOG.debug("Item End Date Distribution:\n" + this.endDateHistogram);
         }
 
         private TimestampType getRandomStartTimestamp(TimestampType endDate) {

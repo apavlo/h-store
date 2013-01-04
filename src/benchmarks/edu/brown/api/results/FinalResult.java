@@ -71,11 +71,11 @@ public class FinalResult implements JSONSerializable {
         ObjectHistogram<String> dtxnCounts = new ObjectHistogram<String>(true);
         
         double intervalTotals[] = results.computeIntervalTotals();
-        if (debug.get()) LOG.debug("INTERVAL TOTALS: " + Arrays.toString(intervalTotals));
+        if (debug.val) LOG.debug("INTERVAL TOTALS: " + Arrays.toString(intervalTotals));
         for (int i = 0; i < intervalTotals.length; i++) {
             intervalTotals[i] /= (results.m_pollIntervalInMillis / 1000.0);
         } // FOR
-        if (debug.get()) LOG.debug("INTERVAL TPS: " + Arrays.toString(intervalTotals));
+        if (debug.val) LOG.debug("INTERVAL TPS: " + Arrays.toString(intervalTotals));
         this.stddevTxnPerSecond = MathUtil.stdev(intervalTotals);
         
         for (String clientName : results.getClientNames()) {
@@ -109,7 +109,7 @@ public class FinalResult implements JSONSerializable {
                     if (i < rs.length) txnCount += rs[i].transactionCount;
                 } // FOR (txn)
             } // FOR (client)
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("[%02d] minTxnCount = %d <-> %d", i, this.txnMinCount, txnCount));
             this.txnMinCount = Math.min(this.txnMinCount, txnCount);
             this.txnMaxCount = Math.max(this.txnMaxCount, txnCount);

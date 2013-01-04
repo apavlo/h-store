@@ -215,7 +215,7 @@ final class ClientImpl implements Client {
         m_queueTime.appendTime(start, ProfileMeasurement.getTime());
 
         try {
-            if (trace.get())
+            if (trace.val)
                 LOG.trace(String.format("Waiting for response for %s txn [clientHandle=%d]",
                                         procName, invocation.getClientHandle()));
             cb.waitForResponse();
@@ -358,12 +358,12 @@ final class ClientImpl implements Client {
         if (m_backpressure) {
             synchronized (m_backpressureLock) {
                 while (m_backpressure && !m_isShutdown) {
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug(String.format("Blocking client due to backup pressure [backPressure=%s, #connections=%d]",
                                                 m_backpressure, m_distributer.getConnectionCount()));
                     m_backpressureLock.wait();
                     m_backpressure = false;
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug(String.format("Unblocking client [m_backpressure=%s]", m_backpressure));
                     break;
                 } // WHILE

@@ -72,7 +72,7 @@ public class ControlPipe implements Runnable {
             } else {
                 try {
                     command = ControlCommand.get(p.split(in.readLine())[0]);
-                    if (debug.get()) 
+                    if (debug.val) 
                         LOG.debug(String.format("Recieved Message: '%s'", command));
                 } catch (final IOException e) {
                     // Hm. quit?
@@ -80,7 +80,7 @@ public class ControlPipe implements Runnable {
                 }
             }
             if (command == null) continue;
-            if (debug.get()) LOG.debug("ControlPipe Command = " + command);
+            if (debug.val) LOG.debug("ControlPipe Command = " + command);
 
             // HACK: Convert a SHUTDOWN to a STOP if we're not the first client
             if (command == ControlCommand.SHUTDOWN && cmp.getClientId() != 0) {
@@ -113,10 +113,10 @@ public class ControlPipe implements Runnable {
                     
                     // Call tick on the client if we're not polling ourselves
                     if (cmp.m_tickInterval < 0) {
-                        if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
+                        if (debug.val) LOG.debug("Got poll message! Calling tick()!");
                         cmp.invokeTickCallback(cmp.m_tickCounter++);
                     }
-                    if (debug.get())
+                    if (debug.val)
                         LOG.debug(String.format("CLIENT QUEUE TIME: %.2fms / %.2fms avg",
                                                 client.getQueueTime().getTotalThinkTimeMS(),
                                                 client.getQueueTime().getAverageThinkTimeMS()));
@@ -128,7 +128,7 @@ public class ControlPipe implements Runnable {
                         cmp.answerWithError();
                         continue;
                     }
-                    if (debug.get()) LOG.debug("DUMP TRANSACTIONS!");
+                    if (debug.val) LOG.debug("DUMP TRANSACTIONS!");
                     cmp.answerDumpTxns();
                     break;
                 }
@@ -139,7 +139,7 @@ public class ControlPipe implements Runnable {
                 }
                 case PAUSE: {
                     assert(cmp.m_controlState == ControlState.RUNNING) : "Unexpected " + cmp.m_controlState;
-                    if (debug.get()) LOG.debug("Pausing client");
+                    if (debug.val) LOG.debug("Pausing client");
                     
                     // Enable the lock and then change our state
                     try {
@@ -152,7 +152,7 @@ public class ControlPipe implements Runnable {
                     break;
                 }
                 case SHUTDOWN: {
-                    if (debug.get()) LOG.debug("Shutting down client + cluster");
+                    if (debug.val) LOG.debug("Shutting down client + cluster");
                     this.stop = true;
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
                         cmp.invokeStopCallback();
@@ -170,7 +170,7 @@ public class ControlPipe implements Runnable {
                 case STOP: {
                     this.stop = true;
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
-                        if (debug.get()) LOG.debug("Stopping client");
+                        if (debug.val) LOG.debug("Stopping client");
                         cmp.invokeStopCallback();
                         
                         try {

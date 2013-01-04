@@ -85,7 +85,7 @@ public abstract class StatementCompiler {
                 } // FOR
             } // FOR
             NEXT_FRAGMENT_ID = new AtomicInteger(max_id);
-            if (trace.get()) LOG.trace("Initialized NEXT_FRAGMENT_ID = " + NEXT_FRAGMENT_ID.get());
+            if (trace.val) LOG.trace("Initialized NEXT_FRAGMENT_ID = " + NEXT_FRAGMENT_ID.get());
         }
         // If it's not readonly, then we'll offset it so that we can
         // easily identify it at runtime
@@ -163,7 +163,7 @@ public abstract class StatementCompiler {
             
             QueryType stmt_type = QueryType.get(catalogStmt.getQuerytype());
             String msg = "Creating " + stmt_type.name() + " query plan for " + catalogStmt.fullName() + ": singleSited=" + _singleSited;
-            if (trace.get()) LOG.trace(msg);
+            if (trace.val) LOG.trace(msg);
             compiler.addInfo(msg);
 
             catalogStmt.setSinglepartition(_singleSited);
@@ -177,7 +177,7 @@ public abstract class StatementCompiler {
             } catch (Throwable e) {
                 LOG.error("Failed to plan for stmt: " + catalogStmt.fullName(), e);
                 if (first_exception == null) {
-                    if (debug.get()) LOG.warn("Ignoring first error for " + catalogStmt.getName() + " :: " + e.getMessage());
+                    if (debug.val) LOG.warn("Ignoring first error for " + catalogStmt.getName() + " :: " + e.getMessage());
                     first_exception = e;
                     continue;
                 }
@@ -194,28 +194,28 @@ public abstract class StatementCompiler {
                 // HACK: Ignore if they were trying to do a single-sited INSERT/UPDATE/DELETE
                 //       on a replicated table
                 if (plannerMsg.contains("replicated table") && _singleSited) {
-                    if (debug.get()) 
+                    if (debug.val) 
                         LOG.warn(String.format("Ignoring error for %s: %s", catalogStmt.fullName(), plannerMsg));
                     continue;
                 // HACK: If we get an unknown error message on an multi-sited INSERT/UPDATE/DELETE, assume
                 //       that it's because we are trying to insert on a non-replicated table
                 } else if (!_singleSited && stmt_type == QueryType.INSERT && plannerMsg.contains("Error unknown")) {
-                    if (debug.get()) 
+                    if (debug.val) 
                         LOG.warn(String.format("Ignoring multi-sited %s %s on non-replicated table: %s",
                                                stmt_type.name(), catalogStmt.fullName(), plannerMsg));
                     continue;
                 } else if (planner.getError() != null) {
-                    if (debug.get()) LOG.error(msg);
+                    if (debug.val) LOG.error(msg);
                     throw compiler.new VoltCompilerException(msg, planner.getError());
                 // Otherwise, report the error
                 } else {
                     if (plannerMsg != null)
                         msg += " with error: \"" + plannerMsg + "\"";
-                    if (debug.get()) LOG.error(msg);
+                    if (debug.val) LOG.error(msg);
                     throw compiler.new VoltCompilerException(msg);
                 }
             }
-            if (trace.get())
+            if (trace.val)
                 LOG.trace(String.format("%s Analyzing %s query plan",
                                         catalogStmt.fullName(), (_singleSited == false ? "DTXN" : "SP")));  
 
@@ -260,7 +260,7 @@ public abstract class StatementCompiler {
     
             int i = 0;
             Collections.sort(plan.fragments);
-            if (trace.get())
+            if (trace.val)
                 LOG.trace(catalogStmt.fullName() + " Plan Fragments: " + plan.fragments);
             for (CompiledPlan.Fragment fragment : plan.fragments) {
                 node_list = new PlanNodeList(fragment.planGraph);
@@ -277,12 +277,12 @@ public abstract class StatementCompiler {
                 if (_singleSited) {
                     planFragment = catalogStmt.getFragments().add(planFragmentName);
                     catalogStmt.setHas_singlesited(true);
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace(String.format("%s SP PLAN FRAGMENT: %s", catalogStmt.fullName(), planFragment));
                 } else {
                     planFragment = catalogStmt.getMs_fragments().add(planFragmentName);
                     catalogStmt.setHas_multisited(true);
-                    if (trace.get())
+                    if (trace.val)
                         LOG.trace(String.format("%s DTXN PLAN FRAGMENT: %s", catalogStmt.fullName(), planFragment));
                 }
     

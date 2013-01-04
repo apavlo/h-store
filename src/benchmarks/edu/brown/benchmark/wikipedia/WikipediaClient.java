@@ -105,7 +105,7 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            //if (debug.get()) LOG.debug(clientResponse);
+            //if (debug.val) LOG.debug(clientResponse);
             
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
@@ -151,7 +151,7 @@ public class WikipediaClient extends BenchmarkComponent {
         } // FOR
         assert(txns.getSampleCount() == 100) : txns;
         this.txnWeights = new FlatHistogram<Transaction>(this.randGenerator, txns);
-        if (debug.get()) LOG.debug("Transaction Workload Distribution:\n" + txns);
+        if (debug.val) LOG.debug("Transaction Workload Distribution:\n" + txns);
         
         // Setup callbacks
         int num_txns = Transaction.values().length;
@@ -184,7 +184,7 @@ public class WikipediaClient extends BenchmarkComponent {
      */
     @Override
     public void runLoop() {
-        if (debug.get()) LOG.debug("Starting runLoop()");
+        if (debug.val) LOG.debug("Starting runLoop()");
         Client client = this.getClientHandle();
         try {
             while (true) {
@@ -214,7 +214,7 @@ public class WikipediaClient extends BenchmarkComponent {
                                                            target.callName,
                                                            params);
 
-        //if (debug.get()) LOG.debug("Executing txn:" + target.callName + ",with params:" + params);
+        //if (debug.val) LOG.debug("Executing txn:" + target.callName + ",with params:" + params);
         return ret;
 	}
  
@@ -288,7 +288,7 @@ public class WikipediaClient extends BenchmarkComponent {
                         false,
                 };
                 ClientResponse cr = null;
-                if (debug.get()) LOG.debug("Invoking GetPageAnonymous before executing UpdatePage");
+                if (debug.val) LOG.debug("Invoking GetPageAnonymous before executing UpdatePage");
                 try {
                     cr = this.getClientHandle().callProcedure(GetPageAnonymous.class.getSimpleName(), params);
                 } catch (Exception e) {
@@ -344,7 +344,7 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         assert(params != null);
         
-        if (debug.get()) LOG.debug(txn + " Params:\n" + StringUtil.join("\n", params));
+        if (debug.val) LOG.debug(txn + " Params:\n" + StringUtil.join("\n", params));
         return params;
     }
 }

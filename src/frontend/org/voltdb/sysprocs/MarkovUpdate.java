@@ -79,7 +79,7 @@ public class MarkovUpdate extends VoltSystemProcedure {
                 // We will only write out our file if we are the first partition in the list at this site
                 if (is_global == false || (is_global == true && isFirstLocalPartition())) {
                     
-                    if (debug.get()) LOG.debug(String.format("Recalculating MarkovGraph probabilities at partition %d [save=%s, global=%s]",
+                    if (debug.val) LOG.debug(String.format("Recalculating MarkovGraph probabilities at partition %d [save=%s, global=%s]",
                                                        this.partitionId, save_to_file, is_global));
                     int ctr = 0;
                     for (MarkovGraph m : markovs.getAll()) {
@@ -94,7 +94,7 @@ public class MarkovUpdate extends VoltSystemProcedure {
                         }
                         ctr++;
                     } // FOR
-                    if (debug.get()) LOG.debug(String.format("Recalculated %d MarkovGraph probabilities at partition %d", ctr, this.partitionId));
+                    if (debug.val) LOG.debug(String.format("Recalculated %d MarkovGraph probabilities at partition %d", ctr, this.partitionId));
                     
                     File f = null;
                     if (save_to_file) {
@@ -119,7 +119,7 @@ public class MarkovUpdate extends VoltSystemProcedure {
             return new DependencySet(new int[] { (int)SysProcFragmentId.PF_recomputeMarkovsDistribute }, result);
             
         } else if (fragmentId == SysProcFragmentId.PF_recomputeMarkovsAggregate) {
-            if (debug.get()) LOG.debug("Aggregating results from recomputing models fragments in txn #" + txn_id);
+            if (debug.val) LOG.debug("Aggregating results from recomputing models fragments in txn #" + txn_id);
             for (List<VoltTable> l : dependencies.values()) {
                 for (VoltTable vt : l) {
                     while (vt != null && vt.advanceRow()) {

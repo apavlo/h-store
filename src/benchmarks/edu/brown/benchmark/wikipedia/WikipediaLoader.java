@@ -86,7 +86,7 @@ public class WikipediaLoader extends Loader {
         Arrays.fill(this.user_revision_ctr, 0);
         Arrays.fill(this.page_last_rev_length, 0);
         
-        if (debug.get()) {
+        if (debug.val) {
             LOG.debug("# of USERS:  " + util.num_users);
             LOG.debug("# of PAGES: " + util.num_pages);
         }
@@ -138,7 +138,7 @@ public class WikipediaLoader extends Loader {
                                                  this.page_last_rev_length);
         assert(cr != null);
         assert(cr.getStatus() == Status.OK);
-        if (debug.get()) LOG.debug("Updated page/user revision counters");
+        if (debug.val) LOG.debug("Updated page/user revision counters");
     }
     
     /**
@@ -194,7 +194,7 @@ public class WikipediaLoader extends Loader {
                 this.loadVoltTable(userTable.getName(), vt);
                 vt.clearRowData();
                 batchSize = 0;
-                if (debug.get()) {
+                if (debug.val) {
                     int percent = (int) (((double) userId / (double) util.num_users) * 100);
                     if (percent != lastPercent) LOG.debug("USERACCT (" + percent + "%)");
                     lastPercent = percent;
@@ -206,7 +206,7 @@ public class WikipediaLoader extends Loader {
             vt.clearRowData();
         }
         
-        if (debug.get()) LOG.debug(userTable.getName() + " Loaded");
+        if (debug.val) LOG.debug(userTable.getName() + " Loaded");
     }
 
     /**
@@ -247,7 +247,7 @@ public class WikipediaLoader extends Loader {
                 this.loadVoltTable(pageTable.getName(), vt);
                 vt.clearRowData();
                 batchSize = 0;
-                if (debug.get()) {
+                if (debug.val) {
                     int percent = (int) (((double) pageId / (double) util.num_pages) * 100);
                     if (percent != lastPercent) LOG.debug("PAGE (" + percent + "%)");
                     lastPercent = percent;
@@ -258,7 +258,7 @@ public class WikipediaLoader extends Loader {
             this.loadVoltTable(pageTable.getName(), vt);
             vt.clearRowData();
         }
-        if (debug.get()) LOG.debug(pageTable.getName() + " Loaded");
+        if (debug.val) LOG.debug(pageTable.getName() + " Loaded");
     }
 
     /**
@@ -301,7 +301,7 @@ public class WikipediaLoader extends Loader {
                 this.loadVoltTable(watchTable.getName(), vt);
                 vt.clearRowData();
                 batchSize = 0;
-                if (debug.get()) {
+                if (debug.val) {
                     int percent = (int) (((double) user_id / (double) util.num_users) * 100);
                     if (percent != lastPercent) LOG.debug("WATCHLIST (" + percent + "%)");
                     lastPercent = percent;
@@ -313,7 +313,7 @@ public class WikipediaLoader extends Loader {
             this.loadVoltTable(watchTable.getName(), vt);
             vt.clearRowData();
         }
-        if (debug.get()) LOG.debug(watchTable.getName() + " Loaded");
+        if (debug.val) LOG.debug(watchTable.getName() + " Loaded");
     }
 
     /**
@@ -430,7 +430,7 @@ public class WikipediaLoader extends Loader {
                 batchBytes = 0;
             }
             
-            if (debug.get()) {
+            if (debug.val) {
                 int percent = (int) (((double) this.page_counter.incrementAndGet() / (double) util.num_pages) * 100);
                 if (percent != lastPercent) LOG.debug("REVISIONS (" + percent + "%)");
                 lastPercent = percent;
@@ -444,8 +444,8 @@ public class WikipediaLoader extends Loader {
         }
         
         
-        if (debug.get()) LOG.debug(textTable.getName() + " Loaded");
-        if (debug.get()) LOG.debug(revTable.getName() + " Loaded");
+        if (debug.val) LOG.debug(textTable.getName() + " Loaded");
+        if (debug.val) LOG.debug(revTable.getName() + " Loaded");
     }
    
 }

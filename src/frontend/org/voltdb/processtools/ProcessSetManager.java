@@ -167,7 +167,7 @@ public class ProcessSetManager implements Shutdownable {
         }
         @Override
         public void run() {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Starting ProcessSetPoller [initialDelay=" + initial_polling_delay + "]");
             final Set<String> toPoll = new HashSet<String>(); 
             while (true) {
@@ -186,7 +186,7 @@ public class ProcessSetManager implements Shutdownable {
                     // This is the first time that that we've seen it
                     if (this.delay.containsKey(e.getKey()) == false) {
                         this.delay.put(e.getKey(), timestamp + POLLING_DELAY);
-                        if (debug.get()) LOG.debug(String.format("Waiting %.1f seconds before polling '%s'",
+                        if (debug.val) LOG.debug(String.format("Waiting %.1f seconds before polling '%s'",
                                                    POLLING_DELAY/1000d, e.getKey()));
                     }
                     // Otherwise, check whether the time has elapsed
@@ -244,7 +244,7 @@ public class ProcessSetManager implements Shutdownable {
             if (ProcessSetManager.this.shutting_down == false && this.shutdownMsg.compareAndSet(false, true)) {
                 String msg = String.format("Stream monitoring thread for '%s' %s is exiting",
                                            this.processName, this.streamType); 
-                LOG.error(msg, (debug.get() ? error : null));
+                LOG.error(msg, (debug.val ? error : null));
                 ProcessSetManager.this.failure_observable.notifyObservers(this.processName);
             }
         }
@@ -378,14 +378,14 @@ public class ProcessSetManager implements Shutdownable {
             });
         } // FOR
         if (runnables.isEmpty() == false) {
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("Killing %d processes in parallel", runnables.size()));
             try {
                 ThreadUtil.runNewPool(runnables);
             } catch (Throwable ex) {
                 LOG.error("Unexpected error when shutting down processes", ex);
             }
-            if (debug.get())
+            if (debug.val)
                 LOG.debug("Finished shutting down");
         }
     }
@@ -425,14 +425,14 @@ public class ProcessSetManager implements Shutdownable {
     }
 
     public void writeToAll(String cmd) {
-        if (debug.get()) LOG.debug(String.format("Sending %s to all processes", cmd));
+        if (debug.val) LOG.debug(String.format("Sending %s to all processes", cmd));
         for (String processName : m_processes.keySet()) {
             this.writeToProcess(processName, cmd + "\n");
         }
     }
     
     public void writeToProcess(String processName, String data) {
-        if (debug.get()) LOG.debug(String.format("Writing '%s' to process %s", data.trim(), processName));
+        if (debug.val) LOG.debug(String.format("Writing '%s' to process %s", data.trim(), processName));
         
         // You always need a newline at the end of it to ensure that 
         // it flushes properly
@@ -476,7 +476,7 @@ public class ProcessSetManager implements Shutdownable {
      * @param cmd
      */
     public void startProcess(String processName, String[] cmd) {
-        if (debug.get()) LOG.debug("Starting Process: " + StringUtil.join(" ", cmd));
+        if (debug.val) LOG.debug("Starting Process: " + StringUtil.join(" ", cmd));
         
         ProcessBuilder pb = new ProcessBuilder(cmd);
         ProcessData pd = null;
@@ -510,7 +510,7 @@ public class ProcessSetManager implements Shutdownable {
                 Date log_date = new Date(path.lastModified());
                 File backup_file = new File(baseName + "-" + BACKUP_FORMAT.format(log_date));
                 path.renameTo(backup_file);
-                if (debug.get())
+                if (debug.val)
                     LOG.debug(String.format("Moved log file '%s' to '%s'", path.getName(), backup_file.getName())); 
             }
             
@@ -520,7 +520,7 @@ public class ProcessSetManager implements Shutdownable {
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to create output writer for " + processName, ex);
             }
-            if (debug.get()) 
+            if (debug.val) 
                 LOG.debug(String.format("Logging %s output to '%s'", processName, path));
         }
         
@@ -617,7 +617,7 @@ public class ProcessSetManager implements Shutdownable {
         }
         int retval = -255;
 
-        if (debug.get()) LOG.debug("Killing '" + processName + "'");
+        if (debug.val) LOG.debug("Killing '" + processName + "'");
         pd.process.destroy();
         try {
             pd.process.waitFor();

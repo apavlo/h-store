@@ -248,7 +248,7 @@ public class AuctionMarkProfile {
             this.benchmarkStartTime,            // CFP_BENCHMARK_START
             this.users_per_item_count.toJSONString() // CFP_USER_ITEM_HISTOGRAM
         );
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Saving profile information into " + catalog_tbl);
         baseClient.loadVoltTable(catalog_tbl.getName(), vt);
         
@@ -285,12 +285,12 @@ public class AuctionMarkProfile {
     protected synchronized void loadProfile(AuctionMarkClient baseClient) {
         // Check whether we have a cached Profile we can copy from
         if (cachedProfile != null) {
-            if (debug.get()) LOG.debug("Using cached SEATSProfile");
+            if (debug.val) LOG.debug("Using cached SEATSProfile");
             this.copyProfile(cachedProfile);
             return;
         }
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug("Loading AuctionMarkProfile for the first time");
         
         Client client = baseClient.getClientHandle();
@@ -337,7 +337,7 @@ public class AuctionMarkProfile {
         this.benchmarkStartTime = vt.getTimestampAsTimestamp(col++);
         JSONUtil.fromJSONString(this.users_per_item_count, vt.getString(col++));
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Loaded %s data", AuctionMarkConstants.TABLENAME_CONFIG_PROFILE));
     }
     
@@ -348,7 +348,7 @@ public class AuctionMarkProfile {
             int count = (int)vt.getLong(col++);
             this.item_category_histogram.put(i_c_id, count);
         } // WHILE
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Loaded %d item category records from %s",
                                     this.item_category_histogram.getValueCount(), AuctionMarkConstants.TABLENAME_ITEM));
     }
@@ -369,7 +369,7 @@ public class AuctionMarkProfile {
             ctr++;
         } // WHILE
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Loaded %d records from %s",
                                     ctr, AuctionMarkConstants.TABLENAME_ITEM));
     }
@@ -380,7 +380,7 @@ public class AuctionMarkProfile {
             assert(gag_id != VoltType.NULL_BIGINT);
             this.gag_ids.add(new GlobalAttributeGroupId(gag_id));
         } // WHILE
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Loaded %d records from %s",
                                     this.gag_ids.size(), AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP));
     }
@@ -431,7 +431,7 @@ public class AuctionMarkProfile {
                 this.window_partitions.add(last_partition);
             } // FOR
             LOG.info("Skew Tick #" + this.current_tick + " Window: " + this.window_partitions);
-            if (debug.get()) LOG.debug("Skew Window Histogram\n" + this.window_histogram);
+            if (debug.val) LOG.debug("Skew Window Histogram\n" + this.window_histogram);
             this.window_histogram.clearValues();
         }
     }
@@ -735,12 +735,12 @@ public class AuctionMarkProfile {
         
         TimestampType currentTime = this.updateAndGetCurrentTime();
         assert(currentTime != null);
-        if (debug.get()) LOG.debug("CurrentTime: " + currentTime);
+        if (debug.val) LOG.debug("CurrentTime: " + currentTime);
         for (ItemInfo itemInfo : all) {
             this.addItemToProperQueue(itemInfo, false);
         } // FOR
         
-        if (debug.get()) {
+        if (debug.val) {
             Map<ItemStatus, Integer> m = new HashMap<ItemStatus, Integer>();
             m.put(ItemStatus.OPEN, this.items_available.size());
             m.put(ItemStatus.ENDING_SOON, this.items_endingSoon.size());
@@ -854,7 +854,7 @@ public class AuctionMarkProfile {
                 }
             } // WHILE
             if (itemInfo == null) {
-                if (debug.get()) LOG.debug("Failed to find ItemInfo [hasCurrentPrice=" + needCurrentPrice + ", needFutureEndDate=" + needFutureEndDate + "]");
+                if (debug.val) LOG.debug("Failed to find ItemInfo [hasCurrentPrice=" + needCurrentPrice + ", needFutureEndDate=" + needFutureEndDate + "]");
                 return (null);
             }
             assert(idx >= 0);

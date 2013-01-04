@@ -42,6 +42,7 @@ public abstract class LoggerUtil {
         public LoggerBoolean(boolean val) {
             this.val = val;
         }
+        @Deprecated
         public boolean get() {
             return (this.val);
         }

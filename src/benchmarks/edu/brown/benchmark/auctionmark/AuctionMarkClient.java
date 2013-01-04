@@ -132,7 +132,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
                     TimestampType lastCheckWinningBidTime = client.profile.getLastCloseAuctionsTime();
                     TimestampType currentTime = client.profile.getCurrentTime();
                     long time_elapsed = Math.round((currentTime.getTime() - lastCheckWinningBidTime.getTime()) / 1000.0);
-                    if (debug.get()) LOG.debug(String.format("%s [start=%s, current=%s, elapsed=%d]", Transaction.CLOSE_AUCTIONS, client.profile.getBenchmarkStartTime(), currentTime, time_elapsed));
+                    if (debug.val) LOG.debug(String.format("%s [start=%s, current=%s, elapsed=%d]", Transaction.CLOSE_AUCTIONS, client.profile.getBenchmarkStartTime(), currentTime, time_elapsed));
                     if (time_elapsed > AuctionMarkConstants.INTERVAL_CLOSE_AUCTIONS) return (true);
                 }
                 return (false);
@@ -489,7 +489,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
          * @return
          */
         public boolean canExecute(AuctionMarkClient client) {
-            if (debug.get()) LOG.debug("Checking whether we can execute " + this + " now");
+            if (debug.val) LOG.debug("Checking whether we can execute " + this + " now");
             return this.generator.canGenerateParam(client);
         }
         
@@ -693,7 +693,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
         if (params == null) {
             LOG.warn("Unable to execute " + txn + " because the parameters were null?");
             return (false);
-        } else if (debug.get()) {
+        } else if (debug.val) {
             LOG.info("Executing new invocation of transaction " + txn);
         }
         
@@ -756,7 +756,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 }
                     
             } else {
-                if (debug.get()) LOG.debug(String.format("%s: %s", this.txn, clientResponse.getStatusString()), clientResponse.getException());
+                if (debug.val) LOG.debug(String.format("%s: %s", this.txn, clientResponse.getStatusString()), clientResponse.getException());
             }
         }
         /**
@@ -820,7 +820,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 ItemId itemId = this.processItemRecord(results[0]);
                 assert(itemId != null);
             } // WHILE
-            if (debug.get()) LOG.debug(super.toString());
+            if (debug.val) LOG.debug(super.toString());
             profile.updateItemQueues();
         }
     } // END CLASS
@@ -860,7 +860,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 ItemId itemId = this.processItemRecord(results[0]);
                 assert(itemId != null);
             } // WHILE
-            if (debug.get()) LOG.debug(super.toString());
+            if (debug.val) LOG.debug(super.toString());
         }
     } // END CLASS
     
@@ -941,7 +941,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 ItemId itemId = this.processItemRecord(results[0]);
                 assert(itemId != null);
             } // WHILE
-            if (debug.get()) LOG.debug(super.toString());
+            if (debug.val) LOG.debug(super.toString());
         }
     } // END CLASS
 
@@ -959,7 +959,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 ItemId itemId = this.processItemRecord(results[0]);
                 assert(itemId != null);
             } // WHILE
-            if (debug.get()) LOG.debug(super.toString());
+            if (debug.val) LOG.debug(super.toString());
         }
     } // END CLASS
     
@@ -977,7 +977,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 ItemId itemId = this.processItemRecord(results[0]);
                 assert(itemId != null);
             } // WHILE
-            if (debug.get()) LOG.debug(super.toString());
+            if (debug.val) LOG.debug(super.toString());
         }
     } // END CLASS
   

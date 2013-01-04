@@ -336,7 +336,7 @@ public class BenchmarkResults {
             return (null);
         }
         
-        if (debug.get())
+        if (debug.val)
             LOG.debug(String.format("Setting Poll Response Info for '%s' [%d]:\n%s",
                                     clientName, pollIndex, cmpResults.transactions));
         
@@ -393,7 +393,7 @@ public class BenchmarkResults {
                 results.add(r);
             } // FOR
             this.clientResultCount.put(clientName);
-            if (debug.get())
+            if (debug.val)
                 LOG.debug(String.format("New Result for '%s' => %d [minCount=%d]",
                                        clientName, this.clientResultCount.get(clientName), this.clientResultCount.getMinCount()));
             if (this.clientResultCount.getMinCount() > this.completedIntervals && m_data.size() == m_clientCount) {
