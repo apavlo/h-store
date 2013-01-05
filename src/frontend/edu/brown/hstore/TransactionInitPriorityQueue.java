@@ -2,6 +2,7 @@ package edu.brown.hstore;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
@@ -33,7 +34,6 @@ import edu.brown.utils.StringUtil;
  * should be done by the caller.
  */
 public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransaction> {
-//    private static final long serialVersionUID = 573677483413142310L;
     protected static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -98,7 +98,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * @param hstore_site
      */
     public TransactionInitPriorityQueue(int partitionId, int waitTime, int throttle_threshold, double throttle_release) {
-        super(new PriorityBlockingQueue<AbstractTransaction>(), throttle_threshold, throttle_release);
+        // super(new PriorityBlockingQueue<AbstractTransaction>(), throttle_threshold, throttle_release);
+        super(new PriorityQueue<AbstractTransaction>(), throttle_threshold, throttle_release);
         
         this.partitionId = partitionId;
         this.waitTime = waitTime;
@@ -192,12 +193,6 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     @Deprecated
     public boolean offer(AbstractTransaction e) {
         return super.offer(e, false);
-    }
-    
-    @Override
-    @Deprecated
-    public void put(AbstractTransaction e) throws InterruptedException {
-        super.offer(e, false);
     }
 
     @Override
