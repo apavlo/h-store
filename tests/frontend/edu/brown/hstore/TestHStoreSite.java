@@ -52,6 +52,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -521,7 +522,6 @@ public class TestHStoreSite extends BaseTestCase {
 //        // hstore_conf.site.network_incoming_max_per_partition = 4;
 //        hstore_conf.site.txn_restart_limit = 0;
 //        hstore_conf.site.exec_force_allpartitions = true;
-//        hstore_conf.site.network_txn_initialization = true;
 //        hstore_site.updateConf(hstore_conf);
 //
 //        final Set<LocalTransaction> expectedHandles = new HashSet<LocalTransaction>(); 
@@ -535,13 +535,13 @@ public class TestHStoreSite extends BaseTestCase {
 //                expectedIds.add(ts.getTransactionId());
 //            }
 //        };
-//        hstore_site.getTransactionInitializer().newTxnObservable.addObserver(newTxnObserver);
+//        hstore_site.getTransactionInitializer().getNewTxnObservable().addObserver(newTxnObserver);
 //        
 //        // We need to get at least one ABORT_REJECT
 //        final int num_txns = 500;
 //        final CountDownLatch latch = new CountDownLatch(num_txns);
 //        final AtomicInteger numAborts = new AtomicInteger(0);
-//        final Histogram<Status> statusHistogram = new Histogram<Status>();
+//        final Histogram<Status> statusHistogram = new ObjectHistogram<Status>();
 //        final List<Long> actualIds = new ArrayList<Long>();
 //         
 //        ProcedureCallback callback = new ProcedureCallback() {

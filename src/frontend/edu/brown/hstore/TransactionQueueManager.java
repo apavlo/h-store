@@ -50,23 +50,31 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    /**
-     * the site that will send init requests to this coordinator
-     */
+    // ----------------------------------------------------------------------------
+    // STATIC CONFIGURATION
+    // ----------------------------------------------------------------------------
+    
+    private static final int THREAD_WAIT_TIME = 500; // 0.5 millisecond
+    private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MICROSECONDS;
+    
+    private static final int CHECK_INIT_QUEUE_LIMIT = 1000;
+    private static final int CHECK_BLOCK_QUEUE_LIMIT = 100;
+    private static final int CHECK_RESTART_QUEUE_LIMIT = 100;
+    
+    // ----------------------------------------------------------------------------
+    // DATA MEMBERS
+    // ----------------------------------------------------------------------------
+    
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
-    
     private final PartitionSet localPartitions;
-    
+    private final Semaphore checkFlag = new Semaphore(1);
     private boolean stop = false;
     
-    private final Semaphore checkFlag = new Semaphore(1);
-    
     /**
-     * 
+     * TransactionInitPriority Configuration
      */
     private int initWaitTime;
-    
     private int initThrottleThreshold;
     private double initThrottleRelease;
     
@@ -210,9 +218,36 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                       hstore_site.getSiteName()));
     }
     
+    @Override
+    public void updateConf(HStoreConf hstore_conf) {
+        // HACK: If there is only one site in the cluster, then we can
+        // set the wait time to 1ms
+        if (hstore_site.getCatalogContext().numberOfSites == -1) { // XXX
+            this.initWaitTime = 1;
+        }
+        else {
+            this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
+        }
+
+        this.initThrottleThreshold = hstore_conf.site.network_incoming_limit_txns;
+        this.initThrottleRelease = hstore_conf.site.queue_release_factor;
+        for (TransactionInitPriorityQueue queue : this.lockQueues) {
+            if (queue != null) {
+                queue.setThrottleThreshold(this.initThrottleThreshold);
+                queue.setThrottleReleaseFactor(this.initThrottleRelease);
+            }
+        } // FOR
+        
+    }
+    
+    // ----------------------------------------------------------------------------
+    // RUN METHOD
+    // ----------------------------------------------------------------------------
+    
     /**
-     * Every time this thread gets waken up, it locks the queues, loops through the txn_queues, and looks at the lowest id in each queue.
-     * If any id is lower than the last_txn id for that partition, it gets rejected and sent back to the caller.
+     * Every time this thread gets waken up, it locks the queues, loops through the txn_queues,
+     * and looks at the lowest id in each queue. If any id is lower than the last_txn id for
+     * that partition, it gets rejected and sent back to the caller.
      * Otherwise, the lowest txn_id is popped off and sent to the corresponding partition.
      * Then the thread unlocks the queues and goes back to sleep.
      * If all the partitions are now busy, the thread will wake up when one of them is finished.
@@ -229,21 +264,20 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         while (this.stop == false) {
             // if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
-                this.checkFlag.tryAcquire(this.initWaitTime, TimeUnit.MILLISECONDS);
+                this.checkFlag.tryAcquire(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
             } catch (InterruptedException e) {
                 // Nothing...
             } finally {
                 // if (hstore_conf.site.queue_profiling && profiler.idle.isStarted()) profiler.idle.stop();
             }
             
-            // Release transactions for initialization
-            this.checkInitQueue();
-            
             // Release transactions for execution
             for (int partition : this.localPartitions.values()) {
                 this.checkLockQueue(partition);
             } // FOR
             
+            // Release transactions for initialization
+            this.checkInitQueue();
             
             // Release blocked distributed transactions
 //            if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
@@ -315,7 +349,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // Process initialization queue
         AbstractTransaction next_init = null;
-        int limit = 10000;
+        int limit = CHECK_INIT_QUEUE_LIMIT;
         int added = 0;
         while ((next_init = this.initQueue.poll()) != null) {
             PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
@@ -731,39 +765,45 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * @param last_txn_id
      */
     private void checkBlockedQueue() {
-        if (trace.val)
-            LOG.trace(String.format("Checking whether we can release %d blocked dtxns",
+        if (debug.val)
+            LOG.debug(String.format("Checking whether we can release %d blocked dtxns",
                       this.blockedQueue.size()));
         
+        int limit = CHECK_BLOCK_QUEUE_LIMIT;
         while (this.blockedQueue.isEmpty() == false) {
             LocalTransaction ts = this.blockedQueue.peek();
             Long releaseTxnId = this.blockedQueueTransactions.get(ts);
+            
+            // If we don't have a handle for this txnId, then it probably was 
+            // deleted. That means we can just skip it.
             if (releaseTxnId == null) {
-                if (debug.val) LOG.warn("Missing release TxnId for " + ts);
+                if (trace.val) LOG.warn("Missing release TxnId for " + ts);
                 try {
                     this.blockedQueue.remove(ts);
                 } catch (NullPointerException ex) {
                     // XXX: IGNORE
                 }
-                continue;
             }
-            
             // Check whether the last txnId issued by the TransactionIdManager at the transactions'
             // base partition is greater than the one that we can be released on 
-            TransactionIdManager txnIdManager = hstore_site.getTransactionIdManager(ts.getBasePartition());
-            Long last_txn_id = txnIdManager.getLastTxnId();
-            if (releaseTxnId.compareTo(last_txn_id) < 0) {
-                if (debug.val)
-                    LOG.debug(String.format("Releasing blocked %s because the lastest txnId was #%d [release=%d]",
-                              ts, last_txn_id, releaseTxnId));
-                this.blockedQueue.remove();
-                this.blockedQueueTransactions.remove(ts);
-                this.hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
-                ts.unmarkNeedsRestart();
-                this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
-            // For now we can break, but I think that we may need separate
-            // queues for the different partitions...
-            } else break;
+            else {
+                TransactionIdManager txnIdManager = hstore_site.getTransactionIdManager(ts.getBasePartition());
+                Long last_txn_id = txnIdManager.getLastTxnId();
+                if (releaseTxnId.compareTo(last_txn_id) < 0) {
+                    if (trace.val)
+                        LOG.trace(String.format("Releasing blocked %s because the lastest txnId " +
+                        		  "was #%d [release=%d]",
+                                  ts, last_txn_id, releaseTxnId));
+                    this.blockedQueue.remove();
+                    this.blockedQueueTransactions.remove(ts);
+                    this.hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
+                    ts.unmarkNeedsRestart();
+                    this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
+                // For now we can break, but I think that we may need separate
+                // queues for the different partitions...
+                } else break;
+            }
+            if (limit-- == 0) break;
         } // WHILE
     }
     
@@ -797,19 +837,25 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     }
     
     private void checkRestartQueue() {
+        if (debug.val)
+            LOG.trace(String.format("Checking whether we can restart %d held txns",
+                      this.restartQueue.size()));
+        
         Pair<LocalTransaction, Status> pair = null;
+        int limit = CHECK_RESTART_QUEUE_LIMIT;
         while ((pair = this.restartQueue.poll()) != null) {
             LocalTransaction ts = pair.getFirst();
             Status status = pair.getSecond();
             
-            if (debug.val)
-                LOG.debug(String.format("%s - Ready to restart transaction [status=%s]", ts, status));
+            if (trace.val)
+                LOG.trace(String.format("%s - Ready to restart transaction [status=%s]", ts, status));
             Status ret = this.hstore_site.transactionRestart(ts, status);
-            if (debug.val)
-                LOG.debug(String.format("%s - Got return result %s after restarting", ts, ret));
+            if (trace.val)
+                LOG.trace(String.format("%s - Got return result %s after restarting", ts, ret));
             
             ts.unmarkNeedsRestart();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
+            if (limit-- == 0) break;
         } // WHILE
     }
     
@@ -819,28 +865,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     
     public TransactionInitPriorityQueue getInitQueue(int partition) {
         return (this.lockQueues[partition]);
-    }
-    
-    @Override
-    public void updateConf(HStoreConf hstore_conf) {
-        // HACK: If there is only one site in the cluster, then we can
-        // set the wait time to 1ms
-        if (hstore_site.getCatalogContext().numberOfSites == -1) { // XXX
-            this.initWaitTime = 1;
-        }
-        else {
-            this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
-        }
-
-        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * 0.75);
-        this.initThrottleRelease = hstore_conf.site.queue_release_factor;
-        for (TransactionInitPriorityQueue queue : this.lockQueues) {
-            if (queue != null) {
-                queue.setThrottleThreshold(this.initThrottleThreshold);
-                queue.setThrottleReleaseFactor(this.initThrottleRelease);
-            }
-        } // FOR
-        
     }
     
     @Override
