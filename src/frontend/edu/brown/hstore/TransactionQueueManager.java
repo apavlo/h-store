@@ -353,9 +353,15 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // INIT QUEUES
     // ----------------------------------------------------------------------------
 
+    /**
+     * Process initialization queue
+     * @return
+     */
     protected int checkInitQueue() {
+        if (debug.val && this.initQueue.isEmpty() == false)
+            LOG.debug(String.format("Checking whether we can init %d txns",
+                      this.initQueue.size()));
         
-        // Process initialization queue
         AbstractTransaction next_init = null;
         int limit = CHECK_INIT_QUEUE_LIMIT;
         int added = 0;
@@ -364,11 +370,17 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
             assert(callback.isInitialized());
             boolean ret = false;
+            boolean checked = false;
             boolean removed = false;
             
             for (int partition : next_init.getPredictTouchedPartitions()) {
+                // Skip any non-local partition
                 if (hstore_site.isLocalPartition(partition) == false) continue;
+                
+                // If a partition rejected a previous txn in this round of checks, then
+                // we'll skip it
                 if (this.initRejected.contains(partition)) continue;
+                checked = true;
                 
                 // If we're here, then we know that we're going to try to do
                 // something with this txn. That means we need to make sure that
@@ -380,14 +392,14 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 
                 // If this txn gets rejected when we try to insert it, then we 
                 // just need to stop trying to add it to other partitions
-                ret = this.lockQueueInsert(next_init, partition, callback) && ret; 
+                ret = this.lockQueueInsert(next_init, partition, callback); 
                 if (ret == false) {
                     this.initRejected.add(partition);
                     break;
                 }
             } // FOR
             // Stop trying to add any more txns at all
-            if (ret == false) break; 
+            if (ret == false || checked == false) break; 
             added++;
             if (limit-- == 0) break;
         } // WHILE
@@ -770,9 +782,10 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * @param last_txnId
      */
     public void blockTransaction(LocalTransaction ts, int partition, Long last_txnId) {
-        if (debug.val) LOG.debug(String.format("%s - Blocking transaction until after a txnId greater than %d " +
-                         "is created for partition %d",
-                         ts, last_txnId, partition));
+        if (debug.val)
+            LOG.debug(String.format("%s - Blocking transaction until after a txnId greater than %d " +
+                      "is created for partition %d",
+                      ts, last_txnId, partition));
        
         // IMPORTANT: Mark this transaction as not being deletable.
         //            This will prevent it from getting deleted out from under us
@@ -803,7 +816,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * @param last_txn_id
      */
     private void checkBlockedQueue() {
-        if (debug.val)
+        if (debug.val && this.blockedQueue.isEmpty() == false)
             LOG.debug(String.format("Checking whether we can release %d blocked dtxns",
                       this.blockedQueue.size()));
         
@@ -873,7 +886,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     }
     
     private void checkRestartQueue() {
-        if (debug.val)
+        if (debug.val && this.restartQueue.isEmpty() == false)
             LOG.trace(String.format("Checking whether we can restart %d held txns",
                       this.restartQueue.size()));
         
