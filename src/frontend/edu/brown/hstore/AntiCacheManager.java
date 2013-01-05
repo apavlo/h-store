@@ -190,7 +190,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         
         // Now go ahead and requeue our transaction
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
-        this.hstore_site.transactionStart(next.ts, next.ts.getBasePartition());
+        this.hstore_site.transactionStart(next.ts);
         
     }
     

@@ -42,6 +42,27 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     }
     
     // ----------------------------------------------------------------------------
+    // RUN METHOD
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    protected int runImpl(int partition) {
+        // If this is a single-partition txn, then we'll want to tell the PartitionExecutor
+        // to start executing this txn immediately
+        if (this.ts.isPredictSinglePartition()) {
+            assert(partition == this.ts.getBasePartition());
+            this.hstore_site.transactionStart((LocalTransaction)this.ts);
+        }
+        // Otherwise we'll want to send a SetDistributedTxnMessage to this partition
+        // if it's not this txn's base partition.
+        else if (this.ts.getBasePartition() != partition && this.hstore_site.isLocalPartition(partition)) {
+            this.hstore_site.transactionSetPartitionLock((LocalTransaction)this.ts, partition);
+        }
+        
+        return (1);
+    }
+    
+    // ----------------------------------------------------------------------------
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
 
@@ -49,20 +70,18 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     protected void unblockCallback() {
         assert(this.isAborted() == false);
         
-        // HACK: If this is a single-partition txn, then we don't
-        // need to submit it for execution because the PartitionExecutor
-        // will fire it off right away
+        // If this is a single-partition txn, then we don't need to submit it for 
+        // because we already did that in the runImpl() method above.
         if (this.ts.isPredictSinglePartition() == false) {
             if (debug.val) LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
-            this.hstore_site.transactionStart((LocalTransaction)this.ts,
-                                              this.ts.getBasePartition());
+            this.hstore_site.transactionStart((LocalTransaction)this.ts);
         }
-        else { 
-            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
-            if (debug.val)
-                LOG.debug(this.ts + " is ready to execute but it is single-partitioned. " +
-                          "Not telling the HStoreSite to start");
-        }
+//        else { 
+//            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
+//            if (debug.val)
+//                LOG.debug(this.ts + " is ready to execute but it is single-partitioned. " +
+//                          "Not telling the HStoreSite to start");
+//        }
     }
 
     @Override
@@ -96,9 +115,10 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
 
     @Override
     public void run(TransactionInitResponse response) {
-        if (debug.val) LOG.debug(String.format("%s - Got %s with status %s from partitions %s",
-                                   this.ts, response.getClass().getSimpleName(),
-                                   response.getStatus(), response.getPartitionsList()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Got %s with status %s from partitions %s",
+                      this.ts, response.getClass().getSimpleName(),
+                      response.getStatus(), response.getPartitionsList()));
         for (Integer partition : response.getPartitionsList()) {
             this.run(partition.intValue());
         } // FOR

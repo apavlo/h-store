@@ -84,7 +84,7 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
             for (int partition : hstore_site.getLocalPartitionIds()) {
                 if (partition != mr_ts.getBasePartition()) { 
                     LocalTransaction ts = mr_ts.getLocalTransaction(partition);
-                    hstore_site.transactionStart(ts, partition);
+                    hstore_site.transactionStart(ts);
                 }
             } // FOR
         } else {

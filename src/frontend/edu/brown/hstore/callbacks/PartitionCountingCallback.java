@@ -173,13 +173,14 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     // ----------------------------------------------------------------------------
     
     public final void run(int partition) {
-        int delta = 1; // XXX this.runImpl(partition);
+        int delta = this.runImpl(partition);
         int new_count = this.counter.addAndGet(-1 * delta);
         this.receivedPartitions.add(partition);
-        if (debug.val) LOG.debug(String.format("%s - %s.run() / COUNTER: %d - %d = %d%s",
-                                   this.ts, this.getClass().getSimpleName(),
-                                   new_count+delta, delta, new_count,
-                                   (trace.val ? "\n" + partition : "")));
+        if (debug.val)
+            LOG.debug(String.format("%s - %s.run() / COUNTER: %d - %d = %d%s",
+                      this.ts, this.getClass().getSimpleName(),
+                      new_count+delta, delta, new_count,
+                      (trace.val ? "\n" + partition : "")));
         
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
@@ -208,7 +209,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param parameter Needs to be >=0
      * @return
      */
-    // protected abstract int runImpl(int partition);
+    protected abstract int runImpl(int partition);
     
     // ----------------------------------------------------------------------------
     // SUCCESSFUL UNBLOCKING

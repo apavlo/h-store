@@ -68,20 +68,35 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
         this.origCallback = null;
         this.builder = null;
     }
+    
+    // ----------------------------------------------------------------------------
+    // RUN METHOD
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    protected int runImpl(int partition) {
+        // Tell the HStoreSite to send a SetDistributedTxnMessage to this partition
+        this.hstore_site.transactionSetPartitionLock(this.ts, partition);
+        return (1);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // CALLBACK METHODS
+    // ----------------------------------------------------------------------------
 
     @Override
     protected void unblockCallback() {
-        if (debug.val) LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
-                                   this.ts, TransactionInitResponse.class.getSimpleName(),
-                                   (this.builder != null ? this.builder.getStatus() : "???")));
+        if (debug.val)
+            LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
+                      this.ts, TransactionInitResponse.class.getSimpleName(),
+                      (this.builder != null ? this.builder.getStatus() : "???")));
         if (this.builder != null) {
-            if (debug.val) {
+            if (debug.val)
                 LOG.debug(String.format("%s - Sending %s to %s with status %s",
-                                        this.ts,
-                                        TransactionInitResponse.class.getSimpleName(),
-                                        this.origCallback.getClass().getSimpleName(),
-                                        this.builder.getStatus()));
-            }
+                          this.ts,
+                          TransactionInitResponse.class.getSimpleName(),
+                          this.origCallback.getClass().getSimpleName(),
+                          this.builder.getStatus()));
             
             // Ok so where's what going on here. We need to send back
             // an abort message, so we're going use the builder that we've been 
@@ -160,8 +175,9 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
     protected void abortCallback(Status status) {
         // Uh... this might have already been sent out?
         if (this.builder != null) {
-            if (debug.val) LOG.debug(String.format("%s - Aborting %s with status %s",
-                                       this.ts, this.getClass().getSimpleName(), status));
+            if (debug.val)
+                LOG.debug(String.format("%s - Aborting %s with status %s",
+                          this.ts, this.getClass().getSimpleName(), status));
             
             // Ok so where's what going on here. We need to send back
             // an abort message, so we're going use the builder that we've been 
@@ -180,7 +196,7 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
         }
         else if (debug.val) {
             LOG.warn(String.format("%s - No builder is available? Unable to send back %s",
-                      this.ts, TransactionInitResponse.class.getSimpleName()));
+                     this.ts, TransactionInitResponse.class.getSimpleName()));
         }
     }
 }

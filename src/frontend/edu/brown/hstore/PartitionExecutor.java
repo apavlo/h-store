@@ -137,6 +137,7 @@ import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.internal.UtilityWorkMessage;
@@ -163,7 +164,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -488,7 +488,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     // CALLBACKS
     // ----------------------------------------------------------------------------
     
-	/**
+    /**
      * This will be invoked for each TransactionWorkResponse that comes back from
      * the remote HStoreSites. Note that we don't need to do any counting as to whether
      * a transaction has gotten back all of the responses that it expected. That logic is down
@@ -869,14 +869,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
-                work = this.getNext();
+                // work = this.getNext();
+                if (hstore_conf.site.exec_profiling) profiler.idle_queue_time.start();
+                try {
+                    work = this.work_queue.take(); // BLOCKING
+                } finally {
+                    if (hstore_conf.site.exec_profiling) profiler.idle_queue_time.stopIfStarted();
+                }
+                if (trace.val) LOG.trace("Next Work: " + work);
+                
                 if (work == null) {
                     if (this.initQueue.isEmpty() && this.work_queue.isEmpty()) {
-                        if (hstore_conf.site.exec_profiling)
-                            ProfileMeasurementUtil.swap(profiler.idle_queue_time, profiler.sleep_time);
+                        if (hstore_conf.site.exec_profiling) profiler.sleep_time.start();
                         Thread.sleep(WORK_QUEUE_POLL_TIME);
-                        if (hstore_conf.site.exec_profiling)
-                            ProfileMeasurementUtil.swap(profiler.sleep_time, profiler.idle_queue_time);
+                        if (hstore_conf.site.exec_profiling) profiler.sleep_time.stopIfStarted();
                     }
                     continue;
                 }
@@ -884,8 +890,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     continue;
                 }
                 
-                if (trace.val)
-                    LOG.trace("Next Work: " + work);
                 
                 // -------------------------------
                 // Process Work
@@ -897,14 +901,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     profiler.exec_time.start(timestamp);
                 }
                 try {
-                	this.processInternalMessage(work);
+                    this.processInternalMessage(work);
                 } finally {
-                	if (hstore_conf.site.exec_profiling) profiler.exec_time.stopIfStarted();
+                    if (hstore_conf.site.exec_profiling) profiler.exec_time.stopIfStarted();
                 }
                 
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                 this.tick();
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_queue_time.start();
             } // WHILE
         } catch (InterruptedException ex) {
             // IGNORE!
@@ -1253,6 +1256,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.processWorkFragment(ts, fragment, parameters);
         }
         // -------------------------------
+        // Set Distributed Transaction Hack
+        // -------------------------------
+        else if (work instanceof SetDistributedTxnMessage) {
+            if (this.currentDtxn != null) {
+                this.blockTransaction(work);
+            } else {
+                this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
+            }
+        }
+        // -------------------------------
         // Prepare Transaction
         // -------------------------------
         else if (work instanceof PrepareTxnMessage) {
@@ -1431,8 +1444,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         return (this.partitionId);
     }
     public PartitionExecutorProfiler getProfiler() {
-		return profiler;
-	}
+        return profiler;
+    }
     
     /**
      * Returns the next undo token to use when hitting up the EE with work
@@ -1678,6 +1691,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 //        return (this.utility_queue.offer(work));
 //    }
     
+    public void queueSetPartitionLock(AbstractTransaction ts) {
+        assert(ts.isInitialized());
+        SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
+        boolean success = this.work_queue.offer(work);
+        assert(success) :
+            String.format("Failed to queue %s at partition %d for %s",
+                          work, this.partitionId, ts);
+        if (debug.val)
+            LOG.debug(String.format("%s - Added %s to front of partition %d " +
+                      "work queue [size=%d]",
+                      ts, work.getClass().getSimpleName(), this.partitionId,
+                      this.work_queue.size()));
+    }
+    
     /**
      * New work from the coordinator that this local site needs to execute (non-blocking)
      * This method will simply chuck the task into the work queue.
@@ -1690,11 +1717,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (hstore_conf.site.exec_profiling) this.profiler.idle_waiting_dtxn_time.stopIfStarted();
         
         WorkFragmentMessage work = ts.getWorkFragmentMessage(fragment);
-        boolean ret = this.work_queue.offer(work); // , true);
-        assert(ret);
+        boolean success = this.work_queue.offer(work); // , true);
+        assert(success) :
+            String.format("Failed to queue %s at partition %d for %s",
+                          work, this.partitionId, ts);
         ts.markQueuedWork(this.partitionId);
-        if (debug.val) LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
-                         ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Added %s to partition %d " +
+            		  "work queue [size=%d]",
+                      ts, work.getClass().getSimpleName(), this.partitionId,
+                      this.work_queue.size()));
     }
 
     /**
@@ -1716,9 +1748,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(ts.isInitialized());
         PrepareTxnMessage work = ts.getPrepareTxnMessage();
         boolean success = this.work_queue.offer(work);
-        assert(success);
-        if (debug.val) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
-                         ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+        assert(success) :
+            String.format("Failed to queue %s at partition %d for %s",
+                          work, this.partitionId, ts);
+        if (debug.val)
+            LOG.debug(String.format("%s - Added %s to partition %d " +
+            		  "work queue [size=%d]",
+                      ts, work.getClass().getSimpleName(), this.partitionId,
+                      this.work_queue.size()));
     }
     
     /**
@@ -1730,9 +1767,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(ts.isInitialized());
         FinishTxnMessage work = ts.getFinishTxnMessage(status);
         boolean success = this.work_queue.offer(work); // , true);
-        assert(success);
-        if (debug.val) LOG.debug(String.format("%s - Added distributed %s to partition %d work queue [size=%d]",
-                         ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+        assert(success) :
+            String.format("Failed to queue %s at partition %d for %s",
+                          work, this.partitionId, ts);
+        if (debug.val)
+            LOG.debug(String.format("%s - Added %s to partition %d " +
+                      "work queue [size=%d]",
+                      ts, work.getClass().getSimpleName(), this.partitionId,
+                      this.work_queue.size()));
     }
 
     /**
@@ -2035,8 +2077,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         Status status = cresponse.getStatus();
         if (debug.val) {
             LOG.debug(String.format("%s - Finished execution of transaction control code " +
-        		                    "[status=%s, beforeMode=%s, currentMode=%s]",
-        		                    ts, status, before_mode, this.currentExecMode));
+                                    "[status=%s, beforeMode=%s, currentMode=%s]",
+                                    ts, status, before_mode, this.currentExecMode));
             if (ts.hasPendingError()) {
                 LOG.debug(String.format("%s - Txn finished with pending error: %s",
                           ts, ts.getPendingErrorMessage()));
@@ -2085,7 +2127,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private boolean canProcessClientResponseNow(LocalTransaction ts, Status status, ExecutionMode before_mode) {
         if (debug.val) LOG.debug(String.format("%s - Checking whether to process %s response now at partition %d " +
-	                     "[singlePartition=%s, readOnly=%s, specExecModified=%s, before=%s, current=%s]",
+                         "[singlePartition=%s, readOnly=%s, specExecModified=%s, before=%s, current=%s]",
                          ts, status, this.partitionId,
                          ts.isPredictSinglePartition(),
                          ts.isExecReadOnly(this.partitionId),
@@ -2154,7 +2196,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private void processWorkFragment(AbstractTransaction ts, WorkFragment fragment, ParameterSet parameters[]) {
         assert(this.partitionId == fragment.getPartitionId()) :
             String.format("Tried to execute WorkFragment %s for %s at partition %d but it was suppose " +
-            		      "to be executed on partition %d",
+                          "to be executed on partition %d",
                           fragment.getFragmentIdList(), ts, this.partitionId, fragment.getPartitionId());
         assert(ts.isMarkedPrepared(this.partitionId) == false) :
             String.format("Tried to execute WorkFragment %s for %s at partition %d after it was marked 2PC:PREPARE",
@@ -2165,11 +2207,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         boolean is_local = (ts.getBasePartition() == this.partitionId);
         boolean is_remote = (ts instanceof LocalTransaction == false);
         boolean is_prefetch = fragment.getPrefetch();
-        if (debug.val) LOG.debug(String.format("%s - Executing %s " +
-        		         "[isLocal=%s, isRemote=%s, isPrefetch=%s, fragments=%s]",
-                         ts, fragment.getClass().getSimpleName(),
-                         is_local, is_remote, is_prefetch,
-                         fragment.getFragmentIdCount()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Executing %s [isLocal=%s, isRemote=%s, isPrefetch=%s, fragments=%s]",
+                      ts, fragment.getClass().getSimpleName(),
+                      is_local, is_remote, is_prefetch,
+                      fragment.getFragmentIdCount()));
         
         // If this WorkFragment isn't being executed at this txn's base partition, then
         // we need to start a new execution round
@@ -2216,7 +2258,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // Success, but without any results???
             if (result == null && status == Status.OK) {
                 String msg = String.format("The WorkFragment %s executed successfully on Partition %d but " +
-                		                   "result is null for %s",
+                                           "result is null for %s",
                                            fragment.getFragmentIdList(), this.partitionId, ts);
                 Exception ex = new Exception(msg);
                 if (debug.val) LOG.warn(ex);
@@ -2248,8 +2290,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // just wait until they come back to execute the query again before 
             // we tell them that something went wrong. It's ghetto, but it's just easier this way...
             if (status == Status.OK) {
-                if (debug.val) LOG.debug(String.format("%s - Storing %d prefetch query results in partition %d query cache",
-                                               ts, result.size(), ts.getBasePartition()));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Storing %d prefetch query results in partition %d query cache",
+                              ts, result.size(), ts.getBasePartition()));
                 PartitionExecutor other = null; // The executor at the txn's base partition 
                 
                 // We're going to store the result in the base partition cache if they're 
@@ -2300,13 +2343,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             // If the transaction is local, store the result directly in the local TransactionState
             if (status == Status.OK) {
-                if (trace.val) LOG.trace(ts + " - Storing " + result.size() + " dependency results locally for successful work fragment");
+                if (trace.val)
+                    LOG.trace(String.format("%s - Storing %d dependency results locally for successful work fragment",
+                              ts, result.size()));
                 assert(result.size() == fragment.getOutputDepIdCount());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     int dep_id = fragment.getOutputDepId(i);
-                    if (trace.val) LOG.trace(String.format("%s - Storing DependencyId #%d [numRows=%d]\n%s",
-                                     ts, dep_id, result.dependencies[i].getRowCount(),
-                                     result.dependencies[i]));
+                    if (trace.val)
+                        LOG.trace(String.format("%s - Storing DependencyId #%d [numRows=%d]\n%s",
+                                  ts, dep_id, result.dependencies[i].getRowCount(),
+                                  result.dependencies[i]));
                     try {
                         local_ts.addResult(this.partitionId, dep_id, result.dependencies[i]);
                     } catch (Throwable ex) {
@@ -2325,11 +2371,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // REMOTE TRANSACTION
         // -------------------------------
         else {
-            if (debug.val) LOG.debug(String.format("%s - Constructing WorkResult with %d bytes from partition %d to send " +
-            		                       "back to initial partition %d [status=%s]",
-                                           ts, (result != null ? result.size() : null),
-                                           this.partitionId, ts.getBasePartition(),
-                                           status));
+            if (debug.val)
+                LOG.debug(String.format("%s - Constructing WorkResult with %d bytes from partition %d to send " +
+                          "back to initial partition %d [status=%s]",
+                          ts, (result != null ? result.size() : null),
+                          this.partitionId, ts.getBasePartition(), status));
             
             RpcCallback<WorkResult> callback = ((RemoteTransaction)ts).getWorkCallback();
             if (callback == null) {
@@ -2617,7 +2663,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         try {
             assert(this.lastCommittedUndoToken < undoToken) :
                 String.format("Trying to execute work using undoToken %d for %s but " +
-                		      "it is less than the last committed undoToken %d at partition %d",
+                              "it is less than the last committed undoToken %d at partition %d",
                               undoToken, ts, this.lastCommittedUndoToken, this.partitionId);
             if (trace.val)
                 LOG.trace(String.format("%s - Executing fragments %s at partition %d [undoToken=%d]",
@@ -2927,7 +2973,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             // Make sure that this isn't a single-partition txn trying to access a remote partition
             if (predict_singlepartition && target_partition != this.partitionId) {
-                if (debug.val) LOG.debug(String.format("%s - Txn on partition %d is suppose to be single-partitioned, but it wants to execute a fragment on partition %d",
+                if (debug.val)
+                    LOG.debug(String.format("%s - Txn on partition %d is suppose to be " +
+                              "single-partitioned, but it wants to execute a fragment on partition %d",
                                  ts, this.partitionId, target_partition));
                 need_restart = true;
                 break;
@@ -2935,8 +2983,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // Make sure that this txn isn't trying to access a partition that we said we were
             // done with earlier
             else if (done_partitions.contains(target_partition)) {
-                if (debug.val) LOG.debug(String.format("%s on partition %d was marked as done on partition %d but now it wants to go back for more!",
-                                 ts, this.partitionId, target_partition));
+                if (debug.val)
+                    LOG.debug(String.format("%s on partition %d was marked as done on partition %d " +
+                              "but now it wants to go back for more!",
+                              ts, this.partitionId, target_partition));
                 need_restart = true;
                 break;
             }
@@ -2949,8 +2999,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // Add in the specexec query estimate at this partition if needed
             if (hstore_conf.site.specexec_enable && t_estimate != null && t_estimate.hasQueryEstimate(target_partition)) {
                 List<CountedStatement> queryEst = t_estimate.getQueryEstimate(target_partition);
-                if (debug.val) LOG.debug(String.format("%s - Sending remote query estimate to partition %d containing %d queries\n%s",
-                                 ts, target_partition, queryEst.size(), StringUtil.join("\n", queryEst)));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Sending remote query estimate to partition %d " +
+                              "containing %d queries\n%s",
+                              ts, target_partition, queryEst.size(), StringUtil.join("\n", queryEst)));
                 assert(queryEst.isEmpty() == false);
                 QueryEstimate.Builder estBuilder = QueryEstimate.newBuilder();
                 for (CountedStatement countedStmt : queryEst) {
@@ -2977,7 +3029,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             // Input Dependencies
             if (fragmentBuilder.getNeedsInput()) {
-                if (debug.val) LOG.debug("Retrieving input dependencies for " + ts);
+                if (debug.val)
+                    LOG.debug(String.format("%s - Retrieving input dependencies at partition %d",
+                              ts, this.partitionId));
                 
                 tmp_removeDependenciesMap.clear();
                 this.getFragmentInputs(ts, fragmentBuilder.getInputDepIdList(), tmp_removeDependenciesMap);
@@ -2985,8 +3039,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
                     if (requestBuilder.hasInputDependencyId(e.getKey())) continue;
 
-                    if (debug.val) LOG.debug(String.format("%s - Attaching %d input dependencies to be sent to %s",
-                                     ts, e.getValue().size(), HStoreThreadManager.formatSiteName(target_site)));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Attaching %d input dependencies to be sent to %s",
+                                  ts, e.getValue().size(), HStoreThreadManager.formatSiteName(target_site)));
                     for (VoltTable vt : e.getValue()) {
                         this.fs.clear();
                         try {
@@ -2997,9 +3052,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             String msg = String.format("Failed to serialize input dependency %d for %s", e.getKey(), ts);
                             throw new ServerFaultException(msg, ts.getTransactionId());
                         }
-                        if (debug.val) LOG.debug(String.format("%s - Storing %d rows for InputDependency %d to send to partition %d [bytes=%d]",
-                                         ts, vt.getRowCount(), e.getKey(), fragmentBuilder.getPartitionId(),
-                                         CollectionUtil.last(builder.getAttachedDataList()).size()));
+                        if (debug.val)
+                            LOG.debug(String.format("%s - Storing %d rows for InputDependency %d to send " +
+                                      "to partition %d [bytes=%d]",
+                                      ts, vt.getRowCount(), e.getKey(), fragmentBuilder.getPartitionId(),
+                                      CollectionUtil.last(builder.getAttachedDataList()).size()));
                     } // FOR
                     requestBuilder.addInputDependencyId(e.getKey());
                 } // FOR
@@ -3011,7 +3068,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Bad mojo! We need to throw a MispredictionException so that the VoltProcedure
         // will catch it and we can propagate the error message all the way back to the HStoreSite
         if (need_restart) {
-            if (trace.val) LOG.trace(String.format("Aborting %s because it was mispredicted", ts));
+            if (trace.val)
+                LOG.trace(String.format("Aborting %s because it was mispredicted", ts));
             // This is kind of screwy because we don't actually want to send the touched partitions
             // histogram because VoltProcedure will just do it for us...
             throw new MispredictionException(txn_id, null);
@@ -3028,8 +3086,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             // Bombs away!
             this.hstore_coordinator.transactionWork(ts, target_site, builder.build(), this.request_work_callback);
-            if (debug.val) LOG.debug(String.format("%s - Sent Work request to remote site %s",
-                             ts, HStoreThreadManager.formatSiteName(target_site)));
+            if (debug.val)
+                LOG.debug(String.format("%s - Sent Work request to remote site %s",
+                          ts, HStoreThreadManager.formatSiteName(target_site)));
 
         } // FOR
 
@@ -3151,9 +3210,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         //  (5) The latch for this round is still greater than zero
         while (ts.hasPendingError() == false && 
               (first == true || execState.stillHasWorkFragments() || (latch != null && latch.getCount() > 0))) {
-            if (trace.val) LOG.trace(String.format("%s - %s loop [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                             ts, ClassUtil.getCurrentMethodName(),
-                             first, execState.stillHasWorkFragments(), queue.size(), latch));
+            if (trace.val)
+                LOG.trace(String.format("%s - %s loop [first=%s, stillHasWorkFragments=%s, latch=%s]",
+                          ts, ClassUtil.getCurrentMethodName(),
+                          first, execState.stillHasWorkFragments(), queue.size(), latch));
             
             // If this is the not first time through the loop, then poll the queue
             // to get our list of fragments
@@ -3167,7 +3227,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 num_skipped = 0;
                 total = 0;
                 
-                if (trace.val) LOG.trace(String.format("%s - Waiting for unblocked tasks on partition %d", ts, this.partitionId));
+                if (trace.val)
+                    LOG.trace(String.format("%s - Waiting for unblocked tasks on partition %d",
+                              ts, this.partitionId));
                 fragmentBuilders = queue.poll(); // NON-BLOCKING
                 
                 // If we didn't get back a list of fragments here, then we will spin through
@@ -3204,7 +3266,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // transaction's current SQLStmt batch. That means we can just wait 
             // until all the results return to us.
             if (fragmentBuilders.isEmpty()) {
-                if (trace.val) LOG.trace(ts + " - Got an empty list of WorkFragments. Blocking until dependencies arrive");
+                if (trace.val)
+                    LOG.trace(String.format("%s - Got an empty list of WorkFragments at partition %d. " +
+                              "Blocking until dependencies arrive",
+                              ts, this.partitionId));
                 break;
             }
 
@@ -3235,13 +3300,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 
                 // Execute all of our WorkFragments quickly at our local ExecutionEngine
                 for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
-                    if (debug.val) LOG.debug(String.format("%s - Got unblocked %s to execute locally",
-                                     ts, fragmentBuilder.getClass().getSimpleName()));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Got unblocked %s to execute locally",
+                                  ts, fragmentBuilder.getClass().getSimpleName()));
                     assert(fragmentBuilder.getPartitionId() == this.partitionId) :
-                        String.format("Trying to process %s for %s on partition %d but it should have been sent to partition %d" +
-                        		      "[singlePartition=%s]\n%s",
-                                      fragmentBuilder.getClass().getSimpleName(), ts, this.partitionId, fragmentBuilder.getPartitionId(),
-                                      predict_singlePartition, fragmentBuilder);
+                        String.format("Trying to process %s for %s on partition %d but it should have been " +
+                                      "sent to partition %d [singlePartition=%s]\n%s",
+                                      fragmentBuilder.getClass().getSimpleName(), ts, this.partitionId,
+                                      fragmentBuilder.getPartitionId(), predict_singlePartition, fragmentBuilder);
                     WorkFragment fragment = fragmentBuilder.build();
                     ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
                     this.processWorkFragment(ts, fragment, fragmentParams);
@@ -3275,8 +3341,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                                          partition,
                                                                          parameters[paramIdx]);
                                 if (vt != null) {
-                                    if (trace.val) LOG.trace(String.format("%s - Storing cached result from partition %d for fragment %d",
-                                                     ts, partition, fragId));
+                                    if (trace.val)
+                                        LOG.trace(String.format("%s - Storing cached result from partition %d for fragment %d",
+                                                  ts, partition, fragId));
                                     ts.addResult(partition, fragmentBuilder.getOutputDepId(i), vt);
                                 } else {
                                     skip_queue = false;
@@ -3286,8 +3353,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             // this WorkFragment, then there is no need for us to send the message
                             // So we'll just skip queuing it up! How nice!
                             if (skip_queue) {
-                                if (debug.val) LOG.debug(String.format("%s - Using prefetch result for all fragments from partition %d",
-                                                 ts, partition));
+                                if (debug.val)
+                                    LOG.debug(String.format("%s - Using prefetch result for all fragments from partition %d",
+                                              ts, partition));
                                 num_skipped++;
                                 continue;
                             }
@@ -3347,8 +3415,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         } // FOR
                         if (needs_profiling) ts.profiler.stopSerialization();
                     }
-                    if (trace.val) LOG.trace(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
-                                     ts, num_remote));
+                    if (trace.val)
+                        LOG.trace(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
+                                  ts, num_remote));
                     this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams);
                     if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
@@ -3356,8 +3425,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Then dispatch the task that are needed at the same HStoreSite but 
                 // at a different partition than this one
                 if (num_localSite > 0) {
-                    if (trace.val) LOG.trace(String.format("%s - Executing %d WorkFragments on local site's partitions",
-                                     ts, num_localSite));
+                    if (trace.val)
+                        LOG.trace(String.format("%s - Executing %d WorkFragments on local site's partitions",
+                                  ts, num_localSite));
                     for (WorkFragment.Builder builder : this.tmp_localSiteFragmentBuilders) {
                         hstore_site.getPartitionExecutor(builder.getPartitionId()).queueWork(ts, builder.build());
                     } // FOR
@@ -3378,7 +3448,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
             }
             if (trace.val) LOG.trace(String.format("%s - Dispatched %d WorkFragments " +
-            		         "[remoteSite=%d, localSite=%d, localPartition=%d]",
+                             "[remoteSite=%d, localSite=%d, localPartition=%d]",
                              ts, total, num_remote, num_localSite, num_localPartition));
             first = false;
         } // WHILE
@@ -3509,7 +3579,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         if (debug.val) {
             LOG.debug(String.format("%s - Processing ClientResponse at partition %d " +
-            		  "[status=%s, singlePartition=%s, local=%s, clientHandle=%d]",
+                      "[status=%s, singlePartition=%s, local=%s, clientHandle=%d]",
                       ts, this.partitionId, status, ts.isPredictSinglePartition(),
                       ts.isExecLocal(this.partitionId), cresponse.getClientHandle()));
             if (trace.val) {
@@ -3609,8 +3679,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             
             if (hstore_conf.site.exec_profiling) {
-            	this.profiler.network_time.start();
-            	this.profiler.idle_2pc_local_time.start();
+                this.profiler.network_time.start();
+                this.profiler.idle_2pc_local_time.start();
             }
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
@@ -3648,7 +3718,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private boolean prepareTransaction(AbstractTransaction ts) {
         assert(ts != null) : "Null transaction handle???";
-        if (debug.val) LOG.debug(String.format("%s - Preparing to commit txn at partition %d", ts, this.partitionId));
+        if (debug.val)
+            LOG.debug(String.format("%s - Preparing to commit txn at partition %d",
+                      ts, this.partitionId));
         
         // Skip if we've already invoked prepared for this txn at this partition
         if (ts.isMarkedPrepared(this.partitionId) == false) {
@@ -3656,8 +3728,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             // Set the speculative execution commit mode
             if (hstore_conf.site.specexec_enable) {
-                if (debug.val) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
-                                 ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
+                              ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
                 
                 // Check whether the txn that we're waiting for is read-only.
                 // If it is, then that means all read-only transactions can commit right away
@@ -3828,10 +3901,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param status - The final status of the transaction
      */
     private void finishDistributedTransaction(final AbstractTransaction ts, final Status status) {
-        if (debug.val) LOG.debug(String.format("%s - Processing finish request at partition %d " +
-                         "[status=%s, readOnly=%s]",
-                         ts, this.partitionId,
-                         status, ts.isExecReadOnly(this.partitionId)));
+        if (debug.val)
+            LOG.debug(String.format("%s - Processing finish request at partition %d " +
+                      "[status=%s, readOnly=%s]",
+                      ts, this.partitionId,
+                      status, ts.isExecReadOnly(this.partitionId)));
         if (this.currentDtxn == ts) {
             // 2012-11-22 -- Yes, today is Thanksgiving and I'm working on my database.
             // That's just grad student life I guess. Anyway, if you're reading this then 
@@ -3855,8 +3929,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (this.specExecBlocked.isEmpty() == false) {
                 // First thing we need to do is get the latch that will be set by any transaction
                 // that was in the middle of being executed when we were called
-                if (debug.val) LOG.debug(String.format("%s - Checking %d blocked speculative transactions at partition %d currentMode=%s]",
-                		         ts, this.specExecBlocked.size(), this.partitionId, this.currentExecMode));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Checking %d blocked speculative transactions at " +
+                    		  "partition %d [currentMode=%s]",
+                              ts, this.specExecBlocked.size(), this.partitionId, this.currentExecMode));
                 
                 LocalTransaction spec_ts = null;
                 ClientResponseImpl spec_cr = null;
@@ -3900,9 +3976,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             tmp_toRestart.push(pair);
                         }
                     } // FOR
-                    if (debug.val) LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be committed " +
-                                     "*before* we abort this txn",
-                                     ts, tmp_toCommit.size(), this.partitionId));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be committed " +
+                                  "*before* we abort this txn",
+                                  ts, tmp_toCommit.size(), this.partitionId));
     
                     // Commit the greatest token that we've seen. This means that
                     // all our other txns can be safely processed without needing
@@ -3921,13 +3998,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         
                         try {
                             if (hstore_conf.site.exec_postprocessing_threads) {
-                                if (trace.val) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
-                                                 ts, spec_ts, spec_cr.getStatus()));
+                                if (trace.val)
+                                    LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
+                                              ts, spec_ts, spec_cr.getStatus()));
                                 hstore_site.responseQueue(spec_ts, spec_cr);
                             }
                             else {
-                                if (trace.val) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                                 ts, spec_ts, spec_cr.getStatus()));
+                                if (trace.val)
+                                    LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                              ts, spec_ts, spec_cr.getStatus()));
                                 this.processClientResponse(spec_ts, spec_cr);
                             }
                         } catch (Throwable ex) {
@@ -3969,8 +4048,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     // special 'finishWorkEE' method that does not require us to provide
                     // the transaction that we're committing.
                     long undoToken = this.lastUndoToken;
-                    if (debug.val) LOG.debug(String.format("%s - Last undoToken at partition %d => %d",
-                                     ts, this.partitionId, undoToken));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Last undoToken at partition %d => %d",
+                                  ts, this.partitionId, undoToken));
                     // Bombs away!
                     if (undoToken != this.lastCommittedUndoToken) {
                         this.finishWorkEE(ts, undoToken, true);
@@ -3996,13 +4076,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         spec_ts.markFinished(this.partitionId);
                         try {
                             if (hstore_conf.site.exec_postprocessing_threads) {
-                                if (trace.val) LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
-                                                 ts, spec_ts, spec_cr.getStatus()));
+                                if (trace.val)
+                                    LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
+                                              ts, spec_ts, spec_cr.getStatus()));
                                 hstore_site.responseQueue(spec_ts, spec_cr);
                             }
                             else {
-                                if (trace.val) LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                                 ts, spec_ts, spec_cr.getStatus()));
+                                if (trace.val)
+                                    LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                              ts, spec_ts, spec_cr.getStatus()));
                                 this.processClientResponse(spec_ts, spec_cr);
                             }
                         } catch (Throwable ex) {
@@ -4013,7 +4095,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
                 this.specExecBlocked.clear();
                 this.specExecModified = false;
-                if (trace.val) LOG.trace(String.format("Finished processing all queued speculative txns for dtxn %s", ts));
+                if (trace.val)
+                    LOG.trace(String.format("Finished processing all queued speculative txns for dtxn %s", ts));
             }
             // -------------------------------
             // NO SPECULATIVE TXNS
@@ -4021,8 +4104,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             else {
                 // There are no speculative txns waiting for this dtxn, 
                 // so we can just commit it right away
-                if (trace.val) LOG.trace(String.format("%s - No speculative txns at partition %d. Just %s txn by itself",
-                                 ts, this.partitionId, (status == Status.OK ? "commiting" : "aborting")));
+                if (trace.val)
+                    LOG.trace(String.format("%s - No speculative txns at partition %d. Just %s txn by itself",
+                              ts, this.partitionId, (status == Status.OK ? "commiting" : "aborting")));
                 this.finishTransaction(ts, status);
             }
             
@@ -4035,9 +4119,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             // Check whether this is the response that the speculatively executed txns have been waiting for
             // We could have turned off speculative execution mode beforehand 
-            if (debug.val) LOG.debug(String.format("%s - Attempting to unmark as the current DTXN at partition %d and " +
-            		         "setting execution mode to %s",
-                             ts, this.partitionId, ExecutionMode.COMMIT_ALL));
+            if (debug.val)
+                LOG.debug(String.format("%s - Attempting to unmark as the current DTXN at partition %d and " +
+                          "setting execution mode to %s",
+                          ts, this.partitionId, ExecutionMode.COMMIT_ALL));
             try {
                 // Resetting the current_dtxn variable has to come *before* we change the execution mode
                 this.resetCurrentDtxn();
@@ -4049,8 +4134,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
             }
-        } else {
-            assert(status != Status.OK);
+        }
+        // We were told told to finish a dtxn that is not the current one
+        // at this partition. That's ok as long as it's aborting and not trying
+        // to commit.
+        else {
+            assert(status != Status.OK) :
+                String.format("Trying to commit %s at partition %d but the current dtxn is %s",
+                              ts, this.partitionId, this.currentDtxn);
             this.queueManager.lockQueueFinished(ts, status, this.partitionId);
         }
         

@@ -57,7 +57,7 @@ public class TransactionMapCallback extends AbstractTransactionCallback<MapReduc
             if (debug.val)
                 LOG.debug(ts + ": $$$ normal reduce blocking execution way");
             // calling this hstore_site.transactionStart function will block the executing engine on each partition
-            hstore_site.transactionStart(ts, ts.getBasePartition());
+            hstore_site.transactionStart(ts);
         } else {
             // throw reduce job to MapReduceHelperThread to do
             if (debug.val)

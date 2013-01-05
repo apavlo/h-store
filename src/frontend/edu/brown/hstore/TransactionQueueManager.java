@@ -239,6 +239,12 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // Release transactions for initialization
             this.checkInitQueue();
             
+            // Release transactions for execution
+            for (int partition : this.localPartitions.values()) {
+                this.checkLockQueue(partition);
+            } // FOR
+            
+            
             // Release blocked distributed transactions
 //            if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
             this.checkBlockedQueue();
@@ -350,20 +356,20 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      */
     protected AbstractTransaction checkLockQueue(int partition) {
         if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.start();
-        if (trace.val) LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
-                                 partition, this.lockQueues[partition].size()));
+        if (trace.val)
+            LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
+                      partition, this.lockQueues[partition].size()));
         
         if (this.lockQueuesBlocked[partition] != false) {
-            if (trace.val) LOG.warn(String.format("Partition %d is already executing transaction %d. Skipping...",
-                                    partition, this.lockQueuesLastTxn[partition]));
+            if (trace.val)
+                LOG.warn(String.format("Partition %d is already executing transaction %d. Skipping...",
+                         partition, this.lockQueuesLastTxn[partition]));
             if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stop();
             return (null);
         }
         
-        if (trace.val) LOG.trace("Checking initQueues for " + this.localPartitions.size() + " partitions");
         PartitionCountingCallback<AbstractTransaction> callback = null;
         AbstractTransaction nextTxn = null;
-        // Long nextTxnId = null;
         while (nextTxn == null) {
             // Poll the queue and get the next value. 
             nextTxn = this.lockQueues[partition].poll();
@@ -371,9 +377,10 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // If null, then there is nothing that is ready to run at this partition,
             // so we'll just skip to the next one
             if (nextTxn == null) {
-                if (trace.val) LOG.trace(String.format("Partition %d initQueue does not have a transaction ready to run. Skipping... " +
-                		         "[queueSize=%d]",
-                                 partition, this.lockQueues[partition].size()));
+                if (trace.val)
+                    LOG.trace(String.format("Partition %d initQueue does not have a " +
+                	          "transaction ready to run. Skipping... [queueSize=%d]",
+                              partition, this.lockQueues[partition].size()));
                 this.lockQueues[partition].checkQueueState();
                 break;
             }
@@ -387,8 +394,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // do. Somebody else will make sure that this txn is removed from the queue
             if (callback.isAborted()) {
                 if (debug.val)
-                    LOG.debug(String.format("The next id for partition %d is %s but its callback is marked as aborted. " +
-                              "[queueSize=%d]",
+                    LOG.debug(String.format("The next id for partition %d is %s but its callback is " +
+                    		  "marked as aborted. [queueSize=%d]",
                               partition, nextTxn, this.lockQueuesLastTxn[partition],
                               this.lockQueues[partition].size()));
                 this.lockQueues[partition].remove(nextTxn);
@@ -400,8 +407,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // anything at this moment. 
             else if (this.lockQueuesLastTxn[partition].compareTo(nextTxn.getTransactionId()) > 0) {
                 if (debug.val)
-                    LOG.debug(String.format("The next id for partition %d is %s but this is less than the previous txn #%d. Rejecting... " +
-                              "[queueSize=%d]",
+                    LOG.debug(String.format("The next id for partition %d is %s but this is less " +
+                    		  "than the previous txn #%d. Rejecting... [queueSize=%d]",
                               partition, nextTxn, this.lockQueuesLastTxn[partition],
                               this.lockQueues[partition].size()));
                 if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stop();
@@ -414,7 +421,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             }
 
             if (debug.val)
-                LOG.debug(String.format("Good news! Partition %d is ready to execute %s! Invoking initQueue callback!",
+                LOG.debug(String.format("Good news! Partition %d is ready to execute %s! " +
+                		  "Invoking initQueue callback!",
                           partition, nextTxn));
             this.lockQueuesLastTxn[partition] = nextTxn.getTransactionId();
             this.lockQueuesBlocked[partition] = true; 
@@ -424,8 +432,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 callback.run(partition);
             } catch (NullPointerException ex) {
                 // HACK: Ignore...
-                if (debug.val) LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
-                                callback.getClass().getSimpleName(), nextTxn, partition), ex);
+                if (debug.val)
+                    LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
+                             callback.getClass().getSimpleName(), nextTxn, partition), ex);
             } catch (Throwable ex) {
                 String msg = String.format("Failed to invoke %s for %s at partition %d",
                                            callback.getClass().getSimpleName(), nextTxn, partition);

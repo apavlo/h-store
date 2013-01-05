@@ -58,7 +58,7 @@ public class SlowTransactionInitCallback extends AbstractTransactionCallback<Loc
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) this.ts.profiler.stopInitDtxn();
         if (debug.val)
             LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
-        hstore_site.transactionStart((LocalTransaction)this.ts, this.ts.getBasePartition());
+        hstore_site.transactionStart((LocalTransaction)this.ts);
     }
     
     @Override

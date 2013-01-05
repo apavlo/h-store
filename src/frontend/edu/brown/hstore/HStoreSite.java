@@ -96,6 +96,7 @@ import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimatorState;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.stats.BatchPlannerProfilerStats;
 import edu.brown.hstore.stats.MarkovEstimatorProfilerStats;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
@@ -1855,20 +1856,30 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //            }
 //        } // FOR
     }
+    
+    public void transactionSetPartitionLock(AbstractTransaction ts, int partition) {
+        assert(ts.isInitialized()) : "Uninitialized transaction handle [" + ts + "]";
+        assert(this.isLocalPartition(partition)) :
+            String.format("Trying to queue %s for %s at non-local partition %d",
+                          SetDistributedTxnMessage.class.getSimpleName(), ts, partition);
+        this.executors[partition].queueSetPartitionLock(ts);
+    }
 
     /**
      * Queue the transaction to start executing on its base partition.
      * This function can block a transaction executing on that partition
      * <B>IMPORTANT:</B> The transaction could be deleted after calling this if it is rejected
-     * @param ts, base_partition
+     * @param ts
      */
-    public void transactionStart(LocalTransaction ts, int base_partition) {
+    public void transactionStart(LocalTransaction ts) {
+        final int base_partition = ts.getBasePartition();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         
-        if (debug.val) LOG.debug(String.format("Starting %s %s on partition %d%s",
-                         (singlePartitioned ? "single-partition" : "distributed"),
-                         ts, base_partition,
-                         (singlePartitioned ? "" : " [partitions=" + ts.getPredictTouchedPartitions() + "]")));
+        if (debug.val)
+            LOG.debug(String.format("Starting %s %s on partition %d%s",
+                      (singlePartitioned ? "single-partition" : "distributed"),
+                      ts, base_partition,
+                      (singlePartitioned ? "" : " [partitions=" + ts.getPredictTouchedPartitions() + "]")));
         assert(ts.getPredictTouchedPartitions().isEmpty() == false) :
             "No predicted partitions for " + ts + "\n" + ts.debug();
         
@@ -1885,10 +1896,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // before sending another txn request, where as an ABORT_REJECT means
             // that it will just try immediately
             Status status = Status.ABORT_REJECT;
-            if (debug.val) LOG.debug(String.format("%s - Hit with a %s response from partition %d " +
-                             "[queueSize=%d]",
-                             ts, status, base_partition,
-                             this.executors[base_partition].getDebugContext().getWorkQueueSize()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Hit with a %s response from partition %d " +
+                          "[queueSize=%d]",
+                          ts, status, base_partition,
+                          this.executors[base_partition].getDebugContext().getWorkQueueSize()));
             if (singlePartitioned == false) {
                 TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
@@ -1906,10 +1918,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param clientCallback
      */
     public void transactionWork(AbstractTransaction ts, WorkFragment fragment) {
-        if (debug.val) LOG.debug(String.format("%s - Queuing %s on partition %d " +
-                         "[prefetch=%s]",
-                         ts, fragment.getClass().getSimpleName(),
-                         fragment.getPartitionId(), fragment.getPrefetch()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Queuing %s on partition %d [prefetch=%s]",
+                      ts, fragment.getClass().getSimpleName(),
+                      fragment.getPartitionId(), fragment.getPrefetch()));
         assert(this.isLocalPartition(fragment.getPartitionId())) :
             "Trying to queue work for " + ts + " at non-local partition " + fragment.getPartitionId();
         

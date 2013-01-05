@@ -56,6 +56,7 @@ import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -140,6 +141,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // ----------------------------------------------------------------------------
     
     private final InitializeTxnMessage init_task;
+    
+    private final SetDistributedTxnMessage setdtxn_task;
     
     private final PrepareTxnMessage prepare_task;
     
@@ -268,6 +271,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.exec_noUndoBuffer = new boolean[numPartitions];
         
         this.init_task = new InitializeTxnMessage(this);
+        this.setdtxn_task = new SetDistributedTxnMessage(this);
         this.prepare_task = new PrepareTxnMessage(this);
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numPartitions];
@@ -750,19 +754,24 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         }
     }
     
-    public InitializeTxnMessage getInitializeTxnMessage() {
+    // ----------------------------------------------------------------------------
+    // INTERNAL MESSAGE WRAPPERS
+    // ----------------------------------------------------------------------------
+    
+    public final InitializeTxnMessage getInitializeTxnMessage() {
         return (this.init_task);
     }
-    public PrepareTxnMessage getPrepareTxnMessage() {
+    public final SetDistributedTxnMessage getSetDistributedTxnMessage() {
+        return (this.setdtxn_task);
+    }
+    public final PrepareTxnMessage getPrepareTxnMessage() {
         return (this.prepare_task);
     }
-    
-    public FinishTxnMessage getFinishTxnMessage(Status status) {
+    public final FinishTxnMessage getFinishTxnMessage(Status status) {
         this.finish_task.setStatus(status);
         return (this.finish_task);
     }
-    
-    public WorkFragmentMessage getWorkFragmentMessage(WorkFragment fragment) {
+    public final WorkFragmentMessage getWorkFragmentMessage(WorkFragment fragment) {
         int partition = fragment.getPartitionId();
         if (this.work_task[partition] == null) {
             this.work_task[partition] = new WorkFragmentMessage(this, fragment);
