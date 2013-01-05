@@ -68,7 +68,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final PartitionSet localPartitions;
-    private final Semaphore checkFlag = new Semaphore(1);
     private boolean stop = false;
     
     /**
@@ -262,10 +261,13 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         if (debug.val) LOG.debug("Starting distributed transaction queue manager thread");
         
+        boolean poke;
+        final Semaphore checkFlag = new Semaphore(1);
         while (this.stop == false) {
+            poke = false;
             // if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
-                this.checkFlag.tryAcquire(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
+                checkFlag.tryAcquire(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
             } catch (InterruptedException e) {
                 // Nothing...
             } finally {
@@ -275,8 +277,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // Release transactions for execution
             for (int partition : this.localPartitions.values()) {
                 if (this.checkLockQueue(partition) == null) {
-                    if (this.checkFlag.availablePermits() == 0)
-                        this.checkFlag.release();
+                    
                 }
             } // FOR
             
@@ -304,6 +305,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
 //                profiler.concurrent_dtxn.put(profiler.concurrent_dtxn_ids.size());
 //            }
             
+            if (poke && checkFlag.availablePermits() == 0) {
+                checkFlag.release();
+            }
         } // WHILE
     }
     
@@ -393,8 +397,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     
     protected void initTransaction(AbstractTransaction ts) {
         this.initQueue.add(ts);
-        if (this.checkFlag.availablePermits() == 0)
-            this.checkFlag.release();
     }
     
     
@@ -794,8 +796,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 this.blockedQueueHistogram.put(id);
             } // SYNCH
         }
-        if (this.checkFlag.availablePermits() == 0)
-            this.checkFlag.release();
     }
     
     /**
@@ -870,8 +870,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         }
         if (debug.val)
             LOG.debug(String.format("%s - Successfully added txn to restart queue.", ts));
-        if (this.checkFlag.availablePermits() == 0)
-            this.checkFlag.release();
     }
     
     private void checkRestartQueue() {
