@@ -109,12 +109,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
      * The profiling information for each PartitionExecutor since
      * the last status snapshot 
      */
-    private final Map<PartitionExecutor, ProfileMeasurement> lastExecTxnTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
-    private final Map<PartitionExecutor, ProfileMeasurement> lastExecIdleTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
-//    private final Map<PartitionExecutor, ProfileMeasurement> lastSleepTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
-//    private final Map<PartitionExecutor, ProfileMeasurement> lastPollTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
-    private final Map<PartitionExecutor, ProfileMeasurement> lastExecNetworkTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
-    private final Map<PartitionExecutor, ProfileMeasurement> lastExecUtilityTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
+    private final Map<PartitionExecutor, PartitionExecutorProfiler> lastExecMeasurements = new IdentityHashMap<PartitionExecutor, PartitionExecutorProfiler>();
 
     /**
      * Maintain a set of tuples for the transaction profile times
@@ -455,17 +450,12 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         HStoreThreadManager threadManager = hstore_site.getThreadManager();
         HStoreThreadManager.Debug threadManagerDebug = threadManager.getDebugContext();
         
-        ProfileMeasurement totalExecTxnTime = new ProfileMeasurement();
-        ProfileMeasurement totalExecIdleTime = new ProfileMeasurement();
-//        ProfileMeasurement totalSleepTime = new ProfileMeasurement();
-//        ProfileMeasurement totalPollTime = new ProfileMeasurement();
-        ProfileMeasurement totalExecNetworkTime = new ProfileMeasurement();
+        PartitionExecutorProfiler total = new PartitionExecutorProfiler(); 
         
         // EXECUTION ENGINES
         Map<Integer, String> partitionLabels = new HashMap<Integer, String>();
         ObjectHistogram<Integer> invokedTxns = new ObjectHistogram<Integer>();
         Long txn_id = null;
-        ProfileMeasurement last = null;
         for (int partition : hstore_site.getLocalPartitionIds().values()) {
             String partitionLabel = String.format("%02d", partition);
             partitionLabels.put(partition, partitionLabel);
@@ -538,48 +528,48 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
             if (hstore_conf.site.exec_profiling) {
                 PartitionExecutorProfiler profiler = executorDebug.getProfiler();
-                
-                // Execution Time
-                pm = profiler.txn_time;
-                last = lastExecTxnTimes.get(executor);
-                m.put("Txn Execution", this.formatProfileMeasurements(pm, last, true, true)); 
-                this.lastExecTxnTimes.put(executor, new ProfileMeasurement(pm));
+                PartitionExecutorProfiler lastProfiler = this.lastExecMeasurements.get(executor);
+                if (lastProfiler == null) {
+                    lastProfiler = new PartitionExecutorProfiler();
+                    this.lastExecMeasurements.put(executor, lastProfiler);
+                }
+                ProfileMeasurement last = null;
                 invokedTxns.put(partition, (int)profiler.txn_time.getInvocations());
-                totalExecTxnTime.appendTime(pm);
+                
+                // Work Time
+                pm = profiler.exec_time;
+                last = lastProfiler.exec_time;
+                m.put("Work Time", this.formatProfileMeasurements(pm, last, true, true)); 
+                last.appendTime(pm);
+                total.exec_time.appendTime(pm);
+                
+                // Txn Execution Time
+                pm = profiler.txn_time;
+                last = lastProfiler.txn_time;
+                m.put("Txn Time", this.formatProfileMeasurements(pm, last, false, false));
+                last.appendTime(pm);
+                total.txn_time.appendTime(pm);
                 
                 // Idle Time
-                last = lastExecIdleTimes.get(executor);
                 pm = profiler.idle_time;
-                m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false)); 
-                this.lastExecIdleTimes.put(executor, new ProfileMeasurement(pm));
-                totalExecIdleTime.appendTime(pm);
-                
-                // Sleep Time
-//                last = lastSleepTimes.get(executor);
-//                pm = profiler.sleep_time;
-//                m.put("Sleep Time", this.formatProfileMeasurements(pm, last, false, false)); 
-//                this.lastSleepTimes.put(executor, new ProfileMeasurement(pm));
-//                totalSleepTime.appendTime(pm);
-                
-                // Poll Time
-//                last = lastPollTimes.get(executor);
-//                pm = profiler.poll_queue_time;
-//                m.put("Poll Time", this.formatProfileMeasurements(pm, last, false, false)); 
-//                this.lastPollTimes.put(executor, new ProfileMeasurement(pm));
-//                totalPollTime.appendTime(pm);
+                last = lastProfiler.idle_time;
+                m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false));
+                last.appendTime(pm);
+                total.idle_time.appendTime(pm);
                 
                 // Network Time
-                last = lastExecNetworkTimes.get(executor);
                 pm = profiler.network_time;
-                m.put("Network Time", this.formatProfileMeasurements(pm, last, false, true)); 
-                this.lastExecNetworkTimes.put(executor, new ProfileMeasurement(pm));
-                totalExecNetworkTime.appendTime(pm);
+                last = lastProfiler.network_time;
+                m.put("Network Time", this.formatProfileMeasurements(pm, last, false, false));
+                last.appendTime(pm);
+                total.network_time.appendTime(pm);
                 
                 // Utility Time
-                last = lastExecUtilityTimes.get(executor);
                 pm = profiler.util_time;
-                m.put("Utility Time", this.formatProfileMeasurements(pm, last, false, true)); 
-                this.lastExecUtilityTimes.put(executor, new ProfileMeasurement(pm));
+                last = lastProfiler.util_time;
+                m.put("Utility Time", this.formatProfileMeasurements(pm, last, false, false));
+                last.appendTime(pm);
+                total.util_time.appendTime(pm);
             }
             
             String label = "    Partition[" + partitionLabel + "]";
@@ -596,11 +586,11 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         } // FOR
         
         if (hstore_conf.site.exec_profiling) {
-            m_exec.put("Total Txn Execution", this.formatProfileMeasurements(totalExecTxnTime, null, true, true));
-            m_exec.put("Total Idle Time", this.formatProfileMeasurements(totalExecIdleTime, null, true, true));
-//            m_exec.put("Total Sleep Time", this.formatProfileMeasurements(totalSleepTime, null, true, true));
-//            m_exec.put("Total Poll Time", this.formatProfileMeasurements(totalPollTime, null, true, true));
-            m_exec.put("Total Network Time", this.formatProfileMeasurements(totalExecNetworkTime, null, true, true));
+            m_exec.put("Total Work Time", this.formatProfileMeasurements(total.exec_time, null, true, true));
+            m_exec.put("Total Txn Time", this.formatProfileMeasurements(total.txn_time, null, true, true));
+            m_exec.put("Total Idle Time", this.formatProfileMeasurements(total.idle_time, null, true, true));
+            m_exec.put("Total Network Time", this.formatProfileMeasurements(total.network_time, null, true, true));
+            m_exec.put("Total Util Time", this.formatProfileMeasurements(total.util_time, null, true, true));
             m_exec.put(" ", null);
         }
         
