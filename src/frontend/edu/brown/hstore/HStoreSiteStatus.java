@@ -553,7 +553,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 // Idle Time
                 pm = profiler.idle_time;
                 last = lastProfiler.idle_time;
-                m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, true));
+                m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false));
                 last.appendTime(pm);
                 total.idle_time.appendTime(pm);
                 
