@@ -54,8 +54,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // STATIC CONFIGURATION
     // ----------------------------------------------------------------------------
     
-    private static final int THREAD_WAIT_TIME = 500; // 0.5 millisecond
-    private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MICROSECONDS;
+    private static final int THREAD_WAIT_TIME = 1; // 0.5 millisecond
+    private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MILLISECONDS;
     
     private static final int CHECK_INIT_QUEUE_LIMIT = 1000;
     private static final int CHECK_BLOCK_QUEUE_LIMIT = 100;
@@ -273,7 +273,10 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             
             // Release transactions for execution
             for (int partition : this.localPartitions.values()) {
-                this.checkLockQueue(partition);
+                if (this.checkLockQueue(partition) == null) {
+                    if (this.checkFlag.availablePermits() == 0)
+                        this.checkFlag.release();
+                }
             } // FOR
             
             // Release transactions for initialization

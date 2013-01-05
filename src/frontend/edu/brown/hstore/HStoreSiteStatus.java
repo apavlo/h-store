@@ -546,7 +546,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 // Txn Execution Time
                 pm = profiler.txn_time;
                 last = lastProfiler.txn_time;
-                m.put("Txn Time", this.formatProfileMeasurements(pm, last, false, false));
+                m.put("Txn Time", this.formatProfileMeasurements(pm, last, true, false));
                 last.appendTime(pm);
                 total.txn_time.appendTime(pm);
                 
@@ -616,7 +616,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                              boolean showInvocations, boolean compareLastAvg) {
         String value = "";
         if (showInvocations) {
-            value += String.format("%d txns / ", pm.getInvocations()); 
+            value += String.format("%d invocations / ", pm.getInvocations()); 
         }
         
         String avgTime = StringUtil.formatTime("%.2f", pm.getAverageThinkTime());
