@@ -3781,8 +3781,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
         if (ts.needsFinish(this.partitionId) && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-            if (debug.val) LOG.debug(String.format("%s - Invoking EE to finish work for txn [%s / speculative=%s]",
-                             ts, status, ts.isSpeculative()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Invoking EE to finish work for txn [%s / speculative=%s]",
+                          ts, status, ts.isSpeculative()));
             this.finishWorkEE(ts, undoToken, commit);
         }
         if (hstore_conf.site.exec_profiling) {
@@ -3793,12 +3794,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
         
-        if (debug.val) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
-                         ts, this.partitionId));
+        if (debug.val)
+            LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
+                      ts, this.partitionId));
         this.queueManager.lockQueueFinished(ts, status, this.partitionId);
         
-        if (debug.val) LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
-                         ts, (commit ? "commit" : "abort"), this.partitionId));
+        if (debug.val)
+            LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
+                      ts, (commit ? "commit" : "abort"), this.partitionId));
         ts.markFinished(this.partitionId);
     }
     
