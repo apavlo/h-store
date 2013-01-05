@@ -12,6 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ProcInfo;
 
 import edu.brown.hstore.conf.HStoreConf.Conf;
 import edu.brown.utils.ArgumentsParser;
@@ -33,6 +34,9 @@ public abstract class HStoreConfUtil {
     
     private static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
     private static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">$1.$2</a>";
+    
+    private static final Pattern REGEX_SYSPROC = Pattern.compile("\\@([A-Z][\\w]+)");
+    private static final String REGEX_SYSPROC_REPLACE = "<a href=\"/documentation/system-procedures/%s\" class=\"sysproc\">@%s</a>";
 
     private static final String NO_PREFIX_MARKER = "*NONE*";
     
@@ -184,6 +188,18 @@ public abstract class HStoreConfUtil {
                 // Create links to other parameters
                 m = REGEX_CONFIG.matcher(desc);
                 if (m.find()) desc = m.replaceAll(REGEX_CONFIG_REPLACE);
+                
+                // Create links to sysprocs
+                m = REGEX_SYSPROC.matcher(desc);
+                if (m.find()) {
+                    String sysproc = m.group(1);
+                    // Skip @ProcInfo
+                    if (sysproc.equalsIgnoreCase(ProcInfo.class.getSimpleName()) == false) {
+                        String replace = String.format(REGEX_SYSPROC_REPLACE, sysproc.toLowerCase(), sysproc);
+                        desc = m.replaceAll(replace);
+                    }
+                }
+                
                 values.put("DESC", desc);
                 
                 // CREATE HTML FROM TEMPLATE

@@ -224,9 +224,11 @@ public final class HStoreConf {
         public int exec_ee_log_level;
         
         @ConfigProperty(
-            description="Enable execution site profiling. This will keep track of how busy each PartitionExecutor " +
-            		    "thread is during execution (i.e., the percentage of time that it spends executing a " +
-            		    "transaction versus waiting for work to be added to its queue).",
+            description="Enable execution site profiling. This will keep track of how busy each " +
+            		    "PartitionExecutor thread is during execution (i.e., the percentage of " +
+            		    "time that it spends executing a transaction versus waiting for work to " +
+            		    "be added to its queue). " +
+            		    "The profiling data collected can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
             experimental=false
         )
@@ -506,7 +508,8 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="If enabled, then the SpecExecScheduler will keep track of various internal " +
-                        "profile statistics.",
+                        "profile statistics. " +
+                        "The profiling data collected can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
             experimental=true
         )
@@ -691,7 +694,8 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Enable transaction profiling. This will measure the amount of time a " +
             		    "transaction spends in different parts of the system (e.g., waiting in " +
-            		    "the work queue, planning, executing).",
+            		    "the work queue, planning, executing). " +
+            		    "The profiling data collected can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
             experimental=false
         )
@@ -745,7 +749,9 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable profiling in the TransactionQueueManager.",
+            description="Enable profiling in the TransactionQueueManager and TransactionInitPriority " +
+            		    "in the HStoreSite. " +
+            		    "The profiling data collected can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
             experimental=false
         )
@@ -886,7 +892,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Enable profiling in the MarkovEstimator. " +
-            		    "This data can be retrieved using the @Statistics sysproc.",
+                        "The profiling data collected can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
             experimental=false
         )
@@ -897,8 +903,10 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable BatchPlanner profiling. This will keep of how long the BatchPlanner spends performing " +
-                        "certain operations.",
+            description="Enable BatchPlanner profiling. This will keep of how long the BatchPlanner " +
+            		    "spends performing certain operations when generating an execution plan for " +
+            		    "a batch of queries submitted by a running transaction. " +
+            		    "The profiling data collected can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,
             experimental=false
         )
