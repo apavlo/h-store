@@ -3524,19 +3524,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
         }
 
-/*
-        if(status == Status.ABORT_EVICTEDACCESS)
-        {
-            LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
+//        if(status == Status.ABORT_EVICTEDACCESS) {
+//            LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
+//            
+//            this.finishWork(ts, false);
+//            this.hstore_site.transactionRestart(ts, status);
+//        }
+        
+        // -------------------------------
+        // ALL: Transactions that need to be internally restarted
+        // -------------------------------
+        if (status == Status.ABORT_MISPREDICT ||
+            status == Status.ABORT_SPECULATIVE ||
+            status == Status.ABORT_EVICTEDACCESS) {
             
-            this.finishWork(ts, false);
-            this.hstore_site.transactionRestart(ts, status);
-        }
-        */
-        // -------------------------------
-        // ALL: Mispredicted Transactions
-        // -------------------------------
-        else if (status == Status.ABORT_MISPREDICT || status == Status.ABORT_EVICTEDACCESS) {
             // If the txn was mispredicted, then we will pass the information over to the
             // HStoreSite so that it can re-execute the transaction. We want to do this 
             // first so that the txn gets re-executed as soon as possible...
