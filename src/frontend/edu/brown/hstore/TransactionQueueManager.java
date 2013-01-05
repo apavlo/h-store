@@ -356,14 +356,23 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         int limit = CHECK_INIT_QUEUE_LIMIT;
         int added = 0;
         this.initRejected.clear();
-        while ((next_init = this.initQueue.poll()) != null) {
+        while ((next_init = this.initQueue.peek()) != null) {
             PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
             assert(callback.isInitialized());
             boolean ret = false;
+            boolean removed = false;
             
             for (int partition : next_init.getPredictTouchedPartitions()) {
                 if (hstore_site.isLocalPartition(partition) == false) continue;
                 if (this.initRejected.contains(partition)) continue;
+                
+                // If we're here, then we know that we're going to try to do
+                // something with this txn. That means we need to make sure that
+                // we remove it from the queue
+                if (removed == false) {
+                    this.initQueue.poll();
+                    removed = true;
+                }
                 
                 // If this txn gets rejected when we try to insert it, then we 
                 // just need to stop trying to add it to other partitions
