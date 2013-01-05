@@ -10,6 +10,48 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
      */
     public long numTransactions = 0;
     
+    // ----------------------------------------------------------------------------
+    // GLOBAL MEASUREMENTS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * How much did the PartitionExecutor spend doing actual execution work, as opposed
+     * to blocked on its PartitionMessageQueue waiting for something to do. 
+     */
+    public final ProfileMeasurement exec_time = new ProfileMeasurement("EXEC");
+    
+    /**
+     * How much time it takes for this PartitionExecutor to 
+     * execute a transaction
+     */
+    public final ProfileMeasurement txn_time = new ProfileMeasurement("TXN");
+    
+    /**
+     * How much time the PartitionExecutor idle waiting for something in its
+     * PartitionMessageQueue.
+     */
+    public final ProfileMeasurement idle_time = new ProfileMeasurement("IDLE");
+    
+    /**
+     * How much time it takes for this PartitionExecutor spends sending
+     * back ClientResponses over the network
+     */
+    public final ProfileMeasurement network_time = new ProfileMeasurement("NETWORK");
+    
+    /**
+     * How much time did this PartitionExecutor spend on utility work
+     */
+    public final ProfileMeasurement util_time = new ProfileMeasurement("UTILITY");
+    
+    /**
+     * How much time did this PartitionExecutor spend in the spec exec conflict checker
+     */
+    public final ProfileMeasurement conflicts_time = new ProfileMeasurement("CONFLICTS");
+    
+    // ----------------------------------------------------------------------------
+    // FINE-GRAINED IDLE MEASUREMENTS
+    // ----------------------------------------------------------------------------
+    
     /**
      * How much time the PartitionExecutor was idle waiting for responses 
      * from queries on remote partitions. (SP1)
@@ -24,15 +66,9 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     
     /**
      * How much time the PartitionExecutor was idle waiting for
-     * work to do in its queue. (SP2.remote)
-     */
-    public final ProfileMeasurement idle_queue_time = new ProfileMeasurement("IDLE_QUEUE");
-    
-    /**
-     * How much time the PartitionExecutor was idle waiting for
      * response of distributed transaction on remote partitions. (SP2.remote)
      */
-    public final ProfileMeasurement idle_queue_dtxn_time = new ConcurrentProfileMeasurement("IDLE_QUEUE_DTXN");
+    public final ProfileMeasurement idle_queue_dtxn_time = new ProfileMeasurement("IDLE_QUEUE_DTXN");
     
     /**
      * How much time the local PartitionExecutor was idle waiting for prepare 
@@ -45,38 +81,6 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
      * messages from base partition. (SP3.remote)
      */
     public final ProfileMeasurement idle_2pc_remote_time = new ConcurrentProfileMeasurement("IDLE_TWO_PHASE_REMOTE");
-    
-    /**
-     * How much time it this PartitionExecutor spent sleeping waiting for work 
-     */
-    public final ProfileMeasurement sleep_time = new ProfileMeasurement("SLEEP");
-    
-    /**
-     * How much time it takes for this PartitionExecutor to 
-     * execute a transaction
-     */
-    public final ProfileMeasurement exec_time = new ProfileMeasurement("EXEC");
-    
-    /**
-     * How much time it takes for this PartitionExecutor spends sending
-     * back ClientResponses over the network
-     */
-    public final ProfileMeasurement network_time = new ProfileMeasurement("NETWORK");
-    
-    /**
-     * How much time did this PartitionExecutor spend on utility work
-     */
-    public final ProfileMeasurement util_time = new ProfileMeasurement("UTILITY");
-    
-    /**
-     * How much time the PartitionExecutor spends polling it's init queue
-     */
-    public final ProfileMeasurement poll_queue_time = new ProfileMeasurement("POLL_QUEUE");
-    
-    /**
-     * How much time did this PartitionExecutor spend in the spec exec conflict checker
-     */
-    public final ProfileMeasurement conflicts_time = new ProfileMeasurement("CONFLICTS");
     
     @Override
     public void reset() {

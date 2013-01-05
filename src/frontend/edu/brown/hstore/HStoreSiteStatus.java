@@ -111,8 +111,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
      */
     private final Map<PartitionExecutor, ProfileMeasurement> lastExecTxnTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
     private final Map<PartitionExecutor, ProfileMeasurement> lastExecIdleTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
-    private final Map<PartitionExecutor, ProfileMeasurement> lastSleepTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
-    private final Map<PartitionExecutor, ProfileMeasurement> lastPollTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
+//    private final Map<PartitionExecutor, ProfileMeasurement> lastSleepTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
+//    private final Map<PartitionExecutor, ProfileMeasurement> lastPollTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
     private final Map<PartitionExecutor, ProfileMeasurement> lastExecNetworkTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
     private final Map<PartitionExecutor, ProfileMeasurement> lastExecUtilityTimes = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
 
@@ -457,8 +457,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         ProfileMeasurement totalExecTxnTime = new ProfileMeasurement();
         ProfileMeasurement totalExecIdleTime = new ProfileMeasurement();
-        ProfileMeasurement totalSleepTime = new ProfileMeasurement();
-        ProfileMeasurement totalPollTime = new ProfileMeasurement();
+//        ProfileMeasurement totalSleepTime = new ProfileMeasurement();
+//        ProfileMeasurement totalPollTime = new ProfileMeasurement();
         ProfileMeasurement totalExecNetworkTime = new ProfileMeasurement();
         
         // EXECUTION ENGINES
@@ -540,33 +540,33 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 PartitionExecutorProfiler profiler = executorDebug.getProfiler();
                 
                 // Execution Time
-                pm = profiler.exec_time;
+                pm = profiler.txn_time;
                 last = lastExecTxnTimes.get(executor);
                 m.put("Txn Execution", this.formatProfileMeasurements(pm, last, true, true)); 
                 this.lastExecTxnTimes.put(executor, new ProfileMeasurement(pm));
-                invokedTxns.put(partition, (int)profiler.exec_time.getInvocations());
+                invokedTxns.put(partition, (int)profiler.txn_time.getInvocations());
                 totalExecTxnTime.appendTime(pm);
                 
                 // Idle Time
                 last = lastExecIdleTimes.get(executor);
-                pm = profiler.idle_queue_time;
+                pm = profiler.idle_time;
                 m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false)); 
                 this.lastExecIdleTimes.put(executor, new ProfileMeasurement(pm));
                 totalExecIdleTime.appendTime(pm);
                 
                 // Sleep Time
-                last = lastSleepTimes.get(executor);
-                pm = profiler.sleep_time;
-                m.put("Sleep Time", this.formatProfileMeasurements(pm, last, false, false)); 
-                this.lastSleepTimes.put(executor, new ProfileMeasurement(pm));
-                totalSleepTime.appendTime(pm);
+//                last = lastSleepTimes.get(executor);
+//                pm = profiler.sleep_time;
+//                m.put("Sleep Time", this.formatProfileMeasurements(pm, last, false, false)); 
+//                this.lastSleepTimes.put(executor, new ProfileMeasurement(pm));
+//                totalSleepTime.appendTime(pm);
                 
                 // Poll Time
-                last = lastPollTimes.get(executor);
-                pm = profiler.poll_queue_time;
-                m.put("Poll Time", this.formatProfileMeasurements(pm, last, false, false)); 
-                this.lastPollTimes.put(executor, new ProfileMeasurement(pm));
-                totalPollTime.appendTime(pm);
+//                last = lastPollTimes.get(executor);
+//                pm = profiler.poll_queue_time;
+//                m.put("Poll Time", this.formatProfileMeasurements(pm, last, false, false)); 
+//                this.lastPollTimes.put(executor, new ProfileMeasurement(pm));
+//                totalPollTime.appendTime(pm);
                 
                 // Network Time
                 last = lastExecNetworkTimes.get(executor);
@@ -598,8 +598,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         if (hstore_conf.site.exec_profiling) {
             m_exec.put("Total Txn Execution", this.formatProfileMeasurements(totalExecTxnTime, null, true, true));
             m_exec.put("Total Idle Time", this.formatProfileMeasurements(totalExecIdleTime, null, true, true));
-            m_exec.put("Total Sleep Time", this.formatProfileMeasurements(totalSleepTime, null, true, true));
-            m_exec.put("Total Poll Time", this.formatProfileMeasurements(totalPollTime, null, true, true));
+//            m_exec.put("Total Sleep Time", this.formatProfileMeasurements(totalSleepTime, null, true, true));
+//            m_exec.put("Total Poll Time", this.formatProfileMeasurements(totalPollTime, null, true, true));
             m_exec.put("Total Network Time", this.formatProfileMeasurements(totalExecNetworkTime, null, true, true));
             m_exec.put(" ", null);
         }

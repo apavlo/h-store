@@ -164,6 +164,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -767,11 +768,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             tmp_def_txn = new LocalTransaction(hstore_site);
         }
         
-        if (hstore_conf.site.exec_profiling) {
-            EventObservable<?> observable = this.hstore_site.getStartWorkloadObservable();
-            this.profiler.idle_queue_time.resetOnEventObservable(observable);
-            this.profiler.exec_time.resetOnEventObservable(observable);
-        }
+        EventObservable<?> observable = this.hstore_site.getStartWorkloadObservable();
+        this.profiler.idle_time.resetOnEventObservable(observable);
+        this.profiler.exec_time.resetOnEventObservable(observable);
+        this.profiler.txn_time.resetOnEventObservable(observable);
         
         // -------------------------------
         // SPECULATIVE EXECUTION INITIALIZATION
@@ -869,43 +869,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
-                // work = this.getNext();
-                if (hstore_conf.site.exec_profiling) profiler.idle_queue_time.start();
+                if (hstore_conf.site.exec_profiling) 
+                    ProfileMeasurementUtil.swap(profiler.exec_time, profiler.idle_time);
                 try {
                     work = this.work_queue.take(); // BLOCKING
                 } finally {
-                    if (hstore_conf.site.exec_profiling) profiler.idle_queue_time.stopIfStarted();
+                    if (hstore_conf.site.exec_profiling) {
+                        ProfileMeasurementUtil.swap(profiler.idle_time, profiler.exec_time);
+                        if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
+                    }
                 }
                 if (trace.val) LOG.trace("Next Work: " + work);
-                
-                if (work == null) {
-                    if (this.initQueue.isEmpty() && this.work_queue.isEmpty()) {
-                        if (hstore_conf.site.exec_profiling) profiler.sleep_time.start();
-                        Thread.sleep(WORK_QUEUE_POLL_TIME);
-                        if (hstore_conf.site.exec_profiling) profiler.sleep_time.stopIfStarted();
-                    }
-                    continue;
-                }
-                else if (work instanceof UtilityWorkMessage) {
-                    continue;
-                }
-                
                 
                 // -------------------------------
                 // Process Work
                 // -------------------------------
-                if (hstore_conf.site.exec_profiling) {
-                    long timestamp = ProfileMeasurement.getTime();
-                    if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted(timestamp);
-                    profiler.idle_queue_time.stopIfStarted(timestamp);
-                    profiler.exec_time.start(timestamp);
-                }
-                try {
-                    this.processInternalMessage(work);
-                } finally {
-                    if (hstore_conf.site.exec_profiling) profiler.exec_time.stopIfStarted();
-                }
-                
+                this.processInternalMessage(work);
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                 this.tick();
             } // WHILE
@@ -941,6 +920,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Get the next unit of work from this partition's queue
      * @return
      */
+    @Deprecated
     protected InternalMessage getNext() {
         // If we get something back here, then it should become our current transaction.
         //  (1) If it's a single-partition txn, then we can return the StartTxnMessage 
@@ -949,9 +929,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         //      current dtxn at this partition and then keep checking the queue
         //      for more work.
         
-        if (hstore_conf.site.exec_profiling) profiler.poll_queue_time.start();
+//        if (hstore_conf.site.exec_profiling) profiler.poll_queue_time.start();
         AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
-        if (hstore_conf.site.exec_profiling) profiler.poll_queue_time.stop();
+//        if (hstore_conf.site.exec_profiling) profiler.poll_queue_time.stop();
         
         if (next != null) {
             // If this a single-partition txn, then we'll want to execute it right away
@@ -1183,12 +1163,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // If this transaction has already been aborted and they are trying to give us
         // something that isn't a FinishTaskMessage, then we won't bother processing it
         if (ts.isAborted() && (work instanceof FinishTxnMessage) == false) {
-            if (debug.val) LOG.debug(String.format("%s - Was marked as aborted. Will not process %s on partition %d",
-                             ts, work.getClass().getSimpleName(), this.partitionId));
+            if (debug.val)
+                LOG.debug(String.format("%s - Cannot process %s on partition %d because txn was marked as aborted",
+                          ts, work.getClass().getSimpleName(), this.partitionId));
             return;
         }
         
-        if (debug.val) LOG.debug(String.format("Processing %s at partition %d", work, this.partitionId));
+        if (debug.val)
+            LOG.debug(String.format("Processing %s at partition %d", work, this.partitionId));
         
         // -------------------------------
         // Add Transaction to Lock Queue
@@ -1200,7 +1182,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Start Transaction
         // -------------------------------
         else if (work instanceof StartTxnMessage) {
-            this.executeTransaction((LocalTransaction)ts);
+            if (hstore_conf.site.exec_profiling) profiler.txn_time.start();
+            try {
+                this.executeTransaction((LocalTransaction)ts);
+            } finally {
+                if (hstore_conf.site.exec_profiling) profiler.txn_time.stopIfStarted();
+            }
         }
         // -------------------------------
         // Execute Query Plan Fragments
@@ -1623,10 +1610,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private void setCurrentDtxn(AbstractTransaction ts) {
         // There can never be another current dtxn still unfinished at this partition!
         assert(this.currentBlockedTxns.isEmpty()) :
-            String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
+            String.format("Concurrent multi-partition transactions at partition %d: " +
+            		      "Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
         assert(this.currentDtxn == null) :
-            String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
+            String.format("Concurrent multi-partition transactions at partition %d: " +
+            		      "Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
         
         // Check whether we should check for speculative txns to execute whenever this
@@ -1665,8 +1654,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param result
      */
     public void addPrefetchResult(Long txnId, int fragmentId, int partitionId, int paramsHash, VoltTable result) {
-        if (debug.val) LOG.debug(String.format("Adding prefetch result for txn #%d from partition %d",
-                                       txnId, partitionId));
+        if (debug.val)
+            LOG.debug(String.format("Adding prefetch result for txn #%d from partition %d",
+                      txnId, partitionId));
         this.queryCache.addResult(txnId, fragmentId, partitionId, paramsHash, result); 
     }
     
