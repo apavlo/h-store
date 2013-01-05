@@ -30,6 +30,7 @@ import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.EventObservable;
@@ -358,16 +359,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             
             for (int partition : next_init.getPredictTouchedPartitions()) {
                 if (hstore_site.isLocalPartition(partition) == false) continue;
-                if (hstore_conf.site.queue_profiling) profilers[partition].init_time.start();
                 
                 // If this txn gets rejected when we try to insert it, then we 
                 // just need to stop trying to add it to other partitions
-                try {
-                    ret = this.lockQueueInsert(next_init, partition, callback) && ret; 
-                    if (ret == false) break;
-                } finally {
-                    if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
-                }
+                ret = this.lockQueueInsert(next_init, partition, callback) && ret; 
+                if (ret == false) break;
             } // FOR
             if (ret) added++;
             if (limit-- == 0) break;
@@ -398,7 +394,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             if (trace.val)
                 LOG.warn(String.format("Partition %d is already executing transaction %d. Skipping...",
                          partition, this.lockQueuesLastTxn[partition]));
-            if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stop();
+            if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stopIfStarted();
             return (null);
         }
         
@@ -445,19 +441,20 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     		  "than the previous txn #%d. Rejecting... [queueSize=%d]",
                               partition, nextTxn, this.lockQueuesLastTxn[partition],
                               this.lockQueues[partition].size()));
-                if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stop();
+                if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
                 this.rejectTransaction(nextTxn,
                                        Status.ABORT_RESTART,
                                        partition,
                                        this.lockQueuesLastTxn[partition]);
+                if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.stopIfStarted();
                 nextTxn = null;
                 continue;
             }
 
             if (debug.val)
                 LOG.debug(String.format("Good news! Partition %d is ready to execute %s! " +
-                		  "Invoking initQueue callback!",
-                          partition, nextTxn));
+                		  "Invoking %s.run()",
+                          partition, nextTxn, callback.getClass().getSimpleName()));
             this.lockQueuesLastTxn[partition] = nextTxn.getTransactionId();
             this.lockQueuesBlocked[partition] = true; 
             
@@ -479,7 +476,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         if (debug.val && nextTxn != null && nextTxn.isPredictSinglePartition() == false)
             LOG.debug(String.format("Finished processing lock queue for partition %d [next=%s]",
                       partition, nextTxn));
-        if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stop();
+        if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stopIfStarted();
         return (nextTxn);
     }
     
@@ -495,6 +492,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     protected boolean lockQueueInsert(AbstractTransaction ts,
                                       int partition,
                                       PartitionCountingCallback<? extends AbstractTransaction> callback) {
+        if (hstore_conf.site.queue_profiling) profilers[partition].init_time.start();
         assert(ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
@@ -505,6 +503,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         if (callback.isInitialized() == false) {
             LOG.warn(String.format("Unexpected uninitialized %s for %s [partition=%d]",
                      callback.getClass().getSimpleName(), ts, partition));
+            if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
             return (false);
         }
         
@@ -523,10 +522,15 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 LOG.debug(String.format("The last lockQueue txnId for remote partition is #%d but this " +
             	          "is greater than %s. Rejecting...",
                           partition, this.lockQueuesLastTxn[partition], ts));
+            if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
             this.rejectTransaction(ts,
                                    Status.ABORT_RESTART,
                                    partition,
                                    this.lockQueuesLastTxn[partition]);
+            if (hstore_conf.site.queue_profiling) {
+                profilers[partition].rejection_time.stopIfStarted();
+                profilers[partition].init_time.stopIfStarted();
+            }
             return (false);
         }
         
@@ -546,10 +550,15 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 LOG.debug(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
             	          "is greater than our new txn %s. Rejecting...",
                           partition, this.lockQueuesLastTxn[partition], ts));
+            if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
             this.rejectTransaction(ts,
                                    Status.ABORT_RESTART,
                                    partition,
                                    next_safe_id);
+            if (hstore_conf.site.queue_profiling) {
+                profilers[partition].rejection_time.stopIfStarted();
+                profilers[partition].init_time.stopIfStarted();
+            }
             return (false);
         }
         // Our queue is overloaded. We have to reject the txnId!
@@ -560,13 +569,19 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             		      "[locked=%s, queueSize=%d]",
                           partition, ts, next_safe_id,
                           this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
+            if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
             this.rejectTransaction(ts, Status.ABORT_REJECT, partition, next_safe_id);
+            if (hstore_conf.site.queue_profiling) {
+                profilers[partition].rejection_time.stopIfStarted();
+                profilers[partition].init_time.stopIfStarted();
+            }
             return (false);
         }
         if (trace.val)
             LOG.trace(String.format("Added %s to initQueue for partition %d [locked=%s, queueSize=%d]",
                       ts, partition,
                       this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
+        if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
         return (true);
     }
     
