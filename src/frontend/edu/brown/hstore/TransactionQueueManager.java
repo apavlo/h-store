@@ -596,7 +596,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      */
     public void lockQueueFinished(AbstractTransaction ts, Status status, int partition) {
         assert(ts.isInitialized()) :
-            String.format("Unexpected uninitialized transaction %s [status=%s, partition=%d]", ts, status, partition);
+            String.format("Unexpected uninitialized transaction %s [status=%s, partition=%d]",
+                          ts, status, partition);
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + ts + " as finished on remote partition #" + partition;
         if (debug.val)

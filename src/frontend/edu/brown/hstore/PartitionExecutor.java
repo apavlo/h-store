@@ -1242,7 +1242,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.processWorkFragment(ts, fragment, parameters);
         }
         // -------------------------------
-        // Set Distributed Transaction Hack
+        // Set Distributed Transaction 
         // -------------------------------
         else if (work instanceof SetDistributedTxnMessage) {
             if (this.currentDtxn != null) {
@@ -1847,16 +1847,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private void processWorkResult(LocalTransaction ts, WorkResult result) {
         boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
-        if (debug.val) LOG.debug(String.format("Processing WorkResult for %s on partition %d [srcPartition=%d, deps=%d]",
-                         ts, this.partitionId, result.getPartitionId(), result.getDepDataCount()));
+        if (debug.val)
+            LOG.debug(String.format("Processing WorkResult for %s on partition %d [srcPartition=%d, deps=%d]",
+                      ts, this.partitionId, result.getPartitionId(), result.getDepDataCount()));
         
         // If the Fragment failed to execute, then we need to abort the Transaction
         // Note that we have to do this before we add the responses to the TransactionState so that
         // we can be sure that the VoltProcedure knows about the problem when it wakes the stored 
         // procedure back up
         if (result.getStatus() != Status.OK) {
-            if (trace.val) LOG.trace(String.format("Received non-success response %s from partition %d for %s",
-                             result.getStatus(), result.getPartitionId(), ts));
+            if (trace.val)
+                LOG.trace(String.format("Received non-success response %s from partition %d for %s",
+                          result.getStatus(), result.getPartitionId(), ts));
 
             SerializableException error = null;
             if (needs_profiling) ts.profiler.startDeserialization();
@@ -1864,7 +1866,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 ByteBuffer buffer = result.getError().asReadOnlyByteBuffer();
                 error = SerializableException.deserializeFromBuffer(buffer);
             } catch (Exception ex) {
-                String msg = String.format("Failed to deserialize SerializableException from partition %d for %s [bytes=%d]",
+                String msg = String.format("Failed to deserialize SerializableException from partition %d " +
+                		                   "for %s [bytes=%d]",
                                            result.getPartitionId(), ts, result.getError().size());
                 throw new ServerFaultException(msg, ex);
             } finally {
@@ -1875,7 +1878,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (error == null) {
                 LOG.warn(ts + " - Unexpected null SerializableException\n" + result);
             } else {
-                if (debug.val) LOG.error(ts + " - Got error from partition " + result.getPartitionId(), error);
+                if (debug.val)
+                    LOG.error(String.format("%s - Got error from partition %d in %s",
+                              result.getPartitionId(), result.getClass().getSimpleName()), error);
                 ts.setPendingError(error, true);
             }
             return;
@@ -1883,8 +1888,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         if (needs_profiling) ts.profiler.startDeserialization();
         for (int i = 0, cnt = result.getDepDataCount(); i < cnt; i++) {
-            if (trace.val) LOG.trace(String.format("Storing intermediate results from partition %d for %s",
-                             result.getPartitionId(), ts));
+            if (trace.val)
+                LOG.trace(String.format("Storing intermediate results from partition %d for %s",
+                          result.getPartitionId(), ts));
             int depId = result.getDepId(i);
             ByteString bs = result.getDepData(i);
             VoltTable vt = null;

@@ -546,28 +546,28 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 // Txn Execution Time
                 pm = profiler.txn_time;
                 last = lastProfiler.txn_time;
-                m.put("Txn Time", this.formatProfileMeasurements(pm, last, true, false));
+                m.put("Txn Time", this.formatProfileMeasurements(pm, last, true, true));
                 last.appendTime(pm);
                 total.txn_time.appendTime(pm);
                 
                 // Idle Time
                 pm = profiler.idle_time;
                 last = lastProfiler.idle_time;
-                m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false));
+                m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, true));
                 last.appendTime(pm);
                 total.idle_time.appendTime(pm);
                 
                 // Network Time
                 pm = profiler.network_time;
                 last = lastProfiler.network_time;
-                m.put("Network Time", this.formatProfileMeasurements(pm, last, false, false));
+                m.put("Network Time", this.formatProfileMeasurements(pm, last, true, true));
                 last.appendTime(pm);
                 total.network_time.appendTime(pm);
                 
                 // Utility Time
                 pm = profiler.util_time;
                 last = lastProfiler.util_time;
-                m.put("Utility Time", this.formatProfileMeasurements(pm, last, false, false));
+                m.put("Utility Time", this.formatProfileMeasurements(pm, last, true, true));
                 last.appendTime(pm);
                 total.util_time.appendTime(pm);
             }
