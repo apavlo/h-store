@@ -1872,22 +1872,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      */
     public void transactionStart(LocalTransaction ts) {
-        final int base_partition = ts.getBasePartition();
-        final boolean singlePartitioned = ts.isPredictSinglePartition();
-        
         if (debug.val)
             LOG.debug(String.format("Starting %s %s on partition %d%s",
-                      (singlePartitioned ? "single-partition" : "distributed"),
-                      ts, base_partition,
-                      (singlePartitioned ? "" : " [partitions=" + ts.getPredictTouchedPartitions() + "]")));
+                      (ts.isPredictSinglePartition() ? "single-partition" : "distributed"),
+                      ts, ts.getBasePartition(),
+                      (ts.isPredictSinglePartition() ? "" : " [partitions=" + ts.getPredictTouchedPartitions() + "]")));
         assert(ts.getPredictTouchedPartitions().isEmpty() == false) :
             "No predicted partitions for " + ts + "\n" + ts.debug();
-        
-        assert(this.executors[base_partition] != null) :
-            "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
+        assert(this.executors[ts.getBasePartition()] != null) :
+            "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + ts.getBasePartition() + " at HStoreSite " + this.site_id;
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
-        final boolean success = this.executors[base_partition].queueNewTransaction(ts);
+        final boolean success = this.executors[ts.getBasePartition()].queueNewTransaction(ts);
         
         if (success == false) {
             // Depending on what we need to do for this type txn, we will send
@@ -1899,8 +1895,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (debug.val)
                 LOG.debug(String.format("%s - Hit with a %s response from partition %d " +
                           "[queueSize=%d]",
-                          ts, status, base_partition,
-                          this.executors[base_partition].getDebugContext().getWorkQueueSize()));
+                          ts, status, ts.getBasePartition(),
+                          this.executors[ts.getBasePartition()].getDebugContext().getWorkQueueSize()));
+            boolean singlePartitioned = ts.isPredictSinglePartition();
             if (singlePartitioned == false) {
                 TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
@@ -1954,8 +1951,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param updated
      */
     public void transactionPrepare(AbstractTransaction ts, PartitionSet partitions) {
-        assert(ts != null);
-        if (debug.val) LOG.debug(String.format("2PC:PREPARE %s [partitions=%s]", ts, partitions));
+        if (debug.val)
+            LOG.debug(String.format("2PC:PREPARE %s [partitions=%s]", ts, partitions));
+        
+        // If this is a local transaction, then we'll want to initialize it's
+        // PrepareCallback here so that there isn't a race condition
         if (ts instanceof LocalTransaction) {
             ((LocalTransaction)ts).getOrInitTransactionPrepareCallback();
         }
@@ -1997,14 +1997,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions
      */
     public void transactionFinish(Long txn_id, Status status, PartitionSet partitions) {
-        if (debug.val) LOG.debug(String.format("2PC:FINISH Txn #%d [status=%s, partitions=%s]",
-                         txn_id, status, partitions));
+        if (debug.val)
+            LOG.debug(String.format("2PC:FINISH Txn #%d [status=%s, partitions=%s]",
+                      txn_id, status, partitions));
         
         // If we don't have a AbstractTransaction handle, then we know that we never did anything
         // for this transaction and we can just ignore this finish request.
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
         if (ts == null) {
-            if (debug.val) LOG.warn(String.format("No transaction information exists for #%d. Ignoring finish request", txn_id));
+            if (debug.val)
+                LOG.warn(String.format("No transaction information exists for #%d. Ignoring finish request",
+                         txn_id));
             return;
         }
         
@@ -2016,16 +2019,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // We only need to do this for distributed transactions, because all single-partition
         // transactions will commit/abort immediately
         if (ts.isPredictSinglePartition() == false) {
-            for (int p : this.local_partitions.values()) {
-                if (partitions.contains(p) == false) continue;
+            for (int partition : this.local_partitions.values()) {
+                if (partitions.contains(partition) == false) continue;
                 
                 // 2012-12-01
                 // We always want to queue up the transaction at the partition, even
                 // if it didn't actually do anything. We'll let the partition executor 
                 // sort those things out for us.
-                if (trace.val) LOG.trace(String.format("%s - Queued transaction to get finished on partition %d", ts, p));
+                if (trace.val)
+                    LOG.trace(String.format("%s - Queued transaction to get finished on partition %d",
+                              ts, partition));
                 try {
-                    this.executors[p].queueFinish(ts, status);
+                    this.executors[partition].queueFinish(ts, status);
                 } catch (Throwable ex) {
                     LOG.error(String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
                               ts, ts.hashCode(), status, partitions));
