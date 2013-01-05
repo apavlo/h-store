@@ -163,7 +163,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.PartitionExecutorProfiler;
-import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -1814,19 +1813,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // the queue (checking for throttling of course) and let the main
         // thread sort out the mess of whether the txn should get blocked or not
         if (this.currentExecMode == ExecutionMode.DISABLED_REJECT) {
-            if (debug.val) LOG.warn(String.format("%s - Not queuing txn at partition %d because current mode is %s",
-                            ts, this.partitionId, this.currentExecMode));
+            if (debug.val)
+                LOG.warn(String.format("%s - Not queuing txn at partition %d because current mode is %s",
+                         ts, this.partitionId, this.currentExecMode));
             return (false);
         }
         
         StartTxnMessage work = ts.getStartTxnMessage();
-        if (debug.val) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
-                         "[currentDtxn=%s, queueSize=%d, mode=%s]",
-                         work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
-                         this.currentDtxn, this.work_queue.size(), this.currentExecMode));
+        if (debug.val)
+            LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
+                      "[currentDtxn=%s, queueSize=%d, mode=%s]",
+                      work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
+                      this.currentDtxn, this.work_queue.size(), this.currentExecMode));
         boolean success = this.work_queue.offer(work); // , force);
         if (debug.val && force && success == false) {
-            throw new ServerFaultException("Failed to add " + ts + " even though force flag was true!", ts.getTransactionId());
+            String msg = String.format("Failed to add %s even though force flag was true!", ts);
+            throw new ServerFaultException(msg, ts.getTransactionId());
         }
         return (success);
     }

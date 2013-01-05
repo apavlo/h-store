@@ -30,7 +30,6 @@ import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.EventObservable;
