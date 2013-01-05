@@ -57,7 +57,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private static final int THREAD_WAIT_TIME = 1; // 0.5 millisecond
     private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MILLISECONDS;
     
-    private static final int CHECK_INIT_QUEUE_LIMIT = 1000;
+    private static final int CHECK_INIT_QUEUE_LIMIT = 100;
     private static final int CHECK_BLOCK_QUEUE_LIMIT = 100;
     private static final int CHECK_RESTART_QUEUE_LIMIT = 100;
     
@@ -77,6 +77,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private int initWaitTime;
     private int initThrottleThreshold;
     private double initThrottleRelease;
+    private final PartitionSet initRejected = new PartitionSet();
     
     // ----------------------------------------------------------------------------
     // TRANSACTION PARTITION LOCKS QUEUES
@@ -354,20 +355,27 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         AbstractTransaction next_init = null;
         int limit = CHECK_INIT_QUEUE_LIMIT;
         int added = 0;
+        this.initRejected.clear();
         while ((next_init = this.initQueue.poll()) != null) {
             PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
             assert(callback.isInitialized());
-            boolean ret = true;
+            boolean ret = false;
             
             for (int partition : next_init.getPredictTouchedPartitions()) {
                 if (hstore_site.isLocalPartition(partition) == false) continue;
+                if (this.initRejected.contains(partition)) continue;
                 
                 // If this txn gets rejected when we try to insert it, then we 
                 // just need to stop trying to add it to other partitions
                 ret = this.lockQueueInsert(next_init, partition, callback) && ret; 
-                if (ret == false) break;
+                if (ret == false) {
+                    this.initRejected.add(partition);
+                    break;
+                }
             } // FOR
-            if (ret) added++;
+            // Stop trying to add any more txns at all
+            if (ret == false) break; 
+            added++;
             if (limit-- == 0) break;
         } // WHILE
         
@@ -640,11 +648,14 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         if (checkQueue) {
             removed = this.lockQueues[partition].remove(ts);
         }
-//        assert(this.lockQueues[partition].contains(ts) == false) :
-//            String.format("The %s for partition %d contains %s even though it should not! " +
-//            		      "[checkQueue=%s, removed=%s]",
-//            		      this.lockQueues[partition].getClass().getSimpleName(), partition,
-//            		      checkQueue, removed);
+        // Calling contains() is super slow, so we'll only do this if we have tracing enabled
+        if (trace.val) {
+            assert(this.lockQueues[partition].contains(ts) == false) :
+                String.format("The %s for partition %d contains %s even though it should not! " +
+                		      "[checkQueue=%s, removed=%s]",
+                		      this.lockQueues[partition].getClass().getSimpleName(), partition,
+                		      checkQueue, removed);
+        }
         
         // This is a local transaction that is still waiting for this partition (i.e., it hasn't
         // been rejected yet). That means we will want to decrement the counter its Transaction
