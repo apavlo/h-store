@@ -54,8 +54,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // STATIC CONFIGURATION
     // ----------------------------------------------------------------------------
     
-    private static final int THREAD_WAIT_TIME = 1; // 0.5 millisecond
-    private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MILLISECONDS;
+    private static final int THREAD_WAIT_TIME = 500; // 0.5 millisecond
+    private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MICROSECONDS;
     
     private static final int CHECK_INIT_QUEUE_LIMIT = 100;
     private static final int CHECK_BLOCK_QUEUE_LIMIT = 100;
@@ -68,6 +68,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final PartitionSet localPartitions;
+    private final Semaphore checkFlag = new Semaphore(1);
     private boolean stop = false;
     
     /**
@@ -262,12 +263,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         if (debug.val) LOG.debug("Starting distributed transaction queue manager thread");
         
         boolean poke;
-        final Semaphore checkFlag = new Semaphore(1);
         while (this.stop == false) {
             poke = false;
             // if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
-                checkFlag.tryAcquire(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
+                this.checkFlag.tryAcquire(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
             } catch (InterruptedException e) {
                 // Nothing...
             } finally {
@@ -277,7 +277,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // Release transactions for execution
             for (int partition : this.localPartitions.values()) {
                 if (this.checkLockQueue(partition) == null) {
-                    
+                    // ???
                 }
             } // FOR
             
@@ -305,9 +305,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
 //                profiler.concurrent_dtxn.put(profiler.concurrent_dtxn_ids.size());
 //            }
             
-            if (poke && checkFlag.availablePermits() == 0) {
-                checkFlag.release();
-            }
+//            if (poke && checkFlag.availablePermits() == 0) {
+//                checkFlag.release();
+//            }
         } // WHILE
     }
     
@@ -409,6 +409,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     
     protected void initTransaction(AbstractTransaction ts) {
         this.initQueue.add(ts);
+        this.checkFlag.release();
     }
     
     
@@ -671,6 +672,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         if (checkQueue) {
             removed = this.lockQueues[partition].remove(ts);
         }
+        this.checkFlag.release();
+        
         // Calling contains() is super slow, so we'll only do this if we have tracing enabled
         if (trace.val) {
             assert(this.lockQueues[partition].contains(ts) == false) :
@@ -749,6 +752,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 throw new RuntimeException(msg, ex);
             }
         }
+        this.checkFlag.release();
     }
     
     // ----------------------------------------------------------------------------

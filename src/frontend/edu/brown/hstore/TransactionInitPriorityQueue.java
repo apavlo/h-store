@@ -3,7 +3,6 @@ package edu.brown.hstore;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.PriorityQueue;
-import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
