@@ -67,7 +67,7 @@ public class JarClassLoader extends ClassLoader {
     void loadAllClassNamesFromJar() {
         JarInputStream jarIn = JarReader.openJar(m_jarFilePath);
         if (jarIn == null)
-            throw new RuntimeException("Failed to locate jarfile.");
+            throw new RuntimeException("Failed to locate jarfile '" + m_jarFilePath + "'");
 
         try {
             for (JarEntry catEntry = jarIn.getNextJarEntry(); catEntry != null; catEntry = jarIn.getNextJarEntry()) {

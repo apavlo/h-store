@@ -474,16 +474,16 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected final void initializeCatalog(int num_hosts, int num_sites, int num_partitions) throws Exception {
         // HACK! If we already have this many partitions in the catalog, then we won't recreate it
         // This fixes problems where we need to reference the same catalog objects in multiple test cases
-//         if (catalogContext.numberOfHosts != num_hosts ||
-//             catalogContext.numberOfSites != (num_hosts * num_sites) ||
-//             catalogContext.numberOfPartitions != (num_hosts * num_sites * num_partitions)) {
+        if (catalogContext.numberOfHosts != num_hosts ||
+            catalogContext.numberOfSites != (num_hosts * num_sites) ||
+            catalogContext.numberOfPartitions != (num_hosts * num_sites * num_partitions)) {
             
             // HACK
             String hostFormat = (num_hosts == 1 ? "localhost" : "host%02d"); 
             Catalog c = FixCatalog.cloneCatalog(catalog, hostFormat, num_hosts, num_sites, num_partitions);
             CatalogContext cc = new CatalogContext(c, catalogContext.jarPath);
             this.init(this.last_type, cc);
-//         }
+        }
         Cluster cluster = catalogContext.cluster;
         assertEquals(num_hosts, catalogContext.numberOfHosts);
         assertEquals((num_hosts * num_sites), catalogContext.numberOfSites);
