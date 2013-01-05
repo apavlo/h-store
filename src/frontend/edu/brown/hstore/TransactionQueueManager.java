@@ -373,7 +373,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             boolean checked = false;
             boolean removed = false;
             
-            for (int partition : next_init.getPredictTouchedPartitions()) {
+            for (int partition : next_init.getPredictTouchedPartitions().values()) {
                 // Skip any non-local partition
                 if (hstore_site.isLocalPartition(partition) == false) continue;
                 
