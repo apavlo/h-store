@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.voltdb.types.TimestampType;
@@ -115,30 +116,35 @@ public abstract class StringUtil {
         return "" + (int) bytes + " bytes";
     }
     
+    public static String formatTime(String f, double nanoseconds) {
+        return formatTime(f, nanoseconds, TimeUnit.NANOSECONDS);
+    }
+    
     /**
      * 
      * @param f
      * @param nanoseconds
      * @return
      */
-    public static String formatTime(String f, double nanoseconds) {
-        double time = nanoseconds;
-        String unit = "ns";
+    public static String formatTime(String f, double time, TimeUnit unit) {
+        double nanoseconds;
+        nanoseconds = unit.toNanos((long)time);
+        String unitLabel = "ns";
         
         // Seconds
         if (nanoseconds > 1000000000) {
             time /= 1000000000d;
-            unit = "s";
+            unitLabel = "s";
         // Milliseconds
         } else if (nanoseconds > 1000000) {
             time /= 1000000d;
-            unit = "ms";
+            unitLabel = "ms";
         // Microseconds
         } else if (nanoseconds > 1000) {
             time /= 1000d;
-            unit = "\u00B5s";
+            unitLabel = "\u00B5s";
         }
-        return String.format(f, time) + unit;
+        return String.format(f, (double)time) + unitLabel;
     }
 
     /**

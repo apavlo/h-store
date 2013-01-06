@@ -624,8 +624,14 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 delta = pm.getAverageThinkTime() - last.getAverageThinkTime();
                 deltaPrefix = "AVG: ";
             } else {
-                delta = pm.getTotalThinkTime() - last.getTotalThinkTime();
-                deltaPrefix = "";
+                if (pm.getTotalThinkTime() >= last.getTotalThinkTime()) {
+                    delta = pm.getTotalThinkTime() - last.getTotalThinkTime();
+                    deltaPrefix = "";
+                }
+                else {
+                    delta = last.getTotalThinkTime() - pm.getTotalThinkTime();
+                    deltaPrefix = "??? ";
+                }
             }
             String deltaTime = StringUtil.formatTime("%.2f", delta);
             String deltaArrow = " ";
