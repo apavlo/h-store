@@ -954,6 +954,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
                 if (hstore_conf.site.exec_profiling) profiler.idle_queue_dtxn_time.start();
             }
+        } else {
+            this.queueWasEmpty();
         }
         
         // Check if we have anything to do right now
@@ -970,6 +972,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         return (null);
     }
     
+    private long emptyQueue = 0;
+    private long queueWasEmpty() {
+        return this.emptyQueue++;
+    }
     
     /**
      * Special function that allows us to do some utility work while 
