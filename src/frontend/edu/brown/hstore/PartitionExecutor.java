@@ -186,7 +186,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private static final int WORK_QUEUE_POLL_TIME = 1; // milliseconds
+    private static final int WORK_QUEUE_POLL_TIME = 0; // milliseconds
+    private static final int WORK_QUEUE_POLL_TIME_NANO = 500000; // nanoseconds
+    
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
     
     // ----------------------------------------------------------------------------
@@ -870,20 +872,31 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // -------------------------------
                 if (hstore_conf.site.exec_profiling) 
                     ProfileMeasurementUtil.swap(profiler.exec_time, profiler.idle_time);
-                try {
-                    work = this.work_queue.take(); // BLOCKING
-                } finally {
-                    if (hstore_conf.site.exec_profiling) {
-                        ProfileMeasurementUtil.swap(profiler.idle_time, profiler.exec_time);
-                        if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
+                work = this.getNext();
+                if (work == null) {
+                    if (this.initQueue.isEmpty() && this.work_queue.isEmpty()) {
+                        if (hstore_conf.site.exec_profiling)
+                            ProfileMeasurementUtil.swap(profiler.idle_time, profiler.sleep_time);
+                        Thread.sleep(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIME_NANO);
+                        if (hstore_conf.site.exec_profiling)
+                            ProfileMeasurementUtil.swap(profiler.sleep_time, profiler.idle_time);
                     }
+                    continue;
+                }
+                else if (work instanceof UtilityWorkMessage) {
+                    continue;
                 }
                 if (trace.val) LOG.trace("Next Work: " + work);
                 
                 // -------------------------------
                 // Process Work
                 // -------------------------------
+                if (hstore_conf.site.exec_profiling) {
+                    if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
+                    ProfileMeasurementUtil.swap(profiler.idle_time, profiler.exec_time);
+                }
                 this.processInternalMessage(work);
+                
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                 this.tick();
             } // WHILE
@@ -919,7 +932,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Get the next unit of work from this partition's queue
      * @return
      */
-    @Deprecated
     protected InternalMessage getNext() {
         // If we get something back here, then it should become our current transaction.
         //  (1) If it's a single-partition txn, then we can return the StartTxnMessage 
@@ -928,9 +940,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         //      current dtxn at this partition and then keep checking the queue
         //      for more work.
         
-//        if (hstore_conf.site.exec_profiling) profiler.poll_queue_time.start();
+        if (hstore_conf.site.exec_profiling) profiler.poll_time.start();
         AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
-//        if (hstore_conf.site.exec_profiling) profiler.poll_queue_time.stop();
+        if (hstore_conf.site.exec_profiling) profiler.poll_time.stop();
         
         if (next != null) {
             // If this a single-partition txn, then we'll want to execute it right away
@@ -1610,11 +1622,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // There can never be another current dtxn still unfinished at this partition!
         assert(this.currentBlockedTxns.isEmpty()) :
             String.format("Concurrent multi-partition transactions at partition %d: " +
-            		      "Orig[%s] <=> New[%s] / BlockedQueue:%d",
+                          "Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
         assert(this.currentDtxn == null) :
             String.format("Concurrent multi-partition transactions at partition %d: " +
-            		      "Orig[%s] <=> New[%s] / BlockedQueue:%d",
+                          "Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
         
         // Check whether we should check for speculative txns to execute whenever this
@@ -1713,7 +1725,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         ts.markQueuedWork(this.partitionId);
         if (debug.val)
             LOG.debug(String.format("%s - Added %s to partition %d " +
-            		  "work queue [size=%d]",
+                          "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
     }
@@ -1742,7 +1754,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           work, this.partitionId, ts);
         if (debug.val)
             LOG.debug(String.format("%s - Added %s to partition %d " +
-            		  "work queue [size=%d]",
+                          "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
     }
@@ -1867,7 +1879,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 error = SerializableException.deserializeFromBuffer(buffer);
             } catch (Exception ex) {
                 String msg = String.format("Failed to deserialize SerializableException from partition %d " +
-                		                   "for %s [bytes=%d]",
+                                                   "for %s [bytes=%d]",
                                            result.getPartitionId(), ts, result.getError().size());
                 throw new ServerFaultException(msg, ex);
             } finally {
@@ -3587,9 +3599,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         
         // -------------------------------
-        // ALL: Mispredicted Transactions
+        // ALL: Transactions that need to be internally restarted
         // -------------------------------
-        if (status == Status.ABORT_MISPREDICT || status == Status.ABORT_SPECULATIVE) {
+        if (status == Status.ABORT_MISPREDICT ||
+            status == Status.ABORT_SPECULATIVE ||
+            status == Status.ABORT_EVICTEDACCESS) {
+            
             // If the txn was mispredicted, then we will pass the information over to the
             // HStoreSite so that it can re-execute the transaction. We want to do this 
             // first so that the txn gets re-executed as soon as possible...
@@ -3932,7 +3947,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // that was in the middle of being executed when we were called
                 if (debug.val)
                     LOG.debug(String.format("%s - Checking %d blocked speculative transactions at " +
-                    		  "partition %d [currentMode=%s]",
+                                  "partition %d [currentMode=%s]",
                               ts, this.specExecBlocked.size(), this.partitionId, this.currentExecMode));
                 
                 LocalTransaction spec_ts = null;

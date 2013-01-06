@@ -276,11 +276,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             this.checkInitQueue();
             
             // Release transactions for execution
-            for (int partition : this.localPartitions.values()) {
-                if (this.checkLockQueue(partition) == null) {
-                    // ???
-                }
-            } // FOR
+//            for (int partition : this.localPartitions.values()) {
+//                if (this.checkLockQueue(partition) == null) {
+//                    // ???
+//                }
+//            } // FOR
             
             // Release blocked distributed transactions
 //            if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
@@ -440,26 +440,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     		  "marked as aborted. [queueSize=%d]",
                               partition, nextTxn, this.lockQueuesLastTxn[partition],
                               this.lockQueues[partition].size()));
-                this.lockQueues[partition].remove(nextTxn);
                 nextTxn = null;
                 // Repeat so that we can try again
-                continue;
-            }
-            // We don't need to acquire lock here because we know that our partition isn't doing
-            // anything at this moment. 
-            else if (this.lockQueuesLastTxn[partition].compareTo(nextTxn.getTransactionId()) > 0) {
-                if (debug.val)
-                    LOG.debug(String.format("The next id for partition %d is %s but this is less " +
-                    		  "than the previous txn #%d. Rejecting... [queueSize=%d]",
-                              partition, nextTxn, this.lockQueuesLastTxn[partition],
-                              this.lockQueues[partition].size()));
-                if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
-                this.rejectTransaction(nextTxn,
-                                       Status.ABORT_RESTART,
-                                       partition,
-                                       this.lockQueuesLastTxn[partition]);
-                if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.stopIfStarted();
-                nextTxn = null;
                 continue;
             }
 

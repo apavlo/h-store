@@ -444,7 +444,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     private Map<String, Object> executorInfo() {
         LinkedHashMap<String, Object> m_exec = new LinkedHashMap<String, Object>();
         
-        ProfileMeasurement pm = null;
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
         TransactionQueueManager.Debug queueManagerDebug = queueManager.getDebugContext();
         HStoreThreadManager threadManager = hstore_site.getThreadManager();
@@ -533,43 +532,22 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     lastProfiler = new PartitionExecutorProfiler();
                     this.lastExecMeasurements.put(executor, lastProfiler);
                 }
-                ProfileMeasurement last = null;
                 invokedTxns.put(partition, (int)profiler.txn_time.getInvocations());
                 
-                // Work Time
-                pm = profiler.exec_time;
-                last = lastProfiler.exec_time;
-                m.put("Work Time", this.formatProfileMeasurements(pm, last, true, true)); 
-                last.appendTime(pm);
-                total.exec_time.appendTime(pm);
+                ProfileMeasurement pmPairs[][] = {
+                    {profiler.exec_time, lastProfiler.exec_time},
+                    {profiler.txn_time, lastProfiler.txn_time},
+                    {profiler.idle_time, lastProfiler.idle_time},
+                    {profiler.sleep_time, lastProfiler.sleep_time},
+                    {profiler.poll_time, lastProfiler.poll_time},
+                    {profiler.network_time, lastProfiler.network_time},
+                    {profiler.util_time, lastProfiler.util_time}
+                };
                 
-                // Txn Execution Time
-                pm = profiler.txn_time;
-                last = lastProfiler.txn_time;
-                m.put("Txn Time", this.formatProfileMeasurements(pm, last, true, true));
-                last.appendTime(pm);
-                total.txn_time.appendTime(pm);
-                
-                // Idle Time
-                pm = profiler.idle_time;
-                last = lastProfiler.idle_time;
-                m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false));
-                last.appendTime(pm);
-                total.idle_time.appendTime(pm);
-                
-                // Network Time
-                pm = profiler.network_time;
-                last = lastProfiler.network_time;
-                m.put("Network Time", this.formatProfileMeasurements(pm, last, true, true));
-                last.appendTime(pm);
-                total.network_time.appendTime(pm);
-                
-                // Utility Time
-                pm = profiler.util_time;
-                last = lastProfiler.util_time;
-                m.put("Utility Time", this.formatProfileMeasurements(pm, last, true, true));
-                last.appendTime(pm);
-                total.util_time.appendTime(pm);
+                for (ProfileMeasurement pair[] : pmPairs) {
+                    m.put(String.format("%s Time", StringUtil.title(pair[0].getType())),
+                          this.formatProfileMeasurements(pair[0], pair[1], true, true));
+                } // FOR
             }
             
             String label = "    Partition[" + partitionLabel + "]";
@@ -586,11 +564,19 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         } // FOR
         
         if (hstore_conf.site.exec_profiling) {
-            m_exec.put("Total Work Time", this.formatProfileMeasurements(total.exec_time, null, true, true));
-            m_exec.put("Total Txn Time", this.formatProfileMeasurements(total.txn_time, null, true, true));
-            m_exec.put("Total Idle Time", this.formatProfileMeasurements(total.idle_time, null, true, true));
-            m_exec.put("Total Network Time", this.formatProfileMeasurements(total.network_time, null, true, true));
-            m_exec.put("Total Util Time", this.formatProfileMeasurements(total.util_time, null, true, true));
+            ProfileMeasurement pms[] = {
+                total.exec_time,
+                total.txn_time,
+                total.idle_time,
+                total.sleep_time,
+                total.poll_time,
+                total.network_time,
+                total.util_time,
+            };
+            for (ProfileMeasurement pm : pms) {
+                m_exec.put(String.format("Total %s Time", StringUtil.title(pm.getType())),
+                           this.formatProfileMeasurements(pm, null, true, true));    
+            } // FOR
             m_exec.put(" ", null);
         }
         
