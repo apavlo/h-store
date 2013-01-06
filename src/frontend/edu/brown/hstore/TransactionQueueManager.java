@@ -58,7 +58,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private static final int THREAD_WAIT_TIME = 500; // 0.5 millisecond
     private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MICROSECONDS;
     
-    private static final int CHECK_INIT_QUEUE_LIMIT = 100;
+    private static final int CHECK_INIT_QUEUE_LIMIT = 1000;
     private static final int CHECK_BLOCK_QUEUE_LIMIT = 100;
     private static final int CHECK_RESTART_QUEUE_LIMIT = 100;
     
@@ -376,6 +376,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 // just need to stop trying to add it to other partitions
                 ret = this.lockQueueInsert(next_init, partition, callback) && ret;
                 if (ret == false) break;
+                else this.checkLockQueue(partition); // HACK
             } // FOR
             added++;
             if (limit-- == 0) break;
@@ -711,9 +712,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // First send back an ABORT message to the initiating HStoreSite (if we haven't already)
         if (callback.isAborted() == false && callback.isUnblocked() == false) {
-            reject_txnId = Long.valueOf(reject_txnId.longValue() + 5); // HACK
-            assert(ts.getTransactionId().equals(reject_txnId) == false) :
-                String.format("Aborted txn %s's rejection txnId is also %d [status=%s]", ts, reject_txnId, status);
+            // reject_txnId = Long.valueOf(reject_txnId.longValue() + 5); // HACK
+            // assert(ts.getTransactionId().equals(reject_txnId) == false) :
+            //     String.format("Aborted txn %s's rejection txnId is also %d [status=%s]", ts, reject_txnId, status);
             try {
                 callback.abort(status);
 //                if (status == Status.ABORT_RESTART || status == Status.ABORT_REJECT) {
