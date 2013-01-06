@@ -455,6 +455,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Map<Integer, String> partitionLabels = new HashMap<Integer, String>();
         ObjectHistogram<Integer> invokedTxns = new ObjectHistogram<Integer>();
         Long txn_id = null;
+        Collection<String> execProfilerShowTotals = CollectionUtil.addAll(
+                new HashSet<String>(), "IDLE", "SLEEP", "POLL"
+        );
+        
         for (int partition : hstore_site.getLocalPartitionIds().values()) {
             String partitionLabel = String.format("%02d", partition);
             partitionLabels.put(partition, partitionLabel);
@@ -534,6 +538,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 }
                 invokedTxns.put(partition, (int)profiler.txn_time.getInvocations());
                 
+                
                 ProfileMeasurement pmPairs[][] = {
                     {profiler.exec_time, lastProfiler.exec_time, total.exec_time},
                     {profiler.txn_time, lastProfiler.txn_time, total.txn_time},
@@ -545,8 +550,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 };
                 
                 for (ProfileMeasurement pair[] : pmPairs) {
-                    m.put(String.format("%s Time", StringUtil.title(pair[0].getType())),
-                          this.formatProfileMeasurements(pair[0], pair[1], true, true));
+                    String name = pair[0].getType();
+                    boolean compareLastAvg = (execProfilerShowTotals.contains(name) == false);
+                    m.put(String.format("%s Time", StringUtil.title(name)),
+                          this.formatProfileMeasurements(pair[0], pair[1], true, compareLastAvg));
                     pair[1].appendTime(pair[0]);
                     pair[2].appendTime(pair[0]);
                 } // FOR

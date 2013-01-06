@@ -58,7 +58,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private static final int THREAD_WAIT_TIME = 1; // 0.5 millisecond
     private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MILLISECONDS;
     
-    private static final int CHECK_INIT_QUEUE_LIMIT = 1000;
+    private static final int CHECK_INIT_QUEUE_LIMIT = 10000;
     private static final int CHECK_BLOCK_QUEUE_LIMIT = 100;
     private static final int CHECK_RESTART_QUEUE_LIMIT = 100;
     
