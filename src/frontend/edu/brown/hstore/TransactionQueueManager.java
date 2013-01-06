@@ -55,8 +55,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // STATIC CONFIGURATION
     // ----------------------------------------------------------------------------
     
-    private static final int THREAD_WAIT_TIME = 500; // 0.5 millisecond
-    private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MICROSECONDS;
+    private static final int THREAD_WAIT_TIME = 1; // 0.5 millisecond
+    private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MILLISECONDS;
     
     private static final int CHECK_INIT_QUEUE_LIMIT = 1000;
     private static final int CHECK_BLOCK_QUEUE_LIMIT = 100;
@@ -230,7 +230,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
         }
 
-        this.initThrottleThreshold = hstore_conf.site.network_incoming_limit_txns;
+        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * 1.25);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (TransactionInitPriorityQueue queue : this.lockQueues) {
             if (queue != null) {
