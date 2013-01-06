@@ -195,7 +195,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                                                                           this.initThrottleThreshold,
                                                                           this.initThrottleRelease);
             this.lockQueues[partition].setThrottleThresholdIncreaseDelta(50);
-            this.lockQueues[partition].setThrottleThresholdMaxSize(this.initThrottleThreshold*2);
+            this.lockQueues[partition].setThrottleThresholdMaxSize(this.initThrottleThreshold*5);
             this.lockQueues[partition].enableThrottleTime(hstore_conf.site.queue_profiling);
             
             this.lockQueuesBlocked[partition] = false;
@@ -231,7 +231,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
         }
 
-        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * 1.25);
+        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * 4);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (TransactionInitPriorityQueue queue : this.lockQueues) {
             if (queue != null) {
