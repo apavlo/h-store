@@ -286,12 +286,16 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             
             // Release blocked distributed transactions
 //            if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
-            this.checkBlockedQueue();
+            if (this.blockedQueue.isEmpty() == false) {
+                this.checkBlockedQueue();
+            }
 //            if (hstore_conf.site.queue_profiling && profiler.block_queue.isStarted()) profiler.block_queue.stop();
             
             // Requeue mispredicted local transactions
 //            if (hstore_conf.site.queue_profiling) profiler.restart_queue.start();
-            this.checkRestartQueue();
+            if (this.restartQueue.isEmpty() == false) {
+                this.checkRestartQueue();
+            }
 //            if (hstore_conf.site.queue_profiling && profiler.restart_queue.isStarted()) profiler.restart_queue.stop();
             
             // Count the number of unique concurrent dtxns

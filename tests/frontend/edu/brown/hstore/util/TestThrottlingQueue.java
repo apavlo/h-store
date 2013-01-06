@@ -1,16 +1,21 @@
 package edu.brown.hstore.util;
 
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import edu.brown.BaseTestCase;
 import edu.brown.rand.DefaultRandomGenerator;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class TestThrottlingQueue extends BaseTestCase {
 
-    static final int QUEUE_MAX = 20;
-    static final double QUEUE_RELEASE = 0.75;
-    static final int QUEUE_INCREASE = 1;
-    static final int QUEUE_INCREASE_MAX = QUEUE_MAX * 5;
+    private static final int QUEUE_THRESHOLD = 20;
+    private static final double QUEUE_RELEASE = 0.75;
+    private static final int QUEUE_INCREASE = 2;
+    private static final int QUEUE_INCREASE_MAX = QUEUE_THRESHOLD * 2;
     
     ThrottlingQueue<String> queue;
     final DefaultRandomGenerator rng = new DefaultRandomGenerator();
@@ -19,14 +24,36 @@ public class TestThrottlingQueue extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp();
         
-        
-        PriorityBlockingQueue<String> inner = new PriorityBlockingQueue<String>();
+        Queue<String> inner = new LinkedList<String>();
         this.queue = new ThrottlingQueue<String>(inner,
-                                                  QUEUE_MAX,
-                                                  QUEUE_RELEASE,
-                                                  QUEUE_INCREASE,
-                                                  QUEUE_INCREASE_MAX);
+                                                 QUEUE_THRESHOLD,
+                                                 QUEUE_RELEASE,
+                                                 QUEUE_INCREASE,
+                                                 QUEUE_INCREASE_MAX);
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
+    
+    private void fillAndDrain(int count) throws Exception {
+        boolean should_be_throttled = count >= queue.getThrottleThreshold();
+        assertTrue(queue.isEmpty());
+        for (int i = 0; i < count; i++) {
+            assertTrue(queue.debug(), queue.offer(rng.astring(10, 20)));
+        } // FOR
+        assertEquals(queue.debug(), count, queue.size());
+        assertEquals(queue.debug(), should_be_throttled, queue.isThrottled());
+        
+        while (queue.isEmpty() == false) {
+            assertNotNull(queue.poll());
+        } // WHILE
+        assertFalse(queue.debug(), queue.isThrottled());
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
     
     /**
      * testCheckThrottling
@@ -40,52 +67,64 @@ public class TestThrottlingQueue extends BaseTestCase {
             ret = queue.offer(rng.astring(10, 20));
             assertTrue("Size: " + queue.size(), ret);
         } // FOR
-        assertEquals(QUEUE_MAX, queue.size());
+        assertEquals(QUEUE_THRESHOLD, queue.size());
         assertEquals(queue.size(), queue.getQueue().size());
         
         // Now if we can't add a new one until we pop off 
         // enough items that put us below the release level
         while (queue.size() > queue.getThrottleRelease()) {
             ret = queue.offer(rng.astring(10, 20));
-            assertFalse("Size: " + queue.size() + " / " +
-                        "Release: " + queue.getThrottleRelease(), ret);
-            assertTrue(queue.isThrottled());
+            assertFalse(queue.debug(), ret);
+            assertTrue(queue.debug(), queue.isThrottled());
             
-            String item = this.queue.poll();
+            String item = queue.poll();
             assertNotNull(item);
         } // WHILE
 
-        ret = this.queue.offer(rng.astring(10, 20));
-        assertTrue("Size: " + this.queue.size(), ret);
+        ret = queue.offer(rng.astring(10, 20));
+        assertTrue(queue.debug(), ret);
     }
     
-//    /**
-//     * testThrottleRelease
-//     */
-//    public void testThrottleRelease() throws Exception {
-//        boolean ret;
-//        
-//        // Just add a bunch of items and check to see that the last
-//        // one gets rejected after we add more than QUEUE_MAX items
-//        for (int i = 0; i < QUEUE_MAX; i++) {
-//            ret = this.queue.offer(rng.astring(10, 20));
-//            assertTrue("Size: " + this.queue.size(), ret);
-//        } // FOR
-//        assertEquals(QUEUE_MAX, this.queue.size());
-//        
-//        ret = this.queue.offer(rng.astring(10, 20));
-//        assertFalse("Size: " + this.queue.size(), ret);
-//        assertEquals(QUEUE_MAX, this.queue.size());
-//        
-//        // Now if we pop one off, then we can add a new one
-//        String item = this.queue.poll();
-//        assertNotNull(item);
-//        
-//        ret = this.queue.offer(rng.astring(10, 20));
-//        assertTrue("Size: " + this.queue.size(), ret);
-//        assertEquals(QUEUE_MAX, this.queue.size());
-//    }
+    /**
+     * testAutoIncrease
+     */
+    public void testAutoIncrease() throws Exception {
+        // Enable automatic increasing of the throttling threshold.
+        // Then add in a bunch of txns, then clear it out by polling.
+        // Check that both the throttling threshold and release threshold
+        // get increased after the queue is empty.
+        queue.setAllowIncrease(true);
+        int origThreshold = queue.getThrottleThreshold();
+        assertEquals(QUEUE_THRESHOLD, origThreshold);
+        int origRelease = queue.getThrottleRelease();
+        
+        this.fillAndDrain(QUEUE_THRESHOLD);
+
+        int newThreshold = queue.getThrottleThreshold();
+        assertTrue(origThreshold < newThreshold);
+        assertEquals(queue.debug(), QUEUE_THRESHOLD + QUEUE_INCREASE, newThreshold);
+        int newRelease = queue.getThrottleRelease();
+        assertTrue(queue.debug(), origRelease < newRelease);
+        assertTrue(queue.debug(), newRelease < newThreshold);
+    }
     
-    
+    /**
+     * testAutoIncreaseMax
+     */
+    public void testAutoIncreaseMax() throws Exception {
+        // Enable automatic increasing of the throttling threshold.
+        // Do a bunch of fills and drains, but make sure that we never go
+        // above the max threshold
+        queue.setAllowIncrease(true);
+        
+        for (int i = 0; i < 100; i++) {
+            this.fillAndDrain(QUEUE_THRESHOLD);
+        }
+        
+        int newThreshold = queue.getThrottleThreshold();
+        assertEquals(queue.debug(), QUEUE_INCREASE_MAX, newThreshold);
+        int newRelease = queue.getThrottleRelease();
+        assertTrue(queue.debug(), newRelease < newThreshold);
+    }
     
 }

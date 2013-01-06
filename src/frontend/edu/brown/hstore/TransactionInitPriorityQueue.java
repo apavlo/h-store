@@ -316,8 +316,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 if (debug.val)
                     LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime[%d] - current[%d] = %d)",
                               this.partitionId, txnId, newState,
-                              this.blockTimestamp, EstTime.currentTimeMillis(),
-                              Math.max(0, this.blockTimestamp - EstTime.currentTimeMillis())));
+                              this.blockTimestamp, currentTimestamp,
+                              Math.max(0, this.blockTimestamp - currentTimestamp)));
             }
             // We didn't find any reason to block this txn, so it's sail yo for it...
             else if (debug.val) {

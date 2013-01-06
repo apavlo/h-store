@@ -2,13 +2,17 @@ package edu.brown.hstore.util;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.utils.StringUtil;
 
 /**
  * Creates a wrapper around a queue that provides a dynamic limit on the
@@ -27,16 +31,40 @@ public class ThrottlingQueue<E> implements Queue<E> {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final Queue<E> queue;
-    private volatile int size;
+    // ----------------------------------------------------------------------------
+    // INTERNAL DATA MEMBERS
+    // ----------------------------------------------------------------------------
     
+    /**
+     * The internal queue that we're going to wrap this ThrottlingQueue around.
+     */
+    private final Queue<E> queue;
+    
+    /**
+     * This is a thread-safe approximation of what the current size of the
+     * queue. It's not meant to be completely accurate, but just good enough
+     * to get an idea of whether the queue is overloaded.
+     */
+    private final AtomicInteger size = new AtomicInteger(0);
+    
+    /**
+     * If this flag is set to true, then this queue is currently throttled.
+     * It will not be allowed to take in new elements until the size goes
+     * below the throttleRelease,
+     */
     private boolean throttled;
     private int throttleThreshold;
     private int throttleRelease;
     private double throttleReleaseFactor;
     private int throttleThresholdIncrease;
     private int throttleThresholdMaxSize;
-    private boolean allow_increase = false;
+    
+    /**
+     * If this flag is set to true, then the ThrottlingQueue will automatically
+     * increase the throttleThreshold by throttleThresholdIncrease any time the 
+     * queue is completely empty.
+     */
+    private boolean allowIncreaseOnZero = false;
     
     private final ProfileMeasurement throttle_time = new ProfileMeasurement("THROTTLING");
     private boolean throttle_time_enabled = false;
@@ -66,6 +94,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
         this.throttleThresholdIncrease = throttleThresholdIncrease;
         this.throttleThresholdMaxSize = throttleThresholdMaxSize;
         this.computeReleaseThreshold();
+        this.checkThrottling(this.allowIncreaseOnZero, this.size());
     }
     
     /**
@@ -78,7 +107,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
                            int throttleThreshold,
                            double throttleReleaseFactor) {
         this(queue, throttleThreshold, throttleReleaseFactor, 0, throttleThreshold);
-        this.allow_increase = false;
+        this.allowIncreaseOnZero = false;
     }
 
     // ----------------------------------------------------------------------------
@@ -87,6 +116,44 @@ public class ThrottlingQueue<E> implements Queue<E> {
     
     private void computeReleaseThreshold() {
         this.throttleRelease = Math.max((int)(this.throttleThreshold * this.throttleReleaseFactor), 1);
+    }
+    
+    /**
+     * Check whether the size of this queue is greater than our max limit.
+     * We don't need to worry if this is 100% accurate, so we won't block here
+     * @param can_increase
+     * @param last_size
+     */
+    private void checkThrottling(boolean can_increase, int last_size) {
+        
+        // If they're not throttled, then we should check whether
+        // we need to throttle them
+        if (this.throttled == false) {
+            // If they've gone above the current queue max size, then
+            // they are throtttled!
+            if (last_size >= this.throttleThreshold) {
+                if (this.throttle_time_enabled) this.throttle_time.start();
+                this.throttled = true;
+            }
+            
+            // Or if the queue is completely empty and we're allowe to increase
+            // the max limit, then we'll go ahead and do that for them here
+            else if (can_increase && last_size == 0) {
+                synchronized (this) {
+                    this.throttleThreshold = Math.min(this.throttleThresholdMaxSize, (this.throttleThreshold + this.throttleThresholdIncrease));
+                    this.throttleRelease = Math.max((int)(this.throttleThreshold * this.throttleReleaseFactor), 1);
+                } // SYNCH
+            }
+        }
+        // If we're throttled and we've gone below our release
+        // threshold, then we can go ahead and unthrottle them
+        else if (last_size <= this.throttleRelease) {
+            if (debug.val)
+                LOG.debug(String.format("Unthrottling queue [size=%d > release=%d]",
+                          last_size, this.throttleRelease));
+            if (this.throttle_time_enabled) this.throttle_time.stopIfStarted();
+            this.throttled = false;
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -173,7 +240,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
      * @param allow_increase
      */
     public void setAllowIncrease(boolean allow_increase) {
-        this.allow_increase = allow_increase;
+        this.allowIncreaseOnZero = allow_increase;
     }
     
     protected final Queue<E> getQueue() {
@@ -207,46 +274,17 @@ public class ThrottlingQueue<E> implements Queue<E> {
         } else if (this.throttled == false) {
             ret = this.queue.offer(e);
         }
-        if (ret && force == false) {
-            this.size = this.queue.size();
-            this.checkThrottling(this.allow_increase);
+        if (ret) {
+            int size = this.size.incrementAndGet();
+            // If they had us force the element into the queue, then
+            // we won't check to see whether to enable throttling
+            if (force == false) {
+                // Since we're adding an item, we know that the size
+                // is unlikely to be zero.
+                this.checkThrottling(false, size);
+            }
         }
         return (ret);
-    }
-    
-    /**
-     * Check whether the size of this queue is greater than our max limit
-     * We don't need to worry if this is 100% accurate, so we won't block here
-     */
-    public void checkThrottling(boolean increase) {
-        // If they're not throttled, then we should check whether
-        // we need to throttle them
-        if (this.throttled == false) {
-            // If they've gone above the current queue max size, then
-            // they are throtttled!
-            if (this.size >= this.throttleThreshold) {
-                if (this.throttle_time_enabled) this.throttle_time.start();
-                this.throttled = true;
-            }
-            
-            // Or if the queue is completely empty and we're allowe to increase
-            // the max limit, then we'll go ahead and do that for them here
-            else if (increase && this.size == 0) {
-                synchronized (this) {
-                    this.throttleThreshold = Math.min(this.throttleThresholdMaxSize, (this.throttleThreshold + this.throttleThresholdIncrease));
-                    this.throttleRelease = Math.max((int)(this.throttleThreshold * this.throttleReleaseFactor), 1);
-                } // SYNCH
-            }
-        }
-        // If we're throttled and we've gone below our release
-        // threshold, then we can go ahead and unthrottle them
-        else if (this.size <= this.throttleRelease) {
-            if (debug.val)
-                LOG.debug(String.format("Unthrottling queue [size=%d > release=%d]",
-                          this.size, this.throttleRelease));
-            if (this.throttle_time_enabled) this.throttle_time.stopIfStarted();
-            this.throttled = false;
-        }
     }
     
     // ----------------------------------------------------------------------------
@@ -265,8 +303,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
     public boolean remove(Object o) {
         boolean ret = this.queue.remove(o);
         if (ret) {
-            this.size = this.queue.size();
-            this.checkThrottling(this.allow_increase);
+            this.checkThrottling(this.allowIncreaseOnZero, this.size.decrementAndGet());
         }
         return (ret);
     }
@@ -274,8 +311,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
     public E poll() {
         E e = this.queue.poll();
         if (e != null) {
-            this.size = this.queue.size();
-            this.checkThrottling(this.allow_increase);
+            this.checkThrottling(this.allowIncreaseOnZero, this.size.decrementAndGet());
         }
         return (e);
     }
@@ -283,8 +319,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
     public E remove() {
         E e = this.queue.remove();
         if (e != null) {
-            this.size = this.queue.size();
-            this.checkThrottling(this.allow_increase);
+            this.checkThrottling(this.allowIncreaseOnZero, this.size.decrementAndGet());
         }
         return (e);
     }
@@ -292,25 +327,38 @@ public class ThrottlingQueue<E> implements Queue<E> {
     public void clear() {
         if (this.throttle_time_enabled && this.throttled) this.throttle_time.stopIfStarted();
         this.throttled = false;
-        this.size = 0;
+        this.size.set(0);
         this.queue.clear();
+        this.checkThrottling(false, 0);
     }
     @Override
     public boolean removeAll(Collection<?> c) {
         boolean ret = this.queue.removeAll(c);
-        if (ret) this.size = 0;
+        if (ret) {
+            int new_size = this.queue.size();
+            this.size.lazySet(new_size);
+            this.checkThrottling(this.allowIncreaseOnZero, new_size);
+        }
         return (ret);
     }
     @Override
     public boolean retainAll(Collection<?> c) {
         boolean ret = this.queue.retainAll(c);
-        if (ret) this.size = this.queue.size();
+        if (ret) {
+            int new_size = this.queue.size();
+            this.size.lazySet(new_size);
+            this.checkThrottling(this.allowIncreaseOnZero, new_size);
+        }
         return (ret);
     }
     @Override
     public boolean addAll(Collection<? extends E> c) {
         boolean ret = this.queue.addAll(c);
-        if (ret) this.size = this.queue.size();
+        if (ret) {
+            int new_size = this.queue.size();
+            this.size.lazySet(new_size);
+            this.checkThrottling(false, new_size);
+        }
         return (ret);
     }
     @Override
@@ -339,7 +387,9 @@ public class ThrottlingQueue<E> implements Queue<E> {
     }
     @Override
     public int size() {
-        return (this.size);
+        int new_size = this.queue.size();
+        this.size.lazySet(new_size);
+        return (new_size);
     }
     @Override
     public Object[] toArray() {
@@ -355,5 +405,17 @@ public class ThrottlingQueue<E> implements Queue<E> {
         return String.format("%s [max=%d / release=%d / increase=%d]",
                              this.queue.toString(),
                              this.throttleThreshold, this.throttleRelease, this.throttleThresholdIncrease);
+    }
+    
+    public String debug() {
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        m.put("Size", String.format("Actual=%d / Approx=%d", this.queue.size(), this.size.get()));
+        m.put("Throttled", this.throttled);
+        m.put("Threshold", this.throttleThreshold);
+        m.put("Release", String.format("%d [%.1f%%]", this.throttleRelease, this.throttleReleaseFactor*100));
+        m.put("Allow Increase", this.throttled);
+        m.put("Increase Delta", this.throttleThresholdIncrease);
+        m.put("Increase Max", this.throttleThresholdMaxSize);
+        return (StringUtil.formatMaps(m));
     }
 }
