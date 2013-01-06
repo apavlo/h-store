@@ -376,7 +376,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 // just need to stop trying to add it to other partitions
                 ret = this.lockQueueInsert(next_init, partition, callback) && ret;
                 if (ret == false) break;
-                else this.checkLockQueue(partition); // HACK
             } // FOR
             added++;
             if (limit-- == 0) break;
