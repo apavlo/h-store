@@ -196,7 +196,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                                                                           this.initThrottleRelease);
             this.lockQueues[partition].setThrottleThresholdIncreaseDelta(50);
             this.lockQueues[partition].setThrottleThresholdMaxSize(this.initThrottleThreshold*5);
-            this.lockQueues[partition].enableThrottleTime(hstore_conf.site.queue_profiling);
+            this.lockQueues[partition].enableProfiling(hstore_conf.site.queue_profiling);
             
             this.lockQueuesBlocked[partition] = false;
             this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
@@ -237,7 +237,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             if (queue != null) {
                 queue.setThrottleThreshold(this.initThrottleThreshold);
                 queue.setThrottleReleaseFactor(this.initThrottleRelease);
-                queue.enableThrottleTime(hstore_conf.site.queue_profiling);
+                queue.enableProfiling(hstore_conf.site.queue_profiling);
             }
         } // FOR
         
@@ -529,9 +529,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             return (false);
         }
         
-        // For local partitions, peek ahead in this partition's queue to see whether the 
-        // txnId that we're trying to insert is less than the next one that we expect to release 
-        //
         // 2012-12-03 - There is a race condition here where we may get back the last txn that 
         // was released but then it was deleted and cleaned-up. This means that its txn id
         // might be null. A better way to do this is to only have each PartitionExecutor
@@ -540,7 +537,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // The next txnId that we're going to try to execute is already greater
         // than this new txnId that we were given! Rejection!
-        if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
+        if (next_safe_id != null && next_safe_id.compareTo(txn_id) > 0) {
             if (debug.val)
                 LOG.debug(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
             	          "is greater than our new txn %s. Rejecting...",

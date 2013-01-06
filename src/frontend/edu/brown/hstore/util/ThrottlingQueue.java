@@ -180,7 +180,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
         return (this.queue);
     }
     
-    public void enableThrottleTime(boolean val) {
+    public void enableProfiling(boolean val) {
         this.throttle_time_enabled = val;
     }
     
