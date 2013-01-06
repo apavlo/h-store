@@ -2,6 +2,7 @@ package edu.brown.hstore;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -949,7 +950,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         public int getInitQueueSize() {
             Set<AbstractTransaction> allTxns = new HashSet<AbstractTransaction>();
             for (int p : localPartitions.values()) {
-                allTxns.addAll(lockQueues[p]);
+                try {
+                    allTxns.addAll(lockQueues[p]);
+                } catch (ConcurrentModificationException ex) {
+                    // IGNORE
+                }
             }
             return (allTxns.size());
         }
