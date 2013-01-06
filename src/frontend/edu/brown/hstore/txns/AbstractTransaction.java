@@ -422,7 +422,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     public void initRound(int partition, long undoToken) {
         assert(this.round_state[partition] == null || this.round_state[partition] == RoundState.FINISHED) : 
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
-                          this.round_state[partition], this.round_ctr[partition], partition, this, this.hashCode());
+                          this.round_state[partition], this.round_ctr[partition],
+                          partition, this, this.hashCode());
         
         // If we get to this point, then we know that nobody cares about any 
         // errors from the previous round, therefore we can just clear it out
@@ -445,10 +446,11 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         }
         this.round_state[partition] = RoundState.INITIALIZED;
         
-        if (debug.val) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d / first=%d / last=%d]",
-                                               this, this.round_ctr[partition], partition,
-                                               undoToken, this.exec_firstUndoToken[partition], 
-                                               this.exec_lastUndoToken[partition]));
+        if (debug.val)
+            LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d / first=%d / last=%d]",
+                      this, this.round_ctr[partition], partition,
+                      undoToken, this.exec_firstUndoToken[partition], 
+                      this.exec_lastUndoToken[partition]));
     }
     
     /**
@@ -458,7 +460,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     public void startRound(int partition) {
         assert(this.round_state[partition] == RoundState.INITIALIZED) :
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
-                          this.round_state[partition], this.round_ctr[partition], partition, this, this.hashCode());
+                          this.round_state[partition], this.round_ctr[partition],
+                          partition, this, this.hashCode());
         
         this.round_state[partition] = RoundState.STARTED;
         if (debug.val) LOG.debug(String.format("%s - Starting batch ROUND #%d on partition %d",
