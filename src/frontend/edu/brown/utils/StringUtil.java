@@ -128,7 +128,7 @@ public abstract class StringUtil {
      */
     public static String formatTime(String f, double time, TimeUnit unit) {
         double nanoseconds;
-        nanoseconds = unit.toNanos((long)time);
+        nanoseconds = Math.abs(unit.toNanos((long)time));
         String unitLabel = "ns";
         
         // Seconds

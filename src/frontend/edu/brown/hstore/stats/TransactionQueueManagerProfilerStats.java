@@ -2,6 +2,7 @@ package edu.brown.hstore.stats;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.voltdb.StatsSource;
@@ -72,6 +73,10 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
             columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
         } // FOR
         
+        // ThrottlingQueue
+        columns.add(new VoltTable.ColumnInfo("THROTTLED", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("THROTTLED_CNT", VoltType.BIGINT));
+        
         // Add in TransactionInitPriorityQueueProfiler stats
         TransactionInitPriorityQueueProfiler initProfiler = new TransactionInitPriorityQueueProfiler();
         columns.add(new VoltTable.ColumnInfo("AVG_TXN_WAIT", VoltType.FLOAT));
@@ -87,6 +92,8 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         int partition = (Integer)rowKey;
         TransactionQueueManager.Debug dbg = this.queue_manager.getDebugContext();
         TransactionQueueManagerProfiler profiler = dbg.getProfiler(partition);
+        TransactionInitPriorityQueue initQueue = this.queue_manager.getInitQueue(partition);
+        TransactionInitPriorityQueueProfiler initProfiler = initQueue.getDebugContext().getProfiler();
         
         int offset = this.columnNameToIndex.get("PARTITION");
         rowValues[offset++] = partition;
@@ -97,9 +104,12 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
             rowValues[offset++] = pm.getInvocations();
         } // FOR
         
+        // ThrottlingQueue
+        ProfileMeasurement throttlePM = initQueue.getThrottleTime();
+        rowValues[offset++] = throttlePM.getTotalThinkTime();
+        rowValues[offset++] = throttlePM.getInvocations();
+        
         // TransactionInitPriorityQueue
-        TransactionInitPriorityQueue initQueue = this.queue_manager.getInitQueue(partition);
-        TransactionInitPriorityQueueProfiler initProfiler = initQueue.getDebugContext().getProfiler();
         rowValues[offset++] = MathUtil.weightedMean(initProfiler.waitTimes);
         for (ProfileMeasurement pm : initProfiler.queueStates.values()) {
             rowValues[offset++] = pm.getTotalThinkTime();
