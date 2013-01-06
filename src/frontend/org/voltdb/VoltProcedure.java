@@ -144,6 +144,9 @@ public abstract class VoltProcedure implements Poolable {
     // a given call don't re-seed and generate the same number over and over
     private Random m_cachedRNG = null;
     
+    private VoltTable lastScalarResultTable[] = null;
+    private Long lastScalarResult = null;
+    
     // ----------------------------------------------------------------------------
     // WORKLOAD TRACE HANDLES
     // ----------------------------------------------------------------------------
@@ -751,9 +754,17 @@ public abstract class VoltProcedure implements Poolable {
         if (result instanceof VoltTable)
             return new VoltTable[] { (VoltTable) result };
         if (result instanceof Long) {
+            // OPTIMIZATION: Check whether the return value is the same
+            // as the last txn. For some workloads it is, so we can just
+            // reuse the last VoltTable that we created.
+            Long longResult = (Long)result;
+            if (this.lastScalarResultTable != null && this.lastScalarResult.equals(longResult)) {
+                return (this.lastScalarResultTable);
+            }
             VoltTable t = new VoltTable(SCALAR_RESULT_SCHEMA);
             t.addRow(result);
-            return new VoltTable[] { t };
+            this.lastScalarResultTable = new VoltTable[] { t };
+            return (this.lastScalarResultTable);
         }
         throw new RuntimeException("Procedure didn't return acceptable type.");
     }
