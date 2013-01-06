@@ -93,6 +93,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Catalog object of the Procedure that this transaction is currently executing
      */
     private Procedure catalog_proc;
+    private boolean sysproc;
     
     protected Long txn_id = null;
     protected Long last_txn_id = null; // FOR DEBUGGING
@@ -325,6 +326,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.base_partition = base_partition;
         this.parameters = parameters;
         this.catalog_proc = catalog_proc;
+        this.sysproc = this.catalog_proc.getSystemproc();
         
         // Initialize the predicted execution properties for this transaction
         this.predict_touchedPartitions = predict_touchedPartitions;
@@ -697,9 +699,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Returns true if this transaction is for a system procedure
      */
     public final boolean isSysProc() {
-        assert(this.catalog_proc != null) :
-            "Unexpected null Procedure handle for " + this;
-        return this.catalog_proc.getSystemproc();
+        return (this.sysproc);
     }
     
     // ----------------------------------------------------------------------------

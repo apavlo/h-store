@@ -273,7 +273,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                       this.partitionId, afterPoll, this.state));
         QueueState newState = (afterPoll ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
         long currentTimestamp = -1l;
-        AbstractTransaction ts = super.peek();
+        AbstractTransaction ts = super.peek(); // BLOCKING
         Long txnId = null;
         if (ts == null) {
 //            if (trace.val)

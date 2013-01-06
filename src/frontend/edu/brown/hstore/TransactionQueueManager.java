@@ -1,22 +1,18 @@
 package edu.brown.hstore;
 
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.TransactionIdManager;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 
@@ -25,14 +21,12 @@ import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
-import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ExceptionHandlingRunnable;
@@ -59,7 +53,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private static final TimeUnit THREAD_WAIT_TIMEUNIT = TimeUnit.MILLISECONDS;
     
     private static final int CHECK_INIT_QUEUE_LIMIT = 10000;
-    private static final int CHECK_BLOCK_QUEUE_LIMIT = 100;
     private static final int CHECK_RESTART_QUEUE_LIMIT = 100;
     
     // ----------------------------------------------------------------------------
@@ -103,45 +96,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     
     private final TransactionQueueManagerProfiler[] profilers;
 
-    
-    // ----------------------------------------------------------------------------
-    // BLOCKED DISTRIBUTED TRANSACTIONS
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * Blocked Queue Comparator
-     */
-    private Comparator<LocalTransaction> blockedComparator = new Comparator<LocalTransaction>() {
-        @Override
-        public int compare(LocalTransaction o0, LocalTransaction o1) {
-            Long txnId0 = blockedQueueTransactions.get(o0);
-            Long txnId1 = blockedQueueTransactions.get(o1);
-            if (txnId0 == null && txnId1 == null) return (0);
-            if (txnId0 == null) return (1);
-            if (txnId1 == null) return (-1);
-            if (txnId0.equals(txnId1) == false) return (txnId0.compareTo(txnId1));
-            return (int)(o0.getClientHandle() - o1.getClientHandle());
-        }
-    };
-
-    /**
-     * Internal list of distributed LocalTransactions that are unable to
-     * get the locks that they need on the remote partitions
-     */
-    private final PriorityBlockingQueue<LocalTransaction> blockedQueue = 
-            new PriorityBlockingQueue<LocalTransaction>(100, blockedComparator);
-
-    /**
-     * TODO: Merge with blockedQueue
-     */
-    private final ConcurrentHashMap<LocalTransaction, Long> blockedQueueTransactions = 
-            new ConcurrentHashMap<LocalTransaction, Long>();
-    
-    /**
-     * This Histogram keeps track of what sites have blocked the most transactions from us
-     */
-    private final ObjectHistogram<Integer> blockedQueueHistogram = new ObjectHistogram<Integer>();
-    
     // ----------------------------------------------------------------------------
     // TRANSACTIONS THAT NEED TO INIT
     // ----------------------------------------------------------------------------
@@ -284,13 +238,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
 //                }
 //            } // FOR
             
-            // Release blocked distributed transactions
-//            if (hstore_conf.site.queue_profiling) profiler.block_queue.start();
-            if (this.blockedQueue.isEmpty() == false) {
-                this.checkBlockedQueue();
-            }
-//            if (hstore_conf.site.queue_profiling && profiler.block_queue.isStarted()) profiler.block_queue.stop();
-            
             // Requeue mispredicted local transactions
 //            if (hstore_conf.site.queue_profiling) profiler.restart_queue.start();
             if (this.restartQueue.isEmpty() == false) {
@@ -340,12 +287,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
 //            callback.abort(Status.ABORT_REJECT);
 //        } // WHILE
         
-        // BLOCKED QUEUE
-        while ((ts = this.blockedQueue.poll()) != null) {
-            this.blockedQueueTransactions.remove(ts);
-            hstore_site.transactionReject((LocalTransaction)ts, Status.ABORT_REJECT);
-        } // WHILE
-        
         // RESTART QUEUE
         Pair<LocalTransaction, Status> pair = null;
         while ((pair = this.restartQueue.poll()) != null) {
@@ -376,7 +317,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             
             for (int partition : next_init.getPredictTouchedPartitions().values()) {
                 // Skip any non-local partition
-                if (hstore_site.isLocalPartition(partition) == false) continue;
+                if (this.lockQueues[partition] == null) continue;
                 
                 // If this txn gets rejected when we try to insert it, then we 
                 // just need to stop trying to add it to other partitions
@@ -740,90 +681,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         } // SYNCH
     }
     
-    /**
-     * A LocalTransaction from this HStoreSite is blocked because a remote HStoreSite that it needs to
-     * access a partition on has its last tranasction id as greater than what the LocalTransaction was issued.
-     * @param ts
-     * @param partition
-     * @param last_txnId
-     */
-    public void blockTransaction(LocalTransaction ts, int partition, Long last_txnId) {
-        if (debug.val)
-            LOG.debug(String.format("%s - Blocking transaction until after a txnId greater than %d " +
-                      "is created for partition %d",
-                      ts, last_txnId, partition));
-       
-        // IMPORTANT: Mark this transaction as not being deletable.
-        //            This will prevent it from getting deleted out from under us
-        ts.markNeedsRestart();
-        
-        if (this.blockedQueueTransactions.putIfAbsent(ts, last_txnId) != null) {
-            Long other_txn_id = this.blockedQueueTransactions.get(ts);
-            if (other_txn_id != null && other_txn_id.compareTo(last_txnId) < 0) {
-                this.blockedQueueTransactions.put(ts, last_txnId);
-            }
-        } else {
-            this.blockedQueue.offer(ts);
-        }
-        if (hstore_site.isLocalPartition(partition) == false) {
-            this.markLastTransaction(partition, last_txnId);
-        }
-        if (hstore_conf.site.txn_counters && ts.getRestartCounter() == 1) {
-            TransactionCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
-            int id = (int)TransactionIdManager.getInitiatorIdFromTransactionId(last_txnId.longValue());
-            synchronized (this.blockedQueueHistogram) {
-                this.blockedQueueHistogram.put(id);
-            } // SYNCH
-        }
-    }
-    
-    /**
-     * 
-     * @param last_txn_id
-     */
-    private void checkBlockedQueue() {
-        if (debug.val && this.blockedQueue.isEmpty() == false)
-            LOG.debug(String.format("Checking whether we can release %d blocked dtxns",
-                      this.blockedQueue.size()));
-        
-        int limit = CHECK_BLOCK_QUEUE_LIMIT;
-        while (this.blockedQueue.isEmpty() == false) {
-            LocalTransaction ts = this.blockedQueue.peek();
-            Long releaseTxnId = this.blockedQueueTransactions.get(ts);
-            
-            // If we don't have a handle for this txnId, then it probably was 
-            // deleted. That means we can just skip it.
-            if (releaseTxnId == null) {
-                if (trace.val) LOG.warn("Missing release TxnId for " + ts);
-                try {
-                    this.blockedQueue.remove(ts);
-                } catch (NullPointerException ex) {
-                    // XXX: IGNORE
-                }
-            }
-            // Check whether the last txnId issued by the TransactionIdManager at the transactions'
-            // base partition is greater than the one that we can be released on 
-            else {
-                TransactionIdManager txnIdManager = hstore_site.getTransactionIdManager(ts.getBasePartition());
-                Long last_txn_id = txnIdManager.getLastTxnId();
-                if (releaseTxnId.compareTo(last_txn_id) < 0) {
-                    if (trace.val)
-                        LOG.trace(String.format("Releasing blocked %s because the lastest txnId " +
-                        		  "was #%d [release=%d]",
-                                  ts, last_txn_id, releaseTxnId));
-                    this.blockedQueue.remove();
-                    this.blockedQueueTransactions.remove(ts);
-                    this.hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
-                    ts.unmarkNeedsRestart();
-                    this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
-                // For now we can break, but I think that we may need separate
-                // queues for the different partitions...
-                } else break;
-            }
-            if (limit-- == 0) break;
-        } // WHILE
-    }
-    
     // ----------------------------------------------------------------------------
     // RESTART QUEUE MANAGEMENT
     // ----------------------------------------------------------------------------
@@ -910,7 +767,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // Basic Information
         m[++idx] = new LinkedHashMap<String, Object>();
         m[idx].put("Wait Time", this.initWaitTime + " ms");
-        m[idx].put("# of Blocked Txns", this.blockedQueue.size());
         
         // Local Partitions
         m[++idx] = new LinkedHashMap<String, Object>();
@@ -946,14 +802,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         public int getInitQueueSize(int partition) {
             return (lockQueues[partition].size());
         }
-        public int getBlockedQueueSize() {
-            return (blockedQueue.size());
-        }
         public int getRestartQueueSize() {
             return (restartQueue.size());
-        }
-        public ObjectHistogram<Integer> getBlockedDtxnHistogram() {
-            return (blockedQueueHistogram);
         }
         public TransactionQueueManagerProfiler getProfiler(int partition) {
             return (profilers[partition]);

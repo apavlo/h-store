@@ -261,23 +261,15 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // ----------------------------------------------------------------------------
         Map<String, Object> poolInfo = (show_poolinfo ? this.poolInfo() : null);
         
-        String top = StringUtil.formatMaps(header,
-                                           siteInfo,
-                                           execInfo,
-                                           txnInfo,
-                                           threadInfo,
-                                           cpuThreads,
-                                           txnProfiles,
-                                           plannerInfo,
-                                           poolInfo);
-        String bot = "";
-        ObjectHistogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getDebugContext().getBlockedDtxnHistogram(); 
-        if (hstore_conf.site.status_show_txn_info && blockedDtxns != null && blockedDtxns.isEmpty() == false) {
-            bot = "\nRejected Transactions by Remote Identifier:\n" + blockedDtxns;
-//            bot += "\n" + hstore_site.getTransactionQueueManager().toString();
-        }
-        
-        return (top + bot);
+        return StringUtil.formatMaps(this.header,
+                                     siteInfo,
+                                     execInfo,
+                                     txnInfo,
+                                     threadInfo,
+                                     cpuThreads,
+                                     txnProfiles,
+                                     plannerInfo,
+                                     poolInfo);
     }
     
     // ----------------------------------------------------------------------------
@@ -514,10 +506,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 queueStatus += "\nWARNING: Queue is locked but without a txn!";
             }
             
-            // TransactionQueueManager - Blocked
-            if (queueManagerDebug.getBlockedQueueSize() > 0) {
-                queueStatus += "\nBlocked: " + queueManagerDebug.getBlockedQueueSize();
-            }
             // TransactionQueueManager - Requeued Txns
             if (queueManagerDebug.getRestartQueueSize() > 0) {
                 queueStatus += "\nRequeues: " + queueManagerDebug.getRestartQueueSize();

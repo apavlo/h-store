@@ -53,10 +53,6 @@ public enum TransactionCounter {
     EVICTEDACCESS,
     /** No undo buffers! Naked transactions! */
     NO_UNDO,
-    /** The number of transactions that were blocked due to the local partition's timestamps */
-    BLOCKED_LOCAL,
-    /** The number of transactions that were blocked due to a remote partition's timestamps */
-    BLOCKED_REMOTE,
     /** The number of transactions that were sent out with prefetch queries */
     PREFETCH_LOCAL,
     /** The number of transactions with prefetch queries that were received and prefetched before needed by the sender */
@@ -141,8 +137,6 @@ public enum TransactionCounter {
             case RECEIVED:
             case EXECUTED:
             case THROTTLED:
-            case BLOCKED_LOCAL:
-            case BLOCKED_REMOTE:
             case PREFETCH_LOCAL:
             case PREFETCH_REMOTE:
                 total = RECEIVED.get();
