@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -620,6 +621,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         if (last != null) {
             double delta;
             String deltaPrefix;
+            TimeUnit timeUnit = TimeUnit.NANOSECONDS;
             if (compareLastAvg) {
                 delta = pm.getAverageThinkTime() - last.getAverageThinkTime();
                 deltaPrefix = "AVG: ";
@@ -629,11 +631,12 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     deltaPrefix = "";
                 }
                 else {
-                    delta = last.getTotalThinkTime() - pm.getTotalThinkTime();
+                    delta = pm.getTotalThinkTimeMS() - last.getTotalThinkTimeMS();
                     deltaPrefix = "??? ";
+                    timeUnit = TimeUnit.MILLISECONDS;
                 }
             }
-            String deltaTime = StringUtil.formatTime("%.2f", delta);
+            String deltaTime = StringUtil.formatTime("%.2f", delta, timeUnit);
             String deltaArrow = " ";
             if (delta > 0) {
                 deltaArrow = StringUtil.UNICODE_UP_ARROW;
