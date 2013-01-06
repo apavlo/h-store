@@ -75,8 +75,8 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
     
     @Override
     protected int runImpl(int partition) {
-        // Tell the HStoreSite to send a SetDistributedTxnMessage to this partition
-        this.hstore_site.transactionSetPartitionLock(this.ts, partition);
+//        // Tell the HStoreSite to send a SetDistributedTxnMessage to this partition
+//        this.hstore_site.transactionSetPartitionLock(this.ts, partition);
         return (1);
     }
     

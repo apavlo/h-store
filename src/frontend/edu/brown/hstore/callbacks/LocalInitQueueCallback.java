@@ -47,17 +47,17 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     
     @Override
     protected int runImpl(int partition) {
-        // If this is a single-partition txn, then we'll want to tell the PartitionExecutor
-        // to start executing this txn immediately
-        if (this.ts.isPredictSinglePartition()) {
-            assert(partition == this.ts.getBasePartition());
-            this.hstore_site.transactionStart((LocalTransaction)this.ts);
-        }
-        // Otherwise we'll want to send a SetDistributedTxnMessage to this partition
-        // if it's not this txn's base partition.
-        else if (this.ts.getBasePartition() != partition && this.hstore_site.isLocalPartition(partition)) {
-            this.hstore_site.transactionSetPartitionLock((LocalTransaction)this.ts, partition);
-        }
+//        // If this is a single-partition txn, then we'll want to tell the PartitionExecutor
+//        // to start executing this txn immediately
+//        if (this.ts.isPredictSinglePartition()) {
+//            assert(partition == this.ts.getBasePartition());
+//            this.hstore_site.transactionStart((LocalTransaction)this.ts);
+//        }
+//        // Otherwise we'll want to send a SetDistributedTxnMessage to this partition
+//        // if it's not this txn's base partition.
+//        else if (this.ts.getBasePartition() != partition && this.hstore_site.isLocalPartition(partition)) {
+//            this.hstore_site.transactionSetPartitionLock((LocalTransaction)this.ts, partition);
+//        }
         
         return (1);
     }
@@ -70,8 +70,9 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     protected void unblockCallback() {
         assert(this.isAborted() == false);
         
-        // If this is a single-partition txn, then we don't need to submit it for 
-        // because we already did that in the runImpl() method above.
+        // HACK: If this is a single-partition txn, then we don't
+        // need to submit it for execution because the PartitionExecutor
+        // will fire it off right away
         if (this.ts.isPredictSinglePartition() == false) {
             if (debug.val) LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
             this.hstore_site.transactionStart((LocalTransaction)this.ts);

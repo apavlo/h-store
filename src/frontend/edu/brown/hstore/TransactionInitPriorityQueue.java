@@ -268,7 +268,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * @return
      */
     private QueueState checkQueueState(boolean afterPoll) {
-        if (trace.val)
+        if (trace.val && super.isEmpty() == false)
             LOG.trace(String.format("Partition %d :: checkQueueState(afterPoll=%s) [current=%s]",
                       this.partitionId, afterPoll, this.state));
         QueueState newState = (afterPoll ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
@@ -276,8 +276,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         AbstractTransaction ts = super.peek();
         Long txnId = null;
         if (ts == null) {
-            if (trace.val)
-                LOG.trace(String.format("Partition %d :: Queue is empty.", this.partitionId));
+//            if (trace.val)
+//                LOG.trace(String.format("Partition %d :: Queue is empty.", this.partitionId));
             newState = QueueState.BLOCKED_EMPTY;
         }
         // Check whether can unblock now
