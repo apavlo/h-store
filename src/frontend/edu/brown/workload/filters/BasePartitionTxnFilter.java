@@ -1,37 +1,32 @@
 package edu.brown.workload.filters;
 
-import java.util.BitSet;
 import java.util.Collection;
 
-import org.voltdb.CatalogContext;
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 
 public class BasePartitionTxnFilter extends Filter {
+    private static final Logger LOG = Logger.getLogger(BasePartitionTxnFilter.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     
     private final PartitionEstimator p_estimator;
-    private final CatalogContext catalogContext;
-    private final BitSet base_partitions;
+    private final PartitionSet allowedPartitions = new PartitionSet();
     
-    public BasePartitionTxnFilter(PartitionEstimator p_estimator, int...base_partitions) {
+    public BasePartitionTxnFilter(PartitionEstimator p_estimator, int...partitions) {
         super();
         this.p_estimator = p_estimator;
-        this.catalogContext = p_estimator.getCatalogContext();
-        
-        this.base_partitions = new BitSet(this.catalogContext.numberOfPartitions);
-        for (int p : base_partitions) {
-            this.base_partitions.set(p);
-        }
+        this.allowedPartitions.addAll(partitions);
     }
     
     public void addPartitions(Collection<Integer> partitions) {
-        for (Integer p : partitions) {
-            this.base_partitions.set(p.intValue());
-        }
+        this.allowedPartitions.addAll(partitions);
     }
     
     @Override
@@ -41,24 +36,28 @@ public class BasePartitionTxnFilter extends Filter {
     
     @Override
     protected FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
+        FilterResult result = FilterResult.ALLOW;
         if (element instanceof TransactionTrace) {
             TransactionTrace xact = (TransactionTrace)element;
-            int partition = HStoreConstants.NULL_PARTITION_ID;
+            int basePartition = HStoreConstants.NULL_PARTITION_ID;
             try {
-                partition = this.p_estimator.getBasePartition(xact);
+                basePartition = this.p_estimator.getBasePartition(xact);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 assert(false);
             }
-            assert(partition >= 0);
-            return (this.base_partitions.get(partition) ? FilterResult.ALLOW : FilterResult.SKIP);
+            assert(basePartition >= 0);
+            result = (this.allowedPartitions.contains(basePartition) ? FilterResult.ALLOW : FilterResult.SKIP);
+            if (debug.val)
+                LOG.debug(String.format("%s :: basePartition=%d / allowed=%s ==> %s",
+                          xact, basePartition, this.allowedPartitions, result));
         }
-        return FilterResult.ALLOW;
+        return (result);
     }
     
     @Override
     public String debugImpl() {
-        return null;
+        return (this.getClass().getSimpleName() + ": allowed=" + this.allowedPartitions);
     }
 
 }

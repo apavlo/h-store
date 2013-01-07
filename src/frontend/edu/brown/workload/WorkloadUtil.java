@@ -301,9 +301,9 @@ public abstract class WorkloadUtil {
                 output.write(xact.toJSONString(catalog_db).getBytes());
                 output.write(newline);
                 output.flush();
-                if (debug.val) Workload.LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+                if (debug.val) LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
             } catch (IOException ex) {
-                Workload.LOG.fatal("Failed to write " + xact + " out to file", ex);
+                LOG.fatal("Failed to write " + xact + " out to file", ex);
                 System.exit(1);
             }
         }

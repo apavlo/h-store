@@ -83,9 +83,12 @@ public abstract class Filter {
         
     private final Filter.FilterResult applyImpl(AbstractTraceElement<? extends CatalogType> element) {
         assert(element != null);
-        Filter.FilterResult result = this.filter(element); 
-        if (result == FilterResult.ALLOW) {
-            return (this.next != null ? this.next.applyImpl(element) : FilterResult.ALLOW);
+        Filter.FilterResult result = this.filter(element);
+        if (trace.val && result != FilterResult.ALLOW)
+            LOG.trace(String.format("%s Filter: %s => %s",
+                      this.getClass().getSimpleName(), element, result));
+        if (result == FilterResult.ALLOW && this.next != null) {
+            result = this.next.applyImpl(element);
         }
         return (result);
     }

@@ -156,7 +156,8 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     }
     @Override
     public int size() {
-        return (this.values().length);
+        return (this.contains_null ? 1 : 0) + this.inner.cardinality();
+        // return (this.values().length);
     }
     @Override
     public void clear() {
@@ -256,12 +257,19 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         }
         return (false);
     }
+    public boolean addAll(int partitions[]) {
+        boolean ret = true;
+        for (int partition : partitions) {
+            ret = this.add(partition) && ret;
+        } // FOR
+        return (ret);
+    }
     @Override
     public boolean addAll(Collection<? extends Integer> partitions) {
         boolean ret = true;
         for (Integer partition : partitions) {
             ret = this.add(partition.intValue()) && ret;
-        }
+        } // FOR
         return (ret);
     }
     public boolean addAll(PartitionSet partitions) {

@@ -1,9 +1,11 @@
 package edu.brown.workload.filters;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.workload.AbstractTraceElement;
@@ -15,6 +17,8 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  */
 public class MultiPartitionTxnFilter extends Filter {
+    private static final Logger LOG = Logger.getLogger(MultiPartitionTxnFilter.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     
     private final PartitionEstimator p_estimator;
     private final Database catalog_db;
@@ -39,6 +43,7 @@ public class MultiPartitionTxnFilter extends Filter {
     
     @Override
     protected FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
+        FilterResult result = FilterResult.ALLOW;
         if (element instanceof TransactionTrace) {
             TransactionTrace xact = (TransactionTrace)element;
             Procedure catalog_proc = xact.getCatalogItem(this.catalog_db);
@@ -55,16 +60,18 @@ public class MultiPartitionTxnFilter extends Filter {
                 throw new RuntimeException(ex);
             }
             assert(partitions.isEmpty() == false);
-            boolean allow = (this.singlepartition ? (partitions.size() == 1) : (partitions.size() > 1)); 
-            return  (allow ? FilterResult.ALLOW : FilterResult.SKIP);
-            
+            boolean allow = (this.singlepartition ? (partitions.size() == 1) : (partitions.size() > 1));
+            result = (allow ? FilterResult.ALLOW : FilterResult.SKIP);
+            if (debug.val)
+                LOG.debug(String.format("%s :: partitions=%s / allow=%s ==> %s",
+                          xact, partitions, allow, result));
         }
-        return FilterResult.ALLOW;
+        return (result);
     }
     
     @Override
     public String debugImpl() {
-        return null;
+        return (this.getClass().getSimpleName() + ": singlePartition=" + this.singlepartition);
     }
 
 }

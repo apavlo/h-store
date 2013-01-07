@@ -60,7 +60,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
 
-        if (workload == null) {
+        if (isFirstSetup()) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             all_partitions = catalogContext.getAllPartitionIds();
             
