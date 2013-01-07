@@ -156,7 +156,7 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     }
     @Override
     public int size() {
-        return (this.contains_null ? 1 : 0) + this.inner.cardinality();
+        return (this.values().length);
     }
     @Override
     public void clear() {

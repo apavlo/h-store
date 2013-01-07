@@ -94,6 +94,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     private Procedure catalog_proc;
     private boolean sysproc;
+    private boolean readonly;
     
     protected Long txn_id = null;
     protected Long last_txn_id = null; // FOR DEBUGGING
@@ -325,8 +326,10 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.client_handle = client_handle;
         this.base_partition = base_partition;
         this.parameters = parameters;
+        
         this.catalog_proc = catalog_proc;
         this.sysproc = this.catalog_proc.getSystemproc();
+        this.readonly = this.catalog_proc.getReadonly();
         
         // Initialize the predicted execution properties for this transaction
         this.predict_touchedPartitions = predict_touchedPartitions;
@@ -549,6 +552,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Mark this transaction as have performed some modification on this partition
      */
     public void markExecNotReadOnly(int partition) {
+        assert(this.readonly == false);
         this.exec_readOnly[partition] = false;
     }
 
@@ -556,7 +560,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Returns true if this transaction has not executed any modifying work at this partition
      */
     public final boolean isExecReadOnly(int partition) {
-        if (this.catalog_proc.getReadonly()) return (true);
+        if (this.readonly) return (true);
         return (this.exec_readOnly[partition]);
     }
     

@@ -72,12 +72,8 @@ public class TransactionInitializer {
     private static final Logger LOG = Logger.getLogger(TransactionInitializer.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
-    private static boolean d;
-    private static boolean t;
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
-        d = debug.get();
-        t = trace.get();
     }
     
     // ----------------------------------------------------------------------------
@@ -106,6 +102,12 @@ public class TransactionInitializer {
      */
     private EventObservable<LocalTransaction> newTxnObservable; 
     
+    // Local Catalog Cache
+    private final boolean isMapReduce[];
+    private final boolean isSysProc[];
+    private final boolean isReadOnly[];
+    private final int expectedParams[];
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -121,6 +123,19 @@ public class TransactionInitializer {
         this.thresholds = hstore_site.getThresholds();
         this.p_estimator = hstore_site.getPartitionEstimator();
         this.t_estimators = new TransactionEstimator[catalogContext.numberOfPartitions];
+        
+        int num_procs = this.catalogContext.procedures.size();
+        this.isMapReduce = new boolean[num_procs];
+        this.isSysProc = new boolean[num_procs];
+        this.isReadOnly = new boolean[num_procs];
+        this.expectedParams = new int[num_procs];
+        for (Procedure proc : this.catalogContext.procedures) {
+            int id = proc.getId();
+            this.isMapReduce[id] = proc.getMapreduce();
+            this.isSysProc[id] = proc.getSystemproc();
+            this.isReadOnly[id] = proc.getReadonly();
+            this.expectedParams[id] = proc.getParameters().size();
+        } // FOR
     }
     
     protected synchronized EventObservable<LocalTransaction> getNewTxnObservable() {
@@ -148,6 +163,7 @@ public class TransactionInitializer {
                                       Procedure catalog_proc,
                                       ParameterSet procParams,
                                       int base_partition) {
+        final int procId = catalog_proc.getId();
         
         // Simple sanity check to make sure that we're not being told a bad partition
         if (base_partition < 0 || base_partition >= this.local_partitions.size()) {
@@ -157,15 +173,16 @@ public class TransactionInitializer {
         // -------------------------------
         // DB2-style Transaction Redirection
         // -------------------------------
-        if (base_partition != -1 && hstore_conf.site.exec_db2_redirects) {
-            if (d) LOG.debug(String.format("Using embedded base partition from %s request " +
-                                           "[basePartition=%d]",
-                                           catalog_proc.getName(), base_partition));
+        if (base_partition != HStoreConstants.NULL_PARTITION_ID && hstore_conf.site.exec_db2_redirects) {
+            if (debug.val)
+                LOG.debug(String.format("Using embedded base partition from %s request " +
+                                        "[basePartition=%d]",
+                                        catalog_proc.getName(), base_partition));
         }
         // -------------------------------
         // System Procedure
         // -------------------------------
-        else if (catalog_proc.getSystemproc()) {
+        else if (this.isSysProc[procId]) {
             // If it's a sysproc, then it doesn't need to go to a specific partition
             // We'll set it to NULL_PARTITION_ID so that we'll pick a random one down below
             base_partition = HStoreConstants.NULL_PARTITION_ID;
@@ -176,10 +193,14 @@ public class TransactionInitializer {
         else if (hstore_conf.site.exec_force_localexecution == false) {
             // HACK: If they don't have enough parameters, we'll just throw them to 
             // a random local partition and then let VoltProcedure give them back the proper error
-            if (procParams.size() < catalog_proc.getParameters().size()) {
-                if (d) LOG.warn(String.format("Not enough parameters for %s. Not calculating base partition", catalog_proc.getName()));
+            if (procParams.size() < this.expectedParams[procId]) {
+                if (debug.val)
+                    LOG.warn(String.format("Not enough parameters for %s. Not calculating base partition",
+                             catalog_proc.getName()));
             } else {
-                if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", catalog_proc.getName()));
+                if (debug.val)
+                    LOG.debug(String.format("Using PartitionEstimator for %s request",
+                              catalog_proc.getName()));
                 try {
                     base_partition = this.p_estimator.getBasePartition(catalog_proc, procParams.toArray(), false);
                 } catch (Exception ex) {
@@ -191,8 +212,9 @@ public class TransactionInitializer {
         // one our partitions at random. This can happen if we're forcing txns to execute locally
         // or if there are no input parameters <-- this should be in the paper!!!
         if (base_partition == HStoreConstants.NULL_PARTITION_ID) {
-            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
-                                           catalog_proc.getName(), hstore_conf.site.exec_force_localexecution));
+            if (trace.val)
+                LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
+                          catalog_proc.getName(), hstore_conf.site.exec_force_localexecution));
             int idx = (int)(Math.abs(client_handle) % this.local_partitions.size());
             base_partition = this.local_partitions.values()[idx];
         }
@@ -222,9 +244,11 @@ public class TransactionInitializer {
                                                    Procedure catalog_proc,
                                                    ParameterSet procParams,
                                                    RpcCallback<ClientResponseImpl> clientCallback) {
-        if (d) LOG.debug(String.format("Incoming %s transaction request " +
-        		                       "[handle=%d, partition=%d]",
-                                       catalog_proc.getName(), client_handle, base_partition));
+        final int procId = catalog_proc.getId();
+        if (debug.val)
+            LOG.debug(String.format("Incoming %s transaction request " +
+        	          "[handle=%d, partition=%d]",
+                      catalog_proc.getName(), client_handle, base_partition));
 
         // -------------------------------
         // TRANSACTION STATE INITIALIZATION
@@ -235,17 +259,17 @@ public class TransactionInitializer {
         // throughout this txn's lifespan to keep track of what it does
         LocalTransaction ts = null;
         try {
-            if (catalog_proc.getMapreduce()) {
+            if (this.isSysProc[procId]) {
                 if (hstore_conf.site.pool_txn_enable) {
                     ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
                 } else {
-                    ts = new MapReduceTransaction(hstore_site);
+                    ts = new MapReduceTransaction(this.hstore_site);
                 }
             } else {
                 if (hstore_conf.site.pool_txn_enable) {
                     ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
                 } else {
-                    ts = new LocalTransaction(hstore_site);
+                    ts = new LocalTransaction(this.hstore_site);
                 }
             }
             assert(ts.isInitialized() == false);
@@ -274,14 +298,14 @@ public class TransactionInitializer {
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) {
             // Disable transaction profiling for sysprocs
-            if (ts.isSysProc()) {
+            if (this.isSysProc[procId]) {
                 ts.profiler.disableProfiling();
             }
         }
         // Notify anybody that cares about this new txn
         if (this.newTxnObservable != null) this.newTxnObservable.notifyObservers(ts);
         
-        assert(ts.isSysProc() == catalog_proc.getSystemproc()) :
+        assert(ts.isSysProc() == this.isSysProc[procId]) :
             "Unexpected sysproc mismatch for " + ts;
         return (ts);
     }
@@ -376,12 +400,14 @@ public class TransactionInitializer {
             if (hstore_conf.site.pool_txn_enable) {
                 ts = this.objectPools.getRemoteTransactionPool(base_partition).borrowObject();
             } else {
-                ts = new RemoteTransaction(hstore_site);
+                ts = new RemoteTransaction(this.hstore_site);
             }
             assert(ts.isInitialized() == false);
             ts.init(txn_id, base_partition, null, catalog_proc, partitions, true);
-            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [partitions=%s, hashCode=%d]",
-                             ts, base_partition, partitions, ts.hashCode()));
+            if (debug.val)
+                LOG.debug(String.format("Creating new RemoteTransactionState %s from " +
+                		  "remote partition %d [partitions=%s, hashCode=%d]",
+                          ts, base_partition, partitions, ts.hashCode()));
         } catch (Throwable ex) {
             String msg = "Failed to instantiate new remote transaction handle for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
             throw new RuntimeException(msg, ex);
@@ -389,7 +415,8 @@ public class TransactionInitializer {
         AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
         assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
         
-        if (t) LOG.trace(String.format("Stored new transaction state for %s", ts));
+        if (trace.val)
+            LOG.trace(String.format("Stored new transaction state for %s", ts));
         return (ts);
     }
     
@@ -440,8 +467,9 @@ public class TransactionInitializer {
         assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
 
         ts.init(txn_id, initiateTime, client_handle, base_partition, catalog_proc, procParams);
-        if (d) LOG.debug(String.format("Created new MapReduceTransaction state %s from remote partition %d",
-                                       ts, base_partition));
+        if (debug.val)
+            LOG.debug(String.format("Created new MapReduceTransaction state %s from remote partition %d",
+                      ts, base_partition));
         return (ts);
     }
    
@@ -507,9 +535,9 @@ public class TransactionInitializer {
                                     Procedure catalog_proc,
                                     ParameterSet params,
                                     RpcCallback<ClientResponseImpl> client_callback) {
-        
+        final int procId = catalog_proc.getId();
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
-        boolean predict_readOnly = catalog_proc.getReadonly();
+        boolean predict_readOnly = this.isReadOnly[procId];
         PartitionSet predict_partitions = null;
         EstimatorState t_state = null; 
         
@@ -527,7 +555,7 @@ public class TransactionInitializer {
         // -------------------------------
         // SYSTEM PROCEDURES
         // -------------------------------
-        if (catalog_proc.getSystemproc()) {
+        if (this.isSysProc[procId]) {
             // Sysprocs can be either all partitions or single-partitioned
             // TODO: It would be nice if the client could pass us a hint when loading the tables
             // It would be just for the loading, and not regular transactions
@@ -540,18 +568,22 @@ public class TransactionInitializer {
         // -------------------------------
         // MAPREDUCE TRANSACTIONS
         // -------------------------------
-        else if (catalog_proc.getMapreduce()) {
+        else if (this.isMapReduce[procId]) {
             // MapReduceTransactions always need all partitions
-            if (d) LOG.debug(String.format("New request is for MapReduce %s, so it has to be multi-partitioned [clientHandle=%d]",
-                                           catalog_proc.getName(), ts.getClientHandle()));
+            if (debug.val)
+                LOG.debug(String.format("New request is for MapReduce %s, so it has to be " +
+                		  "multi-partitioned [clientHandle=%d]",
+                          catalog_proc.getName(), ts.getClientHandle()));
             predict_partitions = catalogContext.getAllPartitionIds();
         }
         // -------------------------------
         // VOLTDB @PROCINFO
         // -------------------------------
         else if (hstore_conf.site.exec_voltdb_procinfo) {
-            if (d) LOG.debug(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d, singleP=%s]",
-                                            catalog_proc.getName(), ts.getClientHandle(), catalog_proc.getSinglepartition()));
+            if (debug.val)
+                LOG.debug(String.format("Using the catalog information to determine whether the %s transaction " +
+                		  "is single-partitioned [clientHandle=%d, singleP=%s]",
+                          catalog_proc.getName(), ts.getClientHandle(), catalog_proc.getSinglepartition()));
             if (catalog_proc.getSinglepartition()) {
                 predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
             } else {
@@ -568,10 +600,10 @@ public class TransactionInitializer {
         // TRANSACTION ESTIMATORS
         // -------------------------------
         else if (hstore_conf.site.markov_enable || hstore_conf.site.markov_fixed) {
-            if (d) LOG.debug("Setting EstimatorState@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-            if (d) LOG.debug(String.format("%s - Using TransactionEstimator to check whether txn is single-partitioned " +
-            		         "[clientHandle=%d]",
-            		         AbstractTransaction.formatTxnName(catalog_proc, txn_id), ts.getClientHandle()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Using TransactionEstimator to check whether txn is single-partitioned " +
+            	          "[clientHandle=%d]",
+            		      AbstractTransaction.formatTxnName(catalog_proc, txn_id), ts.getClientHandle()));
             
             // Grab the TransactionEstimator for the destination partition and figure out whether
             // this mofo is likely to be single-partition or not. Anything that we can't estimate
@@ -581,7 +613,7 @@ public class TransactionInitializer {
                 t_estimator = this.hstore_site.getPartitionExecutor(base_partition).getTransactionEstimator();
                 this.t_estimators[base_partition] = t_estimator;
             }
-            if (d && t_estimator instanceof MarkovEstimator) {
+            if (debug.val && t_estimator instanceof MarkovEstimator) {
                 LOG.debug("We are in fact using a MarkovEstimator@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
             }
             
@@ -590,35 +622,42 @@ public class TransactionInitializer {
                 if (t_estimator != null) {
                     t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
                 }
-                else if (d) {
+                else if (debug.val) {
                     LOG.debug("t_estimator is null@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
                 }
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
-                    if (d) LOG.debug("No EstimationState was returned. Using default estimate@@@@@@@@@@");
-                    if (d) LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
-                                     AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
+                    if (debug.val) {
+                        LOG.debug("No EstimationState was returned. Using default estimate@@@@@@@@@@");
+                        LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
+                                  AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                    }
                 }
                 // We have a TransactionEstimator, so let's see what it says...
                 else {
-                    if (t) LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
+                    if (trace.val)
+                        LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
                     Estimate t_estimate = t_state.getInitialEstimate();
                     
                     // Bah! We didn't get back a Estimation for some reason...
                     if (t_estimate == null) {
-                        if (d) LOG.debug(String.format("%s - No Estimation was recieved. Using default estimate.",
-                                         AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                        if (debug.val)
+                            LOG.debug(String.format("%s - No Estimation was recieved. " +
+                        		      "Using default estimate.",
+                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
                     }
                     // Invalid Estimation. Stick with defaults
                     else if (t_estimate.isValid() == false) {
-                        if (d) LOG.debug(String.format("%s - Estimation is invalid. Using default estimate.\n%s",
-                                         AbstractTransaction.formatTxnName(catalog_proc, txn_id), t_estimate));
+                        if (debug.val)
+                            LOG.debug(String.format("%s - Estimation is invalid. " +
+                            		  "Using default estimate.\n%s",
+                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id), t_estimate));
                     }    
                     // Use Estimation to determine things
                     else {
-                        if (d) {
+                        if (debug.val) {
                             LOG.debug(String.format("%s - Using Estimation to determine if txn is single-partitioned",
                                       AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
                             LOG.trace(String.format("%s %s:\n%s",
@@ -636,7 +675,7 @@ public class TransactionInitializer {
                             t_state.disableUpdates();
                         }
                         
-                        if (d && predict_partitions.isEmpty()) {
+                        if (debug.val && predict_partitions.isEmpty()) {
                             LOG.warn(String.format("%s - Unexpected empty predicted PartitonSet from %s\n%s",
                             		AbstractTransaction.formatTxnName(catalog_proc, txn_id),
                             		t_estimator, t_estimate));
@@ -648,8 +687,8 @@ public class TransactionInitializer {
                     LOG.warn("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
                 }
                 LOG.error(String.format("Failed calculate estimate for %s request\nParameters: %s",
-                                        AbstractTransaction.formatTxnName(catalog_proc, txn_id),
-                                        params), ex);
+                          AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                          params), ex);
                 ex.printStackTrace();
                 predict_partitions = catalogContext.getAllPartitionIds();
                 predict_readOnly = false;
@@ -664,8 +703,10 @@ public class TransactionInitializer {
             // FORCE SINGLE-PARTITIONED
             // -------------------------------
             if (hstore_conf.site.exec_force_singlepartitioned) {
-                if (d) LOG.debug(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
-                                               catalog_proc.getName(), base_partition, ts.getClientHandle()));
+                if (debug.val)
+                    LOG.debug(String.format("The \"Always Single-Partitioned\" flag is true. " +
+                    		  "Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
+                              catalog_proc.getName(), base_partition, ts.getClientHandle()));
                 predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
             }
             // -------------------------------
@@ -693,11 +734,10 @@ public class TransactionInitializer {
                 params,
                 client_callback);
         if (t_state != null) ts.setEstimatorState(t_state);
-        else if (d) LOG.debug("EstimatorState was not set on the transaction@@@@@@@@@@@@@@@@@@@@@@@@@@@");
         if (hstore_conf.site.txn_profiling && ts.profiler != null) 
             ts.profiler.setSingledPartitioned(ts.isPredictSinglePartition());
         
-        if (d) {
+        if (debug.val) {
             LOG.debug(String.format("Initializing %s on partition %d " +
             		                "[clientHandle=%d, partitions=%s, singlePartitioned=%s, readOnly=%s, abortable=%s]",
                       ts, base_partition,
@@ -708,7 +748,5 @@ public class TransactionInitializer {
                       ts.isPredictAbortable()));
         }
     }
-
-    
 
 }
