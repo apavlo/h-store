@@ -236,7 +236,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     /**
      * If this flag is enabled, then we need to shut ourselves down and stop running txns
      */
-    private Shutdownable.ShutdownState shutdown_state = Shutdownable.ShutdownState.INITIALIZED;
+    private ShutdownState shutdown_state = Shutdownable.ShutdownState.INITIALIZED;
     private Semaphore shutdown_latch;
     
     /**
@@ -253,7 +253,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private final HsqlBackend hsql;
     private final DBBPool buffer_pool = new DBBPool(false, false);
     private final FastSerializer fs = new FastSerializer(this.buffer_pool);
-    private boolean stop = false;
     
     /**
      * The PartitionEstimator is what we use to figure our what partitions each 
@@ -851,6 +850,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
         this.hstore_site.getThreadManager().registerEEThread(partition);
         this.shutdown_latch = new Semaphore(0);
+        this.shutdown_state = ShutdownState.STARTED;
         
         // *********************************** DEBUG ***********************************
         if (hstore_conf.site.exec_validate_work) {
@@ -860,11 +860,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Things that we will need in the loop below
         InternalMessage work = null;
-        
         if (debug.val)
             LOG.debug("Starting PartitionExecutor run loop...");
         try {
-            while (this.stop == false && this.isShuttingDown() == false) {
+            while (this.shutdown_state == ShutdownState.STARTED) {
                 this.currentTxnId = null;
                 
                 // -------------------------------
@@ -4267,7 +4266,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     @Override
     public void prepareShutdown(boolean error) {
-        this.shutdown_state = Shutdownable.ShutdownState.PREPARE_SHUTDOWN;
+        this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
     }
     
     /**
