@@ -18,7 +18,6 @@ import org.voltdb.TransactionIdManager;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
-import org.voltdb.utils.EstTimeUpdater;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
@@ -132,13 +131,9 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         // Sleep for a little bit to avoid a race condition in our tests
         // The thread should not have finished
         ThreadUtil.sleep(TXN_DELAY);
-        assertNull(t.result.get());
-        assertEquals(1, t.latch.getCount());
-        assertTrue(t.isAlive());
         
         // Ok now we'll just move time forward. The thread should
         // haven been woken up on its own
-        EstTimeUpdater.update(System.currentTimeMillis());
         boolean result = t.latch.await(TXN_DELAY, TimeUnit.MILLISECONDS);
         assertTrue(result);
         assertEquals(expected, t.result.get());
@@ -156,7 +151,9 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
 
         // Sleep for a little bit to avoid a race condition in our tests
         ThreadUtil.sleep(TXN_DELAY);
-        EstTimeUpdater.update(System.currentTimeMillis());
+        assertNull(t.result.get());
+        assertEquals(1, t.latch.getCount());
+        assertTrue(t.isAlive());
         
         // Load one txn in the queue.
         // The thread will not be awoken because we have not moved time forward
@@ -167,13 +164,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         
         // Now sleep and then update the time
         // The thread still won't be woken up
-        ThreadUtil.sleep(TXN_DELAY);
-        EstTimeUpdater.update(System.currentTimeMillis());
-        assertNull(t.result.get());
-        
-        // Invoke checkQueueState(). That will poke the thread
-        queue.checkQueueState();
-        boolean result = t.latch.await(TXN_DELAY, TimeUnit.MILLISECONDS);
+        boolean result = t.latch.await(TXN_DELAY*2, TimeUnit.MILLISECONDS);
         assertTrue(result);
         assertEquals(expected, t.result.get());
     }
@@ -215,7 +206,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         int release = this.queue.getThrottleRelease();
         for (int i = 0, cnt = (max - release); i < cnt; i++) {
             ThreadUtil.sleep(TXN_DELAY);
-            EstTimeUpdater.update(System.currentTimeMillis());
+//            EstTimeUpdater.update(System.currentTimeMillis());
             this.queue.checkQueueState();
             AbstractTransaction ts = this.queue.poll();
             assertNotNull("i="+i, ts);
@@ -246,7 +237,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         
         // Sleep for a little bit to make the current time move forward 
         ThreadUtil.sleep(TXN_DELAY);
-        EstTimeUpdater.update(System.currentTimeMillis());
+//        EstTimeUpdater.update(System.currentTimeMillis());
 
         Iterator<AbstractTransaction> it = added.iterator();
         for (int i = 0; i < NUM_TXNS; i++) {
@@ -294,7 +285,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         
         // Sleep for a little bit to make the current time move forward 
         ThreadUtil.sleep(TXN_DELAY);
-        EstTimeUpdater.update(System.currentTimeMillis());
+//        EstTimeUpdater.update(System.currentTimeMillis());
 
         TransactionInitPriorityQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
         Iterator<AbstractTransaction> it = added.iterator();
@@ -360,7 +351,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         Iterator<AbstractTransaction> it = added.iterator();
         for (int i = 0; i < NUM_TXNS; i++) {
             ThreadUtil.sleep(TXN_DELAY);
-            EstTimeUpdater.update(System.currentTimeMillis());
+//            EstTimeUpdater.update(System.currentTimeMillis());
             AbstractTransaction expected = it.next();
             assertNotNull(expected);
             if (i == 0) this.queue.checkQueueState();
@@ -385,7 +376,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         Iterator<AbstractTransaction> it = added.iterator();
         for (int i = 0; i < NUM_TXNS-1; i++) {
             ThreadUtil.sleep(TXN_DELAY);
-            EstTimeUpdater.update(System.currentTimeMillis());
+//            EstTimeUpdater.update(System.currentTimeMillis());
             if (i == 0) this.queue.checkQueueState();
             assertEquals(it.next(), this.queue.poll());
         } // FOR
@@ -406,7 +397,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         this.loadQueue(1);
         
         ThreadUtil.sleep(TXN_DELAY*2);
-        EstTimeUpdater.update(System.currentTimeMillis());
+//        EstTimeUpdater.update(System.currentTimeMillis());
         // System.err.println(StringUtil.repeat("-", 100));
         this.queue.checkQueueState();
         AbstractTransaction first = CollectionUtil.first(added);
@@ -481,7 +472,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         Iterator<AbstractTransaction> it = added.iterator();
         for (int i = 0; i < NUM_TXNS; i++) {
             ThreadUtil.sleep(TXN_DELAY);
-            EstTimeUpdater.update(System.currentTimeMillis());
+//            EstTimeUpdater.update(System.currentTimeMillis());
             if (i == 0) this.queue.checkQueueState();
             assertEquals(it.next(), this.queue.poll());
         } // FOR
@@ -497,7 +488,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         ThreadUtil.sleep(TXN_DELAY);
         added.addAll(this.loadQueue(1));
         assertEquals(added.size(), this.queue.size());
-        EstTimeUpdater.update(System.currentTimeMillis());
+//        EstTimeUpdater.update(System.currentTimeMillis());
         
         Iterator<AbstractTransaction> it = added.iterator();
         for (int i = 0; i < NUM_TXNS; i++) {

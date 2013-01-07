@@ -9,7 +9,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -191,7 +190,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 // If the queue isn't empty, then we need to figure out
                 // how long we should sleep for
                 if (isEmpty == false) {
-                    waitTime = this.blockTimestamp - EstTime.currentTimeMillis();
+                    waitTime = this.blockTimestamp - System.currentTimeMillis();
                 }
                 
                 try {
@@ -229,7 +228,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                     throw ex;
                 }
                 
-                if (needsUpdateQueue) this.checkQueueState(false);
+                if (needsUpdateQueue) this.checkQueueState(true);
                 
             } // WHILE
             if (trace.val)
@@ -423,7 +422,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                               this.partitionId, txnId, newState, this.blockTimestamp));
             }
             // Check whether it's safe to unblock this mofo
-            else if ((currentTimestamp = EstTime.currentTimeMillis()) < this.blockTimestamp) {
+            else if ((currentTimestamp = System.currentTimeMillis()) < this.blockTimestamp) {
                 newState = QueueState.BLOCKED_SAFETY;
                 if (debug.val)
                     LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime[%d] - current[%d] = %d)",
@@ -433,8 +432,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             }
             // We didn't find any reason to block this txn, so it's sail yo for it...
             else if (debug.val) {
-                LOG.debug(String.format("Partition %d :: Safe to Execute %d",
-                          this.partitionId, txnId));
+                LOG.debug(String.format("Partition %d :: Safe to Execute %d [currentTime=%d]",
+                          this.partitionId, txnId, System.currentTimeMillis()));
             }
         }
         
@@ -447,7 +446,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                         LOG.trace(String.format("Partition %d :: NewState=%s --> %s",
                                   this.partitionId, newState, ts));
                     long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(txnId.longValue());
-                    if (currentTimestamp == -1) currentTimestamp = EstTime.currentTimeMillis();
+                    if (currentTimestamp == -1) currentTimestamp = System.currentTimeMillis();
                     
                     // Calculate how long we need to wait before this txn is safe to run
                     // If we're blocking on "safety", then we can use an offset based 
@@ -494,7 +493,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                     }
                 }
                 else if (newState == QueueState.UNBLOCKED) {
-                    if (currentTimestamp == -1) currentTimestamp = EstTime.currentTimeMillis();
+                    if (currentTimestamp == -1) currentTimestamp = System.currentTimeMillis();
                     if (this.blockTimestamp > currentTimestamp) {
                         newState = QueueState.BLOCKED_SAFETY;
                     }
@@ -565,7 +564,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     }
     
     public String debug() {
-        long timestamp = EstTime.currentTimeMillis();
+        long timestamp = System.currentTimeMillis();
         AbstractTransaction peek = super.peek();
         
         @SuppressWarnings("unchecked")
