@@ -356,7 +356,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         }
 
         // this will update the state of the queue if needed
-        this.checkQueueState(false);
+        // this.checkQueueState(false);
 
         return this.lastSafeTxnId;
     }
