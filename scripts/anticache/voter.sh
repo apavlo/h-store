@@ -24,20 +24,20 @@ CLIENT_HOSTS=( \
 BASE_CLIENT_THREADS=1
 BASE_SITE_MEMORY=2048
 BASE_SITE_MEMORY_PER_PARTITION=1024
-BASE_PROJECT="tpcc"
+BASE_PROJECT="voter"
 BASE_DIR=`pwd`
 
 BASE_ARGS=( \
    
     # SITE DEBUG
-    "-Dsite.status_enable=true" \
-    "-Dsite.status_interval=10000" \
-    "-Dsite.status_show_executor_info=true" \
-    "-Dsite.exec_profiling=true" \
+#    "-Dsite.status_enable=true" \
+#    "-Dsite.status_interval=10000" \
+#    "-Dsite.status_show_executor_info=true" \
+#    "-Dsite.exec_profiling=true" \
 #     "-Dsite.status_show_txn_info=true" \
 #     "-Dsite.network_profiling=false" \
 #     "-Dsite.log_backup=true" \
-#     "-Dnoshutdown=true" \
+#    "-Dnoshutdown=true" \
     
     # Site Params
     "-Dsite.jvm_asserts=false" \
@@ -45,8 +45,8 @@ BASE_ARGS=( \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-    "-Dsite.pool_localtxnstate_idle=14000" \
-    "-Dsite.network_incoming_limit_txns=10000" \
+    "-Dsite.pool_localtxnstate_idle=12000" \
+    "-Dsite.network_incoming_limit_txns=8000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=1" \
     
@@ -58,7 +58,7 @@ BASE_ARGS=( \
     "-Dclient.duration=180000 "\
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
-    "-Dclient.blocking_concurrent=10" \
+    "-Dclient.blocking_concurrent=1" \
     
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
@@ -69,6 +69,8 @@ BASE_ARGS=( \
     "-Dclient.anticache_evict_size=4194304" \
     "-Dclient.output_csv=false" \
     "-Dclient.output_interval=true" \
+#    "-Dclient.output_queue_profiling=${BASE_PROJECT}-queue.csv" \
+#    "-Dclient.output_exec_profiling=${BASE_PROJECT}-exec.csv" \
 
     # CLIENT DEBUG
     "-Dclient.profiling=false" \
@@ -106,7 +108,7 @@ for HOST in ${HOSTS_TO_UPDATE[@]}; do
 done
 wait
 
-for i in `seq 8 8`; do
+for i in `seq 2 10`; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
