@@ -170,16 +170,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     
     @Override
     public void updateConf(HStoreConf hstore_conf) {
-        // HACK: If there is only one site in the cluster, then we can
-        // set the wait time to 1ms
-        if (hstore_site.getCatalogContext().numberOfSites == -1) { // XXX
-            this.initWaitTime = 1;
-        }
-        else {
-            this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
-        }
-
-        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * 4);
+        this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
+        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (TransactionInitPriorityQueue queue : this.lockQueues) {
             if (queue != null) {
@@ -222,33 +214,15 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 // if (hstore_conf.site.queue_profiling && profiler.idle.isStarted()) profiler.idle.stop();
             }
             
-            // Release transactions for initialization
+            // Initialize any new txns and add them into the 
+            // the appropriate lock queues.
             this.checkInitQueue();
             
-            // Release transactions for execution
-//            for (int partition : this.localPartitions.values()) {
-//                if (this.checkLockQueue(partition) == null) {
-//                    // ???
-//                }
-//            } // FOR
-            
             // Requeue mispredicted local transactions
-//            if (hstore_conf.site.queue_profiling) profiler.restart_queue.start();
             if (this.restartQueue.isEmpty() == false) {
                 this.checkRestartQueue();
             }
-//            if (hstore_conf.site.queue_profiling && profiler.restart_queue.isStarted()) profiler.restart_queue.stop();
-            
-            // Count the number of unique concurrent dtxns
-//            if (hstore_conf.site.queue_profiling) {
-//                profiler.concurrent_dtxn_ids.clear();
-//                for (int partition: this.localPartitions.values()) {
-//                    if (this.lockQueuesLastTxn[partition].longValue() >= 0) {
-//                        profiler.concurrent_dtxn_ids.add(this.lockQueuesLastTxn[partition]);   
-//                    }
-//                } // FOR
-//                profiler.concurrent_dtxn.put(profiler.concurrent_dtxn_ids.size());
-//            }
+
             
 //            if (poke && checkFlag.availablePermits() == 0) {
 //                checkFlag.release();
@@ -515,7 +489,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         		      ts, partition, status));
         
         // If the given txnId is the current transaction at this partition and still holds
-        // the lock on the partition, then we will want to release it
+        // the lock on the partition, then we want to make sure that we don't have to
+        // look into the queue to see if it's in there.
         // Note that this is always thread-safe because we will release the lock
         // only if we are the current transaction at this partition
         boolean checkQueue = true;
@@ -526,25 +501,15 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                           partition, ts, status));
             checkQueue = false;
         }
-        // If it wasn't running, then we need to make sure that we remove it from
-        // our initialization queue. Unfortunately this means that we need to traverse
-        // the queue to find it and remove.
-        // FIXME: Need to think of a better way of doing this or to not have the 
-        // the PartitionExecutor's thread have to do this
-        else {
-//            boolean result = this.initQueues[partition].remove(ts);
-//            if (d && result)
-//                LOG.debug(String.format("Removed %s from partition %d initialization queue " +
-//                          "[status=%s]",
-//                          ts, partition, status));
-//            checkQueue = (result == false);
-        }
         
         // Always attempt to remove it from this partition's queue
         // If this remove() returns false, then we know that our transaction wasn't
         // sitting in the queue for that partition.
         boolean removed = false;
         if (checkQueue) {
+            // If it wasn't running, then we need to make sure that we remove it from
+            // our initialization queue. Unfortunately this means that we need to traverse
+            // the queue to find it and remove.
             removed = this.lockQueues[partition].remove(ts);
         }
         this.checkFlag.release();
