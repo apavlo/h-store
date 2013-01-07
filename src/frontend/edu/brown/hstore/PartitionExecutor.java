@@ -1294,12 +1294,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if ((time - this.lastTickTime) >= 1000) {
             if ((this.lastTickTime != 0) && (ee != null)) {
                 this.ee.tick(time, this.lastCommittedTxnId);
+                
+                // do other periodic work
+                if (m_snapshotter != null) m_snapshotter.doSnapshotWork(this.ee);
             }
             this.lastTickTime = time;
         }
-        
-        // do other periodic work
-        if (m_snapshotter != null) m_snapshotter.doSnapshotWork(ee);
     }
     
     // ----------------------------------------------------------------------------

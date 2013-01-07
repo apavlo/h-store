@@ -794,7 +794,7 @@ public abstract class VoltProcedure implements Poolable {
         boolean slotIsArray = paramTypeIsArray[paramTypeIndex];
         if (slotIsArray != pclass.isArray()) {
             LOG.warn(String.format("Param #%d -> %s [class=%s, isArray=%s, slotIsArray=%s]",
-                                   paramTypeIndex, param, pclass.getSimpleName(), pclass.isArray(), slotIsArray));
+                     paramTypeIndex, param, pclass.getSimpleName(), pclass.isArray(), slotIsArray));
             throw new Exception("Array / Scalar parameter mismatch");
         }
 
