@@ -873,13 +873,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     ProfileMeasurementUtil.swap(profiler.exec_time, profiler.idle_time);
                 work = this.getNext();
                 if (work == null) {
-                    if (this.initQueue.isEmpty() && this.work_queue.isEmpty()) {
-                        if (hstore_conf.site.exec_profiling)
-                            ProfileMeasurementUtil.swap(profiler.idle_time, profiler.sleep_time);
-                        Thread.sleep(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIME_NANO);
-                        if (hstore_conf.site.exec_profiling)
-                            ProfileMeasurementUtil.swap(profiler.sleep_time, profiler.idle_time);
-                    }
+                    Thread.yield();
                     continue;
                 }
                 else if (work instanceof UtilityWorkMessage) {
@@ -931,7 +925,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Get the next unit of work from this partition's queue
      * @return
      */
-    protected InternalMessage getNext() {
+    protected InternalMessage getNext() throws InterruptedException {
         // If we get something back here, then it should become our current transaction.
         //  (1) If it's a single-partition txn, then we can return the StartTxnMessage 
         //      so that we can fire it off right away.
