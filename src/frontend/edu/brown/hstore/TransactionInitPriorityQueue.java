@@ -151,7 +151,19 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             // call this again to prime the next txn
             this.checkQueueState(true);
         }
-        return retval;
+        return (retval);
+    }
+    
+    /**
+     * Only return transaction state objects that are ready to run.
+     * This method will wait until the transaction's block time has passed.
+     * @return
+     * @throws InterruptedException
+     */
+    public AbstractTransaction take() throws InterruptedException {
+        AbstractTransaction retval = null;
+        
+        return (retval);
     }
 
     /**

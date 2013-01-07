@@ -502,9 +502,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     // status += "\n" + StringUtil.prefix(ts.debug(), spacer);
                 }
             }
-            else if (queueManagerDebug.isLocked(partition)) {
-                queueStatus += "\nWARNING: Queue is locked but without a txn!";
-            }
             
             // TransactionQueueManager - Requeued Txns
             if (queueManagerDebug.getRestartQueueSize() > 0) {

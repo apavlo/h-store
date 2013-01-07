@@ -859,42 +859,72 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // *********************************** DEBUG ***********************************
         
         // Things that we will need in the loop below
-        InternalMessage work = null;
+        InternalMessage nextWork = null;
+        AbstractTransaction nextTxn = null;
         if (debug.val)
             LOG.debug("Starting PartitionExecutor run loop...");
         try {
             while (this.shutdown_state == ShutdownState.STARTED) {
                 this.currentTxnId = null;
+                nextTxn = null;
+                nextWork = null;
+                
+                // This is the starting state of the PartitionExecutor.
+                // At this point here we currently don't have a txn to execute nor 
+                // are we involved in a distributed txn running at another partition.
+                // So we need to go our TransactionInitPriorityQueue and get back the next
+                // txn that will have our lock.
+                if (this.currentDtxn == null) {
+                    if (hstore_conf.site.exec_profiling) profiler.poll_time.start();
+                    try {
+                        nextTxn = this.queueManager.checkLockQueue(this.partitionId); // BLOCKING
+                    } catch (InterruptedException ex) {
+                        continue;
+                    } finally {
+                        if (hstore_conf.site.exec_profiling) profiler.poll_time.stop();
+                    }
+                    
+                    // If we get something back here, then it should become our current transaction.
+                    if (nextTxn != null) {
+                        // If it's a single-partition txn, then we can return the StartTxnMessage 
+                        // so that we can fire it off right away.
+
+                        // If this a single-partition txn, then we'll want to execute it right away
+                        if (nextTxn.isPredictSinglePartition()) {
+                            nextWork = ((LocalTransaction)nextTxn).getStartTxnMessage();
+                        }
+                        // If it's as distribued txn, then we'll want to just set it as our 
+                        // current dtxn at this partition and then keep checking the queue
+                        // for more work.
+                        else {
+                            this.setCurrentDtxn(nextTxn);
+                            this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
+                            if (hstore_conf.site.exec_profiling) profiler.idle_queue_dtxn_time.start();
+                        }
+                    }
+                }
                 
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
-                if (hstore_conf.site.exec_profiling) 
-                    ProfileMeasurementUtil.swap(profiler.exec_time, profiler.idle_time);
-                work = this.getNext();
-                if (work == null) {
-                    Thread.yield();
-                    continue;
+                if (nextWork != null) {
+                    if (hstore_conf.site.exec_profiling) profiler.idle_time.start();
+                    nextWork = this.getNextTransactionWork(); // BLOCKING
+                    if (hstore_conf.site.exec_profiling) { 
+                        ProfileMeasurementUtil.swap(profiler.idle_time, profiler.exec_time);
+                        if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
+                    }
                 }
-                else if (work instanceof UtilityWorkMessage) {
-                    continue;
-                }
-                if (trace.val) LOG.trace("Next Work: " + work);
+                if (trace.val) LOG.trace("Next Work: " + nextWork);
                 
                 // -------------------------------
                 // Process Work
                 // -------------------------------
-                if (hstore_conf.site.exec_profiling) {
-                    if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
-                    ProfileMeasurementUtil.swap(profiler.idle_time, profiler.exec_time);
-                }
-                this.processInternalMessage(work);
+                this.processInternalMessage(nextWork);
                 
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                 this.tick();
             } // WHILE
-        } catch (InterruptedException ex) {
-            // IGNORE!
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
                 // ex.printStackTrace();
@@ -925,13 +955,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Get the next unit of work from this partition's queue
      * @return
      */
-    protected InternalMessage getNext() throws InterruptedException {
-        // If we get something back here, then it should become our current transaction.
-        //  (1) If it's a single-partition txn, then we can return the StartTxnMessage 
-        //      so that we can fire it off right away.
-        //  (2) If it's as distribued txn, then we'll want to just set it as our 
-        //      current dtxn at this partition and then keep checking the queue
-        //      for more work.
+    protected InternalMessage getNextTransactionWork() throws InterruptedException {
+
         
         if (hstore_conf.site.exec_profiling) profiler.poll_time.start();
         AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);

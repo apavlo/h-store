@@ -88,12 +88,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * could have been cleaned up by the time we need this data.
      */
     private final Long[] lockQueuesLastTxn;
-    
-    /**
-     * The txnId that currently has the lock for each partition
-     */
-    private final boolean[] lockQueuesBlocked;
-    
+
     private final TransactionQueueManagerProfiler[] profilers;
 
     // ----------------------------------------------------------------------------
@@ -134,7 +129,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         int num_partitions = allPartitions.size();
         this.localPartitions = hstore_site.getLocalPartitionIds();
         this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
-        this.lockQueuesBlocked = new boolean[num_partitions];
         this.lockQueuesLastTxn = new Long[num_partitions];
         this.initQueue = new ConcurrentLinkedQueue<AbstractTransaction>();
         this.profilers = new TransactionQueueManagerProfiler[num_partitions];
@@ -144,15 +138,15 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // Initialize internal queues
         for (int partition : this.localPartitions.values()) {
-            this.lockQueues[partition] = new TransactionInitPriorityQueue(partition,
+            TransactionInitPriorityQueue queue = new TransactionInitPriorityQueue(partition,
                                                                           this.initWaitTime,
                                                                           this.initThrottleThreshold,
                                                                           this.initThrottleRelease);
-            this.lockQueues[partition].setThrottleThresholdIncreaseDelta(50);
-            this.lockQueues[partition].setThrottleThresholdMaxSize(this.initThrottleThreshold*5);
-            this.lockQueues[partition].enableProfiling(hstore_conf.site.queue_profiling);
+            queue.setThrottleThresholdIncreaseDelta(50);
+            queue.setThrottleThresholdMaxSize(this.initThrottleThreshold*5);
+            queue.enableProfiling(hstore_conf.site.queue_profiling);
+            this.lockQueues[partition] = queue;
             
-            this.lockQueuesBlocked[partition] = false;
             this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
         } // FOR
         Arrays.fill(this.lockQueuesLastTxn, Long.valueOf(-1l));
@@ -342,37 +336,21 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * at the partitions controlled by this queue manager
      * Returns true if we released a transaction at at least one partition
      */
-    protected AbstractTransaction checkLockQueue(int partition) {
+    protected AbstractTransaction checkLockQueue(int partition) throws InterruptedException {
         if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.start();
         if (trace.val)
             LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
                       partition, this.lockQueues[partition].size()));
         
-        if (this.lockQueuesBlocked[partition] != false) {
-            if (trace.val)
-                LOG.warn(String.format("Partition %d is already executing transaction %d. Skipping...",
-                         partition, this.lockQueuesLastTxn[partition]));
-            if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stopIfStarted();
-            return (null);
-        }
-        
         PartitionCountingCallback<AbstractTransaction> callback = null;
         AbstractTransaction nextTxn = null;
         while (nextTxn == null) {
-            // Poll the queue and get the next value. 
-            nextTxn = this.lockQueues[partition].poll();
+            // Poll the queue and get the next value.
+            nextTxn = this.lockQueues[partition].take();
+            assert(nextTxn != null) :
+                String.format("Null transaction returned from the %s for partition %d",
+                              this.lockQueues[partition].getClass().getSimpleName(), partition);
 
-            // If null, then there is nothing that is ready to run at this partition,
-            // so we'll just skip to the next one
-            if (nextTxn == null) {
-                if (trace.val)
-                    LOG.trace(String.format("Partition %d initQueue does not have a " +
-                	          "transaction ready to run. Skipping... [queueSize=%d]",
-                              partition, this.lockQueues[partition].size()));
-                this.lockQueues[partition].checkQueueState();
-                break;
-            }
-            
             callback = nextTxn.getTransactionInitQueueCallback();
             assert(callback.isInitialized()) :
                 String.format("Uninitialized %s callback for %s [hashCode=%d]",
@@ -380,23 +358,22 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             
             // If this callback has already been aborted, then there is nothing we need to
             // do. Somebody else will make sure that this txn is removed from the queue
+            // Loop back around so that we can grab the next txn
             if (callback.isAborted()) {
                 if (debug.val)
-                    LOG.debug(String.format("The next id for partition %d is %s but its callback is " +
+                    LOG.debug(String.format("The next id for partition %d is %s but its %s is " +
                     		  "marked as aborted. [queueSize=%d]",
-                              partition, nextTxn, this.lockQueuesLastTxn[partition],
+                              partition, nextTxn, callback.getClass().getSimpleName(),
                               this.lockQueues[partition].size()));
                 nextTxn = null;
-                // Repeat so that we can try again
                 continue;
             }
-
+    
             if (debug.val)
                 LOG.debug(String.format("Good news! Partition %d is ready to execute %s! " +
                 		  "Invoking %s.run()",
                           partition, nextTxn, callback.getClass().getSimpleName()));
             this.lockQueuesLastTxn[partition] = nextTxn.getTransactionId();
-            this.lockQueuesBlocked[partition] = true; 
             
             // Send the init request for the specified partition
             try {
@@ -502,10 +479,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         else if (this.lockQueues[partition].offer(ts, ts.isSysProc()) == false) {
             if (debug.val)
                 LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
-            	          "Throttling %s until id is greater than %s " +
-            		      "[locked=%s, queueSize=%d]",
-                          partition, ts, next_safe_id,
-                          this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
+            	          "Throttling %s until id is greater than %s [queueSize=%d]",
+                          partition, ts, next_safe_id, this.lockQueues[partition].size()));
             if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
             this.rejectTransaction(ts, Status.ABORT_REJECT, partition, next_safe_id);
             if (hstore_conf.site.queue_profiling) {
@@ -515,9 +490,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             return (false);
         }
         if (trace.val)
-            LOG.trace(String.format("Added %s to initQueue for partition %d [locked=%s, queueSize=%d]",
-                      ts, partition,
-                      this.lockQueuesBlocked[partition], this.lockQueues[partition].size()));
+            LOG.trace(String.format("Added %s to initQueue for partition %d [queueSize=%d]",
+                      ts, partition, this.lockQueues[partition].size()));
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
         return (true);
     }
@@ -545,13 +519,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // Note that this is always thread-safe because we will release the lock
         // only if we are the current transaction at this partition
         boolean checkQueue = true;
-        if (this.lockQueuesBlocked[partition] != false &&
-            this.lockQueuesLastTxn[partition].equals(ts.getTransactionId())) {
+        if (this.lockQueuesLastTxn[partition].equals(ts.getTransactionId())) {
             if (debug.val)
                 LOG.debug(String.format("Unlocking partition %d because %s is finished " +
             	          "[status=%s]",
                           partition, ts, status));
-            this.lockQueuesBlocked[partition] = false;
             checkQueue = false;
         }
         // If it wasn't running, then we need to make sure that we remove it from
@@ -774,7 +746,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             Map<String, Object> inner = new LinkedHashMap<String, Object>();
             inner.put("Current Txn", this.lockQueuesLastTxn[p]);
             if (hstore_site.isLocalPartition(p)) {
-                inner.put("Locked?", this.lockQueuesBlocked[p]);
                 inner.put("Queue Size", this.lockQueues[p].size());
             }
             m[idx].put(String.format("Partition #%02d", p), inner);
@@ -818,15 +789,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 if (lockQueues[i].isEmpty() == false) return (false);
             }
             return (true);
-        }
-        /**
-         * Returns true if the given partition is currently locked.
-         * <b>NOTE:</b> This is not thread-safe.
-         * @param partition
-         * @return
-         */
-        public boolean isLocked(int partition) {
-            return (lockQueuesBlocked[partition]);
         }
         /**
          * Return the current transaction that is executing at this partition

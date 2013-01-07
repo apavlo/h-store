@@ -103,7 +103,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         return (ts);
     }
     
-    private boolean checkAllQueues() {
+    private boolean checkAllQueues() throws InterruptedException {
         EstTimeUpdater.update(System.currentTimeMillis());
         boolean ret = false; 
         for (int partition : catalogContext.getAllPartitionIds().values()) {
