@@ -639,7 +639,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         ExecutionEngine eeTemp = null;
         SnapshotSiteProcessor snapshotter = null;
         try {
-            if (debug.val) LOG.debug("Creating EE wrapper with target type '" + target + "'");
+            if (trace.val) LOG.trace("Creating EE wrapper with target type '" + target + "'");
             if (this.backend_target == BackendTarget.HSQLDB_BACKEND) {
                 hsqlTemp = new HsqlBackend(partitionId);
                 final String hexDDL = catalogContext.database.getSchema();

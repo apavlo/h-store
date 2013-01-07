@@ -645,7 +645,7 @@ public class BenchmarkController {
         // few seconds to make sure that our clients can connect
         if (m_config.profileSiteIds.isEmpty() == false) {
             int sleep = 5000;
-            LOG.info(String.format("Sleeping for %.1f seconds to let the profiler come online", sleep/1000)); 
+            LOG.info(String.format("Sleeping for %.1f seconds to let the profiler come online", sleep/1000d)); 
             ThreadUtil.sleep(sleep);
         }
         

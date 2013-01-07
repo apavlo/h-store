@@ -220,7 +220,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                     else {
                         if (trace.val)
                             LOG.trace(String.format("Partition %d :: take() -> " +
-                                      "Ready to retrieve next txn immediately", this.partitionId));
+                                      "Ready to retrieve next txn immediately [waitTime=%d, isEmpty=%s]",
+                                      this.partitionId, waitTime, isEmpty));
                         needsUpdateQueue = true;
                     }
                 } catch (InterruptedException ex) {
@@ -238,6 +239,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             // The next txn is ready to run now!
             assert(this.state == QueueState.UNBLOCKED);
             retval = super.poll();
+            if (debug.val)
+                LOG.debug(String.format("Partition %d :: take() -> %s",
+                          this.partitionId, retval));
+            
             // 2012-01-06
             // This could be null because there is a race condition if all of the
             // txns are removed by another thread right before we try to
@@ -249,13 +254,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             
             // Call this again to prime the next txn
             this.checkQueueState(true);
-            
         } finally {
             this.lock.unlock();
         }
-        if (debug.val)
-            LOG.debug(String.format("Partition %d :: take() -> %s",
-                      this.partitionId, retval));
         return (retval);
     }
 
