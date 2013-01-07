@@ -146,8 +146,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         int tries = 10;
         while (dbg.isLockQueuesEmpty() == false && tries-- > 0) {
-            this.checkAllQueues();
             ThreadUtil.sleep(TXN_DELAY);
+            this.checkAllQueues();
         }
         assert(inner_callback.lock.availablePermits() > 0);
         // Block on the MockCallback's lock until our thread above is able to release everybody.
@@ -174,7 +174,6 @@ public class TestTransactionQueueManager extends BaseTestCase {
         // System.err.println("TXN1: " + txn1);
         
         // insert the higher ID first but make sure it comes out second
-        assertFalse(this.queueManager.toString(), this.checkAllQueues());
         assertTrue(this.queueManager.toString(), this.addToQueue(txn1, inner_callback1));
         assertTrue(this.queueManager.toString(), this.addToQueue(txn0, inner_callback0));
         
@@ -199,7 +198,6 @@ public class TestTransactionQueueManager extends BaseTestCase {
             this.queueManager.lockQueueFinished(txn1, Status.OK, partition);
         }
         
-        assertFalse(this.checkAllQueues());
         assertTrue(dbg.isLockQueuesEmpty());
     }
     
@@ -285,7 +283,6 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertTrue("callback0", inner_callback0.lock.tryAcquire());
         
         // And then checkLockQueues should always return false
-        assertFalse(this.checkAllQueues());
         assertFalse(dbg.isLockQueuesEmpty());
         
         // Now if we mark the txn as finished, we should be able to acquire the
@@ -301,7 +298,6 @@ public class TestTransactionQueueManager extends BaseTestCase {
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
             queueManager.lockQueueFinished(txn1, Status.OK, partition);
         }
-        assertFalse(this.checkAllQueues());
         assertTrue(dbg.isLockQueuesEmpty());
     }
 }

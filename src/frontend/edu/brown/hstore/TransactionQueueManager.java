@@ -7,8 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
@@ -62,7 +63,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final PartitionSet localPartitions;
-    private final Semaphore checkFlag = new Semaphore(1);
     private boolean stop = false;
     
     /**
@@ -99,7 +99,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * A queue of transactions that need to be added to the lock queues at the partitions 
      * at this site.
      */
-    private final Queue<AbstractTransaction> initQueue; 
+    private final BlockingQueue<AbstractTransaction> initQueue; 
     
     // ----------------------------------------------------------------------------
     // TRANSACTIONS THAT NEED TO BE REQUEUED
@@ -130,7 +130,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.localPartitions = hstore_site.getLocalPartitionIds();
         this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
         this.lockQueuesLastTxn = new Long[num_partitions];
-        this.initQueue = new ConcurrentLinkedQueue<AbstractTransaction>();
+        this.initQueue = new LinkedBlockingQueue<AbstractTransaction>();
         this.profilers = new TransactionQueueManagerProfiler[num_partitions];
         
         // Use updateConf() to initialize our internal values from the HStoreConf
@@ -202,31 +202,40 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_TXNQUEUE));
         this.hstore_site.getThreadManager().registerProcessingThread();
         
-        if (debug.val) LOG.debug("Starting distributed transaction queue manager thread");
-        
+        if (debug.val)
+            LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
+        AbstractTransaction next_init = null;
+        int added = 0;
         while (this.stop == false) {
-            // if (hstore_conf.site.queue_profiling) profiler.idle.start();
             try {
-                this.checkFlag.tryAcquire(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
-            } catch (InterruptedException e) {
-                // Nothing...
-            } finally {
-                // if (hstore_conf.site.queue_profiling && profiler.idle.isStarted()) profiler.idle.stop();
+                next_init = this.initQueue.poll(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
+            } catch (InterruptedException ex) {
+                // IGNORE
             }
-            
-            // Initialize any new txns and add them into the 
-            // the appropriate lock queues.
-            this.checkInitQueue();
+            if (next_init != null) {
+                PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
+                assert(callback.isInitialized());
+                boolean ret = true;
+                
+                for (int partition : next_init.getPredictTouchedPartitions().values()) {
+                    // Skip any non-local partition
+                    if (this.lockQueues[partition] == null) continue;
+                    
+                    // If this txn gets rejected when we try to insert it, then we 
+                    // just need to stop trying to add it to other partitions
+                    ret = this.lockQueueInsert(next_init, partition, callback) && ret;
+                    if (ret == false) break;
+                } // FOR
+                if (ret) added++;
+            }
             
             // Requeue mispredicted local transactions
-            if (this.restartQueue.isEmpty() == false) {
+            if ((next_init == null || added > CHECK_INIT_QUEUE_LIMIT) &&
+                this.restartQueue.isEmpty() == false) {
+                
                 this.checkRestartQueue();
+                added = 0; 
             }
-
-            
-//            if (poke && checkFlag.availablePermits() == 0) {
-//                checkFlag.release();
-//            }
         } // WHILE
     }
     
@@ -266,42 +275,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // INIT QUEUES
     // ----------------------------------------------------------------------------
 
-    /**
-     * Process initialization queue
-     * @return
-     */
-    protected int checkInitQueue() {
-        if (debug.val && this.initQueue.isEmpty() == false)
-            LOG.debug(String.format("Checking whether we can init %d txns",
-                      this.initQueue.size()));
-        
-        AbstractTransaction next_init = null;
-        int limit = CHECK_INIT_QUEUE_LIMIT;
-        int added = 0;
-        while ((next_init = this.initQueue.poll()) != null) {
-            PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
-            assert(callback.isInitialized());
-            boolean ret = true;
-            
-            for (int partition : next_init.getPredictTouchedPartitions().values()) {
-                // Skip any non-local partition
-                if (this.lockQueues[partition] == null) continue;
-                
-                // If this txn gets rejected when we try to insert it, then we 
-                // just need to stop trying to add it to other partitions
-                ret = this.lockQueueInsert(next_init, partition, callback) && ret;
-                if (ret == false) break;
-            } // FOR
-            added++;
-            if (limit-- == 0) break;
-        } // WHILE
-        
-        return (added);
-    }
-    
     protected void initTransaction(AbstractTransaction ts) {
         this.initQueue.add(ts);
-        this.checkFlag.release();
     }
     
     
@@ -512,7 +487,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // the queue to find it and remove.
             removed = this.lockQueues[partition].remove(ts);
         }
-        this.checkFlag.release();
         
         // Calling contains() is super slow, so we'll only do this if we have tracing enabled
         if (trace.val) {
@@ -592,7 +566,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 throw new RuntimeException(msg, ex);
             }
         }
-        this.checkFlag.release();
     }
     
     // ----------------------------------------------------------------------------
