@@ -124,7 +124,7 @@ public class TransactionInitializer {
         this.p_estimator = hstore_site.getPartitionEstimator();
         this.t_estimators = new TransactionEstimator[catalogContext.numberOfPartitions];
         
-        int num_procs = this.catalogContext.procedures.size();
+        int num_procs = this.catalogContext.procedures.size() + 1;
         this.isMapReduce = new boolean[num_procs];
         this.isSysProc = new boolean[num_procs];
         this.isReadOnly = new boolean[num_procs];
