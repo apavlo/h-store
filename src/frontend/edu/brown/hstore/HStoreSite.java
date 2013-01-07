@@ -2110,7 +2110,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOG.debug(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
                       ts, status, ts.getClientHandle()));
         
-        String msg = this.REJECTION_MESSAGE + " - [0]";
+        String msg = this.REJECTION_MESSAGE; //  + " - [0]";
         ts.setStatus(status);
         ClientResponseImpl cresponse = new ClientResponseImpl();
         cresponse.init(ts, status, HStoreConstants.EMPTY_RESULT, msg);
