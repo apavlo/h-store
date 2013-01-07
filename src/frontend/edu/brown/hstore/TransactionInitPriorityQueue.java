@@ -228,7 +228,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                     throw ex;
                 }
                 
-                if (needsUpdateQueue) this.checkQueueState(true);
+                if (needsUpdateQueue) this.checkQueueState(false);
                 
             } // WHILE
             if (trace.val)

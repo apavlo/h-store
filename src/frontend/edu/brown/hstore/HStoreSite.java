@@ -1562,7 +1562,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.global.nanosecond_latencies) {
             timestamp = System.nanoTime();
         } else {
-            timestamp = EstTime.currentTimeMillis();
+            timestamp = System.currentTimeMillis();
+            EstTimeUpdater.update(timestamp);
         }
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
@@ -1680,7 +1681,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.transactionQueue(ts);
         if (trace.val)
             LOG.trace(String.format("Finished initial processing of new txn."));
-        EstTimeUpdater.update(System.currentTimeMillis());
 //        if (hstore_conf.site.network_profiling) {
 //            ProfileMeasurement.swap(this.profiler.network_processing_time, this.profiler.network_idle_time);
 //        }
