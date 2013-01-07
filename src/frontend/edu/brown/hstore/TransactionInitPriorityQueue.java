@@ -3,6 +3,9 @@ package edu.brown.hstore;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
@@ -63,6 +66,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
 
     private final int partitionId;
     private final int waitTime;
+    
+    private final ReentrantLock lock = new ReentrantLock(true);
+    private final Condition isReady = lock.newCondition();
     
     /**
      * This is the timestamp (in milliseconds) when we can unblock
@@ -132,6 +138,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     
     /**
      * Only return transaction state objects that are ready to run.
+     * This is non-blocking. If the txn is not ready, then this will return null.
      * <B>Note:</B> This should only be allowed to be called by one thread.
      */
     @Override
@@ -143,8 +150,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             // if another thread removes the txn from the queue.
             retval = super.poll();
             if (retval != null) {
-                if (debug.val) LOG.debug(String.format("Partition %d :: poll() -> %s",
-                                         this.partitionId, retval));
+                if (debug.val)
+                    LOG.debug(String.format("Partition %d :: poll() -> %s",
+                              this.partitionId, retval));
                 this.lastTxnPopped = retval.getTransactionId();
                 this.txnsPopped++;
             }
@@ -163,6 +171,96 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     public AbstractTransaction take() throws InterruptedException {
         AbstractTransaction retval = null;
         
+        // Ok now here is the tricky part. We don't have a txn that is 
+        // ready to run, so we need to block ourselves until we get one.
+        // This could be for two reasons:
+        //  (1) The queue is empty.
+        //  (2) The waiting period for the next txn hasn't passed yet.
+        // 
+        // Note that we can't simply attach ourselves to our inner queue because
+        // we don't want to get back the txn right when it gets added.
+        // We want to wait until the time period has passed.
+        if (this.state != QueueState.UNBLOCKED) {
+            if (trace.val)
+                LOG.trace(String.format("Partition %d :: take() -> " +
+                          "Current state is %s. Blocking until ready", this.partitionId, this.state));
+            
+            long waitTime = -1;
+            boolean needsUpdateQueue = false;
+            
+            // Acquire the main lock
+            this.lock.lockInterruptibly();
+            boolean isEmpty = (this.state == QueueState.BLOCKED_EMPTY);
+            
+            // If the queue isn't empty, then we need to figure out
+            // how long we should sleep for
+            if (isEmpty == false) {
+                waitTime = this.blockTimestamp - EstTime.currentTimeMillis();
+            }
+            
+            try {
+                try {
+                    // If we're empty, then we need to block indefinitely until we're poked
+                    if (isEmpty) {
+                        if (trace.val)
+                            LOG.trace(String.format("Partition %d :: take() -> " +
+                            		  "Blocking because queue is empty", this.partitionId));
+                        this.isReady.await();
+                    }
+                    // Otherwise, we'll sleep until our time out and then 
+                    // check the queue status for ourselves
+                    else if (waitTime > 0) {
+                        // We are going to wait for the specified time
+                        // The Condition will return true if somebody poked us, which
+                        // means that somebody changed the queue state to UNBLOCKED 
+                        // for us. If we are woken because of a timeout, then the
+                        // return status will be false, which means that we need to
+                        // queue state ourself.
+                        if (trace.val)
+                            LOG.trace(String.format("Partition %d :: take() -> " +
+                                      "Blocking for %d ms", this.partitionId, waitTime));
+                        needsUpdateQueue = (this.isReady.await(waitTime, TimeUnit.MILLISECONDS) == false);
+                    }
+                    // Our txn is ready to run now, so we don't need to block
+                    else {
+                        if (trace.val)
+                            LOG.trace(String.format("Partition %d :: take() -> " +
+                                      "Ready to retrieve next txn immediately", this.partitionId));
+                        needsUpdateQueue = true;
+                    }
+                } catch (InterruptedException ex) {
+                    this.isReady.signal();
+                    throw ex;
+                }
+            } finally {
+                this.lock.unlock();
+            }
+            if (trace.val)
+                LOG.trace(String.format("Partition %d :: take() -> Leaving critical area [needsUpdateQueue=%s]",
+                          this.partitionId, needsUpdateQueue));
+            if (needsUpdateQueue) this.checkQueueState();
+        }
+        
+        // The next txn is ready to run now!
+        // TODO: Should the next state always be UNBLOCKED?
+        if (this.state == QueueState.UNBLOCKED) {
+            retval = super.poll();
+            // 2012-12-21
+            // This could be null because there is a race condition if all of the
+            // txns are removed by another thread right before we try to
+            // poll our queue.
+            if (retval != null) {
+                this.lastTxnPopped = retval.getTransactionId();
+                this.txnsPopped++;
+            }
+            // call this again to prime the next txn
+            this.checkQueueState(true);
+        }
+        
+
+        if (debug.val)
+            LOG.debug(String.format("Partition %d :: take() -> %s",
+                      this.partitionId, retval));
         return (retval);
     }
 
@@ -202,7 +300,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     @Override
     @Deprecated
     public boolean offer(AbstractTransaction e) {
-        return super.offer(e, false);
+        return this.offer(e, false);
     }
 
     @Override
@@ -230,8 +328,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      */
     public Long noteTransactionRecievedAndReturnLastSeen(Long txnId) {
         assert(txnId != null);
-        if (trace.val) LOG.trace(String.format("Partition %d :: noteTransactionRecievedAndReturnLastSeen(%d)",
-                                 this.partitionId, txnId));
+        if (trace.val)
+            LOG.trace(String.format("Partition %d :: noteTransactionRecievedAndReturnLastSeen(%d)",
+                      this.partitionId, txnId));
 
         // we've decided that this can happen, and it's fine... just ignore it
         if (debug.val) {
@@ -244,8 +343,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         }
 
         this.lastSeenTxnId = txnId;
-        if (trace.val) LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
-                                 this.partitionId, this.lastSeenTxnId));
+        if (trace.val)
+            LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
+                      this.partitionId, this.lastSeenTxnId));
         if (txnId.compareTo(this.lastSafeTxnId) < 0) {
             synchronized (this) {
                 if (txnId.compareTo(this.lastSafeTxnId) < 0) {
@@ -338,83 +438,91 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             }
         }
         
-        if (newState != this.state) {
-            synchronized (this) {
-                if (newState != this.state) {
-                    // note if we get non-empty but blocked
-                    if ((newState == QueueState.BLOCKED_ORDERING) || (newState == QueueState.BLOCKED_SAFETY)) {
-                        if (trace.val)
-                            LOG.trace(String.format("Partition %d :: NewState=%s --> %s",
-                                      this.partitionId, newState, ts));
-                        long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(txnId.longValue());
-                        if (currentTimestamp == -1) currentTimestamp = EstTime.currentTimeMillis();
-                        
-                        // Calculate how long we need to wait before this txn is safe to run
-                        // If we're blocking on "safety", then we can use an offset based 
-                        // on when the txnId was created. If we're blocking for "ordering",
-                        // then we'll want to wait for the full wait time.
-                        int waitTime = this.waitTime;
-                        if (newState == QueueState.BLOCKED_SAFETY) {
-                            waitTime = (int)Math.max(0, this.waitTime - (currentTimestamp - txnTimestamp));
-                        }
-                        
-                        this.blockTimestamp = currentTimestamp + waitTime;
-                        if (debug.val)
-                            LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
-                                      this.partitionId, this.blockTimestamp, ts));
-                        
-                        newState = (waitTime > 0 ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
-                        if (this.profiler != null) this.profiler.waitTimes.put(waitTime);
-                        
-                        // This txn becomes our next safeTxnId. This is essentially the next txn
-                        // that should be executed, but somebody *could* come along and add in 
-                        // a new txn with a lower id. But that's ok because we've synchronized setting
-                        // the id up above. This is actually probably the only part of this entire method
-                        // that needs to be protected...
-                        this.lastSafeTxnId = txnId;
-                        
-                        if (debug.val) {
-                            LOG.debug(String.format("Partition %d :: SET lastSafeTxnId = %d --> %s",
-                                      this.partitionId, this.lastSafeTxnId, ts));
-                            
-                            String debug = "";
-                            if (trace.val) {
-                                Map<String, Object> m = new LinkedHashMap<String, Object>();
-                                m.put("Txn Init Timestamp", txnTimestamp);
-                                m.put("Current Timestamp", currentTimestamp);
-                                m.put("Block Time Remaining", (this.blockTimestamp - currentTimestamp));
-                                debug = "\n" + StringUtil.formatMaps(m);
-                            }
-                            LOG.debug(String.format("Partition %d :: Blocking %s for %d ms " +
-                            		  "[maxWait=%d, origState=%s, newState=%s]\n%s%s",
-                                      this.partitionId, ts, (this.blockTimestamp - currentTimestamp),
-                                      this.waitTime, this.state, newState, this.debug(), debug));
-                        }
-                    }
-                    else if (newState == QueueState.UNBLOCKED) {
-                        if (currentTimestamp == -1) currentTimestamp = EstTime.currentTimeMillis();
-                        if (this.blockTimestamp > currentTimestamp) {
-                            newState = QueueState.BLOCKED_SAFETY;
-                        }
+        this.lock.lock();
+        try {
+            if (newState != this.state) {
+                // note if we get non-empty but blocked
+                if ((newState == QueueState.BLOCKED_ORDERING) || (newState == QueueState.BLOCKED_SAFETY)) {
+                    if (trace.val)
+                        LOG.trace(String.format("Partition %d :: NewState=%s --> %s",
+                                  this.partitionId, newState, ts));
+                    long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(txnId.longValue());
+                    if (currentTimestamp == -1) currentTimestamp = EstTime.currentTimeMillis();
+                    
+                    // Calculate how long we need to wait before this txn is safe to run
+                    // If we're blocking on "safety", then we can use an offset based 
+                    // on when the txnId was created. If we're blocking for "ordering",
+                    // then we'll want to wait for the full wait time.
+                    int waitTime = this.waitTime;
+                    if (newState == QueueState.BLOCKED_SAFETY) {
+                        waitTime = (int)Math.max(0, this.waitTime - (currentTimestamp - txnTimestamp));
                     }
                     
-                    // Set the new state
-                    if (newState != this.state) {
-                        if (debug.val) LOG.debug(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
-                                                 this.partitionId, this.state, newState, this.lastSafeTxnId));
-                        if (this.profiler != null) {
-                            this.profiler.queueStates.get(this.state).stopIfStarted();
-                            this.profiler.queueStates.get(newState).start();
+                    this.blockTimestamp = currentTimestamp + waitTime;
+                    if (debug.val)
+                        LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
+                                  this.partitionId, this.blockTimestamp, ts));
+                    
+                    newState = (waitTime > 0 ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
+                    if (this.profiler != null) this.profiler.waitTimes.put(waitTime);
+                    
+                    // This txn becomes our next safeTxnId. This is essentially the next txn
+                    // that should be executed, but somebody *could* come along and add in 
+                    // a new txn with a lower id. But that's ok because we've synchronized setting
+                    // the id up above. This is actually probably the only part of this entire method
+                    // that needs to be protected...
+                    this.lastSafeTxnId = txnId;
+                    
+                    if (debug.val) {
+                        LOG.debug(String.format("Partition %d :: SET lastSafeTxnId = %d --> %s",
+                                  this.partitionId, this.lastSafeTxnId, ts));
+                        
+                        String debug = "";
+                        if (trace.val) {
+                            Map<String, Object> m = new LinkedHashMap<String, Object>();
+                            m.put("Txn Init Timestamp", txnTimestamp);
+                            m.put("Current Timestamp", currentTimestamp);
+                            m.put("Block Time Remaining", (this.blockTimestamp - currentTimestamp));
+                            debug = "\n" + StringUtil.formatMaps(m);
                         }
-                        this.state = newState;
+                        LOG.debug(String.format("Partition %d :: Blocking %s for %d ms " +
+                        		  "[maxWait=%d, origState=%s, newState=%s]\n%s%s",
+                                  this.partitionId, ts, (this.blockTimestamp - currentTimestamp),
+                                  this.waitTime, this.state, newState, this.debug(), debug));
                     }
                 }
-            } // SYNCH
-            // Sanity Check
-            if ((this.state == QueueState.BLOCKED_ORDERING) || (this.state == QueueState.BLOCKED_SAFETY)) {
-                assert(this.state != QueueState.BLOCKED_EMPTY);
-            }
+                else if (newState == QueueState.UNBLOCKED) {
+                    if (currentTimestamp == -1) currentTimestamp = EstTime.currentTimeMillis();
+                    if (this.blockTimestamp > currentTimestamp) {
+                        newState = QueueState.BLOCKED_SAFETY;
+                    }
+                }
+                
+                // Set the new state
+                if (newState != this.state) {
+                    if (debug.val)
+                        LOG.debug(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
+                                  this.partitionId, this.state, newState, this.lastSafeTxnId));
+                    if (this.profiler != null) {
+                        this.profiler.queueStates.get(this.state).stopIfStarted();
+                        this.profiler.queueStates.get(newState).start();
+                    }
+                    this.state = newState;
+                }
+            } // IF
+            
+            // If anybody was waiting for this queue to get unblocked, let them
+            // now that their wait is over and they can start the party.
+            if (this.state == QueueState.UNBLOCKED) this.isReady.signal();
+        } finally {
+            this.lock.unlock();
+        } // SYNCH
+            
+        // Sanity Check
+        if ((this.state == QueueState.BLOCKED_ORDERING) || (this.state == QueueState.BLOCKED_SAFETY)) {
+            assert(this.state != QueueState.BLOCKED_EMPTY);
         }
+        
         // Make sure that we're always in a valid state to avoid livelock problems
         assert(this.state != QueueState.BLOCKED_SAFETY || 
               (this.state == QueueState.BLOCKED_SAFETY && this.blockTimestamp != NULL_BLOCK_TIMESTAMP)) :

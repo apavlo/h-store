@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Test;
 import org.voltdb.TransactionIdManager;
@@ -87,6 +90,56 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testBlockOnEmpty
+     */
+    @Test
+    public void testBlockOnEmpty() throws Exception {
+        // We want to check that we can have one thread block on the queue when it
+        // is empty and then be awoken when it's ready to run
+        
+        final AtomicReference<AbstractTransaction> takeResult = new AtomicReference<AbstractTransaction>();
+        final CountDownLatch latch = new CountDownLatch(1);
+        Thread t = new Thread() {
+            { this.setDaemon(true); }
+            public void run() {
+                try {
+                    AbstractTransaction ts = queue.take();
+                    System.err.println("AWOKEN: " + ts);
+                    takeResult.set(ts);
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                } finally {
+                    latch.countDown();
+                }
+            }
+        };
+        t.start();
+
+        // Sleep for a little bit to avoid a race condition in our tests
+        ThreadUtil.sleep(TXN_DELAY);
+        EstTimeUpdater.update(System.currentTimeMillis());
+        
+        // Load one txn in the queue.
+        // The thread will not be awoken because we have not moved time forward
+        Collection<AbstractTransaction> added = this.loadQueue(1);
+        AbstractTransaction expected = CollectionUtil.first(added);
+        assertNull(takeResult.get());
+        assertEquals(1, added.size());
+        
+        // Now sleep and then update the time
+        // The thread still won't be woken up
+        ThreadUtil.sleep(TXN_DELAY);
+        EstTimeUpdater.update(System.currentTimeMillis());
+        assertNull(takeResult.get());
+        
+        // Invoke checkQueueState(). That will poke the thread
+        queue.checkQueueState();
+        boolean result = latch.await(TXN_DELAY, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+        assertEquals(expected, takeResult.get());
+    }
     
     /**
      * testThrottling
