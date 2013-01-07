@@ -67,9 +67,8 @@ public class ConcurrentProfileMeasurement extends ProfileMeasurement {
     public synchronized ProfileMeasurement decrementTime(ProfileMeasurement other, boolean checkType) {
         return super.decrementTime(other, checkType);
     }
-    @Override
-    public synchronized ProfileMeasurement appendTime(ProfileMeasurement other, boolean checkType) {
-        return super.appendTime(other, checkType);
+    public synchronized ProfileMeasurement appendTime(ProfileMeasurement other) {
+        return super.appendTime(other);
     }
     @Override
     public synchronized void appendTime(long start, long stop, int invocations) {

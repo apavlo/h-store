@@ -52,7 +52,8 @@ public abstract class AbstractProfiler {
         assert(pms0.length == pms1.length);
         
         for (int i = 0; i < pms0.length; i++) {
-            pms0[i].appendTime(pms1[i], true);
+            pms0[i].appendTime(pms1[i]);
+            assert(pms0[i].getType().equals(pms1[i]));
         } // FOR
     }
 

@@ -736,7 +736,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                         totals[i] = new ProfileMeasurement(times[i-1]);
                     else
                         totals[i].appendTime(times[i-1]);
-                    totals[0].appendTime(times[i-1], false);
+                    totals[0].appendTime(times[i-1]);
                 }
                 if (final_totals[i] == null) final_totals[i] = new ProfileMeasurement(totals[i].getType());
             } // FOR
@@ -757,7 +757,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             if (first) header[0] = "";
             for (ProfileMeasurement pm : proc_totals.get(proc)) {
                 if (first) header[j] = pm.getType();
-                final_totals[j-1].appendTime(pm, false);
+                final_totals[j-1].appendTime(pm);
                 rows[i][j] = Long.toString(Math.round(pm.getTotalThinkTimeMS()));
                 j++;
             } // FOR

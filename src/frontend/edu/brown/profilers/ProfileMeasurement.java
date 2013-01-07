@@ -318,19 +318,14 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.decrementTime(other, false));
     }
 
-    public ProfileMeasurement appendTime(ProfileMeasurement other, boolean checkType) {
+    public ProfileMeasurement appendTime(ProfileMeasurement other) {
         assert(other != null);
-        if (checkType) assert(this.type == other.type);
         this.total_time += other.total_time;
         this.marker = other.marker;
         this.invocations += other.invocations;
         return (this);
     }
     
-    public ProfileMeasurement appendTime(ProfileMeasurement other) {
-        return (this.appendTime(other, false));
-    }
-
     /**
      * Append the think time without locking the marker. This is the preferred
      * way to update the ProfileMeasurement when multiple threads are using it.
