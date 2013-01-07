@@ -143,7 +143,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                                                                           this.initThrottleThreshold,
                                                                           this.initThrottleRelease);
             queue.setThrottleThresholdIncreaseDelta(50);
-            queue.setThrottleThresholdMaxSize(this.initThrottleThreshold*5);
+            queue.setThrottleThresholdMaxSize(this.initThrottleThreshold*2);
             queue.enableProfiling(hstore_conf.site.queue_profiling);
             this.lockQueues[partition] = queue;
             
