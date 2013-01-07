@@ -29,7 +29,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
 @ProcInfo(
-    partitionInfo = "PAGE.USER_ID: 0",
+    partitionInfo = "USERACCT.USER_ID: 0",
     singlePartition = true
 )
 public class RemoveWatchList extends VoltProcedure {
