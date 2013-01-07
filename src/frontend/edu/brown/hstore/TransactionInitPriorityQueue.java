@@ -180,25 +180,22 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         // Note that we can't simply attach ourselves to our inner queue because
         // we don't want to get back the txn right when it gets added.
         // We want to wait until the time period has passed.
-        if (this.state != QueueState.UNBLOCKED) {
-            if (trace.val)
+        this.lock.lockInterruptibly();
+        try {
+            if (trace.val && this.state != QueueState.UNBLOCKED)
                 LOG.trace(String.format("Partition %d :: take() -> " +
                           "Current state is %s. Blocking until ready", this.partitionId, this.state));
-            
-            long waitTime = -1;
-            boolean needsUpdateQueue = false;
-            
-            // Acquire the main lock
-            this.lock.lockInterruptibly();
-            boolean isEmpty = (this.state == QueueState.BLOCKED_EMPTY);
-            
-            // If the queue isn't empty, then we need to figure out
-            // how long we should sleep for
-            if (isEmpty == false) {
-                waitTime = this.blockTimestamp - EstTime.currentTimeMillis();
-            }
-            
-            try {
+            while (this.state != QueueState.UNBLOCKED) {
+                long waitTime = -1;
+                boolean isEmpty = (this.state == QueueState.BLOCKED_EMPTY);
+                boolean needsUpdateQueue = false;
+                
+                // If the queue isn't empty, then we need to figure out
+                // how long we should sleep for
+                if (isEmpty == false) {
+                    waitTime = this.blockTimestamp - EstTime.currentTimeMillis();
+                }
+                
                 try {
                     // If we're empty, then we need to block indefinitely until we're poked
                     if (isEmpty) {
@@ -232,20 +229,18 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                     this.isReady.signal();
                     throw ex;
                 }
-            } finally {
-                this.lock.unlock();
-            }
+                
+                if (needsUpdateQueue) this.checkQueueState();
+                
+            } // WHILE
             if (trace.val)
-                LOG.trace(String.format("Partition %d :: take() -> Leaving critical area [needsUpdateQueue=%s]",
-                          this.partitionId, needsUpdateQueue));
-            if (needsUpdateQueue) this.checkQueueState();
-        }
-        
-        // The next txn is ready to run now!
-        // TODO: Should the next state always be UNBLOCKED?
-        if (this.state == QueueState.UNBLOCKED) {
+                LOG.trace(String.format("Partition %d :: take() -> Leaving blocking section",
+                          this.partitionId));
+            
+            // The next txn is ready to run now!
+            assert(this.state == QueueState.UNBLOCKED);
             retval = super.poll();
-            // 2012-12-21
+            // 2012-01-06
             // This could be null because there is a race condition if all of the
             // txns are removed by another thread right before we try to
             // poll our queue.
@@ -253,11 +248,13 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 this.lastTxnPopped = retval.getTransactionId();
                 this.txnsPopped++;
             }
-            // call this again to prime the next txn
+            
+            // Call this again to prime the next txn
             this.checkQueueState(true);
+            
+        } finally {
+            this.lock.unlock();
         }
-        
-
         if (debug.val)
             LOG.debug(String.format("Partition %d :: take() -> %s",
                       this.partitionId, retval));
@@ -497,23 +494,24 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                         newState = QueueState.BLOCKED_SAFETY;
                     }
                 }
-                
-                // Set the new state
-                if (newState != this.state) {
-                    if (debug.val)
-                        LOG.debug(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
-                                  this.partitionId, this.state, newState, this.lastSafeTxnId));
-                    if (this.profiler != null) {
-                        this.profiler.queueStates.get(this.state).stopIfStarted();
-                        this.profiler.queueStates.get(newState).start();
-                    }
-                    this.state = newState;
-                }
             } // IF
             
-            // If anybody was waiting for this queue to get unblocked, let them
-            // now that their wait is over and they can start the party.
-            if (this.state == QueueState.UNBLOCKED) this.isReady.signal();
+            // Set the new state
+            if (newState != this.state) {
+                if (debug.val)
+                    LOG.debug(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
+                              this.partitionId, this.state, newState, this.lastSafeTxnId));
+                if (this.profiler != null) {
+                    this.profiler.queueStates.get(this.state).stopIfStarted();
+                    this.profiler.queueStates.get(newState).start();
+                }
+                this.state = newState;
+                
+                // Always poke anybody that is blocking on this queue.
+                // The txn may not be ready to run just yet, but at least they'll be
+                // able to recompute a new sleep time.
+                if (this.state == QueueState.UNBLOCKED) this.isReady.signal();
+            }
         } finally {
             this.lock.unlock();
         } // SYNCH

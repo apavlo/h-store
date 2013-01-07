@@ -69,6 +69,25 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     // UTILITY METHODS
     // --------------------------------------------------------------------------------------------
+
+    private class BlockingTakeThread extends Thread {
+        final AtomicReference<AbstractTransaction> result = new AtomicReference<AbstractTransaction>();
+        final CountDownLatch latch = new CountDownLatch(1);
+        
+        { this.setDaemon(true); }
+        
+        public void run() {
+            try {
+                AbstractTransaction ts = queue.take();
+                System.err.println("AWOKEN: " + ts);
+                result.set(ts);
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            } finally {
+                latch.countDown();
+            }
+        }
+    }
     
     private Collection<AbstractTransaction> loadQueue(int num_txns) {
         Collection<AbstractTransaction> added = new TreeSet<AbstractTransaction>();
@@ -92,29 +111,47 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     
     /**
+     * testBlockUntilReady
+     */
+    @Test
+    public void testBlockUntilReady() throws Exception {
+        // We want to check that we can have one thread block on the queue 
+        // even though there is a txn in the queue, but whose block time hasn't passed
+        // yet. We want to check to see that the thread can be awoke on its own
+        // without needing to call checkQueueState()
+        
+        // Load one txn in the queue.
+        Collection<AbstractTransaction> added = this.loadQueue(1);
+        assertEquals(1, added.size());
+        AbstractTransaction expected = CollectionUtil.first(added);
+        assertNotNull(expected);
+        
+        BlockingTakeThread t = new BlockingTakeThread();
+        t.start();
+
+        // Sleep for a little bit to avoid a race condition in our tests
+        // The thread should not have finished
+        ThreadUtil.sleep(TXN_DELAY);
+        assertNull(t.result.get());
+        assertEquals(1, t.latch.getCount());
+        assertTrue(t.isAlive());
+        
+        // Ok now we'll just move time forward. The thread should
+        // haven been woken up on its own
+        EstTimeUpdater.update(System.currentTimeMillis());
+        boolean result = t.latch.await(TXN_DELAY, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+        assertEquals(expected, t.result.get());
+    }
+    
+    /**
      * testBlockOnEmpty
      */
     @Test
     public void testBlockOnEmpty() throws Exception {
         // We want to check that we can have one thread block on the queue when it
         // is empty and then be awoken when it's ready to run
-        
-        final AtomicReference<AbstractTransaction> takeResult = new AtomicReference<AbstractTransaction>();
-        final CountDownLatch latch = new CountDownLatch(1);
-        Thread t = new Thread() {
-            { this.setDaemon(true); }
-            public void run() {
-                try {
-                    AbstractTransaction ts = queue.take();
-                    System.err.println("AWOKEN: " + ts);
-                    takeResult.set(ts);
-                } catch (InterruptedException ex) {
-                    ex.printStackTrace();
-                } finally {
-                    latch.countDown();
-                }
-            }
-        };
+        BlockingTakeThread t = new BlockingTakeThread();
         t.start();
 
         // Sleep for a little bit to avoid a race condition in our tests
@@ -125,20 +162,20 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         // The thread will not be awoken because we have not moved time forward
         Collection<AbstractTransaction> added = this.loadQueue(1);
         AbstractTransaction expected = CollectionUtil.first(added);
-        assertNull(takeResult.get());
+        assertNull(t.result.get());
         assertEquals(1, added.size());
         
         // Now sleep and then update the time
         // The thread still won't be woken up
         ThreadUtil.sleep(TXN_DELAY);
         EstTimeUpdater.update(System.currentTimeMillis());
-        assertNull(takeResult.get());
+        assertNull(t.result.get());
         
         // Invoke checkQueueState(). That will poke the thread
         queue.checkQueueState();
-        boolean result = latch.await(TXN_DELAY, TimeUnit.MILLISECONDS);
+        boolean result = t.latch.await(TXN_DELAY, TimeUnit.MILLISECONDS);
         assertTrue(result);
-        assertEquals(expected, takeResult.get());
+        assertEquals(expected, t.result.get());
     }
     
     /**
@@ -410,27 +447,6 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             assertEquals(added.size() - removed.size(), it_ctr);
         } // FOR
     }
-    
-//    /**
-//     * testConcurrentRemoveIterator
-//     */
-//    @Test
-//    public void testConcurrentRemoveIterator() throws Exception {
-//        List<AbstractTransaction> added = new ArrayList<AbstractTransaction>(this.loadQueue(10));
-//        assertEquals(added.size(), this.queue.size());
-//        Collections.shuffle(added);
-//        AbstractTransaction toDelete = CollectionUtil.last(added);
-//        
-//        Set<AbstractTransaction> found = new HashSet<AbstractTransaction>();
-//        for (AbstractTransaction txn : this.queue) {
-//            if (found.isEmpty()) this.queue.remove(toDelete);
-//            found.add(txn);
-//        } // FOR
-//        System.err.println("ToDelete: " + toDelete);
-//        System.err.println("Found: " + found);
-//        assertFalse(toDelete.toString(), found.contains(toDelete));
-//        assertEquals(added.size()-1, found.size());
-//    }
     
     /**
      * testConcurrentOfferIterator
