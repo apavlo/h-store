@@ -953,8 +953,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
                 if (hstore_conf.site.exec_profiling) profiler.idle_queue_dtxn_time.start();
             }
-        } else {
-            this.queueWasEmpty();
         }
         
         // Check if we have anything to do right now
@@ -969,11 +967,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // This is the bare minimum that we can do here...
         // EstTimeUpdater.update(System.currentTimeMillis());
         return (null);
-    }
-    
-    private long emptyQueue = 0;
-    private long queueWasEmpty() {
-        return this.emptyQueue++;
     }
     
     /**
@@ -2952,7 +2945,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * at remote sites in the cluster 
      * @param ftasks
      */
-    private void requestWork(LocalTransaction ts, Collection<WorkFragment.Builder> fragmentBuilders, List<ByteString> parameterSets) {
+    private void requestWork(LocalTransaction ts,
+                             Collection<WorkFragment.Builder> fragmentBuilders,
+                             List<ByteString> parameterSets) {
         assert(!fragmentBuilders.isEmpty());
         assert(ts != null);
         Long txn_id = ts.getTransactionId();
