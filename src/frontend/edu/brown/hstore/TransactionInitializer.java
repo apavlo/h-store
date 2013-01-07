@@ -259,7 +259,7 @@ public class TransactionInitializer {
         // throughout this txn's lifespan to keep track of what it does
         LocalTransaction ts = null;
         try {
-            if (this.isSysProc[procId]) {
+            if (this.isMapReduce[procId]) {
                 if (hstore_conf.site.pool_txn_enable) {
                     ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
                 } else {
