@@ -186,8 +186,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private static final int WORK_QUEUE_POLL_TIME = 1; // milliseconds
-    private static final int WORK_QUEUE_POLL_TIME_NANO = 0; // nanoseconds
+    private static final long WORK_QUEUE_POLL_TIME = 500; // 0.5 milliseconds
+    private static final TimeUnit WORK_QUEUE_POLL_TIMEUNIT = TimeUnit.MICROSECONDS;
     
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
     
@@ -920,10 +920,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // -------------------------------
                 // Process Work
                 // -------------------------------
-                this.processInternalMessage(nextWork);
-                
-                if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
-                this.tick();
+                if (nextWork != null) {
+                    this.processInternalMessage(nextWork);
+                    if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
+                    this.tick();
+                }
             } // WHILE
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
@@ -955,37 +956,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Get the next unit of work from this partition's queue
      * @return
      */
-    protected InternalMessage getNextTransactionWork() throws InterruptedException {
-
-        
-        if (hstore_conf.site.exec_profiling) profiler.poll_time.start();
-        AbstractTransaction next = this.queueManager.checkLockQueue(this.partitionId);
-        if (hstore_conf.site.exec_profiling) profiler.poll_time.stop();
-        
-        if (next != null) {
-            // If this a single-partition txn, then we'll want to execute it right away
-            if (next.isPredictSinglePartition()) {
-                return ((LocalTransaction)next).getStartTxnMessage();
-            }
-            else {
-                this.setCurrentDtxn(next);
-                this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
-                if (hstore_conf.site.exec_profiling) profiler.idle_queue_dtxn_time.start();
-            }
-        }
-        
+   private InternalMessage getNextTransactionWork() throws InterruptedException {
         // Check if we have anything to do right now
         InternalMessage work = this.work_queue.poll();
         if (work != null) return (work);
         
         // Check if we have any utility work to do while we wait
         if (trace.val)
-            LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
+            LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
+                      this.work_queue.getClass().getSimpleName(), this.partitionId));
         if (this.utilityWork()) return (UTIL_WORK_MSG);
         
-        // This is the bare minimum that we can do here...
-        // EstTimeUpdater.update(System.currentTimeMillis());
-        return (null);
+        // If we didn't have any utility work, then we'll make a 
+        // blocking invocation of the work queue
+        return (this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT));
     }
     
     /**
@@ -1079,6 +1063,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // -------------------------------
         if (work instanceof InternalTxnMessage) {
             this.processInternalTxnMessage((InternalTxnMessage)work);
+        }
+        // -------------------------------
+        // UTILITY WORK
+        // -------------------------------
+        else if (work instanceof UtilityWorkMessage) {
+            // IGNORE
         }
         // -------------------------------
         // TRANSACTION INITIALIZATION
