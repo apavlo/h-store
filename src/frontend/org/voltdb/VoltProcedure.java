@@ -764,6 +764,7 @@ public abstract class VoltProcedure implements Poolable {
             VoltTable t = new VoltTable(SCALAR_RESULT_SCHEMA);
             t.addRow(result);
             this.lastScalarResultTable = new VoltTable[] { t };
+            this.lastScalarResult = longResult;
             return (this.lastScalarResultTable);
         }
         throw new RuntimeException("Procedure didn't return acceptable type.");
