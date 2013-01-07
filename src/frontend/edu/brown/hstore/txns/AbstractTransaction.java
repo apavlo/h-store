@@ -397,6 +397,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         
         this.deletable.lazySet(false);
         this.catalog_proc = null;
+        this.sysproc = false;
+        this.readonly = false;
         this.base_partition = HStoreConstants.NULL_PARTITION_ID;
         this.txn_id = null;
     }
@@ -552,7 +554,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Mark this transaction as have performed some modification on this partition
      */
     public void markExecNotReadOnly(int partition) {
-        assert(this.readonly == false);
+        assert(this.sysproc == true || this.readonly == false);
         this.exec_readOnly[partition] = false;
     }
 
