@@ -32,8 +32,6 @@ import edu.brown.utils.StringUtil;
  *
  * <p>This class manages all that state.</p>
  * 
- * <B>NOTE:</B> Do not put any synchronized blocks in this. All synchronization
- * should be done by the caller.
  */
 public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransaction> {
     protected static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
@@ -230,7 +228,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                     throw ex;
                 }
                 
-                if (needsUpdateQueue) this.checkQueueState();
+                if (needsUpdateQueue) this.checkQueueState(false);
                 
             } // WHILE
             if (trace.val)
@@ -344,12 +342,16 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
                       this.partitionId, this.lastSeenTxnId));
         if (txnId.compareTo(this.lastSafeTxnId) < 0) {
-            synchronized (this) {
+            this.lock.lock();
+            try {
                 if (txnId.compareTo(this.lastSafeTxnId) < 0) {
                     this.lastSafeTxnId = txnId;
-                    if (trace.val) LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
-                                             this.partitionId, this.lastSafeTxnId));
+                    if (trace.val)
+                        LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
+                                  this.partitionId, this.lastSafeTxnId));
                 }
+            } finally {
+                this.lock.unlock();
             } // SYNCH
         }
 
@@ -460,8 +462,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                         LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
                                   this.partitionId, this.blockTimestamp, ts));
                     
-                    newState = (waitTime > 0 ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
-                    if (this.profiler != null) this.profiler.waitTimes.put(waitTime);
+                    if (this.blockTimestamp <= currentTimestamp) {
+                        newState = QueueState.UNBLOCKED;
+                        if (this.profiler != null) this.profiler.waitTimes.put(0);
+                    } else if (this.profiler != null) this.profiler.waitTimes.put(waitTime);
                     
                     // This txn becomes our next safeTxnId. This is essentially the next txn
                     // that should be executed, but somebody *could* come along and add in 
@@ -510,7 +514,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 // Always poke anybody that is blocking on this queue.
                 // The txn may not be ready to run just yet, but at least they'll be
                 // able to recompute a new sleep time.
-                if (this.state == QueueState.UNBLOCKED) this.isReady.signal();
+                this.isReady.signal();
             }
         } finally {
             this.lock.unlock();

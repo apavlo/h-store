@@ -907,7 +907,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
-                if (nextWork != null) {
+                if (nextWork == null) {
                     if (hstore_conf.site.exec_profiling) profiler.idle_time.start();
                     nextWork = this.getNextTransactionWork(); // BLOCKING
                     if (hstore_conf.site.exec_profiling) { 
