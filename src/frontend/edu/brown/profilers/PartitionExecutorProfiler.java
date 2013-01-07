@@ -33,11 +33,6 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     public final ProfileMeasurement idle_time = new ProfileMeasurement("IDLE");
     
     /**
-     * How much time the PartitionExecutor sleeps waiting for for something to do
-     */
-    public final ProfileMeasurement sleep_time = new ProfileMeasurement("SLEEP");
-    
-    /**
      * How much time the PartitionExecutor spends polling its TransactionInitPriorityQueue
      */
     public final ProfileMeasurement poll_time = new ProfileMeasurement("POLL");

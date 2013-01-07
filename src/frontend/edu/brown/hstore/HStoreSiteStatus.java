@@ -529,7 +529,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     {profiler.exec_time, lastProfiler.exec_time, total.exec_time},
                     {profiler.txn_time, lastProfiler.txn_time, total.txn_time},
                     {profiler.idle_time, lastProfiler.idle_time, total.idle_time},
-                    {profiler.sleep_time, lastProfiler.sleep_time, total.sleep_time},
                     {profiler.poll_time, lastProfiler.poll_time, total.poll_time},
                     {profiler.network_time, lastProfiler.network_time, total.network_time},
                     {profiler.util_time, lastProfiler.util_time, total.util_time}
@@ -563,7 +562,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 total.exec_time,
                 total.txn_time,
                 total.idle_time,
-                total.sleep_time,
                 total.poll_time,
                 total.network_time,
                 total.util_time,

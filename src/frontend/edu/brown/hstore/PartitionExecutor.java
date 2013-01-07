@@ -163,7 +163,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.PartitionExecutorProfiler;
-import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -881,7 +880,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     } catch (InterruptedException ex) {
                         continue;
                     } finally {
-                        if (hstore_conf.site.exec_profiling) profiler.poll_time.stop();
+                        if (hstore_conf.site.exec_profiling) profiler.poll_time.stopIfStarted();
                     }
                     
                     // If we get something back here, then it should become our current transaction.
@@ -911,7 +910,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (hstore_conf.site.exec_profiling) profiler.idle_time.start();
                     nextWork = this.getNextTransactionWork(); // BLOCKING
                     if (hstore_conf.site.exec_profiling) { 
-                        ProfileMeasurementUtil.swap(profiler.idle_time, profiler.exec_time);
+                        profiler.idle_time.stopIfStarted();
                         if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
                     }
                 }
@@ -921,7 +920,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Process Work
                 // -------------------------------
                 if (nextWork != null) {
-                    this.processInternalMessage(nextWork);
+                    if (hstore_conf.site.exec_profiling) profiler.exec_time.start();
+                    try {
+                        this.processInternalMessage(nextWork);
+                    } finally {
+                        if (hstore_conf.site.exec_profiling) profiler.exec_time.stopIfStarted();
+                    }
                     if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                     this.tick();
                 }
