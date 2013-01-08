@@ -427,18 +427,25 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             return (false);
         }
         // Our queue is overloaded. We have to reject the txnId!
-        else if (this.lockQueues[partition].offer(ts, ts.isSysProc()) == false) {
-            if (debug.val)
-                LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
-            	          "Throttling %s until id is greater than %s [queueSize=%d]",
-                          partition, ts, next_safe_id, this.lockQueues[partition].size()));
-            if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
-            this.rejectTransaction(ts, Status.ABORT_REJECT, partition, next_safe_id);
-            if (hstore_conf.site.queue_profiling) {
-                profilers[partition].rejection_time.stopIfStarted();
-                profilers[partition].init_time.stopIfStarted();
+        else {
+            boolean ret;
+            synchronized (this.lockQueues[partition]) {
+                ret = this.lockQueues[partition].offer(ts, ts.isSysProc());
+            } // SYNCH
+            
+            if (ret == false) {
+                if (debug.val)
+                    LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
+                	          "Throttling %s until id is greater than %s [queueSize=%d]",
+                              partition, ts, next_safe_id, this.lockQueues[partition].size()));
+                if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
+                this.rejectTransaction(ts, Status.ABORT_REJECT, partition, next_safe_id);
+                if (hstore_conf.site.queue_profiling) {
+                    profilers[partition].rejection_time.stopIfStarted();
+                    profilers[partition].init_time.stopIfStarted();
+                }
+                return (false);
             }
-            return (false);
         }
         if (trace.val)
             LOG.trace(String.format("Added %s to initQueue for partition %d [queueSize=%d]",
@@ -487,7 +494,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // If it wasn't running, then we need to make sure that we remove it from
             // our initialization queue. Unfortunately this means that we need to traverse
             // the queue to find it and remove.
-            removed = this.lockQueues[partition].remove(ts);
+            synchronized (this.lockQueues[partition]) {
+                removed = this.lockQueues[partition].remove(ts);
+            }
         }
         
         // Calling contains() is super slow, so we'll only do this if we have tracing enabled
