@@ -682,16 +682,32 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // Local Partitions
         m[++idx] = new LinkedHashMap<String, Object>();
-        for (int p = 0; p < this.lockQueuesLastTxn.length; p++) {
+        for (int partition = 0; partition < this.lockQueuesLastTxn.length; partition++) {
             Map<String, Object> inner = new LinkedHashMap<String, Object>();
-            inner.put("Current Txn", this.lockQueuesLastTxn[p]);
-            if (hstore_site.isLocalPartition(p)) {
-                inner.put("Queue Size", this.lockQueues[p].size());
+            inner.put("Current Txn", this.lockQueuesLastTxn[partition]);
+            if (this.localPartitions.contains(partition)) {
+                inner.put("Queue Size", this.lockQueues[partition].size());
             }
-            m[idx].put(String.format("Partition #%02d", p), inner);
+            m[idx].put(String.format("Partition #%02d", partition), inner);
         } // FOR
         
         return StringUtil.formatMaps(m);
+    }
+    
+    public String debug() {
+        String debug[] = new String[this.lockQueues.length];
+        int idx = 0;
+        for (int partition : this.localPartitions.values()) {
+            debug[idx++] = this.lockQueues[partition].debug();
+        } // FOR
+        int max_width = StringUtil.maxWidth(debug);
+        String line = StringUtil.repeat("-", max_width) + "\nCONTENTS:\n";
+        
+        idx = 0;
+        for (int partition : this.localPartitions.values()) {
+            debug[idx++] += line + StringUtil.join("\n", this.lockQueues[partition]); 
+        } // FOR
+        return (StringUtil.columns(debug));
     }
     
     // ----------------------------------------------------------------------------

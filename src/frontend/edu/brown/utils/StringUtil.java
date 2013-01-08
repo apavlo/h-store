@@ -245,7 +245,11 @@ public abstract class StringUtil {
         int max_lines = 0;
 
         for (int i = 0; i < strs.length; i++) {
-            lines[i] = LINE_SPLIT.split(strs[i]);
+            if (strs[i] == null) {
+                lines[i] = new String[0];
+            } else {
+                lines[i] = LINE_SPLIT.split(strs[i]);
+            }
             prefixes[i] = (i == 0 ? "" : " \u2503 ");
             for (String line : lines[i]) {
                 max_length = Math.max(max_length, line.length());
@@ -264,6 +268,28 @@ public abstract class StringUtil {
         } // FOR
 
         return (sb.toString());
+    }
+    
+    /**
+     * For a given array of multi-lined strings, return the max width 
+     * of all of the lines.
+     * @param strs
+     * @return
+     */
+    public static int maxWidth(String...strs) {
+        int max_length = 0;
+        String lines[] = null;
+        for (int i = 0; i < strs.length; i++) {
+            if (strs[i] == null) {
+                lines = new String[0];
+            } else {
+                lines = LINE_SPLIT.split(strs[i]);
+            }
+            for (String line : lines) {
+                max_length = Math.max(max_length, line.length());
+            } // FOR
+        } // FOR
+        return (max_length);
     }
 
     /**

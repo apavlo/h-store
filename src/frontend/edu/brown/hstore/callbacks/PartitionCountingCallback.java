@@ -177,9 +177,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         int new_count = this.counter.addAndGet(-1 * delta);
         this.receivedPartitions.add(partition);
         if (debug.val)
-            LOG.debug(String.format("%s - %s.run() / COUNTER: %d - %d = %d%s",
+            LOG.debug(String.format("%s - %s.run() / COUNTER: %d - %d = %d [origCtr=%d]%s",
                       this.ts, this.getClass().getSimpleName(),
-                      new_count+delta, delta, new_count,
+                      new_count+delta, delta, new_count, orig_counter,
                       (trace.val ? "\n" + partition : "")));
         
         // If this is the last result that we were waiting for, then we'll invoke

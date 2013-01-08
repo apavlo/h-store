@@ -38,6 +38,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     
     class MockCallback extends LocalInitQueueCallback {
         final Semaphore lock = new Semaphore(0);
+        final PartitionSet partitions = new PartitionSet();
         boolean invoked = false;
 
         protected MockCallback() {
@@ -46,6 +47,11 @@ public class TestTransactionQueueManager extends BaseTestCase {
         @Override
         public boolean isInitialized() {
             return (true);
+        }
+        @Override
+        protected int runImpl(int partition) {
+            this.partitions.add(partition);
+            return super.runImpl(partition);
         }
         @Override
         protected void unblockCallback() {
@@ -104,9 +110,12 @@ public class TestTransactionQueueManager extends BaseTestCase {
     }
     
     private boolean checkAllQueues() throws InterruptedException {
-        EstTimeUpdater.update(System.currentTimeMillis());
+        return (this.checkQueues(catalogContext.getAllPartitionIds()));
+    }
+    
+    private boolean checkQueues(PartitionSet partitions) throws InterruptedException {
         boolean ret = false; 
-        for (int partition : catalogContext.getAllPartitionIds().values()) {
+        for (int partition : partitions.values()) {
             this.queueManager.getInitQueue(partition).getDebugContext().checkQueueState();
             AbstractTransaction ts = this.queueManager.checkLockQueue(partition);
             // if (ts != null) System.err.printf("Partition %d => %s\n", partition, ts);
@@ -122,6 +131,16 @@ public class TestTransactionQueueManager extends BaseTestCase {
             ret = ret && result;
         } // FOR
         return (ret);
+    }
+    
+    private PartitionSet findTxnInQueues(LocalTransaction txn) {
+        PartitionSet partitions = new PartitionSet();
+        for (int partition : catalogContext.getAllPartitionIds().values()) {
+            if (this.queueManager.getInitQueue(partition).contains(txn)) {
+                partitions.add(partition);
+            }
+        } // FOR
+        return (partitions);
     }
     
     // --------------------------------------------------------------------------------------------
@@ -222,10 +241,15 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1, inner_callback1);
         final LocalTransaction txn2 = this.createTransaction(txn_id2, partitions2, inner_callback2);
         
-//        System.err.println("txn_id0: " + txn_id0);
-//        System.err.println("txn_id1: " + txn_id1);
-//        System.err.println("txn_id2: " + txn_id2);
-//        System.err.println();
+        assert(txn_id0 < txn_id1);
+        assert(txn_id1 < txn_id2);
+        
+        System.err.println("txn_id0: " + txn_id0);
+        System.err.println("txn_id1: " + txn_id1);
+        System.err.println("txn_id2: " + txn_id2);
+        System.err.println();
+        System.err.flush();
+        
         this.addToQueue(txn0, inner_callback0);
         this.addToQueue(txn1, inner_callback1);
         this.addToQueue(txn2, inner_callback2);
@@ -236,6 +260,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertTrue("callback0", inner_callback0.lock.tryAcquire());
         assertTrue("callback1", inner_callback1.lock.tryAcquire());
         assertFalse("callback2", inner_callback2.lock.tryAcquire());
+        assertEquals(queueManager.toString(), partitions2, this.findTxnInQueues(txn2));
         assertFalse(dbg.isLockQueuesEmpty());
         
         // Now release mark the first txn as finished. We should still 
@@ -243,11 +268,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
         for (int partition : partitions0) {
             queueManager.lockQueueFinished(txn0, Status.OK, partition);
         }
-        this.checkAllQueues();
+        
+        // The third txn should *not* get released right away
+        // because the second txn is still running
         assertFalse("callback2", inner_callback2.lock.tryAcquire());
         assertFalse(dbg.isLockQueuesEmpty());
         
-        // Release the second txn. That should release the third txn
+        // Now we'll mark it as finished. That should release the third txn
         ThreadUtil.sleep(TXN_DELAY*2);
         for (int partition : partitions1) {
             queueManager.lockQueueFinished(txn1, Status.OK, partition);
@@ -272,27 +299,37 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final MockCallback inner_callback1 = new MockCallback();
         final LocalTransaction txn0 = this.createTransaction(txn_id0, partitions0, inner_callback0);
         final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1, inner_callback1);
+      
+        System.err.println("txn_id0: " + txn_id0);
+        System.err.println("txn_id1: " + txn_id1);
+        System.err.flush();
         
         this.addToQueue(txn0, inner_callback0);
+        ThreadUtil.sleep(1);
         this.addToQueue(txn1, inner_callback1);
         
         ThreadUtil.sleep(TXN_DELAY*2);
+        assertTrue(this.checkAllQueues());
         
         // We should get the callback for the first txn right away
-        assertTrue(this.checkAllQueues());
-        assertTrue("callback0", inner_callback0.lock.tryAcquire());
-        
         // And then checkLockQueues should always return false
+        ThreadUtil.sleep(TXN_DELAY);
+        assertTrue("callback0", inner_callback0.lock.tryAcquire());
         assertFalse(dbg.isLockQueuesEmpty());
         
         // Now if we mark the txn as finished, we should be able to acquire the
         // locks for the second txn. We actually need to call checkLockQueues()
         // twice because we only process the finished txns after the first one
-        ThreadUtil.sleep(TXN_DELAY*2);
+        // Make sure that we generate the list of partitions that we need to check
+        // *before* we release the first txn. We should only check the ones where
+        // we haven't already recieved the lock for (otherwise we will block forever)
+        PartitionSet temp = new PartitionSet(partitions1);
+        temp.removeAll(inner_callback1.partitions);
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
             queueManager.lockQueueFinished(txn0, Status.OK, partition);
         }
-        assertTrue(this.checkAllQueues());
+        assertTrue(this.checkQueues(temp));
+        ThreadUtil.sleep(TXN_DELAY);
         assertTrue("callback1", inner_callback1.lock.tryAcquire());
         
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
