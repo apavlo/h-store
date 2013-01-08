@@ -265,7 +265,6 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                 LOG.debug(String.format("%s - Invoking %s.abortCallback() [hashCode=%d]",
                           this.ts, this.getClass().getSimpleName(), this.hashCode()));
             this.abortCallback(status);
-            this.abortFinished = true;
             
             // If we abort, then we have to send out an ABORT to
             // all of the partitions that we originally sent INIT requests too
@@ -280,6 +279,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                 }
             }
             this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), status);
+            this.abortFinished = true;
         }
     }
     

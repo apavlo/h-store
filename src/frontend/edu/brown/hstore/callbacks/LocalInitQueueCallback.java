@@ -120,8 +120,12 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
             LOG.debug(String.format("%s - Got %s with status %s from partitions %s",
                       this.ts, response.getClass().getSimpleName(),
                       response.getStatus(), response.getPartitionsList()));
-        for (Integer partition : response.getPartitionsList()) {
-            this.run(partition.intValue());
-        } // FOR
+        if (response.getStatus() != Status.OK) {
+            this.abort(response.getStatus());
+        } else {
+            for (Integer partition : response.getPartitionsList()) {
+                this.run(partition.intValue());
+            } // FOR
+        }
     }
 }

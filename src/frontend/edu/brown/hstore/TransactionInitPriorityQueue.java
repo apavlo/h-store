@@ -304,7 +304,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         }
         if (debug.val)
             LOG.debug(String.format("Partition %d :: peek() -> %s", this.partitionId, retval));
-        return retval;
+        return (retval);
     }
     
     /**
@@ -323,7 +323,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         this.lock.lock();
         try {
             retval= super.offer(ts, force);
-            if (debug.val) LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
+            if (debug.val)
+                LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
             if (retval) this.checkQueueState(false);
             
         } finally {
@@ -331,7 +332,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
             this.lock.unlock();
         }
-        return retval;
+        return (retval);
     }
     
     @Override
@@ -368,7 +369,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
             this.lock.unlock();
         }
-        return retval;
+        if (debug.val && retval)
+            LOG.debug(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
+        return (retval);
     }
     
     /**
@@ -394,7 +397,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 if (debug.val)
                     LOG.warn(String.format("Partition %d :: Txn ordering deadlock --> LastTxn:%d / NewTxn:%d",
                              this.partitionId, this.lastTxnPopped, txnId));
-                return (this.lastSafeTxnId);
+                return (this.lastTxnPopped);
             }
             
             // We always need to check whether this new txnId is less than our next safe txnID
@@ -462,8 +465,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             // wait for an appropriate amount of time before we're allow to be executed.
             if (txnId.compareTo(this.lastSafeTxnId) > 0 && afterRemoval == false) {
                 newState = QueueState.BLOCKED_ORDERING;
-                if (debug.val)
-                    LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
+                if (trace.val)
+                    LOG.trace(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
                               this.partitionId, txnId, this.lastSafeTxnId));
             }
             // If our current block time is negative, then we know that we're the first txnId
@@ -471,22 +474,22 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             // allowed to be executed.
             else if (this.blockTimestamp == NULL_BLOCK_TIMESTAMP) {
                 newState = QueueState.BLOCKED_SAFETY;
-                if (debug.val)
-                    LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime=%d)",
+                if (trace.val)
+                    LOG.trace(String.format("Partition %d :: txnId[%d] ==> %s (blockTime=%d)",
                               this.partitionId, txnId, newState, this.blockTimestamp));
             }
             // Check whether it's safe to unblock this mofo
             else if ((currentTimestamp = System.currentTimeMillis()) < this.blockTimestamp) {
                 newState = QueueState.BLOCKED_SAFETY;
-                if (debug.val)
-                    LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime[%d] - current[%d] = %d)",
+                if (trace.val)
+                    LOG.trace(String.format("Partition %d :: txnId[%d] ==> %s (blockTime[%d] - current[%d] = %d)",
                               this.partitionId, txnId, newState,
                               this.blockTimestamp, currentTimestamp,
                               Math.max(0, this.blockTimestamp - currentTimestamp)));
             }
             // We didn't find any reason to block this txn, so it's sail yo for it...
-            else if (debug.val) {
-                LOG.debug(String.format("Partition %d :: Safe to Execute %d [currentTime=%d]",
+            else if (trace.val) {
+                LOG.trace(String.format("Partition %d :: Safe to Execute %d [currentTime=%d]",
                           this.partitionId, txnId, System.currentTimeMillis()));
             }
         }
@@ -510,8 +513,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 }
                 
                 this.blockTimestamp = currentTimestamp + waitTime;
-                if (debug.val)
-                    LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
+                if (trace.val)
+                    LOG.trace(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
                               this.partitionId, this.blockTimestamp, ts));
                 
                 if (this.blockTimestamp <= currentTimestamp) {
@@ -526,8 +529,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 // that needs to be protected...
                 this.lastSafeTxnId = txnId;
                 
-                if (debug.val) {
-                    LOG.debug(String.format("Partition %d :: SET lastSafeTxnId = %d --> %s",
+                if (trace.val) {
+                    LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d --> %s",
                               this.partitionId, this.lastSafeTxnId, ts));
                     
                     String debug = "";
@@ -538,7 +541,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                         m.put("Block Time Remaining", (this.blockTimestamp - currentTimestamp));
                         debug = "\n" + StringUtil.formatMaps(m);
                     }
-                    LOG.debug(String.format("Partition %d :: Blocking %s for %d ms " +
+                    LOG.trace(String.format("Partition %d :: Blocking %s for %d ms " +
                     		  "[maxWait=%d, origState=%s, newState=%s]\n%s%s",
                               this.partitionId, ts, (this.blockTimestamp - currentTimestamp),
                               this.waitTime, this.state, newState, this.debug(), debug));
@@ -554,8 +557,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         
         // Set the new state
         if (newState != this.state) {
-            if (debug.val)
-                LOG.debug(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
+            if (trace.val)
+                LOG.trace(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
                           this.partitionId, this.state, newState, this.lastSafeTxnId));
             if (this.profiler != null) {
                 this.profiler.queueStates.get(this.state).stopIfStarted();

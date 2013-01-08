@@ -276,6 +276,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // ----------------------------------------------------------------------------
 
     protected void initTransaction(AbstractTransaction ts) {
+        if (debug.val)
+            LOG.debug(String.format("Adding %s to initialization queue", ts));
         this.initQueue.add(ts);
     }
     
@@ -409,8 +411,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // The next txnId that we're going to try to execute is already greater
         // than this new txnId that we were given! Rejection!
         if (next_safe_id != null && next_safe_id.compareTo(txn_id) > 0) {
-            if (debug.val)
-                LOG.debug(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
+             if (debug.val)
+                LOG.warn(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
             	          "is greater than our new txn %s. Rejecting...",
                           partition, next_safe_id, ts));
             if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
@@ -469,7 +471,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // Note that this is always thread-safe because we will release the lock
         // only if we are the current transaction at this partition
         boolean checkQueue = true;
-        if (this.lockQueuesLastTxn[partition].equals(ts.getTransactionId())) {
+        if (this.lockQueues[partition].getLastTransactionId().equals(ts.getTransactionId())) {
             if (debug.val)
                 LOG.debug(String.format("Unlocking partition %d because %s is finished " +
             	          "[status=%s]",

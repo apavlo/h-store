@@ -1664,7 +1664,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private void resetCurrentDtxn() {
         assert(this.currentDtxn != null) :
             "Trying to reset the currentDtxn when it is already null";
-        if (debug.val) LOG.debug(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
+        if (debug.val)
+            LOG.debug(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
                          this.partitionId, this.lastDtxn));
         this.currentDtxn = null;
     }
@@ -1768,7 +1769,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           work, this.partitionId, ts);
         if (debug.val)
             LOG.debug(String.format("%s - Added %s to partition %d " +
-                          "work queue [size=%d]",
+                      "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
     }
@@ -1813,10 +1814,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                              catalog_proc,
                                                              procParams,
                                                              clientCallback);
-        if (debug.val) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
-                         "[currentDtxn=%s, queueSize=%d, mode=%s]",
-                         work.getClass().getSimpleName(), catalog_proc.getName(), this.partitionId,
-                         this.currentDtxn, this.work_queue.size(), this.currentExecMode));
+        if (debug.val)
+            LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
+                      "[currentDtxn=%s, queueSize=%d, mode=%s]",
+                      work.getClass().getSimpleName(), catalog_proc.getName(), this.partitionId,
+                      this.currentDtxn, this.work_queue.size(), this.currentExecMode));
         return (this.work_queue.offer(work));
     }
     
@@ -3746,7 +3748,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @return true if speculative execution was enabled at this partition
      */
     private boolean prepareTransaction(AbstractTransaction ts) {
-        assert(ts != null) : "Null transaction handle???";
+        assert(ts != null) :
+            "Unexpected null transaction handle at partition " + this.partitionId;
+        assert(ts.isInitialized()) :
+            String.format("Trying to prepare uninitialized transaction %s at partition %d", ts, this.partitionId);
+        assert(ts.isMarkedFinished(this.partitionId) == false) :
+            String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
+        
         if (debug.val)
             LOG.debug(String.format("%s - Preparing to commit txn at partition %d",
                       ts, this.partitionId));
@@ -3772,6 +3780,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
             if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
         }
+        // It's ok if they try to prepare the txn twice. That might just mean that they never
+        // got the acknowledgement back in time if they tried to send an early commit message.
         else if (debug.val) {
             LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, this.partitionId));
         }
