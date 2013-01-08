@@ -383,28 +383,28 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // all that we care about is that whatever value is in there now is greater than
         // the what the transaction was trying to use.
         Long txn_id = ts.getTransactionId();
-        if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
-            if (debug.val)
-                LOG.debug(String.format("The last txnId released for partition %d was #%d but this " +
-            	          "is greater than %s. Rejecting...",
-                          partition, this.lockQueuesLastTxn[partition], ts));
-            if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
-            this.rejectTransaction(ts,
-                                   Status.ABORT_RESTART,
-                                   partition,
-                                   this.lockQueuesLastTxn[partition]);
-            if (hstore_conf.site.queue_profiling) {
-                profilers[partition].rejection_time.stopIfStarted();
-                profilers[partition].init_time.stopIfStarted();
-            }
-            return (false);
-        }
+//        if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
+//            if (debug.val)
+//                LOG.debug(String.format("The last txnId released for partition %d was #%d but this " +
+//            	          "is greater than %s. Rejecting...",
+//                          partition, this.lockQueuesLastTxn[partition], ts));
+//            if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
+//            this.rejectTransaction(ts,
+//                                   Status.ABORT_RESTART,
+//                                   partition,
+//                                   this.lockQueuesLastTxn[partition]);
+//            if (hstore_conf.site.queue_profiling) {
+//                profilers[partition].rejection_time.stopIfStarted();
+//                profilers[partition].init_time.stopIfStarted();
+//            }
+//            return (false);
+//        }
         
         // 2012-12-03 - There is a race condition here where we may get back the last txn that 
         // was released but then it was deleted and cleaned-up. This means that its txn id
         // might be null. A better way to do this is to only have each PartitionExecutor
         // insert the new transaction into its queue. 
-        Long next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSeen(txn_id);
+        Long next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSafeTxnId(txn_id);
         
         // The next txnId that we're going to try to execute is already greater
         // than this new txnId that we were given! Rejection!
@@ -412,7 +412,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             if (debug.val)
                 LOG.debug(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
             	          "is greater than our new txn %s. Rejecting...",
-                          partition, this.lockQueuesLastTxn[partition], ts));
+                          partition, next_safe_id, ts));
             if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
             this.rejectTransaction(ts,
                                    Status.ABORT_RESTART,

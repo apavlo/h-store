@@ -129,6 +129,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         return (this.partitionId);
     }
     
+    public Long getLastTransactionId() {
+        return (this.lastTxnPopped);
+    }
+    
     // ----------------------------------------------------------------------------
     // QUEUE OPERATION METHODS
     // ----------------------------------------------------------------------------
@@ -195,6 +199,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 LOG.trace(String.format("Partition %d :: take() -> " +
                           "Current state is %s. Blocking until ready", this.partitionId, this.state));
             while (this.state != QueueState.UNBLOCKED) {
+                if (trace.val)
+                    LOG.trace(String.format("Partition %d :: take() -> Calculating how long to block",
+                              this.partitionId));
+                
                 long waitTime = -1;
                 boolean isEmpty = (this.state == QueueState.BLOCKED_EMPTY);
                 boolean needsUpdateQueue = false;
@@ -202,7 +210,16 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 // If the queue isn't empty, then we need to figure out
                 // how long we should sleep for
                 if (isEmpty == false) {
-                    waitTime = this.blockTimestamp - System.currentTimeMillis();
+                    // If we're blocked because of an ordering issue (i.e., we have a new txn
+                    // in the system that is less than our current head of the queue, but we 
+                    // haven't inserted it yet), then we will want to wait for the full timeout
+                    // period. We won't actually have to wait this long because somebody will poke
+                    // us after the new txn is added to the queue.
+                    if (this.state == QueueState.BLOCKED_ORDERING) {
+                        waitTime = this.waitTime;
+                    } else { 
+                        waitTime = this.blockTimestamp - System.currentTimeMillis();
+                    }
                 }
                 
                 try {
@@ -358,46 +375,45 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public Long noteTransactionRecievedAndReturnLastSeen(Long txnId) {
+    public Long noteTransactionRecievedAndReturnLastSafeTxnId(Long txnId) {
         assert(txnId != null);
         if (trace.val)
             LOG.trace(String.format("Partition %d :: noteTransactionRecievedAndReturnLastSeen(%d)",
                       this.partitionId, txnId));
-
-        // we've decided that this can happen, and it's fine... just ignore it
-        if (debug.val && this.lastTxnPopped != null && this.lastTxnPopped.compareTo(txnId) > 0) {
-            LOG.warn(String.format("Partition %d :: Txn ordering deadlock --> LastTxn:%d / NewTxn:%d",
-                     this.partitionId, this.lastTxnPopped, txnId));
-        }
 
         this.lastSeenTxnId = txnId;
         if (trace.val)
             LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
                       this.partitionId, this.lastSeenTxnId));
         
-        // We always need to check whether this new txnId is less than our next safe txnID
-        // If it is, then we know that we need to replace it.
-        if (txnId.compareTo(this.lastSafeTxnId) < 0) {
-            if (trace.val)
-                LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
-            this.lock.lock();
-            try {
-                if (txnId.compareTo(this.lastSafeTxnId) < 0) {
-                    this.lastSafeTxnId = txnId;
+        if (trace.val)
+            LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
+        this.lock.lock();
+        try {
+            if (this.lastTxnPopped.compareTo(txnId) > 0) {
+                if (debug.val)
+                    LOG.warn(String.format("Partition %d :: Txn ordering deadlock --> LastTxn:%d / NewTxn:%d",
+                             this.partitionId, this.lastTxnPopped, txnId));
+                return (this.lastSafeTxnId);
+            }
+            
+            // We always need to check whether this new txnId is less than our next safe txnID
+            // If it is, then we know that we need to replace it.
+            if (txnId.compareTo(this.lastSafeTxnId) < 0) {
+                this.lastSafeTxnId = txnId;
                     if (trace.val)
                         LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
                                   this.partitionId, this.lastSafeTxnId));
 
-                    // Since we know that we just replaced the last safeTxnId, we 
-                    // need to check our queue state to update ourselves
-                    this.checkQueueState(false);
-                }
-            } finally {
-                if (trace.val)
-                    LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
-                this.lock.unlock();
-            } // SYNCH
-        }
+                // Since we know that we just replaced the last safeTxnId, we 
+                // need to check our queue state to update ourselves
+                this.checkQueueState(false);
+            }
+        } finally {
+            if (trace.val)
+                LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
+            this.lock.unlock();
+        } // SYNCH
         return (this.lastSafeTxnId);
     }
 
@@ -575,9 +591,6 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     public class Debug implements DebugContext {
         public long getTransactionsPopped() {
             return (txnsPopped);
-        }
-        public Long getLastTransactionId() {
-            return (lastTxnPopped);
         }
         public long getBlockedTimestamp() {
             return (blockTimestamp);

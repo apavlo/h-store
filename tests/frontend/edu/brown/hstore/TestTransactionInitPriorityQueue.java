@@ -96,7 +96,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             txn.testInit(txnId, 0, new PartitionSet(1), this.catalog_proc);
             
             // I think that we need to do this...
-            this.queue.noteTransactionRecievedAndReturnLastSeen(txn.getTransactionId());
+            this.queue.noteTransactionRecievedAndReturnLastSafeTxnId(txn.getTransactionId());
             
             boolean ret = this.queue.offer(txn);
             assert(ret);
@@ -339,7 +339,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         System.err.flush();
         
         for (AbstractTransaction txn : shuffled) {
-            this.queue.noteTransactionRecievedAndReturnLastSeen(txn.getTransactionId());
+            this.queue.noteTransactionRecievedAndReturnLastSafeTxnId(txn.getTransactionId());
             boolean ret = this.queue.offer(txn);
             assert(ret);
             assertNull(this.queue.poll());
