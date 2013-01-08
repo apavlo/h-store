@@ -439,27 +439,27 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         } // FOR
     }
     
-    /**
-     * testConcurrentOfferIterator
-     */
-    @Test
-    public void testConcurrentOfferIterator() throws Exception {
-        Collection<AbstractTransaction> added = this.loadQueue(10);
-        assertEquals(added.size(), this.queue.size());
-        
-        LocalTransaction toOffer = new LocalTransaction(this.hstore_site);
-        Long txnId = this.idManager.getNextUniqueTransactionId();
-        toOffer.testInit(txnId, 0, new PartitionSet(1), this.catalog_proc);
-        assertFalse(this.queue.contains(toOffer));
-        
-        Set<AbstractTransaction> found = new HashSet<AbstractTransaction>();
-        for (AbstractTransaction txn : this.queue) {
-            if (found.isEmpty()) this.queue.offer(toOffer);
-            found.add(txn);
-        } // FOR
-        assertFalse(found.contains(toOffer));
-        assertEquals(added.size(), found.size());
-    }
+//    /**
+//     * testConcurrentOfferIterator
+//     */
+//    @Test
+//    public void testConcurrentOfferIterator() throws Exception {
+//        Collection<AbstractTransaction> added = this.loadQueue(10);
+//        assertEquals(added.size(), this.queue.size());
+//        
+//        LocalTransaction toOffer = new LocalTransaction(this.hstore_site);
+//        Long txnId = this.idManager.getNextUniqueTransactionId();
+//        toOffer.testInit(txnId, 0, new PartitionSet(1), this.catalog_proc);
+//        assertFalse(this.queue.contains(toOffer));
+//        
+//        Set<AbstractTransaction> found = new HashSet<AbstractTransaction>();
+//        for (AbstractTransaction txn : this.queue) {
+//            if (found.isEmpty()) this.queue.offer(toOffer);
+//            found.add(txn);
+//        } // FOR
+//        assertFalse(found.contains(toOffer));
+//        assertEquals(added.size(), found.size());
+//    }
     
     /**
      * testPoll

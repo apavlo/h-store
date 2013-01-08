@@ -602,7 +602,14 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             return (profiler);
         }
         public QueueState checkQueueState() {
-            return (TransactionInitPriorityQueue.this.checkQueueState(false));
+            QueueState ret = null;
+            lock.lock();
+            try {
+                ret = TransactionInitPriorityQueue.this.checkQueueState(false);
+            } finally {
+                lock.unlock();
+            }
+            return (ret);
         }
     }
     
