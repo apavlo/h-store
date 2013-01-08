@@ -384,28 +384,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // We don't need to acquire the lock on last_txns at this partition because 
         // all that we care about is that whatever value is in there now is greater than
         // the what the transaction was trying to use.
-        Long txn_id = ts.getTransactionId();
-//        if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
-//            if (debug.val)
-//                LOG.debug(String.format("The last txnId released for partition %d was #%d but this " +
-//            	          "is greater than %s. Rejecting...",
-//                          partition, this.lockQueuesLastTxn[partition], ts));
-//            if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();
-//            this.rejectTransaction(ts,
-//                                   Status.ABORT_RESTART,
-//                                   partition,
-//                                   this.lockQueuesLastTxn[partition]);
-//            if (hstore_conf.site.queue_profiling) {
-//                profilers[partition].rejection_time.stopIfStarted();
-//                profilers[partition].init_time.stopIfStarted();
-//            }
-//            return (false);
-//        }
-        
         // 2012-12-03 - There is a race condition here where we may get back the last txn that 
         // was released but then it was deleted and cleaned-up. This means that its txn id
         // might be null. A better way to do this is to only have each PartitionExecutor
         // insert the new transaction into its queue. 
+        Long txn_id = ts.getTransactionId();
         Long next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSafeTxnId(txn_id);
         
         // The next txnId that we're going to try to execute is already greater
@@ -428,12 +411,20 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         }
         // Our queue is overloaded. We have to reject the txnId!
         else {
-            boolean ret;
+            boolean ret = false;
+            boolean aborted = false;
             synchronized (this.lockQueues[partition]) {
-                ret = this.lockQueues[partition].offer(ts, ts.isSysProc());
+                aborted = callback.isAborted();
+                if (aborted == false) {
+                    ret = this.lockQueues[partition].offer(ts, ts.isSysProc());
+                }
             } // SYNCH
             
-            if (ret == false) {
+            if (aborted) {
+                // I don't think we need to do anything else here...
+                return (false);
+            }
+            else if (ret == false) {
                 if (debug.val)
                     LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
                 	          "Throttling %s until id is greater than %s [queueSize=%d]",
