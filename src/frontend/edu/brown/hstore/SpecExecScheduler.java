@@ -228,7 +228,6 @@ public class SpecExecScheduler {
             if (this.profiling) profiler.success++;
             if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
                 this.lastIterator.remove();
-                // FIXME this.work_queue.clear(next);
             } else {
                 this.work_queue.remove(next);
             }

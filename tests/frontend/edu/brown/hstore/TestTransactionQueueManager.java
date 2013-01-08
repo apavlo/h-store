@@ -23,6 +23,10 @@ import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class TestTransactionQueueManager extends BaseTestCase {
 
     private static final int NUM_PARTITONS = 4;
@@ -40,6 +44,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final Semaphore lock = new Semaphore(0);
         final PartitionSet partitions = new PartitionSet();
         boolean invoked = false;
+        boolean aborted = false;
 
         protected MockCallback() {
             super(TestTransactionQueueManager.this.hstore_site);
@@ -60,7 +65,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
             this.invoked = true;
         }
         protected void abortCallback(Status status) {
-            
+            this.aborted = true;
         }
         @Override
         protected void finishImpl() {
