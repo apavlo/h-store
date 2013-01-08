@@ -230,13 +230,16 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         return (false);
     }
     public boolean remove(int partition) {
+        boolean ret = false;
         if (partition == HStoreConstants.NULL_PARTITION_ID) {
+            ret = this.contains_null;
             this.contains_null = false;
-        } else {
+        } else if (this.inner.get(partition)) {
+            ret = true;
             this.inner.set(partition, false);            
         }
         this.values = null;
-        return (true);
+        return (ret);
     }
     @Override
     public boolean containsAll(Collection<?> c) {
@@ -279,14 +282,24 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     }
     @Override
     public boolean removeAll(Collection<?> c) {
-        boolean ret = true;
+        boolean ret = false;
         for (Object o : c) {
             if (o instanceof Number) {
-                ret = this.remove(((Number)o).intValue()) && ret;
-            } else {
-                ret = false;
+                ret = this.remove(((Number)o).intValue()) || ret;
             }
         } // FOR
+        return (ret);
+    }
+    public boolean removeAll(PartitionSet partitions) {
+        boolean ret = false;
+        if (partitions.contains_null) {
+            ret = this.contains_null;
+            this.contains_null = false;
+        }
+        if (this.inner.intersects(partitions.inner)) {
+            this.inner.andNot(partitions.inner);
+            ret = true;
+        }
         return (ret);
     }
     @Override

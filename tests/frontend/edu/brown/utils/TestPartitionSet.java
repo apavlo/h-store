@@ -1,9 +1,11 @@
 package edu.brown.utils;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
 
 import edu.brown.hstore.HStoreConstants;
 
@@ -22,20 +24,78 @@ public class TestPartitionSet extends TestCase {
         super.setUp();
     }
     
-    /**
-     * testValues
-     */
-    public void testValues() {
-        assertTrue(pset.isEmpty());
-        int num_elements = rand.nextInt(NUM_PARTITIONS*3);
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
+    
+    private void initialize(int num_elements) {
         for (int i = 0; i < num_elements; i++) {
             int p = rand.nextInt(NUM_PARTITIONS);
             pset.add(p);
             set.add(p);
         } // FOR
+        assertEquals(set.isEmpty(), pset.isEmpty());
+        assertEquals(set.size(), pset.size());
+    }
+    
+    private void _removeAll(final Collection<Integer> to_remove) {
+        int num_to_remove = rand.nextInt(set.size()-1);
+        for (Integer p : set) {
+            assertTrue(p.toString(), pset.contains(p));
+            to_remove.add(p);
+            if (to_remove.size() == num_to_remove) break;
+        } // FOR
+
+        boolean expected = set.removeAll(to_remove);
+        boolean actual = pset.removeAll(to_remove);
+        assert(expected);
+        assertEquals(expected, actual);
         assertFalse(pset.isEmpty());
         assertEquals(set.size(), pset.size());
         
+        for (Integer p : set) {
+            assertTrue(p.toString(), pset.contains(p));
+            assertFalse(p.toString(), to_remove.contains(p));
+        } // FOR
+        
+        int values[] = pset.values();
+        assertEquals(set.size(), values.length);
+        for (int p : values) {
+            assertTrue(Integer.toString(p), set.contains(p));
+            assertFalse(Integer.toString(p), to_remove.contains(p));
+        } // FOR
+        
+        // Trying to call removeAll again should return false
+        expected = set.removeAll(to_remove);
+        actual = pset.removeAll(to_remove);
+        assertEquals(expected, actual);
+        
+        // Add in the NULL partition and make sure that doesn't get removed
+        set.add(HStoreConstants.NULL_PARTITION_ID);
+        pset.add(HStoreConstants.NULL_PARTITION_ID);
+        expected = set.removeAll(to_remove);
+        actual = pset.removeAll(to_remove);
+        assertEquals(expected, actual);
+        assertTrue(pset.contains(HStoreConstants.NULL_PARTITION_ID));
+        
+        // to_remove.clear();
+        to_remove.add(HStoreConstants.NULL_PARTITION_ID);
+        expected = set.removeAll(to_remove);
+        actual = pset.removeAll(to_remove);
+        assertEquals(expected, actual);
+        assertFalse(pset.contains(HStoreConstants.NULL_PARTITION_ID));
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testValues
+     */
+    public void testValues() {
+        assertTrue(pset.isEmpty());
+        this.initialize(rand.nextInt(NUM_PARTITIONS*3));
         int values[] = pset.values();
         assertEquals(set.size(), values.length);
         for (Integer partition : values) {
@@ -90,7 +150,7 @@ public class TestPartitionSet extends TestCase {
         pset.add(p);
         String s = pset.toString();
         assertTrue(p+"->"+s, s.contains(Integer.toString(p)));
-        System.err.println(s);
+        // System.err.println(s);
     }
     
     /**
@@ -245,5 +305,21 @@ public class TestPartitionSet extends TestCase {
         pset1.addAll(pset);
         assertEquals(pset0.size(), pset1.size());
         assertEquals(pset0, pset1);
+    }
+    
+    /**
+     * testRemoveAllCollection
+     */
+    public void testRemoveAllCollection() {
+        this.initialize(rand.nextInt(NUM_PARTITIONS));
+        this._removeAll(new TreeSet<Integer>());
+    }
+    
+    /**
+     * testRemoveAllPartitionSet
+     */
+    public void testRemoveAllPartitionSet() {
+        this.initialize(rand.nextInt(NUM_PARTITIONS));
+        this._removeAll(new PartitionSet());
     }
 }
