@@ -2370,15 +2370,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         else {
             if (debug.val) {
                 LOG.debug(String.format("Re-executing %s as new %s-partition %s on partition %d " +
-                          "[restarts=%d, partitions=%s]\n%s",
+                          "[restarts=%d, partitions=%s]%s",
                           orig_ts,
                           (predict_touchedPartitions.size() == 1 ? "single" : "multi"),
                           new_ts,
                           base_partition,
                           new_ts.getRestartCounter(),
                           predict_touchedPartitions,
-                          orig_ts.debug()));
-                if (status == Status.ABORT_MISPREDICT)
+                          (trace.val ? "\n"+orig_ts.debug() : "")));
+                if (trace.val && status == Status.ABORT_MISPREDICT)
                     LOG.trace(String.format("%s Mispredicted partitions: %s",
                               new_ts, orig_ts.getTouchedPartitions().values()));
             }

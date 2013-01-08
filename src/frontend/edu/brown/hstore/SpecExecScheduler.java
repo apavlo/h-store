@@ -120,7 +120,7 @@ public class SpecExecScheduler {
     public LocalTransaction next(AbstractTransaction dtxn, SpeculationType specType) {
         assert(dtxn != null) : "Null distributed transaction"; 
         assert(this.checker.shouldIgnoreProcedure(dtxn.getProcedure()) == false) :
-            String.format("Trying to check for speculative txns for %s but the txn should have been ignored");
+            String.format("Trying to check for speculative txns for %s but the txn should have been ignored", dtxn);
         
         SpecExecProfiler profiler = null;
         if (this.profiling) {
@@ -132,16 +132,18 @@ public class SpecExecScheduler {
             LOG.debug(String.format("%s - Checking queue for transaction to speculatively execute " +
         		      "[specType=%s, queueSize=%d, policy=%s]",
                       dtxn, specType, this.work_queue.size(), this.policyType));
-            if (trace.val) LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
-                             dtxn, this.lastDtxn, this.lastSpecType, this.lastIterator));
+            if (trace.val)
+                LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
+                          dtxn, this.lastDtxn, this.lastSpecType, this.lastIterator));
         }
         
         // If this is a LocalTransaction and all of the remote partitions that it needs are
         // on the same site, then we won't bother with trying to pick something out
         // because there is going to be very small wait times.
         if (this.ignore_all_local && dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
-            if (debug.val) LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
-                             "it is using are on the same HStoreSite [%s]", dtxn, dtxn.getProcedure()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
+                          "it is using are on the same HStoreSite [%s]", dtxn, dtxn.getProcedure()));
             if (this.profiling) profiler.total_time.stop();
             return (null);
         }
@@ -171,22 +173,29 @@ public class SpecExecScheduler {
 
             // Skip any distributed or non-local transactions
             if ((txn instanceof LocalTransaction) == false || singlePartition == false) {
-                if (trace.val) LOG.trace(String.format("%s - Skipping non-speculative candidate %s", dtxn, txn));
+                if (trace.val)
+                    LOG.trace(String.format("%s - Skipping non-speculative candidate %s", dtxn, txn));
                 continue;
             }
             LocalTransaction localTxn = (LocalTransaction)txn;
             
             // Skip anything already speculatively executed
             if (localTxn.isSpeculative()) {
-                if (trace.val) LOG.trace(String.format("%s - Skipping %s because it was already executed", dtxn, txn));
+                if (trace.val)
+                    LOG.trace(String.format("%s - Skipping %s because it was already executed",
+                              dtxn, txn));
                 continue;
             }
 
             // Let's check it out!
             if (this.profiling) profiler.compute_time.start();
-            if (debug.val) LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", localTxn, dtxn));
+            if (debug.val)
+                LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s",
+                          localTxn, dtxn));
             if (singlePartition == false) {
-                if (trace.val) LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, localTxn));
+                if (trace.val)
+                    LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned",
+                              dtxn, localTxn));
                 continue;
             }
             try {
@@ -208,8 +217,9 @@ public class SpecExecScheduler {
                                 (this.policyType == SpecExecSchedulerPolicyType.LONGEST && remaining > best_time)) {
                                 best_time = remaining;
                                 next = localTxn;
-                                if (debug.val) LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
-                                                 this.policyType, this.window_size, next, remaining));
+                                if (debug.val)
+                                    LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
+                                              this.policyType, this.window_size, next, remaining));
                              }
                         }
                     }
@@ -231,10 +241,12 @@ public class SpecExecScheduler {
             } else {
                 this.work_queue.remove(next);
             }
-            if (debug.val) LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
+            if (debug.val)
+                LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         else if (debug.val && this.work_queue.isEmpty() == false) {
-            LOG.debug(String.format("%s - Failed to find non-conflicting speculative txn [txnCtr=%d, examinedCtr=%d]",
+            LOG.debug(String.format("%s - Failed to find non-conflicting speculative txn " +
+            		  "[txnCtr=%d, examinedCtr=%d]",
                       dtxn, txn_ctr, examined_ctr));
         }
         

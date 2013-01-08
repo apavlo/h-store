@@ -413,12 +413,16 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         else {
             boolean ret = false;
             boolean aborted = false;
-            synchronized (this.lockQueues[partition]) {
-                aborted = callback.isAborted();
-                if (aborted == false) {
-                    ret = this.lockQueues[partition].offer(ts, ts.isSysProc());
-                }
-            } // SYNCH
+            if (ts.isPredictSinglePartition()) {
+                ret = this.lockQueues[partition].offer(ts, ts.isSysProc());
+            } else {
+                synchronized (this.lockQueues[partition]) {
+                    aborted = callback.isAborted();
+                    if (aborted == false) {
+                        ret = this.lockQueues[partition].offer(ts, ts.isSysProc());
+                    }
+                } // SYNCH
+            }
             
             if (aborted) {
                 // I don't think we need to do anything else here...
@@ -485,8 +489,12 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // If it wasn't running, then we need to make sure that we remove it from
             // our initialization queue. Unfortunately this means that we need to traverse
             // the queue to find it and remove.
-            synchronized (this.lockQueues[partition]) {
+            if (ts.isPredictSinglePartition()) {
                 removed = this.lockQueues[partition].remove(ts);
+            } else {
+                synchronized (this.lockQueues[partition]) {
+                    removed = this.lockQueues[partition].remove(ts);
+                } // SYNCH
             }
         }
         
