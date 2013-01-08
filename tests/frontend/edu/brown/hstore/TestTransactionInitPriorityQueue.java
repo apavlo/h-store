@@ -88,7 +88,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         }
     }
     
-    private Collection<AbstractTransaction> loadQueue(int num_txns) {
+    private Collection<AbstractTransaction> loadQueue(int num_txns) throws InterruptedException {
         Collection<AbstractTransaction> added = new TreeSet<AbstractTransaction>();
         for (long i = 0; i < num_txns; i++) {
             LocalTransaction txn = new LocalTransaction(this.hstore_site);
@@ -175,7 +175,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     @Test
     public void testThrottling() throws Exception {
         // Always start off as empty
-        QueueState state = this.queue.checkQueueState();
+        QueueState state = this.queueDbg.checkQueueState();
         assertEquals(QueueState.BLOCKED_EMPTY, state);
         
         int max = NUM_TXNS / 2;
@@ -207,7 +207,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         for (int i = 0, cnt = (max - release); i < cnt; i++) {
             ThreadUtil.sleep(TXN_DELAY);
 //            EstTimeUpdater.update(System.currentTimeMillis());
-            this.queue.checkQueueState();
+            this.queueDbg.checkQueueState();
             AbstractTransaction ts = this.queue.poll();
             assertNotNull("i="+i, ts);
         } // FOR
@@ -222,7 +222,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     @Test
     public void testQueueState() throws Exception {
         // Always start off as empty
-        QueueState state = this.queue.checkQueueState();
+        QueueState state = this.queueDbg.checkQueueState();
         assertEquals(QueueState.BLOCKED_EMPTY, state);
         
         // Insert a bunch of txns that all have the same initiating timestamp
@@ -232,7 +232,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         
         // Because we haven't moved the current time up, we know that none of
         // the txns should be released now
-        state = this.queue.checkQueueState();
+        state = this.queueDbg.checkQueueState();
         assertEquals(QueueState.BLOCKED_SAFETY, state);
         
         // Sleep for a little bit to make the current time move forward 
@@ -249,7 +249,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             for (int j = 0; j < 10; j++) {
                 if (j != 0) TransactionInitPriorityQueue.LOG.info(StringUtil.SINGLE_LINE.trim());
                 String debug = String.format("i=%d / j=%d", i, j);
-                state = this.queue.checkQueueState();
+                state = this.queueDbg.checkQueueState();
                 nextBlockTime = this.queueDbg.getBlockedTimestamp();
                 // System.err.printf("%s => state=%s / lastBlock=%d\n", debug, state, lastBlockTime);
                 
@@ -270,7 +270,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     @Test
     public void testQueueStateAfterRemove() throws Exception {
         // Always start off as empty
-        QueueState state = this.queue.checkQueueState();
+        QueueState state = this.queueDbg.checkQueueState();
         assertEquals(QueueState.BLOCKED_EMPTY, state);
         
         // Insert a bunch of txns that all have the same initiating timestamp
@@ -280,7 +280,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         
         // Because we haven't moved the current time up, we know that none of
         // the txns should be released now
-        state = this.queue.checkQueueState();
+        state = this.queueDbg.checkQueueState();
         assertEquals(QueueState.BLOCKED_SAFETY, state);
         
         // Sleep for a little bit to make the current time move forward 
@@ -296,7 +296,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             // queue and make sure that that our expected txn 
             // is the next one that's suppose to pop out
             AbstractTransaction to_remove = it.next();
-            state = this.queue.checkQueueState();
+            state = this.queueDbg.checkQueueState();
             assertEquals(debug, QueueState.UNBLOCKED, state);
             assertEquals(debug, to_remove, this.queue.peek());
 
@@ -354,7 +354,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
 //            EstTimeUpdater.update(System.currentTimeMillis());
             AbstractTransaction expected = it.next();
             assertNotNull(expected);
-            if (i == 0) this.queue.checkQueueState();
+            if (i == 0) this.queueDbg.checkQueueState();
             assertEquals("i="+i, expected, this.queue.poll());
         } // FOR
     }
@@ -377,7 +377,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         for (int i = 0; i < NUM_TXNS-1; i++) {
             ThreadUtil.sleep(TXN_DELAY);
 //            EstTimeUpdater.update(System.currentTimeMillis());
-            if (i == 0) this.queue.checkQueueState();
+            if (i == 0) this.queueDbg.checkQueueState();
             assertEquals(it.next(), this.queue.poll());
         } // FOR
         assertTrue(this.queue.isEmpty());
@@ -399,7 +399,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         ThreadUtil.sleep(TXN_DELAY*2);
 //        EstTimeUpdater.update(System.currentTimeMillis());
         // System.err.println(StringUtil.repeat("-", 100));
-        this.queue.checkQueueState();
+        this.queueDbg.checkQueueState();
         AbstractTransaction first = CollectionUtil.first(added);
         assertEquals(first, this.queue.peek());
         assertTrue(first.toString(), this.queue.remove(first));
@@ -473,7 +473,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         for (int i = 0; i < NUM_TXNS; i++) {
             ThreadUtil.sleep(TXN_DELAY);
 //            EstTimeUpdater.update(System.currentTimeMillis());
-            if (i == 0) this.queue.checkQueueState();
+            if (i == 0) this.queueDbg.checkQueueState();
             assertEquals(it.next(), this.queue.poll());
         } // FOR
     }
@@ -494,7 +494,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         for (int i = 0; i < NUM_TXNS; i++) {
             // Our first poll should return back a txn
             if (i == 0) {
-                this.queue.checkQueueState();
+                this.queueDbg.checkQueueState();
                 assertEquals(it.next(), this.queue.poll());
             }
             // The second time should be null

@@ -385,7 +385,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         Long txn_id = ts.getTransactionId();
         if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
             if (debug.val)
-                LOG.debug(String.format("The last lockQueue txnId for remote partition is #%d but this " +
+                LOG.debug(String.format("The last txnId released for partition %d was #%d but this " +
             	          "is greater than %s. Rejecting...",
                           partition, this.lockQueuesLastTxn[partition], ts));
             if (hstore_conf.site.queue_profiling) profilers[partition].rejection_time.start();

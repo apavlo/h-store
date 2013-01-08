@@ -107,7 +107,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         EstTimeUpdater.update(System.currentTimeMillis());
         boolean ret = false; 
         for (int partition : catalogContext.getAllPartitionIds().values()) {
-            this.queueManager.getInitQueue(partition).checkQueueState();
+            this.queueManager.getInitQueue(partition).getDebugContext().checkQueueState();
             AbstractTransaction ts = this.queueManager.checkLockQueue(partition);
             // if (ts != null) System.err.printf("Partition %d => %s\n", partition, ts);
             ret = (ts != null) || ret;
