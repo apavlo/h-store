@@ -2,7 +2,6 @@ package edu.brown.hstore;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -150,13 +149,12 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             // 2012-12-21
             // So this is allow to be null because there is a race condition 
             // if another thread removes the txn from the queue.
+            retval = super.poll();
             
-            // call this again to prime the next txn
             if (trace.val)
                 LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
             this.lock.lock();
             try {
-                retval = super.poll();
                 if (retval != null) {
                     if (debug.val)
                         LOG.debug(String.format("Partition %d :: poll() -> %s",
@@ -164,6 +162,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                     this.lastTxnPopped = retval.getTransactionId();
                     this.txnsPopped++;
                 }
+                // call this again to prime the next txn
                 this.checkQueueState(true);
             } finally {
                 if (trace.val)
@@ -264,29 +263,36 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             if (trace.val)
                 LOG.trace(String.format("Partition %d :: take() -> Leaving blocking section",
                           this.partitionId));
-            
-            // The next txn is ready to run now!
-            assert(this.state == QueueState.UNBLOCKED);
-            retval = super.poll();
-            if (debug.val)
-                LOG.debug(String.format("Partition %d :: take() -> %s",
-                          this.partitionId, retval));
-            
-            // 2012-01-06
-            // This could be null because there is a race condition if all of the
-            // txns are removed by another thread right before we try to
-            // poll our queue.
-            if (retval != null) {
-                this.lastTxnPopped = retval.getTransactionId();
-                this.txnsPopped++;
-            }
-            
-            // Call this again to prime the next txn
-            this.checkQueueState(true);
         } finally {
             if (trace.val)
                 LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
             this.lock.unlock();
+        }
+            
+        // The next txn is ready to run now!
+        assert(this.state == QueueState.UNBLOCKED);
+        retval = super.poll();
+        if (debug.val)
+            LOG.debug(String.format("Partition %d :: take() -> %s",
+                      this.partitionId, retval));
+        
+        // 2012-01-06
+        // This could be null because there is a race condition if all of the
+        // txns are removed by another thread right before we try to
+        // poll our queue.
+        if (retval != null) {
+            this.lastTxnPopped = retval.getTransactionId();
+            this.txnsPopped++;
+            
+            this.lock.lockInterruptibly();
+            try {
+                // Call this again to prime the next txn
+                this.checkQueueState(true);
+            } finally {
+                if (trace.val)
+                    LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
+                this.lock.unlock();
+            }
         }
         return (retval);
     }
@@ -318,20 +324,23 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         assert(ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, this.partitionId);
         
-        if (trace.val)
-            LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
-        boolean retval;
-        this.lock.lock();
-        try {
-            retval= super.offer(ts, force);
-            if (debug.val)
-                LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
-            if (retval) this.checkQueueState(false);
-            
-        } finally {
+        boolean retval = super.offer(ts, force);
+        if (debug.val)
+            LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
+
+        if (retval) {
             if (trace.val)
-                LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
-            this.lock.unlock();
+                LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
+
+            this.lock.lock();
+            try {
+                if (retval) this.checkQueueState(false);
+                
+            } finally {
+                if (trace.val)
+                    LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
+                this.lock.unlock();
+            }
         }
         return (retval);
     }
@@ -351,27 +360,30 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         // because we will need to reset the blockTimestamp after 
         // delete ourselves so that the next guy can get executed
         // This is not thread-safe...
-        if (trace.val)
-            LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
-        this.lock.lock();
-        try {
-            boolean reset = txn.equals(super.peek());
-            retval = super.remove(txn);
-            if (debug.val) {
-                // Sanity Check
-                assert(super.contains(txn) == false) :
-                    "Failed to remove " + txn + "???\n" + this.debug();
-                 LOG.warn(String.format("Partition %d :: remove(%s) -> %s",
-                                        this.partitionId, txn, retval));
-            }
-            if (retval) this.checkQueueState(reset);
-        } finally {
-            if (trace.val)
-                LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
-            this.lock.unlock();
-        }
-        if (debug.val && retval)
+        boolean reset = txn.equals(super.peek());
+        retval = super.remove(txn);
+        if (debug.val) {
             LOG.debug(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
+            
+            // Sanity Check
+            assert(super.contains(txn) == false) :
+                "Failed to remove " + txn + "???\n" + this.debug();
+             LOG.warn(String.format("Partition %d :: remove(%s) -> %s",
+                                    this.partitionId, txn, retval));
+        }
+        
+        if (retval) {
+            if (trace.val)
+                LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
+            this.lock.lock();
+            try {
+                this.checkQueueState(reset);
+            } finally {
+                if (trace.val)
+                    LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
+                this.lock.unlock();
+            }
+        }
         return (retval);
     }
     
