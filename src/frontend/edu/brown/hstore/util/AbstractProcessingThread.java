@@ -58,7 +58,7 @@ public abstract class AbstractProcessingThread<E> extends ExceptionHandlingRunna
     @Override
     public final void runImpl() {
         this.self = Thread.currentThread();
-        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_ANTICACHE));
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, this.name));
         this.hstore_site.getThreadManager().registerProcessingThread();
 
         E next = null;

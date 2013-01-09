@@ -741,9 +741,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Initialize TransactionPreProcessors
         if (num_preProcessors > 0) {
-            if (debug.val) LOG.debug(String.format("Starting %d %s threads",
-                             num_preProcessors,
-                             TransactionPreProcessor.class.getSimpleName()));
+            if (debug.val)
+                LOG.debug(String.format("Starting %d %s threads",
+                          num_preProcessors, TransactionPreProcessor.class.getSimpleName()));
             this.preProcessors = new ArrayList<TransactionPreProcessor>();
             this.preProcessorQueue = new LinkedBlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>>();
             for (int i = 0; i < num_preProcessors; i++) {
