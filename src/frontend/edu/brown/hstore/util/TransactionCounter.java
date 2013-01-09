@@ -20,8 +20,6 @@ public enum TransactionCounter {
     /** The number of transaction requests that have arrived at this site */
     RECEIVED,
     /** */
-    THROTTLED,
-    /** */
     REJECTED,
     /** Of the the received transactions, the number that we had to send somewhere else */
     REDIRECTED,
@@ -136,7 +134,6 @@ public enum TransactionCounter {
             case REJECTED:
             case RECEIVED:
             case EXECUTED:
-            case THROTTLED:
             case PREFETCH_LOCAL:
             case PREFETCH_REMOTE:
                 total = RECEIVED.get();

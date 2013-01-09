@@ -532,8 +532,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 
                 if (this.blockTimestamp <= currentTimestamp) {
                     newState = QueueState.UNBLOCKED;
-                    if (this.profiler != null) this.profiler.waitTimes.put(0);
-                } else if (this.profiler != null) this.profiler.waitTimes.put(waitTime);
+                }
+                if (this.profiler != null && this.lastSafeTxnId.equals(txnId) == false)
+                    this.profiler.waitTimes.put(newState == QueueState.UNBLOCKED ? 0 : waitTime);
                 
 
                 if (debug.val)
