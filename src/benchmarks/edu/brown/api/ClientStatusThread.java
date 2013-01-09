@@ -236,7 +236,7 @@ public class ClientStatusThread extends Thread {
         this.responseEntriesLatch = latch;
     }
     
-    String getPayload(String control_line, String parts[]) {
+    private String getPayload(String control_line, String parts[]) {
         int offset = 1;
         for (int i = 0; i < 3; i++) {
             offset += parts[i].length() + 1;
@@ -244,7 +244,7 @@ public class ClientStatusThread extends Thread {
         return (control_line.substring(offset));
     }
     
-    void addPollResponseInfo(String clientName, long time, BenchmarkComponentResults tc, String errMsg) {
+    private void addPollResponseInfo(String clientName, long time, BenchmarkComponentResults tc, String errMsg) {
         assert(m_currentResults != null);
         
         // Update Transaction Counters

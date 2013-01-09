@@ -257,8 +257,9 @@ public class BenchmarkResults {
                                    r.specexecCount - specexecsTillNow,
                                    r.dtxnCount - dtxnsTillNow);
             txnsTillNow = r.transactionCount;
+            specexecsTillNow = r.specexecCount;
             dtxnsTillNow = r.dtxnCount;
-        }
+        } // FOR
 //        assert(intervals == results.size());
         return retval;
     }
