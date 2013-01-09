@@ -173,6 +173,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     // ----------------------------------------------------------------------------
     
     public final void run(int partition) {
+        assert(this.receivedPartitions.contains(partition) == false) :
+            String.format("%s - Tried to invoke %s.run() twice for partition %d [hashCode=%d]",
+                          this.ts, this.getClass().getSimpleName(), partition, this.hashCode());
         int delta = this.runImpl(partition);
         int new_count = this.counter.addAndGet(-1 * delta);
         this.receivedPartitions.add(partition);

@@ -142,6 +142,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             // Always initialize the TransactionWorkCallback for the first callback 
             if (first) {
                 TransactionWorkCallback work_callback = ts.getWorkCallback();
+                if (work_callback.isInitialized()) work_callback.finish(); // HACK
                 work_callback.init(ts, partitions, callback);
                 if (debug.val)
                     LOG.debug(String.format("Initializing %s for %s",

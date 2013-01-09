@@ -52,7 +52,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
         this.catalogContext = hstore_site.getCatalogContext();
         this.coordinator = hstore_coord;
         this.handler = this.coordinator.getHandler();
-        this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;
+        this.num_sites = this.catalogContext.numberOfSites;
         this.local_site_id = hstore_site.getSiteId();
     }
     
@@ -78,7 +78,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
                                     request.getClass().getSimpleName(),  partitions.size(), ts));
         
         for (int partition : partitions.values()) {
-            int dest_site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
+            int dest_site_id = this.catalogContext.getSiteIdForPartitionId(partition);
 
             // Skip this HStoreSite if we're already sent it a message 
             if (site_sent[dest_site_id]) continue;
@@ -93,7 +93,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             }
             // Remote Partition
             else {
-                HStoreService channel = coordinator.getChannel(dest_site_id);
+                HStoreService channel = this.coordinator.getChannel(dest_site_id);
                 assert(channel != null) : "Invalid partition id '" + partition + "'";
                 ProtoRpcController controller = this.getProtoRpcController(ts, dest_site_id);
                 assert(controller != null) : "Invalid " + request.getClass().getSimpleName() + " ProtoRpcController for site #" + dest_site_id;
