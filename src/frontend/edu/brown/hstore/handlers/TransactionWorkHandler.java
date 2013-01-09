@@ -22,6 +22,7 @@ import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 
 public class TransactionWorkHandler extends AbstractTransactionHandler<TransactionWorkRequest, TransactionWorkResponse> {
@@ -59,7 +60,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         Long txn_id = Long.valueOf(request.getTransactionId());
         if (debug.val)
             LOG.debug(String.format("Got %s for txn #%d [partitionFragments=%d]",
-                                   request.getClass().getSimpleName(), txn_id, request.getFragmentsCount()));
+                      request.getClass().getSimpleName(), txn_id, request.getFragmentsCount()));
         
         RemoteTransaction ts = hstore_site.getTransaction(txn_id);
         assert(ts != null);
@@ -74,8 +75,9 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             ByteString paramData = request.getParams(i);
             if (paramData != null && paramData.isEmpty() == false) {
                 final FastDeserializer fds = new FastDeserializer(paramData.asReadOnlyByteBuffer());
-                if (trace.val) LOG.trace(String.format("Txn #%d paramData[%d] => %s",
-                                                         txn_id, i, fds.buffer()));
+                if (trace.val)
+                    LOG.trace(String.format("Txn #%d paramData[%d] => %s",
+                              txn_id, i, fds.buffer()));
                 try {
                     parameterSets[i] = fds.readObject(ParameterSet.class);
                 } catch (Exception ex) {
@@ -123,12 +125,24 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         // TODO: The base information of a set of FragmentTaskMessages should be moved into
         // the message wrapper (e.g., base partition, client handle)
         boolean first = true;
+        int fragmentCount = request.getFragmentsCount(); 
+        PartitionSet partitions = null;
+        if (fragmentCount == 1) {
+            WorkFragment work = CollectionUtil.first(request.getFragmentsList());
+            partitions = this.catalogContext.getPartitionSetSingleton(work.getPartitionId());
+        }
+        else {
+            partitions = new PartitionSet();
+            for (WorkFragment work : request.getFragmentsList()) {
+                partitions.add(work.getPartitionId());
+            } // FOR
+        }
+        
         for (WorkFragment work : request.getFragmentsList()) {
             // Always initialize the TransactionWorkCallback for the first callback 
             if (first) {
                 TransactionWorkCallback work_callback = ts.getWorkCallback();
-                if (work_callback.isInitialized()) work_callback.finish();
-                work_callback.init(txn_id, request.getFragmentsCount(), callback);
+                work_callback.init(ts, partitions, callback);
                 if (debug.val)
                     LOG.debug(String.format("Initializing %s for %s",
                               work_callback.getClass().getSimpleName(), ts));

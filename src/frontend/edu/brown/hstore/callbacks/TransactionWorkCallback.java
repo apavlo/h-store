@@ -5,73 +5,91 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.PartitionSet;
 
 /**
  * 
  * @author pavlo
  */
-public class TransactionWorkCallback extends BlockingRpcCallback<TransactionWorkResponse, WorkResult> {
+public class TransactionWorkCallback extends PartitionCountingCallback<AbstractTransaction> implements RpcCallback<WorkResult> {
     private static final Logger LOG = Logger.getLogger(TransactionWorkCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
     
-    protected TransactionWorkResponse.Builder builder = null;
+    private TransactionWorkResponse.Builder builder = null;
+    private RpcCallback<TransactionWorkResponse> orig_callback = null;
 
     /**
      * Default Constructor
      */
     public TransactionWorkCallback(HStoreSite hstore_site) {
-        super(hstore_site, false);
+        super(hstore_site);
     }
     
-    public void init(Long txn_id, int num_partitions, RpcCallback<TransactionWorkResponse> orig_callback) {
-        super.init(txn_id, num_partitions, orig_callback);
+    public void init(AbstractTransaction ts, PartitionSet partitions, RpcCallback<TransactionWorkResponse> orig_callback) {
+        super.init(ts, partitions);
+        this.orig_callback = orig_callback;
         this.builder = TransactionWorkResponse.newBuilder()
-                                            .setTransactionId(txn_id.longValue())
-                                            .setStatus(Hstoreservice.Status.OK);
+                                            .setTransactionId(ts.getTransactionId().longValue())
+                                            .setStatus(Status.OK);
     }
     
     @Override
     protected void finishImpl() {
         this.builder = null;
+        this.orig_callback = null;
     }
 
+    // ----------------------------------------------------------------------------
+    // RUN METHOD
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    protected int runImpl(int partition) {
+        return (1);
+    }
+    
     @Override
     public void unblockCallback() {
-        if (debug.val) {
-            LOG.debug(String.format("Txn #%d - Sending back %d partition results",
-                      this.getTransactionId(), this.builder.getResultsCount()));
-        }
-        
-        assert(this.getOrigCounter() == builder.getResultsCount()) :
-            String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
-                          builder.getClass().getSimpleName(), this.getTransactionId(), builder.getResultsCount(), this.getOrigCounter());
-        this.getOrigCallback().run(this.builder.build());
+        if (debug.val)
+            LOG.debug(String.format("%s - Invoking %s to send back %d partition results",
+                      this.ts, this.orig_callback.getClass().getSimpleName(), this.builder.getResultsCount()));
+        assert(this.getOrigCounter() == this.builder.getResultsCount()) :
+            String.format("The %s for %s has results from %d partitions but it was suppose to have %d.",
+                          this.builder.getClass().getSimpleName(), this.ts, this.builder.getResultsCount(), this.getOrigCounter());
+        this.orig_callback.run(this.builder.build());
     }
     
     @Override
     protected void abortCallback(Status status) {
-        assert(false) : String.format("Unexpected %s for txn #%d", status, this.getTransactionId());
+        assert(false) : String.format("Unexpected %s for %s", status, this.ts);
     }
     
+    // ----------------------------------------------------------------------------
+    // RPC CALLBACK
+    // ----------------------------------------------------------------------------
+    
     @Override
-    protected synchronized int runImpl(WorkResult parameter) {
+    public synchronized void run(WorkResult parameter) {
         this.builder.addResults(parameter);
-        if (debug.val) LOG.debug(String.format("Added new %s from partition %d for txn #%d",
-                                   parameter.getClass().getSimpleName(), parameter.getPartitionId(), this.getTransactionId()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Added new %s from partition %d",
+                      this.ts, parameter.getClass().getSimpleName(), parameter.getPartitionId()));
         if (parameter.hasError()) {
-            if (debug.val) LOG.debug(String.format("Marking response for txn #%d with an error from partition %d",
-                                       this.getTransactionId(), parameter.getPartitionId()));    
-            this.builder.setStatus(Hstoreservice.Status.ABORT_UNEXPECTED);
+            if (debug.val)
+                LOG.debug(String.format("%s - Marking %s with an error from partition %d",
+                          this.ts, this.builder.getClass().getSimpleName(), parameter.getPartitionId()));    
+            this.builder.setStatus(Status.ABORT_UNEXPECTED);
         }
-        return (1);
+        this.run(parameter.getPartitionId());
     }
+
 }
