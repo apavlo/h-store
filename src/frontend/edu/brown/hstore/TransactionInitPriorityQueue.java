@@ -590,6 +590,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             // able to recompute a new sleep time.
             this.isReady.signal();
         }
+        else if (this.profiler != null) {
+            this.profiler.queueStates.get(this.state).restart();
+        }
             
         // Sanity Check
         if ((this.state == QueueState.BLOCKED_ORDERING) || (this.state == QueueState.BLOCKED_SAFETY)) {

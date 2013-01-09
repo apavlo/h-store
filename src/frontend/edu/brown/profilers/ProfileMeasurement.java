@@ -306,6 +306,12 @@ public class ProfileMeasurement implements JSONSerializable {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
 
+    public ProfileMeasurement restart() {
+        long timestamp = ProfileMeasurement.getTime();
+        this.stopIfStarted(timestamp).start(timestamp);
+        return (this);
+    }
+    
     public ProfileMeasurement decrementTime(ProfileMeasurement other, boolean checkType) {
         assert(other != null);
         if (checkType) assert(this.type == other.type);
