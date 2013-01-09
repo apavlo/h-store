@@ -355,10 +355,10 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     
     @Override
     public String toString() {
-        return String.format("%s[Invoked=%s / Aborted=%s / Canceled=%s / Counter=%d/%d] / Deletable=%s",
+        return String.format("%s[Invoked=%s/%s, Aborted=%s/%s, Canceled=%s, Counter=%d/%d] => Deletable=%s",
                              this.getClass().getSimpleName(), 
-                             this.unblockInvoked.get(),
-                             this.abortInvoked.get(),
+                             this.unblockInvoked.get(), this.unblockFinished,
+                             this.abortInvoked.get(), this.abortFinished,
                              this.canceled,
                              this.counter.get(), this.getOrigCounter(),
                              this.allCallbacksFinished()); 
