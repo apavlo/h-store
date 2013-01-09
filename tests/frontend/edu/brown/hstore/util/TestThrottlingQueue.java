@@ -14,8 +14,9 @@ public class TestThrottlingQueue extends BaseTestCase {
 
     private static final int QUEUE_THRESHOLD = 20;
     private static final double QUEUE_RELEASE = 0.75;
-    private static final int QUEUE_INCREASE = 2;
-    private static final int QUEUE_INCREASE_MAX = QUEUE_THRESHOLD * 2;
+    private static final int QUEUE_AUTO_DELTA = 2;
+    private static final int QUEUE_AUTO_MIN = QUEUE_THRESHOLD - QUEUE_AUTO_DELTA;
+    private static final int QUEUE_AUTO_MAX = QUEUE_THRESHOLD * 2;
     
     ThrottlingQueue<String> queue;
     final DefaultRandomGenerator rng = new DefaultRandomGenerator();
@@ -28,8 +29,11 @@ public class TestThrottlingQueue extends BaseTestCase {
         this.queue = new ThrottlingQueue<String>(inner,
                                                  QUEUE_THRESHOLD,
                                                  QUEUE_RELEASE,
-                                                 QUEUE_INCREASE,
-                                                 QUEUE_INCREASE_MAX);
+                                                 QUEUE_AUTO_DELTA,
+                                                 QUEUE_AUTO_MIN,
+                                                 QUEUE_AUTO_MAX);
+        this.queue.setAllowDecrease(false);
+        this.queue.setAllowIncrease(false);
     }
     
     // --------------------------------------------------------------------------------------------
@@ -86,6 +90,32 @@ public class TestThrottlingQueue extends BaseTestCase {
     }
     
     /**
+     * testAutoDecrease
+     */
+    public void testAutoDecrease() throws Exception {
+        // Enable automatic decreasing of the throttling threshold.
+        // Then add in a bunch of txns to get us throttled
+        // Check that both the throttling threshold and release threshold
+        // get decreased.
+        queue.setAllowDecrease(true);
+        queue.setAllowIncrease(false);
+        int origThreshold = queue.getThrottleThreshold();
+        assertEquals(QUEUE_THRESHOLD, origThreshold);
+        int origRelease = queue.getThrottleRelease();
+        
+        this.fillAndDrain(QUEUE_THRESHOLD);
+        this.fillAndDrain(queue.getThrottleThreshold());
+        System.err.println(queue.debug());
+
+        int newThreshold = queue.getThrottleThreshold();
+        assertTrue(newThreshold+"<"+origThreshold, newThreshold < origThreshold);
+        assertEquals(queue.debug(), QUEUE_AUTO_MIN, newThreshold);
+        int newRelease = queue.getThrottleRelease();
+        assertTrue(queue.debug(), newRelease < origRelease);
+        assertTrue(queue.debug(), newRelease < newThreshold);
+    }
+    
+    /**
      * testAutoIncrease
      */
     public void testAutoIncrease() throws Exception {
@@ -102,7 +132,7 @@ public class TestThrottlingQueue extends BaseTestCase {
 
         int newThreshold = queue.getThrottleThreshold();
         assertTrue(origThreshold < newThreshold);
-        assertEquals(queue.debug(), QUEUE_THRESHOLD + QUEUE_INCREASE, newThreshold);
+        assertEquals(queue.debug(), QUEUE_THRESHOLD + QUEUE_AUTO_DELTA, newThreshold);
         int newRelease = queue.getThrottleRelease();
         assertTrue(queue.debug(), origRelease < newRelease);
         assertTrue(queue.debug(), newRelease < newThreshold);
@@ -122,7 +152,7 @@ public class TestThrottlingQueue extends BaseTestCase {
         }
         
         int newThreshold = queue.getThrottleThreshold();
-        assertEquals(queue.debug(), QUEUE_INCREASE_MAX, newThreshold);
+        assertEquals(queue.debug(), QUEUE_AUTO_MAX, newThreshold);
         int newRelease = queue.getThrottleRelease();
         assertTrue(queue.debug(), newRelease < newThreshold);
     }
