@@ -506,12 +506,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 return;
             }
             
-            if (debug.val) LOG.debug(String.format("Processing TransactionWorkResponse for %s with %d results%s",
-                             ts, msg.getResultsCount(), (trace.val ? "\n"+msg : "")));
+            if (debug.val)
+                LOG.debug(String.format("Processing TransactionWorkResponse for %s with %d results%s",
+                          ts, msg.getResultsCount(), (trace.val ? "\n"+msg : "")));
             for (int i = 0, cnt = msg.getResultsCount(); i < cnt; i++) {
                 WorkResult result = msg.getResults(i); 
-                if (debug.val) LOG.debug(String.format("Got %s from partition %d for %s",
-                                 result.getClass().getSimpleName(), result.getPartitionId(), ts));
+                if (debug.val)
+                    LOG.debug(String.format("Got %s from partition %d for %s",
+                              result.getClass().getSimpleName(), result.getPartitionId(), ts));
                 PartitionExecutor.this.processWorkResult(ts, result);
             } // FOR
         }
@@ -717,42 +719,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
     }
     
-    protected void initializeVoltProcedures() {
-        // load up all the stored procedures
-        for (final Procedure catalog_proc : catalogContext.procedures) {
-            VoltProcedure volt_proc = this.initializeVoltProcedure(catalog_proc);
-            Queue<VoltProcedure> queue = new LinkedList<VoltProcedure>();
-            queue.add(volt_proc);
-            this.procedures[catalog_proc.getId()] = queue;
-        } // FOR
-    }
-
-    @SuppressWarnings("unchecked")
-    protected VoltProcedure initializeVoltProcedure(Procedure catalog_proc) {
-        VoltProcedure volt_proc = null;
-        
-        if (catalog_proc.getHasjava()) {
-            // Only try to load the Java class file for the SP if it has one
-            Class<? extends VoltProcedure> p_class = null;
-            final String className = catalog_proc.getClassname();
-            try {
-                p_class = (Class<? extends VoltProcedure>)Class.forName(className);
-                volt_proc = (VoltProcedure)p_class.newInstance();
-            } catch (Exception e) {
-                throw new ServerFaultException("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
-            }
-            
-        } else {
-            volt_proc = new VoltProcedure.StmtProcedure();
-        }
-        volt_proc.globalInit(PartitionExecutor.this,
-                             catalog_proc,
-                             this.backend_target,
-                             this.hsql,
-                             this.p_estimator);
-        return (volt_proc);
-    }
-
     /**
      * Link this PartitionExecutor with its parent HStoreSite
      * This will initialize the references the various components shared among the PartitionExecutors 
@@ -1226,6 +1192,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         else if (work instanceof WorkFragmentMessage) {
             WorkFragment fragment = ((WorkFragmentMessage)work).getFragment();
             assert(fragment != null);
+            
+            // HACK HACK HACK
+            if (ts.isInitialized() == false) {
+                LOG.warn(String.format("Skipping %s at partition %d for unitialized txn",
+                         work.getClass().getSimpleName(), this.partitionId));
+                return;
+            }
 
             // Get the ParameterSet array for this WorkFragment
             // It can either be attached to the AbstractTransaction handle if it came
@@ -1303,6 +1276,119 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
 
+    // ----------------------------------------------------------------------------
+    // DATA MEMBER METHODS
+    // ----------------------------------------------------------------------------
+    
+    public final ExecutionEngine getExecutionEngine() {
+        return (this.ee);
+    }
+    public final Thread getExecutionThread() {
+        return (this.self);
+    }
+    public final HsqlBackend getHsqlBackend() {
+        return (this.hsql);
+    }
+    public final PartitionEstimator getPartitionEstimator() {
+        return (this.p_estimator);
+    }
+    public final TransactionEstimator getTransactionEstimator() {
+        return (this.localTxnEstimator);
+    }
+    public final BackendTarget getBackendTarget() {
+        return (this.backend_target);
+    }
+    public final HStoreSite getHStoreSite() {
+        return (this.hstore_site);
+    }
+    public final HStoreConf getHStoreConf() {
+        return (this.hstore_conf);
+    }
+    public final CatalogContext getCatalogContext() {
+        return (this.catalogContext);
+    }
+    public final int getSiteId() {
+        return (this.siteId);
+    }
+    public final Partition getPartition() {
+        return (this.partition);
+    }
+    public final int getPartitionId() {
+        return (this.partitionId);
+    }
+    public final PartitionExecutorProfiler getProfiler() {
+        return profiler;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // VOLT PROCEDURE HELPER METHODS
+    // ----------------------------------------------------------------------------
+    
+    
+    protected void initializeVoltProcedures() {
+        // load up all the stored procedures
+        for (final Procedure catalog_proc : catalogContext.procedures) {
+            VoltProcedure volt_proc = this.initializeVoltProcedure(catalog_proc);
+            Queue<VoltProcedure> queue = new LinkedList<VoltProcedure>();
+            queue.add(volt_proc);
+            this.procedures[catalog_proc.getId()] = queue;
+        } // FOR
+    }
+
+    @SuppressWarnings("unchecked")
+    protected VoltProcedure initializeVoltProcedure(Procedure catalog_proc) {
+        VoltProcedure volt_proc = null;
+        
+        if (catalog_proc.getHasjava()) {
+            // Only try to load the Java class file for the SP if it has one
+            Class<? extends VoltProcedure> p_class = null;
+            final String className = catalog_proc.getClassname();
+            try {
+                p_class = (Class<? extends VoltProcedure>)Class.forName(className);
+                volt_proc = (VoltProcedure)p_class.newInstance();
+            } catch (Exception e) {
+                throw new ServerFaultException("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
+            }
+            
+        } else {
+            volt_proc = new VoltProcedure.StmtProcedure();
+        }
+        volt_proc.globalInit(PartitionExecutor.this,
+                             catalog_proc,
+                             this.backend_target,
+                             this.hsql,
+                             this.p_estimator);
+        return (volt_proc);
+    }
+    
+    /**
+     * Returns a new VoltProcedure instance for a given stored procedure name
+     * <B>Note:</B> You will get a new VoltProcedure for each invocation
+     * @param proc_name
+     * @return
+     */
+    protected VoltProcedure getVoltProcedure(int proc_id) {
+        VoltProcedure voltProc = this.procedures[proc_id].poll();
+        if (voltProc == null) {
+            Procedure catalog_proc = catalogContext.getProcedureById(proc_id);
+            voltProc = this.initializeVoltProcedure(catalog_proc);
+        }
+        return (voltProc);
+    }
+    
+    /**
+     * Return the given VoltProcedure back into the queue to be re-used again
+     * @param voltProc
+     */
+    protected void finishVoltProcedure(VoltProcedure voltProc) {
+        voltProc.finish();
+        this.procedures[voltProc.getProcedureId()].offer(voltProc);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
     private void tick() {
         // invoke native ee tick if at least one second has passed
         final long time = EstTime.currentTimeMillis();
@@ -1316,10 +1402,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.lastTickTime = time;
         }
     }
-    
-    // ----------------------------------------------------------------------------
-    // UTILITY METHODS
-    // ----------------------------------------------------------------------------
     
     public void haltProcessing() {
 //        if (debug.val)
@@ -1421,50 +1503,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.currentExecMode = newMode;
     }
     
-    public ExecutionEngine getExecutionEngine() {
-        return (this.ee);
-    }
-    public Thread getExecutionThread() {
-        return (this.self);
-    }
-    public HsqlBackend getHsqlBackend() {
-        return (this.hsql);
-    }
-    
-    public PartitionEstimator getPartitionEstimator() {
-        return (this.p_estimator);
-    }
-    public TransactionEstimator getTransactionEstimator() {
-        return (this.localTxnEstimator);
-    }
-    
-    public final BackendTarget getBackendTarget() {
-        return (this.backend_target);
-    }
-    
-    public HStoreSite getHStoreSite() {
-        return (this.hstore_site);
-    }
-    public HStoreConf getHStoreConf() {
-        return (this.hstore_conf);
-    }
-
-    public CatalogContext getCatalogContext() {
-        return (this.catalogContext);
-    }
-    public int getSiteId() {
-        return (this.siteId);
-    }
-    public Partition getPartition() {
-        return (this.partition);
-    }
-    public int getPartitionId() {
-        return (this.partitionId);
-    }
-    public PartitionExecutorProfiler getProfiler() {
-        return profiler;
-    }
-    
     /**
      * Returns the next undo token to use when hitting up the EE with work
      * MAX_VALUE = no undo
@@ -1534,29 +1572,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         return (undoToken);
     }
     
-    /**
-     * Returns a new VoltProcedure instance for a given stored procedure name
-     * <B>Note:</B> You will get a new VoltProcedure for each invocation
-     * @param proc_name
-     * @return
-     */
-    protected VoltProcedure getVoltProcedure(int proc_id) {
-        VoltProcedure voltProc = this.procedures[proc_id].poll();
-        if (voltProc == null) {
-            Procedure catalog_proc = catalogContext.getProcedureById(proc_id);
-            voltProc = this.initializeVoltProcedure(catalog_proc);
-        }
-        return (voltProc);
-    }
-    
-    /**
-     * Return the given VoltProcedure back into the queue to be re-used again
-     * @param voltProc
-     */
-    protected void finishVoltProcedure(VoltProcedure voltProc) {
-        voltProc.finish();
-        this.procedures[voltProc.getProcedureId()].offer(voltProc);
-    }
     
     private ParameterSet[] getFragmentParameters(AbstractTransaction ts, WorkFragment fragment, ParameterSet allParams[]) {
         int num_fragments = fragment.getFragmentIdCount();
@@ -1581,7 +1596,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(attachedInputs != null);
         boolean is_local = (ts instanceof LocalTransaction);
         
-        if (debug.val) LOG.debug(String.format("%s - Attempting to retrieve input dependencies [isLocal=%s]", ts, is_local));
+        if (debug.val)
+            LOG.debug(String.format("%s - Attempting to retrieve input dependencies [isLocal=%s]", ts, is_local));
         for (Integer input_dep_id : input_dep_ids) {
             if (input_dep_id.intValue() == HStoreConstants.NULL_DEPENDENCY_ID) continue;
 
@@ -1592,9 +1608,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 assert(deps != null);
                 assert(inputs.containsKey(input_dep_id) == false);
                 inputs.put(input_dep_id, deps);
-                if (debug.val) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d",
-                                 ts, deps.size(), input_dep_id,
-                                 (trace.val ? "\n" + deps : "")));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d",
+                              ts, deps.size(), input_dep_id,
+                              (trace.val ? "\n" + deps : "")));
             }
             // Otherwise they will be "attached" inputs to the RemoteTransaction handle
             // We should really try to merge these two concepts into a single function call
@@ -1614,8 +1631,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     pDeps = deps;
                 }
                 inputs.put(input_dep_id, pDeps); 
-                if (debug.val) LOG.debug(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
-                                 ts, deps.size(), input_dep_id));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
+                              ts, deps.size(), input_dep_id));
             }
 
         } // FOR (inputs)
@@ -1714,7 +1732,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 //    }
     
     public void queueSetPartitionLock(AbstractTransaction ts) {
-        assert(ts.isInitialized());
+        assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
         SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
         boolean success = this.work_queue.offer(work);
         assert(success) :
@@ -1735,7 +1753,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param task
      */
     public void queueWork(AbstractTransaction ts, WorkFragment fragment) {
-        assert(ts.isInitialized());
+        assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
         if (hstore_conf.site.exec_profiling) this.profiler.idle_waiting_dtxn_time.stopIfStarted();
         
         WorkFragmentMessage work = ts.getWorkFragmentMessage(fragment);
@@ -1767,7 +1785,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param status The final status of the transaction
      */
     public void queuePrepare(AbstractTransaction ts) {
-        assert(ts.isInitialized());
+        assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
         PrepareTxnMessage work = ts.getPrepareTxnMessage();
         boolean success = this.work_queue.offer(work);
         assert(success) :
@@ -1786,7 +1804,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param status The final status of the transaction
      */
     public void queueFinish(AbstractTransaction ts, Status status) {
-        assert(ts.isInitialized());
+        assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
         FinishTxnMessage work = ts.getFinishTxnMessage(status);
         boolean success = this.work_queue.offer(work); // , true);
         assert(success) :
@@ -1914,7 +1932,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             } else {
                 if (debug.val)
                     LOG.error(String.format("%s - Got error from partition %d in %s",
-                              result.getPartitionId(), result.getClass().getSimpleName()), error);
+                              ts, result.getPartitionId(), result.getClass().getSimpleName()), error);
                 ts.setPendingError(error, true);
             }
             return;
@@ -1950,9 +1968,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private void executeTransaction(LocalTransaction ts) {
         this.currentTxn = ts;
-        assert(ts.isInitialized()) : "Unexpected uninitialized transaction request: " + ts;
+        assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
         if (trace.val)
-            LOG.trace(String.format("%s - Attempting to execute transaction on partition %d",
+            LOG.debug(String.format("%s - Attempting to start transaction on partition %d",
                       ts, this.partitionId));
         
         // If this is a MapReduceTransaction handle, we actually want to get the 

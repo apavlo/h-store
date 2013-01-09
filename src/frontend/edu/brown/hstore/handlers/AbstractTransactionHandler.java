@@ -1,6 +1,7 @@
 package edu.brown.hstore.handlers;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 
 import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.RpcCallback;
@@ -37,6 +38,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
     protected final HStoreConf hstore_conf;
     protected final HStoreCoordinator coordinator;
     protected final HStoreService handler;
+    protected final CatalogContext catalogContext;
     
     /** The total number of sites in the cluster */
     protected final int num_sites;
@@ -47,6 +49,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
     public AbstractTransactionHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
+        this.catalogContext = hstore_site.getCatalogContext();
         this.coordinator = hstore_coord;
         this.handler = this.coordinator.getHandler();
         this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;

@@ -803,15 +803,16 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      */
     public void transactionWork(LocalTransaction ts, int site_id, TransactionWorkRequest request, RpcCallback<TransactionWorkResponse> callback) {
-        if (debug.val) LOG.debug(String.format("%s - Sending TransactionWorkRequest to remote site %d " +
-        		         "[numFragments=%d]",
-                         ts, site_id, request.getFragmentsCount()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Sending TransactionWorkRequest to remote site %d " +
+                      "[numFragments=%d, txnId=%d]",
+                      ts, site_id, request.getFragmentsCount(), request.getTransactionId()));
         
         assert(request.getFragmentsCount() > 0) :
             String.format("No WorkFragments for Site %d in %s", site_id, ts);
-        
-        // We should never get work for our local partitions
-        assert(site_id != this.local_site_id);
+        assert(site_id != this.local_site_id) :
+            String.format("Trying to send %s for %s to local site %d",
+                          request.getClass().getSimpleName(), ts, site_id); 
         assert(ts.getTransactionId().longValue() == request.getTransactionId()) :
             String.format("%s is for txn #%d but the %s has txn #%d",
                           ts.getClass().getSimpleName(), ts.getTransactionId(),
@@ -821,9 +822,10 @@ public class HStoreCoordinator implements Shutdownable {
     }
     
     public void transactionPrefetchResult(RemoteTransaction ts, TransactionPrefetchResult request) {
-        if (debug.val) LOG.debug(String.format("%s - Sending %s back to base partition %d",
-                         ts, request.getClass().getSimpleName(),
-                         ts.getBasePartition()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Sending %s back to base partition %d",
+                      ts, request.getClass().getSimpleName(),
+                      ts.getBasePartition()));
         assert(request.hasResult()) :
             String.format("No WorkResults in %s for %s", request.getClass().getSimpleName(), ts);
         int site_id = catalogContext.getSiteIdForPartitionId(ts.getBasePartition());
@@ -843,7 +845,9 @@ public class HStoreCoordinator implements Shutdownable {
      * @param partitions
      */
     public void transactionPrepare(LocalTransaction ts, TransactionPrepareCallback callback, PartitionSet partitions) {
-        if (debug.val) LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit", partitions, ts));
+        if (debug.val)
+            LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit",
+                      partitions, ts));
         
         // FAST PATH: If all of the partitions that this txn needs are on this
         // HStoreSite, then we don't need to bother with making this request

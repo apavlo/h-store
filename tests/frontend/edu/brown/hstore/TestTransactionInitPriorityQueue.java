@@ -455,7 +455,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         
         Set<AbstractTransaction> found = new HashSet<AbstractTransaction>();
         for (AbstractTransaction txn : this.queue) {
-            if (found.isEmpty()) this.queue.offer(toOffer);
+            if (found.isEmpty()) this.queue.offer(toOffer, false);
             found.add(txn);
         } // FOR
         assertFalse(found.contains(toOffer));
