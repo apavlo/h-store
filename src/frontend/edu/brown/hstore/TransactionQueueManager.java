@@ -298,6 +298,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         while (nextTxn == null) {
             // Poll the queue and get the next value.
             nextTxn = this.lockQueues[partition].take();
+            if (nextTxn == null) continue;
+            
             assert(nextTxn != null) :
                 String.format("Null transaction returned from the %s for partition %d",
                               this.lockQueues[partition].getClass().getSimpleName(), partition);
