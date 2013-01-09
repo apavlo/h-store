@@ -126,6 +126,7 @@ public abstract class VoltProcedure implements Poolable {
 
     // Used to figure out what partitions a query needs to go to
     private Procedure catalog_proc;
+    private int procedure_id;
     private String procedure_name;
     protected PartitionEstimator p_estimator;
     protected HStoreSite hstore_site;
@@ -240,6 +241,7 @@ public abstract class VoltProcedure implements Poolable {
         this.hstore_site = executor.getHStoreSite();
         this.hstore_conf = HStoreConf.singleton();
         this.catalog_proc = catalog_proc;
+        this.procedure_id = this.catalog_proc.getId();
         this.procedure_name = this.catalog_proc.getName();
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
         this.hsql = hsql;
@@ -468,6 +470,9 @@ public abstract class VoltProcedure implements Poolable {
 //        init(null, catProc, BackendTarget.NATIVE_EE_JNI, null, cluster, p_estimator, local_partition);
 //    }
     
+    public final int getProcedureId() {
+        return (this.procedure_id);
+    }
     public final String getProcedureName() {
         return (this.procedure_name);
     }

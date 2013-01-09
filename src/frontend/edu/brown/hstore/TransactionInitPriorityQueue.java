@@ -264,6 +264,18 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             assert(this.state == QueueState.UNBLOCKED);
             retval = super.poll();
             
+            // 2012-01-06
+            // This could be null because there is a race condition if all of the
+            // txns are removed by another thread right before we try to
+            // poll our queue.
+            if (retval != null) {
+                this.lastTxnPopped = retval.getTransactionId();
+                this.txnsPopped++;
+                
+                // Call this again to prime the next txn
+                this.checkQueueState(true);
+            }
+            
             if (trace.val)
                 LOG.trace(String.format("Partition %d :: take() -> Leaving blocking section",
                           this.partitionId));
@@ -276,24 +288,6 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
             LOG.debug(String.format("Partition %d :: take() -> %s",
                       this.partitionId, retval));
         
-        // 2012-01-06
-        // This could be null because there is a race condition if all of the
-        // txns are removed by another thread right before we try to
-        // poll our queue.
-        if (retval != null) {
-            this.lastTxnPopped = retval.getTransactionId();
-            this.txnsPopped++;
-            
-            this.lock.lockInterruptibly();
-            try {
-                // Call this again to prime the next txn
-                this.checkQueueState(true);
-            } finally {
-                if (trace.val)
-                    LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
-                this.lock.unlock();
-            }
-        }
         return (retval);
     }
 

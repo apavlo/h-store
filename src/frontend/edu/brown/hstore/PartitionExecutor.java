@@ -274,9 +274,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private final SnapshotSiteProcessor m_snapshotter;
 
     /**
-     * Procedure Name -> Queue<VoltProcedure>
+     * ProcedureId -> Queue<VoltProcedure>
      */
-    private final Map<String, Queue<VoltProcedure>> procedures = new HashMap<String, Queue<VoltProcedure>>(16, (float) .1);
+    private final Queue<VoltProcedure>[] procedures;
     
     // ----------------------------------------------------------------------------
     // H-Store Transaction Stuff
@@ -592,6 +592,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.backend_target = BackendTarget.HSQLDB_BACKEND;
         this.siteId = 0;
         this.partitionId = 0;
+        this.procedures = null;
         this.tmp_transactionRequestBuilders = null;
     }
 
@@ -627,6 +628,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Speculative Execution
         this.specExecBlocked = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
         this.specExecModified = false;
+        
+        // VoltProcedure Queues
+        @SuppressWarnings("unchecked")
+        Queue<VoltProcedure> voltProcQueues[] = new Queue[catalogContext.procedures.size()+1];
+        this.procedures = voltProcQueues;
         
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
@@ -713,11 +719,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     protected void initializeVoltProcedures() {
         // load up all the stored procedures
-        for (final Procedure catalog_proc : catalogContext.database.getProcedures()) {
+        for (final Procedure catalog_proc : catalogContext.procedures) {
             VoltProcedure volt_proc = this.initializeVoltProcedure(catalog_proc);
             Queue<VoltProcedure> queue = new LinkedList<VoltProcedure>();
             queue.add(volt_proc);
-            this.procedures.put(catalog_proc.getName(), queue);
+            this.procedures[catalog_proc.getId()] = queue;
         } // FOR
     }
 
@@ -1534,10 +1540,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param proc_name
      * @return
      */
-    protected VoltProcedure getVoltProcedure(String proc_name) {
-        VoltProcedure voltProc = this.procedures.get(proc_name).poll();
+    protected VoltProcedure getVoltProcedure(int proc_id) {
+        VoltProcedure voltProc = this.procedures[proc_id].poll();
         if (voltProc == null) {
-            Procedure catalog_proc = catalogContext.procedures.getIgnoreCase(proc_name);
+            Procedure catalog_proc = catalogContext.getProcedureById(proc_id);
             voltProc = this.initializeVoltProcedure(catalog_proc);
         }
         return (voltProc);
@@ -1549,7 +1555,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     protected void finishVoltProcedure(VoltProcedure voltProc) {
         voltProc.finish();
-        this.procedures.get(voltProc.getProcedureName()).offer(voltProc);
+        this.procedures[voltProc.getProcedureId()].offer(voltProc);
     }
     
     private ParameterSet[] getFragmentParameters(AbstractTransaction ts, WorkFragment fragment, ParameterSet allParams[]) {
@@ -2049,7 +2055,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Grab a new ExecutionState for this txn
         ExecutionState execState = this.initExecutionState(); 
         ts.setExecutionState(execState);
-        VoltProcedure volt_proc = this.getVoltProcedure(ts.getProcedure().getName());
+        VoltProcedure volt_proc = this.getVoltProcedure(ts.getProcedure().getId());
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
         if (debug.val) {
@@ -4330,7 +4336,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     public class Debug implements DebugContext {
         public VoltProcedure getVoltProcedure(String procName) {
-            return (PartitionExecutor.this.getVoltProcedure(procName));
+            Procedure proc = catalogContext.procedures.getIgnoreCase(procName);
+            return (PartitionExecutor.this.getVoltProcedure(proc.getId()));
         }
         public SpecExecScheduler getSpecExecScheduler() {
             return (PartitionExecutor.this.specExecScheduler);

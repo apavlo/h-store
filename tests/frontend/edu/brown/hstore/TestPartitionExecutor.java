@@ -63,6 +63,7 @@ public class TestPartitionExecutor extends BaseTestCase {
     private HStoreConf hstore_conf;
     private Client client;
     private PartitionExecutor executor;
+    private Procedure catalog_proc;
     
     private final Random rand = new Random(1); 
 
@@ -92,6 +93,7 @@ public class TestPartitionExecutor extends BaseTestCase {
         this.client = createClient();
         this.executor = hstore_site.getPartitionExecutor(PARTITION_ID);
         assertNotNull(this.executor);
+        this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
     }
     
     @Override
@@ -173,7 +175,7 @@ public class TestPartitionExecutor extends BaseTestCase {
      */
     @Test
     public void testGetVoltProcedure() {
-        VoltProcedure volt_proc0 = executor.getVoltProcedure(TARGET_PROCEDURE.getSimpleName());
+        VoltProcedure volt_proc0 = executor.getVoltProcedure(catalog_proc.getId());
         assertNotNull(volt_proc0);
     }
     
@@ -186,7 +188,7 @@ public class TestPartitionExecutor extends BaseTestCase {
         int count = 10;
         Set<VoltProcedure> procs = new HashSet<VoltProcedure>();
         for (int i = 0; i < count; i++) {
-            VoltProcedure volt_proc = executor.getVoltProcedure(TARGET_PROCEDURE.getSimpleName());
+            VoltProcedure volt_proc = executor.getVoltProcedure(catalog_proc.getId());
             assertNotNull(volt_proc);
             assertFalse(procs.contains(volt_proc));
             procs.add(volt_proc);
