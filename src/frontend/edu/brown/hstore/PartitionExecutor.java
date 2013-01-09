@@ -3827,10 +3827,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           ts, status, ts.isSpeculative()));
             this.finishWorkEE(ts, undoToken, commit);
         }
-        if (hstore_conf.site.exec_profiling) {
-            this.profiler.idle_2pc_local_time.stopIfStarted();
-            this.profiler.idle_2pc_remote_time.stopIfStarted();
-        }
         
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
@@ -4175,6 +4171,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             } catch (Throwable ex) {
                 String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
+            }
+            
+            if (hstore_conf.site.exec_profiling) {
+                this.profiler.idle_2pc_local_time.stopIfStarted();
+                this.profiler.idle_2pc_remote_time.stopIfStarted();
             }
         }
         // We were told told to finish a dtxn that is not the current one
