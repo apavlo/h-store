@@ -128,10 +128,6 @@ public class TransactionCleaner extends ExceptionHandlingRunnable implements Shu
                                 LOG.trace(String.format("%s - Cannot delete %s at this point [status=%s]\n%s",
                                           ts, ts.getClass().getSimpleName(), status, ts.debug()));
                             requeue.add(txn_id);
-                            if (ts.delete_attempts++ == 100) {
-                                LOG.warn(String.format("FAILED TO DELETE %s after %d ATTEMPTS:\n%s",
-                                         ts, ts.delete_attempts, ts.debug()));
-                            }
                         }
                     } else if (debug.val) {
                         LOG.warn(String.format("Ignoring clean-up request for txn #%d because we do not have a handle " +
