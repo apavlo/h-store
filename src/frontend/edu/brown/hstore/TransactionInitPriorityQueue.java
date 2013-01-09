@@ -392,12 +392,11 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                       this.partitionId, txnId));
 
         this.lastSeenTxnId = txnId;
-        if (trace.val)
+        if (trace.val) {
             LOG.trace(String.format("Partition %d :: SET lastSeenTxnId = %d",
                       this.partitionId, this.lastSeenTxnId));
-        
-        if (trace.val)
             LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
+        }
         this.lock.lock();
         try {
             if (this.lastTxnPopped.compareTo(txnId) > 0) {

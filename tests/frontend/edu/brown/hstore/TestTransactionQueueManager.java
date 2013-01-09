@@ -10,7 +10,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
-import org.voltdb.utils.EstTimeUpdater;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -178,49 +177,64 @@ public class TestTransactionQueueManager extends BaseTestCase {
     }
     
     /**
-     * testTwoTransactions
+     * testReleaseOrder
      */
     @Test
-    public void testTwoTransactions() throws Exception {
-        // Add two, check that only one comes out
+    public void testReleaseOrder() throws Exception {
+        // Add three, check that only one comes out
         // Mark first as done, second comes out
         
         final Long txn_id0 = this.idManager.getNextUniqueTransactionId();
         final Long txn_id1 = this.idManager.getNextUniqueTransactionId();
+        final Long txn_id2 = this.idManager.getNextUniqueTransactionId();
         final PartitionSet partitions0 = catalogContext.getAllPartitionIds();
         final PartitionSet partitions1 = catalogContext.getAllPartitionIds();
+        final PartitionSet partitions2 = catalogContext.getAllPartitionIds();
         final MockCallback inner_callback0 = new MockCallback();
         final MockCallback inner_callback1 = new MockCallback();
+        final MockCallback inner_callback2 = new MockCallback();
         final LocalTransaction txn0 = this.createTransaction(txn_id0, partitions0, inner_callback0);
         final LocalTransaction txn1 = this.createTransaction(txn_id1, partitions1, inner_callback1);
-        // System.err.println("TXN0: " + txn0);
-        // System.err.println("TXN1: " + txn1);
+        final LocalTransaction txn2 = this.createTransaction(txn_id2, partitions2, inner_callback2);
+        
+        System.err.println("TXN0: " + txn0);
+        System.err.println("TXN1: " + txn1);
+        System.err.println("TXN2: " + txn2);
+        System.err.flush();
         
         // insert the higher ID first but make sure it comes out second
-        assertTrue(this.queueManager.toString(), this.addToQueue(txn1, inner_callback1));
         assertTrue(this.queueManager.toString(), this.addToQueue(txn0, inner_callback0));
+        assertTrue(this.queueManager.toString(), this.addToQueue(txn2, inner_callback2));
+        assertTrue(this.queueManager.toString(), this.addToQueue(txn1, inner_callback1));
         
-        ThreadUtil.sleep(TXN_DELAY*2);
+        ThreadUtil.sleep(TXN_DELAY);
         assertTrue(this.queueManager.toString(), this.checkAllQueues());
         
         assertTrue("callback0", inner_callback0.lock.tryAcquire());
         assertFalse("callback1", inner_callback1.lock.tryAcquire());
+        assertFalse("callback2", inner_callback2.lock.tryAcquire());
         assertFalse(dbg.isLockQueuesEmpty());
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
             this.queueManager.lockQueueFinished(txn0, Status.OK, partition);
         }
         assertFalse(dbg.isLockQueuesEmpty());
-        // System.err.println("FINISH: " + txn0);
-        ThreadUtil.sleep(TXN_DELAY*2);
         
-        // System.err.println("CHECK: " + txn1);
+        ThreadUtil.sleep(TXN_DELAY);
         assertTrue(this.queueManager.toString(), this.checkAllQueues());
         assertTrue("callback1", inner_callback1.lock.tryAcquire());
-        assertTrue(dbg.isLockQueuesEmpty());
+        assertFalse("callback2", inner_callback2.lock.tryAcquire());
+        assertFalse(dbg.isLockQueuesEmpty());
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
             this.queueManager.lockQueueFinished(txn1, Status.OK, partition);
         }
         
+        ThreadUtil.sleep(TXN_DELAY);
+        assertTrue(this.queueManager.toString(), this.checkAllQueues());
+        assertTrue("callback2", inner_callback2.lock.tryAcquire());
+        assertTrue(dbg.isLockQueuesEmpty());
+        for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
+            this.queueManager.lockQueueFinished(txn2, Status.OK, partition);
+        }
         assertTrue(dbg.isLockQueuesEmpty());
     }
     
@@ -259,7 +273,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         this.addToQueue(txn2, inner_callback2);
         
         // Both of the first two disjoint txns should be released on the same call to checkQueues()
-        ThreadUtil.sleep(TXN_DELAY*2);
+        ThreadUtil.sleep(TXN_DELAY);
         assertTrue(this.checkAllQueues());
         assertTrue("callback0", inner_callback0.lock.tryAcquire());
         assertTrue("callback1", inner_callback1.lock.tryAcquire());
@@ -279,7 +293,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertFalse(dbg.isLockQueuesEmpty());
         
         // Now we'll mark it as finished. That should release the third txn
-        ThreadUtil.sleep(TXN_DELAY*2);
+        ThreadUtil.sleep(TXN_DELAY);
         for (int partition : partitions1) {
             queueManager.lockQueueFinished(txn1, Status.OK, partition);
         }
