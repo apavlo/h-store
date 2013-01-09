@@ -168,6 +168,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
     private final int numWritingLocks;
     
     private final boolean useGroupCommit;
+    private boolean usePostProcessor;
     private final int group_commit_size;
     private final FastSerializer singletonSerializer;
     private final LogEntry singletonLogEntry;
@@ -262,6 +263,8 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COMMANDLOGGER));
         hstore_site.getThreadManager().registerProcessingThread();
 
+        this.usePostProcessor = hstore_site.hasTransactionPostProcessors();
+        
         CircularLogEntryBuffer temp[] = null;
         while (this.stop == false) {
             // Sleep until our timeout period, at which point a 
@@ -480,10 +483,18 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                 for (int j = 0, size = buffer.size(); j < size; j++) {
                     WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
                     if (entry.isInitialized()) {
-                        hstore_site.responseSend(entry.cresponse,
-                                                 entry.clientCallback,
-                                                 entry.initiateTime,
-                                                 entry.restartCounter);
+                        if (this.usePostProcessor) {
+                            hstore_site.responseQueue(entry.cresponse,
+                                                      entry.clientCallback,
+                                                      entry.initiateTime,
+                                                      entry.restartCounter);
+                        }
+                        else {
+                            hstore_site.responseSend(entry.cresponse,
+                                                     entry.clientCallback,
+                                                     entry.initiateTime,
+                                                     entry.restartCounter);
+                        }
                     } else {
                         LOG.warn("Unexpected unintialized " + entry.getClass().getSimpleName());
                     }

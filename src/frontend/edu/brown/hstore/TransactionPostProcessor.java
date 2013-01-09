@@ -4,9 +4,9 @@ import java.util.concurrent.BlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
-import org.voltdb.utils.Pair;
 
-import edu.brown.hstore.txns.LocalTransaction;
+import com.google.protobuf.RpcCallback;
+
 import edu.brown.hstore.util.AbstractProcessingThread;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -15,12 +15,11 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * Special thread that will process ClientResponses and send them back to clients 
  * @author pavlo
  */
-public final class TransactionPostProcessor extends AbstractProcessingThread<Pair<LocalTransaction, ClientResponseImpl>> {
+public final class TransactionPostProcessor extends AbstractProcessingThread<Object[]> {
     private static final Logger LOG = Logger.getLogger(TransactionPostProcessor.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
 
     /**
@@ -28,7 +27,7 @@ public final class TransactionPostProcessor extends AbstractProcessingThread<Pai
      * @param hstore_site
      */
     public TransactionPostProcessor(HStoreSite hstore_site,
-                                    BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> queue) {
+                                    BlockingQueue<Object[]> queue) {
         super(hstore_site,
               HStoreConstants.THREAD_NAME_POSTPROCESSOR,
               queue,
@@ -36,19 +35,22 @@ public final class TransactionPostProcessor extends AbstractProcessingThread<Pai
     }
     
     @Override
-    protected void processingCallback(Pair<LocalTransaction, ClientResponseImpl> pair) {
-        LocalTransaction ts = pair.getFirst();
-        assert(ts != null);
-        ClientResponseImpl cr = pair.getSecond();
-        assert(cr != null);
+    protected void processingCallback(Object data[]) {
+        ClientResponseImpl cresponse = (ClientResponseImpl)data[0];
+        @SuppressWarnings("unchecked")
+        RpcCallback<ClientResponseImpl> clientCallback = (RpcCallback<ClientResponseImpl>)data[1];
+        long initiateTime = (Long)data[2];
+        int restartCounter = (Integer)data[3];
         
-        if (debug.val) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
-                                                 ts, ts.getBasePartition(), cr.getStatus()));
+        assert(cresponse != null);
+        assert(clientCallback != null);
+        
+        if (debug.val)
+            LOG.debug(String.format("Processing ClientResponse for txn #%d at partition %d [status=%s]",
+                      cresponse.getTransactionId(), cresponse.getBasePartition(), cresponse.getStatus()));
         try {
-            hstore_site.responseSend(ts, cr);
-            hstore_site.queueDeleteTransaction(ts.getTransactionId(), cr.getStatus());
+            this.hstore_site.responseSend(cresponse, clientCallback, initiateTime, restartCounter);
         } catch (Throwable ex) {
-            LOG.error(String.format("Failed to process %s properly\n%s", ts, cr));
             if (this.isShuttingDown() == false) throw new RuntimeException(ex);
             this.shutdown();
         }

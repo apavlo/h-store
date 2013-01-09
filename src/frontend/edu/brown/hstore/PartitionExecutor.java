@@ -3685,8 +3685,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             // Use the separate post-processor thread to send back the result
             if (hstore_conf.site.exec_postprocessing_threads) {
-                if (trace.val) LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
-                                               ts, cresponse.getStatus()));
+                if (trace.val)
+                    LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
+                              ts, cresponse.getStatus()));
                 this.hstore_site.responseQueue(ts, cresponse);
             }
             // Send back the result right now!
@@ -3698,9 +3699,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
                 this.hstore_site.responseSend(ts, cresponse);
                 if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
-                
-                this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
             }
+            this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
         } 
         // -------------------------------
         // COMMIT: Distributed Transaction

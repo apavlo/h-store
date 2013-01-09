@@ -290,16 +290,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * TransactionPreProcessor Threads
      */
-    private final List<TransactionPreProcessor> preProcessors;
-    private final BlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>> preProcessorQueue;
+    private List<TransactionPreProcessor> preProcessors = null;
+    private BlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>> preProcessorQueue = null;
     
     /**
      * TransactionPostProcessor Thread
      * These threads allow a PartitionExecutor to send back ClientResponses back to
      * the clients without blocking
      */
-    private final List<TransactionPostProcessor> postProcessors;
-    private final BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> postProcessorQueue;
+    private List<TransactionPostProcessor> postProcessors = null;
+    private BlockingQueue<Object[]> postProcessorQueue = null;
     
     /**
      * Transaction Handle Cleaner
@@ -567,85 +567,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.clientInterface = new ClientInterface(this, this.catalog_site.getProc_port());
         
         // -------------------------------
-        // TRANSACTION PROCESSING THREADS
-        // -------------------------------
-
-        List<TransactionPreProcessor> _preProcessors = null;
-        List<TransactionPostProcessor> _postProcessors = null;
-        BlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>> _preQueue = null;
-        BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> _postQueue = null;
-        
-        if (hstore_conf.site.exec_preprocessing_threads || hstore_conf.site.exec_postprocessing_threads) {
-            // Transaction Pre/Post Processing Threads
-            // We need at least one core per partition and one core for the VoltProcedureListener
-            // Everything else we can give to the pre/post processing guys
-            int num_available_cores = threadManager.getNumCores() - (num_local_partitions + 1);
-
-            // If there are no available cores left, then we won't create any extra processors
-            if (num_available_cores <= 0) {
-                LOG.warn("Insufficient number of cores on " + catalog_host.getIpaddr() + ". " +
-                         "Disabling transaction pre/post processing threads");
-                hstore_conf.site.exec_preprocessing_threads = false;
-                hstore_conf.site.exec_postprocessing_threads = false;
-            } else {
-                int num_preProcessors = 0;
-                int num_postProcessors = 0;
-                
-                // Both Types of Processors
-                if (hstore_conf.site.exec_preprocessing_threads && hstore_conf.site.exec_postprocessing_threads) {
-                    int split = (int)Math.ceil(num_available_cores / 2d);
-                    num_preProcessors = split;
-                    num_postProcessors = split;
-                }
-                // TransactionPreProcessor Only
-                else if (hstore_conf.site.exec_preprocessing_threads) {
-                    num_preProcessors = num_available_cores;
-                }
-                // TransactionPostProcessor Only
-                else {
-                    num_postProcessors = num_available_cores;
-                }
-                
-                // Overrides
-                if (hstore_conf.site.exec_preprocessing_threads_count >= 0) {
-                    num_preProcessors = hstore_conf.site.exec_preprocessing_threads_count;
-                }
-                if (hstore_conf.site.exec_postprocessing_threads_count >= 0) {
-                    num_postProcessors = hstore_conf.site.exec_postprocessing_threads_count;
-                }
-                
-                // Initialize TransactionPreProcessors
-                if (num_preProcessors > 0) {
-                    if (debug.val) LOG.debug(String.format("Starting %d %s threads",
-                                     num_preProcessors,
-                                     TransactionPreProcessor.class.getSimpleName()));
-                    _preProcessors = new ArrayList<TransactionPreProcessor>();
-                    _preQueue = new LinkedBlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>>();
-                    for (int i = 0; i < num_preProcessors; i++) {
-                        TransactionPreProcessor t = new TransactionPreProcessor(this, _preQueue);
-                        _preProcessors.add(t);
-                    } // FOR
-                }
-                // Initialize TransactionPostProcessors
-                if (num_postProcessors > 0) {
-                    if (debug.val)
-                        LOG.debug(String.format("Starting %d %s threads",
-                                  num_postProcessors, TransactionPostProcessor.class.getSimpleName()));
-                    _postProcessors = new ArrayList<TransactionPostProcessor>();
-                    _postQueue = new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
-                    for (int i = 0; i < num_postProcessors; i++) {
-                        TransactionPostProcessor t = new TransactionPostProcessor(this, _postQueue);
-                        _postProcessors.add(t);
-                    } // FOR
-                }
-            }
-        }
-        this.preProcessors = _preProcessors;
-        this.preProcessorQueue = _preQueue;
-        this.postProcessors = _postProcessors;
-        this.postProcessorQueue = _postQueue;
-        
-        // -------------------------------
         // TRANSACTION ESTIMATION
         // -------------------------------
         
@@ -659,6 +580,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // STATS SETUP
         // -------------------------------
         
+        this.initTxnProcessors();
         this.initStatSources();
         
         // Profiling
@@ -674,6 +596,288 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
         
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // INITIALIZATION STUFF
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Initializes all the pieces that we need to start this HStore site up
+     * This should only be called by our run() method
+     */
+    protected HStoreSite init() {
+        if (debug.val)
+            LOG.debug("Initializing HStoreSite " + this.getSiteName());
+        this.hstore_coordinator = this.initHStoreCoordinator();
+        
+        // First we need to tell the HStoreCoordinator to start-up and initialize its connections
+        if (debug.val)
+            LOG.debug("Starting HStoreCoordinator for " + this.getSiteName());
+        this.hstore_coordinator.start();
+
+        ThreadGroup auxGroup = this.threadManager.getThreadGroup(ThreadGroupType.AUXILIARY);
+        
+        // Start TransactionQueueManager
+        Thread t = new Thread(auxGroup, this.txnQueueManager);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        
+        // Start VoltNetwork
+        t = new Thread(this.voltNetwork);
+        t.setName(HStoreThreadManager.getThreadName(this, HStoreConstants.THREAD_NAME_VOLTNETWORK));
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        
+        // Start CommandLogWriter
+        t = new Thread(auxGroup, this.commandLogger);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        
+        // TransactionPreProcessors
+        if (this.preProcessors != null) {
+            for (TransactionPreProcessor tpp : this.preProcessors) {
+                t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.PROCESSING), tpp); 
+                t.setDaemon(true);
+                t.setUncaughtExceptionHandler(this.exceptionHandler);
+                t.start();    
+            } // FOR
+        }
+        // TransactionPostProcessors
+        if (this.postProcessors != null) {
+            for (TransactionPostProcessor tpp : this.postProcessors) {
+                t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.PROCESSING), tpp);
+                t.setDaemon(true);
+                t.setUncaughtExceptionHandler(this.exceptionHandler);
+                t.start();    
+            } // FOR
+        }
+        
+        // Then we need to start all of the PartitionExecutor in threads
+        if (debug.val)
+            LOG.debug(String.format("Starting PartitionExecutor threads for %s partitions on %s",
+                      this.local_partitions.size(), this.getSiteName()));
+        for (int partition : this.local_partitions.values()) {
+            PartitionExecutor executor = this.getPartitionExecutor(partition);
+            executor.initHStoreSite(this);
+            
+            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.EXECUTION), executor);
+            t.setDaemon(true);
+            t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            this.executor_threads[partition] = t;
+            t.start();
+        } // FOR
+        
+        // Start Transaction Cleaners
+        int i = 0;
+        for (TransactionCleaner cleaner : this.txnCleaners) {
+            String name = String.format("%s-%02d", HStoreThreadManager.getThreadName(this, HStoreConstants.THREAD_NAME_TXNCLEANER), i);
+            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.CLEANER), cleaner);
+            t.setName(name);
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            t.start();
+            i += 1;
+        } // FOR
+        
+        this.initPeriodicWorks();
+        
+        // Add in our shutdown hook
+        // Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
+        
+        return (this);
+    }
+    
+    private void initTxnProcessors() {
+        if (hstore_conf.site.exec_preprocessing_threads == false &&
+            hstore_conf.site.exec_postprocessing_threads == false) {
+            return;
+        }
+        
+        // Transaction Pre/Post Processing Threads
+        // We need at least one core per partition and one core for the VoltProcedureListener
+        // Everything else we can give to the pre/post processing guys
+        final int num_local_partitions = this.local_partitions.size();
+        int num_available_cores = this.threadManager.getNumCores() - (num_local_partitions + 1);
+
+        // If there are no available cores left, then we won't create any extra processors
+        if (num_available_cores <= 0) {
+            LOG.warn("Insufficient number of cores on " + catalog_host.getIpaddr() + ". " +
+                     "Disabling transaction pre/post processing threads");
+            hstore_conf.site.exec_preprocessing_threads = false;
+            hstore_conf.site.exec_postprocessing_threads = false;
+            return;
+        }
+
+        int num_preProcessors = 0;
+        int num_postProcessors = 0;
+        
+        // Both Types of Processors
+        if (hstore_conf.site.exec_preprocessing_threads && hstore_conf.site.exec_postprocessing_threads) {
+            int split = (int)Math.ceil(num_available_cores / 2d);
+            num_preProcessors = split;
+            num_postProcessors = split;
+        }
+        // TransactionPreProcessor Only
+        else if (hstore_conf.site.exec_preprocessing_threads) {
+            num_preProcessors = num_available_cores;
+        }
+        // TransactionPostProcessor Only
+        else {
+            num_postProcessors = num_available_cores;
+        }
+        
+        // Overrides
+        if (hstore_conf.site.exec_preprocessing_threads_count >= 0) {
+            num_preProcessors = hstore_conf.site.exec_preprocessing_threads_count;
+        }
+        if (hstore_conf.site.exec_postprocessing_threads_count >= 0) {
+            num_postProcessors = hstore_conf.site.exec_postprocessing_threads_count;
+        }
+        
+        // Initialize TransactionPreProcessors
+        if (num_preProcessors > 0) {
+            if (debug.val) LOG.debug(String.format("Starting %d %s threads",
+                             num_preProcessors,
+                             TransactionPreProcessor.class.getSimpleName()));
+            this.preProcessors = new ArrayList<TransactionPreProcessor>();
+            this.preProcessorQueue = new LinkedBlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>>();
+            for (int i = 0; i < num_preProcessors; i++) {
+                TransactionPreProcessor t = new TransactionPreProcessor(this, this.preProcessorQueue);
+                this.preProcessors.add(t);
+            } // FOR
+        }
+        // Initialize TransactionPostProcessors
+        if (num_postProcessors > 0) {
+            if (debug.val)
+                LOG.debug(String.format("Starting %d %s threads",
+                          num_postProcessors, TransactionPostProcessor.class.getSimpleName()));
+            this.postProcessors = new ArrayList<TransactionPostProcessor>();
+            this.postProcessorQueue = new LinkedBlockingQueue<Object[]>();
+            for (int i = 0; i < num_postProcessors; i++) {
+                TransactionPostProcessor t = new TransactionPostProcessor(this, this.postProcessorQueue);
+                this.postProcessors.add(t);
+            } // FOR
+        }
+    }
+    
+    /**
+     * Initial internal stats sources
+     */
+    private void initStatSources() {
+        StatsSource statsSource = null;
+
+        // TXN PROFILERS
+        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
+        
+        // MEMORY
+        statsSource = new MemoryStats();
+        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, statsSource);
+        
+        // TXN COUNTERS
+        statsSource = new TransactionCounterStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
+
+        // EXECUTOR PROFILERS
+        statsSource = new PartitionExecutorProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.EXECPROFILER, 0, statsSource);
+        
+        // QUEUE PROFILER
+        statsSource = new TransactionQueueManagerProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.QUEUEPROFILER, 0, statsSource);
+        
+        // MARKOV ESTIMATOR PROFILER
+        statsSource = new MarkovEstimatorProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.MARKOVPROFILER, 0, statsSource);
+        
+        // SPECEXEC PROFILER
+        statsSource = new SpecExecProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.SPECEXECPROFILER, 0, statsSource);
+        
+        // CLIENT INTERFACE PROFILER
+        statsSource = new SiteProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.SITEPROFILER, 0, statsSource);
+        
+        // BATCH PLANNER PROFILER
+        statsSource = new BatchPlannerProfilerStats(this, this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.PLANNERPROFILER, 0, statsSource);
+        
+        // OBJECT POOL COUNTERS
+        statsSource = new PoolCounterStats(this.objectPools);
+        this.statsAgent.registerStatsSource(SysProcSelector.POOL, 0, statsSource);
+    }
+    
+    /**
+     * Schedule all the periodic works
+     */
+    private void initPeriodicWorks() {
+        
+        // Make sure that we always initialize the periodic thread so that
+        // we can ensure that it only shows up on the cores that we want it to.
+        this.threadManager.initPerioidicThread();
+        
+        // Periodic Work Processor
+        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
+            @Override
+            public void runImpl() {
+                try {
+                    HStoreSite.this.processPeriodicWork();
+                } catch (Throwable ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }, 0, hstore_conf.site.exec_periodic_interval, TimeUnit.MILLISECONDS);
+        
+        // HStoreStatus
+        if (hstore_conf.site.status_enable) {
+            this.threadManager.schedulePeriodicWork(
+                this.status_monitor,
+                hstore_conf.site.status_interval,
+                hstore_conf.site.status_interval,
+                TimeUnit.MILLISECONDS);
+        }
+        
+        // AntiCache Memory Monitor
+        if (this.anticacheManager != null) {
+            if (this.anticacheManager.getEvictableTables().isEmpty() == false) {
+                this.threadManager.schedulePeriodicWork(
+                        this.anticacheManager.getMemoryMonitorThread(),
+                        hstore_conf.site.anticache_check_interval,
+                        hstore_conf.site.anticache_check_interval,
+                        TimeUnit.MILLISECONDS);
+            } else {
+                LOG.warn("There are no tables marked as evictable. Disabling anti-cache monitoring");
+            }
+        }
+        
+        // small stats samples
+        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
+            @Override
+            public void runImpl() {
+                SystemStatsCollector.asyncSampleSystemNow(false, false);
+            }
+        }, 0, 5, TimeUnit.SECONDS);
+
+        // medium stats samples
+        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
+            @Override
+            public void runImpl() {
+                SystemStatsCollector.asyncSampleSystemNow(true, false);
+            }
+        }, 0, 1, TimeUnit.MINUTES);
+
+        // large stats samples
+        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
+            @Override
+            public void runImpl() {
+                SystemStatsCollector.asyncSampleSystemNow(true, true);
+            }
+        }, 0, 6, TimeUnit.MINUTES);
     }
     
     // ----------------------------------------------------------------------------
@@ -931,8 +1135,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public Collection<TransactionPreProcessor> getTransactionPreProcessors() {
         return (this.preProcessors);
     }
+    public boolean hasTransactionPreProcessors() {
+        return (this.preProcessors != null && this.preProcessors.isEmpty() == false);
+    }
     public Collection<TransactionPostProcessor> getTransactionPostProcessors() {
         return (this.postProcessors);
+    }
+    public boolean hasTransactionPostProcessors() {
+        return (this.postProcessors != null && this.postProcessors.isEmpty() == false);
     }
     
     /**
@@ -1050,214 +1260,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.shutdown_observable);
     }
     
-    // ----------------------------------------------------------------------------
-    // INITIALIZATION STUFF
-    // ----------------------------------------------------------------------------
 
-    /**
-     * Initializes all the pieces that we need to start this HStore site up
-     */
-    protected HStoreSite init() {
-        if (debug.val)
-            LOG.debug("Initializing HStoreSite " + this.getSiteName());
-        this.hstore_coordinator = this.initHStoreCoordinator();
-        
-        // First we need to tell the HStoreCoordinator to start-up and initialize its connections
-        if (debug.val)
-            LOG.debug("Starting HStoreCoordinator for " + this.getSiteName());
-        this.hstore_coordinator.start();
-
-        ThreadGroup auxGroup = this.threadManager.getThreadGroup(ThreadGroupType.AUXILIARY);
-        
-        // Start TransactionQueueManager
-        Thread t = new Thread(auxGroup, this.txnQueueManager);
-        t.setDaemon(true);
-        t.setUncaughtExceptionHandler(this.exceptionHandler);
-        t.start();
-        
-        // Start VoltNetwork
-        t = new Thread(this.voltNetwork);
-        t.setName(HStoreThreadManager.getThreadName(this, HStoreConstants.THREAD_NAME_VOLTNETWORK));
-        t.setDaemon(true);
-        t.setUncaughtExceptionHandler(this.exceptionHandler);
-        t.start();
-        
-        // Start CommandLogWriter
-        t = new Thread(auxGroup, this.commandLogger);
-        t.setDaemon(true);
-        t.setUncaughtExceptionHandler(this.exceptionHandler);
-        t.start();
-        
-        // TransactionPreProcessors
-        if (this.preProcessors != null) {
-            for (TransactionPreProcessor tpp : this.preProcessors) {
-                t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.PROCESSING), tpp); 
-                t.setDaemon(true);
-                t.setUncaughtExceptionHandler(this.exceptionHandler);
-                t.start();    
-            } // FOR
-        }
-        // TransactionPostProcessors
-        if (this.postProcessors != null) {
-            for (TransactionPostProcessor tpp : this.postProcessors) {
-                t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.PROCESSING), tpp);
-                t.setDaemon(true);
-                t.setUncaughtExceptionHandler(this.exceptionHandler);
-                t.start();    
-            } // FOR
-        }
-        
-        // Then we need to start all of the PartitionExecutor in threads
-        if (debug.val)
-            LOG.debug(String.format("Starting PartitionExecutor threads for %s partitions on %s",
-                      this.local_partitions.size(), this.getSiteName()));
-        for (int partition : this.local_partitions.values()) {
-            PartitionExecutor executor = this.getPartitionExecutor(partition);
-            executor.initHStoreSite(this);
-            
-            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.EXECUTION), executor);
-            t.setDaemon(true);
-            t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
-            t.setUncaughtExceptionHandler(this.exceptionHandler);
-            this.executor_threads[partition] = t;
-            t.start();
-        } // FOR
-        
-        // Start Transaction Cleaners
-        int i = 0;
-        for (TransactionCleaner cleaner : this.txnCleaners) {
-            String name = String.format("%s-%02d", HStoreThreadManager.getThreadName(this, HStoreConstants.THREAD_NAME_TXNCLEANER), i);
-            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.CLEANER), cleaner);
-            t.setName(name);
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(this.exceptionHandler);
-            t.start();
-            i += 1;
-        } // FOR
-        
-        this.initPeriodicWorks();
-        
-        // Add in our shutdown hook
-        // Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
-        
-        return (this);
-    }
-    
-    
-    /**
-     * Initial internal stats sources
-     */
-    private void initStatSources() {
-        StatsSource statsSource = null;
-
-        // TXN PROFILERS
-        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
-        
-        // MEMORY
-        statsSource = new MemoryStats();
-        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, statsSource);
-        
-        // TXN COUNTERS
-        statsSource = new TransactionCounterStats(this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
-
-        // EXECUTOR PROFILERS
-        statsSource = new PartitionExecutorProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.EXECPROFILER, 0, statsSource);
-        
-        // QUEUE PROFILER
-        statsSource = new TransactionQueueManagerProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.QUEUEPROFILER, 0, statsSource);
-        
-        // MARKOV ESTIMATOR PROFILER
-        statsSource = new MarkovEstimatorProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.MARKOVPROFILER, 0, statsSource);
-        
-        // SPECEXEC PROFILER
-        statsSource = new SpecExecProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.SPECEXECPROFILER, 0, statsSource);
-        
-        // CLIENT INTERFACE PROFILER
-        statsSource = new SiteProfilerStats(this);
-        this.statsAgent.registerStatsSource(SysProcSelector.SITEPROFILER, 0, statsSource);
-        
-        // BATCH PLANNER PROFILER
-        statsSource = new BatchPlannerProfilerStats(this, this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.PLANNERPROFILER, 0, statsSource);
-        
-        // OBJECT POOL COUNTERS
-        statsSource = new PoolCounterStats(this.objectPools);
-        this.statsAgent.registerStatsSource(SysProcSelector.POOL, 0, statsSource);
-    }
-    
-    /**
-     * Schedule all the periodic works
-     */
-    private void initPeriodicWorks() {
-        
-        // Make sure that we always initialize the periodic thread so that
-        // we can ensure that it only shows up on the cores that we want it to.
-        this.threadManager.initPerioidicThread();
-        
-        // Periodic Work Processor
-        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
-            @Override
-            public void runImpl() {
-                try {
-                    HStoreSite.this.processPeriodicWork();
-                } catch (Throwable ex) {
-                    ex.printStackTrace();
-                }
-            }
-        }, 0, hstore_conf.site.exec_periodic_interval, TimeUnit.MILLISECONDS);
-        
-        // HStoreStatus
-        if (hstore_conf.site.status_enable) {
-            this.threadManager.schedulePeriodicWork(
-                this.status_monitor,
-                hstore_conf.site.status_interval,
-                hstore_conf.site.status_interval,
-                TimeUnit.MILLISECONDS);
-        }
-        
-        // AntiCache Memory Monitor
-        if (this.anticacheManager != null) {
-            if (this.anticacheManager.getEvictableTables().isEmpty() == false) {
-                this.threadManager.schedulePeriodicWork(
-                        this.anticacheManager.getMemoryMonitorThread(),
-                        hstore_conf.site.anticache_check_interval,
-                        hstore_conf.site.anticache_check_interval,
-                        TimeUnit.MILLISECONDS);
-            } else {
-                LOG.warn("There are no tables marked as evictable. Disabling anti-cache monitoring");
-            }
-        }
-        
-        // small stats samples
-        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
-            @Override
-            public void runImpl() {
-                SystemStatsCollector.asyncSampleSystemNow(false, false);
-            }
-        }, 0, 5, TimeUnit.SECONDS);
-
-        // medium stats samples
-        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
-            @Override
-            public void runImpl() {
-                SystemStatsCollector.asyncSampleSystemNow(true, false);
-            }
-        }, 0, 1, TimeUnit.MINUTES);
-
-        // large stats samples
-        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
-            @Override
-            public void runImpl() {
-                SystemStatsCollector.asyncSampleSystemNow(true, true);
-            }
-        }, 0, 6, TimeUnit.MINUTES);
-    }
     
     /**
      * Launch all of the threads needed by this HStoreSite. This is a blocking call
@@ -2432,21 +2435,38 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopPostClient();
     }
-    
+
     /**
      * Instead of having the PartitionExecutor send the ClientResponse directly back
      * to the client, this method will queue it up at one of the TransactionPostProcessors.
-     * This feature is not useful if the command-logging is enabled.  
-     * @param es
      * @param ts
-     * @param cr
+     * @param cresponse
      */
-    public void responseQueue(LocalTransaction ts, ClientResponseImpl cr) {
+    public void responseQueue(LocalTransaction ts, ClientResponseImpl cresponse) {
         assert(hstore_conf.site.exec_postprocessing_threads);
         if (debug.val)
             LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
-                      ts, ts.getBasePartition(), cr.getStatus(), this.postProcessorQueue.size()));
-        this.postProcessorQueue.add(Pair.of(ts,cr));
+                      ts, ts.getBasePartition(), cresponse.getStatus(), this.postProcessorQueue.size()));
+        this.postProcessorQueue.add(new Object[]{
+                                            cresponse,
+                                            ts.getClientCallback(),
+                                            ts.getInitiateTime(),
+                                            ts.getRestartCounter()
+        });
+    }
+
+    /**
+     * Use the TransactionPostProcessors to dispatch the ClientResponse back over the network
+     * @param cresponse
+     * @param clientCallback
+     * @param initiateTime
+     * @param restartCounter
+     */
+    public void responseQueue(ClientResponseImpl cresponse,
+                              RpcCallback<ClientResponseImpl> clientCallback,
+                              long initiateTime,
+                              int restartCounter) {
+        this.postProcessorQueue.add(new Object[]{ cresponse, clientCallback, initiateTime, restartCounter });
     }
 
     /**
