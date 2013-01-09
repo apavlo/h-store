@@ -98,7 +98,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             // I think that we need to do this...
             this.queue.noteTransactionRecievedAndReturnLastSafeTxnId(txn.getTransactionId());
             
-            boolean ret = this.queue.offer(txn);
+            boolean ret = this.queue.offer(txn, false);
             assert(ret);
             added.add(txn);
         } // FOR
@@ -179,6 +179,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         assertEquals(QueueState.BLOCKED_EMPTY, state);
         
         int max = NUM_TXNS / 2;
+        this.queue.setAllowDecrease(false);
         this.queue.setAllowIncrease(false);
         this.queue.setThrottleThreshold(max);
         
@@ -340,7 +341,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         
         for (AbstractTransaction txn : shuffled) {
             this.queue.noteTransactionRecievedAndReturnLastSafeTxnId(txn.getTransactionId());
-            boolean ret = this.queue.offer(txn);
+            boolean ret = this.queue.offer(txn, false);
             assert(ret);
             assertNull(this.queue.poll());
         } // FOR
