@@ -174,7 +174,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     @Override
     public void updateConf(HStoreConf hstore_conf) {
         this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
-        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * 2);
+        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (TransactionInitPriorityQueue queue : this.lockQueues) {
             if (queue != null) {
