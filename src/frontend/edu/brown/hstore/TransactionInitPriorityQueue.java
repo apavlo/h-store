@@ -260,6 +260,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 if (needsUpdateQueue) this.checkQueueState(false);
                 
             } // WHILE
+            // The next txn is ready to run now!
+            assert(this.state == QueueState.UNBLOCKED);
+            retval = super.poll();
+            
             if (trace.val)
                 LOG.trace(String.format("Partition %d :: take() -> Leaving blocking section",
                           this.partitionId));
@@ -268,10 +272,6 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
                 LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
             this.lock.unlock();
         }
-            
-        // The next txn is ready to run now!
-        assert(this.state == QueueState.UNBLOCKED);
-        retval = super.poll();
         if (debug.val)
             LOG.debug(String.format("Partition %d :: take() -> %s",
                       this.partitionId, retval));
