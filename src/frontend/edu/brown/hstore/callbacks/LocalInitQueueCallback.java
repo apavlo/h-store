@@ -42,6 +42,15 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     }
     
     // ----------------------------------------------------------------------------
+    // FINISH
+    // ----------------------------------------------------------------------------
+
+//    @Override
+//    protected void finishImpl() {
+//        // Nothing to do?
+//    }
+    
+    // ----------------------------------------------------------------------------
     // RUN METHOD
     // ----------------------------------------------------------------------------
     
@@ -102,11 +111,6 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
             default:
                 throw new RuntimeException(String.format("Unexpected status %s for %s", status, this.ts));
         } // SWITCH
-    }
-
-    @Override
-    protected void finishImpl() {
-        // Nothing to do?
     }
     
     // ----------------------------------------------------------------------------

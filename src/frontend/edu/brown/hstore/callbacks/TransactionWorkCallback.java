@@ -42,11 +42,11 @@ public class TransactionWorkCallback extends PartitionCountingCallback<AbstractT
                                             .setStatus(Status.OK);
     }
     
-    @Override
-    protected void finishImpl() {
-        this.builder = null;
-        this.orig_callback = null;
-    }
+//    @Override
+//    protected void finishImpl() {
+//        this.builder = null;
+//        this.orig_callback = null;
+//    }
 
     // ----------------------------------------------------------------------------
     // RUN METHOD

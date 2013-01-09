@@ -66,10 +66,10 @@ public class TestTransactionQueueManager extends BaseTestCase {
         protected void abortCallback(Status status) {
             this.aborted = true;
         }
-        @Override
-        protected void finishImpl() {
-            // Nothing
-        }
+//        @Override
+//        protected void finishImpl() {
+//            // Nothing
+//        }
     }
     
     @Override

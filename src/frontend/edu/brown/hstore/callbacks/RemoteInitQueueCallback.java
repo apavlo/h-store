@@ -63,11 +63,11 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
         super.init(ts, this.localPartitions);
     }
     
-    @Override
-    protected void finishImpl() {
-        this.origCallback = null;
-        this.builder = null;
-    }
+//    @Override
+//    protected void finishImpl() {
+//        this.origCallback = null;
+//        this.builder = null;
+//    }
     
     // ----------------------------------------------------------------------------
     // RUN METHOD

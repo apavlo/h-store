@@ -111,9 +111,48 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     }
     
     // ----------------------------------------------------------------------------
+    // FINISH
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public final void finish() {
+        if (debug.val)
+            LOG.debug(String.format("%s - Finishing %s [hashCode=%d]",
+                      this.ts, this.getClass().getSimpleName(), this.hashCode()));
+        this.abortInvoked.lazySet(false);
+        this.abortFinished = false;
+        this.unblockInvoked.lazySet(false);
+        this.unblockFinished = false;
+        this.canceled = false;
+//        this.finishImpl();
+        this.partitions.clear();
+        this.receivedPartitions.clear();
+        this.ts = null;
+    }
+    
+//    /**
+//     * Special finish method for the implementing class
+//     */
+//    protected abstract void finishImpl();
+    
+    // ----------------------------------------------------------------------------
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * Returns true if either the unblock or abort callbacks have been invoked
+     * and have finished their processing
+     */
+    public final boolean allCallbacksFinished() {
+        if (this.ts != null && this.canceled == false) {
+            if (this.counter.get() != 0) return (false);
+            if (this.unblockFinished || this.abortFinished) return (true);
+            return ((this.unblockInvoked.get() && this.unblockFinished) ||
+                    (this.abortInvoked.get() && this.abortFinished));
+        }
+        return (true);
+    }
+    
     protected final X getTransaction() {
         return (this.ts);
     }
@@ -308,50 +347,6 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     @Override
     public final boolean isCanceled() {
         return (this.canceled);
-    }
-    
-    // ----------------------------------------------------------------------------
-    // FINISH
-    // ----------------------------------------------------------------------------
-
-    
-    @Override
-    public final void finish() {
-        if (debug.val)
-            LOG.debug(String.format("%s - Finishing %s [hashCode=%d]",
-                      this.ts, this.getClass().getSimpleName(), this.hashCode()));
-        this.abortInvoked.lazySet(false);
-        this.abortFinished = false;
-        this.unblockInvoked.lazySet(false);
-        this.unblockFinished = false;
-        this.canceled = false;
-        this.finishImpl();
-        this.partitions.clear();
-        this.receivedPartitions.clear();
-        this.ts = null;
-    }
-    
-    /**
-     * Special finish method for the implementing class
-     */
-    protected abstract void finishImpl();
-    
-    // ----------------------------------------------------------------------------
-    // CALLBACK CHECKS
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * Returns true if either the unblock or abort callbacks have been invoked
-     * and have finished their processing
-     */
-    public final boolean allCallbacksFinished() {
-        if (this.ts != null && this.canceled == false) {
-            if (this.counter.get() != 0) return (false);
-            if (this.unblockFinished || this.abortFinished) return (true);
-            return ((this.unblockInvoked.get() && this.unblockFinished) ||
-                    (this.abortInvoked.get() && this.abortFinished));
-        }
-        return (true);
     }
     
     // ----------------------------------------------------------------------------
