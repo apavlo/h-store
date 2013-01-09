@@ -134,7 +134,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     }
     
     // ----------------------------------------------------------------------------
-    // QUEUE OPERATION METHODS
+    // POLL/TAKE METHODS
     // ----------------------------------------------------------------------------
     
     /**
@@ -308,6 +308,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         return (retval);
     }
     
+    // ----------------------------------------------------------------------------
+    // OFFER METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Add in a transaction to the queue.
      * It is safe to call this from any thread if you need to
@@ -345,6 +349,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         return this.offer(e, false);
     }
 
+    // ----------------------------------------------------------------------------
+    // REMOVE METHODS
+    // ----------------------------------------------------------------------------
+    
     @Override
     public boolean remove(Object obj) {
         AbstractTransaction txn = (AbstractTransaction)obj;

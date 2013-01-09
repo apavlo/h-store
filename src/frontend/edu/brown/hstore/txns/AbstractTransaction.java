@@ -115,6 +115,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     private AtomicBoolean deletable = new AtomicBoolean(false);
     
+    public int delete_attempts = 0;
+    
     // ----------------------------------------------------------------------------
     // ATTACHED DATA STRUCTURES
     // ----------------------------------------------------------------------------
@@ -355,6 +357,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
             this.prepareWrapper_callback.finish();
         }
         
+        this.delete_attempts = 0;
         this.predict_singlePartition = false;
         this.predict_abortable = true;
         this.predict_readOnly = false;
