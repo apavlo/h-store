@@ -64,7 +64,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     /**
      * This flag is set to true if the callback has been cancelled
      */
-    private final AtomicBoolean canceled = new AtomicBoolean(false);
+    private boolean canceled = false;
 
     // We retain the original parameters of the last init() for debugging
     private Long orig_txn_id = null;
@@ -222,7 +222,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * Internal method for calling the unblockCallback()
      */
     private final void unblock() {
-        if (this.canceled.get() == false && this.abortInvoked.get() == false) {
+        if (this.canceled == false && this.abortInvoked.get() == false) {
             if (this.unblockInvoked.compareAndSet(false, true)) {
                 if (debug.val)
                     LOG.debug(String.format("%s - Invoking %s.unblockCallback() [hashCode=%d]",
@@ -263,7 +263,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         
         // If this is the first response that told us to abort, then we'll
         // send the abort message out
-        if (this.canceled.get() == false && this.abortInvoked.compareAndSet(false, true)) {
+        if (this.canceled == false && this.abortInvoked.compareAndSet(false, true)) {
             if (debug.val)
                 LOG.debug(String.format("%s - Invoking %s.abortCallback() [hashCode=%d]",
                           this.ts, this.getClass().getSimpleName(), this.hashCode()));
@@ -303,11 +303,11 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     
     @Override
     public void cancel() {
-        this.canceled.set(true);
+        this.canceled = true;
     }
     @Override
     public final boolean isCanceled() {
-        return (this.canceled.get());
+        return (this.canceled);
     }
     
     // ----------------------------------------------------------------------------
@@ -324,7 +324,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         this.abortFinished = false;
         this.unblockInvoked.lazySet(false);
         this.unblockFinished = false;
-        this.canceled.lazySet(false);
+        this.canceled = false;
         this.finishImpl();
         this.partitions.clear();
         this.receivedPartitions.clear();
@@ -345,10 +345,10 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * and have finished their processing
      */
     public final boolean allCallbacksFinished() {
-        if (this.canceled.get() == false && this.isInitialized()) {
+        if (this.ts != null && this.canceled == false) {
             if (this.counter.get() != 0) return (false);
-            return ((this.unblockInvoked.get() && this.unblockFinished) ||
-                    (this.abortInvoked.get() && this.abortFinished));
+            return ((this.unblockFinished && this.unblockInvoked.get()) ||
+                    (this.abortFinished && this.abortInvoked.get()));
         }
         return (true);
     }
@@ -363,7 +363,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                              this.getClass().getSimpleName(), 
                              this.unblockInvoked.get(),
                              this.abortInvoked.get(),
-                             this.canceled.get(),
+                             this.canceled,
                              this.counter.get(), this.getOrigCounter(),
                              this.allCallbacksFinished()); 
     }
