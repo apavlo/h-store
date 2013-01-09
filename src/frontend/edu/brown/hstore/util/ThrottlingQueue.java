@@ -243,6 +243,19 @@ public class ThrottlingQueue<E> implements Queue<E> {
     }
     
     /**
+     * Set the min size of the throttling threshold. If this queue is allowed
+     * to decrease the threshold whenever the queue is throttled, then this is
+     * the minimum size that the threshold will be allowed to decreased to.
+     * @param size
+     */
+    public void setThrottleThresholdMinSize(int size) {
+        this.autoMinSize = size;
+    }
+    public int getThrottleThresholdMinSize() {
+        return (this.autoMinSize);
+    }
+    
+    /**
      * Set the max size of the throttling threshold. If this queue is allowed
      * to increase the threshold whenever the queue is empty, then this is
      * the maximum size that the threshold will be allowed to increase to.

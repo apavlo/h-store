@@ -93,7 +93,6 @@ public class TestTransactionQueueManager extends BaseTestCase {
         this.idManager = hstore_site.getTransactionIdManager(0);
         this.queueManager = this.hstore_site.getTransactionQueueManager();
         this.dbg = this.queueManager.getDebugContext();
-        EstTimeUpdater.update(System.currentTimeMillis());
     }
     
     // --------------------------------------------------------------------------------------------
