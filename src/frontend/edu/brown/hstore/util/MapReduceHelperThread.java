@@ -25,7 +25,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 
-public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTransaction> {
+public class MapReduceHelperThread extends AbstractProcessingRunnable<MapReduceTransaction> {
     private static final Logger LOG = Logger.getLogger(MapReduceHelperThread.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

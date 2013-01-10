@@ -637,6 +637,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
+        // Start AntiCacheManager Queue Processor
+        if (this.anticacheManager != null && this.anticacheManager.getEvictableTables().isEmpty() == false) {
+            t = new Thread(auxGroup, this.anticacheManager);
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            t.start();
+        }
+        
         // TransactionPreProcessors
         if (this.preProcessors != null) {
             for (TransactionPreProcessor tpp : this.preProcessors) {
@@ -2350,8 +2358,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         if (status == Status.ABORT_EVICTEDACCESS && orig_error instanceof EvictedTupleAccessException) {
             if (this.anticacheManager == null) {
-				LOG.info("Got eviction notice but anti-caching is not enabled"); 
-	
+				LOG.warn("Got eviction notice but anti-caching is not enabled"); 
                 String message = "Got eviction notice but anti-caching is not enabled";
                 throw new ServerFaultException(message, orig_error, orig_ts.getTransactionId());
             }
@@ -2360,7 +2367,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             Table catalog_tbl = error.getTableId(this.catalogContext.database);
             short block_ids[] = error.getBlockIds();
 
-			LOG.info("Added aborted txn to AnticacheManager queue. Unevicting " + block_ids.length + " blocks."); 
+			LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks.",
+			         AntiCacheManager.class.getSimpleName(), block_ids.length));
             this.anticacheManager.queue(new_ts, base_partition, catalog_tbl, block_ids);
         }
             

@@ -7,7 +7,7 @@ import org.apache.log4j.Logger;
 
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.util.AbstractProcessingThread;
+import edu.brown.hstore.util.AbstractProcessingRunnable;
 import edu.brown.utils.ClassUtil;
 
 /**
@@ -16,7 +16,7 @@ import edu.brown.utils.ClassUtil;
  * @author pavlo
  * @param <E>
  */
-public abstract class AbstractDispatcher<E> extends AbstractProcessingThread<E> {
+public abstract class AbstractDispatcher<E> extends AbstractProcessingRunnable<E> {
     private static final Logger LOG = Logger.getLogger(AbstractDispatcher.class);
     
     protected final HStoreCoordinator hstore_coordinator;

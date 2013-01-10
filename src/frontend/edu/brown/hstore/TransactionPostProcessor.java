@@ -7,7 +7,7 @@ import org.voltdb.ClientResponseImpl;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.util.AbstractProcessingThread;
+import edu.brown.hstore.util.AbstractProcessingRunnable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -15,7 +15,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * Special thread that will process ClientResponses and send them back to clients 
  * @author pavlo
  */
-public final class TransactionPostProcessor extends AbstractProcessingThread<Object[]> {
+public final class TransactionPostProcessor extends AbstractProcessingRunnable<Object[]> {
     private static final Logger LOG = Logger.getLogger(TransactionPostProcessor.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {

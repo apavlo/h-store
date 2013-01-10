@@ -9,7 +9,7 @@ import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.util.AbstractProcessingThread;
+import edu.brown.hstore.util.AbstractProcessingRunnable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -17,7 +17,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * Special thread that will process txn invocations
  * @author pavlo
  */
-public class TransactionPreProcessor extends AbstractProcessingThread<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>> {
+public class TransactionPreProcessor extends AbstractProcessingRunnable<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>> {
     private static final Logger LOG = Logger.getLogger(TransactionPreProcessor.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

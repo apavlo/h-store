@@ -633,7 +633,7 @@ public abstract class VoltProcedure implements Poolable {
             // Pass the exception back to the client if it is serializable
             if (ex instanceof SerializableException) {
                 if (this.m_localTxnState.hasPendingError() == false) {
-                    this.m_localTxnState.setPendingError(new SerializableException(ex), false);
+                    this.m_localTxnState.setPendingError((SerializableException)ex, false);
                 }    
                 this.error = (SerializableException)ex;
             }

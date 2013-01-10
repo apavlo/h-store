@@ -28,7 +28,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.util.AbstractProcessingThread;
+import edu.brown.hstore.util.AbstractProcessingRunnable;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -46,7 +46,7 @@ import edu.brown.utils.StringUtil;
  * @author pavlo
  * @author jdebrabant
  */
-public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.QueueEntry> {
+public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManager.QueueEntry> {
     private static final Logger LOG = Logger.getLogger(AntiCacheManager.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -77,6 +77,13 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             this.partition = partition;
             this.catalog_tbl = catalog_tbl;
             this.block_ids = block_ids;
+        }
+        @Override
+        public String toString() {
+            return String.format("%s[%s / Partition:%d / Table:%s / BlockIds:%s]",
+                                 this.getClass().getSimpleName(), this.ts,
+                                 this.partition, this.catalog_tbl.getName(),
+                                 Arrays.toString(this.block_ids));
         }
     }
 
@@ -148,7 +155,10 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     // ----------------------------------------------------------------------------
 
     protected AntiCacheManager(HStoreSite hstore_site) {
-        super(hstore_site, HStoreConstants.THREAD_NAME_ANTICACHE, new LinkedBlockingQueue<QueueEntry>(), false);
+        super(hstore_site,
+              HStoreConstants.THREAD_NAME_ANTICACHE,
+              new LinkedBlockingQueue<QueueEntry>(),
+              false);
 
         // XXX: Do we want to use Runtime.getRuntime().maxMemory() instead?
         // XXX: We could also use Runtime.getRuntime().totalMemory() instead of getting table stats
@@ -196,6 +206,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
 
     @Override
     protected void processingCallback(QueueEntry next) {
+        LOG.info("Processing " + next);
+        
         // We need to get the EE handle for the partition that this txn
         // needs to have read in some blocks from disk
         PartitionExecutor executor = hstore_site.getPartitionExecutor(next.partition);
@@ -215,8 +227,11 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         if (hstore_conf.site.anticache_profiling) 
             this.profilers[next.partition].retrieval_time.start();
         try {
-            LOG.info("Asking EE to read in evicted blocks.");
+            LOG.info(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
+                     next.catalog_tbl.getName(), next.partition, Arrays.toString(next.block_ids)));
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids);
+            LOG.info(String.format("Finished reading blocks from partition %d",
+                     next.partition));
         } catch (SerializableException ex) {
             LOG.info("Caught unexpected SerializableException.");
         } finally {
@@ -257,7 +272,6 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         // for these blocks. This will ensure that we don't try to read in blocks twice.
 
         LOG.info("Queueing a transaction for partition " + partition);
-
         return (this.queue.offer(e));
     }
 

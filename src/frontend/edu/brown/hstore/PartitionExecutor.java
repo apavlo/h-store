@@ -3673,7 +3673,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // If the txn was mispredicted, then we will pass the information over to the
             // HStoreSite so that it can re-execute the transaction. We want to do this 
             // first so that the txn gets re-executed as soon as possible...
-            if (debug.val) LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
+            if (debug.val)
+                LOG.debug(String.format("%s - Restarting because transaction was hit with %s",
+                        ts, (ts.getPendingError() != null ? ts.getPendingError().getClass().getSimpleName() : "")));
 
             // We don't want to delete the transaction here because whoever is going to requeue it for
             // us will need to know what partitions that the transaction touched when it executed before

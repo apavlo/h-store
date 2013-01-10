@@ -14,8 +14,8 @@ import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.utils.ExceptionHandlingRunnable;
 
-public abstract class AbstractProcessingThread<E> extends ExceptionHandlingRunnable implements Shutdownable {
-    private static final Logger LOG = Logger.getLogger(AbstractProcessingThread.class);
+public abstract class AbstractProcessingRunnable<E> extends ExceptionHandlingRunnable implements Shutdownable {
+    private static final Logger LOG = Logger.getLogger(AbstractProcessingRunnable.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -33,11 +33,11 @@ public abstract class AbstractProcessingThread<E> extends ExceptionHandlingRunna
     protected final ProfileMeasurement execTime;
     
     
-    public AbstractProcessingThread(HStoreSite hstore_site, String name, BlockingQueue<E> queue) {
+    public AbstractProcessingRunnable(HStoreSite hstore_site, String name, BlockingQueue<E> queue) {
         this(hstore_site, name, queue, false);
     }
     
-    public AbstractProcessingThread(HStoreSite hstore_site, String name, BlockingQueue<E> queue, boolean profile) {
+    public AbstractProcessingRunnable(HStoreSite hstore_site, String name, BlockingQueue<E> queue, boolean profile) {
         assert(queue != null);
         
         this.hstore_site = hstore_site;
