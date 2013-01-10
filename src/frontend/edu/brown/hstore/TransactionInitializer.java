@@ -138,7 +138,7 @@ public class TransactionInitializer {
             this.expectedParams[id] = proc.getParameters().size();
         } // FOR
         
-        this.txnIdManagers = new TransactionIdManager[this.local_partitions.size()];
+        this.txnIdManagers = new TransactionIdManager[this.catalogContext.numberOfPartitions];
         for (int partition : this.local_partitions.values()) {
             this.txnIdManagers[partition] = hstore_site.getTransactionIdManager(partition);
         } // FOR

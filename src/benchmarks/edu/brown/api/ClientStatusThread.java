@@ -122,7 +122,7 @@ public class ClientStatusThread extends Thread {
                 LOG.warn("Failed to parse line '" + control_line + "'", ex);
                 continue; // IGNORE
             }
-            final String clientName = BenchmarkUtil.getClientName(line.processName, clientId);
+            final String clientName = BenchmarkControllerUtil.getClientName(line.processName, clientId);
             final ControlState status = ControlState.get(parts[2]);
             assert(status != null) : "Unexpected ControlStatus '" + parts[2] + "'";
             

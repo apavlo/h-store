@@ -1589,6 +1589,15 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "AntiCacheManager profiling stats. Note that this will automatically enable " +
+                        "${site.anticache_profiling}, which will affect the runtime performance.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_anticache_profiling;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
                         "HStoreSite profiling stats. Note that this will automatically enable " +
                         "${site.profiling}, which will affect the runtime performance.",
             defaultNull=true,

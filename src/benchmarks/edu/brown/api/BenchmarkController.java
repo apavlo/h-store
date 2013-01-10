@@ -103,6 +103,7 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
+import edu.brown.api.BenchmarkControllerUtil.ProfilingOutput;
 import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
@@ -542,27 +543,15 @@ public class BenchmarkController {
         
         // For each client output option, we'll enable the corresponding
         // site config parameter so that we can collect the proper data
-        String outputOpts[][] = {
-           {"client.output_exec_profiling", "site.exec_profiling"},
-           {"client.output_queue_profiling", "site.queue_profiling"},
-           {"client.output_site_profiling", "site.profiling"},
-           {"client.output_specexec_profiling", "site.specexec_profiling"},
-           {"client.output_markov_profiling", "site.markov_profiling"},
-           {"client.output_planner_profiling", "site.planner_profiling"},
-           {"client.output_txn_profiling", "site.txn_profiling"},
-           {"client.output_txn_counters", "site.txn_counters"},
-        };
-        for (String pair[] : outputOpts) {
-            String clientOpt = pair[0];
-            assert(HStoreConf.isConfParameter(clientOpt)) : clientOpt;
-            String siteOpt = pair[1];
-            assert(HStoreConf.isConfParameter(siteOpt)) : siteOpt;
-            String clientOptVal = (String)hstore_conf.get(clientOpt);
+        for (ProfilingOutput po : BenchmarkControllerUtil.PROFILING_OUTPUTS) {
+            assert(HStoreConf.isConfParameter(po.clientParam)) : "Invalid Client Param: " + po;
+            assert(HStoreConf.isConfParameter(po.siteParam)) : "Invalid Site Param: " + po;
+            String clientOptVal = (String)hstore_conf.get(po.clientParam);
             if (clientOptVal != null && clientOptVal.isEmpty() == false) {
                 if (clientOptVal.equalsIgnoreCase("true")) {
-                    LOG.warn(String.format("The HStoreConf parameter '%s' should be a file path, not a boolean value", clientOpt));
+                    LOG.warn(String.format("The HStoreConf parameter '%s' should be a file path, not a boolean value", po.clientParam));
                 } else {
-                    m_config.siteParameters.put(siteOpt, Boolean.TRUE.toString());
+                    m_config.siteParameters.put(po.siteParam, Boolean.TRUE.toString());
                 }
             }
         } // FOR
@@ -877,7 +866,7 @@ public class BenchmarkController {
             final List<Integer> clientIds = new ArrayList<Integer>();
             for (int j = 0; j < threads_per_client; j++) {
                 int clientId = clientIndex.getAndIncrement();
-                m_clientThreads.add(BenchmarkUtil.getClientName(clientHost, clientId));   
+                m_clientThreads.add(BenchmarkControllerUtil.getClientName(clientHost, clientId));   
                 clientIds.add(clientId);
             } // FOR
             
@@ -1299,20 +1288,10 @@ public class BenchmarkController {
         }
 
         // DUMP PROFILING INFORMATION
-        @SuppressWarnings("unchecked")
-        Pair<SysProcSelector, String> profilingData[] = (Pair<SysProcSelector, String>[])new Pair<?,?>[]{
-            Pair.of(SysProcSelector.EXECPROFILER, hstore_conf.client.output_exec_profiling),
-            Pair.of(SysProcSelector.QUEUEPROFILER, hstore_conf.client.output_queue_profiling),
-            Pair.of(SysProcSelector.TXNPROFILER, hstore_conf.client.output_txn_profiling),
-            Pair.of(SysProcSelector.SITEPROFILER, hstore_conf.client.output_site_profiling),
-            Pair.of(SysProcSelector.SPECEXECPROFILER, hstore_conf.client.output_specexec_profiling),
-            Pair.of(SysProcSelector.MARKOVPROFILER, hstore_conf.client.output_markov_profiling),
-            Pair.of(SysProcSelector.PLANNERPROFILER, hstore_conf.client.output_planner_profiling),
-            Pair.of(SysProcSelector.TXNCOUNTER, hstore_conf.client.output_txn_counters),
-        };
-        for (Pair<SysProcSelector, String> pair : profilingData) {
-            if (pair.getSecond() != null) {
-                this.writeStats(client, pair.getFirst(), new File(pair.getSecond()));
+        for (ProfilingOutput po : BenchmarkControllerUtil.PROFILING_OUTPUTS) {
+            Object output = hstore_conf.get(po.clientParam);
+            if (output != null) {
+                this.writeStats(client, po.key, new File(output.toString()));
             }
         } // FOR
         
