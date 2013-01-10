@@ -3,10 +3,10 @@ package edu.brown.profilers;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import edu.brown.hstore.TransactionInitPriorityQueue.QueueState;
+import edu.brown.hstore.PartitionLockQueue.QueueState;
 import edu.brown.statistics.FastIntHistogram;
 
-public class TransactionInitPriorityQueueProfiler extends AbstractProfiler {
+public class PartitionLockQueueProfiler extends AbstractProfiler {
 
     /**
      * The amount of time that a txn has to spend waiting in milliseconds

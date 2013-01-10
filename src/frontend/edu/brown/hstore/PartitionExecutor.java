@@ -287,7 +287,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private HStoreConf hstore_conf;
     private TransactionInitializer txnInitializer;
     private TransactionQueueManager queueManager;
-    private TransactionInitPriorityQueue initQueue;
+    private PartitionLockQueue initQueue;
     
     // ----------------------------------------------------------------------------
     // Partition-Specific Queues
@@ -843,7 +843,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // This is the starting state of the PartitionExecutor.
                 // At this point here we currently don't have a txn to execute nor 
                 // are we involved in a distributed txn running at another partition.
-                // So we need to go our TransactionInitPriorityQueue and get back the next
+                // So we need to go our PartitionLockQueue and get back the next
                 // txn that will have our lock.
                 if (this.currentDtxn == null) {
                     if (hstore_conf.site.exec_profiling) profiler.poll_time.start();

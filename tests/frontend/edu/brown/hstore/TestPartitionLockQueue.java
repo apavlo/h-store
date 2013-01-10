@@ -21,7 +21,7 @@ import org.voltdb.catalog.Site;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
-import edu.brown.hstore.TransactionInitPriorityQueue.QueueState;
+import edu.brown.hstore.PartitionLockQueue.QueueState;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -31,7 +31,7 @@ import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
-public class TestTransactionInitPriorityQueue extends BaseTestCase {
+public class TestPartitionLockQueue extends BaseTestCase {
 
     private static final int NUM_TXNS = 10;
     private static final int TXN_DELAY = 500;
@@ -42,8 +42,8 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
     HStoreConf hstore_conf;
     TransactionIdManager idManager;
     TransactionQueueManager queueManager;
-    TransactionInitPriorityQueue queue;
-    TransactionInitPriorityQueue.Debug queueDbg;
+    PartitionLockQueue queue;
+    PartitionLockQueue.Debug queueDbg;
     Procedure catalog_proc;
     
     @Override
@@ -248,7 +248,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             Long lastBlockTime = null;
             long nextBlockTime;
             for (int j = 0; j < 10; j++) {
-                if (j != 0) TransactionInitPriorityQueue.LOG.info(StringUtil.SINGLE_LINE.trim());
+                if (j != 0) PartitionLockQueue.LOG.info(StringUtil.SINGLE_LINE.trim());
                 String debug = String.format("i=%d / j=%d", i, j);
                 state = this.queueDbg.checkQueueState();
                 nextBlockTime = this.queueDbg.getBlockedTimestamp();
@@ -261,7 +261,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
                 lastBlockTime = nextBlockTime;
             } // FOR
             assertEquals("i="+i, it.next(), this.queue.poll());
-            TransactionInitPriorityQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
+            PartitionLockQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
         } // FOR
     }
     
@@ -288,7 +288,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
         ThreadUtil.sleep(TXN_DELAY);
 //        EstTimeUpdater.update(System.currentTimeMillis());
 
-        TransactionInitPriorityQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
+        PartitionLockQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
         Iterator<AbstractTransaction> it = added.iterator();
         for (int i = 0; i < NUM_TXNS; i++) {
             String debug = String.format("i=%d", i);
@@ -312,7 +312,7 @@ public class TestTransactionInitPriorityQueue extends BaseTestCase {
             else {
                 assertTrue(debug, this.queue.isEmpty());
             }
-            TransactionInitPriorityQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
+            PartitionLockQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
         } // FOR
     }
     

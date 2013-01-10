@@ -11,12 +11,12 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.TransactionInitPriorityQueue;
+import edu.brown.hstore.PartitionLockQueue;
 import edu.brown.hstore.TransactionQueueManager;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.profilers.TransactionInitPriorityQueueProfiler;
+import edu.brown.profilers.PartitionLockQueueProfiler;
 import edu.brown.profilers.TransactionQueueManagerProfiler;
 import edu.brown.utils.MathUtil;
 
@@ -76,8 +76,8 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("THROTTLED", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("THROTTLED_CNT", VoltType.BIGINT));
         
-        // Add in TransactionInitPriorityQueueProfiler stats
-        TransactionInitPriorityQueueProfiler initProfiler = new TransactionInitPriorityQueueProfiler();
+        // Add in PartitionLockQueueProfiler stats
+        PartitionLockQueueProfiler initProfiler = new PartitionLockQueueProfiler();
         columns.add(new VoltTable.ColumnInfo("AVG_TXN_WAIT", VoltType.FLOAT));
         for (ProfileMeasurement pm : initProfiler.queueStates.values()) {
             String name = pm.getType().toUpperCase();
@@ -91,8 +91,8 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         int partition = (Integer)rowKey;
         TransactionQueueManager.Debug dbg = this.queue_manager.getDebugContext();
         TransactionQueueManagerProfiler profiler = dbg.getProfiler(partition);
-        TransactionInitPriorityQueue initQueue = this.queue_manager.getInitQueue(partition);
-        TransactionInitPriorityQueueProfiler initProfiler = initQueue.getDebugContext().getProfiler();
+        PartitionLockQueue initQueue = this.queue_manager.getInitQueue(partition);
+        PartitionLockQueueProfiler initProfiler = initQueue.getDebugContext().getProfiler();
         
         int offset = this.columnNameToIndex.get("PARTITION");
         rowValues[offset++] = partition;
@@ -108,7 +108,7 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         rowValues[offset++] = throttlePM.getTotalThinkTime();
         rowValues[offset++] = throttlePM.getInvocations();
         
-        // TransactionInitPriorityQueue
+        // PartitionLockQueue
         rowValues[offset++] = MathUtil.weightedMean(initProfiler.waitTimes);
         for (ProfileMeasurement pm : initProfiler.queueStates.values()) {
             rowValues[offset++] = pm.getTotalThinkTime();

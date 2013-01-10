@@ -33,7 +33,7 @@ public class SpecExecScheduler {
     }
     
     private final int partitionId;
-    private final TransactionInitPriorityQueue work_queue;
+    private final PartitionLockQueue work_queue;
     private AbstractConflictChecker checker;
     private SpecExecSchedulerPolicyType policyType;
     private int window_size = 1;
@@ -60,7 +60,7 @@ public class SpecExecScheduler {
      * @param work_queue
      */
     public SpecExecScheduler(AbstractConflictChecker checker,
-                             int partitionId, TransactionInitPriorityQueue work_queue,
+                             int partitionId, PartitionLockQueue work_queue,
                              SpecExecSchedulerPolicyType schedule_policy, int window_size) {
         assert(schedule_policy != null) : "Unsupported schedule policy parameter passed in";
         

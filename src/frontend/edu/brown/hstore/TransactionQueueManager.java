@@ -66,7 +66,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private boolean stop = false;
     
     /**
-     * TransactionInitPriority Configuration
+     * PartitionLock Configuration
      */
     private int initWaitTime;
     private int initThrottleThreshold;
@@ -79,7 +79,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     /**
      * Contains one queue for every partition managed by this coordinator
      */
-    private final TransactionInitPriorityQueue[] lockQueues;
+    private final PartitionLockQueue[] lockQueues;
     
     /**
      * The last txns that was executed for each partition
@@ -128,7 +128,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         PartitionSet allPartitions = catalogContext.getAllPartitionIds();
         int num_partitions = allPartitions.size();
         this.localPartitions = hstore_site.getLocalPartitionIds();
-        this.lockQueues = new TransactionInitPriorityQueue[num_partitions];
+        this.lockQueues = new PartitionLockQueue[num_partitions];
         this.lockQueuesLastTxn = new Long[num_partitions];
         this.initQueue = new LinkedBlockingQueue<AbstractTransaction>();
         this.profilers = new TransactionQueueManagerProfiler[num_partitions];
@@ -138,7 +138,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // Initialize internal queues
         for (int partition : this.localPartitions.values()) {
-            TransactionInitPriorityQueue queue = new TransactionInitPriorityQueue(partition,
+            PartitionLockQueue queue = new PartitionLockQueue(partition,
                                                                           this.initWaitTime,
                                                                           this.initThrottleThreshold,
                                                                           this.initThrottleRelease);
@@ -159,7 +159,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // to increase their limits if they're empty
         hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<HStoreSite>() {
             public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-                for (TransactionInitPriorityQueue queue : lockQueues) {
+                for (PartitionLockQueue queue : lockQueues) {
                     if (queue != null) queue.setAllowIncrease(true);
                 } // FOR
             };
@@ -167,7 +167,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         if (debug.val)
             LOG.debug(String.format("Created %d %s for %s",
-                      num_partitions, TransactionInitPriorityQueue.class.getSimpleName(),
+                      num_partitions, PartitionLockQueue.class.getSimpleName(),
                       hstore_site.getSiteName()));
     }
     
@@ -176,7 +176,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
         this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
-        for (TransactionInitPriorityQueue queue : this.lockQueues) {
+        for (PartitionLockQueue queue : this.lockQueues) {
             if (queue != null) {
                 queue.setThrottleThreshold(this.initThrottleThreshold);
                 queue.setThrottleReleaseFactor(this.initThrottleRelease);
@@ -284,12 +284,16 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // INIT QUEUES
     // ----------------------------------------------------------------------------
 
+    /**
+     * Queue a brand new transaction at this HStoreSite to be added into
+     * the appropriate lock queues for the partitions that it needs to access.
+     * @param ts
+     */
     protected void initTransaction(AbstractTransaction ts) {
         if (debug.val)
             LOG.debug(String.format("Adding %s to initialization queue", ts));
         this.initQueue.add(ts);
     }
-    
     
     /**
      * Check whether there are any transactions that need to be released for execution
@@ -671,7 +675,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
-    public TransactionInitPriorityQueue getInitQueue(int partition) {
+    public PartitionLockQueue getInitQueue(int partition) {
         return (this.lockQueues[partition]);
     }
     

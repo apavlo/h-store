@@ -36,7 +36,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     private MockHStoreSite hstore_site;
     private TransactionIdManager idManager;
     private TransactionQueueManager queueManager;
-    private TransactionInitPriorityQueue work_queue;
+    private PartitionLockQueue work_queue;
     private SpecExecScheduler scheduler;
     private SpecExecScheduler.Debug schedulerDebug;
     private AbstractConflictChecker checker;

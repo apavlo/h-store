@@ -16,7 +16,7 @@ import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.profilers.TransactionInitPriorityQueueProfiler;
+import edu.brown.profilers.PartitionLockQueueProfiler;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -32,8 +32,8 @@ import edu.brown.utils.StringUtil;
  * <p>This class manages all that state.</p>
  * 
  */
-public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransaction> {
-    protected static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
+public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
+    protected static final Logger LOG = Logger.getLogger(PartitionLockQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -85,7 +85,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
     private Long lastSafeTxnId = -1l;
     private Long lastTxnPopped = -1l;
     
-    private final TransactionInitPriorityQueueProfiler profiler;
+    private final PartitionLockQueueProfiler profiler;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -99,14 +99,14 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
      * @param throttle_release TODO
      * @param hstore_site
      */
-    public TransactionInitPriorityQueue(int partitionId, int waitTime, int throttle_threshold, double throttle_release) {
+    public PartitionLockQueue(int partitionId, int waitTime, int throttle_threshold, double throttle_release) {
         super(new PriorityBlockingQueue<AbstractTransaction>(), throttle_threshold, throttle_release);
         
         this.partitionId = partitionId;
         this.waitTime = waitTime;
         
         if (HStoreConf.singleton().site.queue_profiling) {
-            this.profiler = new TransactionInitPriorityQueueProfiler();
+            this.profiler = new PartitionLockQueueProfiler();
         } else {
             this.profiler = null;
         }
@@ -622,14 +622,14 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         public long getBlockedTimestamp() {
             return (blockTimestamp);
         }
-        public TransactionInitPriorityQueueProfiler getProfiler() {
+        public PartitionLockQueueProfiler getProfiler() {
             return (profiler);
         }
         public QueueState checkQueueState() {
             QueueState ret = null;
             lock.lock();
             try {
-                ret = TransactionInitPriorityQueue.this.checkQueueState(false);
+                ret = PartitionLockQueue.this.checkQueueState(false);
             } finally {
                 lock.unlock();
             }
@@ -637,8 +637,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<AbstractTransa
         }
     }
     
-    private TransactionInitPriorityQueue.Debug cachedDebugContext;
-    public TransactionInitPriorityQueue.Debug getDebugContext() {
+    private PartitionLockQueue.Debug cachedDebugContext;
+    public PartitionLockQueue.Debug getDebugContext() {
         if (cachedDebugContext == null) {
             // We don't care if we're thread-safe here...
             this.cachedDebugContext = new Debug();
