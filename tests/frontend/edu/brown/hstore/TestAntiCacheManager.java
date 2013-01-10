@@ -7,13 +7,14 @@ import org.junit.Test;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.UnknownBlockAccessException;
 import org.voltdb.jni.ExecutionEngine;
-import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
@@ -23,11 +24,17 @@ import edu.brown.benchmark.voter.VoterProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.profilers.AntiCacheManagerProfiler;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
+/**
+ * Anti-Cache Manager Test Cases
+ * @author pavlo
+ * @author jdebrabant
+ */
 public class TestAntiCacheManager extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 1;
@@ -54,6 +61,8 @@ public class TestAntiCacheManager extends BaseTestCase {
         {
             this.markTableEvictable(TARGET_TABLE);
             this.addAllDefaults();
+            this.addStmtProcedure("GetVote",
+                                  "SELECT * FROM " + TARGET_TABLE + " WHERE vote_id = ?");
         }
     };
     
@@ -72,6 +81,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.anticache_enable = true;
+        this.hstore_conf.site.anticache_profiling = true;
         this.hstore_conf.site.anticache_check_interval = Integer.MAX_VALUE;
         this.hstore_conf.site.anticache_dir = this.anticache_dir.getAbsolutePath();
         
@@ -136,31 +146,30 @@ public class TestAntiCacheManager extends BaseTestCase {
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
-//    /**
-//     * testReadEvictedTuples
-//     */
-//    @Test
-//    public void testReadEvictedTuples() throws Exception {
-//        this.loadData();
-//        
-//        // We should have all of our tuples evicted
-//        VoltTable evictResult = this.evictData();
-//        long evicted = evictResult.getLong("TUPLES_EVICTED");
-//        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
-//        
-//        // Now execute a query that needs to access data from this block
-//        long expected = 1;
-//        String sql = "SELECT * FROM " + TARGET_TABLE + " WHERE vote_id = " + expected;
-//        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-//        ClientResponse cresponse = this.client.callProcedure(procName, sql);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//        
-//        VoltTable results[] = cresponse.getResults();
-//        assertEquals(1, results.length);
-//        boolean adv = results[0].advanceRow();
-//        assertTrue(adv);
-//        assertEquals(expected, results[0].getLong(0));
-//    }
+    /**
+     * testReadEvictedTuples
+     */
+    @Test
+    public void testReadEvictedTuples() throws Exception {
+        this.loadData();
+        
+        // We should have all of our tuples evicted
+        VoltTable evictResult = this.evictData();
+        long evicted = evictResult.getLong("TUPLES_EVICTED");
+        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
+        
+        // Now execute a query that needs to access data from this block
+        long expected = 1;
+        Procedure proc = this.getProcedure("GetVote"); // Special Single-Stmt Proc
+        ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
+        assertEquals(Status.OK, cresponse.getStatus());
+        
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(1, results.length);
+        boolean adv = results[0].advanceRow();
+        assertTrue(adv);
+        assertEquals(expected, results[0].getLong(0));
+    }
     
     /**
      * testEvictTuples
@@ -244,5 +253,31 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertTrue(failed);
     }
 
+    /**
+     * testProfiling
+     */
+    @Test
+    public void testProfiling() throws Exception {
+        this.loadData();
+        VoltTable evictResult = this.evictData();
+        evictResult.advanceRow();
+
+        // Our stats should now come back with one block evicted
+        String procName = VoltSystemProcedure.procCallName(Statistics.class);
+        Object params[] = { SysProcSelector.ANTICACHE, 0 };
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+        VoltTable statsResult = cresponse.getResults()[0];
+
+        System.err.println("-------------------------------");
+        System.err.println(VoltTableUtil.format(statsResult));
+
+        // We need this just to get the name of the column
+        AntiCacheManagerProfiler profiler = new AntiCacheManagerProfiler();
+        statsResult.advanceRow();
+        assertEquals(evictResult.getLong("BLOCKS_EVICTED"),
+                     statsResult.getLong(profiler.eviction_time.getType().toUpperCase()));
+    }
     
 }
