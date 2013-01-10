@@ -49,13 +49,15 @@ BASE_ARGS=( \
     "-Dsite.network_incoming_limit_txns=8000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=1" \
+    "-Dsite.exec_postprocessing_threads=true" \
+    "-Dsite.exec_postprocessing_threads_count=1" \
     
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
     "-Dclient.txnrate=15000" \
     "-Dclient.warmup=60000" \
-    "-Dclient.duration=180000 "\
+    "-Dclient.duration=120000 "\
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=1" \
@@ -108,7 +110,7 @@ for HOST in ${HOSTS_TO_UPDATE[@]}; do
 done
 wait
 
-for i in `seq 2 10`; do
+for i in `seq 2 9`; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
