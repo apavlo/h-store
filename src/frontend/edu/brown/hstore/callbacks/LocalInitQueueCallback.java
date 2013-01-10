@@ -1,5 +1,8 @@
 package edu.brown.hstore.callbacks;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
@@ -12,6 +15,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.StringUtil;
 
 /**
  * 
@@ -26,6 +30,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     }
 
     private final TransactionQueueManager txnQueueManager;
+    private final List<TransactionInitResponse> responses = new ArrayList<TransactionInitResponse>();
     
     // ----------------------------------------------------------------------------
     // INTIALIZATION
@@ -38,6 +43,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     
     @Override
     public void init(LocalTransaction ts, PartitionSet partitions) {
+        this.responses.clear();
         super.init(ts, partitions);
     }
     
@@ -95,7 +101,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     }
 
     @Override
-    protected void abortCallback(Status status) {
+    protected void abortCallback(int partition, Status status) {
         // If the transaction needs to be restarted, then we'll attempt to requeue it.
         switch (status) {
             case ABORT_SPECULATIVE:
@@ -111,10 +117,6 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
             default:
                 throw new RuntimeException(String.format("Unexpected status %s for %s", status, this.ts));
         } // SWITCH
-        // 2013-01-09
-        // You definitely do not want to call clearCounter() here!
-        // The TransactionQueueManager is responsible for making sure that we 
-        // decrement the counter for any partition that we are going to skip queueing up
     }
     
     // ----------------------------------------------------------------------------
@@ -127,12 +129,30 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
             LOG.debug(String.format("%s - Got %s with status %s from partitions %s",
                       this.ts, response.getClass().getSimpleName(),
                       response.getStatus(), response.getPartitionsList()));
+        this.responses.add(response);
         if (response.getStatus() != Status.OK) {
-            this.abort(response.getStatus());
+            int reject_partition = response.getRejectPartition();
+            for (int partition : response.getPartitionsList()) {
+                if (partition != reject_partition) {
+                    this.decrementCounter(partition, false);
+                }
+            } // FOR
+            // The last one should call the actual abort
+            this.abort(reject_partition, response.getStatus());        
         } else {
             for (Integer partition : response.getPartitionsList()) {
                 this.run(partition.intValue());
             } // FOR
         }
+    }
+    
+    @Override
+    public String toString() {
+        String ret = super.toString();
+        ret += "\n-------------\n";
+        ret += String.format("ReceivedPartitions=%s / AllPartitions=%s\n",
+                             this.getReceivedPartitions(), this.getPartitions());
+        ret += StringUtil.join("\n", this.responses);
+        return (ret);
     }
 }

@@ -138,6 +138,13 @@ public enum TransactionCounter {
             case PREFETCH_REMOTE:
                 total = RECEIVED.get();
                 break;
+            case SPECULATIVE_SP1:
+            case SPECULATIVE_SP2_AFTER:
+            case SPECULATIVE_SP2_BEFORE:
+            case SPECULATIVE_SP3_LOCAL:
+            case SPECULATIVE_SP3_REMOTE:
+                total = SPECULATIVE.get();
+                break;
             case COMPLETED:
                 return (null);
             default:

@@ -13,7 +13,7 @@ public interface TransactionCallback extends Poolable {
      * Mark this callback as aborted with the given status.
      * @param status
      */
-    public void abort(Status status);
+    public void abort(int partition, Status status);
     /**
      * Returns true if this callback has invoked the abortCallback() method
      */

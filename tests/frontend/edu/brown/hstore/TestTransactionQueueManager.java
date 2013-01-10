@@ -130,7 +130,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     private boolean addToQueue(LocalTransaction txn, MockCallback callback) {
         boolean ret = true;
         for (int partition : txn.getPredictTouchedPartitions()) {
-            boolean result = this.queueManager.lockQueueInsert(txn, partition, callback);
+            boolean result = (this.queueManager.lockQueueInsert(txn, partition, callback) == Status.OK);
             ret = ret && result;
         } // FOR
         return (ret);

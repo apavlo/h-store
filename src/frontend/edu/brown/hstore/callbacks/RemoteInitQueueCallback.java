@@ -172,7 +172,7 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
     }
     
     @Override
-    protected void abortCallback(Status status) {
+    protected void abortCallback(int partition, Status status) {
         // Uh... this might have already been sent out?
         if (this.builder != null) {
             if (debug.val)
@@ -186,6 +186,7 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
             this.builder.setStatus(status);
             this.builder.clearPartitions();
             this.builder.addAllPartitions(this.getPartitions());
+            this.builder.setRejectPartition(partition);
             
             assert(this.origCallback != null) :
                 String.format("The original callback for %s is null!", this.ts);

@@ -2564,8 +2564,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void queueDeleteTransaction(Long txn_id, Status status) {
         assert(txn_id != null) : "Unexpected null transaction id";
-        if (trace.val)
-            LOG.trace(String.format("Queueing txn #%d for deletion [status=%s]", txn_id, status));
+        if (debug.val)
+            LOG.debug(String.format("Queueing txn #%d for deletion [status=%s]", txn_id, status));
         
         // Update Transaction profiler
         // We want to call this before we queue it so that the post-finish time is more accurate

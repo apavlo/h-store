@@ -53,6 +53,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
      * below the throttleRelease,
      */
     private boolean throttled;
+    private final int origThrottleThreshold;
     private int throttleThreshold;
     private int throttleRelease;
     private double throttleReleaseFactor;
@@ -100,6 +101,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
         this.throttled = false;
         
         this.throttleThreshold = throttleThreshold;
+        this.origThrottleThreshold = throttleThreshold;
         this.throttleReleaseFactor = throttleReleaseFactor;
         this.autoDelta = autoDelta;
         this.autoMinSize = autoMinSize;
@@ -182,6 +184,14 @@ public class ThrottlingQueue<E> implements Queue<E> {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
 
+    public void reset() {
+        this.throttleThreshold = this.origThrottleThreshold;
+        this.throttled = false;
+        int new_size = this.queue.size();
+        this.size.lazySet(new_size);
+        this.checkThrottling(false, new_size);
+    }
+    
     /**
      * Returns true if this queue is currently throttled.
      * @return

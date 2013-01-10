@@ -1436,7 +1436,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 InitializeTxnMessage initMsg = (InitializeTxnMessage)msg;
                 AbstractTransaction ts = initMsg.getTransaction();
                 TransactionCallback callback = ts.getTransactionInitQueueCallback();
-                callback.abort(Status.ABORT_REJECT);
+                callback.abort(this.partitionId, Status.ABORT_REJECT);
             }
             // -------------------------------
             // StartTxnMessage

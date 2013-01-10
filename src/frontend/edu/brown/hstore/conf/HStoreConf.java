@@ -1039,7 +1039,8 @@ public final class HStoreConf {
         public boolean status_check_for_zombies;
         
         @ConfigProperty(
-            description="When this property is set to true, HStoreSite status will include transaction information",
+            description="When this property is set to true, HStoreSite status will include transaction " +
+            		    "information in its output.",
             defaultBoolean=false,
             experimental=false
         )

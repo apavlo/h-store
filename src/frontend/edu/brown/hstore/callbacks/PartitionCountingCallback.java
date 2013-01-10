@@ -235,15 +235,18 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param delta
      * @return Returns the new value of the counter
      */
-//    public final int decrementCounter(int delta) {
-//        int new_count = this.counter.addAndGet(-1 * delta); 
-//        if (debug.val) LOG.debug(String.format("%s - Decremented %s / COUNTER: %d - %d = %s",
-//                                   this.ts, this.getClass().getSimpleName(), new_count+delta, delta, new_count));
-//        assert(new_count >= 0) :
-//            "Invalid negative " + this.getClass().getSimpleName() + " counter for " + this.ts;
-//        if (new_count == 0) this.unblock();
-//        return (new_count);
-//    }
+    protected final int decrementCounter(int partition, boolean allow_unblock) {
+        int delta = 1;
+        int new_count = this.counter.addAndGet(-1 * delta);
+        if (debug.val)
+            LOG.debug(String.format("%s - Decremented %s / COUNTER: %d - %d = %s",
+                      this.ts, this.getClass().getSimpleName(), new_count+delta, delta, new_count));
+        assert(new_count >= 0) :
+            "Invalid negative " + this.getClass().getSimpleName() + " counter for " + this.ts;
+        this.receivedPartitions.add(partition);
+        if (new_count == 0 && allow_unblock) this.unblock();
+        return (new_count);
+    }
     
     /**
      * The implementation of the run method to process a new entry for this callback
@@ -290,7 +293,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     // ----------------------------------------------------------------------------
     
     @Override
-    public final void abort(Status status) {
+    public final void abort(int partition, Status status) {
         assert(this.ts != null) :
             String.format("Null transaction handle for txn #%s in %s [counter=%d/%d]",
                           this.orig_txn_id, this.getClass().getSimpleName(),
@@ -310,9 +313,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
             }
             
             if (debug.val)
-                LOG.debug(String.format("%s - Invoking %s.abortCallback() [hashCode=%d]",
-                          this.ts, this.getClass().getSimpleName(), this.hashCode()));
-            this.abortCallback(status);
+                LOG.debug(String.format("%s - Invoking %s.abortCallback() [partition=%d, hashCode=%d]",
+                          this.ts, this.getClass().getSimpleName(), partition, this.hashCode()));
+            this.abortCallback(partition, status);
             
             // If we abort, then we have to send out an ABORT to
             // all of the partitions that we originally sent INIT requests too
@@ -326,9 +329,12 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                     // FIXME
                 }
             }
-            this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), status);
             this.abortFinished = true;
+            this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), status);
         }
+        
+        // Always add the partition
+        this.receivedPartitions.add(partition);
     }
     
     @Override
@@ -340,7 +346,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * The callback that is invoked when the first ABORT status arrives for this transaction
      * This is guaranteed to be called only once per transaction in this method 
      */
-    protected abstract void abortCallback(Status status);
+    protected abstract void abortCallback(int partition, Status status);
 
     // ----------------------------------------------------------------------------
     // CANCEL
@@ -361,12 +367,17 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     
     @Override
     public String toString() {
-        return String.format("%s[Invoked=%s/%s, Aborted=%s/%s, Canceled=%s, Counter=%d/%d] => Deletable=%s",
-                             this.getClass().getSimpleName(), 
-                             this.unblockInvoked.get(), this.unblockFinished,
-                             this.abortInvoked.get(), this.abortFinished,
-                             this.canceled,
-                             this.counter.get(), this.getOrigCounter(),
-                             this.allCallbacksFinished()); 
+        String ret = String.format("%s[Invoked=%s/%s, Aborted=%s/%s, Canceled=%s, Counter=%d/%d] => Deletable=%s",
+                                   this.getClass().getSimpleName(), 
+                                   this.unblockInvoked.get(), this.unblockFinished,
+                                   this.abortInvoked.get(), this.abortFinished,
+                                   this.canceled,
+                                   this.counter.get(), this.getOrigCounter(),
+                                   this.allCallbacksFinished());
+        if (debug.val) {
+            ret += String.format("\nReceivedPartitions=%s / AllPartitions=%s",
+                                 this.receivedPartitions, this.partitions);
+        }
+        return (ret);
     }
 }

@@ -69,7 +69,7 @@ public class TransactionWorkCallback extends PartitionCountingCallback<AbstractT
     }
     
     @Override
-    protected void abortCallback(Status status) {
+    protected void abortCallback(int partition, Status status) {
         assert(false) : String.format("Unexpected %s for %s", status, this.ts);
     }
     

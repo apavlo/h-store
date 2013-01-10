@@ -219,7 +219,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
                 assert(callback.isInitialized());
                 boolean ret = true;
-                
+                Status status = null;
                 for (int partition : next_init.getPredictTouchedPartitions().values()) {
                     // Skip any non-local partition
                     if (this.lockQueues[partition] == null) continue;
@@ -227,12 +227,13 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     // If this txn gets rejected when we try to insert it, then we 
                     // just need to stop trying to add it to other partitions
                     if (ret) {
-                        ret = this.lockQueueInsert(next_init, partition, callback);
+                        status = this.lockQueueInsert(next_init, partition, callback);
+                        if (status != Status.OK) ret = false;
 
                     // IMPORTANT: But we still need to go through and decrement the
                     // callback's counter for those other partitions.
                     } else {
-                        callback.run(partition);
+                        callback.abort(partition, status);
                     }
                 } // FOR
                 if (ret) added++;
@@ -240,8 +241,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             
             // Requeue mispredicted local transactions
             if ((next_init == null || added > CHECK_INIT_QUEUE_LIMIT) &&
-                this.restartQueue.isEmpty() == false) {
-                
+                    this.restartQueue.isEmpty() == false) {
                 this.checkRestartQueue();
                 added = 0; 
             }
@@ -372,7 +372,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * @param callback
      * @return
      */
-    protected boolean lockQueueInsert(AbstractTransaction ts,
+    protected Status lockQueueInsert(AbstractTransaction ts,
                                       int partition,
                                       PartitionCountingCallback<? extends AbstractTransaction> callback) {
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.start();
@@ -387,7 +387,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             LOG.warn(String.format("Unexpected uninitialized %s for %s [partition=%d]",
                      callback.getClass().getSimpleName(), ts, partition));
             if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
-            return (false);
+            return (Status.ABORT_UNEXPECTED);
         }
         
         if (debug.val)
@@ -422,7 +422,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 profilers[partition].rejection_time.stopIfStarted();
                 profilers[partition].init_time.stopIfStarted();
             }
-            return (false);
+            return (Status.ABORT_RESTART);
         }
         // Our queue is overloaded. We have to reject the txnId!
         else {
@@ -439,11 +439,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 } // SYNCH
             }
             
-            if (aborted) {
-                // I don't think we need to do anything else here...
-                return (false);
-            }
-            else if (ret == false) {
+            if (ret == false) {
                 if (debug.val)
                     LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
                 	          "Throttling %s until id is greater than %s [queueSize=%d]",
@@ -454,14 +450,14 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     profilers[partition].rejection_time.stopIfStarted();
                     profilers[partition].init_time.stopIfStarted();
                 }
-                return (false);
+                return (Status.ABORT_REJECT);
             }
         }
         if (trace.val)
             LOG.trace(String.format("Added %s to initQueue for partition %d [queueSize=%d]",
                       ts, partition, this.lockQueues[partition].size()));
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
-        return (true);
+        return (Status.OK);
     }
     
     /**
@@ -478,8 +474,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + ts + " as finished on remote partition #" + partition;
         if (debug.val)
-            LOG.debug(String.format("%s is finished on partition %d. Checking whether to update queues " +
-        	          "[status=%s]",
+            LOG.debug(String.format("%s is finished on partition %d [status=%s]",
         		      ts, partition, status));
         
         // If the given txnId is the current transaction at this partition and still holds
@@ -522,19 +517,23 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 		      checkQueue, removed);
         }
         
-        // This is a local transaction that is still waiting for this partition (i.e., it hasn't
-        // been rejected yet). That means we will want to decrement the counter its Transaction
-        if (removed && status != Status.OK) {
-            if (debug.val)
-                LOG.debug(String.format("Removed %s from partition %d queue", ts, partition));
+        // Make sure that if this txn is being aborted, that everyone
+        // that is part of it knows what's going on.
+        if (status != Status.OK) {
+             if (debug.val && removed)
+                LOG.warn(String.format("Removed %s from partition %d queue", ts, partition));
             PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
-            try {
-                if (callback.isAborted() == false) callback.abort(status);
-            } catch (Throwable ex) {
-                String msg = String.format("Unexpected error when trying to abort %s on partition %d [status=%s]",
-                                           ts, partition, status);
-                if (debug.val) LOG.warn(msg, ex);
-                throw new RuntimeException(msg, ex);
+            if (callback.isUnblocked() == false && callback.isAborted() == false) {
+                try {
+                    callback.abort(partition, status);
+                } catch (Throwable ex) {
+                    String msg = String.format("Unexpected error when trying to abort txn %s " +
+                                               "[status=%s, partition=%d]\n" +
+                                               "Failed Callback: %s",
+                                               ts, status, partition, callback);
+                    if (debug.val) LOG.warn(msg, ex); 
+                    throw new RuntimeException(msg, ex);
+                }
             }
         }
     }
@@ -568,31 +567,19 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             		  "[status=%s, valid=%s]",
                       ts, reject_partition, reject_txnId, status, is_valid));
         }
-        
+
+        // Always report the txn as aborted so that we can make sure
+        // that the callback's counter is decremented properly.
         PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
-        
-        // First send back an ABORT message to the initiating HStoreSite (if we haven't already)
-        if (callback.isAborted() == false && callback.isUnblocked() == false) {
-            // reject_txnId = Long.valueOf(reject_txnId.longValue() + 5); // HACK
-            // assert(ts.getTransactionId().equals(reject_txnId) == false) :
-            //     String.format("Aborted txn %s's rejection txnId is also %d [status=%s]", ts, reject_txnId, status);
-            try {
-                callback.abort(status);
-                // We need to do this here to make sure that the txn can get cleaned up
-                callback.run(reject_partition);
-//                if (status == Status.ABORT_RESTART || status == Status.ABORT_REJECT) {
-//                    callback.abort(status, reject_partition, reject_txnId);    
-//                } else {
-//                    callback.abort(status);
-//                }
-            } catch (Throwable ex) {
-                String msg = String.format("Unexpected error when trying to abort txn %s " +
-                                           "[status=%s, rejectPartition=%d, rejectTxnId=%s]\n" +
-                                           "Failed Callback: %s",
-                                           ts, status, reject_partition, reject_txnId, callback);
-                if (debug.val) LOG.warn(msg, ex); 
-                throw new RuntimeException(msg, ex);
-            }
+        try {
+            callback.abort(reject_partition, status);
+        } catch (Throwable ex) {
+            String msg = String.format("Unexpected error when trying to abort txn %s " +
+                                       "[status=%s, rejectPartition=%d, rejectTxnId=%s]\n" +
+                                       "Failed Callback: %s",
+                                       ts, status, reject_partition, reject_txnId, callback);
+            if (debug.val) LOG.warn(msg, ex); 
+            throw new RuntimeException(msg, ex);
         }
     }
     
@@ -626,6 +613,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     /**
      * Queue a transaction that was aborted so it can be restarted later on.
      * This is a non-blocking call.
+     * The transaction could be queued for deletion before this method returns.
      * @param ts
      * @param status
      */

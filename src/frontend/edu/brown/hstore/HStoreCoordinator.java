@@ -774,8 +774,9 @@ public class HStoreCoordinator implements Shutdownable {
                 prefetch_ctr += requests[site_id].getPrefetchFragmentsCount();
             } // FOR
             assert(sent_ctr > 0) : "No TransactionInitRequests available for " + ts;
-            if (debug.val) LOG.debug(String.format("%s - Sent %d TransactionInitRequests with %d prefetch WorkFragments",
-                             ts, sent_ctr, prefetch_ctr));
+            if (debug.val)
+                LOG.debug(String.format("%s - Sent %d TransactionInitRequests with %d prefetch WorkFragments",
+                          ts, sent_ctr, prefetch_ctr));
             
         }
         // Otherwise we will send the same TransactionInitRequest to all of the remote sites 
