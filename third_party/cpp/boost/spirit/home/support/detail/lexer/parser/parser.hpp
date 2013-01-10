@@ -1,5 +1,5 @@
 // parser.hpp
-// Copyright (c) 2007-2008 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2007-2009 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -51,10 +51,10 @@ Grammar:
 <DUPLICATE>  -> '?' | '*' | '+' | '{n[,[m]]}'
 */
     static node *parse (const CharT *start_, const CharT * const end_,
-        const std::size_t id_, const std::size_t dfa_state_,
-        const regex_flags flags_, const std::locale &locale_,
-        node_ptr_vector &node_ptr_vector_, const macro_map &macromap_,
-        typename tokeniser::token_map &map_,
+        const std::size_t id_, const std::size_t unique_id_,
+        const std::size_t dfa_state_, const regex_flags flags_,
+        const std::locale &locale_, node_ptr_vector &node_ptr_vector_,
+        const macro_map &macromap_, typename tokeniser::token_map &map_,
         bool &seen_BOL_assertion_, bool &seen_EOL_assertion_)
     {
         node *root_ = 0;
@@ -114,13 +114,14 @@ Grammar:
         }
         else
         {
-            node_ptr_vector_->push_back (0);
+            node_ptr_vector_->push_back (static_cast<end_node *>(0));
 
-            node *rhs_node_ = new end_node (id_, dfa_state_);
+            node *rhs_node_ = new end_node (id_, unique_id_, dfa_state_);
 
             node_ptr_vector_->back () = rhs_node_;
-            node_ptr_vector_->push_back (0);
-            node_ptr_vector_->back () = new sequence_node (lhs_node_, rhs_node_);
+            node_ptr_vector_->push_back (static_cast<sequence_node *>(0));
+            node_ptr_vector_->back () = new sequence_node
+                (lhs_node_, rhs_node_);
             root_ = node_ptr_vector_->back ();
         }
 
@@ -252,7 +253,7 @@ private:
         node_ptr_vector &node_ptr_vector_, tree_node_stack &tree_node_stack_)
     {
         assert (handle_.top ()._type == token::SUB &&
-            handle_.size () == 1 || handle_.size () == 2);
+            (handle_.size () == 1 || handle_.size () == 2));
 
         if (handle_.size () == 1)
         {
@@ -291,7 +292,7 @@ private:
         assert (handle_.top ()._type == token::CHARSET &&
             handle_.size () == 1);
         // store charset
-        node_ptr_vector_->push_back (0);
+        node_ptr_vector_->push_back (static_cast<leaf_node *>(0));
 
         const size_t id_ = handle_.top ()._id;
 
@@ -353,7 +354,7 @@ private:
 
         node *lhs_ = tree_node_stack_.top ();
 
-        node_ptr_vector_->push_back (0);
+        node_ptr_vector_->push_back (static_cast<selection_node *>(0));
         node_ptr_vector_->back () = new selection_node (lhs_, rhs_);
         tree_node_stack_.top () = node_ptr_vector_->back ();
     }
@@ -367,7 +368,7 @@ private:
 
         node *lhs_ = tree_node_stack_.top ();
 
-        node_ptr_vector_->push_back (0);
+        node_ptr_vector_->push_back (static_cast<sequence_node *>(0));
         node_ptr_vector_->back () = new sequence_node (lhs_, rhs_);
         tree_node_stack_.top () = node_ptr_vector_->back ();
     }
@@ -378,7 +379,7 @@ private:
         // perform ?
         node *lhs_ = tree_node_stack_.top ();
         // You don't know if lhs_ is a leaf_node, so get firstpos.
-        node::node_vector &firstpos_ = lhs_->firstpos();
+        node::node_vector &firstpos_ = lhs_->firstpos ();
 
         for (node::node_vector::iterator iter_ = firstpos_.begin (),
             end_ = firstpos_.end (); iter_ != end_; ++iter_)
@@ -387,12 +388,12 @@ private:
             (*iter_)->greedy (greedy_);
         }
 
-        node_ptr_vector_->push_back (0);
+        node_ptr_vector_->push_back (static_cast<leaf_node *>(0));
 
         node *rhs_ = new leaf_node (null_token, greedy_);
 
         node_ptr_vector_->back () = rhs_;
-        node_ptr_vector_->push_back (0);
+        node_ptr_vector_->push_back (static_cast<selection_node *>(0));
         node_ptr_vector_->back () = new selection_node (lhs_, rhs_);
         tree_node_stack_.top () = node_ptr_vector_->back ();
     }
@@ -403,7 +404,7 @@ private:
         // perform *
         node *ptr_ = tree_node_stack_.top ();
 
-        node_ptr_vector_->push_back (0);
+        node_ptr_vector_->push_back (static_cast<iteration_node *>(0));
         node_ptr_vector_->back () = new iteration_node (ptr_, greedy_);
         tree_node_stack_.top () = node_ptr_vector_->back ();
     }
@@ -415,16 +416,17 @@ private:
         node *lhs_ = tree_node_stack_.top ();
         node *copy_ = lhs_->copy (node_ptr_vector_);
 
-        node_ptr_vector_->push_back (0);
+        node_ptr_vector_->push_back (static_cast<iteration_node *>(0));
 
         node *rhs_ = new iteration_node (copy_, greedy_);
 
         node_ptr_vector_->back () = rhs_;
-        node_ptr_vector_->push_back (0);
+        node_ptr_vector_->push_back (static_cast<sequence_node *>(0));
         node_ptr_vector_->back () = new sequence_node (lhs_, rhs_);
         tree_node_stack_.top () = node_ptr_vector_->back ();
     }
 
+    // This is one of the most mind bending routines in this code...
     static void repeatn (const bool greedy_, const token &token_,
         node_ptr_vector &node_ptr_vector_, tree_node_stack &tree_node_stack_)
     {
@@ -449,10 +451,8 @@ private:
 
             for (std::size_t i_ = 2; i_ < top_; ++i_)
             {
-                node *temp_ = prev_->copy (node_ptr_vector_);
-
-                curr_ = temp_;
-                tree_node_stack_.push (0);
+                curr_ = prev_->copy (node_ptr_vector_);
+                tree_node_stack_.push (static_cast<node*>(0));
                 tree_node_stack_.top () = prev_;
                 sequence (node_ptr_vector_, tree_node_stack_);
                 prev_ = curr_;
@@ -462,10 +462,8 @@ private:
             {
                 if (token_._min > 1)
                 {
-                    node *temp_ = prev_->copy (node_ptr_vector_);
-
-                    curr_ = temp_;
-                    tree_node_stack_.push (0);
+                    curr_ = prev_->copy (node_ptr_vector_);
+                    tree_node_stack_.push (static_cast<node*>(0));
                     tree_node_stack_.top () = prev_;
                     sequence (node_ptr_vector_, tree_node_stack_);
                     prev_ = curr_;
@@ -473,23 +471,18 @@ private:
 
                 if (token_._comma && token_._max)
                 {
-                    tree_node_stack_.push (0);
+                    tree_node_stack_.push (static_cast<node*>(0));
                     tree_node_stack_.top () = prev_;
                     optional (greedy_, node_ptr_vector_, tree_node_stack_);
-
-                    node *temp_ = tree_node_stack_.top ();
-
+                    prev_ = tree_node_stack_.top ();
                     tree_node_stack_.pop ();
-                    prev_ = temp_;
 
                     const std::size_t count_ = token_._max - token_._min;
 
                     for (std::size_t i_ = 1; i_ < count_; ++i_)
                     {
-                        node *temp_ = prev_->copy (node_ptr_vector_);
-
-                        curr_ = temp_;
-                        tree_node_stack_.push (0);
+                        curr_ = prev_->copy (node_ptr_vector_);
+                        tree_node_stack_.push (static_cast<node*>(0));
                         tree_node_stack_.top () = prev_;
                         sequence (node_ptr_vector_, tree_node_stack_);
                         prev_ = curr_;
@@ -497,18 +490,15 @@ private:
                 }
                 else
                 {
-                    tree_node_stack_.push (0);
+                    tree_node_stack_.push (static_cast<node*>(0));
                     tree_node_stack_.top () = prev_;
                     zero_or_more (greedy_, node_ptr_vector_, tree_node_stack_);
-
-                    node *temp_ = tree_node_stack_.top ();
-
-                    prev_ = temp_;
+                    prev_ = tree_node_stack_.top ();
                     tree_node_stack_.pop ();
                 }
             }
 
-            tree_node_stack_.push (0);
+            tree_node_stack_.push (static_cast<node*>(0));
             tree_node_stack_.top () = prev_;
             sequence (node_ptr_vector_, tree_node_stack_);
         }

@@ -1770,7 +1770,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         ts.markQueuedWork(this.partitionId);
         if (debug.val)
             LOG.debug(String.format("%s - Added %s to partition %d " +
-                          "work queue [size=%d]",
+                      "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
     }
@@ -1779,11 +1779,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Add a new work message to our utility queue 
      * @param work
      */
-//    public void queueUtilityWork(InternalMessage work) {
-//        if (debug.val) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
-//                                   this.partitionId, work));
-//        this.utility_queue.offer(work);
-//    }
+    public void queueUtilityWork(InternalMessage work) {
+        if (debug.val)
+            LOG.debug(String.format("Queuing utility work on partition %d\n%s",
+                      this.partitionId, work));
+        this.work_queue.offer(work);
+    }
+
     
     /**
      * Put the prepare request for the transaction into the queue
@@ -2285,6 +2287,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             result = this.executeWorkFragment(ts, fragment, parameters);
             
         } catch (EvictedTupleAccessException ex) {
+
             // XXX: What do we do if this is not a single-partition txn?
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
@@ -2640,6 +2643,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                Map<Integer, List<VoltTable>> input_deps) {
         assert(this.ee != null) : "The EE object is null. This is bad!";
         Long txn_id = ts.getTransactionId();
+
+        //LOG.info("in executePlanFragments()");
         
         // *********************************** DEBUG ***********************************
         if (debug.val) {
@@ -2735,6 +2740,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             this.lastCommittedTxnId.longValue(),
                             undoToken);
             
+        } catch(EvictedTupleAccessException ex) {
+            LOG.info("Caught EvictedTupleAccessException.");
+            error = ex;
+            throw ex;
         } catch (SerializableException ex) {
             if (debug.val)
                 LOG.error(String.format("%s - Unexpected error in the ExecutionEngine on partition %d",
@@ -3645,6 +3654,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
             }
         }
+
+//        if(status == Status.ABORT_EVICTEDACCESS) {
+//            LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
+//            
+//            this.finishWork(ts, false);
+//            this.hstore_site.transactionRestart(ts, status);
+//        }
         
         // -------------------------------
         // ALL: Transactions that need to be internally restarted
@@ -3999,7 +4015,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // that was in the middle of being executed when we were called
                 if (debug.val)
                     LOG.debug(String.format("%s - Checking %d blocked speculative transactions at " +
-                                  "partition %d [currentMode=%s]",
+                              "partition %d [currentMode=%s]",
                               ts, this.specExecBlocked.size(), this.partitionId, this.currentExecMode));
                 
                 LocalTransaction spec_ts = null;

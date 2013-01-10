@@ -19,7 +19,6 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.sysprocs.EvictTuples;
-import org.voltdb.utils.SystemStatsCollector;
 import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.RpcCallback;
@@ -39,10 +38,10 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
 /**
- * A high-level manager for the anti-cache feature
- * Most of the work is done down in the EE, so this is just an abstraction 
- * layer for now
+ * A high-level manager for the anti-cache feature Most of the work is done down in the EE,
+ * so this is just an abstraction layer for now
  * @author pavlo
+ * @author jdebrabant
  */
 public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.QueueEntry> {
     private static final Logger LOG = Logger.getLogger(AntiCacheManager.class);
@@ -52,18 +51,24 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
+    // TODO: These should be moved into HStoreConf
     
+    // public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1MB
+    public static final long DEFAULT_MEMORY_THRESHOLD_MB = 2;
+
+    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 51200; // 50 kb
+    // public static final long DEFAULT_MEMORY_THRESHOLD_MB = 512;
+
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY
     // ----------------------------------------------------------------------------
-    
+
     protected class QueueEntry {
         final LocalTransaction ts;
         final int partition;
         final Table catalog_tbl;
         final short block_ids[];
-        
+
         public QueueEntry(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
             this.ts = ts;
             this.partition = partition;
@@ -71,7 +76,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             this.block_ids = block_ids;
         }
     }
-    
+
     // ----------------------------------------------------------------------------
     // INSTANCE MEMBERS
     // ----------------------------------------------------------------------------
@@ -79,35 +84,44 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     private final long availableMemory;
     private final double memoryThreshold;
     private final Collection<Table> evictableTables;
-    
+    private boolean evicted;
+    private boolean evicting;
+
     /**
      * 
      */
     private final TableStatsRequestMessage statsMessage;
-    
+
     /**
-     * The amount of memory used at each partition
-     * PartitionOffset -> Kilobytes
+     * The amount of memory used at each partition PartitionOffset -> Kilobytes
      */
     private final long partitionSizes[];
 
     /**
-     * Thread that is periodically executed to check whether the amount of
-     * memory used by this HStoreSite is over the threshold
+     * Thread that is periodically executed to check whether the amount of memory used by this HStoreSite is over the
+     * threshold
      */
     private final ExceptionHandlingRunnable memoryMonitor = new ExceptionHandlingRunnable() {
         @Override
         public void runImpl() {
             try {
+                // update all the partition sizes
+                for (Integer p : hstore_site.getLocalPartitionIds()) {
+                    getPartitionSize(p.intValue());
+                }
+
+                // check to see if we should start eviction
                 if (hstore_conf.site.anticache_enable && checkEviction()) {
+                    evicted = true;
                     executeEviction();
                 }
+
             } catch (Throwable ex) {
                 ex.printStackTrace();
             }
         }
     };
-    
+
     /**
      * Local RpcCallback that will notify us when one of our eviction sysprocs is finished
      */
@@ -115,34 +129,37 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         @Override
         public void run(ClientResponseImpl parameter) {
             LOG.info("Eviction Response:\n" + VoltTableUtil.format(parameter.getResults()));
-            LOG.info(String.format("Execution Time: %.1f sec", parameter.getClusterRoundtrip() / 1000d));
+            LOG.info(String.format("Execution Time: %.1f sec\n", parameter.getClusterRoundtrip() / 1000d));
+
+            evicting = false;
         }
     };
-    
+
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
-    
+
     protected AntiCacheManager(HStoreSite hstore_site) {
-        super(hstore_site,
-              HStoreConstants.THREAD_NAME_ANTICACHE,
-              new LinkedBlockingQueue<QueueEntry>(),
-              false);
-        
+        super(hstore_site, HStoreConstants.THREAD_NAME_ANTICACHE, new LinkedBlockingQueue<QueueEntry>(), false);
+
+        this.evicting = false;
+        this.evicted = false;
+
         // XXX: Do we want to use Runtime.getRuntime().maxMemory() instead?
         // XXX: We could also use Runtime.getRuntime().totalMemory() instead of getting table stats
-//        this.availableMemory = Runtime.getRuntime().maxMemory();
+        // this.availableMemory = Runtime.getRuntime().maxMemory();
         this.availableMemory = hstore_conf.site.memory * 1024l * 1024l;
         if (debug.val)
             LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
-        
+
         CatalogContext catalogContext = hstore_site.getCatalogContext();
-        this.memoryThreshold = hstore_conf.site.anticache_threshold;
-        this.evictableTables = catalogContext.getEvictableTables(); 
-                
+        // this.memoryThreshold = hstore_conf.site.anticache_threshold;
+        this.memoryThreshold = DEFAULT_MEMORY_THRESHOLD_MB;
+        this.evictableTables = catalogContext.getEvictableTables();
+
         this.partitionSizes = new long[hstore_site.getLocalPartitionIds().size()];
         Arrays.fill(this.partitionSizes, 0);
-        
+
         this.statsMessage = new TableStatsRequestMessage(catalogContext.getDataTables());
         this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
             @Override
@@ -151,94 +168,116 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             }
         });
     }
-    
+
     public Collection<Table> getEvictableTables() {
         return (this.evictableTables);
     }
-    
+
     public Runnable getMemoryMonitorThread() {
         return this.memoryMonitor;
     }
-    
+
     // ----------------------------------------------------------------------------
     // TRANSACTION PROCESSING
     // ----------------------------------------------------------------------------
-    
+
     @Override
     protected void processingCallback(QueueEntry next) {
         // We need to get the EE handle for the partition that this txn
         // needs to have read in some blocks from disk
         PartitionExecutor executor = hstore_site.getPartitionExecutor(next.partition);
         ExecutionEngine ee = executor.getExecutionEngine();
-        
+
         // We can now tell it to read in the blocks that this txn needs
         // Note that we are doing this without checking whether another txn is already
         // running. That's because reading in unevicted tuples is a two-stage process.
-        // First we read the blocks from disk in a standalone buffer. Then once we 
-        // know that all of the tuples that we need are there, we will requeue the txn, 
+        // First we read the blocks from disk in a standalone buffer. Then once we
+        // know that all of the tuples that we need are there, we will requeue the txn,
         // which knows that it needs to tell the EE to merge in the results from this buffer
         // before it executes anything.
-        // 
+        //
         // TODO: We may want to create a HStoreConf option that allows to dispatch this
-        //       request asynchronously per partition. For now we're just going to
-        //       block the AntiCacheManager until each of the requests are finished
+        // request asynchronously per partition. For now we're just going to
+        // block the AntiCacheManager until each of the requests are finished
         try {
+            LOG.info("Asking EE to read in evicted blocks.");
+
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids);
         } catch (SerializableException ex) {
-            
+            LOG.info("Caught unexpected SerializableException.");
         }
-        
+
         // Now go ahead and requeue our transaction
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
         this.hstore_site.transactionStart(next.ts);
-        
     }
-    
+
     @Override
     protected void removeCallback(QueueEntry next) {
         this.hstore_site.transactionReject(next.ts, Status.ABORT_GRACEFUL);
     }
 
-    
     /**
-     * Queue a transaction that needs to wait until the evicted blocks at the target Table 
-     * are read back in at the given partition. This is a non-blocking call.
-     * The AntiCacheManager will figure out when it's ready to get these blocks back in
-     * <B>Note:</B> The given LocalTransaction handle must not have been already started. 
-     * @param ts - A new LocalTransaction handle created from an aborted transaction
-     * @param partition - The partitionId that we need to read evicted tuples from
-     * @param catalog_tbl - The table catalog
-     * @param block_ids - The list of blockIds that need to be read in for the table
+     * Queue a transaction that needs to wait until the evicted blocks at the target Table are read back in at the given
+     * partition. This is a non-blocking call. The AntiCacheManager will figure out when it's ready to get these blocks
+     * back in <B>Note:</B> The given LocalTransaction handle must not have been already started.
+     * 
+     * @param ts
+     *            - A new LocalTransaction handle created from an aborted transaction
+     * @param partition
+     *            - The partitionId that we need to read evicted tuples from
+     * @param catalog_tbl
+     *            - The table catalog
+     * @param block_ids
+     *            - The list of blockIds that need to be read in for the table
      */
     public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
         QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids);
-        
+
         // TODO: We should check whether there are any other txns that are also blocked waiting
         // for these blocks. This will ensure that we don't try to read in blocks twice.
-        
+
+        LOG.info("Queueing a transaction for partition " + partition);
+
         return (this.queue.offer(e));
     }
-    
+
     // ----------------------------------------------------------------------------
     // EVICTION INITIATION
     // ----------------------------------------------------------------------------
-    
+
     /**
-     * Check whether the amount of memory used by this HStoreSite is above
-     * the eviction threshold.
+     * Check whether the amount of memory used by this HStoreSite is above the eviction threshold.
      */
     protected boolean checkEviction() {
-        SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
-        LOG.info("Current Memory Status:\n" + stats);
-        
-        
-        // return (usage >= this.memoryThreshold);
-        return (false);
+        if (this.evicting) { // Is this thread safe? Does it matter?
+            return false;
+        }
+
+        // SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
+        // LOG.info("Current Memory Status:\n" + stats);
+
+        // double usage = (stats.javausedheapmem / (double)stats.javatotalheapmem) * 100;
+
+        // LOG.info("Current Memory Usage: " + usage);
+
+        long total_size_kb = 0;
+        for (int i = 0; i < hstore_site.getLocalPartitionIds().size(); i++) {
+            total_size_kb += partitionSizes[i];
+        }
+
+        LOG.info("Current Memory Usage: " + (total_size_kb / 1024) + " MB");
+
+        return ((total_size_kb / 1024) >= DEFAULT_MEMORY_THRESHOLD_MB);
     }
-    
+
     protected void executeEviction() {
         // Invoke our special sysproc that will tell the EE to evict some blocks
         // to save us space.
+
+        evicting = true;
+
+        LOG.info("Evicting block.");
 
         String tableNames[] = new String[this.evictableTables.size()];
         long evictBytes[] = new long[this.evictableTables.size()];
@@ -249,10 +288,10 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             evictBytes[i] = DEFAULT_EVICTED_BLOCK_SIZE;
             i++;
         } // FOR
-        Object params[] = new Object[]{ HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
+        Object params[] = new Object[] { HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
         String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
         StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
-         
+
         for (int p : hstore_site.getLocalPartitionIds().values()) {
             invocation.getParams().toArray()[0] = p;
             ByteBuffer b = null;
@@ -264,11 +303,17 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             this.hstore_site.invocationProcess(b, this.evictionCallback);
         } // FOR
     }
-    
+
     // ----------------------------------------------------------------------------
     // MEMORY MANAGEMENT METHODS
     // ----------------------------------------------------------------------------
-    
+
+    protected void getPartitionSize(int partition) {
+        // Queue up a utility work operation at the PartitionExecutor so
+        // that we can get the total size of the partition
+        hstore_site.getPartitionExecutor(partition).queueUtilityWork(this.statsMessage);
+    }
+
     protected void updatePartitionStats(VoltTable vt) {
         long totalSizeKb = 0;
         int partition = -1;
@@ -276,45 +321,44 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         vt.resetRowPosition();
         while (vt.advanceRow()) {
             if (memory_idx == -1) {
-                partition = (int)vt.getLong("PARTITION_ID");
+                partition = (int) vt.getLong("PARTITION_ID");
                 memory_idx = vt.getColumnIndex("TUPLE_DATA_MEMORY");
             }
             totalSizeKb += vt.getLong(memory_idx);
         } // WHILE
-        
+
         // TODO: If the total size is greater than some threshold, then
-        //       we need to initiate the eviction process
+        // we need to initiate the eviction process
         int offset = hstore_site.getLocalPartitionOffset(partition);
         if (debug.val)
-            LOG.debug(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
-                                    partition, totalSizeKb, this.partitionSizes[offset])); 
+            LOG.debug(String.format("Partition #%d Size - New:%dkb / Old:%dkb", partition, totalSizeKb,
+                      this.partitionSizes[offset]));
         this.partitionSizes[offset] = totalSizeKb;
     }
-    
+
     // ----------------------------------------------------------------------------
     // STATIC HELPER METHODS
     // ----------------------------------------------------------------------------
 
     /**
-     * Returns the directory where the EE should store the anti-cache
-     * database for this PartitionExecutor
+     * Returns the directory where the EE should store the anti-cache database for this PartitionExecutor
+     * 
      * @return
      */
     public static File getDatabaseDir(PartitionExecutor executor) {
         HStoreConf hstore_conf = executor.getHStoreConf();
         Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
-        
+
         // First make sure that our base directory exists
-        String base_dir = FileUtil.realpath(hstore_conf.site.anticache_dir + 
+        String base_dir = FileUtil.realpath(hstore_conf.site.anticache_dir +
                                             File.separatorChar +
                                             catalog_db.getProject());
         synchronized (AntiCacheManager.class) {
             FileUtil.makeDirIfNotExists(base_dir);
         } // SYNCH
-        
+
         // Then each partition will have a separate directory inside of the base one
-        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),
-                                                                       executor.getPartitionId());
+        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(), executor.getPartitionId());
 
         File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
         if (hstore_conf.site.anticache_reset) {
@@ -322,8 +366,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             FileUtil.deleteDirectory(dbDirPath);
         }
         FileUtil.makeDirIfNotExists(dbDirPath);
-        
+
         return (dbDirPath);
     }
-    
+
 }

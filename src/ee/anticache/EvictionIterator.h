@@ -67,8 +67,10 @@ private:
     
     Table *table;     
     int current_tuple_id; 
+	TableTuple* current_tuple;
 }; 
 
 }
 
 #endif
+

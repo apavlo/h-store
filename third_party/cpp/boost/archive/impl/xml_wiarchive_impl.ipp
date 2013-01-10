@@ -146,7 +146,9 @@ template<class Archive>
 BOOST_WARCHIVE_DECL(void)
 xml_wiarchive_impl<Archive>::init(){
     gimpl->init(is);
-    this->set_library_version(gimpl->rv.version);
+    this->set_library_version(
+        library_version_type(gimpl->rv.version)
+    );
 }
 
 template<class Archive>

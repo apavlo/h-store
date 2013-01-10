@@ -7,7 +7,7 @@
  *
  * See http://www.boost.org for most recent version including documentation.
  *
- * $Id: discard_block.hpp 53871 2009-06-13 17:54:06Z steven_watanabe $
+ * $Id: discard_block.hpp 60755 2010-03-22 00:45:06Z steven_watanabe $
  *
  * Revision history
  *  2001-03-02  created
@@ -26,6 +26,15 @@
 namespace boost {
 namespace random {
 
+/**
+ * The class template \discard_block is a model of
+ * \pseudo_random_number_generator.  It modifies
+ * another generator by discarding parts of its output.
+ * Out of every block of @c r results, the first @c p
+ * will be returned and the rest discarded.
+ *
+ * Requires: 0 < p <= r
+ */
 template<class UniformRandomNumberGenerator, unsigned int p, unsigned int r>
 class discard_block
 {

@@ -81,6 +81,13 @@ public abstract class WikipediaConstants {
 	public static final double REVISION_USER_SIGMA = 1.0001d;
 	
 	public static final int TRACE_DATA_SCALE = 10000;
+    
+    /**
+     * How likely is a user to look at past revision
+     */
+    public static final double PAST_REV_CHECK_PROB = 0.03;
+    
+    public static final double PAST_REV_ZIPF_SKEW = 4.0;
 	
     // ----------------------------------------------------------------
     // DATA SET INFORMATION

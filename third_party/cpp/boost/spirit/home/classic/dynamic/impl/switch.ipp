@@ -508,7 +508,7 @@ struct cond_actor {
     template <typename ScannerT>
     struct result
     {
-        typedef typename phoenix::actor_result<ActorT, phoenix::tuple<> >::type
+        typedef typename ::phoenix::actor_result<ActorT, ::phoenix::tuple<> >::type
             type;
     };
 

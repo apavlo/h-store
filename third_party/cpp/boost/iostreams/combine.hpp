@@ -45,6 +45,10 @@ namespace detail {
 //
 template<typename Source, typename Sink>
 class combined_device {
+private:
+    typedef typename category_of<Source>::type  in_category;
+    typedef typename category_of<Sink>::type    out_category;
+    typedef typename char_type_of<Sink>::type   sink_char_type;
 public:
     typedef typename char_type_of<Source>::type char_type;
     struct category
@@ -53,6 +57,11 @@ public:
           closable_tag, 
           localizable_tag
         { };
+    BOOST_STATIC_ASSERT(is_device<Source>::value);
+    BOOST_STATIC_ASSERT(is_device<Sink>::value);
+    BOOST_STATIC_ASSERT((is_convertible<in_category, input>::value));
+    BOOST_STATIC_ASSERT((is_convertible<out_category, output>::value));
+    BOOST_STATIC_ASSERT((is_same<char_type, sink_char_type>::value));
     combined_device(const Source& src, const Sink& snk);
     std::streamsize read(char_type* s, std::streamsize n);
     std::streamsize write(const char_type* s, std::streamsize n);
@@ -61,8 +70,6 @@ public:
         void imbue(const std::locale& loc);
     #endif
 private:
-    typedef typename char_type_of<Sink>::type sink_char_type;
-    BOOST_STATIC_ASSERT((is_same<char_type, sink_char_type>::value));
     Source  src_;
     Sink    sink_;
 };
@@ -81,6 +88,7 @@ class combined_filter {
 private:
     typedef typename category_of<InputFilter>::type    in_category;
     typedef typename category_of<OutputFilter>::type   out_category;
+    typedef typename char_type_of<OutputFilter>::type  output_char_type;
 public:
     typedef typename char_type_of<InputFilter>::type   char_type;
     struct category 
@@ -88,6 +96,11 @@ public:
           closable_tag, 
           localizable_tag
         { };
+    BOOST_STATIC_ASSERT(is_filter<InputFilter>::value);
+    BOOST_STATIC_ASSERT(is_filter<OutputFilter>::value);
+    BOOST_STATIC_ASSERT((is_convertible<in_category, input>::value));
+    BOOST_STATIC_ASSERT((is_convertible<out_category, output>::value));
+    BOOST_STATIC_ASSERT((is_same<char_type, output_char_type>::value));
     combined_filter(const InputFilter& in, const OutputFilter& out);
 
     template<typename Source>
@@ -120,8 +133,6 @@ public:
         void imbue(const std::locale& loc);
     #endif
 private:
-    typedef typename char_type_of<OutputFilter>::type  output_char_type;
-    BOOST_STATIC_ASSERT((is_same<char_type, output_char_type>::value));
     InputFilter   in_;
     OutputFilter  out_;
 };

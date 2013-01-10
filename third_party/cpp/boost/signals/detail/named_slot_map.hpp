@@ -127,7 +127,7 @@ public:
         || slot_ == other.slot_));
   }
 
-#if BOOST_WORKAROUND(_MSC_VER, <= 1500)
+#if BOOST_WORKAROUND(_MSC_VER, <= 1600)
   void decrement();
   void advance(difference_type);
 #endif

@@ -348,13 +348,15 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
             VOLT_DEBUG("[PlanFragment %jd] Forcing tuple count at PlanNode #%02d for txn #%jd [OutputDep=%d]",
                        (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
                        (intmax_t)txnId, m_currentOutputDepId);
-        } else {
-            VOLT_DEBUG("[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
+        } else 
+		{
+            VOLT_DEBUG("_[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
                        (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
                        (intmax_t)txnId, m_currentOutputDepId);
             try {
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
+
                 if (!executor->execute(params)) {
                     VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
                                ctr, (intmax_t)planfragmentId);
@@ -365,10 +367,13 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                     m_currentInputDepId = -1;
                     return ENGINE_ERRORCODE_ERROR;
                 }
-            } catch (SerializableEEException &e) {
+            } 
+			catch (SerializableEEException &e) {
+								
                 VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
                            ctr, (intmax_t)planfragmentId);
-                VOLT_DEBUG("SerializableEEException: %s", e.message().c_str());
+				
+                VOLT_INFO("SerializableEEException: %s", e.message().c_str());
                 if (cleanUpTable != NULL)
                     cleanUpTable->deleteAllTuples(false);
                 resetReusedResultOutputBuffer();

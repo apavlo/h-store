@@ -36,7 +36,7 @@ class ReferenceSerializeOutput;
 class EvictedTupleAccessException : public SerializableEEException {
     public:
 
-        EvictedTupleAccessException(int tableId, int numBlockIds, uint16_t blockIds[]);
+        EvictedTupleAccessException(int tableId, int numBlockIds, uint16_t blockIds[], char** tupleKeys);
         virtual ~EvictedTupleAccessException() {}
         
         static std::string ERROR_MSG;
@@ -48,6 +48,7 @@ class EvictedTupleAccessException : public SerializableEEException {
         const int m_tableId;
         const int m_numBlockIds;
         const uint16_t *m_blockIds;
+		char** m_tupleKeys; 
 };
 }
 

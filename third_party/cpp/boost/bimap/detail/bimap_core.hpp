@@ -92,24 +92,24 @@ class bimap_core
     typedef BOOST_DEDUCED_TYPENAME manage_bimap_key
     <
         RightSetType
-    
+
     >::type right_set_type;
 
-    
+
     private:
 
     typedef BOOST_DEDUCED_TYPENAME ::boost::bimaps::tags::support::default_tagged
-    < 
+    <
         BOOST_DEDUCED_TYPENAME left_set_type::user_type,
-        ::boost::bimaps::relation::member_at::left 
-    
+        ::boost::bimaps::relation::member_at::left
+
     >::type left_tagged_type;
 
     typedef BOOST_DEDUCED_TYPENAME ::boost::bimaps::tags::support::default_tagged
-    < 
+    <
         BOOST_DEDUCED_TYPENAME right_set_type::user_type,
         ::boost::bimaps::relation::member_at::right
-    
+
     >::type right_tagged_type;
 
     public:

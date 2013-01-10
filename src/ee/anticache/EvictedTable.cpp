@@ -60,6 +60,10 @@ const void* EvictedTable::insertEvictedTuple(TableTuple &source) {
     // Make sure this tuple is marked as evicted, so that we know it is an
     // evicted tuple as we iterate through the index
     m_tmpTarget1.setEvictedTrue(); 
+
+	assert(m_tmpTarget1.isEvicted()); 
+	
+	//VOLT_INFO("Inserted evicted tuple %d", m_tmpTarget1.getTupleID()); 
     
     return m_tmpTarget1.address(); 
 }

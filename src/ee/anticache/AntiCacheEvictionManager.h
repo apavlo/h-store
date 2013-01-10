@@ -44,10 +44,12 @@ public:
     ~AntiCacheEvictionManager();
     
     bool updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert);
-    bool removeTupleFromChain(PersistentTable* table, int removal_id); 
-    
+    bool removeTuple(PersistentTable* table, TableTuple* tuple); 
+
     Table* evictBlock(PersistentTable *table, long blockSize);
     Table* readBlocks(PersistentTable *table, int numBlocks, uint16_t blockIds[]);
+    
+    //int numTuplesInEvictionList(); 
     
 protected:
     void initEvictResultTable();
@@ -56,6 +58,8 @@ protected:
     // TODO void initReadResultTable();
     Table *m_readResultTable;
     
+    bool removeTuple(PersistentTable* table, int removal_id); 
+
     
 }; // AntiCacheEvictionManager class
 

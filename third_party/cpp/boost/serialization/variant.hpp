@@ -46,7 +46,9 @@ namespace boost {
 namespace serialization {
 
 template<class Archive>
-struct variant_save_visitor : boost::static_visitor<> {
+struct variant_save_visitor : 
+    boost::static_visitor<> 
+{
     variant_save_visitor(Archive& ar) :
         m_ar(ar)
     {}

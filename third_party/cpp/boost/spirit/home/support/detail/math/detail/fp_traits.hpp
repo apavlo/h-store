@@ -13,6 +13,10 @@
 #   error The VAX floating point mode on VMS is not supported.
 #endif
 
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
 #include <cstring>
 
 #include <boost/assert.hpp>

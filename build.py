@@ -362,7 +362,7 @@ CTX.TESTS['storage'] = """
 ###############################################################################
 # ANTI-CACHING
 ###############################################################################
-ENABLE_ANTICACHE = False
+ENABLE_ANTICACHE = True
 if ENABLE_ANTICACHE:
     CTX.CPPFLAGS += " -DANTICACHE"
     CTX.SYSTEM_DIRS.append(os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb'))
@@ -438,3 +438,5 @@ elif CTX.TARGET == "VOLTDBIPC":
 
 if retval != 0:
     sys.exit(-1)
+    
+    
