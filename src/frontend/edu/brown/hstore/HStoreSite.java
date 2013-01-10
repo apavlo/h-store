@@ -1580,15 +1580,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Optimization: We can get the Procedure catalog handle from its procId
         Procedure catalog_proc = catalogContext.getProcedureById(procId);
-        String procName = null;
      
         // Otherwise, we have to get the procedure name and do a look up with that.
         if (catalog_proc == null) {
-            procName = StoredProcedureInvocation.getProcedureName(incomingDeserializer);
-            this.catalogContext.database.getProcedures().get(procName);
-            if (catalog_proc == null) {
-                catalog_proc = this.catalogContext.database.getProcedures().getIgnoreCase(procName);
-            }
+            String procName = StoredProcedureInvocation.getProcedureName(incomingDeserializer);
+            catalog_proc = this.catalogContext.procedures.getIgnoreCase(procName);
             if (catalog_proc == null) {
                 String msg = "Unknown procedure '" + procName + "'";
                 this.responseError(client_handle,
@@ -1598,8 +1594,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                    timestamp);
                 return;
             }
-        } else {
-            procName = catalog_proc.getName();
         }
         boolean sysproc = catalog_proc.getSystemproc();
         
@@ -1650,7 +1644,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Profiling Updates
-        if (hstore_conf.site.txn_counters) TransactionCounter.RECEIVED.inc(procName);
+        if (hstore_conf.site.txn_counters) TransactionCounter.RECEIVED.inc(catalog_proc);
         if (hstore_conf.site.profiling && base_partition != HStoreConstants.NULL_PARTITION_ID) {
             synchronized (profiler.network_incoming_partitions) {
                 profiler.network_incoming_partitions.put(base_partition);
