@@ -2311,8 +2311,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } finally {
             if (error != null) {
                 // error.printStackTrace();
-                LOG.error(String.format("%s - Unexpected %s on partition %d",
-                          ts, error.getClass().getSimpleName(), this.partitionId), error);
+                LOG.warn(String.format("%s - Unexpected %s on partition %d",
+                         ts, error.getClass().getSimpleName(), this.partitionId),
+                         (debug.val ? error : null));
             }
             // Success, but without any results???
             if (result == null && status == Status.OK) {

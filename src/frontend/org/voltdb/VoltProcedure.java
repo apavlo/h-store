@@ -581,19 +581,34 @@ public abstract class VoltProcedure implements Poolable {
             this.m_localTxnState.profiler.startExecJava();
         }
         try {
-            if (trace.val) LOG.trace(String.format("Invoking %s [params=%s, partition=%d]",
-                                     this.procMethod,
-                                     this.procParams + Arrays.toString(this.procParams),
-                                     this.partitionId));
+            if (trace.val)
+                LOG.trace(String.format("Invoking %s [params=%s, partition=%d]",
+                          this.procMethod,
+                          this.procParams + Arrays.toString(this.procParams),
+                          this.partitionId));
             try {
                 // ANTI-CACHE TABLE MERGE
                 if (hstore_conf.site.anticache_enable && txnState.hasAntiCacheMergeTable()) {
                     LOG.info("Merging blocks for anticache table.");
     
+                    if (hstore_conf.site.anticache_profiling) {
+                        this.hstore_site.getAntiCacheManager()
+                                        .getDebugContext()
+                                        .getProfiler(this.partitionId).merge_time.start();
+                    }
+                    
                     // Note that I decided to put this in here because we already
                     // have the logic down below for handling various errors from the EE
-                    Table catalog_tbl = txnState.getAntiCacheMergeTable();
-                    executor.getExecutionEngine().antiCacheMergeBlocks(catalog_tbl);
+                    try {
+                        Table catalog_tbl = txnState.getAntiCacheMergeTable();
+                        this.executor.getExecutionEngine().antiCacheMergeBlocks(catalog_tbl);
+                    } finally {
+                        if (hstore_conf.site.anticache_profiling) {
+                            this.hstore_site.getAntiCacheManager()
+                                            .getDebugContext()
+                                            .getProfiler(this.partitionId).merge_time.stopIfStarted();
+                        }
+                    }
                 }
                 
                 Object rawResult = this.procMethod.invoke(this, this.procParams);
@@ -605,7 +620,8 @@ public abstract class VoltProcedure implements Poolable {
             } catch (RuntimeException e) {
                 throw new InvocationTargetException(e);
             }
-            if (debug.val) LOG.debug(this.m_currentTxnState + " is finished on partition " + this.partitionId);
+            if (debug.val)
+                LOG.debug(this.m_currentTxnState + " is finished on partition " + this.partitionId);
             
         // -------------------------------
         // Exceptions that we can process+handle

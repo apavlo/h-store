@@ -567,6 +567,13 @@ public final class HStoreConf {
         public boolean anticache_enable;
         
         @ConfigProperty(
+            description="Enable the anti-cache profiling.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean anticache_profiling;
+        
+        @ConfigProperty(
             description="The directory to use to store the evicted tuples.",
             defaultString="${global.temp_dir}/anticache",
             experimental=true
