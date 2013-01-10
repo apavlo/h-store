@@ -578,6 +578,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             //     String.format("Aborted txn %s's rejection txnId is also %d [status=%s]", ts, reject_txnId, status);
             try {
                 callback.abort(status);
+                // We need to do this here to make sure that the txn can get cleaned up
+                callback.run(reject_partition);
 //                if (status == Status.ABORT_RESTART || status == Status.ABORT_REJECT) {
 //                    callback.abort(status, reject_partition, reject_txnId);    
 //                } else {
