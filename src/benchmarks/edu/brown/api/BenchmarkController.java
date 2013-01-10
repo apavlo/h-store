@@ -1015,10 +1015,13 @@ public class BenchmarkController {
             } // SYNCH
             
             if (skip) {
-                if (debug.val) LOG.warn(String.format("Skipping duplicate file '%s' on client host '%s'", local_file, clientHost));
+                if (debug.val)
+                    LOG.warn(String.format("Skipping duplicate file '%s' on client host '%s'",
+                             local_file, clientHost));
             } else {
-                if (debug.val) LOG.debug(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
-                                                     param, local_file, remote_file, clientHost, clientId)); 
+                if (debug.val)
+                    LOG.debug(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
+                              param, local_file, remote_file, clientHost, clientId)); 
                 SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
                 files.put(remote_file, local_file);
                 m_clientFilesUploaded.incrementAndGet();

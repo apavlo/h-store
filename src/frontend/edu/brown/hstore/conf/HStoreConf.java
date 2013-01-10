@@ -1572,7 +1572,8 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
             		    "PartitionExecutor profiling stats. Note that this will automatically enable " +
-            		    "${site.exec_profiling}, which will affect the runtime performance.",
+            		    "${site.exec_profiling}, which will affect the runtime performance." +
+            		    "Any file that exists with the same name as this will be overwritten.",
             defaultNull=true,
             experimental=false
         )
@@ -1581,7 +1582,8 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
                         "TransactionQueueManager profiling stats. Note that this will automatically enable " +
-                        "${site.queue_profiling}, which will affect the runtime performance.",
+                        "${site.queue_profiling}, which will affect the runtime performance." +
+                        "Any file that exists with the same name as this will be overwritten.",
             defaultNull=true,
             experimental=false
         )
@@ -1590,7 +1592,8 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
                         "AntiCacheManager profiling stats. Note that this will automatically enable " +
-                        "${site.anticache_profiling}, which will affect the runtime performance.",
+                        "${site.anticache_profiling}, which will affect the runtime performance. " +
+                        "Any file that exists with the same name as this will be overwritten.",
             defaultNull=true,
             experimental=false
         )
@@ -1599,7 +1602,8 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
                         "HStoreSite profiling stats. Note that this will automatically enable " +
-                        "${site.profiling}, which will affect the runtime performance.",
+                        "${site.profiling}, which will affect the runtime performance." +
+                        "Any file that exists with the same name as this will be overwritten.",
             defaultNull=true,
             experimental=false
         )
@@ -1608,7 +1612,8 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
                     "transaction profiling stats. Note that this will automatically enable " +
-                    "${site.txn_profiling}, which will affect the runtime performance.",
+                    "${site.txn_profiling}, which will affect the runtime performance." +
+                    "Any file that exists with the same name as this will be overwritten.",
             defaultNull=true,
             experimental=false
         )

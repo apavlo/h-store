@@ -314,7 +314,6 @@ final class ClientImpl implements Client {
                 }
             }
             m_queueTime.appendTime(start, ProfileMeasurement.getTime(), 1);
-            LOG.info("Sent request for " + procName);
             return true;
         } else {
             long start = ProfileMeasurement.getTime();
