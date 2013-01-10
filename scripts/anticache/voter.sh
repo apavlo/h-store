@@ -11,7 +11,7 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=true
+ENABLE_ANTICACHE=false
 
 SITE_HOST="modis2"
 
@@ -69,7 +69,7 @@ BASE_ARGS=( \
     "-Dsite.anticache_check_interval=30000" \
     "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
-    "-Dclient.interval=500" \
+#    "-Dclient.interval=500" \
     "-Dclient.anticache_enable=false" \
     "-Dclient.anticache_evict_interval=30000" \
     "-Dclient.anticache_evict_size=4194304" \
