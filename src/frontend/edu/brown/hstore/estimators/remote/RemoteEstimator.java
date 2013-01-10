@@ -32,9 +32,10 @@ public class RemoteEstimator extends TransactionEstimator {
     public RemoteEstimator(PartitionEstimator p_estimator) {
         super(p_estimator);
         
-        if (debug.val) LOG.debug("Creating MarkovEstimatorState Object Pool");
-        TypedPoolableObjectFactory<RemoteEstimatorState> s_factory = new RemoteEstimatorState.Factory(this.catalogContext); 
-        this.statesPool = new TypedObjectPool<RemoteEstimatorState>(s_factory, hstore_conf.site.pool_estimatorstates_idle);
+        if (debug.val) LOG.debug("Creating RemoteEstimatorState Object Pool");
+        TypedPoolableObjectFactory<RemoteEstimatorState> s_factory = new RemoteEstimatorState.Factory(this.catalogContext);
+        int num_idle = (int)(hstore_conf.site.network_incoming_limit_txns * hstore_conf.site.pool_scale_factor);
+        this.statesPool = new TypedObjectPool<RemoteEstimatorState>(s_factory, num_idle);
     }
 
     public void processQueryEstimate(RemoteEstimatorState state, QueryEstimate query_est, int partition) {

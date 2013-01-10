@@ -587,8 +587,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
 //                }
             } catch (Throwable ex) {
                 String msg = String.format("Unexpected error when trying to abort txn %s " +
-                                           "[status=%s, rejectPartition=%d, rejectTxnId=%s]",
-                                           ts, status, reject_partition, reject_txnId);
+                                           "[status=%s, rejectPartition=%d, rejectTxnId=%s]\n" +
+                                           "Failed Callback: %s",
+                                           ts, status, reject_partition, reject_txnId, callback);
                 if (debug.val) LOG.warn(msg, ex); 
                 throw new RuntimeException(msg, ex);
             }

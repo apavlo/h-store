@@ -662,7 +662,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will block the network connections.",
-            defaultInt=5000,
+            defaultInt=8000,
             experimental=false
         )
         public int network_incoming_limit_txns;
@@ -1089,13 +1089,13 @@ public final class HStoreConf {
         )
         public boolean pool_txn_enable;
         
-        @ConfigProperty(
-            description="The max number of LocalTransaction handles to keep in the pool per partition. " +
-            		    "This should be roughly equivalent to ${site.network_incoming_max_per_partition}.",
-            defaultInt=7000,
-            experimental=false
-        )
-        public int pool_localtxnstate_idle;
+//        @ConfigProperty(
+//            description="The max number of LocalTransaction handles to keep in the pool per partition. " +
+//            		    "This should be roughly equivalent to ${site.network_incoming_max_per_partition}.",
+//            defaultInt=7000,
+//            experimental=false
+//        )
+//        public int pool_localtxnstate_idle;
         
         @ConfigProperty(
             description="The max number of MapReduceTransactionStates to keep in the pool per partition.",
@@ -1104,14 +1104,14 @@ public final class HStoreConf {
         )
         public int pool_mapreducetxnstate_idle;
         
-        @ConfigProperty(
-            description="The max number of RemoteTransactionStates to keep in the pool per partition. " +
-                        "Depending on the workload, this should be roughly equivalent to " +
-                        "${site.network_incoming_max_per_partition}.",
-            defaultInt=1000,
-            experimental=false
-        )
-        public int pool_remotetxnstate_idle;
+//        @ConfigProperty(
+//            description="The max number of RemoteTransactionStates to keep in the pool per partition. " +
+//                        "Depending on the workload, this should be roughly equivalent to " +
+//                        "${site.network_incoming_max_per_partition}.",
+//            defaultInt=1000,
+//            experimental=false
+//        )
+//        public int pool_remotetxnstate_idle;
         
         @ConfigProperty(
             description="The max number of MarkovPathEstimators to keep in the pool per partition",
@@ -1120,21 +1120,21 @@ public final class HStoreConf {
         )
         public int pool_pathestimators_idle;
         
-        @ConfigProperty(
-            description="The max number of TransactionEstimator.States to keep in the pool. " + 
-                        "This should be the same as ${site.pool_localtxnstate_idle}.",
-            defaultInt=1000,
-            experimental=false
-        )
-        public int pool_estimatorstates_idle;
+//        @ConfigProperty(
+//            description="The max number of TransactionEstimator.States to keep in the pool. " + 
+//                        "This should be the same as ${site.pool_localtxnstate_idle}.",
+//            defaultInt=1000,
+//            experimental=false
+//        )
+//        public int pool_estimatorstates_idle;
         
-        @ConfigProperty(
-            description="The max number of DistributedStates to keep in the pool per partition." +
-                        "This should be the same as ${site.pool_localtxnstate_idle}.",
-            defaultInt=1000,
-            experimental=false
-        )
-        public int pool_dtxnstates_idle;
+//        @ConfigProperty(
+//            description="The max number of DistributedStates to keep in the pool per partition." +
+//                        "This should be the same as ${site.pool_localtxnstate_idle}.",
+//            defaultInt=1000,
+//            experimental=false
+//        )
+//        public int pool_dtxnstates_idle;
         
         @ConfigProperty(
             description="The max number of PrefetchStates to keep in the pool.",

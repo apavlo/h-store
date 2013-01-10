@@ -48,7 +48,6 @@ BASE_ARGS=( \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-    "-Dsite.pool_localtxnstate_idle=12000" \
     "-Dsite.network_incoming_limit_txns=8000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=1" \

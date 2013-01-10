@@ -184,12 +184,8 @@
 <arg value="site.pool_scale_factor=${site.pool_scale_factor}" />
 <arg value="site.pool_profiling=${site.pool_profiling}" />
 <arg value="site.pool_txn_enable=${site.pool_txn_enable}" />
-<arg value="site.pool_localtxnstate_idle=${site.pool_localtxnstate_idle}" />
 <arg value="site.pool_mapreducetxnstate_idle=${site.pool_mapreducetxnstate_idle}" />
-<arg value="site.pool_remotetxnstate_idle=${site.pool_remotetxnstate_idle}" />
 <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
-<arg value="site.pool_estimatorstates_idle=${site.pool_estimatorstates_idle}" />
-<arg value="site.pool_dtxnstates_idle=${site.pool_dtxnstates_idle}" />
 <arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
 <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
 <arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />

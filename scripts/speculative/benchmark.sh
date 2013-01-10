@@ -57,7 +57,6 @@ BASE_ARGS=( \
     "-Dsite.exec_postprocessing_threads=false" \
     "-Dsite.queue_incoming_max_per_partition=10000" \
     "-Dsite.queue_incoming_increase_max=20000" \
-    "-Dsite.pool_localtxnstate_idle=1000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.network_txn_initialization=true" \
     "-Dsite.txn_incoming_delay=2" \

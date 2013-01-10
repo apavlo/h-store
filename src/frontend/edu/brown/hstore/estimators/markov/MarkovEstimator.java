@@ -3,7 +3,6 @@ package edu.brown.hstore.estimators.markov;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -94,8 +93,9 @@ public class MarkovEstimator extends TransactionEstimator {
     /**
      * If we're using the TransactionEstimator, then we need to convert all 
      * primitive array ProcParameters into object arrays...
+     * ProcedureId -> ParameterMangler
      */
-    private final Map<Procedure, ParameterMangler> manglers;
+    private final ParameterMangler manglers[];
     
     private final MarkovEstimatorProfiler profiler;
     
@@ -119,21 +119,20 @@ public class MarkovEstimator extends TransactionEstimator {
             this.markovs.setHasher(this.hasher);
         
         // Create all of our parameter manglers
-        this.manglers = new IdentityHashMap<Procedure, ParameterMangler>();
-        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
+        this.manglers = new ParameterMangler[this.catalogContext.procedures.size() + 1];
+        for (Procedure catalog_proc : this.catalogContext.procedures) {
             if (catalog_proc.getSystemproc()) continue;
-            this.manglers.put(catalog_proc, ParameterMangler.singleton(catalog_proc));
+            this.manglers[catalog_proc.getId()] = ParameterMangler.singleton(catalog_proc);
         } // FOR
-        if (debug.val) LOG.debug(String.format("Created ParameterManglers for %d procedures",
-                                   this.manglers.size()));
         
         if (debug.val) LOG.debug("Creating MarkovPathEstimator Object Pool");
         TypedPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.catalogContext, this.p_estimator);
         this.pathEstimatorsPool = new TypedObjectPool<MarkovPathEstimator>(m_factory, hstore_conf.site.pool_pathestimators_idle);
         
         if (debug.val) LOG.debug("Creating MarkovEstimatorState Object Pool");
-        TypedPoolableObjectFactory<MarkovEstimatorState> s_factory = new MarkovEstimatorState.Factory(this.catalogContext); 
-        this.statesPool = new TypedObjectPool<MarkovEstimatorState>(s_factory, hstore_conf.site.pool_estimatorstates_idle);
+        TypedPoolableObjectFactory<MarkovEstimatorState> s_factory = new MarkovEstimatorState.Factory(this.catalogContext);
+        int num_idle = (int)(hstore_conf.site.network_incoming_limit_txns * hstore_conf.site.pool_scale_factor); 
+        this.statesPool = new TypedObjectPool<MarkovEstimatorState>(s_factory, num_idle);
         
         if (hstore_conf.site.markov_profiling) {
             this.profiler = new MarkovEstimatorProfiler();
@@ -166,7 +165,7 @@ public class MarkovEstimator extends TransactionEstimator {
         long timestamp = -1l;
         if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
         
-        ParameterMangler mangler = this.manglers.get(catalog_proc);
+        ParameterMangler mangler = this.manglers[catalog_proc.getId()];
         if (mangler != null) args = mangler.convert(args);
         
         assert (catalog_proc != null);

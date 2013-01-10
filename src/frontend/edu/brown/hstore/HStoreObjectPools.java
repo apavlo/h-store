@@ -114,12 +114,12 @@ public final class HStoreObjectPools implements Configurable {
             
             // LocalTransaction
             this.STATES_TXN_LOCAL[partition] = TypedObjectPool.factory(LocalTransaction.class,
-                (int)(hstore_conf.site.pool_localtxnstate_idle * hstore_conf.site.pool_scale_factor),
+                (int)(hstore_conf.site.network_incoming_limit_txns * 1.25 * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
             
             // DistributedState
             this.STATES_DISTRIBUTED[partition] = TypedObjectPool.factory(DistributedState.class,
-                (int)(hstore_conf.site.pool_dtxnstates_idle * hstore_conf.site.pool_scale_factor),
+                (int)(hstore_conf.site.network_incoming_limit_txns * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
         } // FOR
         
@@ -138,7 +138,7 @@ public final class HStoreObjectPools implements Configurable {
             
             // RemoteTransaction
             this.STATES_TXN_REMOTE[i] = TypedObjectPool.factory(RemoteTransaction.class,
-                (int)(hstore_conf.site.pool_remotetxnstate_idle * hstore_conf.site.pool_scale_factor),
+                (int)(hstore_conf.site.network_incoming_limit_txns * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
             
             // MapReduceTransaction
