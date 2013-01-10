@@ -7,7 +7,7 @@
  *
  * See http://www.boost.org for most recent version including documentation.
  *
- * $Id: seed.hpp 53871 2009-06-13 17:54:06Z steven_watanabe $
+ * $Id: seed.hpp 60755 2010-03-22 00:45:06Z steven_watanabe $
  */
 
 #ifndef BOOST_RANDOM_DETAIL_SEED_HPP
@@ -15,7 +15,9 @@
 
 #include <boost/config.hpp>
 
-#if !defined(BOOST_NO_SFINAE)
+// Sun seems to have trouble with the use of SFINAE for the
+// templated constructor.  So does Borland.
+#if !defined(BOOST_NO_SFINAE) && !defined(__SUNPRO_CC) && !defined(__BORLANDC__)
 
 #include <boost/utility/enable_if.hpp>
 #include <boost/type_traits/is_arithmetic.hpp>
@@ -31,8 +33,7 @@ template<class Engine, class T>
 struct disable_constructor : disable_seed<T> {};
 
 template<class Engine>
-struct disable_constructor<Engine, Engine> {
-};
+struct disable_constructor<Engine, Engine> {};
 
 #define BOOST_RANDOM_DETAIL_GENERATOR_CONSTRUCTOR(Self, Generator, gen) \
     template<class Generator>                                           \

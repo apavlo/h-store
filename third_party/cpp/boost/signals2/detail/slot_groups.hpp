@@ -46,16 +46,22 @@ namespace boost {
       template<typename Group, typename GroupCompare, typename ValueType>
       class grouped_list
       {
+      public:
+        typedef group_key_less<Group, GroupCompare> group_key_compare_type;
       private:
         typedef std::list<ValueType> list_type;
-        typedef std::map<typename group_key<Group>::type, typename list_type::iterator> map_type;
+        typedef std::map
+          <
+            typename group_key<Group>::type,
+            typename list_type::iterator,
+            group_key_compare_type
+          > map_type;
         typedef typename map_type::iterator map_iterator;
         typedef typename map_type::const_iterator const_map_iterator;
       public:
         typedef typename list_type::iterator iterator;
         typedef typename list_type::const_iterator const_iterator;
         typedef typename group_key<Group>::type group_key_type;
-        typedef group_key_less<Group, GroupCompare> group_key_compare_type;
 
         grouped_list(const group_key_compare_type &group_key_compare):
           _group_key_compare(group_key_compare)

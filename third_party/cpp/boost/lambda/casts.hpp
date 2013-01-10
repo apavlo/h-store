@@ -15,11 +15,15 @@
 #define BOOST_LAMBDA_CASTS_HPP
 
 #include "boost/lambda/detail/suppress_unused.hpp"
+#include "boost/lambda/core.hpp"
 
 #include <typeinfo>
 
 namespace boost { 
 namespace lambda {
+
+template<class Act, class Args>
+struct return_type_N;
 
 template<class T> class cast_action;
 

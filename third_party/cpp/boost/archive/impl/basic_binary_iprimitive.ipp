@@ -46,22 +46,34 @@ basic_binary_iprimitive<Archive, Elem, Tr>::init()
     this->This()->load(size);
     if(sizeof(int) != size)
         boost::serialization::throw_exception(
-            archive_exception(archive_exception::incompatible_native_format)
+            archive_exception(
+                archive_exception::incompatible_native_format,
+                "size of int"
+            )
         );
     this->This()->load(size);
     if(sizeof(long) != size)
         boost::serialization::throw_exception(
-            archive_exception(archive_exception::incompatible_native_format)
+            archive_exception(
+                archive_exception::incompatible_native_format,
+                "size of long"
+            )
         );
     this->This()->load(size);
     if(sizeof(float) != size)
         boost::serialization::throw_exception(
-            archive_exception(archive_exception::incompatible_native_format)
+            archive_exception(
+                archive_exception::incompatible_native_format,
+                "size of float"
+            )
         );
     this->This()->load(size);
     if(sizeof(double) != size)
         boost::serialization::throw_exception(
-            archive_exception(archive_exception::incompatible_native_format)
+            archive_exception(
+                archive_exception::incompatible_native_format,
+                "size of double"
+            )
         );
 
     // for checking endian
@@ -69,7 +81,10 @@ basic_binary_iprimitive<Archive, Elem, Tr>::init()
     this->This()->load(i);
     if(1 != i)
         boost::serialization::throw_exception(
-            archive_exception(archive_exception::incompatible_native_format)
+            archive_exception(
+                archive_exception::incompatible_native_format,
+                "endian setting"
+            )
         );
 }
 
@@ -77,10 +92,10 @@ template<class Archive, class Elem, class Tr>
 BOOST_ARCHIVE_OR_WARCHIVE_DECL(void)
 basic_binary_iprimitive<Archive, Elem, Tr>::load(wchar_t * ws)
 {
-    std::size_t l;
+    std::size_t l; // number of wchar_t !!!
     this->This()->load(l);
     load_binary(ws, l * sizeof(wchar_t) / sizeof(char));
-    ws[l / sizeof(wchar_t)] = L'\0';
+    ws[l] = L'\0';
 }
 
 template<class Archive, class Elem, class Tr>

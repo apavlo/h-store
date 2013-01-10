@@ -51,7 +51,7 @@
 
 
 // check for exception handling support:
-#ifndef _CPPUNWIND
+#if !defined(_CPPUNWIND) && !defined(BOOST_NO_EXCEPTIONS)
 #  define BOOST_NO_EXCEPTIONS
 #endif
 
@@ -75,6 +75,7 @@
 #define BOOST_NO_RAW_LITERALS
 #define BOOST_NO_RVALUE_REFERENCES
 #define BOOST_NO_SCOPED_ENUMS
+#define BOOST_NO_SFINAE_EXPR
 #define BOOST_NO_STATIC_ASSERT
 #define BOOST_NO_TEMPLATE_ALIASES
 #define BOOST_NO_UNICODE_LITERALS

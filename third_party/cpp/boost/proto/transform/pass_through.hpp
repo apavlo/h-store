@@ -13,7 +13,6 @@
     #ifndef BOOST_PROTO_TRANSFORM_PASS_THROUGH_HPP_EAN_12_26_2006
     #define BOOST_PROTO_TRANSFORM_PASS_THROUGH_HPP_EAN_12_26_2006
 
-    #include <boost/proto/detail/prefix.hpp>
     #include <boost/preprocessor/cat.hpp>
     #include <boost/preprocessor/repetition/enum.hpp>
     #include <boost/preprocessor/iteration/iterate.hpp>
@@ -22,7 +21,6 @@
     #include <boost/proto/proto_fwd.hpp>
     #include <boost/proto/args.hpp>
     #include <boost/proto/transform/impl.hpp>
-    #include <boost/proto/detail/suffix.hpp>
 
     namespace boost { namespace proto
     {
@@ -43,7 +41,8 @@
                     typename result_of::child_c<Expr, N>::type                                      \
                   , State                                                                           \
                   , Data                                                                            \
-                >::result_type
+                >::result_type                                                                      \
+                /**/
 
             #define BOOST_PROTO_DEFINE_TRANSFORM(Z, N, DATA)                                        \
                 typename Grammar::BOOST_PP_CAT(proto_child, N)::template impl<                      \
@@ -51,8 +50,9 @@
                   , State                                                                           \
                   , Data                                                                            \
                 >()(                                                                                \
-                    e.proto_base().BOOST_PP_CAT(child, N), s, d                           \
-                )
+                    e.proto_base().BOOST_PP_CAT(child, N), s, d                                     \
+                )                                                                                   \
+                /**/
 
             #define BOOST_PP_ITERATION_PARAMS_1 (3, (1, BOOST_PROTO_MAX_ARITY, <boost/proto/transform/pass_through.hpp>))
             #include BOOST_PP_ITERATE()
@@ -69,10 +69,10 @@
                 /// \param e An expression
                 /// \return \c e
                 /// \throw nothrow
-                #ifdef BOOST_HAS_DECLTYPE
+                #ifdef BOOST_PROTO_STRICT_RESULT_OF
                 result_type
                 #else
-                typename pass_through_impl::expr_param 
+                typename pass_through_impl::expr_param
                 #endif
                 operator()(
                     typename pass_through_impl::expr_param e
@@ -91,7 +91,7 @@
         /// a Grammar.
         ///
         /// Given a Grammar such as <tt>plus\<T0, T1\></tt>, an expression type
-        /// that matches the grammar such as <tt>plus\<E0, E1\>::::type</tt>, a
+        /// that matches the grammar such as <tt>plus\<E0, E1\>::type</tt>, a
         /// state \c S and a data \c V, the result of applying the
         /// <tt>pass_through\<plus\<T0, T1\> \></tt> transform is:
         ///
@@ -165,21 +165,28 @@
             struct pass_through_impl<Grammar, Expr, State, Data, N>
               : transform_impl<Expr, State, Data>
             {
-                typedef proto::expr<
-                    typename remove_reference<Expr>::type::proto_tag
-                  , BOOST_PP_CAT(list, N)<
-                        BOOST_PP_ENUM(N, BOOST_PROTO_DEFINE_TRANSFORM_TYPE, ~)
-                    >
-                  , N
-                > result_type;
+                typedef typename pass_through_impl::expr unref_expr;
 
-                result_type operator ()(
+                typedef
+                    typename base_expr<
+                        typename unref_expr::proto_domain
+                      , typename unref_expr::proto_tag
+                      , BOOST_PP_CAT(list, N)<
+                            BOOST_PP_ENUM(N, BOOST_PROTO_DEFINE_TRANSFORM_TYPE, ~)
+                        >
+                    >::type
+                expr_type;
+
+                typedef typename unref_expr::proto_generator proto_generator;
+                typedef typename boost::tr1_result_of<proto_generator(expr_type)>::type result_type;
+
+                result_type const operator ()(
                     typename pass_through_impl::expr_param e
                   , typename pass_through_impl::state_param s
                   , typename pass_through_impl::data_param d
                 ) const
                 {
-                    result_type that = {
+                    expr_type const that = {
                         BOOST_PP_ENUM(N, BOOST_PROTO_DEFINE_TRANSFORM, ~)
                     };
                     #if BOOST_WORKAROUND(BOOST_MSVC, BOOST_TESTED_AT(1400))
@@ -188,7 +195,7 @@
                     // built with VC8.
                     &that;
                     #endif
-                    return that;
+                    return proto_generator()(that);
                 }
             };
 

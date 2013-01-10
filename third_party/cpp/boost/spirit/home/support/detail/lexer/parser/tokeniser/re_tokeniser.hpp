@@ -1,5 +1,5 @@
 // tokeniser.hpp
-// Copyright (c) 2007-2008 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2007-2009 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -152,6 +152,7 @@ public:
                     if (state_._curr - 1 == state_._start)
                     {
                         token_.set (num_token::CHARSET, bol_token);
+                        state_._seen_BOL_assertion = true;
                     }
                     else
                     {
@@ -159,12 +160,12 @@ public:
                             map_, token_);
                     }
 
-                    state_._seen_BOL_assertion = true;
                     break;
                 case '$':
                     if (state_._curr == state_._end)
                     {
                         token_.set (num_token::CHARSET, eol_token);
+                        state_._seen_EOL_assertion = true;
                     }
                     else
                     {
@@ -172,7 +173,6 @@ public:
                             map_, token_);
                     }
 
-                    state_._seen_EOL_assertion = true;
                     break;
                 case '.':
                 {
@@ -191,6 +191,9 @@ public:
                     charset (state_, map_, token_);
                     break;
                 }
+                case '/':
+                    throw runtime_error("Lookahead ('/') is not supported yet.");
+                    break;
                 default:
                     if ((state_._flags & icase) &&
                         (std::isupper (ch_, state_._locale) ||
@@ -270,7 +273,7 @@ private:
                 {
                     std::ostringstream ss_;
 
-                    ss_ << "Unknown option at " <<
+                    ss_ << "Unknown option at index " <<
                         state_.index () - 1 << '.';
                     throw runtime_error (ss_.str ().c_str ());
                 }
@@ -525,8 +528,8 @@ private:
                 throw runtime_error ("Unexpected end of regex "
                     "(missing '}').");
             }
-        } while (ch_ == '_' || ch_ == '-' || ch_ >= 'A' && ch_ <= 'Z' ||
-            ch_ >= 'a' && ch_ <= 'z' || ch_ >= '0' && ch_ <= '9');
+        } while (ch_ == '_' || ch_ == '-' || (ch_ >= 'A' && ch_ <= 'Z') ||
+            (ch_ >= 'a' && ch_ <= 'z') || (ch_ >= '0' && ch_ <= '9'));
 
         if (ch_ != '}')
         {

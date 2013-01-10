@@ -29,7 +29,7 @@ inline void save(
     const unsigned int /* file_version */
 ){
     const boost::shared_ptr<T> sp = t.lock();
-        ar << boost::serialization::make_nvp("shared_ptr", sp);
+    ar << boost::serialization::make_nvp("weak_ptr", sp);
 }
 
 template<class Archive, class T>
@@ -39,7 +39,7 @@ inline void load(
     const unsigned int /* file_version */
 ){
     boost::shared_ptr<T> sp;
-        ar >> boost::serialization::make_nvp("shared_ptr", sp);
+    ar >> boost::serialization::make_nvp("weak_ptr", sp);
     t = sp;
 }
 

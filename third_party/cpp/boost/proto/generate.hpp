@@ -11,16 +11,18 @@
     #ifndef BOOST_PROTO_GENERATE_HPP_EAN_02_13_2007
     #define BOOST_PROTO_GENERATE_HPP_EAN_02_13_2007
 
-    #include <boost/proto/detail/prefix.hpp>
     #include <boost/config.hpp>
-    #include <boost/utility/result_of.hpp>
     #include <boost/preprocessor/cat.hpp>
     #include <boost/preprocessor/iteration/iterate.hpp>
-    #include <boost/preprocessor/repetition/enum.hpp>
+    #include <boost/preprocessor/facilities/intercept.hpp>
+    #include <boost/preprocessor/repetition/enum_params.hpp>
+    #include <boost/preprocessor/repetition/enum_binary_params.hpp>
+    #include <boost/preprocessor/repetition/enum_trailing_params.hpp>
+    #include <boost/mpl/bool.hpp>
     #include <boost/utility/enable_if.hpp>
+    #include <boost/utility/result_of.hpp>
     #include <boost/proto/proto_fwd.hpp>
     #include <boost/proto/args.hpp>
-    #include <boost/proto/detail/suffix.hpp>
 
     namespace boost { namespace proto
     {
@@ -28,41 +30,40 @@
         namespace detail
         {
             template<typename Expr>
-            struct expr_params;
-
-            template<typename Tag, typename Args, long N>
-            struct expr_params<proto::expr<Tag, Args, N> >
-            {
-                typedef Tag tag;
-                typedef Args args;
-                BOOST_STATIC_CONSTANT(long, arity = N);
-            };
-
-            template<typename Expr, long Arity = expr_params<Expr>::arity>
             struct by_value_generator_;
 
-        #define BOOST_PROTO_DEFINE_BY_VALUE_TYPE(Z, N, Expr)                                        \
-            typename uncvref<typename expr_params<Expr>::args::BOOST_PP_CAT(child, N)>::type        \
-            /**/
-
-        #define BOOST_PROTO_DEFINE_BY_VALUE(Z, N, expr)                                             \
-            expr.BOOST_PP_CAT(child, N)                                                             \
-            /**/
-
-            template<typename Expr>
-            struct by_value_generator_<Expr, 0>
+            template<typename Tag, typename Arg>
+            struct by_value_generator_<proto::expr<Tag, term<Arg>, 0> >
             {
                 typedef
                     proto::expr<
-                        typename expr_params<Expr>::tag
-                      , term<typename detail::term_traits<typename expr_params<Expr>::args::child0>::value_type>
+                        Tag
+                      , term<typename detail::term_traits<Arg>::value_type>
                       , 0
                     >
                 type;
 
-                static type const make(Expr const &expr)
+                static type const call(proto::expr<Tag, term<Arg>, 0> const &e)
                 {
-                    type that = {expr.child0};
+                    type that = {e.child0};
+                    return that;
+                }
+            };
+
+            template<typename Tag, typename Arg>
+            struct by_value_generator_<proto::basic_expr<Tag, term<Arg>, 0> >
+            {
+                typedef
+                    proto::basic_expr<
+                        Tag
+                      , term<typename detail::term_traits<Arg>::value_type>
+                      , 0
+                    >
+                type;
+
+                static type const call(proto::basic_expr<Tag, term<Arg>, 0> const &e)
+                {
+                    type that = {e.child0};
                     return that;
                 }
             };
@@ -74,8 +75,6 @@
         #undef BOOST_PROTO_DEFINE_BY_VALUE_TYPE
 
         }
-
-        BOOST_PROTO_BEGIN_ADL_NAMESPACE(generatorns_)
 
         /// \brief A simple generator that passes an expression
         /// through unchanged.
@@ -101,14 +100,14 @@
             /// \param expr A Proto expression
             /// \return expr
             template<typename Expr>
-            #ifdef BOOST_HAS_DECLTYPE
+            #ifdef BOOST_PROTO_STRICT_RESULT_OF
             Expr
             #else
             Expr const &
             #endif
-            operator ()(Expr const &expr) const
+            operator ()(Expr const &e) const
             {
-                return expr;
+                return e;
             }
         };
 
@@ -124,6 +123,7 @@
         struct generator
         {
             BOOST_PROTO_CALLABLE()
+            BOOST_PROTO_USE_BASIC_EXPR()
 
             template<typename Sig>
             struct result;
@@ -149,9 +149,9 @@
             /// \param expr A Proto expression
             /// \return Extends<Expr>(expr)
             template<typename Expr>
-            Extends<Expr> operator ()(Expr const &expr) const
+            Extends<Expr> operator ()(Expr const &e) const
             {
-                return Extends<Expr>(expr);
+                return Extends<Expr>(e);
             }
         };
 
@@ -169,6 +169,7 @@
         struct pod_generator
         {
             BOOST_PROTO_CALLABLE()
+            BOOST_PROTO_USE_BASIC_EXPR()
 
             template<typename Sig>
             struct result;
@@ -194,9 +195,9 @@
             /// \param expr The expression to wrap
             /// \return <tt>Extends\<Expr\> that = {expr}; return that;</tt>
             template<typename Expr>
-            Extends<Expr> operator ()(Expr const &expr) const
+            Extends<Expr> operator ()(Expr const &e) const
             {
-                Extends<Expr> that = {expr};
+                Extends<Expr> that = {e};
                 return that;
             }
         };
@@ -247,9 +248,9 @@
             /// \param expr The expression to modify.
             /// \return <tt>deep_copy(expr)</tt>
             template<typename Expr>
-            typename result<by_value_generator(Expr)>::type operator ()(Expr const &expr) const
+            typename result<by_value_generator(Expr)>::type operator ()(Expr const &e) const
             {
-                return detail::by_value_generator_<Expr>::make(expr);
+                return detail::by_value_generator_<Expr>::call(e);
             }
         };
 
@@ -304,13 +305,37 @@
             /// \param expr The expression to modify.
             /// \return Second()(First()(expr))
             template<typename Expr>
-            typename result<compose_generators(Expr)>::type operator ()(Expr const &expr) const
+            typename result<compose_generators(Expr)>::type operator ()(Expr const &e) const
             {
-                return Second()(First()(expr));
+                return Second()(First()(e));
             }
         };
 
-        BOOST_PROTO_END_ADL_NAMESPACE(generatorns_)
+        /// \brief Annotate a generator to indicate that it would
+        /// prefer to be passed instances of \c proto::basic_expr\<\> rather
+        /// than \c proto::expr\<\>. <tt>use_basic_expr\<Generator\></tt> is
+        /// itself a generator.
+        ///
+        template<typename Generator>
+        struct use_basic_expr
+          : Generator
+        {
+            BOOST_PROTO_USE_BASIC_EXPR()
+        };
+
+        /// \brief Tests a generator to see whether it would prefer
+        /// to be passed instances of \c proto::basic_expr\<\> rather than
+        /// \c proto::expr\<\>.
+        ///
+        template<typename Generator, typename Void>
+        struct wants_basic_expr
+          : mpl::false_
+        {};
+
+        template<typename Generator>
+        struct wants_basic_expr<Generator, typename Generator::proto_use_basic_expr_>
+          : mpl::true_
+        {};
 
         /// INTERNAL ONLY
         template<>
@@ -352,6 +377,12 @@
         {
             typedef Expr type;
         };
+
+        template<typename Expr>
+        struct result_of<proto::default_generator(Expr)>
+        {
+            typedef Expr type;
+        };
     }
 
     #endif // BOOST_PROTO_GENERATE_HPP_EAN_02_13_2007
@@ -360,25 +391,55 @@
 
     #define N BOOST_PP_ITERATION()
 
-            template<typename Expr>
-            struct by_value_generator_<Expr, N>
+            template<typename Tag BOOST_PP_ENUM_TRAILING_PARAMS(N, typename Arg) >
+            struct by_value_generator_<
+                proto::expr<Tag, BOOST_PP_CAT(list, N)<BOOST_PP_ENUM_PARAMS(N, Arg)>, N>
+            >
             {
                 typedef
-                    proto::expr<
-                        typename expr_params<Expr>::tag
-                      , BOOST_PP_CAT(list, N)<
-                            // typename uncvref<typename expr_params<Expr>::args::child0>::type, ...
-                            BOOST_PP_ENUM(N, BOOST_PROTO_DEFINE_BY_VALUE_TYPE, Expr)
-                        >
-                      , N
-                    >
-                type;
+                    BOOST_PP_CAT(list, N)<BOOST_PP_ENUM_PARAMS(N, Arg)>
+                src_args;
 
-                static type const make(Expr const &expr)
+                typedef
+                    BOOST_PP_CAT(list, N)<
+                        BOOST_PP_ENUM_BINARY_PARAMS(N, typename uncvref<Arg, >::type BOOST_PP_INTERCEPT)
+                    >
+                dst_args;
+
+                typedef proto::expr<Tag, src_args, N> src_type;
+                typedef proto::expr<Tag, dst_args, N> type;
+
+                static type const call(src_type const &e)
                 {
                     type that = {
-                        // expr.child0, ...
-                        BOOST_PP_ENUM(N, BOOST_PROTO_DEFINE_BY_VALUE, expr)
+                        BOOST_PP_ENUM_PARAMS(N, e.child)
+                    };
+                    return that;
+                }
+            };
+
+            template<typename Tag BOOST_PP_ENUM_TRAILING_PARAMS(N, typename Arg) >
+            struct by_value_generator_<
+                proto::basic_expr<Tag, BOOST_PP_CAT(list, N)<BOOST_PP_ENUM_PARAMS(N, Arg)>, N>
+            >
+            {
+                typedef
+                    BOOST_PP_CAT(list, N)<BOOST_PP_ENUM_PARAMS(N, Arg)>
+                src_args;
+
+                typedef
+                    BOOST_PP_CAT(list, N)<
+                        BOOST_PP_ENUM_BINARY_PARAMS(N, typename uncvref<Arg, >::type BOOST_PP_INTERCEPT)
+                    >
+                dst_args;
+
+                typedef proto::basic_expr<Tag, src_args, N> src_type;
+                typedef proto::basic_expr<Tag, dst_args, N> type;
+
+                static type const call(src_type const &e)
+                {
+                    type that = {
+                        BOOST_PP_ENUM_PARAMS(N, e.child)
                     };
                     return that;
                 }

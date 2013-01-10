@@ -33,6 +33,9 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
+import edu.brown.benchmark.ycsb.YCSBUtil; 
+import edu.brown.benchmark.ycsb.YCSBConstants; 
+
 import java.util.List; 
 import java.util.LinkedList; 
 
@@ -43,6 +46,11 @@ public class InsertRecord extends VoltProcedure {
     public VoltTable[] run(long id) {
 		
 		List<String> vals = new LinkedList<String>(); 
+		
+		for(int i = 0; i < 10; i++)
+		{
+			vals.add(YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH,YCSBConstants.COLUMN_LENGTH)); 
+		}
 		
 		assert(vals.size() == 10); 
 		

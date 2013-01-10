@@ -212,7 +212,6 @@ struct close_impl<close_filtering_stream> {
     }
 };
 
-#include <boost/iostreams/detail/config/disable_warnings.hpp> // Borland.
 template<>
 struct close_impl<closable_tag> {
     template<typename T>

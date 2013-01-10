@@ -24,6 +24,7 @@ import org.voltdb.catalog.Site;
 
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
+import edu.brown.hstore.HStoreConstants;
 
 public class ClusterCompiler
 {
@@ -55,7 +56,8 @@ public class ClusterCompiler
         // set the address of the coordinator
         cluster.setLeaderaddress(clusterConfig.getLeaderAddress().trim());
         for (int i = 0; i < hostCount; i++) {
-            cluster.getHosts().add(String.valueOf(i));
+            Host host = cluster.getHosts().add(String.valueOf(i));
+            host.setIpaddr("localhost"); // DEFAULT
         }
 
         // add all the partitions.
@@ -81,6 +83,8 @@ public class ClusterCompiler
             Site site = cluster.getSites().add(String.valueOf(++siteId));
             site.setId(siteId);
             site.setHost(host);
+            site.setProc_port(HStoreConstants.DEFAULT_PORT);
+            site.setMessenger_port(HStoreConstants.DEFAULT_PORT + HStoreConstants.MESSENGER_PORT_OFFSET);
             site.setIsup(true);
 
             Partition part = site.getPartitions().add(String.valueOf(++partitionCounter));

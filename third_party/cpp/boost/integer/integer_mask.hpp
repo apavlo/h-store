@@ -70,6 +70,11 @@ struct low_bits_mask_t
       BOOST_STATIC_CONSTANT( std::size_t, bit_count = limits_type::digits );    \
   }
 
+#ifdef BOOST_MSVC
+#pragma warning(push)
+#pragma warning(disable:4245)  // 'initializing' : conversion from 'int' to 'const boost::low_bits_mask_t<8>::least', signed/unsigned mismatch
+#endif
+
 BOOST_LOW_BITS_MASK_SPECIALIZE( unsigned char );
 
 #if USHRT_MAX > UCHAR_MAX
@@ -82,6 +87,10 @@ BOOST_LOW_BITS_MASK_SPECIALIZE( unsigned int );
 
 #if ULONG_MAX > UINT_MAX
 BOOST_LOW_BITS_MASK_SPECIALIZE( unsigned long );
+#endif
+
+#ifdef BOOST_MSVC
+#pragma warning(pop)
 #endif
 
 #undef BOOST_LOW_BITS_MASK_SPECIALIZE

@@ -720,23 +720,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.exec_preprocessing_threads && hstore_conf.site.exec_postprocessing_threads) {
             int split = (int)Math.ceil(num_available_cores / 2d);
             num_preProcessors = split;
-            num_postProcessors = split;
         }
         // TransactionPreProcessor Only
         else if (hstore_conf.site.exec_preprocessing_threads) {
             num_preProcessors = num_available_cores;
         }
-        // TransactionPostProcessor Only
-        else {
-            num_postProcessors = num_available_cores;
+        
+        // We only need one TransactionPostProcessor per HStoreSite
+        if (hstore_conf.site.exec_postprocessing_threads) {
+            num_postProcessors = 1;
         }
         
         // Overrides
         if (hstore_conf.site.exec_preprocessing_threads_count >= 0) {
             num_preProcessors = hstore_conf.site.exec_preprocessing_threads_count;
-        }
-        if (hstore_conf.site.exec_postprocessing_threads_count >= 0) {
-            num_postProcessors = hstore_conf.site.exec_postprocessing_threads_count;
         }
         
         // Initialize TransactionPreProcessors
@@ -2151,7 +2148,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                       orig_ts , status, orig_ts.getRestartCounter()));
         int base_partition = orig_ts.getBasePartition();
         SerializableException orig_error = orig_ts.getPendingError();
-        
+
+		//LOG.info("In transactionRestart()"); 
+		        
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright
         int restart_limit = (orig_ts.isSysProc() ? hstore_conf.site.txn_restart_limit_sysproc :
@@ -2355,15 +2354,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // ANTI-CACHING REQUEUE
         // -------------------------------
-        if (status == Status.ABORT_EVICTEDACCESS) {
+        if (status == Status.ABORT_EVICTEDACCESS && orig_error instanceof EvictedTupleAccessException) {
             if (this.anticacheManager == null) {
+				LOG.info("Got eviction notice but anti-caching is not enabled"); 
+	
                 String message = "Got eviction notice but anti-caching is not enabled";
                 throw new ServerFaultException(message, orig_error, orig_ts.getTransactionId());
             }
-
+			
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
             Table catalog_tbl = error.getTableId(this.catalogContext.database);
             short block_ids[] = error.getBlockIds();
+
+			LOG.info("Added aborted txn to AnticacheManager queue. Unevicting " + block_ids.length + " blocks."); 
             this.anticacheManager.queue(new_ts, base_partition, catalog_tbl, block_ids);
         }
             

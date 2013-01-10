@@ -24,13 +24,20 @@
 #include <boost/archive/detail/abi_prefix.hpp> // must be the last header
 
 #if defined(BOOST_NO_STDC_NAMESPACE)
+namespace std {
 // For STLport on WinCE, BOOST_NO_STDC_NAMESPACE can get defined if STLport is putting symbols in its own namespace.
 // In the case of codecvt, however, this does not mean that codecvt is in the global namespace (it will be in STLport's namespace)
-#  if !defined(UNDER_CE) || (!defined(__SGI_STL_PORT) && !defined(_STLPORT_VERSION))
+#  if !defined(__SGI_STL_PORT) && !defined(_STLPORT_VERSION)
     using ::codecvt;
 #  endif
     using ::mbstate_t;
     using ::size_t;
+} // namespace
+#endif
+
+#ifdef BOOST_MSVC
+#  pragma warning(push)
+#  pragma warning(disable : 4511 4512)
 #endif
 
 namespace boost {
@@ -85,6 +92,9 @@ class codecvt_null<wchar_t> : public std::codecvt<wchar_t, char, std::mbstate_t>
 } // namespace archive
 } // namespace boost
 
+#ifdef BOOST_MSVC
+#  pragma warning(pop)
+#endif
 #include <boost/archive/detail/abi_suffix.hpp> // pop pragmas
 
 #endif //BOOST_ARCHIVE_CODECVT_NULL_HPP

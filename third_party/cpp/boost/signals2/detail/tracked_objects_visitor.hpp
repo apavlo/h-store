@@ -58,7 +58,7 @@ namespace boost
         template<typename T>
         void m_visit_pointer(const T &t, const mpl::bool_<false> &) const
         {
-            m_visit_pointer(addressof(t), mpl::bool_<true>());
+            m_visit_pointer(boost::addressof(t), mpl::bool_<true>());
         }
         template<typename T>
         void m_visit_not_function_pointer(const T *t, const mpl::bool_<true> &) const

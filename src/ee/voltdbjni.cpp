@@ -64,13 +64,8 @@
 #ifndef __USE_GNU
 #define  __USE_GNU
 #endif
-#include <cerrno>
 #include <sched.h>
 #endif
-#ifdef MACOSX
-#include <mach/task.h>
-#include <mach/mach.h>
-#endif // MACOSX
 
 // Print an error if trying to compile on 32-bit systemes.
 #ifdef LINUX
@@ -1218,6 +1213,8 @@ SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_utils_ThreadUtils_setThread
             CPU_SET(ii, &mask);
         }
     }
+	  
+	  int errno= 0; 
 
     int result = sched_setaffinity(0, sizeof(mask), &mask);
     if (result == -1) {

@@ -17,10 +17,10 @@
 
 namespace boost
 {
-    template <class Value,
-        class Hash = hash<Value>,
-        class Pred = std::equal_to<Value>,
-        class Alloc = std::allocator<Value> >
+    template <class T,
+        class H = hash<T>,
+        class P = std::equal_to<T>,
+        class A = std::allocator<T> >
     class unordered_set;
     template <class T, class H, class P, class A>
     bool operator==(unordered_set<T, H, P, A> const&,
@@ -32,10 +32,10 @@ namespace boost
     void swap(unordered_set<T, H, P, A> &m1,
             unordered_set<T, H, P, A> &m2);
 
-    template <class Value,
-        class Hash = hash<Value>,
-        class Pred = std::equal_to<Value>,
-        class Alloc = std::allocator<Value> >
+    template <class T,
+        class H = hash<T>,
+        class P = std::equal_to<T>,
+        class A = std::allocator<T> >
     class unordered_multiset;
     template <class T, class H, class P, class A>
     bool operator==(unordered_multiset<T, H, P, A> const&,

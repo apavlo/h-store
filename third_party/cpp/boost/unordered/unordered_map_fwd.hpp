@@ -17,11 +17,11 @@
 
 namespace boost
 {
-    template <class Key,
+    template <class K,
         class T,
-        class Hash = hash<Key>,
-        class Pred = std::equal_to<Key>,
-        class Alloc = std::allocator<std::pair<const Key, T> > >
+        class H = hash<K>,
+        class P = std::equal_to<K>,
+        class A = std::allocator<std::pair<const K, T> > >
     class unordered_map;
     template <class K, class T, class H, class P, class A>
     bool operator==(unordered_map<K, T, H, P, A> const&,
@@ -33,11 +33,11 @@ namespace boost
     void swap(unordered_map<K, T, H, P, A>&,
             unordered_map<K, T, H, P, A>&);
 
-    template <class Key,
+    template <class K,
         class T,
-        class Hash = hash<Key>,
-        class Pred = std::equal_to<Key>,
-        class Alloc = std::allocator<std::pair<const Key, T> > >
+        class H = hash<K>,
+        class P = std::equal_to<K>,
+        class A = std::allocator<std::pair<const K, T> > >
     class unordered_multimap;
     template <class K, class T, class H, class P, class A>
     bool operator==(unordered_multimap<K, T, H, P, A> const&,

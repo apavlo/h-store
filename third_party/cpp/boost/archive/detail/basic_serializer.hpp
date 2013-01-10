@@ -23,6 +23,11 @@
 #include <boost/config.hpp>
 #include <boost/serialization/extended_type_info.hpp>
 
+#ifdef BOOST_MSVC
+#  pragma warning(push)
+#  pragma warning(disable : 4511 4512)
+#endif
+
 namespace boost {
 namespace archive {
 namespace detail {
@@ -40,19 +45,21 @@ protected:
         assert(NULL != & eti);
     }
 public:
+    inline bool 
+    operator<(const basic_serializer & rhs) const {
+        // can't compare address since there can be multiple eti records
+        // for the same type in different execution modules (that is, DLLS)
+        // leave this here as a reminder not to do this!
+        // return & lhs.get_eti() < & rhs.get_eti();
+        return get_eti() < rhs.get_eti();
+    }
+    const char * get_debug_info() const {
+        return m_eti->get_debug_info();
+    }
     const boost::serialization::extended_type_info & get_eti() const {
         return * m_eti;
     }
 };
-
-inline bool 
-operator<(const basic_serializer & lhs, const basic_serializer & rhs)  {
-    // can't compare address since there can be multiple eti records
-    // for the same type in different execution modules (that is, DLLS)
-    // leave this here as a reminder not to do this!
-    // return & lhs.get_eti() < & rhs.get_eti();
-    return lhs.get_eti() < rhs.get_eti();
-}
 
 class basic_serializer_arg : public basic_serializer {
 public:
@@ -64,5 +71,9 @@ public:
 } // namespace detail
 } // namespace archive
 } // namespace boost
+
+#ifdef BOOST_MSVC
+#pragma warning(pop)
+#endif
 
 #endif // BOOST_ARCHIVE_BASIC_SERIALIZER_HPP

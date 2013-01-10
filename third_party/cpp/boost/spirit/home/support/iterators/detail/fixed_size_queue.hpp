@@ -1,5 +1,5 @@
-//  Copyright (c) 2001, Daniel C. Nuffer
-//  Copyright (c) 2001-2008, Hartmut Kaiser
+//  Copyright (c) 2001 Daniel C. Nuffer
+//  Copyright (c) 2001-2010 Hartmut Kaiser
 // 
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -47,12 +47,12 @@ namespace boost { namespace spirit { namespace detail
 
         fsq_iterator() {}
         fsq_iterator(position_type const &p_) : p(p_) {}
-        
+
         position_type const &get_position() const { return p; }
-        
+
     private:
         friend class boost::iterator_core_access;
-        
+
         typename base_type::reference dereference() const
         {
             return p.self->m_queue[p.pos];
@@ -138,7 +138,7 @@ namespace boost { namespace spirit { namespace detail
                     p.pos -= Queue::MAX_SIZE+1;
             }
         }
-        
+
     private:
         position_type p;
     };
@@ -173,7 +173,7 @@ namespace boost { namespace spirit { namespace detail
 
         friend class fsq_iterator<fixed_size_queue<T, N>, T, T*>;
         friend class fsq_iterator<fixed_size_queue<T, N>, T const, T const*>;
-        
+
         fixed_size_queue();
         fixed_size_queue(const fixed_size_queue& x);
         fixed_size_queue& operator=(const fixed_size_queue& x);

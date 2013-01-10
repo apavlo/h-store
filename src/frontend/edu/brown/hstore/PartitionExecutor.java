@@ -967,11 +967,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         InternalMessage work = null;
         
         // Check whether there is something we can speculatively execute right now
-        if (this.currentDtxn != null && this.specExecIgnoreCurrent == false && this.initQueue.isEmpty() == false) {
+        if (this.currentDtxn != null &&
+            this.specExecIgnoreCurrent == false &&
+            this.initQueue.isEmpty() == false && 
+            this.currentDtxn.isInitialized()) {
+            
             assert(hstore_conf.site.specexec_enable) :
                 "Trying to schedule speculative txn even though it is disabled";
             
-            if (trace.val) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
+            if (trace.val)
+                LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
             assert(this.currentDtxn.isInitialized()) :
                 String.format("Uninitialized distributed transaction handle [%s]", this.currentDtxn);
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
@@ -984,8 +989,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // Because we don't have fine-grained undo support, we are just going
             // keep all of our speculative execution txn results around
             if (spec_ts != null) {
-                if (debug.val) LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
-                                 this.currentDtxn, spec_ts));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
+                              this.currentDtxn, spec_ts));
                 assert(spec_ts.getBasePartition() == this.partitionId) :
                     String.format("Trying to speculatively execute %s at partition %d but its base partition is %d\n%s",
                                   spec_ts, this.partitionId, spec_ts.getBasePartition(), spec_ts.debug());
@@ -1764,7 +1770,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         ts.markQueuedWork(this.partitionId);
         if (debug.val)
             LOG.debug(String.format("%s - Added %s to partition %d " +
-                          "work queue [size=%d]",
+                      "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
     }
@@ -1773,11 +1779,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Add a new work message to our utility queue 
      * @param work
      */
-//    public void queueUtilityWork(InternalMessage work) {
-//        if (debug.val) LOG.debug(String.format("Queuing utility work on partition %d\n%s",
-//                                   this.partitionId, work));
-//        this.utility_queue.offer(work);
-//    }
+    public void queueUtilityWork(InternalMessage work) {
+        if (debug.val)
+            LOG.debug(String.format("Queuing utility work on partition %d\n%s",
+                      this.partitionId, work));
+        this.work_queue.offer(work);
+    }
+
     
     /**
      * Put the prepare request for the transaction into the queue
@@ -2279,6 +2287,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             result = this.executeWorkFragment(ts, fragment, parameters);
             
         } catch (EvictedTupleAccessException ex) {
+
             // XXX: What do we do if this is not a single-partition txn?
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
@@ -2634,6 +2643,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                Map<Integer, List<VoltTable>> input_deps) {
         assert(this.ee != null) : "The EE object is null. This is bad!";
         Long txn_id = ts.getTransactionId();
+
+        //LOG.info("in executePlanFragments()");
         
         // *********************************** DEBUG ***********************************
         if (debug.val) {
@@ -2729,6 +2740,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             this.lastCommittedTxnId.longValue(),
                             undoToken);
             
+        } catch(EvictedTupleAccessException ex) {
+            LOG.info("Caught EvictedTupleAccessException.");
+            error = ex;
+            throw ex;
         } catch (SerializableException ex) {
             if (debug.val)
                 LOG.error(String.format("%s - Unexpected error in the ExecutionEngine on partition %d",
@@ -3639,6 +3654,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
             }
         }
+
+//        if(status == Status.ABORT_EVICTEDACCESS) {
+//            LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
+//            
+//            this.finishWork(ts, false);
+//            this.hstore_site.transactionRestart(ts, status);
+//        }
         
         // -------------------------------
         // ALL: Transactions that need to be internally restarted
@@ -3993,7 +4015,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // that was in the middle of being executed when we were called
                 if (debug.val)
                     LOG.debug(String.format("%s - Checking %d blocked speculative transactions at " +
-                                  "partition %d [currentMode=%s]",
+                              "partition %d [currentMode=%s]",
                               ts, this.specExecBlocked.size(), this.partitionId, this.currentExecMode));
                 
                 LocalTransaction spec_ts = null;

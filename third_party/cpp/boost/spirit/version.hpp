@@ -1,6 +1,6 @@
 /*=============================================================================
-  Copyright (c) 2001-2008 Joel de Guzman
-  Copyright (c) 2001-2008 Hartmut Kaiser
+  Copyright (c) 2001-2010 Joel de Guzman
+  Copyright (c) 2001-2010 Hartmut Kaiser
   http://spirit.sourceforge.net/
 
   Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -9,12 +9,6 @@
 #if !defined(SPIRIT_VERSION_NOVEMBER_13_2008_0834AM)
 #define SPIRIT_VERSION_NOVEMBER_13_2008_0834AM
 
-///////////////////////////////////////////////////////////////////////////////
-//
-//  This is the version of the current Spirit distribution
-//
-///////////////////////////////////////////////////////////////////////////////
-#define SPIRIT_VERSION 0x2000
-#define SPIRIT_PIZZA_VERSION EVERYTHING_BUT_ANCHOVIES  // :-)
+#include <boost/spirit/include/version.hpp>
 
 #endif

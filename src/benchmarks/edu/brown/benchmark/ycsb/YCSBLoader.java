@@ -29,112 +29,104 @@
 
 package edu.brown.benchmark.ycsb;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Table;
-import org.voltdb.client.Client;
-
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.api.Loader;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.ThreadUtil;
 
-public class YCSBLoader extends BenchmarkComponent {
-	
-	private static final Logger LOG = Logger.getLogger(YCSBLoader.class);
-    private static final boolean d = LOG.isDebugEnabled();
+public class YCSBLoader extends Loader {
+    private static final Logger LOG = Logger.getLogger(YCSBClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     public static void main(String args[]) throws Exception {
-		
-		if (d)
+        if (debug.val)
             LOG.debug("MAIN: " + YCSBLoader.class.getName());
-		
         BenchmarkComponent.main(YCSBLoader.class, args, true);
     }
 
     public YCSBLoader(String[] args) {
-		
         super(args);
-				
-		if (d)
+        if (debug.val)
             LOG.debug("CONSTRUCTOR: " + YCSBLoader.class.getName());
-		
-        for (String key : m_extraParams.keySet()) {
-            // TODO: Retrieve extra configuration parameters
-        } // FOR
+
+//        for (String key : m_extraParams.keySet()) {
+//            // TODO: Retrieve extra configuration parameters
+//        } // FOR
     }
 
     @Override
-    public void runLoop() {
-		
-		if (d)
+    public void load() {
+        if (debug.val)
             LOG.debug("Starting YCSBLoader");
-		
-        Catalog catalog = this.getCatalog();
-        Client client = this.getClientHandle();
-		
-        for (Table catalog_tbl : CatalogUtil.getDatabase(catalog).getTables()) {
-            // Create an empty VoltTable handle and then populate it in batches
-            // to be sent to the DBMS
-            VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);
-			
-			Object row[] = new Object[table.getColumnCount()];
-			//String sql = SQLUtil.getInsertSQL(catalog_tbl);
-			long total = 0;
-			int batch = 0;
-			
-			for (int i = 0; i < YCSBConstants.NUM_RECORDS; i++) {
-				
-				//row[0] = new String("" + i); // set row id
-				
-				row[0] = i; 
-				
-				// randomly generate strings for each column
-				for (int col = 2; col < YCSBConstants.NUM_COLUMNS; col++) {
-					row[col] = YCSBUtil.astring(1, 100); 
-				}
-				
-				//assert col == table.getColumnCount();
-				table.addRow(row); 
-				total++;
-				
-				// insert this batch of tuples
-				if(table.getRowCount() >= YCSBConstants.BATCH_SIZE) {
 
-					loadVoltTable(YCSBConstants.TABLE_NAME, table);
-					table.clearRowData();
-					
-					if(d)
-						LOG.debug(String.format("Records Loaded: %6d / %d", total, YCSBConstants.NUM_RECORDS));
-				}
-			} // FOR
-			
-			// load remaining records
-			if(table.getRowCount() > 0) {
-				
-				loadVoltTable(YCSBConstants.TABLE_NAME, table);
-				table.clearRowData();
-				
-				if(d)
-					LOG.debug(String.format("Records Loaded: %6d / %d", total, YCSBConstants.NUM_RECORDS));
-			}
-			
-			if (d) 
-				LOG.debug("Finished loading " + catalog_tbl.getName());
-						
-            try {
-                // Makes a blocking call to @LoadMultipartitionTable sysproc in
-                // order to load the contents of the VoltTable into the cluster
-               // this.loadVoltTable(catalog_tbl.getName(), table);
-            } catch (Exception e) {
-				System.out.println(e.getMessage()); 
-                throw new RuntimeException("Failed to load data for " + catalog_tbl, e);
-            }
+        final Table catalog_tbl = this.getCatalogContext().getTableByName(YCSBConstants.TABLE_NAME);
+        final AtomicLong total = new AtomicLong(0);
+        final int init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * this.getScaleFactor());
+        
+        // Multi-threaded loader
+        final int num_cores = ThreadUtil.availableProcessors();
+        final int rows_per_thread = (int)Math.ceil(init_record_count / (double)num_cores);
+        final List<Runnable> runnables = new ArrayList<Runnable>();
+        for (int i = 0; i < num_cores; i++) {
+            final int thread_id = i;
+            final int start = rows_per_thread * i;
+            final int stop = start + rows_per_thread;
+            runnables.add(new Runnable() {
+                @Override
+                public void run() {
+                    // Create an empty VoltTable handle and then populate it in batches
+                    // to be sent to the DBMS
+                    VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);
+                    Object row[] = new Object[table.getColumnCount()];
+
+                    for (int i = start; i < stop; i++) {
+                        row[0] = i;
+
+                        // randomly generate strings for each column
+                        for (int col = 2; col < YCSBConstants.NUM_COLUMNS; col++) {
+                            row[col] = YCSBUtil.astring(50, 50);
+                        } // FOR
+                        table.addRow(row);
+
+                        // insert this batch of tuples
+                        if (table.getRowCount() >= YCSBConstants.BATCH_SIZE) {
+                            loadVoltTable(YCSBConstants.TABLE_NAME, table);
+                            total.addAndGet(table.getRowCount());
+                            table.clearRowData();
+                            if (debug.val)
+                                LOG.debug(String.format("[%d] Records Loaded: %6d / %d",
+                                          thread_id, total.get(), YCSBConstants.NUM_RECORDS));
+                        }
+                    } // FOR
+
+                    // load remaining records
+                    if (table.getRowCount() > 0) {
+                        loadVoltTable(YCSBConstants.TABLE_NAME, table);
+                        total.addAndGet(table.getRowCount());
+                        table.clearRowData();
+                        if (debug.val)
+                            LOG.debug(String.format("[%d] Records Loaded: %6d / %d",
+                                      thread_id, total.get(), YCSBConstants.NUM_RECORDS));
+                    }
+                }
+            });
         } // FOR
-    }
+        ThreadUtil.runGlobalPool(runnables);
 
-    @Override
-    public String[] getTransactionDisplayNames() {
-        // IGNORE: Only needed for Client
-        return new String[] {};
+        if (debug.val)
+            LOG.info("Finished loading " + catalog_tbl.getName());
     }
 }

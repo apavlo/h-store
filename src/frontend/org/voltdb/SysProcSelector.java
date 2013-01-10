@@ -33,5 +33,6 @@ public enum SysProcSelector {
     SPECEXECPROFILER, // speculative execution profiler information
     SITEPROFILER, // network profiler information
     PLANNERPROFILER, // batch planner profiler information
+    ANTICACHE,      // anti-cache manager information
     POOL,           // info about how object pools
 }

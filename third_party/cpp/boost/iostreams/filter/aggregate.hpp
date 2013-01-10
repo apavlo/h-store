@@ -126,7 +126,7 @@ private:
     }
 
     template<typename Sink>
-    void do_write(Sink& sink, const char* s, std::streamsize n) 
+    void do_write(Sink& sink, const char_type* s, std::streamsize n) 
     { 
         typedef typename iostreams::category_of<Sink>::type  category;
         typedef is_convertible<category, output>             can_write;
@@ -134,11 +134,11 @@ private:
     }
 
     template<typename Sink>
-    void do_write(Sink& sink, const char* s, std::streamsize n, mpl::true_) 
+    void do_write(Sink& sink, const char_type* s, std::streamsize n, mpl::true_) 
     { iostreams::write(sink, s, n); }
 
     template<typename Sink>
-    void do_write(Sink&, const char*, std::streamsize, mpl::false_) { }
+    void do_write(Sink&, const char_type*, std::streamsize, mpl::false_) { }
 
     void close_impl()
     {

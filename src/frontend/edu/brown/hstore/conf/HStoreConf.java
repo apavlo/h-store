@@ -350,22 +350,14 @@ public final class HStoreConf {
         public int exec_preprocessing_threads_count;
         
         @ConfigProperty(
-            description="Use a single TransactionPostProcessor thread per partition on the HStoreSite. " +
-                        "The ${site.exec_postprocessing_thread} parameter must be set to true.",
-            defaultBoolean=false,
-            experimental=true
+            description="Use a separate TransactionPostProcessor thread in the HStoreSite to return " +
+            		    "results back to the client. This will to improve the throughput of " +
+            		    "the CommandLogWriter, since this thread will take care of all of the " +
+            		    "outbound network communication with clients.",
+            defaultBoolean=true,
+            experimental=false
         )
         public boolean exec_postprocessing_threads;
-        
-        @ConfigProperty(
-            description="The number of TransactionPostProcessor threads to use per HStoreSite. " +
-                        "If this parameter is set to -1, then the system will automatically use all " +
-                        "of the non-PartitionExecutor cores for these processing threads. " +
-                        "The ${site.exec_postprocessing_threads} parameter must be set to true. ",
-            defaultInt=-1,
-            experimental=true
-        )
-        public int exec_postprocessing_threads_count;
         
         @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit " +
