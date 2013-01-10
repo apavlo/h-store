@@ -13,8 +13,10 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
 import org.voltdb.jni.ExecutionEngine;
+import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.profilers.AntiCacheManagerProfiler;
 
 /** 
  * 
@@ -54,6 +56,14 @@ public class EvictTuples extends VoltSystemProcedure {
     public VoltTable[] run(int partition, String tableNames[], long blockSizes[]) {
         ExecutionEngine ee = executor.getExecutionEngine();
         assert(tableNames.length == blockSizes.length);
+        assert(partition == this.partitionId);
+        
+        AntiCacheManagerProfiler profiler = null;
+        long start = -1;
+        if (hstore_conf.site.anticache_profiling) {
+            start = System.currentTimeMillis();
+            profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(partition);
+        }
 
         // Check Input
         if (tableNames.length == 0) {
@@ -88,6 +98,10 @@ public class EvictTuples extends VoltSystemProcedure {
             assert(adv);
             allResults.add(vt);
         } // FOR
+        
+        if (profiler != null) {
+            profiler.eviction_timestamps.add(Pair.of(start, System.currentTimeMillis()));
+        }
         
         return new VoltTable[]{ allResults };
     }

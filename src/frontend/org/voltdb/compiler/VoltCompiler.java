@@ -83,6 +83,7 @@ import org.voltdb.compiler.projectfile.UsersType;
 import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.EvictHistory;
 import org.voltdb.sysprocs.EvictTuples;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.ExecutorStatus;
@@ -1281,7 +1282,8 @@ public class VoltCompiler {
             {Statistics.class,                      true,       false},
             
             // Anti-Cache Operations
-            {EvictTuples.class,               false,      false},
+            {EvictTuples.class,                     false,      false},
+            {EvictHistory.class,                    true,       true},
          
 //         {"org.voltdb.sysprocs.StartSampler",                 false,    false},
 //         {"org.voltdb.sysprocs.SystemInformation",            true,     false},
