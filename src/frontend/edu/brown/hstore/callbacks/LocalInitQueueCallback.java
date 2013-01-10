@@ -112,10 +112,9 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
                 throw new RuntimeException(String.format("Unexpected status %s for %s", status, this.ts));
         } // SWITCH
         // 2013-01-09
-        // This needs to be here, otherwise allCallbacksFinished() will
-        // always return false and our aborted txns will forever be stuck in
-        // the TransactionCleaner's queues.
-        this.clearCounter();
+        // You definitely do not want to call clearCounter() here!
+        // The TransactionQueueManager is responsible for making sure that we 
+        // decrement the counter for any partition that we are going to skip queueing up
     }
     
     // ----------------------------------------------------------------------------

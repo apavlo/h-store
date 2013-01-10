@@ -226,8 +226,14 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     
                     // If this txn gets rejected when we try to insert it, then we 
                     // just need to stop trying to add it to other partitions
-                    ret = this.lockQueueInsert(next_init, partition, callback) && ret;
-                    if (ret == false) break;
+                    if (ret) {
+                        ret = this.lockQueueInsert(next_init, partition, callback);
+
+                    // IMPORTANT: But we still need to go through and decrement the
+                    // callback's counter for those other partitions.
+                    } else {
+                        callback.run(partition);
+                    }
                 } // FOR
                 if (ret) added++;
             }

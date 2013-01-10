@@ -303,6 +303,12 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         // If this is the first response that told us to abort, then we'll
         // send the abort message out
         if (this.canceled == false && this.abortInvoked.compareAndSet(false, true)) {
+            if (this.unblockInvoked.get()) {
+                LOG.warn(String.format("%s - Trying to call %s.abortCallback() after having been unblocked!\n%s",
+                         this.ts, this.getClass().getSimpleName(), this));
+                return;
+            }
+            
             if (debug.val)
                 LOG.debug(String.format("%s - Invoking %s.abortCallback() [hashCode=%d]",
                           this.ts, this.getClass().getSimpleName(), this.hashCode()));
