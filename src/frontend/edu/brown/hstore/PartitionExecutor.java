@@ -967,11 +967,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         InternalMessage work = null;
         
         // Check whether there is something we can speculatively execute right now
-        if (this.currentDtxn != null && this.specExecIgnoreCurrent == false && this.initQueue.isEmpty() == false) {
+        if (this.currentDtxn != null &&
+            this.specExecIgnoreCurrent == false &&
+            this.initQueue.isEmpty() == false && 
+            this.currentDtxn.isInitialized()) {
+            
             assert(hstore_conf.site.specexec_enable) :
                 "Trying to schedule speculative txn even though it is disabled";
             
-            if (trace.val) LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
+            if (trace.val)
+                LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
             assert(this.currentDtxn.isInitialized()) :
                 String.format("Uninitialized distributed transaction handle [%s]", this.currentDtxn);
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
@@ -984,8 +989,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // Because we don't have fine-grained undo support, we are just going
             // keep all of our speculative execution txn results around
             if (spec_ts != null) {
-                if (debug.val) LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
-                                 this.currentDtxn, spec_ts));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
+                              this.currentDtxn, spec_ts));
                 assert(spec_ts.getBasePartition() == this.partitionId) :
                     String.format("Trying to speculatively execute %s at partition %d but its base partition is %d\n%s",
                                   spec_ts, this.partitionId, spec_ts.getBasePartition(), spec_ts.debug());

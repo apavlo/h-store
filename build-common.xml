@@ -104,7 +104,6 @@
 <arg value="site.exec_preprocessing_threads=${site.exec_preprocessing_threads}" />
 <arg value="site.exec_preprocessing_threads_count=${site.exec_preprocessing_threads_count}" />
 <arg value="site.exec_postprocessing_threads=${site.exec_postprocessing_threads}" />
-<arg value="site.exec_postprocessing_threads_count=${site.exec_postprocessing_threads_count}" />
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />

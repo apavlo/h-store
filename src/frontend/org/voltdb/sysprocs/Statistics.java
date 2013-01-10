@@ -100,6 +100,7 @@ public class Statistics extends VoltSystemProcedure {
         addStatsFragments(SysProcSelector.SPECEXECPROFILER, SysProcFragmentId.PF_specexecProfilerData, SysProcFragmentId.PF_specexecProfilerDataAggregator);
         addStatsFragments(SysProcSelector.SITEPROFILER, SysProcFragmentId.PF_siteProfilerData, SysProcFragmentId.PF_siteProfilerDataAggregator);
         addStatsFragments(SysProcSelector.PLANNERPROFILER, SysProcFragmentId.PF_plannerProfilerData, SysProcFragmentId.PF_plannerProfilerDataAggregator);
+        addStatsFragments(SysProcSelector.ANTICACHE, SysProcFragmentId.PF_anticacheData, SysProcFragmentId.PF_anticacheDataAggregator);
         addStatsFragments(SysProcSelector.POOL, SysProcFragmentId.PF_poolData, SysProcFragmentId.PF_poolDataAggregator);
     } // STATIC
     
@@ -141,6 +142,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_specexecProfilerData:
             case SysProcFragmentId.PF_siteProfilerData:
             case SysProcFragmentId.PF_plannerProfilerData:
+            case SysProcFragmentId.PF_anticacheData:
             case SysProcFragmentId.PF_poolData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =
@@ -182,6 +184,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_specexecProfilerDataAggregator:
             case SysProcFragmentId.PF_siteProfilerDataAggregator:
             case SysProcFragmentId.PF_plannerProfilerDataAggregator:
+            case SysProcFragmentId.PF_anticacheDataAggregator:
             case SysProcFragmentId.PF_poolDataAggregator: {
                 // Do a reverse look up to find the input dependency id
                 int dataFragmentId = -1;
