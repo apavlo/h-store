@@ -63,7 +63,8 @@ public class StatsAgent {
         final HashMap<Integer, ArrayList<StatsSource>> catalogIdToStatsSources = registeredStatsSources.get(selector);
         assert catalogIdToStatsSources != null;
 
-        assert catalogIdToStatsSources.get(catalogIds.get(0)) != null;
+        assert(catalogIdToStatsSources.get(catalogIds.get(0)) != null) :
+            "Invalid stats source type '" + selector + "'";
         ArrayList<StatsSource> statsSources = catalogIdToStatsSources.get(catalogIds.get(0));
         assert statsSources != null && statsSources.size() > 0;
         final VoltTable.ColumnInfo columns[] = statsSources.get(0).getColumnSchema().toArray(new VoltTable.ColumnInfo[0]);

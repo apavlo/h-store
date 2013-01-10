@@ -97,6 +97,7 @@ import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimatorState;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
+import edu.brown.hstore.stats.AntiCacheManagerProfilerStats;
 import edu.brown.hstore.stats.BatchPlannerProfilerStats;
 import edu.brown.hstore.stats.MarkovEstimatorProfilerStats;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
@@ -795,6 +796,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // QUEUE PROFILER
         statsSource = new TransactionQueueManagerProfilerStats(this);
         this.statsAgent.registerStatsSource(SysProcSelector.QUEUEPROFILER, 0, statsSource);
+        
+        // ANTI-CACHE PROFILER
+        statsSource = new AntiCacheManagerProfilerStats(this);
+        this.statsAgent.registerStatsSource(SysProcSelector.ANTICACHE, 0, statsSource);
         
         // MARKOV ESTIMATOR PROFILER
         statsSource = new MarkovEstimatorProfilerStats(this);

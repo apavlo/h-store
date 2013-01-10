@@ -116,8 +116,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         public void runImpl() {
             try {
                 // update all the partition sizes
-                for (Integer p : hstore_site.getLocalPartitionIds()) {
-                    getPartitionSize(p.intValue());
+                for (int partition : hstore_site.getLocalPartitionIds().values()) {
+                    getPartitionSize(partition);
                 } // FOR
 
                 // check to see if we should start eviction
