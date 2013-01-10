@@ -1,0 +1,38 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'DeleteRecord':'deleteStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteRecord.deleteStmt':'0'}",
+  "STATEMENT_COLUMN": "{'USERTABLE':'YCSB_KEY'}",
+  "PROCEDURE_PARAMETER": "{'DeleteRecord':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertRecord':'insertStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertRecord.insertStmt':'0'}",
+  "STATEMENT_COLUMN": "{'USERTABLE':'YCSB_KEY'}",
+  "PROCEDURE_PARAMETER": "{'InsertRecord':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ReadRecord':'readStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ReadRecord.readStmt':'0'}",
+  "STATEMENT_COLUMN": "{'USERTABLE':'YCSB_KEY'}",
+  "PROCEDURE_PARAMETER": "{'ReadRecord':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateRecord':'updateAllStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateRecord.updateAllStmt':'10'}",
+  "STATEMENT_COLUMN": "{'USERTABLE':'YCSB_KEY'}",
+  "PROCEDURE_PARAMETER": "{'UpdateRecord':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ }
+]}

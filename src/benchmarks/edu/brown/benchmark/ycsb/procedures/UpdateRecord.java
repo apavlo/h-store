@@ -29,6 +29,7 @@
 
 package edu.brown.benchmark.ycsb.procedures;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -36,30 +37,41 @@ import org.voltdb.VoltTable;
 import edu.brown.benchmark.ycsb.YCSBUtil; 
 import edu.brown.benchmark.ycsb.YCSBConstants;
 
-import java.util.List; 
-import java.util.LinkedList; 
-
+@ProcInfo(
+    partitionInfo = "USERTABLE.YCSB_KEY: 0",
+    singlePartition = true
+)
 public class UpdateRecord extends VoltProcedure {
 	
 	public final SQLStmt updateAllStmt = new SQLStmt(
-			"UPDATE USERTABLE SET FIELD1=?,FIELD2=?,FIELD3=?,FIELD4=?,FIELD5=?," +
-	        "FIELD6=?,FIELD7=?,FIELD8=?,FIELD9=?,FIELD10=? WHERE YCSB_KEY=?"
+			"UPDATE USERTABLE SET " +
+			"  FIELD1=?," +
+			"  FIELD2=?," +
+			"  FIELD3=?," +
+			"  FIELD4=?," +
+			"  FIELD5=?," +
+	        "  FIELD6=?," +
+	        "  FIELD7=?," +
+	        "  FIELD8=?," +
+	        "  FIELD9=?," +
+	        "  FIELD10=? " +
+	        "WHERE YCSB_KEY=?"
 	    );
 
     public VoltTable[] run(long id) {
-
-		List<String> vals = new LinkedList<String>(); 
-		
-		for(int i = 0; i < 10; i++)
-		{
-			vals.add(YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH,YCSBConstants.COLUMN_LENGTH)); 
-		}
-		
-		assert(vals.size() == 10); 
-				
-        voltQueueSQL(updateAllStmt, vals.get(0), vals.get(1), vals.get(2), vals.get(3), vals.get(4), vals.get(5), 
-                     vals.get(6), vals.get(7), vals.get(8), vals.get(9), id);
-        
-        return (voltExecuteSQL());
+		voltQueueSQL(updateAllStmt,
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD1
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD2
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD3
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD4
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD5
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD6
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD7
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD8
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD9
+                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD10
+                  id
+        );
+        return (voltExecuteSQL(true));
     }
 }

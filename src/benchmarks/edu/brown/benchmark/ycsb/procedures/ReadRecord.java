@@ -29,16 +29,21 @@
 
 package edu.brown.benchmark.ycsb.procedures;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
+@ProcInfo(
+    partitionInfo = "USERTABLE.YCSB_KEY: 0",
+    singlePartition = true
+)
 public class ReadRecord extends VoltProcedure {
 	
     public final SQLStmt readStmt = new SQLStmt("SELECT * FROM USERTABLE WHERE YCSB_KEY=?");
 
     public VoltTable[] run(long id) {
         voltQueueSQL(readStmt, id);
-        return (voltExecuteSQL());
+        return (voltExecuteSQL(true));
     }
 }

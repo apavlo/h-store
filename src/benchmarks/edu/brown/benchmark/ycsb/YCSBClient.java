@@ -53,9 +53,32 @@ public class YCSBClient extends BenchmarkComponent {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    
+    
+    public static enum Transaction {
+        INSERT_RECORD("Insert Record", YCSBConstants.FREQUENCY_INSERT_RECORD),
+        DELETE_RECORD("Delete Record", YCSBConstants.FREQUENCY_DELETE_RECORD), 
+        READ_RECORD("Read Record", YCSBConstants.FREQUENCY_READ_RECORD), 
+        SCAN_RECORD("Scan Record", YCSBConstants.FREQUENCY_SCAN_RECORD), 
+        UPDATE_RECORD("Update Record", YCSBConstants.FREQUENCY_UPDATE_RECORD);
+        
+        /**
+         * Constructor
+         */
+        private Transaction(String displayName, int weight) {
+            this.displayName = displayName;
+            this.callName = displayName.replace(" ", "");
+            this.weight = weight;
+        }
+        
+        public final String displayName;
+        public final String callName;
+        public final int weight; // probability (in terms of percentage) the transaction gets executed
+    
+    } // TRANSCTION ENUM
 
     private CustomSkewGenerator readRecord; 
-    private  CustomSkewGenerator insertRecord;
+    private CustomSkewGenerator insertRecord;
     private ZipfianGenerator randScan;
     private List<String> value_list; 
     private final FlatHistogram<Transaction> txnWeights;
@@ -104,28 +127,6 @@ public class YCSBClient extends BenchmarkComponent {
         assert(txns.getSampleCount() == 100) : txns;
         this.txnWeights = new FlatHistogram<Transaction>(this.rand_gen, txns);
     }
-    
-    public static enum Transaction {
-        INSERT_RECORD("Insert Record", YCSBConstants.FREQUENCY_INSERT_RECORD),
-        DELETE_RECORD("Delete Record", YCSBConstants.FREQUENCY_DELETE_RECORD), 
-        READ_RECORD("Read Record", YCSBConstants.FREQUENCY_READ_RECORD), 
-        SCAN_RECORD("Scan Record", YCSBConstants.FREQUENCY_SCAN_RECORD), 
-        UPDATE_RECORD("Update Record", YCSBConstants.FREQUENCY_UPDATE_RECORD);
-        
-        /**
-         * Constructor
-         */
-        private Transaction(String displayName, int weight) {
-            this.displayName = displayName;
-            this.callName = displayName.replace(" ", "");
-            this.weight = weight;
-        }
-        
-        public final String displayName;
-        public final String callName;
-        public final int weight; // probability (in terms of percentage) the transaction gets executed
-    
-    } // TRANSCTION ENUM
 
     @SuppressWarnings("unused")
     @Deprecated

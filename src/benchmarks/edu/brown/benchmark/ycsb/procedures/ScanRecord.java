@@ -38,9 +38,7 @@ public class ScanRecord extends VoltProcedure {
 	public final SQLStmt scanStmt = new SQLStmt("SELECT * FROM USERTABLE WHERE YCSB_KEY>? AND YCSB_KEY<?");
 
     public VoltTable[] run(long start, long count) {
-		
         voltQueueSQL(scanStmt, start, start+count);
-        
-        return (voltExecuteSQL());
+        return (voltExecuteSQL(true));
     }
 }
