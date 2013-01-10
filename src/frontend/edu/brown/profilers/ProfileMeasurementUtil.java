@@ -1,9 +1,12 @@
 package edu.brown.profilers;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.log4j.Logger;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.StringUtil;
 
 public abstract class ProfileMeasurementUtil {
     private static final Logger LOG = Logger.getLogger(ProfileMeasurementUtil.class);
@@ -100,6 +103,50 @@ public abstract class ProfileMeasurementUtil {
      */
     public static void start(ProfileMeasurement... to_start) {
         start(false, to_start);
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // PRETTY PRINTING
+    // --------------------------------------------------------------------------------------------
+
+    public static String formatProfileMeasurements(ProfileMeasurement pm, ProfileMeasurement last,
+                                                   boolean showInvocations, boolean compareLastAvg) {
+        String value = "";
+        if (showInvocations) {
+            value += String.format("%d invocations / ", pm.getInvocations()); 
+        }
+        
+        String avgTime = StringUtil.formatTime("%.2f", pm.getAverageThinkTime());
+        value += String.format("%.2fms total / %s avg",
+                               pm.getTotalThinkTimeMS(), avgTime);
+        if (last != null) {
+            double delta;
+            String deltaPrefix;
+            TimeUnit timeUnit = TimeUnit.NANOSECONDS;
+            if (compareLastAvg) {
+                delta = pm.getAverageThinkTime() - last.getAverageThinkTime();
+                deltaPrefix = "AVG: ";
+            } else {
+                if (pm.getTotalThinkTime() >= last.getTotalThinkTime()) {
+                    delta = pm.getTotalThinkTime() - last.getTotalThinkTime();
+                    deltaPrefix = "";
+                }
+                else {
+                    delta = pm.getTotalThinkTimeMS() - last.getTotalThinkTimeMS();
+                    deltaPrefix = "??? ";
+                    timeUnit = TimeUnit.MILLISECONDS;
+                }
+            }
+            String deltaTime = StringUtil.formatTime("%.2f", delta, timeUnit);
+            String deltaArrow = " ";
+            if (delta > 0) {
+                deltaArrow = StringUtil.UNICODE_UP_ARROW;
+            } else if (delta < 0) {
+                deltaArrow = StringUtil.UNICODE_DOWN_ARROW;
+            }
+            value += String.format("  [%s%s%s]", deltaPrefix, deltaArrow, deltaTime);
+        }
+        return (value);
     }
     
 }

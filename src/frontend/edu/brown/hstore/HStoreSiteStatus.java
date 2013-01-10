@@ -16,7 +16,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -27,6 +26,7 @@ import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
@@ -37,6 +37,7 @@ import edu.brown.pools.TypedObjectPool;
 import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurementUtil;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
@@ -88,8 +89,12 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     private final HStoreConf hstore_conf;
     private final int interval; // milliseconds
     
-    private final Set<AbstractTransaction> last_finishedTxns;
-    private final Set<AbstractTransaction> cur_finishedTxns;
+    /**
+     * The list of transactions that were sitting in the queue as finished
+     * the last time that we checked.
+     */
+    private final Set<AbstractTransaction> last_finishedTxns = new HashSet<AbstractTransaction>();
+    private final Set<AbstractTransaction> cur_finishedTxns = new HashSet<AbstractTransaction>();
     
     private Integer last_completed = null;
     private AtomicInteger snapshot_ctr = new AtomicInteger(0);
@@ -143,17 +148,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         this.siteDebug = hstore_site.getDebugContext();
         this.hstore_conf = hstore_conf;
         this.interval = hstore_conf.site.status_interval;
-        
-        // The list of transactions that were sitting in the queue as finished
-        // the last time that we checked
-        if (hstore_conf.site.status_check_for_zombies) {
-            this.last_finishedTxns = new HashSet<AbstractTransaction>();
-            this.cur_finishedTxns = new HashSet<AbstractTransaction>();
-        } else {
-            this.last_finishedTxns = null;
-            this.cur_finishedTxns = null;
-        }
-        
+
         // Print a debug message when the first non-sysproc shows up
         this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<HStoreSite>() {
             @Override
@@ -284,7 +279,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         ProfileMeasurement pm = null;
         String value = null;
         
-        LinkedHashMap<String, Object> siteInfo = new LinkedHashMap<String, Object>();
+        Map<String, Object> siteInfo = new LinkedHashMap<String, Object>();
         if (TransactionCounter.COMPLETED.get() > 0) {
             siteInfo.put("Completed Txns", TransactionCounter.COMPLETED.get());
         }
@@ -320,10 +315,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             siteInfo.put("Arrival Rate", value);
             
             pm = profiler.network_backup_off;
-            siteInfo.put("Back Pressure Off", formatProfileMeasurements(pm, null, true, false));
+            siteInfo.put("Back Pressure Off", ProfileMeasurementUtil.formatProfileMeasurements(pm, null, true, false));
             
             pm = profiler.network_backup_on;
-            siteInfo.put("Back Pressure On", formatProfileMeasurements(pm, null, true, false));
+            siteInfo.put("Back Pressure On", ProfileMeasurementUtil.formatProfileMeasurements(pm, null, true, false));
         }
 
         
@@ -332,31 +327,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         TransactionQueueManager.Debug queueManagerDebug = queueManager.getDebugContext();
         
         int inflight_cur = siteDebug.getInflightTxnCount();
-        int inflight_local = queueManagerDebug.getInitQueueSize();
         if (inflight_cur < this.inflight_min && inflight_cur > 0) this.inflight_min = inflight_cur;
         if (inflight_cur > this.inflight_max) this.inflight_max = inflight_cur;
-        
-        // Check to see how many of them are marked as finished
-        // There is no guarantee that this will be accurate because txns could be swapped out
-        // by the time we get through it all
-        int inflight_zombies = 0;
-//        if (this.cur_finishedTxns != null) this.cur_finishedTxns.clear();
-//        for (AbstractTransaction ts : siteDebug.getInflightTransactions()) {
-//           if (ts instanceof LocalTransaction) {
-////               LocalTransaction local_ts = (LocalTransaction)ts;
-////               ClientResponse cr = local_ts.getClientResponse();
-////               if (cr.getStatus() != null) {
-////                   inflight_finished++;
-////                   // Check for Zombies!
-////                   if (this.cur_finishedTxns != null && local_ts.isPredictSinglePartition() == false) {
-////                       if (this.last_finishedTxns.contains(ts)) {
-////                           inflight_zombies++;
-////                       }
-////                       this.cur_finishedTxns.add(ts);
-////                   }
-////               }
-//           }
-//        } // FOR
         
         // CommandLogWriter
         int inflight_cmdlog = 0;
@@ -366,38 +338,28 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         }
         
         siteInfo.put("InFlight Txns", String.format("%d total / %d queued / %d cmdlog / %d deletable [totalMin=%d, totalMax=%d]",
-                        inflight_cur,       // total
-                        inflight_local,     // queued
-                        inflight_cmdlog,    // cmdlog
-                        this.siteDebug.getDeletableTxnCount(), // deletable
-                        this.inflight_min,  // totalMin
-                        this.inflight_max   // totalMax
+                        inflight_cur,                           // total
+                        queueManagerDebug.getInitQueueSize(),   // queued
+                        inflight_cmdlog,                        // cmdlog
+                        this.siteDebug.getDeletableTxnCount(),  // deletable
+                        this.inflight_min,                      // totalMin
+                        this.inflight_max                       // totalMax
         ));
         
-        if (this.cur_finishedTxns != null) {
-            siteInfo.put("Zombie Txns", inflight_zombies +
-                                      (inflight_zombies > 0 ? " - " + CollectionUtil.first(this.cur_finishedTxns) : ""));
-//            for (AbstractTransaction ts : this.cur_finishedTxns) {
-//                // HACK
-//                if (ts instanceof LocalTransaction && this.last_finishedTxns.remove(ts)) {
-//                    LocalTransaction local_ts = (LocalTransaction)ts;
-//                    local_ts.markAsDeletable();
-//                    hstore_site.deleteTransaction(ts.getTransactionId(), local_ts.getClientResponse().getStatus());
-//                }
-//            }
-            this.last_finishedTxns.clear();
-            this.last_finishedTxns.addAll(this.cur_finishedTxns);
+        
+        if (hstore_conf.site.status_check_for_zombies) {
+            this.zombieInfo(siteInfo);
         }
         
         if (hstore_conf.site.profiling) {
             HStoreSiteProfiler profiler = this.hstore_site.getProfiler();
             pm = profiler.network_idle;
-            value = this.formatProfileMeasurements(pm, this.lastNetworkIdle, true, true);
+            value = ProfileMeasurementUtil.formatProfileMeasurements(pm, this.lastNetworkIdle, true, true);
             siteInfo.put("Network Idle", value);
             this.lastNetworkIdle = new ProfileMeasurement(pm);
             
             pm = profiler.network_processing;
-            value = this.formatProfileMeasurements(pm, this.lastNetworkProcessing, true, true);
+            value = ProfileMeasurementUtil.formatProfileMeasurements(pm, this.lastNetworkProcessing, true, true);
             siteInfo.put("Network Processing", value);
             this.lastNetworkProcessing = new ProfileMeasurement(pm);
         }
@@ -428,6 +390,55 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         }
 
         return (siteInfo);
+    }
+    
+    private void zombieInfo(Map<String, Object> siteInfo) {
+        // Check to see how many of them are marked as finished but then 
+        // stick around in the queue longer than they should.
+        // There is no guarantee that this will be accurate because txns could be swapped out
+        // by the time we get through it all
+        
+        int inflight_zombies = 0;
+        int inflight_local = 0;
+        int inflight_remote = 0;
+        int inflight_singlep = 0;
+        
+        this.cur_finishedTxns.clear();
+        for (AbstractTransaction ts : this.siteDebug.getInflightTransactions()) {
+            if (ts instanceof LocalTransaction) {
+                inflight_local++;
+                if (ts.isPredictSinglePartition()) inflight_singlep++;
+            }
+            else {
+                inflight_remote++;
+            }
+
+            // Check for zombies!
+            if (ts.getStatus() != null) {
+                if (this.last_finishedTxns.contains(ts)) {
+                    inflight_zombies++;
+                }
+                this.cur_finishedTxns.add(ts);
+            }
+        } // FOR
+        
+        // TXN TYPES
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        m.put("Local", String.format("%d total / %.1f%% single-partition",
+                                     inflight_local, (inflight_singlep / (double)inflight_local) * 100d));
+        m.put("Remote", String.format("%d total", inflight_remote)); 
+        siteInfo.put("InFlight Txn Types", m);
+
+        // ZOMBIE INFO
+        String zombieStatus = Integer.toString(inflight_zombies);
+        if (inflight_zombies > 0) {
+            AbstractTransaction zombie = CollectionUtil.first(this.last_finishedTxns);
+            zombieStatus += String.format(" - %s :: %s", zombie, zombie.getStatus());
+        }
+        siteInfo.put("Zombie Txns", zombieStatus);
+
+        this.last_finishedTxns.clear();
+        this.last_finishedTxns.addAll(this.cur_finishedTxns);
     }
 
     // ----------------------------------------------------------------------------
@@ -538,7 +549,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     String name = pair[0].getType();
                     boolean compareLastAvg = (execProfilerShowTotals.contains(name) == false);
                     m.put(String.format("%s Time", StringUtil.title(name)),
-                          this.formatProfileMeasurements(pair[0], pair[1], true, compareLastAvg));
+                          ProfileMeasurementUtil.formatProfileMeasurements(pair[0], pair[1], true, compareLastAvg));
                     pair[1].appendTime(pair[0]);
                     pair[2].appendTime(pair[0]);
                 } // FOR
@@ -568,7 +579,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             };
             for (ProfileMeasurement pm : pms) {
                 m_exec.put(String.format("Total %s Time", StringUtil.title(pm.getType())),
-                           this.formatProfileMeasurements(pm, null, true, true));    
+                           ProfileMeasurementUtil.formatProfileMeasurements(pm, null, true, true));    
             } // FOR
             m_exec.put(" ", null);
         }
@@ -589,46 +600,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         }
         
         return (m_exec);
-    }
-    
-    private String formatProfileMeasurements(ProfileMeasurement pm, ProfileMeasurement last,
-                                             boolean showInvocations, boolean compareLastAvg) {
-        String value = "";
-        if (showInvocations) {
-            value += String.format("%d invocations / ", pm.getInvocations()); 
-        }
-        
-        String avgTime = StringUtil.formatTime("%.2f", pm.getAverageThinkTime());
-        value += String.format("%.2fms total / %s avg",
-                               pm.getTotalThinkTimeMS(), avgTime);
-        if (last != null) {
-            double delta;
-            String deltaPrefix;
-            TimeUnit timeUnit = TimeUnit.NANOSECONDS;
-            if (compareLastAvg) {
-                delta = pm.getAverageThinkTime() - last.getAverageThinkTime();
-                deltaPrefix = "AVG: ";
-            } else {
-                if (pm.getTotalThinkTime() >= last.getTotalThinkTime()) {
-                    delta = pm.getTotalThinkTime() - last.getTotalThinkTime();
-                    deltaPrefix = "";
-                }
-                else {
-                    delta = pm.getTotalThinkTimeMS() - last.getTotalThinkTimeMS();
-                    deltaPrefix = "??? ";
-                    timeUnit = TimeUnit.MILLISECONDS;
-                }
-            }
-            String deltaTime = StringUtil.formatTime("%.2f", delta, timeUnit);
-            String deltaArrow = " ";
-            if (delta > 0) {
-                deltaArrow = StringUtil.UNICODE_UP_ARROW;
-            } else if (delta < 0) {
-                deltaArrow = StringUtil.UNICODE_DOWN_ARROW;
-            }
-            value += String.format("  [%s%s%s]", deltaPrefix, deltaArrow, deltaTime);
-        }
-        return (value);
     }
     
     // ----------------------------------------------------------------------------
