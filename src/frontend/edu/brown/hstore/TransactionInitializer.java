@@ -87,6 +87,7 @@ public class TransactionInitializer {
     private final PartitionEstimator p_estimator;
     private final PartitionSet local_partitions;
     private final TransactionEstimator t_estimators[];
+    private final TransactionIdManager txnIdManagers[];
     private EstimationThresholds thresholds;
     
     /**
@@ -135,6 +136,11 @@ public class TransactionInitializer {
             this.isSysProc[id] = proc.getSystemproc();
             this.isReadOnly[id] = proc.getReadonly();
             this.expectedParams[id] = proc.getParameters().size();
+        } // FOR
+        
+        this.txnIdManagers = new TransactionIdManager[this.local_partitions.size()];
+        for (int partition : this.local_partitions.values()) {
+            this.txnIdManagers[partition] = hstore_site.getTransactionIdManager(partition);
         } // FOR
     }
     
@@ -486,7 +492,7 @@ public class TransactionInitializer {
      * @return
      */
     protected Long registerTransaction(LocalTransaction ts, int base_partition) {
-        TransactionIdManager idManager = hstore_site.getTransactionIdManager(base_partition); 
+        TransactionIdManager idManager = this.txnIdManagers[base_partition]; 
         Long txn_id = idManager.getNextUniqueTransactionId();
         
         // For some odd reason we sometimes get duplicate transaction ids from the VoltDB id generator
