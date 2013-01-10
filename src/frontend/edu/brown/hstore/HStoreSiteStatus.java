@@ -433,7 +433,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         String zombieStatus = Integer.toString(inflight_zombies);
         if (inflight_zombies > 0) {
             AbstractTransaction zombie = CollectionUtil.first(this.last_finishedTxns);
-            zombieStatus += String.format(" - %s :: %s", zombie, zombie.getStatus());
+            zombieStatus += String.format(" - %s :: %s\n%s", zombie, zombie.getStatus(), zombie.debug());
         }
         siteInfo.put("Zombie Txns", zombieStatus);
 

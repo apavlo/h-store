@@ -981,8 +981,8 @@ public class BatchPlanner {
 
         for (PlanVertex v : graph.sorted_vertices) {
             int stmt_index = v.stmt_index;
-            for (Integer partition : plan.frag_partitions[stmt_index].get(v.catalog_frag)) {
-                plan.rounds[v.round][partition.intValue()].add(v);
+            for (int partition : plan.frag_partitions[stmt_index].get(v.catalog_frag).values()) {
+                plan.rounds[v.round][partition].add(v);
             } // FOR
         } // FOR
 

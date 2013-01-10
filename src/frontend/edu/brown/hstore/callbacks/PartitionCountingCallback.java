@@ -95,8 +95,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param partitions - The partitions that we expected to get notifications for
      */
     protected void init(X ts, PartitionSet partitions) {
-        if (debug.val) LOG.debug(String.format("%s - Initialized new %s with partitions %s [counter=%d, hashCode=%d]",
-                                   ts, this.getClass().getSimpleName(), partitions, partitions.size(), this.hashCode()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Initialized new %s with partitions %s [counter=%d, hashCode=%d]",
+                      ts, this.getClass().getSimpleName(), partitions, partitions.size(), this.hashCode()));
         int counter_val = partitions.size();
         this.orig_counter = counter_val;
         this.counter.set(counter_val);
@@ -185,8 +186,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     protected final void finishTransaction(Status status) {
         assert(this.ts != null) :
             "Null transaction handle for txn #" + this.orig_txn_id;
-        if (debug.val) LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
-                                   this.ts, this.getClass().getSimpleName(), status));
+        if (debug.val)
+            LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
+                      this.ts, this.getClass().getSimpleName(), status));
         
         // Let everybody know that the party is over!
         if (this.ts instanceof LocalTransaction) {
@@ -205,7 +207,6 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     protected final void clearCounter() {
         this.counter.set(0);
     }
-    
     
     // ----------------------------------------------------------------------------
     // RUN
@@ -334,7 +335,14 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         }
         
         // Always add the partition
-        this.receivedPartitions.add(partition);
+        if (this.receivedPartitions.contains(partition) == false) {
+            synchronized (this.receivedPartitions) {
+                if (this.receivedPartitions.contains(partition) == false) {
+                    this.counter.decrementAndGet();
+                    this.receivedPartitions.add(partition);
+                }
+            } // SYNCH
+        }
     }
     
     @Override
