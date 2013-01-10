@@ -53,7 +53,6 @@ BASE_ARGS=( \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=1" \
     "-Dsite.exec_postprocessing_threads=true" \
-    "-Dsite.exec_postprocessing_threads_count=1" \
     
     # Client Params
     "-Dclient.scalefactor=1" \

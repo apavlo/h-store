@@ -617,6 +617,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * @param status
      */
     public void restartTransaction(LocalTransaction ts, Status status) {
+        assert(ts != null) :
+            String.format("Unexpected null transaction %s [status=%s]", ts, status);
+        assert(ts.isInitialized()) :
+            String.format("Unexpected uninitialized transaction %s [status=%s]", ts, status);
+        
         if (debug.val)
             LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
         ts.markNeedsRestart();
