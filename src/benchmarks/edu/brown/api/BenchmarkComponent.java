@@ -630,6 +630,12 @@ public abstract class BenchmarkComponent {
                         if (debug.val) LOG.debug(String.format("%s Transaction Weight: %d", txnName, txnWeight));
                         this.m_txnWeights.put(txnName.toUpperCase(), txnWeight);
                     }
+                    
+                    // If the weight is 100, then we'll set the default weight to zero
+                    if (txnWeight == 100 && this.m_txnWeightsDefault == null) {
+                        this.m_txnWeightsDefault = 0;
+                        if (debug.val) LOG.debug(String.format("Default Transaction Weight: %d", this.m_txnWeightsDefault));
+                    }
                 } catch (Throwable ex) {
                     LOG.warn("Invalid transaction weight entry '" + entry + "'", ex);
                     continue;
