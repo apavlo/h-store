@@ -43,9 +43,9 @@ BASE_ARGS=( \
     # SITE DEBUG
 #     "-Dsite.status_enable=true" \
 #     "-Dsite.status_interval=10000" \
-#     "-Dsite.status_show_executor_info=true" \
+#     "-Dsite.status_exec_info=true" \
 #     "-Dsite.exec_profiling=true" \
-#     "-Dsite.status_show_txn_info=true" \
+#     "-Dsite.status_txn_info=true" \
 #     "-Dsite.network_profiling=false" \
 #     "-Dsite.log_backup=true"\
     

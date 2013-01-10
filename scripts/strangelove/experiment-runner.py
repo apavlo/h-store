@@ -95,8 +95,8 @@ DEFAULT_OPTIONS = {
 DEBUG_OPTIONS = {
     "site.status_enable":             True,
     "site.status_interval":           20000,
-    #"site.status_show_txn_info":      True,
-    "site.status_show_executor_info": True,
+    #"site.status_txn_info":      True,
+    "site.status_exec_info": True,
     "site.exec_profiling":            True,
     #"site.txn_profiling":             True,    
 }
@@ -141,7 +141,7 @@ BASE_SETTINGS = {
     "site.log_backup":                          False,
     "site.status_enable":                       False,
     "site.status_show_thread_info":             False,
-    "site.status_show_executor_info":           False,
+    "site.status_exec_info":           False,
     "site.txn_incoming_delay":                  10,
     "site.coordinator_init_thread":             False,
     "site.coordinator_finish_thread":           False,

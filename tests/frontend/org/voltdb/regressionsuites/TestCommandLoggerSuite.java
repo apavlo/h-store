@@ -123,7 +123,7 @@ public class TestCommandLoggerSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.commandlog_enable", true);
         builder.setGlobalConfParameter("site.commandlog_timeout", 1000);
         builder.setGlobalConfParameter("site.status_enable", true);
-        builder.setGlobalConfParameter("site.status_show_executor_info", true);
+        builder.setGlobalConfParameter("site.status_exec_info", true);
         
         VoterProjectBuilder project = new VoterProjectBuilder();
         project.addAllDefaults();
