@@ -177,9 +177,9 @@
 <arg value="site.status_interval=${site.status_interval}" />
 <arg value="site.status_kill_if_hung=${site.status_kill_if_hung}" />
 <arg value="site.status_check_for_zombies=${site.status_check_for_zombies}" />
-<arg value="site.status_show_txn_info=${site.status_show_txn_info}" />
-<arg value="site.status_show_executor_info=${site.status_show_executor_info}" />
-<arg value="site.status_show_thread_info=${site.status_show_thread_info}" />
+<arg value="site.status_txn_info=${site.status_txn_info}" />
+<arg value="site.status_exec_info=${site.status_exec_info}" />
+<arg value="site.status_thread_info=${site.status_thread_info}" />
 <arg value="site.pool_scale_factor=${site.pool_scale_factor}" />
 <arg value="site.pool_profiling=${site.pool_profiling}" />
 <arg value="site.pool_txn_enable=${site.pool_txn_enable}" />

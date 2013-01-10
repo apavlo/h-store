@@ -201,9 +201,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     
     public void printStatus() {
         LOG.info("STATUS #" + this.snapshot_ctr.incrementAndGet() + "\n" +
-                 StringBoxUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
-                                              hstore_conf.site.status_show_executor_info,
-                                              hstore_conf.site.status_show_thread_info,
+                 StringBoxUtil.box(this.snapshot(hstore_conf.site.status_txn_info,
+                                              hstore_conf.site.status_exec_info,
+                                              hstore_conf.site.status_thread_info,
                                               hstore_conf.site.pool_profiling)));
     }
     

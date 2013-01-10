@@ -30,7 +30,7 @@ public class TransactionPreProcessor extends AbstractProcessingThread<Pair<ByteB
         super(hstore_site,
               HStoreConstants.THREAD_NAME_PREPROCESSOR,
               queue,
-              hstore_site.getHStoreConf().site.status_show_executor_info);
+              hstore_site.getHStoreConf().site.status_exec_info);
     }
     
     @Override

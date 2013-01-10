@@ -586,7 +586,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Profiling
         if (hstore_conf.site.profiling) {
             this.profiler = new HStoreSiteProfiler();
-            if (hstore_conf.site.status_show_executor_info) {
+            if (hstore_conf.site.status_exec_info) {
                 this.profiler.network_idle.resetOnEventObservable(this.startWorkload_observable);
             }
         } else {
@@ -2902,6 +2902,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         public Collection<String> getLastDeletedTxns() {
             return (deletable_last);
+        }
+        public void resetStartWorkload() {
+            synchronized (HStoreSite.this) {
+                HStoreSite.this.startWorkload = false;
+            } // SYNCH
         }
         
         /**

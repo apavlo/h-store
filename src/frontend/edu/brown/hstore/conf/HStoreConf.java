@@ -1020,10 +1020,10 @@ public final class HStoreConf {
         public int status_interval;
 
         @ConfigProperty(
-            description="Allow the HStoreSiteStatus thread to kill the cluster if the local HStoreSite appears to be " +
-            		    "hung. The site is considered hung if it has executed at least one transaction and has " +
-                        "not completed (either committed or aborted) any new transactions since the last time " +
-                        "it took a status snapshot.",
+            description="Allow the HStoreSiteStatus thread to kill the cluster if the local HStoreSite appears " +
+            		    "to be hung. The site is considered hung if it has executed at least one transaction " +
+            		    "and has not completed (either committed or aborted) any new transactions since the " +
+            		    "last time it took a status snapshot.",
             defaultBoolean=false,
             experimental=false
         )
@@ -1043,16 +1043,16 @@ public final class HStoreConf {
             defaultBoolean=false,
             experimental=false
         )
-        public boolean status_show_txn_info;
-
+        public boolean status_txn_info;
+        
         @ConfigProperty(
-            description="When this property is set to true, HStoreSite status will include information about each " +
-            		    "PartitionExecutor, such as the number of transactions currently queued, blocked for " +
-            		    "execution, or waiting to have their results returned to the client.",
+            description="When this property is set to true, HStoreSite status will include information " +
+            		    "about each PartitionExecutor, such as the number of transactions currently queued, " +
+            		    "blocked for execution, or waiting to have their results returned to the client.",
             defaultBoolean=false,
             experimental=false
         )
-        public boolean status_show_executor_info;
+        public boolean status_exec_info;
         
         @ConfigProperty(
             description="When this property is set to true, HStoreSite status will include a snapshot of running " +
@@ -1060,7 +1060,7 @@ public final class HStoreConf {
             defaultBoolean=false,
             experimental=false
         )
-        public boolean status_show_thread_info;
+        public boolean status_thread_info;
         
         // ----------------------------------------------------------------------------
         // OBJECT POOLS

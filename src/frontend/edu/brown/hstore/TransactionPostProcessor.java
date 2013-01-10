@@ -31,7 +31,7 @@ public final class TransactionPostProcessor extends AbstractProcessingThread<Obj
         super(hstore_site,
               HStoreConstants.THREAD_NAME_POSTPROCESSOR,
               queue,
-              hstore_site.getHStoreConf().site.status_show_executor_info);
+              hstore_site.getHStoreConf().site.status_exec_info);
     }
     
     @Override

@@ -89,15 +89,17 @@ public class ResetProfiling extends VoltSystemProcedure {
                 }
                 
                 // The first partition at this HStoreSite will have to reset
-                // any global profling parameters
+                // any global profiling parameters
                 if (this.isFirstLocalPartition()) {
                     // COMMAND LOGGER
                     CommandLogWriter commandLog = hstore_site.getCommandLogWriter();
                     if (hstore_conf.site.commandlog_profiling && commandLog.getProfiler() != null) {
                         commandLog.getProfiler().reset();
                     }
+                    
+                    // Reset the StartWorkload flag in the HStoreSite
+                    hstore_site.getDebugContext().resetStartWorkload();
                 }
-                
                 
                 VoltTable vt = new VoltTable(nodeResultsColumns);
                 vt.addRow(this.executor.getHStoreSite().getSiteName(),
