@@ -720,23 +720,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.exec_preprocessing_threads && hstore_conf.site.exec_postprocessing_threads) {
             int split = (int)Math.ceil(num_available_cores / 2d);
             num_preProcessors = split;
-            num_postProcessors = split;
         }
         // TransactionPreProcessor Only
         else if (hstore_conf.site.exec_preprocessing_threads) {
             num_preProcessors = num_available_cores;
         }
-        // TransactionPostProcessor Only
-        else {
-            num_postProcessors = num_available_cores;
+        
+        // We only need one TransactionPostProcessor per HStoreSite
+        if (hstore_conf.site.exec_postprocessing_threads) {
+            num_postProcessors = 1;
         }
         
         // Overrides
         if (hstore_conf.site.exec_preprocessing_threads_count >= 0) {
             num_preProcessors = hstore_conf.site.exec_preprocessing_threads_count;
-        }
-        if (hstore_conf.site.exec_postprocessing_threads_count >= 0) {
-            num_postProcessors = hstore_conf.site.exec_postprocessing_threads_count;
         }
         
         // Initialize TransactionPreProcessors
