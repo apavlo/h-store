@@ -485,6 +485,27 @@ public class TransactionInitializer {
     // ----------------------------------------------------------------------------
     
     /**
+     * This method allows you to reset the txnId for an already initialized LocalTransaction handle.
+     * This is primarily needed for the AntiCacheManager stuff
+     * @param ts
+     * @param base_partition
+     * @return
+     */
+    protected Long resetTransactionId(LocalTransaction ts, int base_partition) {
+        Long oldTxnId = ts.getTransactionId();
+        assert(oldTxnId != null);
+        AbstractTransaction removed = this.inflight_txns.remove(oldTxnId);
+        assert(ts == removed);
+        
+        Long newTxnId = this.registerTransaction(ts, base_partition);
+        ts.setTransactionId(newTxnId);
+        
+        if (debug.val)
+            LOG.debug(String.format("Changed txnId from %d to %d: %s", oldTxnId, newTxnId, ts)); 
+        return (newTxnId);
+    }
+    
+    /**
      * Register a new LocalTransaction handle with this HStoreSite
      * We will return a txnId that is guaranteed to be globally unique
      * @param ts

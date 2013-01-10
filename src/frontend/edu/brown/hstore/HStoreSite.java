@@ -1707,7 +1707,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // SHUTDOWN
         // TODO: Execute as a regular sysproc transaction
         // -------------------------------
-        if (catalog_proc.getName().equals("@Shutdown")) {
+        if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
             ClientResponseImpl cresponse = new ClientResponseImpl(
                     -1,
                     client_handle,
@@ -1735,7 +1735,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // EXECUTOR STATUS
         // -------------------------------
-        else if (catalog_proc.getName().equals("@ExecutorStatus")) {
+        else if (catalog_proc.getName().equalsIgnoreCase("@ExecutorStatus")) {
             if (this.status_monitor != null) {
                 this.status_monitor.printStatus();
                 RingBufferAppender appender = RingBufferAppender.getRingBufferAppender(LOG);
@@ -1755,7 +1755,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // ADHOC
         // -------------------------------
-        else if (catalog_proc.getName().equals("@AdHoc")) {
+        else if (catalog_proc.getName().equalsIgnoreCase("@AdHoc")) {
             String msg = null;
             
             // Is this feature disabled?
@@ -1939,7 +1939,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         this.executors[fragment.getPartitionId()].queueWork(ts, fragment);
     }
-
 
     /**
      * This method is the first part of two phase commit for a transaction.
@@ -2358,8 +2357,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         if (status == Status.ABORT_EVICTEDACCESS && orig_error instanceof EvictedTupleAccessException) {
             if (this.anticacheManager == null) {
-				LOG.warn("Got eviction notice but anti-caching is not enabled"); 
                 String message = "Got eviction notice but anti-caching is not enabled";
+				LOG.warn(message); 
                 throw new ServerFaultException(message, orig_error, orig_ts.getTransactionId());
             }
 			

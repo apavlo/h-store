@@ -68,8 +68,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
     protected class QueueEntry {
         final LocalTransaction ts;
-        final int partition;
         final Table catalog_tbl;
+        final int partition;
         final short block_ids[];
 
         public QueueEntry(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
@@ -80,9 +80,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
         @Override
         public String toString() {
-            return String.format("%s[%s / Partition:%d / Table:%s / BlockIds:%s]",
+            return String.format("%s{%s / Table:%s / Partition:%d / BlockIds:%s}",
                                  this.getClass().getSimpleName(), this.ts,
-                                 this.partition, this.catalog_tbl.getName(),
+                                 this.catalog_tbl.getName(), this.partition,
                                  Arrays.toString(this.block_ids));
         }
     }
@@ -206,6 +206,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
     @Override
     protected void processingCallback(QueueEntry next) {
+        assert(next.ts.isInitialized()) :
+            String.format("Unexpected uninitialized transaction handle: %s", next);
+        assert(next.partition == next.ts.getBasePartition()) :
+            String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
+                          next.ts, next.ts.getBasePartition(), next.partition, next);
         LOG.info("Processing " + next);
         
         // We need to get the EE handle for the partition that this txn
@@ -238,10 +243,14 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             if (hstore_conf.site.anticache_profiling) 
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }
-
+        
+        // HACK HACK HACK HACK HACK HACK
+        // We need to get a new txnId for ourselves, since the one that we
+        // were given before is now probably too far in the past
+        this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
         // Now go ahead and requeue our transaction
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
-        this.hstore_site.transactionStart(next.ts);
+        this.hstore_site.transactionInit(next.ts);
     }
 
     @Override
