@@ -1052,6 +1052,7 @@ TEST CASES
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name="**/*$*.class"/>
+                <exclude name="**/TestAntiCacheManager.class" />
             </fileset>
         </tests>
     </run_junit>
@@ -1120,6 +1121,7 @@ TEST CASES
                 
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
+                <exclude name="**/TestAntiCacheManager.class" />
                 
                 <!-- VoltDB Regression Suite -->
                 <exclude name="**/TestCatalogUpdateSuite.class" />
