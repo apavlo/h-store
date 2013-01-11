@@ -56,10 +56,10 @@ public class RemotePrepareCallback extends PartitionCountingCallback<RemoteTrans
     // ----------------------------------------------------------------------------
     
     @Override
-    protected int runImpl(int partition) {
+    protected void runImpl(int partition) {
 //        // Tell the HStoreSite to send a SetDistributedTxnMessage to this partition
 //        this.hstore_site.transactionSetPartitionLock(this.ts, partition);
-        return (1);
+        return;
     }
     
     // ----------------------------------------------------------------------------

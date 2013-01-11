@@ -53,8 +53,8 @@ public class TransactionWorkCallback extends PartitionCountingCallback<AbstractT
     // ----------------------------------------------------------------------------
     
     @Override
-    protected int runImpl(int partition) {
-        return (1);
+    protected void runImpl(int partition) {
+        return;
     }
     
     @Override

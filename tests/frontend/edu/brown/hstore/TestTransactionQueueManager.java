@@ -53,9 +53,10 @@ public class TestTransactionQueueManager extends BaseTestCase {
             return (true);
         }
         @Override
-        protected int runImpl(int partition) {
+        protected void runImpl(int partition) {
             this.partitions.add(partition);
-            return super.runImpl(partition);
+            super.runImpl(partition);
+            return;
         }
         @Override
         protected void unblockCallback() {

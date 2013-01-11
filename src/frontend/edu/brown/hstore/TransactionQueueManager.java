@@ -236,7 +236,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     // IMPORTANT: But we still need to go through and decrement the
                     // callback's counter for those other partitions.
                     } else {
-                        callback.abort(partition, status);
+                        callback.decrementCounter(partition);
                     }
                 } // FOR
                 if (ret) added++;
@@ -509,6 +509,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     removed = this.lockQueues[partition].remove(ts);
                 } // SYNCH
             }
+            if (debug.val && removed)
+                LOG.warn(String.format("Removed %s from partition %d queue", ts, partition));
         }
         
         // Calling contains() is super slow, so we'll only do this if we have tracing enabled
@@ -522,23 +524,24 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // Make sure that if this txn is being aborted, that everyone
         // that is part of it knows what's going on.
-        if (status != Status.OK) {
-             if (debug.val && removed)
-                LOG.warn(String.format("Removed %s from partition %d queue", ts, partition));
-            PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
-            if (callback.isUnblocked() == false && callback.isAborted() == false) {
-                try {
-                    callback.abort(partition, status);
-                } catch (Throwable ex) {
-                    String msg = String.format("Unexpected error when trying to abort txn %s " +
-                                               "[status=%s, partition=%d]\n" +
-                                               "Failed Callback: %s",
-                                               ts, status, partition, callback);
-                    if (debug.val) LOG.warn(msg, ex); 
-                    throw new RuntimeException(msg, ex);
-                }
-            }
-        }
+        PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
+        callback.decrementCounter(partition);
+//        
+//        
+//            
+//            if (callback.isUnblocked() == false && callback.isAborted() == false) {
+//                try {
+//                    callback.abort(partition, status);
+//                } catch (Throwable ex) {
+//                    String msg = String.format("Unexpected error when trying to abort txn %s " +
+//                                               "[status=%s, partition=%d]\n" +
+//                                               "Failed Callback: %s",
+//                                               ts, status, partition, callback);
+//                    if (debug.val) LOG.warn(msg, ex); 
+//                    throw new RuntimeException(msg, ex);
+//                }
+//            }
+//        }
     }
 
     // ----------------------------------------------------------------------------

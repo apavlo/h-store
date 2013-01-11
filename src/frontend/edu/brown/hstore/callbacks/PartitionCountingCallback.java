@@ -1,7 +1,6 @@
 package edu.brown.hstore.callbacks;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 
@@ -28,7 +27,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     
     protected final HStoreSite hstore_site;
     protected final HStoreConf hstore_conf;
-    private final AtomicInteger counter = new AtomicInteger(0);
+    private int counter = 0;
     private final PartitionSet partitions = new PartitionSet();
     private final PartitionSet receivedPartitions = new PartitionSet();
     
@@ -66,7 +65,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      */
     private boolean canceled = false;
 
-    // We retain the original parameters of the last init() for debugging
+    // We retain the original parameters of the last init()
     private Long orig_txn_id = null;
     private int orig_counter;
     
@@ -100,7 +99,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                       ts, this.getClass().getSimpleName(), partitions, partitions.size(), this.hashCode()));
         int counter_val = partitions.size();
         this.orig_counter = counter_val;
-        this.counter.set(counter_val);
+        this.counter = counter_val;
         this.partitions.addAll(partitions);
         this.ts = ts;
         this.orig_txn_id = this.ts.getTransactionId();
@@ -125,17 +124,11 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         this.unblockInvoked.lazySet(false);
         this.unblockFinished = false;
         this.canceled = false;
-//        this.finishImpl();
         this.partitions.clear();
         this.receivedPartitions.clear();
         this.ts = null;
     }
-    
-//    /**
-//     * Special finish method for the implementing class
-//     */
-//    protected abstract void finishImpl();
-    
+
     // ----------------------------------------------------------------------------
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
@@ -144,9 +137,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * Returns true if either the unblock or abort callbacks have been invoked
      * and have finished their processing
      */
-    public final boolean allCallbacksFinished() {
-        if (this.ts != null && this.canceled == false) {
-            if (this.counter.get() != 0) return (false);
+    public synchronized final boolean allCallbacksFinished() {
+        if (this.canceled == false && this.orig_counter > 0) {
+            if (this.counter != 0) return (false);
             if (this.unblockFinished || this.abortFinished) return (true);
             return ((this.unblockInvoked.get() && this.unblockFinished) ||
                     (this.abortInvoked.get() && this.abortFinished));
@@ -161,8 +154,8 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     /**
      * Return the current state of this callback's internal counter
      */
-    public final int getCounter() {
-        return (this.counter.get());
+    protected synchronized final int getCounter() {
+        return (this.counter);
     }
     
     /**
@@ -204,9 +197,6 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     protected final int getOrigCounter() {
         return (this.orig_counter);
     }
-    protected final void clearCounter() {
-        this.counter.set(0);
-    }
     
     // ----------------------------------------------------------------------------
     // RUN
@@ -216,18 +206,16 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         assert(this.receivedPartitions.contains(partition) == false) :
             String.format("%s - Tried to invoke %s.run() twice for partition %d [hashCode=%d]",
                           this.ts, this.getClass().getSimpleName(), partition, this.hashCode());
-        int delta = this.runImpl(partition);
-        int new_count = this.counter.addAndGet(-1 * delta);
-        this.receivedPartitions.add(partition);
-        if (debug.val)
-            LOG.debug(String.format("%s - %s.run() / COUNTER: %d - %d = %d [origCtr=%d]%s",
-                      this.ts, this.getClass().getSimpleName(),
-                      new_count+delta, delta, new_count, orig_counter,
-                      (trace.val ? "\n" + partition : "")));
-        
+        boolean invoke_unblock = false;
+        synchronized (this) {
+            if (this.receivedPartitions.contains(partition) == false) {
+                this.runImpl(partition);
+                invoke_unblock = this.decrementCounter(partition);
+            } // SYNCH
+        }
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
-        if (new_count == 0) this.unblock();
+        if (invoke_unblock) this.unblock();
     }
     
     /**
@@ -236,26 +224,29 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @param delta
      * @return Returns the new value of the counter
      */
-    protected final int decrementCounter(int partition, boolean allow_unblock) {
-        int delta = 1;
-        int new_count = this.counter.addAndGet(-1 * delta);
-        if (debug.val)
-            LOG.debug(String.format("%s - Decremented %s / COUNTER: %d - %d = %s",
-                      this.ts, this.getClass().getSimpleName(), new_count+delta, delta, new_count));
-        assert(new_count >= 0) :
-            "Invalid negative " + this.getClass().getSimpleName() + " counter for " + this.ts;
-        this.receivedPartitions.add(partition);
-        if (new_count == 0 && allow_unblock) this.unblock();
-        return (new_count);
+    public synchronized final boolean decrementCounter(int partition) {
+        if (this.receivedPartitions.contains(partition) == false) {
+            this.counter--;
+            this.receivedPartitions.add(partition);
+            if (debug.val)
+                LOG.debug(String.format("%s - %s.decrementCounter() / COUNTER: %d - %d = %d [origCtr=%d]%s",
+                          this.ts, this.getClass().getSimpleName(),
+                          this.counter+1, 1, this.counter, this.orig_counter,
+                          (trace.val ? "\n" + partition : "")));
+            assert(this.counter >= 0 && (this.counter == (this.partitions.size() - this.receivedPartitions.size()))) :
+                String.format("Invalid %s counter after decrementing for %s at partition %d\n%s",
+                              this.getClass().getSimpleName(),
+                              this.ts, partition, this);
+            return (this.counter == 0);
+        }
+        return (false);
     }
     
     /**
      * The implementation of the run method to process a new entry for this callback
-     * This method should return how much we should decrement from the blocking counter
      * @param parameter Needs to be >=0
-     * @return
      */
-    protected abstract int runImpl(int partition);
+    protected abstract void runImpl(int partition);
     
     // ----------------------------------------------------------------------------
     // SUCCESSFUL UNBLOCKING
@@ -298,11 +289,14 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         assert(this.ts != null) :
             String.format("Null transaction handle for txn #%s in %s [counter=%d/%d]",
                           this.orig_txn_id, this.getClass().getSimpleName(),
-                          this.counter.get(), this.orig_counter);
+                          this.counter, this.orig_counter);
         assert(this.ts.isInitialized()) :
             String.format("Uninitialized transaction handle for txn #%s in %s [lastTxn=%s / origCounter=%d/%d]",
                           this.orig_txn_id, this.getClass().getSimpleName(),
-                          this.counter.get(), this.orig_counter);
+                          this.counter, this.orig_counter);
+        
+        // Always attempt to add the partition
+        this.decrementCounter(partition);
         
         // If this is the first response that told us to abort, then we'll
         // send the abort message out
@@ -332,21 +326,6 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
             }
             this.abortFinished = true;
             // this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), status);
-        }
-        
-        // Always add the partition
-        if (this.receivedPartitions.contains(partition) == false) {
-            synchronized (this.receivedPartitions) {
-                if (this.receivedPartitions.contains(partition) == false) {
-                    this.receivedPartitions.add(partition);
-                    int newCount = this.counter.decrementAndGet();
-                    assert(newCount >= 0) :
-                        String.format("Invalid negative %s counter when trying to abort %s " +
-                        		      "[partition=%d, status=%s]\n%s",
-                                      this.getClass().getSimpleName(),
-                                      this.ts, partition, status, this);
-                }
-            } // SYNCH
         }
     }
     
@@ -385,7 +364,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                                    this.unblockInvoked.get(), this.unblockFinished,
                                    this.abortInvoked.get(), this.abortFinished,
                                    this.canceled,
-                                   this.counter.get(), this.getOrigCounter(),
+                                   this.counter, this.orig_counter,
                                    this.allCallbacksFinished());
 //        if (debug.val) {
             ret += String.format("\nReceivedPartitions=%s / AllPartitions=%s",

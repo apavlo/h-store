@@ -61,7 +61,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     // ----------------------------------------------------------------------------
     
     @Override
-    protected int runImpl(int partition) {
+    protected void runImpl(int partition) {
 //        // If this is a single-partition txn, then we'll want to tell the PartitionExecutor
 //        // to start executing this txn immediately
 //        if (this.ts.isPredictSinglePartition()) {
@@ -74,7 +74,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
 //            this.hstore_site.transactionSetPartitionLock((LocalTransaction)this.ts, partition);
 //        }
         
-        return (1);
+        return;
     }
     
     // ----------------------------------------------------------------------------
@@ -134,7 +134,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
             int reject_partition = response.getRejectPartition();
             for (int partition : response.getPartitionsList()) {
                 if (partition != reject_partition) {
-                    this.decrementCounter(partition, false);
+                    this.decrementCounter(partition);
                 }
             } // FOR
             // The last one should call the actual abort

@@ -39,8 +39,6 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
     private TransactionInitResponse.Builder builder = null;
     private RpcCallback<TransactionInitResponse> origCallback;
     
-    
-    
     // ----------------------------------------------------------------------------
     // INTIALIZATION
     // ----------------------------------------------------------------------------
@@ -63,21 +61,15 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
         super.init(ts, this.localPartitions);
     }
     
-//    @Override
-//    protected void finishImpl() {
-//        this.origCallback = null;
-//        this.builder = null;
-//    }
-    
     // ----------------------------------------------------------------------------
     // RUN METHOD
     // ----------------------------------------------------------------------------
     
     @Override
-    protected int runImpl(int partition) {
+    protected void runImpl(int partition) {
 //        // Tell the HStoreSite to send a SetDistributedTxnMessage to this partition
 //        this.hstore_site.transactionSetPartitionLock(this.ts, partition);
-        return (1);
+        return;
     }
     
     // ----------------------------------------------------------------------------
