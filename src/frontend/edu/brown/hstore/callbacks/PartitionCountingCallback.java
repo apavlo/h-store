@@ -331,15 +331,20 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                 }
             }
             this.abortFinished = true;
-            this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), status);
+            // this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), status);
         }
         
         // Always add the partition
         if (this.receivedPartitions.contains(partition) == false) {
             synchronized (this.receivedPartitions) {
                 if (this.receivedPartitions.contains(partition) == false) {
-                    this.counter.decrementAndGet();
                     this.receivedPartitions.add(partition);
+                    int newCount = this.counter.decrementAndGet();
+                    assert(newCount >= 0) :
+                        String.format("Invalid negative %s counter when trying to abort %s " +
+                        		      "[partition=%d, status=%s]\n%s",
+                                      this.getClass().getSimpleName(),
+                                      this.ts, partition, status, this);
                 }
             } // SYNCH
         }
@@ -382,10 +387,10 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                                    this.canceled,
                                    this.counter.get(), this.getOrigCounter(),
                                    this.allCallbacksFinished());
-        if (debug.val) {
+//        if (debug.val) {
             ret += String.format("\nReceivedPartitions=%s / AllPartitions=%s",
                                  this.receivedPartitions, this.partitions);
-        }
+//        }
         return (ret);
     }
 }

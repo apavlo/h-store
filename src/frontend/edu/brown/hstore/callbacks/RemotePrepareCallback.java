@@ -1,57 +1,45 @@
 package edu.brown.hstore.callbacks;
 
-import java.io.IOException;
-import java.util.List;
-
 import org.apache.log4j.Logger;
-import org.voltdb.ParameterSet;
-import org.voltdb.exceptions.ServerFaultException;
-import org.voltdb.messaging.FastDeserializer;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
-import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.utils.PartitionSet;
 
 /**
- * 
+ * This is callback is used on the remote side of a TransactionPrepareRequest
+ * so that the network-outbound callback is not invoked until all of the partitions
+ * at this HStoreSite are finished preparing the transaction. 
  * @author pavlo
  */
-public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTransaction> {
-    private static final Logger LOG = Logger.getLogger(RemoteInitQueueCallback.class);
+public class RemotePrepareCallback extends PartitionCountingCallback<RemoteTransaction> {
+    private static final Logger LOG = Logger.getLogger(RemotePrepareCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private final boolean prefetch;
-    private final FastDeserializer fd = new FastDeserializer(new byte[0]);
     private final PartitionSet localPartitions = new PartitionSet();
-    private TransactionInitResponse.Builder builder = null;
-    private RpcCallback<TransactionInitResponse> origCallback;
-    
-    
+    private TransactionPrepareResponse.Builder builder = null;
+    private RpcCallback<TransactionPrepareResponse> origCallback;
     
     // ----------------------------------------------------------------------------
     // INTIALIZATION
     // ----------------------------------------------------------------------------
     
-    public RemoteInitQueueCallback(HStoreSite hstore_site) {
+    public RemotePrepareCallback(HStoreSite hstore_site) {
         super(hstore_site);
-        this.prefetch = hstore_site.getHStoreConf().site.exec_prefetch_queries;
     }
     
-    public void init(RemoteTransaction ts, PartitionSet partitions, RpcCallback<TransactionInitResponse> origCallback) {
-        this.builder = TransactionInitResponse.newBuilder()
+    public void init(RemoteTransaction ts, PartitionSet partitions, RpcCallback<TransactionPrepareResponse> origCallback) {
+        this.builder = TransactionPrepareResponse.newBuilder()
                             .setTransactionId(ts.getTransactionId().longValue())
                             .setStatus(Status.OK);
         this.origCallback = origCallback;
@@ -62,12 +50,6 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
         this.localPartitions.retainAll(this.hstore_site.getLocalPartitionIds());
         super.init(ts, this.localPartitions);
     }
-    
-//    @Override
-//    protected void finishImpl() {
-//        this.origCallback = null;
-//        this.builder = null;
-//    }
     
     // ----------------------------------------------------------------------------
     // RUN METHOD
@@ -88,13 +70,13 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
     protected void unblockCallback() {
         if (debug.val)
             LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",
-                      this.ts, TransactionInitResponse.class.getSimpleName(),
+                      this.ts, TransactionPrepareResponse.class.getSimpleName(),
                       (this.builder != null ? this.builder.getStatus() : "???")));
         if (this.builder != null) {
             if (debug.val)
                 LOG.debug(String.format("%s - Sending %s to %s with status %s",
                           this.ts,
-                          TransactionInitResponse.class.getSimpleName(),
+                          TransactionPrepareResponse.class.getSimpleName(),
                           this.origCallback.getClass().getSimpleName(),
                           this.builder.getStatus()));
             
@@ -120,53 +102,10 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
             
             this.origCallback.run(this.builder.build());
             this.builder = null;
-            
-            // start profile idle_waiting_dtxn_time on remote paritions
-            if (this.hstore_conf.site.exec_profiling) {
-                for (int p : this.hstore_site.getLocalPartitionIds().values()) {
-                    if (partitions.contains(p)) {
-                        PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
-                        assert (pep != null);
-                        if (pep.idle_waiting_dtxn_time.isStarted()) pep.idle_waiting_dtxn_time.stop();
-                        pep.idle_waiting_dtxn_time.start();
-                    }
-                } // FOR
-            }
-            
-            // Bundle the prefetch queries in the txn so we can queue them up
-            // At this point all of the partitions at this HStoreSite are allocated
-            // for executing this txn. We can now check whether it has any embedded
-            // queries that need to be queued up for pre-fetching. If so, blast them
-            // off to the HStoreSite so that they can be executed in the PartitionExecutor
-            // Use txn_id to get the AbstractTransaction handle from the HStoreSite
-            if (this.prefetch && ts.hasPrefetchQueries()) {
-                // We need to convert our raw ByteString ParameterSets into the actual objects
-                List<ByteString> rawParams = ts.getPrefetchRawParameterSets(); 
-                int num_parameters = rawParams.size();
-                ParameterSet params[] = new ParameterSet[num_parameters]; 
-                for (int i = 0; i < params.length; i++) {
-                    this.fd.setBuffer(rawParams.get(i).asReadOnlyByteBuffer());
-                    try {
-                        params[i] = this.fd.readObject(ParameterSet.class);
-                    } catch (IOException ex) {
-                        String msg = "Failed to deserialize pre-fetch ParameterSet at offset #" + i;
-                        throw new ServerFaultException(msg, ex, this.ts.getTransactionId());
-                    }
-                } // FOR
-                ts.attachPrefetchParameters(params);
-                
-                // Go through all the prefetch WorkFragments and send them off to 
-                // the right PartitionExecutor at this HStoreSite.
-                for (WorkFragment frag : ts.getPrefetchFragments()) {
-                    // XXX: We want to skip any WorkFragments for this txn's base partition.
-                    if (frag.getPartitionId() != ts.getBasePartition())
-                        hstore_site.transactionWork(ts, frag);
-                } // FOR
-            }
         }
         else if (debug.val) {
             LOG.warn(String.format("%s - No builder is available? Unable to send back %s",
-                      this.ts, TransactionInitResponse.class.getSimpleName()));
+                      this.ts, TransactionPrepareResponse.class.getSimpleName()));
         }
     }
     
@@ -185,7 +124,6 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
             this.builder.setStatus(status);
             this.builder.clearPartitions();
             this.builder.addAllPartitions(this.getPartitions());
-            this.builder.setRejectPartition(partition);
             
             assert(this.origCallback != null) :
                 String.format("The original callback for %s is null!", this.ts);
@@ -195,7 +133,7 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
         }
         else if (debug.val) {
             LOG.warn(String.format("%s - No builder is available? Unable to send back %s",
-                     this.ts, TransactionInitResponse.class.getSimpleName()));
+                     this.ts, TransactionPrepareResponse.class.getSimpleName()));
         }
     }
 }

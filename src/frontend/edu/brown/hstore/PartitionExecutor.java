@@ -1176,15 +1176,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             LOG.debug(String.format("Processing %s at partition %d", work, this.partitionId));
         
         // -------------------------------
-        // Add Transaction to Lock Queue
-        // -------------------------------
-        if (work instanceof InitializeTxnMessage) {
-            this.queueManager.lockQueueInsert(ts, this.partitionId, ts.getTransactionInitQueueCallback());
-        }
-        // -------------------------------
         // Start Transaction
         // -------------------------------
-        else if (work instanceof StartTxnMessage) {
+        if (work instanceof StartTxnMessage) {
             if (hstore_conf.site.exec_profiling) profiler.txn_time.start();
             try {
                 this.executeTransaction((LocalTransaction)ts);
@@ -1253,14 +1247,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.processWorkFragment(ts, fragment, parameters);
         }
         // -------------------------------
-        // Set Distributed Transaction 
+        // Finish Transaction
         // -------------------------------
-        else if (work instanceof SetDistributedTxnMessage) {
-            if (this.currentDtxn != null) {
-                this.blockTransaction(work);
-            } else {
-                this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
-            }
+        else if (work instanceof FinishTxnMessage) {
+            FinishTxnMessage ftask = (FinishTxnMessage)work;
+            this.finishDistributedTransaction(ftask.getTransaction(), ftask.getStatus());
         }
         // -------------------------------
         // Prepare Transaction
@@ -1274,11 +1265,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             ftask.getTransaction().markPrepared(this.partitionId);
         }
         // -------------------------------
-        // Finish Transaction
+        // Set Distributed Transaction 
         // -------------------------------
-        else if (work instanceof FinishTxnMessage) {
-            FinishTxnMessage ftask = (FinishTxnMessage)work;
-            this.finishDistributedTransaction(ftask.getTransaction(), ftask.getStatus());
+        else if (work instanceof SetDistributedTxnMessage) {
+            if (this.currentDtxn != null) {
+                this.blockTransaction(work);
+            } else {
+                this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
+            }
+        }
+        // -------------------------------
+        // Add Transaction to Lock Queue
+        // -------------------------------
+        else if (work instanceof InitializeTxnMessage) {
+            this.queueManager.lockQueueInsert(ts, this.partitionId, ts.getTransactionInitQueueCallback());
         }
     }
 

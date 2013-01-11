@@ -150,8 +150,6 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     public String toString() {
         String ret = super.toString();
         ret += "\n-------------\n";
-        ret += String.format("ReceivedPartitions=%s / AllPartitions=%s\n",
-                             this.getReceivedPartitions(), this.getPartitions());
         ret += StringUtil.join("\n", this.responses);
         return (ret);
     }

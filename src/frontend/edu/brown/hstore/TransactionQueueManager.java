@@ -207,27 +207,30 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         if (debug.val)
             LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
-        AbstractTransaction next_init = null;
+        AbstractTransaction nextTxn = null;
         int added = 0;
         while (this.stop == false) {
             try {
-                next_init = this.initQueue.poll(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
+                nextTxn = this.initQueue.poll(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
             } catch (InterruptedException ex) {
                 // IGNORE
             }
-            if (next_init != null) {
-                PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
-                assert(callback.isInitialized());
+            if (nextTxn != null) {
+                PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getTransactionInitQueueCallback();
+                assert(callback.isInitialized()) :
+                    String.format("Unexpected uninitialized %s for %s\n%s",
+                                  callback.getClass().getSimpleName(),
+                                  nextTxn, callback.toString());
                 boolean ret = true;
                 Status status = null;
-                for (int partition : next_init.getPredictTouchedPartitions().values()) {
+                for (int partition : nextTxn.getPredictTouchedPartitions().values()) {
                     // Skip any non-local partition
                     if (this.lockQueues[partition] == null) continue;
                     
                     // If this txn gets rejected when we try to insert it, then we 
                     // just need to stop trying to add it to other partitions
                     if (ret) {
-                        status = this.lockQueueInsert(next_init, partition, callback);
+                        status = this.lockQueueInsert(nextTxn, partition, callback);
                         if (status != Status.OK) ret = false;
 
                     // IMPORTANT: But we still need to go through and decrement the
@@ -240,7 +243,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             }
             
             // Requeue mispredicted local transactions
-            if ((next_init == null || added > CHECK_INIT_QUEUE_LIMIT) &&
+            if ((nextTxn == null || added > CHECK_INIT_QUEUE_LIMIT) &&
                     this.restartQueue.isEmpty() == false) {
                 this.checkRestartQueue();
                 added = 0; 

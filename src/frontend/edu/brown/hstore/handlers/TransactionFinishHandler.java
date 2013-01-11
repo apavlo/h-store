@@ -40,7 +40,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     @Override
     public void sendLocal(Long txn_id, TransactionFinishRequest request, PartitionSet partitions,
                           RpcCallback<TransactionFinishResponse> callback) {
-        hstore_site.transactionFinish(txn_id, request.getStatus(), partitions);
+        this.hstore_site.transactionFinish(txn_id, request.getStatus(), partitions);
     }
     @Override
     public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionFinishRequest request,
@@ -74,7 +74,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         
         this.finishPartitions.clear();
         this.finishPartitions.addAll(request.getPartitionsList());
-        hstore_site.transactionFinish(txn_id, request.getStatus(), this.finishPartitions);
+        this.hstore_site.transactionFinish(txn_id, request.getStatus(), this.finishPartitions);
         
         // Send back a FinishResponse to let them know we're cool with everything...
         TransactionFinishResponse.Builder builder = TransactionFinishResponse.newBuilder()
