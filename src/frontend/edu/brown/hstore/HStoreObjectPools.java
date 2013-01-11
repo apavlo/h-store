@@ -9,7 +9,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.hstore.callbacks.TransactionRedirectCallback;
+import edu.brown.hstore.callbacks.RedirectCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.DistributedState;
@@ -36,7 +36,7 @@ public final class HStoreObjectPools implements Configurable {
     /**
      * ForwardTxnRequestCallback Pool
      */
-    public final TypedObjectPool<TransactionRedirectCallback> CALLBACKS_TXN_REDIRECT_REQUEST;
+    public final TypedObjectPool<RedirectCallback> CALLBACKS_TXN_REDIRECT_REQUEST;
     
     /**
      * ForwardTxnResponseCallback Pool
@@ -85,7 +85,7 @@ public final class HStoreObjectPools implements Configurable {
         // -------------------------------
         // GLOBAL CALLBACK POOLS
         // -------------------------------
-        this.CALLBACKS_TXN_REDIRECT_REQUEST = TypedObjectPool.factory(TransactionRedirectCallback.class,
+        this.CALLBACKS_TXN_REDIRECT_REQUEST = TypedObjectPool.factory(RedirectCallback.class,
                 (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
         this.CALLBACKS_TXN_REDIRECT_RESPONSE = TypedObjectPool.factory(TransactionRedirectResponseCallback.class,

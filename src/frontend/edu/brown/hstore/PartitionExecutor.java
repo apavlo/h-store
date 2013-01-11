@@ -119,9 +119,9 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionCallback;
-import edu.brown.hstore.callbacks.RemoteFinishCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
@@ -2584,7 +2584,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (hstore_conf.site.specexec_enable && ts.isPredictSinglePartition() == false) {
             PartitionSet new_done = ts.calculateDonePartitions(this.thresholds);
             if (new_done != null && new_done.isEmpty() == false) {
-                hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(), new_done);
+                LocalPrepareCallback callback = ts.getPrepareCallback();
+                assert(callback.isInitialized());
+                this.hstore_coordinator.transactionPrepare(ts, callback, new_done);
             }
         }
 
@@ -3690,7 +3692,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // have successfully aborted the txn at least at all of the local partitions at this site.
             else {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
-                LocalFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+                LocalFinishCallback finish_callback = ts.getFinishCallback();
+                finish_callback.init(ts, status);
                 finish_callback.markForRequeue();
                 if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
@@ -3757,7 +3760,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 this.profiler.network_time.start();
                 this.profiler.idle_2pc_local_time.start();
             }
-            this.hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(), tmp_preparePartitions);
+            LocalPrepareCallback callback = ts.getPrepareCallback();
+            assert(callback.isInitialized());
+            this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
         }
         // -------------------------------
@@ -3777,9 +3782,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // to invoke HStoreSite.transactionFinish() for us. That means when it returns we will
             // have successfully aborted the txn at least at all of the local partitions at this site.
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
-            LocalFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
-            this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
+            LocalFinishCallback callback = ts.getFinishCallback();
+            callback.init(ts, status);
+            this.hstore_coordinator.transactionFinish(ts, status, callback);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
         }
     }
@@ -4231,20 +4237,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         
         // -------------------------------
-        // FINISH/CLEANUP CALLBACKS
+        // FINISH CALLBACKS
         // -------------------------------
         
-        // RemoteTransaction
-        if (ts instanceof RemoteTransaction) {
-            RemoteFinishCallback callback = ((RemoteTransaction)ts).getFinishCallback();
-            if (trace.val)
-                LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                          ts, callback.getClass().getSimpleName(), this.partitionId));
-            callback.run(this.partitionId);
-        }
         // MapReduceTransaction
-        else if (ts instanceof MapReduceTransaction) {
-            RemoteFinishCallback callback = ((MapReduceTransaction)ts).getCleanupCallback();
+        if (ts instanceof MapReduceTransaction) {
+            PartitionCountingCallback<AbstractTransaction> callback = ((MapReduceTransaction)ts).getCleanupCallback();
             // We don't want to invoke this callback at the basePartition's site
             // because we don't want the parent txn to actually get deleted.
             if (this.partitionId == ts.getBasePartition()) {
@@ -4253,13 +4251,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 callback.run(this.partitionId);
             }
         }
-        // LocalTransaction
-        else if (ts instanceof LocalTransaction) {
-            // If it's a LocalTransaction, then we'll want to invoke their TransactionFinishCallback
-            LocalFinishCallback callback = ((LocalTransaction)ts).getTransactionFinishCallback();
-            if (trace.val) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                             ts, callback.getClass().getSimpleName(), this.partitionId));
-            callback.decrementCounter(1);
+        else {
+            PartitionCountingCallback<AbstractTransaction> callback = ts.getFinishCallback();
+            if (trace.val)
+                LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                          ts, callback.getClass().getSimpleName(), this.partitionId));
+            callback.run(this.partitionId);
         }
     }    
     

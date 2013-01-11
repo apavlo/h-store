@@ -59,7 +59,6 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
@@ -640,36 +639,13 @@ public class LocalTransaction extends AbstractTransaction {
     public LocalPrepareCallback getPrepareCallback() {
         assert(this.dtxnState != null) :
             "Trying to access DistributedState for non distributed txn " + this + "\n" + this.debug();
-        if (this.dtxnState.prepare_callback.isInitialized() == false) {
-            this.dtxnState.prepare_callback.init(this, this.predict_touchedPartitions);
-        }
         return (this.dtxnState.prepare_callback);
     }
-
-    /**
-     * Initialize the TransactionFinishCallback for this transaction using the
-     * given status indicator. You should always use this callback and not allocate
-     * one yourself!
-     * @param status
-     * @return
-     */
-    public LocalFinishCallback initTransactionFinishCallback(Status status) {
+    @SuppressWarnings("unchecked")
+    @Override
+    public LocalFinishCallback getFinishCallback() {
         assert(this.dtxnState != null) :
             "Trying to access DistributedState for non distributed txn " + this;
-        assert(this.dtxnState.finish_callback.isInitialized() == false) :
-            String.format("Trying initialize the %s for %s more than once",
-                    this.dtxnState.finish_callback.getClass().getSimpleName(), this);
-        // Don't initialize this until later, because we need to know 
-        // what the final status of the txn
-        this.dtxnState.finish_callback.init(this, status);
-        return (this.dtxnState.finish_callback);
-    }
-    public LocalFinishCallback getTransactionFinishCallback() {
-        assert(this.dtxnState != null) :
-            "Trying to access DistributedState for non distributed txn " + this;
-        assert(this.dtxnState.finish_callback.isInitialized()) :
-            String.format("Trying to use %s for %s before it was initialized",
-                          this.dtxnState.finish_callback.getClass().getSimpleName(), this);
         return (this.dtxnState.finish_callback);
     }
     

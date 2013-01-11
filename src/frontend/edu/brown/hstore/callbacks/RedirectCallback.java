@@ -22,12 +22,11 @@ import edu.brown.pools.Poolable;
  * to another HStoreSite. We must be given the original callback that points back to the client. 
  * @author pavlo
  */
-public class TransactionRedirectCallback implements RpcCallback<TransactionRedirectResponse>, Poolable {
-    private static final Logger LOG = Logger.getLogger(TransactionRedirectCallback.class);
+public class RedirectCallback implements RpcCallback<TransactionRedirectResponse>, Poolable {
+    private static final Logger LOG = Logger.getLogger(RedirectCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
     private final HStoreSite hstore_site;
@@ -37,7 +36,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
     /**
      * Default Constructor
      */
-    public TransactionRedirectCallback(HStoreSite hstore_site) {
+    public RedirectCallback(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
     }
     
@@ -59,9 +58,9 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
     public void run(TransactionRedirectResponse parameter) {
         if (debug.val)
             LOG.debug(String.format("Got back %s from %s. Sending response to client [bytes=%d]",
-                                    parameter.getClass().getSimpleName(),
-                                    HStoreThreadManager.formatSiteName(parameter.getSenderSite()),
-                                    parameter.getOutput().size()));
+                      parameter.getClass().getSimpleName(),
+                      HStoreThreadManager.formatSiteName(parameter.getSenderSite()),
+                      parameter.getOutput().size()));
         
         try {
             // Get the embedded ClientResponse
@@ -92,7 +91,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
             
         // Always return ourselves to the HStoreObjectPool
         } finally {
-            hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_REQUEST.returnObject(this);
+            this.hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_REQUEST.returnObject(this);
         }
         
     }

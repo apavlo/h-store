@@ -705,6 +705,11 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Return this handle's PrepareCallback
      */
     public abstract <T extends PartitionCountingCallback<? extends AbstractTransaction>> T getPrepareCallback();
+    
+    /**
+     * Return this handle's FinishCallback
+     */
+    public abstract <T extends PartitionCountingCallback<? extends AbstractTransaction>> T getFinishCallback();
 
     // ----------------------------------------------------------------------------
     // ERROR METHODS

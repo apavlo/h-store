@@ -186,25 +186,21 @@ public class RemoteTransaction extends AbstractTransaction {
     public RemoteInitQueueCallback getTransactionInitQueueCallback() {
         return (this.init_callback);
     }
-    
-    public RemoteWorkCallback getWorkCallback() {
-        return (this.work_callback);
-    }
     @SuppressWarnings("unchecked")
     @Override
     public RemotePrepareCallback getPrepareCallback() {
         return (this.prepare_callback);
     }
-    
-    /**
-     * Get the TransactionCleanupCallback for this txn.
-     * <B>Note:</B> You must call initCleanupCallback() first
-     * @return
-     */
+    @SuppressWarnings("unchecked")
+    @Override
     public RemoteFinishCallback getFinishCallback() {
         return (this.finish_callback);
     }
 
+    public RemoteWorkCallback getWorkCallback() {
+        return (this.work_callback);
+    }
+    
     /**
      * Get the ProtoRpcController to use to return a 
      * @param partition

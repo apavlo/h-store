@@ -876,8 +876,9 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void transactionFinish(LocalTransaction ts, Status status, LocalFinishCallback callback) {
         PartitionSet partitions = ts.getPredictTouchedPartitions();
-        if (debug.val) LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]",
-                         partitions, ts, status));
+        if (debug.val)
+            LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]",
+                      partitions, ts, status));
         
         // FAST PATH: If all of the partitions that this txn needs are on this
         // HStoreSite, then we don't need to bother with making this request

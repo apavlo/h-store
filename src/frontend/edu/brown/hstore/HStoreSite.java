@@ -89,7 +89,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
-import edu.brown.hstore.callbacks.TransactionRedirectCallback;
+import edu.brown.hstore.callbacks.RedirectCallback;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -1906,7 +1906,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                           this.executors[ts.getBasePartition()].getDebugContext().getWorkQueueSize()));
             boolean singlePartitioned = ts.isPredictSinglePartition();
             if (singlePartitioned == false) {
-                LocalFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+                LocalFinishCallback finish_callback = ts.getFinishCallback();
+                finish_callback.init(ts, status);
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
@@ -1959,10 +1960,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionPrepare(AbstractTransaction ts, PartitionSet partitions) {
         if (debug.val)
             LOG.debug(String.format("2PC:PREPARE %s [partitions=%s]", ts, partitions));
-        
-        // If this is a local transaction, then we'll want to initialize it's
-        // PrepareCallback here so that there isn't a race condition
-        if (ts instanceof LocalTransaction) ts.getPrepareCallback();
         
         for (int p : this.local_partitions.values()) {
             if (partitions.contains(p) == false) continue;
@@ -2065,9 +2062,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Make a wrapper for the original callback so that when the result comes back frm the remote partition
         // we will just forward it back to the client. How sweet is that??
-        TransactionRedirectCallback callback = null;
+        RedirectCallback callback = null;
         try {
-            callback = (TransactionRedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
+            callback = (RedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
             callback.init(clientCallback);
         } catch (Exception ex) {
             throw new RuntimeException("Failed to get TransactionRedirectCallback", ex);
@@ -2235,9 +2232,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     throw new ServerFaultException(msg, ex, orig_ts.getTransactionId());
                 }
                 
-                TransactionRedirectCallback callback;
+                RedirectCallback callback;
                 try {
-                    callback = (TransactionRedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
+                    callback = (RedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
                     callback.init(orig_ts.getClientCallback());
                 } catch (Exception ex) {
                     String msg = "Failed to get TransactionRedirectCallback";

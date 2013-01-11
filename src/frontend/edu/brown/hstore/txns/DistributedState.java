@@ -9,6 +9,7 @@ import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.pools.Poolable;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 /**
  * Container class for all of the objects needed by a distributed txn
@@ -91,8 +92,12 @@ public class DistributedState implements Poolable {
     
     public DistributedState init(LocalTransaction ts) {
         this.ts = ts;
-        for (int p : ts.getPredictTouchedPartitions().values()) {
-            if (ts.hstore_site.isLocalPartition(p) == false) {
+        
+        PartitionSet partitions = ts.getPredictTouchedPartitions(); 
+        this.prepare_callback.init(ts, partitions);
+        
+        for (int partition : partitions.values()) {
+            if (ts.hstore_site.isLocalPartition(partition) == false) {
                 this.is_all_local = false;
                 break;
             }
@@ -123,7 +128,5 @@ public class DistributedState implements Poolable {
         }
         return (cache[site_id]);
     }
-
-    
     
 }
