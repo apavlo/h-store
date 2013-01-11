@@ -10,7 +10,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareRequest;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
-import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
+import edu.brown.hstore.callbacks.RemotePrepareCallback;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -35,12 +35,7 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         // pass in a set to get the partitions that were updated here.
         LocalTransaction ts = this.hstore_site.getTransaction(txn_id);
         assert(ts != null) : "Unexpected null transaction handle for txn #" + txn_id;
-        
-        TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
-        if (wrapper.isInitialized()) wrapper.finish();
-        wrapper.init(ts, partitions, callback);
-        
-        hstore_site.transactionPrepare(ts, partitions);
+        this.hstore_site.transactionPrepare(ts, partitions);
     }
     @Override
     public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionPrepareRequest request, RpcCallback<TransactionPrepareResponse> callback) {
@@ -74,13 +69,10 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         
         RemoteTransaction ts = this.hstore_site.getTransaction(txn_id);
         assert(ts != null) : "Unexpected null transaction handle for txn #" + txn_id;
-        TransactionPrepareWrapperCallback wrapper = ts.getPrepareWrapperCallback();
+        RemotePrepareCallback wrapper = ts.getPrepareCallback();
         if (wrapper.isInitialized()) wrapper.finish();
         wrapper.init(ts, partitions, callback);
-        assert(wrapper.isInitialized()) :
-            String.format("Unexepected uninitialized %s for %s", callback.getClass().getSimpleName(), ts);
-        
-        hstore_site.transactionPrepare(ts, partitions);
+        this.hstore_site.transactionPrepare(ts, partitions);
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {

@@ -6,7 +6,7 @@ import org.voltdb.CatalogContext;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.pools.Poolable;
 import edu.brown.protorpc.ProtoRpcController;
 
@@ -49,7 +49,7 @@ public class DistributedState implements Poolable {
      * ready to commit/abort our transaction.
      * This is only needed for distributed transactions.
      */
-    protected final TransactionPrepareCallback prepare_callback; 
+    protected final LocalPrepareCallback prepare_callback; 
     
     /**
      * This callback will keep track of whether we have gotten all the 2PC acknowledgments
@@ -80,7 +80,7 @@ public class DistributedState implements Poolable {
         this.notified_prepare = new BitSet(catalogContext.numberOfPartitions);
         this.sent_parameters = new BitSet(catalogContext.numberOfSites);
         
-        this.prepare_callback = new TransactionPrepareCallback(hstore_site);
+        this.prepare_callback = new LocalPrepareCallback(hstore_site);
         this.finish_callback = new TransactionFinishCallback(hstore_site);
         
         this.rpc_transactionInit = new ProtoRpcController[catalogContext.numberOfSites];

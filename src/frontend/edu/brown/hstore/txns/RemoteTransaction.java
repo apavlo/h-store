@@ -36,6 +36,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
+import edu.brown.hstore.callbacks.RemotePrepareCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.logging.LoggerUtil;
@@ -63,6 +64,7 @@ public class RemoteTransaction extends AbstractTransaction {
     
     private final RemoteInitQueueCallback init_callback;
     private final TransactionWorkCallback work_callback;
+    private final RemotePrepareCallback prepare_callback;
     private final TransactionCleanupCallback cleanup_callback;
     
     // ----------------------------------------------------------------------------
@@ -85,6 +87,7 @@ public class RemoteTransaction extends AbstractTransaction {
         super(hstore_site);
         this.init_callback = new RemoteInitQueueCallback(hstore_site);
         this.work_callback = new TransactionWorkCallback(hstore_site);
+        this.prepare_callback = new RemotePrepareCallback(hstore_site);
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
         
         int num_localPartitions = hstore_site.getLocalPartitionIds().size();
@@ -187,6 +190,11 @@ public class RemoteTransaction extends AbstractTransaction {
     public TransactionWorkCallback getWorkCallback() {
         return (this.work_callback);
     }
+    @SuppressWarnings("unchecked")
+    @Override
+    public RemotePrepareCallback getPrepareCallback() {
+        return (this.prepare_callback);
+    }
     
     /**
      * Get the TransactionCleanupCallback for this txn.
@@ -241,8 +249,8 @@ public class RemoteTransaction extends AbstractTransaction {
         // Additional Info
         m = new LinkedHashMap<String, Object>();
         m.put("InitQueue Callback", this.getTransactionInitQueueCallback());
-        m.put("PrepareWrapper Callback", this.prepareWrapper_callback);
         m.put("Work Callback", this.work_callback);
+        m.put("Prepare Callback", this.prepare_callback);
         m.put("CleanUp Callback", this.cleanup_callback);
         maps.add(m);
         

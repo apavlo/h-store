@@ -64,7 +64,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -635,26 +635,13 @@ public class LocalTransaction extends AbstractTransaction {
     public LocalInitQueueCallback getTransactionInitQueueCallback() {
         return (this.init_callback);
     }
-    
-//    public SlowTransactionInitCallback initTransactionInitCallback() {
-//        assert(this.init_callback.isInitialized() == false) :
-//            String.format("Trying initialize the %s for %s more than once",
-//                          this.init_callback.getClass().getSimpleName(), this);
-//        this.init_callback.init(this);
-//        return (this.init_callback);
-//    }
-//    public SlowTransactionInitCallback getTransactionInitCallback() {
-//        assert(this.init_callback.isInitialized()) :
-//            String.format("Trying to use %s for %s before it was initialized",
-//                          this.init_callback.getClass().getSimpleName(), this);
-//        return (this.init_callback);
-//    }
-    
-    public TransactionPrepareCallback getOrInitTransactionPrepareCallback() {
+    @SuppressWarnings("unchecked")
+    @Override
+    public LocalPrepareCallback getPrepareCallback() {
         assert(this.dtxnState != null) :
             "Trying to access DistributedState for non distributed txn " + this + "\n" + this.debug();
         if (this.dtxnState.prepare_callback.isInitialized() == false) {
-            this.dtxnState.prepare_callback.init(this);
+            this.dtxnState.prepare_callback.init(this, this.predict_touchedPartitions);
         }
         return (this.dtxnState.prepare_callback);
     }
@@ -1462,7 +1449,6 @@ public class LocalTransaction extends AbstractTransaction {
         m = new LinkedHashMap<String, Object>();
         m.put("Client Callback", this.client_callback);
         m.put("InitQueue Callback", this.getTransactionInitQueueCallback());
-        m.put("PrepareWrapper Callback", this.prepareWrapper_callback);
         if (this.dtxnState != null) {
             m.put("Prepare Callback", this.dtxnState.prepare_callback);
             m.put("Finish Callback", this.dtxnState.finish_callback);

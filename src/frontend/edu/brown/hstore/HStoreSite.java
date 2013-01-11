@@ -1962,9 +1962,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // If this is a local transaction, then we'll want to initialize it's
         // PrepareCallback here so that there isn't a race condition
-        if (ts instanceof LocalTransaction) {
-            ((LocalTransaction)ts).getOrInitTransactionPrepareCallback();
-        }
+        if (ts instanceof LocalTransaction) ts.getPrepareCallback();
         
         for (int p : this.local_partitions.values()) {
             if (partitions.contains(p) == false) continue;

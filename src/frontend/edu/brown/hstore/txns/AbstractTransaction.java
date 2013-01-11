@@ -50,7 +50,6 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
-import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.FinishTxnMessage;
@@ -152,11 +151,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     
     private final WorkFragmentMessage work_task[];
     
-    // ----------------------------------------------------------------------------
-    // CALLBACKS
-    // ----------------------------------------------------------------------------
-    
-    protected final TransactionPrepareWrapperCallback prepareWrapper_callback;
     
     // ----------------------------------------------------------------------------
     // GLOBAL PREDICTIONS FLAGS
@@ -278,8 +272,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numPartitions];
         
-        this.prepareWrapper_callback = new TransactionPrepareWrapperCallback(hstore_site);
-        
         this.readTables = new BitSet[numPartitions];
         this.writeTables = new BitSet[numPartitions];
         int num_tables = hstore_site.getCatalogContext().database.getTables().size();
@@ -351,10 +343,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     @Override
     public void finish() {
-        if (this.predict_singlePartition == false) {
-            this.prepareWrapper_callback.finish();
-        }
-        
         this.predict_singlePartition = false;
         this.predict_abortable = true;
         this.predict_readOnly = false;
@@ -628,13 +616,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
 //        if (this.isInitialized() == false) {
 //            return (false);
 //        }
-        if (this.predict_singlePartition == false) {
-            if (this.prepareWrapper_callback.allCallbacksFinished() == false) {
-                if (debug.val) LOG.warn(String.format("%s - %s is not finished", this,
-                                        this.prepareWrapper_callback.getClass().getSimpleName()));
-                return (false);
-            }
-        }
         return (this.deletable.compareAndSet(false, true));
     }
     
@@ -716,18 +697,15 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // ----------------------------------------------------------------------------
     
     /**
-     * Return this handle's TransactionInitQueueCallback
+     * Return this handle's InitQueueCallback
      */
     public abstract <T extends PartitionCountingCallback<? extends AbstractTransaction>> T getTransactionInitQueueCallback();
-
-    /**
-     * Return the TransactionPrepareCallback
-     * @return
-     */
-    public final TransactionPrepareWrapperCallback getPrepareWrapperCallback() {
-        return (this.prepareWrapper_callback);
-    }
     
+    /**
+     * Return this handle's PrepareCallback
+     */
+    public abstract <T extends PartitionCountingCallback<? extends AbstractTransaction>> T getPrepareCallback();
+
     // ----------------------------------------------------------------------------
     // ERROR METHODS
     // ----------------------------------------------------------------------------

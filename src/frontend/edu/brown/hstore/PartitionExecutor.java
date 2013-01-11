@@ -119,11 +119,10 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.TransactionPrepareCallback;
-import edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -2585,7 +2584,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (hstore_conf.site.specexec_enable && ts.isPredictSinglePartition() == false) {
             PartitionSet new_done = ts.calculateDonePartitions(this.thresholds);
             if (new_done != null && new_done.isEmpty() == false) {
-                hstore_coordinator.transactionPrepare(ts, ts.getOrInitTransactionPrepareCallback(), new_done);
+                hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(), new_done);
             }
         }
 
@@ -3754,15 +3753,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostPrepare();
             ts.setClientResponse(cresponse);
-            TransactionPrepareCallback callback = ts.getOrInitTransactionPrepareCallback();
-            assert(callback != null) : 
-                "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
-            
             if (hstore_conf.site.exec_profiling) {
                 this.profiler.network_time.start();
                 this.profiler.idle_2pc_local_time.start();
             }
-            this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
+            this.hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(), tmp_preparePartitions);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
         }
         // -------------------------------
@@ -3839,10 +3834,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // When we do an early 2PC-PREPARE, we won't have this callback ready
         // because we don't know what callback to use to send the acknowledgements
         // back over the network
-        TransactionPrepareWrapperCallback callback = ts.getPrepareWrapperCallback();
-        if (callback.isInitialized()) {
-            callback.run(Integer.valueOf(this.partitionId));
-        }
+        PartitionCountingCallback<AbstractTransaction> callback = ts.getPrepareCallback();
+        callback.run(this.partitionId);
 
         return (true);
     }

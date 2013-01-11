@@ -1,7 +1,12 @@
 package edu.brown.hstore.callbacks;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
+
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -9,6 +14,7 @@ import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.PartitionSet;
 
 /**
  * This callback is invoked at the base partition once the txn gets all of
@@ -16,29 +22,46 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * to send the ClientResponse back to the client.
  * @author pavlo
  */
-public class TransactionPrepareCallback extends AbstractTransactionCallback<LocalTransaction, ClientResponseImpl, TransactionPrepareResponse> {
-    private static final Logger LOG = Logger.getLogger(TransactionPrepareCallback.class);
+public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransaction> implements RpcCallback<TransactionPrepareResponse> {
+    private static final Logger LOG = Logger.getLogger(LocalPrepareCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
     
+    private final List<TransactionPrepareResponse> responses = new ArrayList<TransactionPrepareResponse>();
+    
     /**
      * Constructor
      * @param hstore_site
      */
-    public TransactionPrepareCallback(HStoreSite hstore_site) {
+    public LocalPrepareCallback(HStoreSite hstore_site) {
         super(hstore_site);
     }
     
-    public void init(LocalTransaction ts) {
-        int num_partitions = ts.getPredictTouchedPartitions().size();
-        super.init(ts, num_partitions, ts.getClientCallback());
+    public void init(LocalTransaction ts, PartitionSet partitions) {
+        this.responses.clear();
+        super.init(ts, partitions);
     }
     
+    // ----------------------------------------------------------------------------
+    // RUN METHOD
+    // ----------------------------------------------------------------------------
+    
     @Override
-    public void unblockTransactionCallback() {
-        if (debug.val) LOG.debug(String.format("%s - Unblocking callback and sending back ClientResponse", this.ts));
+    protected void runImpl(int partition) {
+        // Nothing to do
+        return;
+    }
+
+    // ----------------------------------------------------------------------------
+    // CALLBACK METHODS
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    protected void unblockCallback() {
+        if (debug.val)
+            LOG.debug(String.format("%s - Unblocking callback and sending back ClientResponse", this.ts));
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
             if (debug.val) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + Status.OK);
             this.ts.profiler.stopPostPrepare();
@@ -61,8 +84,9 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Loca
     }
     
     @Override
-    protected boolean abortTransactionCallback(Status status) {
-        if (debug.val) LOG.debug(String.format("%s - Aborting callback and sending back %s ClientResponse", this.ts, status));
+    protected void abortCallback(int partition, Status status) {
+        if (debug.val)
+            LOG.debug(String.format("%s - Aborting callback and sending back %s ClientResponse", this.ts, status));
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
             if (debug.val) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + status);
             this.ts.profiler.stopPostPrepare();
@@ -77,12 +101,15 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Loca
         ClientResponseImpl cresponse = this.ts.getClientResponse();
         cresponse.setStatus(status);
         this.hstore_site.responseSend(this.ts, cresponse);
-        
-        return (false);
     }
     
+    // ----------------------------------------------------------------------------
+    // RPC CALLBACK
+    // ----------------------------------------------------------------------------
+
+    
     @Override
-    protected int runImpl(TransactionPrepareResponse response) {
+    public void run(TransactionPrepareResponse response) {
         if (debug.val)
             LOG.debug(String.format("Got %s with %d partitions for %s",
                                     response.getClass().getSimpleName(),
@@ -101,11 +128,22 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Loca
         //       remote partition did. It should be PREPARE_OK or PREPARE_COMMIT
         //       If it's a PREPARE_COMMIT then we know that we don't need to send
         //       a COMMIT message to it in the next round.
+        this.responses.add(response);
         if (response.getStatus() != Status.OK) {
-            this.abort(response.getStatus());
+            boolean first = true;
+            for (int partition : response.getPartitionsList()) {
+                if (first) {
+                    this.abort(partition, response.getStatus());
+                    first = false;
+                } else {
+                    this.decrementCounter(partition);
+                }
+            } // FOR
+        } else {
+            for (Integer partition : response.getPartitionsList()) {
+                this.run(partition.intValue());
+            } // FOR
         }
-        // Otherwise we need to update our counter to keep track of how many OKs that we got
-        // back. We'll ignore anything that comes in after we've aborted
-        return response.getPartitionsCount();
     }
+    
 } // END CLASS
