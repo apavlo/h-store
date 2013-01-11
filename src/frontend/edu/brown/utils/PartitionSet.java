@@ -331,6 +331,14 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         return (ret);
     }
     
+    public static String toString(boolean bitmap[]) {
+        PartitionSet ps = new PartitionSet();
+        for (int i = 0; i < bitmap.length; i++) {
+            if (bitmap[i]) ps.add(i);
+        } // FOR
+        return (ps.toString());
+    }
+    
     // ----------------------------------------------------------------------------
     // ITERATOR
     // ----------------------------------------------------------------------------

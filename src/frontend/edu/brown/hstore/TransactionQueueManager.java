@@ -299,74 +299,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     }
     
     /**
-     * Check whether there are any transactions that need to be released for execution
-     * at the partitions controlled by this queue manager
-     * Returns true if we released a transaction at at least one partition
-     */
-    protected AbstractTransaction checkLockQueue(int partition) throws InterruptedException {
-        if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.start();
-        if (trace.val)
-            LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
-                      partition, this.lockQueues[partition].size()));
-        
-        PartitionCountingCallback<AbstractTransaction> callback = null;
-        AbstractTransaction nextTxn = null;
-        while (nextTxn == null) {
-            // Poll the queue and get the next value.
-            nextTxn = this.lockQueues[partition].take();
-            if (nextTxn == null) continue;
-            
-            assert(nextTxn != null) :
-                String.format("Null transaction returned from the %s for partition %d",
-                              this.lockQueues[partition].getClass().getSimpleName(), partition);
-
-            callback = nextTxn.getTransactionInitQueueCallback();
-            assert(callback.isInitialized()) :
-                String.format("Uninitialized %s callback for %s [hashCode=%d]",
-                              callback.getClass().getSimpleName(), nextTxn, callback.hashCode());
-            
-            // If this callback has already been aborted, then there is nothing we need to
-            // do. Somebody else will make sure that this txn is removed from the queue
-            // Loop back around so that we can grab the next txn
-            if (callback.isAborted()) {
-                if (debug.val)
-                    LOG.debug(String.format("The next id for partition %d is %s but its %s is " +
-                    		  "marked as aborted. [queueSize=%d]",
-                              partition, nextTxn, callback.getClass().getSimpleName(),
-                              this.lockQueues[partition].size()));
-                nextTxn = null;
-                continue;
-            }
-    
-            if (debug.val)
-                LOG.debug(String.format("Good news! Partition %d is ready to execute %s! " +
-                		  "Invoking %s.run()",
-                          partition, nextTxn, callback.getClass().getSimpleName()));
-            this.lockQueuesLastTxn[partition] = nextTxn.getTransactionId();
-            
-            // Send the init request for the specified partition
-            try {
-                callback.run(partition);
-            } catch (NullPointerException ex) {
-                // HACK: Ignore...
-                if (debug.val)
-                    LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
-                             callback.getClass().getSimpleName(), nextTxn, partition), ex);
-            } catch (Throwable ex) {
-                String msg = String.format("Failed to invoke %s for %s at partition %d",
-                                           callback.getClass().getSimpleName(), nextTxn, partition);
-                throw new ServerFaultException(msg, ex, nextTxn.getTransactionId());
-            }
-        } // WHILE
-        
-        if (debug.val && nextTxn != null && nextTxn.isPredictSinglePartition() == false)
-            LOG.debug(String.format("Finished processing lock queue for partition %d [next=%s]",
-                      partition, nextTxn));
-        if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stopIfStarted();
-        return (nextTxn);
-    }
-    
-    /**
      * Add a new transaction to this queue manager.
      * Returns true if the transaction was successfully inserted at all partitions.
      * <B>Note:</B> This should not be called directly. You probably want to use initTransaction().
@@ -376,8 +308,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * @return
      */
     protected Status lockQueueInsert(AbstractTransaction ts,
-                                      int partition,
-                                      PartitionCountingCallback<? extends AbstractTransaction> callback) {
+                                     int partition,
+                                     PartitionCountingCallback<? extends AbstractTransaction> callback) {
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.start();
         assert(ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, partition);
@@ -462,6 +394,68 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
         return (Status.OK);
     }
+    
+    /**
+     * Check whether there are any transactions that need to be released for execution
+     * at the partitions controlled by this queue manager
+     * Returns true if we released a transaction at at least one partition
+     */
+    protected AbstractTransaction checkLockQueue(int partition) {
+        if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.start();
+        if (trace.val)
+            LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
+                      partition, this.lockQueues[partition].size()));
+        
+        // Poll the queue and get the next value.
+        AbstractTransaction nextTxn = this.lockQueues[partition].poll();
+        if (nextTxn == null) return (nextTxn);
+
+        PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getTransactionInitQueueCallback();
+        assert(callback.isInitialized()) :
+            String.format("Uninitialized %s callback for %s [hashCode=%d]",
+                          callback.getClass().getSimpleName(), nextTxn, callback.hashCode());
+        
+        // If this callback has already been aborted, then there is nothing we need to
+        // do. Somebody else will make sure that this txn is removed from the queue
+        if (callback.isAborted()) {
+            if (debug.val)
+                LOG.debug(String.format("The next id for partition %d is %s but its %s is " +
+                          "marked as aborted. [queueSize=%d]",
+                          partition, nextTxn, callback.getClass().getSimpleName(),
+                          this.lockQueues[partition].size()));
+            return (null);
+        }
+
+        if (debug.val)
+            LOG.debug(String.format("Good news! Partition %d is ready to execute %s! " +
+                      "Invoking %s.run()",
+                      partition, nextTxn, callback.getClass().getSimpleName()));
+        this.lockQueuesLastTxn[partition] = nextTxn.getTransactionId();
+        
+        // Mark the txn being released to the given partition
+        nextTxn.markReleased(partition);
+        
+        // Send the init request for the specified partition
+        try {
+            callback.run(partition);
+        } catch (NullPointerException ex) {
+            // HACK: Ignore...
+            if (debug.val)
+                LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
+                         callback.getClass().getSimpleName(), nextTxn, partition), ex);
+        } catch (Throwable ex) {
+            String msg = String.format("Failed to invoke %s for %s at partition %d",
+                                       callback.getClass().getSimpleName(), nextTxn, partition);
+            throw new ServerFaultException(msg, ex, nextTxn.getTransactionId());
+        }
+        
+        if (debug.val && nextTxn != null && nextTxn.isPredictSinglePartition() == false)
+            LOG.debug(String.format("Finished processing lock queue for partition %d [next=%s]",
+                      partition, nextTxn));
+        if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stopIfStarted();
+        return (nextTxn);
+    }
+    
     
     /**
      * Mark the transaction as being finished with the given local partition. This can be called

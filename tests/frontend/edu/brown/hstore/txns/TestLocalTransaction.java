@@ -51,6 +51,7 @@ public class TestLocalTransaction extends BaseTestCase {
     MockPartitionExecutor executor;
     Procedure catalog_proc;
     LocalTransaction ts;
+    AbstractTransaction.Debug tsDebug;
     SQLStmt batchStmts[];
     ParameterSet batchParams[];
     
@@ -92,6 +93,7 @@ public class TestLocalTransaction extends BaseTestCase {
         this.executor = (MockPartitionExecutor)this.hstore_site.getPartitionExecutor(BASE_PARTITION);
         assertNotNull(this.executor);
         this.ts = new LocalTransaction(this.hstore_site);
+        this.tsDebug = this.ts.getDebugContext();
     }
     
     /**
@@ -143,7 +145,7 @@ public class TestLocalTransaction extends BaseTestCase {
         
         int tableIds[] = null;
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
-            this.ts.clearReadWriteSets();
+            this.tsDebug.clearReadWriteSets();
             for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
                 tableIds = catalogContext.getReadTableIds(Long.valueOf(catalog_frag.getId()));
                 ts.markTableIdsAsRead(BASE_PARTITION, tableIds);

@@ -10,6 +10,11 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
      */
     public long numTransactions = 0;
     
+    /**
+     * Counter for the number of messages processed at this partition
+     */
+    public long numMessages = 0;
+    
     // ----------------------------------------------------------------------------
     // GLOBAL MEASUREMENTS
     // ----------------------------------------------------------------------------

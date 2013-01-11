@@ -57,6 +57,7 @@ import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -82,7 +83,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     }
     
     protected final HStoreSite hstore_site;
-    protected final int[] local_partitions;
     
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
@@ -187,8 +187,10 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     
     // TODO(pavlo): Document what these arrays are and how the offsets are calculated
     
+    private final boolean released[];
     private final boolean prepared[];
     private final boolean finished[];
+    
     protected final RoundState round_state[];
     protected final int round_ctr[];
 
@@ -251,9 +253,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public AbstractTransaction(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
-        this.local_partitions = hstore_site.getLocalPartitionIds().values();
         
         int numPartitions = hstore_site.getCatalogContext().numberOfPartitions;
+        this.released = new boolean[numPartitions];
         this.prepared = new boolean[numPartitions];
         this.finished = new boolean[numPartitions];
         this.round_state = new RoundState[numPartitions];
@@ -363,7 +365,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
             this.prefetch = null;
         }
         
-        for (int partition : this.local_partitions) {
+        for (int partition : this.hstore_site.getLocalPartitionIds().values()) {
+            this.released[partition] = false;
             this.prepared[partition] = false;
             this.finished[partition] = false;
             this.round_state[partition] = null;
@@ -485,10 +488,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * to need during its execution. The transaction may choose to not use all of
      * these but it is not allowed to use more.
      */
-    public PartitionSet getPredictTouchedPartitions() {
+    public final PartitionSet getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
     }
-    
     /**
      * Returns true if this Transaction was originally predicted as being able to abort
      */
@@ -507,26 +509,34 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     public final boolean isPredictSinglePartition() {
         return (this.predict_singlePartition);
     }
-    
+    /**
+     * Returns the EstimatorState for this txn
+     * @return
+     */
     public EstimatorState getEstimatorState() {
         return (this.predict_tState);
     }
+    /**
+     * Set the EstimatorState for this txn
+     * @param state
+     */
     public final void setEstimatorState(EstimatorState state) {
+        assert(this.predict_tState == null) :
+            String.format("Trying to set the %s for %s twice",
+                          EstimatorState.class.getSimpleName(), this);
         this.predict_tState = state;
     }
-    
     /**
      * Get the last TransactionEstimate produced for this transaction.
      * If there is no estimate, then the return result is null.
      * @return
      */
-    public Estimate getLastEstimate() {
+    public final Estimate getLastEstimate() {
         if (this.predict_tState != null) {
             return (this.predict_tState.getLastEstimate());
         }
         return (null);
     }
-    
     /**
      * Returns true if this transaction was executed speculatively
      */
@@ -541,7 +551,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     /**
      * Mark this transaction as have performed some modification on this partition
      */
-    public void markExecNotReadOnly(int partition) {
+    public final void markExecNotReadOnly(int partition) {
         assert(this.sysproc == true || this.readonly == false);
         this.exec_readOnly[partition] = false;
     }
@@ -557,16 +567,21 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     /**
      * Returns true if this transaction executed without undo buffers at some point
      */
-    public boolean isExecNoUndoBuffer(int partition) {
+    public final boolean isExecNoUndoBuffer(int partition) {
         return (this.exec_noUndoBuffer[partition]);
     }
-    public void markExecNoUndoBuffer(int partition) {
+    /**
+     * Mark that the transaction executed queries without using undo logging
+     * at the given partition.
+     * @param partition
+     */
+    public final void markExecNoUndoBuffer(int partition) {
         this.exec_noUndoBuffer[partition] = true;
     }
     /**
      * Returns true if this transaction's control code running at this partition 
      */
-    public boolean isExecLocal(int partition) {
+    public final boolean isExecLocal(int partition) {
         return (this.base_partition == partition);
     }
     
@@ -794,8 +809,74 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     }
     
     // ----------------------------------------------------------------------------
-    // Keep track of whether this txn executed stuff at this partition's EE
+    // TRANSACTION STATE BOOKKEEPING
     // ----------------------------------------------------------------------------
+    
+    /**
+     * Mark this txn as being released from the lock queue at the given partition.
+     * This means that this txn was released to that partition and will
+     * need to be removed with a FinishTxnMessage
+     * @param partition - The partition to mark this txn as "queued"
+     */
+    public void markReleased(int partition) {
+        if (debug.val)
+            LOG.debug(String.format("%s - Marking as queued on partition %d %s [hashCode=%d]",
+                      this, partition, Arrays.toString(this.released), this.hashCode()));
+        assert(this.released[partition] == false) :
+            String.format("Trying to mark %s as released to partition %d twice", this, partition);
+        this.released[partition] = true;
+    }
+    /**
+     * Is this TransactionState marked as released at the given partition
+     * @return
+     */
+    public boolean isMarkedReleased(int partition) {
+        return (this.released[partition]);
+    }
+    
+    /**
+     * Mark this txn as prepared and return the original value
+     * This is a thread-safe operation
+     * @param partition - The partition to mark this txn as "prepared"
+     */
+    public boolean markPrepared(int partition) {
+        if (debug.val)
+            LOG.debug(String.format("%s - Marking as prepared on partition %d %s [hashCode=%d, offset=%d]",
+                      this, partition, Arrays.toString(this.prepared),
+                      this.hashCode(), partition));
+        boolean orig = false;
+        synchronized (this.prepared) {
+            orig = this.prepared[partition];
+            this.prepared[partition] = true;
+        } // SYNCH
+        return (orig == false);
+    }
+    /**
+     * Is this TransactionState marked as prepared at the given partition
+     * @return
+     */
+    public boolean isMarkedPrepared(int partition) {
+        return (this.prepared[partition]);
+    }
+    
+    /**
+     * Mark this txn as finished (and thus ready for clean-up)
+     */
+    public void markFinished(int partition) {
+        if (debug.val)
+            LOG.debug(String.format("%s - Marking as finished on partition %d " +
+                      "[finished=%s / hashCode=%d / offset=%d]",
+                      this, partition, Arrays.toString(this.finished),
+                      this.hashCode(), partition));
+        this.finished[partition] = true;
+    }
+    /**
+     * Is this TransactionState marked as finished
+     * @return
+     */
+    public boolean isMarkedFinished(int partition) {
+        return (this.finished[partition]);
+    }
     
     /**
      * Should be called whenever the txn submits work to the EE 
@@ -817,20 +898,17 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     /**
      * Should be called whenever the txn submits work to the EE 
      */
-    public void markExecutedWork(int partition) {
+    public final void markExecutedWork(int partition) {
         if (debug.val) LOG.debug(String.format("%s - Marking as having submitted to the EE on partition %d [exec_eeWork=%s]",
                                  this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[partition] = true;
     }
     
-    public void unmarkExecutedWork(int partition) {
-        this.exec_eeWork[partition] = false;
-    }
     /**
      * Returns true if this txn has submitted work to the EE that needs to be rolled back
      * @return
      */
-    public boolean hasExecutedWork(int partition) {
+    public final boolean hasExecutedWork(int partition) {
         return (this.exec_eeWork[partition]);
     }
     
@@ -838,96 +916,84 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // READ/WRITE TABLE TRACKING
     // ----------------------------------------------------------------------------
     
-    public void markTableAsRead(int partition, Table catalog_tbl) {
+    /**
+     * Mark that this txn read from the Table at the given partition 
+     * @param partition
+     * @param catalog_tbl
+     */
+    public final void markTableAsRead(int partition, Table catalog_tbl) {
         this.readTables[partition].set(catalog_tbl.getRelativeIndex());
     }
-    public void markTableIdsAsRead(int partition, int...tableIds) {
-        if (tableIds != null) {
-            for (int id : tableIds) {
-                this.readTables[partition].set(id);
-            } // FOR
-        }
+    /**
+     * Mark that this txn read from the tableIds at the given partition
+     * @param partition
+     * @param tableIds
+     */
+    public final void markTableIdsAsRead(int partition, int...tableIds) {
+        for (int id : tableIds) {
+            this.readTables[partition].set(id);
+        } // FOR
     }
-    public boolean isTableRead(int partition, Table catalog_tbl) {
+    /**
+     * Returns true if this txn has executed a query that read from the Table
+     * at the given partition.
+     * @param partition
+     * @param catalog_tbl
+     * @return
+     */
+    public final boolean isTableRead(int partition, Table catalog_tbl) {
         return (this.readTables[partition].get(catalog_tbl.getRelativeIndex()));
     }
     
-    public void markTableAsWritten(int partition, Table catalog_tbl) {
+    /**
+     * Mark that this txn has executed a modifying query for the Table at the given partition.
+     * <B>Note:</B> This is just tracking that we executed a query.
+     * It does not necessarily mean that the query actually changed anything. 
+     * @param partition
+     * @param catalog_tbl
+     */
+    public final void markTableAsWritten(int partition, Table catalog_tbl) {
         this.writeTables[partition].set(catalog_tbl.getRelativeIndex());
     }
-    public void markTableIdsAsWritten(int partition, int...tableIds) {
-        if (tableIds != null) {
-            for (int id : tableIds) {
-                this.writeTables[partition].set(id);
-            } // FOR
-        }
+    /**
+     * Mark that this txn has executed a modifying query for the tableIds at the given partition.
+     * <B>Note:</B> This is just tracking that we executed a query.
+     * It does not necessarily mean that the query actually changed anything.
+     * @param partition
+     * @param tableIds
+     */
+    public final void markTableIdsAsWritten(int partition, int...tableIds) {
+        for (int id : tableIds) {
+            this.writeTables[partition].set(id);
+        } // FOR
     }
-    public boolean isTableWritten(int partition, Table catalog_tbl) {
+    /**
+     * Returns true if this txn has executed a non-readonly query that read from 
+     * the Table at the given partition.
+     * @param partition
+     * @param catalog_tbl
+     * @return
+     */
+    public final boolean isTableWritten(int partition, Table catalog_tbl) {
         return (this.writeTables[partition].get(catalog_tbl.getRelativeIndex()));
     }
     
-    public boolean isTableReadOrWritten(int partition, Table catalog_tbl) {
+    /**
+     * Returns true if this txn executed at query that either accessed or modified
+     * the Table at the given partition.
+     * @param partition
+     * @param catalog_tbl
+     * @return
+     */
+    public final boolean isTableReadOrWritten(int partition, Table catalog_tbl) {
         int tableId = catalog_tbl.getRelativeIndex();
         return (this.readTables[partition].get(tableId) || this.writeTables[partition].get(tableId));
     }
     
-    /**
-     * Clear read/write table sets
-     * <B>NOTE:</B> This should only be used for testing
-     */
-    public final void clearReadWriteSets() {
-        for (int i = 0; i < this.readTables.length; i++) {
-            this.readTables[i].clear();
-            this.writeTables[i].clear();
-        } // FOR
-    }
-    
-    
     // ----------------------------------------------------------------------------
-    // Whether the ExecutionSite is finished with the transaction
+    // GLOBAL STATE TRACKING
     // ----------------------------------------------------------------------------
     
-    /**
-     * Mark this txn as prepared and return the original value
-     * This is a thread-safe operation
-     * @param partition - The partition to mark this txn as "prepared"
-     */
-    public boolean markPrepared(int partition) {
-        if (debug.val) LOG.debug(String.format("%s - Marking as prepared on partition %d %s [hashCode=%d, offset=%d]",
-                                 this, partition, Arrays.toString(this.prepared),
-                                 this.hashCode(), partition));
-        boolean orig = false;
-        synchronized (this.prepared) {
-            orig = this.prepared[partition];
-            this.prepared[partition] = true;
-        } // SYNCH
-        return (orig == false);
-    }
-    /**
-     * Is this TransactionState marked as prepared
-     * @return
-     */
-    public boolean isMarkedPrepared(int partition) {
-        return (this.prepared[partition]);
-    }
-    
-    /**
-     * Mark this txn as finished (and thus ready for clean-up)
-     */
-    public void markFinished(int partition) {
-        if (debug.val) LOG.debug(String.format("%s - Marking as finished on partition %d " +
-        		                 "[finished=%s / hashCode=%d / offset=%d]",
-                                 this, partition, Arrays.toString(this.finished),
-                                 this.hashCode(), partition));
-        this.finished[partition] = true;
-    }
-    /**
-     * Is this TransactionState marked as finished
-     * @return
-     */
-    public boolean isMarkedFinished(int partition) {
-        return (this.finished[partition]);
-    }
 
     /**
      * Get the current Round that this TransactionState is in
@@ -1093,24 +1159,35 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         m.put("Procedure", this.catalog_proc);
         m.put("Base Partition", this.base_partition);
         m.put("Hash Code", this.hashCode());
-        m.put("Deletable", this.deletable.get());
-        m.put("Current Round State", Arrays.toString(this.round_state));
-        m.put("Read-Only", Arrays.toString(this.exec_readOnly));
-        m.put("First UndoToken", Arrays.toString(this.exec_firstUndoToken));
-        m.put("Last UndoToken", Arrays.toString(this.exec_lastUndoToken));
-        m.put("No Undo Buffer", Arrays.toString(this.exec_noUndoBuffer));
-        m.put("# of Rounds", Arrays.toString(this.round_ctr));
-        m.put("Executed Work", Arrays.toString(this.exec_eeWork));
         m.put("Pending Error", this.pending_error);
         maps.add(m);
         
         // Predictions
         m = new LinkedHashMap<String, Object>();
-        m.put("Predict Single-Partitioned", (this.predict_touchedPartitions != null ? this.isPredictSinglePartition() : "???"));
+        m.put("Predict Single-Partitioned", this.predict_singlePartition);
         m.put("Predict Touched Partitions", this.getPredictTouchedPartitions());
         m.put("Predict Read Only", this.isPredictReadOnly());
         m.put("Predict Abortable", this.isPredictAbortable());
         maps.add(m);
+        
+        // Global State
+        m = new LinkedHashMap<String, Object>();
+        m.put("Marked Released", PartitionSet.toString(this.released));
+        m.put("Marked Prepared", PartitionSet.toString(this.prepared));
+        m.put("Marked Finished", PartitionSet.toString(this.finished));
+        m.put("Marked Deletable", this.checkDeletableFlag());
+        maps.add(m);
+
+        // Partition Execution State
+        m.put("Current Round State", Arrays.toString(this.round_state));
+        m.put("Exec Read-Only", PartitionSet.toString(this.exec_readOnly));
+        m.put("First UndoToken", Arrays.toString(this.exec_firstUndoToken));
+        m.put("Last UndoToken", Arrays.toString(this.exec_lastUndoToken));
+        m.put("No Undo Buffer", PartitionSet.toString(this.exec_noUndoBuffer));
+        m.put("# of Rounds", Arrays.toString(this.round_ctr));
+        m.put("Executed Work", PartitionSet.toString(this.exec_eeWork));
+        maps.add(m);
+
         
         return ((Map<String, Object>[])maps.toArray(new Map[0]));
     }
@@ -1122,5 +1199,26 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         return ("#" + txn_id);
     }
     
+    
+    public class Debug implements DebugContext {
+        /**
+         * Clear read/write table sets
+         * <B>NOTE:</B> This should only be used for testing
+         */
+        public final void clearReadWriteSets() {
+            for (int i = 0; i < readTables.length; i++) {
+                readTables[i].clear();
+                writeTables[i].clear();
+            } // FOR
+        }
+    }
 
+    private Debug cachedDebugContext;
+    public Debug getDebugContext() {
+        if (this.cachedDebugContext == null) {
+            // We don't care if we're thread-safe here...
+            this.cachedDebugContext = new Debug();
+        }
+        return this.cachedDebugContext;
+    }
 }

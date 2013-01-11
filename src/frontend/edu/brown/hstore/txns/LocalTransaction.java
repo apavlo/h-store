@@ -1423,7 +1423,7 @@ public class LocalTransaction extends AbstractTransaction {
 
         // Additional Info
         m = new LinkedHashMap<String, Object>();
-        m.put(this.client_callback.getClass().getSimpleName(), this.client_callback);
+        m.put("Client Callback", this.client_callback);
         m.put(this.init_callback.getClass().getSimpleName(), this.init_callback);
         if (this.dtxnState != null) {
             m.put(this.dtxnState.prepare_callback.getClass().getSimpleName(), this.dtxnState.prepare_callback);

@@ -286,7 +286,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private HStoreConf hstore_conf;
     private TransactionInitializer txnInitializer;
     private TransactionQueueManager queueManager;
-    private PartitionLockQueue initQueue;
+    private PartitionLockQueue lockQueue;
     
     // ----------------------------------------------------------------------------
     // Partition-Specific Queues
@@ -732,7 +732,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.thresholds = hstore_site.getThresholds();
         this.txnInitializer = hstore_site.getTransactionInitializer();
         this.queueManager = hstore_site.getTransactionQueueManager();
-        this.initQueue = this.queueManager.getInitQueue(this.partitionId);
+        this.lockQueue = this.queueManager.getInitQueue(this.partitionId);
         
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
@@ -759,10 +759,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(policy != null) : String.format("Invalid %s '%s'",
                                                SpecExecSchedulerPolicyType.class.getSimpleName(),
                                                hstore_conf.site.specexec_scheduler_policy);
-        assert(this.initQueue.getPartitionId() == this.partitionId);
+        assert(this.lockQueue.getPartitionId() == this.partitionId);
         this.specExecScheduler = new SpecExecScheduler(this.specExecChecker,
                                                        this.partitionId,
-                                                       this.initQueue,
+                                                       this.lockQueue,
                                                        policy,
                                                        hstore_conf.site.specexec_scheduler_window);
         this.specExecChecker.setEstimationThresholds(this.thresholds);
@@ -847,9 +847,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (this.currentDtxn == null) {
                     if (hstore_conf.site.exec_profiling) profiler.poll_time.start();
                     try {
-                        nextTxn = this.queueManager.checkLockQueue(this.partitionId); // BLOCKING
-                    } catch (InterruptedException ex) {
-                        continue;
+                        nextTxn = this.queueManager.checkLockQueue(this.partitionId); // NON-BLOCKING
                     } finally {
                         if (hstore_conf.site.exec_profiling) profiler.poll_time.stopIfStarted();
                     }
@@ -861,7 +859,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
                         // If this a single-partition txn, then we'll want to execute it right away
                         if (nextTxn.isPredictSinglePartition()) {
-                            nextWork = ((LocalTransaction)nextTxn).getStartTxnMessage();
+                            // nextWork = ((LocalTransaction)nextTxn).getStartTxnMessage();
                         }
                         // If it's as distribued txn, then we'll want to just set it as our 
                         // current dtxn at this partition and then keep checking the queue
@@ -877,21 +875,34 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
-                if (nextWork == null) {
-                    if (hstore_conf.site.exec_profiling) profiler.idle_time.start();
-                    nextWork = this.getNextTransactionWork(); // BLOCKING
+                // Check if we have anything to do right now
+                if (hstore_conf.site.exec_profiling) profiler.idle_time.start();
+                try {
+                    nextWork = this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT);
+                } finally {
                     if (hstore_conf.site.exec_profiling) { 
                         profiler.idle_time.stopIfStarted();
                         if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
                     }
+
                 }
-                if (trace.val) LOG.trace("Next Work: " + nextWork);
+                // Check if we have any utility work to do while we wait
+                if (nextWork == null && hstore_conf.site.specexec_enable) {
+                    if (trace.val)
+                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
+                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
+                    if (this.utilityWork()) nextWork = UTIL_WORK_MSG; // FIXME
+                }
                 
                 // -------------------------------
                 // Process Work
                 // -------------------------------
                 if (nextWork != null) {
-                    if (hstore_conf.site.exec_profiling) profiler.exec_time.start();
+                    if (trace.val) LOG.trace("Next Work: " + nextWork);
+                    if (hstore_conf.site.exec_profiling) {
+                        profiler.exec_time.start();
+                        profiler.numMessages++;
+                    }
                     try {
                         this.processInternalMessage(nextWork);
                     } finally {
@@ -928,28 +939,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
     
     /**
-     * Get the next unit of work from this partition's queue
-     * @return
-     */
-   private InternalMessage getNextTransactionWork() throws InterruptedException {
-        // Check if we have anything to do right now
-        InternalMessage work = this.work_queue.poll();
-        if (work != null) return (work);
-        
-        // Check if we have any utility work to do while we wait
-        if (hstore_conf.site.specexec_enable) {
-            if (trace.val)
-                LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
-                          this.work_queue.getClass().getSimpleName(), this.partitionId));
-            if (this.utilityWork()) return (UTIL_WORK_MSG);
-        }
-        
-        // If we didn't have any utility work, then we'll make a 
-        // blocking invocation of the work queue
-        return (this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT));
-    }
-    
-    /**
      * Special function that allows us to do some utility work while 
      * we are waiting for a response or something real to do.
      * Note: this tracks how long the system spends doing utility work. It would
@@ -970,7 +959,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Check whether there is something we can speculatively execute right now
         if (this.currentDtxn != null &&
             this.specExecIgnoreCurrent == false &&
-            this.initQueue.isEmpty() == false && 
+            this.lockQueue.isEmpty() == false && 
             this.currentDtxn.isInitialized()) {
             
             assert(hstore_conf.site.specexec_enable) :
@@ -1001,7 +990,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // IMPORTANT: We need to make sure that we remove this transaction for the lock queue
                 // before we execute it so that we don't try to run it again.
                 // We have to do this now because otherwise we may get the same transaction again
-                assert(this.initQueue.contains(spec_ts.getTransactionId()) == false) :
+                assert(this.lockQueue.contains(spec_ts.getTransactionId()) == false) :
                     String.format("Failed to remove speculative %s before executing", spec_ts);
                 
                 // It's also important that we cancel this txn's init queue callback, otherwise
@@ -2686,10 +2675,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             boolean fragReadOnly = PlanFragmentIdGenerator.isPlanFragmentReadOnly(fragmentIds[i]);
             if (fragReadOnly) {
                 tableIds = catalogContext.getReadTableIds(Long.valueOf(fragmentIds[i]));
-                ts.markTableIdsAsRead(this.partitionId, tableIds);
+                if (tableIds != null) ts.markTableIdsAsRead(this.partitionId, tableIds);
             } else {
                 tableIds = catalogContext.getWriteTableIds(Long.valueOf(fragmentIds[i]));
-                ts.markTableIdsAsWritten(this.partitionId, tableIds);
+                if (tableIds != null) ts.markTableIdsAsWritten(this.partitionId, tableIds);
             }
             readonly = readonly && fragReadOnly;
         }

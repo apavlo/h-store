@@ -481,6 +481,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             PartitionExecutor executor = hstore_site.getPartitionExecutor(partition);
             if (executor == null) continue;
             PartitionExecutor.Debug executorDebug = executor.getDebugContext();
+            PartitionExecutorProfiler profiler = executorDebug.getProfiler();
             PartitionLockQueue initQueue = queueManager.getInitQueue(partition);
             // PartitionLockQueue.Debug initQueueDebug = initQueue.getDebugContext();
             AbstractTransaction current_dtxn = executorDebug.getCurrentDtxn();
@@ -493,6 +494,14 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                 initQueue.size(),
                                 executorDebug.getBlockedWorkCount(),
                                 executorDebug.getBlockedSpecExecCount()), null);
+
+            if (profiler != null) {
+                m.put("Work Queue", String.format("%d current / %d processed",
+                                                  executorDebug.getWorkQueueSize(),
+                                                  profiler.numMessages));
+            } else {
+                m.put("Work Queue", String.format("%d current", executorDebug.getWorkQueueSize()));
+            }
             
             txn_id = executorDebug.getCurrentTxnId();
             m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), executorDebug.getExecutionMode()));
@@ -538,7 +547,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
             
             if (hstore_conf.site.exec_profiling) {
-                PartitionExecutorProfiler profiler = executorDebug.getProfiler();
                 PartitionExecutorProfiler lastProfiler = this.lastExecMeasurements.get(executor);
                 if (lastProfiler == null) {
                     lastProfiler = new PartitionExecutorProfiler();

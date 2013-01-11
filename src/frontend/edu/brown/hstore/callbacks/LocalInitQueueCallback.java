@@ -1,6 +1,7 @@
 package edu.brown.hstore.callbacks;
 
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 
 import org.apache.log4j.Logger;
@@ -58,16 +59,10 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
         // HACK: If this is a single-partition txn, then we don't
         // need to submit it for execution because the PartitionExecutor
         // will fire it off right away
-        if (this.ts.isPredictSinglePartition() == false) {
+        // if (this.ts.isPredictSinglePartition() == false) {
             if (debug.val) LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
-            this.hstore_site.transactionStart((LocalTransaction)this.ts);
-        }
-//        else { 
-//            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
-//            if (debug.val)
-//                LOG.debug(this.ts + " is ready to execute but it is single-partitioned. " +
-//                          "Not telling the HStoreSite to start");
-//        }
+            this.hstore_site.transactionStart(this.ts);
+        // }
     }
 
     @Override
@@ -120,7 +115,16 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     public String toString() {
         String ret = super.toString();
         ret += "\n-------------\n";
-        ret += StringUtil.join("\n", this.responses);
+        String debug = "";
+        while (true) {
+            try {
+                debug = StringUtil.join("\n", this.responses); 
+            } catch (ConcurrentModificationException ex) {
+                continue;
+            }
+            break;
+        }
+        ret += debug; 
         return (ret);
     }
 }

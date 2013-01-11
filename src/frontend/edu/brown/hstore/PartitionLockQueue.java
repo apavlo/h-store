@@ -145,16 +145,20 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
     @Override
     public AbstractTransaction poll() {
         AbstractTransaction retval = null;
-        if (this.state == QueueState.UNBLOCKED) {
-            // 2012-12-21
-            // So this is allow to be null because there is a race condition 
-            // if another thread removes the txn from the queue.
-            retval = super.poll();
-            
-            if (trace.val)
-                LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
-            this.lock.lock();
-            try {
+        
+        if (trace.val)
+            LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
+        this.lock.lock();
+        try {
+            if (this.state != QueueState.UNBLOCKED) {
+                this.checkQueueState(false);
+            }
+            if (this.state == QueueState.UNBLOCKED) {
+                // 2012-12-21
+                // So this is allow to be null because there is a race condition 
+                // if another thread removes the txn from the queue.
+                retval = super.poll();
+                
                 if (retval != null) {
                     if (debug.val)
                         LOG.debug(String.format("Partition %d :: poll() -> %s",
@@ -164,11 +168,11 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                 }
                 // call this again to prime the next txn
                 this.checkQueueState(true);
-            } finally {
-                if (trace.val)
-                    LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
-                this.lock.unlock();
             }
+        } finally {
+            if (trace.val)
+                LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
+            this.lock.unlock();
         }
         return (retval);
     }
