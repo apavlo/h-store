@@ -60,7 +60,7 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
+import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
@@ -874,7 +874,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param status
      * @param callback
      */
-    public void transactionFinish(LocalTransaction ts, Status status, TransactionFinishCallback callback) {
+    public void transactionFinish(LocalTransaction ts, Status status, LocalFinishCallback callback) {
         PartitionSet partitions = ts.getPredictTouchedPartitions();
         if (debug.val) LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]",
                          partitions, ts, status));

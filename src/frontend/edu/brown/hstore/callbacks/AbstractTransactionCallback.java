@@ -177,7 +177,7 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
         // Let everybody know that the party is over!
         if (this.ts instanceof LocalTransaction) {
             LocalTransaction local_ts = (LocalTransaction)this.ts;
-            TransactionFinishCallback finish_callback = local_ts.initTransactionFinishCallback(status);
+            LocalFinishCallback finish_callback = local_ts.initTransactionFinishCallback(status);
             this.hstore_site.getCoordinator().transactionFinish(local_ts, status, finish_callback);
         }
     }

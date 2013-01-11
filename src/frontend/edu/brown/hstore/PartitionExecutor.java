@@ -122,7 +122,7 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionCallback;
 import edu.brown.hstore.callbacks.RemoteFinishCallback;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
+import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -3690,7 +3690,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // have successfully aborted the txn at least at all of the local partitions at this site.
             else {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
-                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+                LocalFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 finish_callback.markForRequeue();
                 if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
@@ -3777,7 +3777,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // to invoke HStoreSite.transactionFinish() for us. That means when it returns we will
             // have successfully aborted the txn at least at all of the local partitions at this site.
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
-            TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+            LocalFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
             this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
@@ -4256,7 +4256,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // LocalTransaction
         else if (ts instanceof LocalTransaction) {
             // If it's a LocalTransaction, then we'll want to invoke their TransactionFinishCallback
-            TransactionFinishCallback callback = ((LocalTransaction)ts).getTransactionFinishCallback();
+            LocalFinishCallback callback = ((LocalTransaction)ts).getTransactionFinishCallback();
             if (trace.val) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
                              ts, callback.getClass().getSimpleName(), this.partitionId));
             callback.decrementCounter(1);

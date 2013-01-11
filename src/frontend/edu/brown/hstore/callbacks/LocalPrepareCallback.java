@@ -106,7 +106,6 @@ public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransac
     // ----------------------------------------------------------------------------
     // RPC CALLBACK
     // ----------------------------------------------------------------------------
-
     
     @Override
     public void run(TransactionPrepareResponse response) {

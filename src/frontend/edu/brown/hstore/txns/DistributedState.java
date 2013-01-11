@@ -5,7 +5,7 @@ import java.util.BitSet;
 import org.voltdb.CatalogContext;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
+import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.pools.Poolable;
 import edu.brown.protorpc.ProtoRpcController;
@@ -56,7 +56,7 @@ public class DistributedState implements Poolable {
      * from the remote partitions. Once this is finished, we can then invoke
      * HStoreSite.deleteTransaction()
      */
-    protected final TransactionFinishCallback finish_callback;
+    protected final LocalFinishCallback finish_callback;
     
     // ----------------------------------------------------------------------------
     // CACHED CONTROLLERS
@@ -81,7 +81,7 @@ public class DistributedState implements Poolable {
         this.sent_parameters = new BitSet(catalogContext.numberOfSites);
         
         this.prepare_callback = new LocalPrepareCallback(hstore_site);
-        this.finish_callback = new TransactionFinishCallback(hstore_site);
+        this.finish_callback = new LocalFinishCallback(hstore_site);
         
         this.rpc_transactionInit = new ProtoRpcController[catalogContext.numberOfSites];
         this.rpc_transactionWork = new ProtoRpcController[catalogContext.numberOfSites];
