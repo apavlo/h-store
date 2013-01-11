@@ -16,11 +16,10 @@ Please note that it will not compile on 32-bit systems.
 
 ## Dependencies
 + [gcc +4.3](http://www.ubuntuupdates.org/gcc)
-+ [OpenJDK +1.6](http://www.ubuntuupdates.org/openjdk-7-jdk) (1.7 is recommended)
-+ [Ant +1.7](http://www.ubuntuupdates.org/ant)
-+ [Python +2.7](http://www.ubuntuupdates.org/python)
-+ [Valgrind +3.5](http://www.ubuntuupdates.org/valgrind)
-+ [OpenSSH Server](http://www.ubuntuupdates.org/openssh-server) (for automatic deployment)
++ [openjdk +1.6](http://www.ubuntuupdates.org/openjdk-7-jdk) (1.7 is recommended)
++ [ant +1.7](http://www.ubuntuupdates.org/ant)
++ [python +2.7](http://www.ubuntuupdates.org/python)
++ [openssh-server](http://www.ubuntuupdates.org/openssh-server) (for automatic deployment)
 
 ## Quick Start
 1. First build the entire distribution:
