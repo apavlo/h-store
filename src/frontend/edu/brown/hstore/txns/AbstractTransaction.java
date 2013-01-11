@@ -688,7 +688,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Return the underlying procedure catalog object
      * @return
      */
-    public Procedure getProcedure() {
+    public final Procedure getProcedure() {
         return (this.catalog_proc);
     }
     /**
@@ -733,7 +733,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     /**
      * Returns true if this transaction has a pending error
      */
-    public boolean hasPendingError() {
+    public final boolean hasPendingError() {
         return (this.pending_error != null);
     }
     /**
@@ -741,22 +741,25 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Does not clear it.
      * @return
      */
-    public SerializableException getPendingError() {
+    public final SerializableException getPendingError() {
         return (this.pending_error);
     }
-    public String getPendingErrorMessage() {
+    public final String getPendingErrorMessage() {
         return (this.pending_error != null ? this.pending_error.getMessage() : null);
     }
     
     /**
-     * 
+     * Set the Exception that is causing this txn to abort. It will need
+     * to be processed later on.
+     * This is a thread-safe operation. Only the first error will be stored.
      * @param error
      */
     public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (debug.val) LOG.warn(String.format("%s - Got %s error for txn: %s",
-                                    this, error.getClass().getSimpleName(), error.getMessage()));
+            if (debug.val)
+                LOG.warn(String.format("%s - Got %s error for txn: %s",
+                         this, error.getClass().getSimpleName(), error.getMessage()));
             this.pending_error = error;
         }
     }
@@ -818,7 +821,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * need to be removed with a FinishTxnMessage
      * @param partition - The partition to mark this txn as "queued"
      */
-    public void markReleased(int partition) {
+    public final void markReleased(int partition) {
         if (debug.val)
             LOG.debug(String.format("%s - Marking as queued on partition %d %s [hashCode=%d]",
                       this, partition, Arrays.toString(this.released), this.hashCode()));
@@ -830,7 +833,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Is this TransactionState marked as released at the given partition
      * @return
      */
-    public boolean isMarkedReleased(int partition) {
+    public final boolean isMarkedReleased(int partition) {
         return (this.released[partition]);
     }
     
@@ -839,7 +842,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * This is a thread-safe operation
      * @param partition - The partition to mark this txn as "prepared"
      */
-    public boolean markPrepared(int partition) {
+    public final boolean markPrepared(int partition) {
         if (debug.val)
             LOG.debug(String.format("%s - Marking as prepared on partition %d %s [hashCode=%d, offset=%d]",
                       this, partition, Arrays.toString(this.prepared),
@@ -855,14 +858,14 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Is this TransactionState marked as prepared at the given partition
      * @return
      */
-    public boolean isMarkedPrepared(int partition) {
+    public final boolean isMarkedPrepared(int partition) {
         return (this.prepared[partition]);
     }
     
     /**
      * Mark this txn as finished (and thus ready for clean-up)
      */
-    public void markFinished(int partition) {
+    public final void markFinished(int partition) {
         if (debug.val)
             LOG.debug(String.format("%s - Marking as finished on partition %d " +
                       "[finished=%s / hashCode=%d / offset=%d]",
@@ -874,14 +877,14 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Is this TransactionState marked as finished
      * @return
      */
-    public boolean isMarkedFinished(int partition) {
+    public final boolean isMarkedFinished(int partition) {
         return (this.finished[partition]);
     }
     
     /**
      * Should be called whenever the txn submits work to the EE 
      */
-    public void markQueuedWork(int partition) {
+    public final void markQueuedWork(int partition) {
         if (debug.val) LOG.debug(String.format("%s - Marking as having queued work on partition %d [exec_queueWork=%s]",
                                  this, partition, Arrays.toString(this.exec_queueWork)));
         this.exec_queueWork[partition] = true;
@@ -891,7 +894,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Returns true if this txn has queued work at the given partition
      * @return
      */
-    public boolean hasQueuedWork(int partition) {
+    public final boolean hasQueuedWork(int partition) {
         return (this.exec_queueWork[partition]);
     }
     

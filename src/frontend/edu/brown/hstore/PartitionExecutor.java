@@ -1201,23 +1201,28 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // (1) The WorkFragment for the remote txn is read-only
             // (2) This txn has always been read-only up to this point at this partition
             ExecutionMode newMode = null;
-            if (hstore_conf.site.specexec_enable) { 
-                newMode = (fragment.getReadOnly() && ts.isExecReadOnly(this.partitionId) ?
-                                              ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
+            if (hstore_conf.site.specexec_enable) {
+                if (fragment.getReadOnly() && ts.isExecReadOnly(this.partitionId)) {
+                    newMode = ExecutionMode.COMMIT_READONLY ;
+                } else {
+                    newMode = ExecutionMode.COMMIT_NONE;
+                }
             } else {
                 newMode = ExecutionMode.DISABLED;
             }
             // There is no current DTXN, so that means its us!
             if (this.currentDtxn == null) {
                 this.setCurrentDtxn(ts);
-                if (debug.val) LOG.debug(String.format("Marking %s as current DTXN on partition %d [nextMode=%s]",
-                                 ts, this.partitionId, newMode));                    
+                if (debug.val)
+                    LOG.debug(String.format("Marking %s as current DTXN on partition %d [nextMode=%s]",
+                              ts, this.partitionId, newMode));                    
             }
             // There is a current DTXN but it's not us!
             // That means we need to block ourselves until it finishes
             else if (this.currentDtxn != ts) {
-                if (debug.val) LOG.debug(String.format("%s - Blocking on partition %d until current Dtxn %s finishes",
-                                 ts, this.partitionId, this.currentDtxn));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Blocking on partition %d until current Dtxn %s finishes",
+                              ts, this.partitionId, this.currentDtxn));
                 this.blockTransaction(work);
                 return;
             }
@@ -1956,8 +1961,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param ts
      */
     private void executeTransaction(LocalTransaction ts) {
-        this.currentTxn = ts;
-        assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
+        assert(ts.isInitialized()) :
+            String.format("Uninitialized transaction at partition %d: %s",
+                          this.partitionId, ts);
+        assert(ts.isMarkedReleased(this.partitionId)) :
+            String.format("Transaction was not marked released at partition %d: %s",
+                          this.partitionId, ts);
+        
         if (trace.val)
             LOG.debug(String.format("%s - Attempting to start transaction on partition %d",
                       ts, this.partitionId));
@@ -1966,10 +1976,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // inner LocalTransaction handle for this partition. The MapReduceTransaction
         // is just a placeholder
         if (ts instanceof MapReduceTransaction) {
-            MapReduceTransaction orig_ts = (MapReduceTransaction)ts; 
-            ts = orig_ts.getLocalTransaction(this.partitionId);
+            MapReduceTransaction mr_ts = (MapReduceTransaction)ts; 
+            ts = mr_ts.getLocalTransaction(this.partitionId);
             assert(ts != null) : 
-                "Unexpected null LocalTransaction handle from " + orig_ts; 
+                "Unexpected null LocalTransaction handle from " + mr_ts; 
         }
         
         ExecutionMode before_mode = this.currentExecMode;
@@ -4422,20 +4432,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         public int getBlockedSpecExecCount() {
             return (PartitionExecutor.this.specExecBlocked.size());
         }
-//        public Collection<Pair<LocalTransaction, ClientResponseImpl>> getBlockedSpecExecTxns() {
-//            Collection<Pair<LocalTransaction, ClientResponseImpl>> ret = new ArrayList<Pair<LocalTransaction,ClientResponseImpl>>(PartitionExecutor.this.specExecBlocked);
-//            return (ret);
-//        }
         public int getWorkQueueSize() {
             return (PartitionExecutor.this.work_queue.size());
         }
     }
     
-    private PartitionExecutor.Debug cachedDebugContext;
-    public PartitionExecutor.Debug getDebugContext() {
+    private Debug cachedDebugContext;
+    public Debug getDebugContext() {
         if (this.cachedDebugContext == null) {
             // We don't care if we're thread-safe here...
-            this.cachedDebugContext = new PartitionExecutor.Debug();
+            this.cachedDebugContext = new Debug();
         }
         return this.cachedDebugContext;
     }

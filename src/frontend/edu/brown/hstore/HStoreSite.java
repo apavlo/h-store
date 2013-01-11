@@ -89,6 +89,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RedirectCallback;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
@@ -2007,35 +2008,46 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
         if (ts == null) {
             if (debug.val)
-                LOG.warn(String.format("No transaction information exists for #%d. Ignoring finish request",
-                         txn_id));
+                LOG.warn(String.format("No transaction information exists for #%d." +
+                	  	 "Ignoring finish request", txn_id));
             return;
         }
         
         // Set the status in case something goes awry and we just want
         // to check whether this transaction is suppose to be aborted.
-        // This is needed by the TransactionCleanupCallbacks
+        // XXX: Why is this needed?
         ts.setStatus(status);
         
         // We only need to do this for distributed transactions, because all single-partition
         // transactions will commit/abort immediately
         if (ts.isPredictSinglePartition() == false) {
+            PartitionCountingCallback<AbstractTransaction> callback = null;
             for (int partition : this.local_partitions.values()) {
                 if (partitions.contains(partition) == false) continue;
                 
-                // 2012-12-01
-                // We always want to queue up the transaction at the partition, even
-                // if it didn't actually do anything. We'll let the partition executor 
-                // sort those things out for us.
-                if (trace.val)
-                    LOG.trace(String.format("%s - Queued transaction to get finished on partition %d",
-                              ts, partition));
-                try {
-                    this.executors[partition].queueFinish(ts, status);
-                } catch (Throwable ex) {
-                    LOG.error(String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
-                              ts, ts.hashCode(), status, partitions));
-                    throw new RuntimeException(ex);
+                // 2013-01-11
+                // We can check to see whether the txn was ever released at the partition.
+                // If it wasn't then we know that we don't need to queue a finish message
+                // This is to allow the PartitionExecutor to spend more time processing other
+                // more useful stuff.
+                if (ts.isMarkedReleased(partition)) {
+                    if (trace.val)
+                        LOG.trace(String.format("%s - Queuing transaction to get finished on partition %d",
+                                  ts, partition));
+                    try {
+                        this.executors[partition].queueFinish(ts, status);
+                    } catch (Throwable ex) {
+                        LOG.error(String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
+                                  ts, ts.hashCode(), status, partitions));
+                        throw new RuntimeException(ex);
+                    }
+                }
+                else {
+                    if (callback == null) callback = ts.getFinishCallback();
+                    if (trace.val)
+                        LOG.trace(String.format("%s - Decrementing %s directly for partition %d",
+                                  ts, callback.getClass().getSimpleName(), partition));
+                    callback.decrementCounter(partition);
                 }
             } // FOR
         }
@@ -2186,7 +2198,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (debug.val)
                 LOG.debug(String.format("Touched partitions for mispredicted %s\n%s",
                           orig_ts, touched));
-            Integer redirect_partition = null;
+            int redirect_partition = HStoreConstants.NULL_PARTITION_ID;
             if (most_touched.size() == 1) {
                 redirect_partition = CollectionUtil.first(most_touched);
             }
@@ -2199,9 +2211,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     redirect_partition = CollectionUtil.random(most_touched);
                 }
             } else {
-                redirect_partition = CollectionUtil.random(this.catalogContext.getAllPartitionIds());
+                redirect_partition = base_partition;
             }
-            assert(redirect_partition != null) : "Redirect partition is null!\n" + orig_ts.debug();
+            assert(redirect_partition != HStoreConstants.NULL_PARTITION_ID) : "Redirect partition is null!\n" + orig_ts.debug();
             if (debug.val) {
                 LOG.debug("Redirect Partition: " + redirect_partition + " -> " + (this.isLocalPartition(redirect_partition) == false));
                 LOG.debug("Local Partitions: " + this.local_partitions);
@@ -2211,7 +2223,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // already redirected at least once. If this txn was already redirected, then it's going to just
             // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
             // That's what you get for messing up!!
-            if (this.isLocalPartition(redirect_partition.intValue()) == false && orig_ts.getRestartCounter() == 0) {
+            if (this.isLocalPartition(redirect_partition) == false && orig_ts.getRestartCounter() == 0) {
                 if (debug.val)
                     LOG.debug(String.format("%s - Redirecting to partition %d because of misprediction",
                               orig_ts, redirect_partition));
@@ -2221,7 +2233,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                               catalog_proc.getId(),
                                                                               catalog_proc.getName(),
                                                                               orig_ts.getProcedureParameters().toArray());
-                spi.setBasePartition(redirect_partition.intValue());
+                spi.setBasePartition(redirect_partition);
                 spi.setRestartCounter(orig_ts.getRestartCounter()+1);
                 
                 FastSerializer out = this.getOutgoingSerializer();
@@ -2249,13 +2261,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
             // Allow local redirect
             } else if (orig_ts.getRestartCounter() <= 1) {
-                if (redirect_partition.intValue() != base_partition &&
-                    this.isLocalPartition(redirect_partition.intValue())) {
+                if (redirect_partition != base_partition &&
+                    this.isLocalPartition(redirect_partition)) {
                     if (debug.val)
                         LOG.debug(String.format("%s - Redirecting to local partition %d [restartCtr=%d]%s",
                                   orig_ts, redirect_partition, orig_ts.getRestartCounter(),
                                   (trace.val ? "\n"+touched : "")));
-                    base_partition = redirect_partition.intValue();
+                    base_partition = redirect_partition;
                 }
             } else {
                 if (debug.val)
