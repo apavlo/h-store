@@ -95,7 +95,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      */
     protected void init(X ts, PartitionSet partitions) {
         if (debug.val)
-            LOG.debug(String.format("%s - Initialized new %s with partitions %s [counter=%d, hashCode=%d]",
+            LOG.debug(String.format("%s - Initialized %s with partitions %s [counter=%d, hashCode=%d]",
                       ts, this.getClass().getSimpleName(), partitions, partitions.size(), this.hashCode()));
         int counter_val = partitions.size();
         this.orig_counter = counter_val;
@@ -126,6 +126,8 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         this.canceled = false;
         this.partitions.clear();
         this.receivedPartitions.clear();
+        this.counter = 0;
+        this.orig_counter = 0;
         this.ts = null;
     }
 
@@ -204,10 +206,6 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     // ----------------------------------------------------------------------------
     
     public final void run(int partition) {
-        assert(this.receivedPartitions.contains(partition) == false) :
-            String.format("%s - Tried to invoke %s.run() twice for partition %d [hashCode=%d]",
-                          this.ts, this.getClass().getSimpleName(), partition, this.hashCode());
-
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
         if (this.decrementCounter(partition)) this.unblock();

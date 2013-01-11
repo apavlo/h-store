@@ -937,10 +937,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (work != null) return (work);
         
         // Check if we have any utility work to do while we wait
-        if (trace.val)
-            LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
-                      this.work_queue.getClass().getSimpleName(), this.partitionId));
-        if (this.utilityWork()) return (UTIL_WORK_MSG);
+        if (hstore_conf.site.specexec_enable) {
+            if (trace.val)
+                LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
+                          this.work_queue.getClass().getSimpleName(), this.partitionId));
+            if (this.utilityWork()) return (UTIL_WORK_MSG);
+        }
         
         // If we didn't have any utility work, then we'll make a 
         // blocking invocation of the work queue
@@ -1019,15 +1021,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             LOG.trace(String.format("%s - Skipping check for speculative execution txns at partition %d",
                       this.currentDtxn, this.partitionId));
         }
-        // Check whether we have anything in our non-blocking queue
-//        if (spec_ts == null) {
-//            work = this.utility_queue.poll();
-//            // Smoke 'em if you got 'em
-//            if (work != null) {
-//                if (trace.val) LOG.trace(String.format("Found utility work at partition %d - %s", this.partitionId, work));
-//                this.processInternalMessage(work);
-//            }
-//        }
         
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
         return (spec_ts != null || work != null);
@@ -1499,8 +1492,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private void setExecutionMode(AbstractTransaction ts, ExecutionMode newMode) {
         if (debug.val && this.currentExecMode != newMode) {
-            LOG.debug(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
-                      this.partitionId, newMode, ts, this.currentDtxn, this.currentExecMode));
+            LOG.debug(String.format("Setting ExecutionMode for partition %d to %s because of %s [origMode=%s]",
+                      this.partitionId, newMode, ts, this.currentExecMode));
         }
         assert(newMode != ExecutionMode.COMMIT_READONLY ||
               (newMode == ExecutionMode.COMMIT_READONLY && this.currentDtxn != null)) :
@@ -2582,12 +2575,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Only notify other partitions that we're done with them if we're not
         // a single-partition transaction
         if (hstore_conf.site.specexec_enable && ts.isPredictSinglePartition() == false) {
-            PartitionSet new_done = ts.calculateDonePartitions(this.thresholds);
-            if (new_done != null && new_done.isEmpty() == false) {
-                LocalPrepareCallback callback = ts.getPrepareCallback();
-                assert(callback.isInitialized());
-                this.hstore_coordinator.transactionPrepare(ts, callback, new_done);
-            }
+            //FIXME
+            //PartitionSet new_done = ts.calculateDonePartitions(this.thresholds);
+            //if (new_done != null && new_done.isEmpty() == false) {
+            //   LocalPrepareCallback callback = ts.getPrepareCallback();
+            //   assert(callback.isInitialized());
+            //   this.hstore_coordinator.transactionPrepare(ts, callback, new_done);
+            //}
         }
 
         if (trace.val)
@@ -3761,7 +3755,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 this.profiler.idle_2pc_local_time.start();
             }
             LocalPrepareCallback callback = ts.getPrepareCallback();
-            assert(callback.isInitialized());
+            callback.init(ts, tmp_preparePartitions);
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
         }

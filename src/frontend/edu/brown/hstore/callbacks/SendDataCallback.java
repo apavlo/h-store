@@ -10,7 +10,6 @@ import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.txns.AbstractTransaction;
-import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -68,15 +67,6 @@ public class SendDataCallback extends BlockingRpcCallback<AbstractTransaction, S
     @Override
     protected void unblockCallback() {
         assert(this.isAborted() == false);
-        if (debug.val)
-            LOG.debug(ts + " is ready to execute. Passing to HStoreSite " +
-                    " ...<shuffle phases is over>.......<Send all data to partitions already>");
-        
-        MapReduceTransaction mr_ts = (MapReduceTransaction)ts;
-        assert(mr_ts.isShufflePhase());
-        // Set reduce in this point is better
-        
-        // Tell whoever is waiting for us that we have completed sending data
         this.getOrigCallback().run(this.ts);
     }
 
@@ -90,11 +80,9 @@ public class SendDataCallback extends BlockingRpcCallback<AbstractTransaction, S
     protected int runImpl(SendDataResponse response) {
         if (debug.val)
             LOG.debug(String.format("Got %s with status %s for %s",
-                                    response.getClass().getSimpleName(),
-                                    response.getStatus(),
-                                    this.ts));
-                                    //response.getPartitionsList())
-                                    
+                      response.getClass().getSimpleName(),
+                      response.getStatus(),
+                      this.ts));
         assert(this.ts != null) :
             String.format("Missing transaction handle for txn #%d", response.getTransactionId());
         
