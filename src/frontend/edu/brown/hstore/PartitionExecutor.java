@@ -121,7 +121,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionCallback;
-import edu.brown.hstore.callbacks.TransactionCleanupCallback;
+import edu.brown.hstore.callbacks.RemoteFinishCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
@@ -4236,14 +4236,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // RemoteTransaction
         if (ts instanceof RemoteTransaction) {
-            TransactionCleanupCallback callback = ((RemoteTransaction)ts).getCleanupCallback();
-            if (trace.val) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                             ts, callback.getClass().getSimpleName(), this.partitionId));
+            RemoteFinishCallback callback = ((RemoteTransaction)ts).getFinishCallback();
+            if (trace.val)
+                LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                          ts, callback.getClass().getSimpleName(), this.partitionId));
             callback.run(this.partitionId);
         }
         // MapReduceTransaction
         else if (ts instanceof MapReduceTransaction) {
-            TransactionCleanupCallback callback = ((MapReduceTransaction)ts).getCleanupCallback();
+            RemoteFinishCallback callback = ((MapReduceTransaction)ts).getCleanupCallback();
             // We don't want to invoke this callback at the basePartition's site
             // because we don't want the parent txn to actually get deleted.
             if (this.partitionId == ts.getBasePartition()) {

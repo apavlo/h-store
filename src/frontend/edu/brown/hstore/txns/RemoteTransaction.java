@@ -37,7 +37,7 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
 import edu.brown.hstore.callbacks.RemotePrepareCallback;
-import edu.brown.hstore.callbacks.TransactionCleanupCallback;
+import edu.brown.hstore.callbacks.RemoteFinishCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -65,7 +65,7 @@ public class RemoteTransaction extends AbstractTransaction {
     private final RemoteInitQueueCallback init_callback;
     private final TransactionWorkCallback work_callback;
     private final RemotePrepareCallback prepare_callback;
-    private final TransactionCleanupCallback cleanup_callback;
+    private final RemoteFinishCallback finish_callback;
     
     // ----------------------------------------------------------------------------
     // PREFETCH
@@ -88,7 +88,7 @@ public class RemoteTransaction extends AbstractTransaction {
         this.init_callback = new RemoteInitQueueCallback(hstore_site);
         this.work_callback = new TransactionWorkCallback(hstore_site);
         this.prepare_callback = new RemotePrepareCallback(hstore_site);
-        this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
+        this.finish_callback = new RemoteFinishCallback(hstore_site);
         
         int num_localPartitions = hstore_site.getLocalPartitionIds().size();
         this.rpc_transactionPrefetch = new ProtoRpcController[num_localPartitions];
@@ -121,9 +121,9 @@ public class RemoteTransaction extends AbstractTransaction {
                    false               // ExecLocal
         );
         
-        // Initialize TransactionCleanupCallback
+        // Initialize FinishCallback
         // NOTE: This must come *after* our call to AbstractTransaction.init()
-        this.cleanup_callback.init(this, partitions);
+        this.finish_callback.init(this, partitions);
         
         return (this);
     }
@@ -133,7 +133,7 @@ public class RemoteTransaction extends AbstractTransaction {
         super.finish();
         this.init_callback.finish();
         this.work_callback.finish();
-        this.cleanup_callback.finish();
+        this.finish_callback.finish();
         
         for (int i = 0; i < this.rpc_transactionPrefetch.length; i++) {
             // Tell the PretchQuery ProtoRpcControllers to cancel themselves
@@ -167,10 +167,10 @@ public class RemoteTransaction extends AbstractTransaction {
                          this.work_callback.getClass().getSimpleName()));
             return (false);
         }
-        if (this.cleanup_callback.allCallbacksFinished() == false) {
+        if (this.finish_callback.allCallbacksFinished() == false) {
             if (debug.val)
                 LOG.warn(String.format("%s - %s is not finished", this,
-                         this.cleanup_callback.getClass().getSimpleName()));
+                         this.finish_callback.getClass().getSimpleName()));
             return (false);
         }
         // XXX: Do we care about the TransactionWorkCallback?
@@ -201,11 +201,8 @@ public class RemoteTransaction extends AbstractTransaction {
      * <B>Note:</B> You must call initCleanupCallback() first
      * @return
      */
-    public TransactionCleanupCallback getCleanupCallback() {
-        assert(this.cleanup_callback.isInitialized()) :
-            String.format("Trying to grab the %s for %s before it has been initialized",
-                          this.cleanup_callback.getClass().getSimpleName(), this);
-        return (this.cleanup_callback);
+    public RemoteFinishCallback getFinishCallback() {
+        return (this.finish_callback);
     }
 
     /**
@@ -248,10 +245,10 @@ public class RemoteTransaction extends AbstractTransaction {
         
         // Additional Info
         m = new LinkedHashMap<String, Object>();
-        m.put("InitQueue Callback", this.getTransactionInitQueueCallback());
-        m.put("Work Callback", this.work_callback);
-        m.put("Prepare Callback", this.prepare_callback);
-        m.put("CleanUp Callback", this.cleanup_callback);
+        m.put(this.init_callback.getClass().getSimpleName(), this.init_callback);
+        m.put(this.work_callback.getClass().getSimpleName(), this.work_callback);
+        m.put(this.prepare_callback.getClass().getSimpleName(), this.prepare_callback);
+        m.put(this.finish_callback.getClass().getSimpleName(), this.finish_callback);
         maps.add(m);
         
         return (StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()])));

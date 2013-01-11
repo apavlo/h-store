@@ -37,5 +37,9 @@ public class ClientResponseCallback implements RpcCallback<ClientResponseImpl> {
             throw new ClientConnectionLostException(parameter.getTransactionId());
         }
     }
+    
+    public String toString() {
+        return (this.conn.toString());
+    }
 
 }

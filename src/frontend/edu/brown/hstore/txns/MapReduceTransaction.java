@@ -16,7 +16,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.callbacks.SendDataCallback;
-import edu.brown.hstore.callbacks.TransactionCleanupCallback;
+import edu.brown.hstore.callbacks.RemoteFinishCallback;
 import edu.brown.hstore.callbacks.TransactionMapCallback;
 import edu.brown.hstore.callbacks.TransactionMapWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionReduceCallback;
@@ -83,7 +83,7 @@ public class MapReduceTransaction extends LocalTransaction {
     
     private final TransactionReduceWrapperCallback reduceWrapper_callback;
     
-    private final TransactionCleanupCallback cleanup_callback;
+    private final RemoteFinishCallback cleanup_callback;
 
     /**
      * Constructor 
@@ -117,7 +117,7 @@ public class MapReduceTransaction extends LocalTransaction {
         this.reduce_callback = new TransactionReduceCallback(hstore_site);
         this.reduceWrapper_callback = new TransactionReduceWrapperCallback(hstore_site);
         
-        this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
+        this.cleanup_callback = new RemoteFinishCallback(hstore_site);
     }
     
     
@@ -284,8 +284,10 @@ public class MapReduceTransaction extends LocalTransaction {
     
     @Override
     public boolean isDeletable() {
-        // I think that there is still a race condition here...
-        if (this.cleanup_callback != null && this.cleanup_callback.getCounter() == 0) {
+        if (this.cleanup_callback.allCallbacksFinished() == false) {
+            if (trace.val)
+                LOG.warn(String.format("%s - %s is not finished", this,
+                         this.cleanup_callback.getClass().getSimpleName()));
             return (false);
         }
         return (super.isDeletable());
@@ -418,7 +420,7 @@ public class MapReduceTransaction extends LocalTransaction {
     /**
      * Get the TransactionCleanupCallback for this txn.
      */
-    public TransactionCleanupCallback getCleanupCallback() {
+    public RemoteFinishCallback getCleanupCallback() {
         // TODO(xin): This should return null if this handle is located at
         //            the txn's basePartition HStoreSite
         if (this.hstore_site.isLocalPartition(base_partition)) return null;
