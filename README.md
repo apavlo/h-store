@@ -23,19 +23,20 @@ Please note that it will not compile on 32-bit systems.
 
 ## Quick Start
 1. First build the entire distribution:
+
         ant build
 
 2. Next make the project jar file for the target benchmark.
    H-Store includes several [benchmarks](http://hstore.cs.brown.edu/doc/deployment/benchmarks/)
-   that are built-in and ready to execute.
-   A project jar contains all the of stored procedures and statements for the target
-   benchmark, as well as the cluster configuration for the database system.
+   that are built-in and ready to execute. A project jar contains all the of stored 
+   procedures and statements for the target benchmark, as well as the cluster 
+   configuration for the database system.
+
         export HSTORE_BENCHMARK=tm1
         ant hstore-prepare -Dproject=$HSTORE_BENCHMARK
 
 3. You can now execute the benchmark locally on your machine with two partitions
+
         ant hstore-benchmark -Dproject=$HSTORE_BENCHMARK
 
-More information is available here:
-
-<http://hstore.cs.brown.edu/doc/quick-start/>
+More information is available here: <http://hstore.cs.brown.edu/doc/quick-start/>
