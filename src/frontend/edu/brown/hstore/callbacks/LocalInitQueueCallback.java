@@ -48,27 +48,6 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     }
     
     // ----------------------------------------------------------------------------
-    // RUN METHOD
-    // ----------------------------------------------------------------------------
-    
-    @Override
-    protected void runImpl(int partition) {
-//        // If this is a single-partition txn, then we'll want to tell the PartitionExecutor
-//        // to start executing this txn immediately
-//        if (this.ts.isPredictSinglePartition()) {
-//            assert(partition == this.ts.getBasePartition());
-//            this.hstore_site.transactionStart((LocalTransaction)this.ts);
-//        }
-//        // Otherwise we'll want to send a SetDistributedTxnMessage to this partition
-//        // if it's not this txn's base partition.
-//        else if (this.ts.getBasePartition() != partition && this.hstore_site.isLocalPartition(partition)) {
-//            this.hstore_site.transactionSetPartitionLock((LocalTransaction)this.ts, partition);
-//        }
-        
-        return;
-    }
-    
-    // ----------------------------------------------------------------------------
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
 

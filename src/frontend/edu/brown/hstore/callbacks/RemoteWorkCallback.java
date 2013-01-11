@@ -17,8 +17,8 @@ import edu.brown.utils.PartitionSet;
  * 
  * @author pavlo
  */
-public class TransactionWorkCallback extends PartitionCountingCallback<AbstractTransaction> implements RpcCallback<WorkResult> {
-    private static final Logger LOG = Logger.getLogger(TransactionWorkCallback.class);
+public class RemoteWorkCallback extends PartitionCountingCallback<AbstractTransaction> implements RpcCallback<WorkResult> {
+    private static final Logger LOG = Logger.getLogger(RemoteWorkCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug);
@@ -27,10 +27,14 @@ public class TransactionWorkCallback extends PartitionCountingCallback<AbstractT
     private TransactionWorkResponse.Builder builder = null;
     private RpcCallback<TransactionWorkResponse> orig_callback = null;
 
+    // ----------------------------------------------------------------------------
+    // INTIALIZATION
+    // ----------------------------------------------------------------------------
+    
     /**
      * Default Constructor
      */
-    public TransactionWorkCallback(HStoreSite hstore_site) {
+    public RemoteWorkCallback(HStoreSite hstore_site) {
         super(hstore_site);
     }
     
@@ -41,21 +45,10 @@ public class TransactionWorkCallback extends PartitionCountingCallback<AbstractT
                                             .setTransactionId(ts.getTransactionId().longValue())
                                             .setStatus(Status.OK);
     }
-    
-//    @Override
-//    protected void finishImpl() {
-//        this.builder = null;
-//        this.orig_callback = null;
-//    }
 
     // ----------------------------------------------------------------------------
-    // RUN METHOD
+    // CALLBACK METHODS
     // ----------------------------------------------------------------------------
-    
-    @Override
-    protected void runImpl(int partition) {
-        return;
-    }
     
     @Override
     public void unblockCallback() {

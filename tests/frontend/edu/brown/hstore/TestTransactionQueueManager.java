@@ -41,7 +41,6 @@ public class TestTransactionQueueManager extends BaseTestCase {
     
     class MockCallback extends LocalInitQueueCallback {
         final Semaphore lock = new Semaphore(0);
-        final PartitionSet partitions = new PartitionSet();
         boolean invoked = false;
         boolean aborted = false;
 
@@ -51,12 +50,6 @@ public class TestTransactionQueueManager extends BaseTestCase {
         @Override
         public boolean isInitialized() {
             return (true);
-        }
-        @Override
-        protected void runImpl(int partition) {
-            this.partitions.add(partition);
-            super.runImpl(partition);
-            return;
         }
         @Override
         protected void unblockCallback() {
@@ -343,7 +336,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         // *before* we release the first txn. We should only check the ones where
         // we haven't already recieved the lock for (otherwise we will block forever)
         PartitionSet temp = new PartitionSet(partitions1);
-        temp.removeAll(inner_callback1.partitions);
+        temp.removeAll(inner_callback1.getPartitions());
         for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
             queueManager.lockQueueFinished(txn0, Status.OK, partition);
         }

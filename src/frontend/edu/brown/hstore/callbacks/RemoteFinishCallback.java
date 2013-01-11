@@ -45,16 +45,6 @@ public class RemoteFinishCallback extends PartitionCountingCallback<AbstractTran
     }
     
     // ----------------------------------------------------------------------------
-    // RUN METHOD
-    // ----------------------------------------------------------------------------
-    
-    @Override
-    protected void runImpl(int partition) {
-        // Nothing to do!
-        return;
-    }
-    
-    // ----------------------------------------------------------------------------
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
 

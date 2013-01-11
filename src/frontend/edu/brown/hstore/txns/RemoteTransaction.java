@@ -38,7 +38,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
 import edu.brown.hstore.callbacks.RemotePrepareCallback;
 import edu.brown.hstore.callbacks.RemoteFinishCallback;
-import edu.brown.hstore.callbacks.TransactionWorkCallback;
+import edu.brown.hstore.callbacks.RemoteWorkCallback;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
@@ -63,7 +63,7 @@ public class RemoteTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     private final RemoteInitQueueCallback init_callback;
-    private final TransactionWorkCallback work_callback;
+    private final RemoteWorkCallback work_callback;
     private final RemotePrepareCallback prepare_callback;
     private final RemoteFinishCallback finish_callback;
     
@@ -86,7 +86,7 @@ public class RemoteTransaction extends AbstractTransaction {
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
         this.init_callback = new RemoteInitQueueCallback(hstore_site);
-        this.work_callback = new TransactionWorkCallback(hstore_site);
+        this.work_callback = new RemoteWorkCallback(hstore_site);
         this.prepare_callback = new RemotePrepareCallback(hstore_site);
         this.finish_callback = new RemoteFinishCallback(hstore_site);
         
@@ -187,7 +187,7 @@ public class RemoteTransaction extends AbstractTransaction {
         return (this.init_callback);
     }
     
-    public TransactionWorkCallback getWorkCallback() {
+    public RemoteWorkCallback getWorkCallback() {
         return (this.work_callback);
     }
     @SuppressWarnings("unchecked")

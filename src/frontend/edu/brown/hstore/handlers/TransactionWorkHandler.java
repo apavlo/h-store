@@ -16,7 +16,7 @@ import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.callbacks.TransactionWorkCallback;
+import edu.brown.hstore.callbacks.RemoteWorkCallback;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -141,7 +141,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         for (WorkFragment work : request.getFragmentsList()) {
             // Always initialize the TransactionWorkCallback for the first callback 
             if (first) {
-                TransactionWorkCallback work_callback = ts.getWorkCallback();
+                RemoteWorkCallback work_callback = ts.getWorkCallback();
                 if (work_callback.isInitialized()) work_callback.finish(); // HACK
                 work_callback.init(ts, partitions, callback);
                 if (debug.val)

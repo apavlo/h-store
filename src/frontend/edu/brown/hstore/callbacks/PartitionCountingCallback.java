@@ -206,16 +206,10 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         assert(this.receivedPartitions.contains(partition) == false) :
             String.format("%s - Tried to invoke %s.run() twice for partition %d [hashCode=%d]",
                           this.ts, this.getClass().getSimpleName(), partition, this.hashCode());
-        boolean invoke_unblock = false;
-        synchronized (this) {
-            if (this.receivedPartitions.contains(partition) == false) {
-                this.runImpl(partition);
-                invoke_unblock = this.decrementCounter(partition);
-            } // SYNCH
-        }
+
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
-        if (invoke_unblock) this.unblock();
+        if (this.decrementCounter(partition)) this.unblock();
     }
     
     /**
@@ -241,12 +235,6 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         }
         return (false);
     }
-    
-    /**
-     * The implementation of the run method to process a new entry for this callback
-     * @param parameter Needs to be >=0
-     */
-    protected abstract void runImpl(int partition);
     
     // ----------------------------------------------------------------------------
     // SUCCESSFUL UNBLOCKING

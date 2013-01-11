@@ -43,16 +43,6 @@ public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransac
         this.responses.clear();
         super.init(ts, partitions);
     }
-    
-    // ----------------------------------------------------------------------------
-    // RUN METHOD
-    // ----------------------------------------------------------------------------
-    
-    @Override
-    protected void runImpl(int partition) {
-        // Nothing to do
-        return;
-    }
 
     // ----------------------------------------------------------------------------
     // CALLBACK METHODS

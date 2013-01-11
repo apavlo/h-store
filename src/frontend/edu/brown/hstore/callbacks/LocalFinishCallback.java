@@ -62,16 +62,6 @@ public class LocalFinishCallback extends PartitionCountingCallback<LocalTransact
     }
     
     // ----------------------------------------------------------------------------
-    // RUN METHOD
-    // ----------------------------------------------------------------------------
-
-    @Override
-    protected void runImpl(int partition) {
-        // Nothing to do
-        return;
-    }
-    
-    // ----------------------------------------------------------------------------
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
     
