@@ -37,7 +37,6 @@ BASE_ARGS=( \
 #     "-Dsite.status_interval=10000" \
 #     "-Dsite.status_exec_info=true" \
 #     "-Dsite.exec_profiling=true" \
-#     "-Dsite.status_txn_info=true" \
 #     "-Dsite.network_profiling=false" \
 #     "-Dsite.log_backup=true"\
     

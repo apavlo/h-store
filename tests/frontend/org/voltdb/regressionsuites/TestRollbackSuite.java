@@ -956,7 +956,6 @@ public class TestRollbackSuite extends RegressionSuite {
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestRollbackSuite.class);
         builder.setGlobalConfParameter("site.exec_adhoc_sql", true);
         builder.setGlobalConfParameter("site.status_exec_info", true);
-        builder.setGlobalConfParameter("site.status_txn_info", true);
         
         // build up a project builder for the workload
         TPCCProjectBuilder project = new TPCCProjectBuilder();

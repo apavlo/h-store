@@ -114,7 +114,6 @@ DEBUG_OPTIONS = [
     #"site.txn_profiling",
     "site.pool_profiling",
     #"site.planner_profiling",
-    "site.status_txn_info",
     "site.status_exec_info",
     #"client.output_basepartitions",
 ]
@@ -149,9 +148,8 @@ BASE_SETTINGS = {
     "site.txn_profiling":                               False,
     "site.pool_profiling":                              True,
     "site.planner_profiling":                           False,
-    "site.status_txn_info":                        True,
     "site.status_kill_if_hung":                         False,
-    "site.status_show_thread_info":                     False,
+    "site.status_thread_info":                     False,
     "site.status_exec_info":                   False,
     "site.status_interval":                             20000,
     "site.txn_incoming_delay":                          1,

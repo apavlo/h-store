@@ -1039,14 +1039,6 @@ public final class HStoreConf {
         public boolean status_check_for_zombies;
         
         @ConfigProperty(
-            description="When this property is set to true, HStoreSite status will include transaction " +
-            		    "information in its output.",
-            defaultBoolean=false,
-            experimental=false
-        )
-        public boolean status_txn_info;
-        
-        @ConfigProperty(
             description="When this property is set to true, HStoreSite status will include information " +
             		    "about each PartitionExecutor, such as the number of transactions currently queued, " +
             		    "blocked for execution, or waiting to have their results returned to the client.",

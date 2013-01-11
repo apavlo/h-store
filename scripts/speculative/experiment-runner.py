@@ -97,8 +97,6 @@ DEFAULT_OPTIONS = {
 DEBUG_OPTIONS = {
     "site.status_enable":             True,
     "site.status_interval":           20000,
-    #"site.status_txn_info":      True,
-    "site.status_exec_info": True,
     "site.exec_profiling":            True,
     #"site.txn_profiling":             True,    
 }

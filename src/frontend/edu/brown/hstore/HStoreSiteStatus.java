@@ -196,17 +196,28 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     
     public void printStatus() {
         LOG.info("STATUS #" + this.snapshot_ctr.incrementAndGet() + "\n" +
-                 StringBoxUtil.box(this.snapshot(hstore_conf.site.status_txn_info,
-                                              hstore_conf.site.status_exec_info,
-                                              hstore_conf.site.status_thread_info,
-                                              hstore_conf.site.pool_profiling)));
+                 StringBoxUtil.box(this.snapshot(hstore_conf.site.txn_counters,
+                                                 hstore_conf.site.status_exec_info,
+                                                 hstore_conf.site.status_thread_info,
+                                                 hstore_conf.site.pool_profiling)));
     }
     
     // ----------------------------------------------------------------------------
     // SNAPSHOT PRETTY PRINTER
     // ----------------------------------------------------------------------------
     
-    public synchronized String snapshot(boolean show_txns, boolean show_exec, boolean show_threads, boolean show_poolinfo) {
+    /**
+     * 
+     * @param show_txns
+     * @param show_exec
+     * @param show_threads
+     * @param show_poolinfo
+     * @return
+     */
+    public synchronized String snapshot(boolean show_txns,
+                                        boolean show_exec,
+                                        boolean show_threads,
+                                        boolean show_poolinfo) {
         // ----------------------------------------------------------------------------
         // Site Information
         // ----------------------------------------------------------------------------
