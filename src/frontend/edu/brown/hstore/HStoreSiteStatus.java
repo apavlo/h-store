@@ -267,7 +267,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // ----------------------------------------------------------------------------
         // Transaction Profiling
         // ----------------------------------------------------------------------------
-        Map<String, String> txnProfiles = (hstore_conf.site.txn_profiling ? this.txnProfileInfo() : null);
+        Map<String, String> txnProfiles = null;
+        if (hstore_conf.site.txn_profiling && debug.val) {
+            txnProfiles = this.txnProfileInfo();
+        }
         
         // ----------------------------------------------------------------------------
         // Object Pool Information
