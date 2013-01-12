@@ -7,10 +7,14 @@ import java.io.InputStreamReader;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.client.Client;
+import org.voltdb.sysprocs.Shutdown;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurementUtil;
 
 /**
  * Implements the simple state machine for the BenchmarkComponents's remote 
@@ -139,16 +143,34 @@ public class ControlPipe implements Runnable {
                 }
                 case PAUSE: {
                     assert(cmp.m_controlState == ControlState.RUNNING) : "Unexpected " + cmp.m_controlState;
-                    if (debug.val) LOG.debug("Pausing client");
+                    if (debug.val) LOG.debug("Pausing client " + cmp.getClientId());
                     
                     // Enable the lock and then change our state
                     try {
+                        if (debug.val) LOG.debug("Acquiring pause lock");
                         cmp.m_pauseLock.acquire();
                     } catch (InterruptedException ex) {
                         LOG.fatal("Unexpected interuption!", ex);
                         throw new RuntimeException(ex);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
                     }
+                    
+                    // Change the current state
                     cmp.m_controlState = ControlState.PAUSED;
+                    
+                    // Then tell the client to drain
+                    ProfileMeasurement pm = new ProfileMeasurement();
+                    try {
+                        if (debug.val) LOG.debug("Draing connection queue for client " + cmp.getClientId());
+                        pm.start();
+                        cmp.getClientHandle().drain();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    } finally {
+                        pm.stop()
+                        LOG.info("Drain Queue Time: " + ProfileMeasurementUtil.debug(pm));
+                    }
                     break;
                 }
                 case SHUTDOWN: {
@@ -158,7 +180,7 @@ public class ControlPipe implements Runnable {
                         cmp.invokeStopCallback();
                         try {
                             client.drain();
-                            client.callProcedure("@Shutdown");
+                            client.callProcedure(VoltSystemProcedure.procCallName(Shutdown.class));
                             client.close();
                         } catch (Exception ex) {
                             ex.printStackTrace();

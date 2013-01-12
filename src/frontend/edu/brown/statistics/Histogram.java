@@ -112,9 +112,9 @@ public interface Histogram<X> extends JSONSerializable {
     /**
      * Increment multiple values by the given count
      * @param values
-     * @param count
+     * @param delta
      */
-    public void put(Collection<X> values, long count);
+    public void put(Collection<X> values, long delta);
     
     /**
      * Add all the entries from the provided Histogram into this objects totals

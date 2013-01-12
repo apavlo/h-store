@@ -109,6 +109,12 @@ public abstract class ProfileMeasurementUtil {
     // PRETTY PRINTING
     // --------------------------------------------------------------------------------------------
 
+    public static String debug(ProfileMeasurement pm) {
+        return String.format("%.2fms total / %s avg",
+                             pm.getTotalThinkTimeMS(),
+                             StringUtil.formatTime("%.2f", pm.getAverageThinkTime()));
+    }
+    
     /**
      * Create a single-line that shows the delta for a given ProfileMeasurement
      * from a previous one.
@@ -125,9 +131,7 @@ public abstract class ProfileMeasurementUtil {
             value.append(String.format("%d invocations %s ", pm.getInvocations(), separator)); 
         }
         
-        value.append(String.format("%.2fms total %s %s avg",
-                     pm.getTotalThinkTimeMS(), separator,
-                     StringUtil.formatTime("%.2f", pm.getAverageThinkTime())));
+        value.append(ProfileMeasurementUtil.debug(pm));
         if (last != null) {
             value.append(" [");
             for (int i = 0; i < 2; i++) {

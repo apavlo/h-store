@@ -116,17 +116,17 @@ public abstract class StringUtil {
         return "" + (int) bytes + " bytes";
     }
     
-    public static String formatTime(String f, double nanoseconds) {
-        return formatTime(f, nanoseconds, TimeUnit.NANOSECONDS);
+    public static String formatTime(String format, double nanoseconds) {
+        return formatTime(format, nanoseconds, TimeUnit.NANOSECONDS);
     }
     
     /**
      * 
-     * @param f
+     * @param format
      * @param nanoseconds
      * @return
      */
-    public static String formatTime(String f, double time, TimeUnit unit) {
+    public static String formatTime(String format, double time, TimeUnit unit) {
         double nanoseconds;
         nanoseconds = Math.abs(unit.toNanos((long)time));
         String unitLabel = "ns";
@@ -144,7 +144,7 @@ public abstract class StringUtil {
             time /= 1000d;
             unitLabel = "\u00B5s";
         }
-        return String.format(f, (double)time) + unitLabel;
+        return String.format(format, (double)time) + unitLabel;
     }
 
     /**

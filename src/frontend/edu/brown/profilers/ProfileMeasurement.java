@@ -57,7 +57,7 @@ public class ProfileMeasurement implements JSONSerializable {
     private static final long NULL_MARKER = -1l;
     
     /** The profile type */
-    private String type;
+    private String name;
     /** Total amount of time spent processing the profiled section (in ms) */
     private long total_time;
     /** The number of times that this ProfileMeasurement has been started */
@@ -89,7 +89,7 @@ public class ProfileMeasurement implements JSONSerializable {
      * @param pmtype
      */
     public ProfileMeasurement(String pmtype) {
-        this.type = pmtype;
+        this.name = pmtype;
         this.reset();
     }
 
@@ -99,7 +99,7 @@ public class ProfileMeasurement implements JSONSerializable {
      * @param orig
      */
     public ProfileMeasurement(ProfileMeasurement orig) {
-        this(orig.type);
+        this(orig.name);
         this.appendTime(orig);
     }
 
@@ -136,17 +136,15 @@ public class ProfileMeasurement implements JSONSerializable {
     }
 
     /**
-     * Get the profile type
-     * 
+     * Get the profile type name
      * @return
      */
     public String getName() {
-        return type;
+        return (this.name);
     }
 
     /**
      * Get the total amount of time spent in the profiled area in nanoseconds
-     * 
      * @return
      */
     public long getTotalThinkTime() {
@@ -155,7 +153,6 @@ public class ProfileMeasurement implements JSONSerializable {
 
     /**
      * Get the total amount of time spent in the profiled area in milliseconds
-     * 
      * @return
      */
     public double getTotalThinkTimeMS() {
@@ -164,7 +161,6 @@ public class ProfileMeasurement implements JSONSerializable {
 
     /**
      * Get the total amount of time spent in the profiled area in seconds
-     * 
      * @return
      */
     public double getTotalThinkTimeSeconds() {
@@ -173,7 +169,6 @@ public class ProfileMeasurement implements JSONSerializable {
 
     /**
      * Get the average think time per invocation in nanoseconds
-     * 
      * @return
      */
     public double getAverageThinkTime() {
@@ -182,7 +177,6 @@ public class ProfileMeasurement implements JSONSerializable {
 
     /**
      * Get the average think time per invocation in milliseconds
-     * 
      * @return
      */
     public double getAverageThinkTimeMS() {
@@ -191,7 +185,6 @@ public class ProfileMeasurement implements JSONSerializable {
 
     /**
      * Get the total number of times this object was started
-     * 
      * @return
      */
     public int getInvocations() {
@@ -213,7 +206,8 @@ public class ProfileMeasurement implements JSONSerializable {
      */
 
     public ProfileMeasurement start(long timestamp) {
-        assert (this.marker == NULL_MARKER) : String.format("Trying to start %s before it was stopped!", this.type);
+        assert (this.marker == NULL_MARKER) : 
+            String.format("Trying to start %s before it was stopped!", this.name);
         if (debug.val)
             LOG.debug(String.format("START %s", this));
         this.marker = timestamp;
@@ -261,11 +255,11 @@ public class ProfileMeasurement implements JSONSerializable {
         if (debug.val)
             LOG.debug(String.format("STOP %s", this));
         assert (this.marker != NULL_MARKER) : 
-            String.format("Trying to stop %s before it was started!", this.type);
+            String.format("Trying to stop %s before it was started!", this.name);
         long added = (timestamp - this.marker);
         if (added < 0) {
             LOG.warn(String.format("Invalid stop timestamp for %s [timestamp=%d, marker=%d, added=%d]",
-                                   this.type, timestamp, this.marker, added));
+                                   this.name, timestamp, this.marker, added));
         } else {
             this.total_time += added;
         }
@@ -314,7 +308,7 @@ public class ProfileMeasurement implements JSONSerializable {
     
     public ProfileMeasurement decrementTime(ProfileMeasurement other, boolean checkType) {
         assert(other != null);
-        if (checkType) assert(this.type == other.type);
+        if (checkType) assert(this.name == other.name);
         this.total_time = Math.max(0, this.total_time - other.total_time);
         this.invocations = Math.max(0, this.invocations - other.invocations);
         return (this);
@@ -389,7 +383,7 @@ public class ProfileMeasurement implements JSONSerializable {
     }
 
     private String debug(boolean verbose) {
-        String prefix = this.type + "/" + this.hashCode();
+        String prefix = this.name + "/" + this.hashCode();
         if (verbose) {
             return (String.format("%s[total=%d, marker=%s, invocations=%d, avg=%.2f ms]",
                                   prefix,
@@ -423,14 +417,14 @@ public class ProfileMeasurement implements JSONSerializable {
 
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
-        stringer.key("TYPE").value(this.type);
+        stringer.key("NAME").value(this.name);
         stringer.key("TIME").value(this.total_time);
         stringer.key("INVOCATIONS").value(this.invocations);
     }
 
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        this.type = json_object.getString("TYPE");
+        this.name = json_object.getString("NAME");
         this.total_time = json_object.getLong("TIME");
         this.invocations = json_object.getInt("INVOCATIONS");
     }

@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -880,7 +881,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         for (ProfileMeasurement pm : fields) {
             String name = pm.getName();
             this.txn_profiler_header[idx++] = name;
-            this.txn_profiler_header[idx++] = name+"_inv";
+            this.txn_profiler_header[idx++] = name+"_cnt"; // The # of invocations
         } // FOR
         
         // PROCEDURE TOTALS
@@ -889,9 +890,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             this.txn_profile_queues.put(catalog_proc, new LinkedBlockingDeque<long[]>());
             
             long totals[] = new long[fields.length*2 + 1];
-            for (int i = 0; i < totals.length; i++) {
-                totals[i] = 0;
-            } // FOR
+            Arrays.fill(totals, 0);
             this.txn_profile_totals.put(catalog_proc, totals);
         } // FOR
     }
@@ -911,9 +910,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         this.txn_profile_queues.get(catalog_proc).offer(tuple);
     }
     
-    private void calculateTxnProfileTotals(Procedure catalog_proc) {
-        long totals[] = this.txn_profile_totals.get(catalog_proc);
-        
+    private void calculateTxnProfileTotals(Procedure catalog_proc, long totals[]) {
         long tuple[] = null;
         LinkedBlockingDeque<long[]> queue = this.txn_profile_queues.get(catalog_proc); 
         while ((tuple = queue.poll()) != null) {
@@ -935,12 +932,12 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // TABLE ROWS
         List<Object[]> rows = new ArrayList<Object[]>(); 
         for (Entry<Procedure, long[]> e : this.txn_profile_totals.entrySet()) {
-            this.calculateTxnProfileTotals(e.getKey());
             long totals[] = e.getValue();
+            this.calculateTxnProfileTotals(e.getKey(), totals);
             if (totals[0] == 0) continue;
 
             int col_idx = 0;
-            Object row[] = new String[this.txn_profiler_header.length];
+            String row[] = new String[this.txn_profiler_header.length];
             row[col_idx++] = e.getKey().getName();
             
             for (int i = 0; i < totals.length; i++) {
@@ -949,7 +946,18 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     row[col_idx++] = Long.toString(totals[i]);
                 // Everything Else
                 } else {
-                    row[col_idx++] = (totals[i] > 0 ? String.format("%.02f", totals[i] / 1000000d) : null);
+                    if (totals[i] == 0) {
+                        row[col_idx] = null;
+                    }
+                    // # of Invocations
+                    else if (col_idx % 2 != 0) {
+                        row[col_idx] = Long.toString(totals[i]);
+                    }
+                    // Amount of time (convert to ms)
+                    else {
+                        row[col_idx] = StringUtil.formatTime("%.02f", totals[i], TimeUnit.NANOSECONDS);    
+                    }
+                    col_idx++;
                 }
             } // FOR
             if (debug.val) LOG.debug("ROW[" + rows.size() + "] " + Arrays.toString(row));
@@ -965,23 +973,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Object rows[][] = this.generateTxnProfileSnapshot();
         if (rows == null) return (null);
         return (TableUtil.tableMap(this.txn_profile_format, this.txn_profiler_header, rows));
-    }
-    
-    @SuppressWarnings("unused")
-    private String txnProfileCSV() {
-        Object rows[][] = this.generateTxnProfileSnapshot();
-        if (rows == null) return (null);
-        
-        if (debug.val) {
-            for (int i = 0; i < rows.length; i++) {
-                if (i == 0) LOG.debug("HEADER: " + Arrays.toString(this.txn_profiler_header));
-                LOG.debug("ROW[" + i + "] " + Arrays.toString(rows[i]));
-            } // FOR
-        }
-        TableUtil.Format f = TableUtil.defaultCSVFormat().clone();
-        f.replace_null_cells = 0;
-        f.prune_null_rows = true;
-        return (TableUtil.table(f, this.txn_profiler_header, rows));
     }
     
     // ----------------------------------------------------------------------------

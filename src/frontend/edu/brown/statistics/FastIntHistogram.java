@@ -29,17 +29,15 @@ import edu.brown.utils.JSONUtil;
 public class FastIntHistogram implements Histogram<Integer> {
     
     public enum Members {
-        VALUE_TYPE,
         HISTOGRAM,
-        NUM_SAMPLES,
-        KEEP_ZERO_ENTRIES,
+        DEBUG,
     }
 
     private static final int NULL_COUNT = -1;
     private static final int GROW_INCREMENT = 10;
     
     private long histogram[];
-    private int value_count = 0;
+    private int num_values = 0;
     private int num_samples = 0;
     
     private transient Map<Object, String> debug_names;
@@ -97,7 +95,7 @@ public class FastIntHistogram implements Histogram<Integer> {
             FastIntHistogram other = (FastIntHistogram) obj;
             if (this.histogram.length != other.histogram.length)
                 return (false);
-            if (this.value_count != other.value_count || this.num_samples != other.num_samples)
+            if (this.num_values != other.num_values || this.num_samples != other.num_samples)
                 return (false);
             for (int i = 0; i < this.histogram.length; i++) {
                 if (this.histogram[i] != other.histogram[i])
@@ -194,7 +192,7 @@ public class FastIntHistogram implements Histogram<Integer> {
     }
     @Override
     public int getValueCount() {
-        return this.value_count;
+        return this.num_values;
     }
     @Override
     public Collection<Integer> values() {
@@ -219,36 +217,36 @@ public class FastIntHistogram implements Histogram<Integer> {
     // PUT METHODS
     // ----------------------------------------------------------------------------
     
-    public long put(int idx) {
-        return this.put(idx, 1);
+    public long put(int value) {
+        return this.put(value, 1);
     }
-    public long put(int idx, long i) {
-        if (idx >= this.histogram.length) {
-            this.grow(idx);
+    public long put(int value, long delta) {
+        if (value >= this.histogram.length) {
+            this.grow(value);
         }
-        if (this.histogram[idx] == NULL_COUNT) {
-            this.histogram[idx] = i;
-            this.value_count++;
+        if (this.histogram[value] == NULL_COUNT) {
+            this.histogram[value] = delta;
+            this.num_values++;
         } else {
-            this.histogram[idx] += i;
+            this.histogram[value] += delta;
         }
-        this.num_samples += i;
-        return (this.histogram[idx]);
+        this.num_samples += delta;
+        return (this.histogram[value]);
     }
     
     public void put(FastIntHistogram fast) {
         if (fast.histogram.length >= this.histogram.length) {
             this.grow(fast.histogram.length);
         }
-        for (int i = 0; i < fast.histogram.length; i++) {
-            if (fast.histogram[i] != NULL_COUNT) {
-                if (this.histogram[i] == NULL_COUNT) {
-                    this.histogram[i] = fast.histogram[i];
-                    this.value_count++;
+        for (int value = 0; value < fast.histogram.length; value++) {
+            if (fast.histogram[value] != NULL_COUNT) {
+                if (this.histogram[value] == NULL_COUNT) {
+                    this.histogram[value] = fast.histogram[value];
+                    this.num_values++;
                 } else {
-                    this.histogram[i] += fast.histogram[i];
+                    this.histogram[value] += fast.histogram[value];
                 }
-                this.num_samples += fast.histogram[i];
+                this.num_samples += fast.histogram[value];
             }
         } // FOR
     }
@@ -257,8 +255,8 @@ public class FastIntHistogram implements Histogram<Integer> {
         return this.put(value.intValue());
     }
     @Override
-    public long put(Integer value, long i) {
-        return this.put(value.intValue(), i);
+    public long put(Integer value, long delta) {
+        return this.put(value.intValue(), delta);
     }
     @Override
     public void put(Collection<Integer> values) {
@@ -271,13 +269,13 @@ public class FastIntHistogram implements Histogram<Integer> {
         } // FOR
     }
     @Override
-    public void put(Collection<Integer> values, long count) {
-        for (Integer v : values)
-            this.put(v.intValue(), count);
+    public void put(Collection<Integer> values, long delta) {
+        for (Integer value : values)
+            this.put(value.intValue(), delta);
     }
-    public void put(int values[], long count) {
-        for (int idx : values) {
-            this.put(idx, count);
+    public void put(int values[], long delta) {
+        for (int value : values) {
+            this.put(value, delta);
         } // FOR
     }
     @Override
@@ -285,19 +283,19 @@ public class FastIntHistogram implements Histogram<Integer> {
         if (other instanceof FastIntHistogram) {
             this.put((FastIntHistogram)other);
         } else {
-            for (Integer v : other.values()) {
-                Long cnt = other.get(v);
+            for (Integer value : other.values()) {
+                Long cnt = other.get(value);
                 if (cnt != null) {
-                    this.put(v.intValue(), cnt.longValue());
+                    this.put(value.intValue(), cnt.longValue());
                 }
             } // FOR
         }
     }
     @Override
     public void putAll() {
-        for (int i = 0; i < this.histogram.length; i++) {
-            if (this.histogram[i] != NULL_COUNT) {
-                this.histogram[i]++;
+        for (int value = 0; value < this.histogram.length; value++) {
+            if (this.histogram[value] != NULL_COUNT) {
+                this.histogram[value]++;
                 this.num_samples++;
             }
         } // FOR
@@ -319,7 +317,7 @@ public class FastIntHistogram implements Histogram<Integer> {
         this.histogram[idx] -= count;
         if (this.histogram[idx] == 0 && this.keep_zero_entries == false) {
             this.histogram[idx] = NULL_COUNT;
-            this.value_count--;
+            this.num_values--;
         }
         this.num_samples -= count;
         return (this.histogram[idx]);
@@ -361,7 +359,7 @@ public class FastIntHistogram implements Histogram<Integer> {
                     }
                     else {
                         this.histogram[i] = NULL_COUNT;
-                        this.value_count--;
+                        this.num_values--;
                     }
                 }
                 else {
@@ -379,7 +377,7 @@ public class FastIntHistogram implements Histogram<Integer> {
     @Override
     public void clear() {
         Arrays.fill(this.histogram, NULL_COUNT);
-        this.value_count = 0;
+        this.num_values = 0;
         this.num_samples = 0;
     }
     @Override
@@ -571,16 +569,23 @@ public class FastIntHistogram implements Histogram<Integer> {
     
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
-        stringer.key(Members.HISTOGRAM.name()).array();
+        
+        // Go through once and find the greatest position where
+        // there are no more non-null values
+        int maxSize = 0;
         for (int i = 0; i < this.histogram.length; i++) {
+            if (this.histogram[i] != NULL_COUNT) {
+                maxSize = i;
+            }
+        } // FOR
+        stringer.key(Members.HISTOGRAM.name()).array();
+        for (int i = 0; i < maxSize; i++) {
             stringer.value(this.histogram[i]);
         } // FOR
         stringer.endArray();
         
-        stringer.key("VALUE_COUNT").value(this.value_count);
-        
         if (this.debug_names != null && this.debug_names.isEmpty() == false) {
-            stringer.key("DEBUG_NAMES").object();
+            stringer.key(Members.DEBUG.name()).object();
             for (Entry<Object, String> e : this.debug_names.entrySet()) {
                 stringer.key(e.getKey().toString())
                         .value(e.getValue().toString());
@@ -593,18 +598,20 @@ public class FastIntHistogram implements Histogram<Integer> {
     public void fromJSON(JSONObject object, Database catalog_db) throws JSONException {
         JSONArray jsonArr = object.getJSONArray(Members.HISTOGRAM.name());
         this.histogram = new long[jsonArr.length()];
+        this.num_values = 0;
+        this.num_samples = 0;
         for (int i = 0; i < this.histogram.length; i++) {
-            this.histogram[i] = jsonArr.getLong(i);
+            long delta = jsonArr.getLong(i);
+            if (delta != NULL_COUNT) this.put(i, delta);
         } // FOR
-        this.value_count = object.getInt("VALUE_COUNT");
         
-        if (object.has("DEBUG_NAMES")) {
+        if (object.has(Members.DEBUG.name())) {
             if (this.debug_names == null) {
                 this.debug_names = new TreeMap<Object, String>();
             } else {
                 this.debug_names.clear();
             }
-            JSONObject jsonObj = object.getJSONObject("DEBUG_NAMES");
+            JSONObject jsonObj = object.getJSONObject(Members.DEBUG.name());
             for (String key : CollectionUtil.iterable(jsonObj.keys())) {
                 String label = jsonObj.getString(key);
                 this.debug_names.put(Integer.valueOf(key), label);
