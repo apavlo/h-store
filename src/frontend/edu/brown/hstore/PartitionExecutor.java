@@ -879,6 +879,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (hstore_conf.site.exec_profiling) profiler.idle_time.start();
                 try {
                     nextWork = this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT);
+                } catch (InterruptedException ex) {
+                    continue;
                 } finally {
                     if (hstore_conf.site.exec_profiling) { 
                         profiler.idle_time.stopIfStarted();
