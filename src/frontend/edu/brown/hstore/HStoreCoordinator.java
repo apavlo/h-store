@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -1091,7 +1092,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     public Map<Integer, String> transactionDebug(Long txn_id) {
         final CountDownLatch latch = new CountDownLatch(this.num_sites-1);
-        final Map<Integer, String> responses = new HashMap<Integer, String>();
+        final Map<Integer, String> responses = new TreeMap<Integer, String>();
         
         RpcCallback<TransactionDebugResponse> callback = new RpcCallback<TransactionDebugResponse>() {
             @Override

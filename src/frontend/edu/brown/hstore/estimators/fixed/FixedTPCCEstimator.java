@@ -26,7 +26,7 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
     /**
      * W_ID Short -> PartitionId
      */
-    private Integer[] neworder_hack_hashes;
+    private int[] neworder_hack_hashes;
     
     /**
      * Constructor
@@ -36,14 +36,15 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
         super(p_estimator);
     }
     
-    private Integer getPartition(short w_id) {
+    private int getPartition(short w_id) {
         if (this.neworder_hack_hashes == null || this.neworder_hack_hashes.length <= w_id) {
             synchronized (this) {
                 if (this.neworder_hack_hashes == null || this.neworder_hack_hashes.length <= w_id) {
-                    this.neworder_hack_hashes = new Integer[w_id+1];
+                    int temp[] = new int[w_id+1];
                     for (int i = 0; i < this.neworder_hack_hashes.length; i++) {
-                        this.neworder_hack_hashes[i] = this.hasher.hash(i);
+                        temp[i] = this.hasher.hash(i);
                     } // FOR
+                    this.neworder_hack_hashes = temp;
                 }
             } // SYNCH
         }
@@ -63,10 +64,10 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
             readonly = EMPTY_PARTITION_SET;
         }
         else if (procName.startsWith("payment")) {
-            Integer hash_w_id = this.getPartition((Short)args[0]);
-            Integer hash_c_w_id = this.getPartition((Short)args[3]);
-            if (hash_w_id.equals(hash_c_w_id)) {
-                partitions = this.singlePartitionSets.get(hash_w_id);
+            int hash_w_id = this.getPartition((Short)args[0]);
+            int hash_c_w_id = this.getPartition((Short)args[3]);
+            if (hash_w_id == hash_c_w_id) {
+                partitions = this.catalogContext.getPartitionSetSingleton(hash_w_id);
             } else {
                 partitions = new PartitionSet();
                 partitions.add(hash_w_id);
@@ -75,11 +76,11 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
             readonly = EMPTY_PARTITION_SET;
         }
         else if (procName.equalsIgnoreCase("delivery")) {
-            partitions = catalogContext.getPartitionSetSingleton(base_partition);
+            partitions = this.catalogContext.getPartitionSetSingleton(base_partition);
             readonly = EMPTY_PARTITION_SET;
         }
         else {
-            partitions = readonly = catalogContext.getPartitionSetSingleton(base_partition);
+            partitions = readonly = this.catalogContext.getPartitionSetSingleton(base_partition);
         }
         assert(partitions != null);
         assert(readonly != null);
@@ -93,8 +94,8 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
         assert(w_id != null);
         short s_w_ids[] = (short[])args[5];
         
-        Integer base_partition = this.getPartition(w_id.shortValue());
-        PartitionSet touchedPartitions = this.singlePartitionSets.get(base_partition);
+        int base_partition = this.getPartition(w_id.shortValue());
+        PartitionSet touchedPartitions = this.catalogContext.getPartitionSetSingleton(base_partition);
         assert(touchedPartitions != null) : "base_partition = " + base_partition;
         for (short s_w_id : s_w_ids) {
             if (s_w_id != w_id) {

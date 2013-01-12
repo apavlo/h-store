@@ -60,10 +60,10 @@ public class FixedSEATSEstimator extends AbstractFixedEstimator {
             ret.add(hasher.hash(c_id));
         }
         else if (f_id != VoltType.NULL_BIGINT) {
-            ret = this.singlePartitionSets.get(hasher.hash(f_id));
+            ret = this.catalogContext.getPartitionSetSingleton(hasher.hash(f_id));
         }
         else if (c_id != VoltType.NULL_BIGINT) {
-            ret = this.singlePartitionSets.get(hasher.hash(c_id));    
+            ret = this.catalogContext.getPartitionSetSingleton(hasher.hash(c_id));    
         }
         else {
             ret = this.catalogContext.getAllPartitionIds();

@@ -44,22 +44,12 @@ public abstract class TransactionEstimator {
     
     protected final AtomicInteger txn_count = new AtomicInteger(0);
     
-    /**
-     * PartitionId -> PartitionId Singleton Sets
-     */
-    protected final Map<Integer, PartitionSet> singlePartitionSets = new HashMap<Integer, PartitionSet>();
-    
     public TransactionEstimator(PartitionEstimator p_estimator) {
         this.hstore_conf = HStoreConf.singleton();
         this.p_estimator = p_estimator;
         this.catalogContext = p_estimator.getCatalogContext();
         this.hasher = p_estimator.getHasher();
         this.num_partitions = this.catalogContext.numberOfPartitions;
-        
-        
-        for (Integer p : catalogContext.getAllPartitionIdArray()) {
-            this.singlePartitionSets.put(p, catalogContext.getPartitionSetSingleton(p));
-        } // FOR
         
         if (debug.val)
             LOG.debug("Initialized fixed transaction estimator -> " + this.getClass().getSimpleName());

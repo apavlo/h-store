@@ -444,7 +444,16 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         String zombieStatus = Integer.toString(inflight_zombies);
         if (inflight_zombies > 0) {
             AbstractTransaction zombie = CollectionUtil.first(this.last_finishedTxns);
-            zombieStatus += String.format(" - %s :: %s\n%s", zombie, zombie.getStatus(), zombie.debug());
+            if (zombie.isPredictSinglePartition()) {
+                zombieStatus += String.format(" - %s :: %s\n%s", zombie, zombie.getStatus(), zombie.debug());
+            } else {
+                Map<Integer, String> zombieDebug = hstore_site.getCoordinator().transactionDebug(zombie.getTransactionId());
+                List<String> cols = new ArrayList<String>();
+                for (Integer siteId : zombieDebug.keySet()) {
+                    cols.add(String.format("SITE %02d\n%s", siteId, zombieDebug.get(siteId)));
+                } // FOR
+                zombieStatus += StringUtil.columns(cols);
+            }
         }
         siteInfo.put("Zombie Txns", zombieStatus);
 
