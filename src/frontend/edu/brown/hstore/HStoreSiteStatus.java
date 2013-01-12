@@ -443,16 +443,28 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // ZOMBIE INFO
         String zombieStatus = Integer.toString(inflight_zombies);
         if (inflight_zombies > 0) {
-            AbstractTransaction zombie = CollectionUtil.first(this.last_finishedTxns);
-            if (zombie.isPredictSinglePartition()) {
-                zombieStatus += String.format(" - %s :: %s\n%s", zombie, zombie.getStatus(), zombie.debug());
-            } else {
-                Map<Integer, String> zombieDebug = hstore_site.getCoordinator().transactionDebug(zombie.getTransactionId());
-                List<String> cols = new ArrayList<String>();
-                for (Integer siteId : zombieDebug.keySet()) {
-                    cols.add(String.format("SITE %02d\n%s", siteId, zombieDebug.get(siteId)));
-                } // FOR
-                zombieStatus += StringUtil.columns(cols);
+            zombieStatus += "\n";
+            
+            AbstractTransaction zombie = null;
+            Long txnId = null;
+            for (AbstractTransaction ts : this.last_finishedTxns) {
+                txnId = ts.getTransactionId();
+                if (txnId != null) {
+                    zombie = ts;
+                    break;
+                }
+            }
+            if (zombie != null) {
+                if (zombie.isPredictSinglePartition()) {
+                    zombieStatus += zombie.debug();
+                } else {
+                    Map<Integer, String> zombieDebug = hstore_site.getCoordinator().transactionDebug(txnId);
+                    List<String> cols = new ArrayList<String>();
+                    for (Integer siteId : zombieDebug.keySet()) {
+                        cols.add(String.format("SITE %02d\n%s", siteId, zombieDebug.get(siteId)));
+                    } // FOR
+                    zombieStatus += StringUtil.columns(cols);
+                }
             }
         }
         siteInfo.put("Zombie Txns", zombieStatus);

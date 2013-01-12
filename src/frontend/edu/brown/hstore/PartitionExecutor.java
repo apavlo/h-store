@@ -187,6 +187,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private static final long WORK_QUEUE_POLL_TIME = 500; // 0.5 milliseconds
     private static final TimeUnit WORK_QUEUE_POLL_TIMEUNIT = TimeUnit.MICROSECONDS;
     
+    @SuppressWarnings("unused")
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
     
     // ----------------------------------------------------------------------------
@@ -830,29 +831,29 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Things that we will need in the loop below
         InternalMessage nextWork = null;
-//        AbstractTransaction nextTxn = null;
+        AbstractTransaction nextTxn = null;
         if (debug.val)
             LOG.debug("Starting PartitionExecutor run loop...");
         try {
             while (this.shutdown_state == ShutdownState.STARTED) {
                 this.currentTxnId = null;
-//                nextTxn = null;
+                nextTxn = null;
                 nextWork = null;
                 
-//                // This is the starting state of the PartitionExecutor.
-//                // At this point here we currently don't have a txn to execute nor 
-//                // are we involved in a distributed txn running at another partition.
-//                // So we need to go our PartitionLockQueue and get back the next
-//                // txn that will have our lock.
-//                if (this.currentDtxn == null) {
-//                    if (hstore_conf.site.exec_profiling) profiler.poll_time.start();
-//                    try {
-//                        nextTxn = this.queueManager.checkLockQueue(this.partitionId); // NON-BLOCKING
-//                    } finally {
-//                        if (hstore_conf.site.exec_profiling) profiler.poll_time.stopIfStarted();
-//                    }
-//                    
-//                    // If we get something back here, then it should become our current transaction.
+                // This is the starting state of the PartitionExecutor.
+                // At this point here we currently don't have a txn to execute nor 
+                // are we involved in a distributed txn running at another partition.
+                // So we need to go our PartitionLockQueue and get back the next
+                // txn that will have our lock.
+                if (this.currentDtxn == null) {
+                    if (hstore_conf.site.exec_profiling) profiler.poll_time.start();
+                    try {
+                        nextTxn = this.queueManager.checkLockQueue(this.partitionId); // NON-BLOCKING
+                    } finally {
+                        if (hstore_conf.site.exec_profiling) profiler.poll_time.stopIfStarted();
+                    }
+                    
+                    // If we get something back here, then it should become our current transaction.
 //                    if (nextTxn != null) {
 //                        // If it's a single-partition txn, then we can return the StartTxnMessage 
 //                        // so that we can fire it off right away.
@@ -870,7 +871,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 //                            if (hstore_conf.site.exec_profiling) profiler.idle_queue_dtxn_time.start();
 //                        }
 //                    }
-//                }
+                }
                 
                 // -------------------------------
                 // Poll Work Queue
@@ -3515,15 +3516,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     } // FOR
                 }
             }
-            if (trace.val) LOG.trace(String.format("%s - Dispatched %d WorkFragments " +
-                             "[remoteSite=%d, localSite=%d, localPartition=%d]",
-                             ts, total, num_remote, num_localSite, num_localPartition));
+            if (trace.val)
+                LOG.trace(String.format("%s - Dispatched %d WorkFragments " +
+                          "[remoteSite=%d, localSite=%d, localPartition=%d]",
+                          ts, total, num_remote, num_localSite, num_localPartition));
             first = false;
         } // WHILE
         this.fs.getBBContainer().discard();
         
-        if (trace.val) LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                         ts, first, execState.stillHasWorkFragments(), latch));
+        if (trace.val)
+            LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
+                      ts, first, execState.stillHasWorkFragments(), latch));
 //        assert(ts.stillHasWorkFragments() == false) :
 //            String.format("Trying to block %s before all of its WorkFragments have been dispatched!\n%s\n%s",
 //                          ts,
@@ -3561,7 +3564,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
                 timeout = true;
             } catch (Throwable ex) {
-                throw new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
+                String msg = String.format("Fatal error for %s while waiting for results", ts);
+                throw new ServerFaultException(msg, ex);
             } finally {
                 if (needs_profiling) ts.profiler.stopExecDtxnWork();
                 if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_time.stopIfStarted();

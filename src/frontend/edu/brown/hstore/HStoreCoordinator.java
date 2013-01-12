@@ -1091,6 +1091,8 @@ public class HStoreCoordinator implements Shutdownable {
     }
     
     public Map<Integer, String> transactionDebug(Long txn_id) {
+        assert(txn_id != null);
+        
         final CountDownLatch latch = new CountDownLatch(this.num_sites-1);
         final Map<Integer, String> responses = new TreeMap<Integer, String>();
         

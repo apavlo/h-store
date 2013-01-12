@@ -362,30 +362,27 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         AbstractTransaction txn = (AbstractTransaction)obj;
         boolean retval;
         
-        // We have to check whether we are the first txn in the queue,
-        // because we will need to reset the blockTimestamp after 
-        // delete ourselves so that the next guy can get executed
-        // This is not thread-safe...
-        boolean reset = txn.equals(super.peek());
-        retval = super.remove(txn);
-        if (debug.val) {
-            LOG.debug(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
-            // Sanity Check
-            assert(super.contains(txn) == false) :
-                "Failed to remove " + txn + "???\n" + this.debug();
-        }
-        
-        if (retval) {
-            if (trace.val)
-                LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
-            this.lock.lock();
-            try {
-                this.checkQueueState(reset);
-            } finally {
-                if (trace.val)
-                    LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
-                this.lock.unlock();
+        if (trace.val)
+            LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
+        this.lock.lock();
+        try {
+            // We have to check whether we are the first txn in the queue,
+            // because we will need to reset the blockTimestamp after 
+            // delete ourselves so that the next guy can get executed
+            // This is not thread-safe...
+            boolean reset = txn.equals(super.peek());
+            retval = super.remove(txn);
+            if (debug.val) {
+                LOG.debug(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
+                // Sanity Check
+                assert(super.contains(txn) == false) : 
+                    "Failed to remove " + txn + "???\n" + this.debug();
             }
+            if (retval) this.checkQueueState(reset);
+        } finally {
+            if (trace.val)
+                LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
+            this.lock.unlock();
         }
         return (retval);
     }

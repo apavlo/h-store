@@ -347,7 +347,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         // twice because we only process the finished txns after the first one
         // Make sure that we generate the list of partitions that we need to check
         // *before* we release the first txn. We should only check the ones where
-        // we haven't already recieved the lock for (otherwise we will block forever)
+        // we haven't already received the lock for (otherwise we will block forever)
         PartitionSet temp = new PartitionSet(partitions1);
         temp.removeAll(inner_callback1.getReceivedPartitions());
         for (int partition : partitions0) {

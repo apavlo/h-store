@@ -70,6 +70,11 @@ public class LocalFinishCallback extends PartitionCountingCallback<LocalTransact
         if (this.needs_requeue) {
             this.hstore_site.transactionRequeue(this.ts, this.status);
         }
+        
+        // HACK: Just cancel out the InitCallback because we may never
+        // get back responses.
+        this.ts.getInitCallback().cancel();
+        
         try {
             this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), this.status);
         } catch (Throwable ex) {
