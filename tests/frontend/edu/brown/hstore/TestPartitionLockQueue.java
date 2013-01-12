@@ -58,7 +58,7 @@ public class TestPartitionLockQueue extends BaseTestCase {
         this.hstore_site = new MockHStoreSite(catalog_site.getId(), catalogContext, HStoreConf.singleton());
         this.idManager = hstore_site.getTransactionIdManager(0);
         this.queueManager = this.hstore_site.getTransactionQueueManager();
-        this.queue = this.queueManager.getInitQueue(0);
+        this.queue = this.queueManager.getLockQueue(0);
         this.queueDbg = this.queue.getDebugContext();
         assertTrue(this.queue.isEmpty());
         

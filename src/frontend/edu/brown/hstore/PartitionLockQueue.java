@@ -370,12 +370,9 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         retval = super.remove(txn);
         if (debug.val) {
             LOG.debug(String.format("Partition %d :: remove(%s) -> %s", this.partitionId, txn, retval));
-            
             // Sanity Check
             assert(super.contains(txn) == false) :
                 "Failed to remove " + txn + "???\n" + this.debug();
-             LOG.warn(String.format("Partition %d :: remove(%s) -> %s",
-                                    this.partitionId, txn, retval));
         }
         
         if (retval) {

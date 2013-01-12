@@ -732,7 +732,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.thresholds = hstore_site.getThresholds();
         this.txnInitializer = hstore_site.getTransactionInitializer();
         this.queueManager = hstore_site.getTransactionQueueManager();
-        this.lockQueue = this.queueManager.getInitQueue(this.partitionId);
+        this.lockQueue = this.queueManager.getLockQueue(this.partitionId);
         
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
@@ -1007,9 +1007,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Ok now that that's out of the way, let's run this baby...
                 this.executeTransaction(spec_ts);
             }
-            else if (debug.val) {
-                LOG.debug(String.format("%s - No speculative execution candidates found at partition %d [queueSize=%d]",
-                          this.currentDtxn, this.partitionId, this.queueManager.getInitQueue(this.partitionId).size()));
+            else if (trace.val) {
+                LOG.trace(String.format("%s - No speculative execution candidates found at partition %d [queueSize=%d]",
+                          this.currentDtxn, this.partitionId, this.queueManager.getLockQueue(this.partitionId).size()));
             }
         }
         else if (trace.val && this.currentDtxn != null) {

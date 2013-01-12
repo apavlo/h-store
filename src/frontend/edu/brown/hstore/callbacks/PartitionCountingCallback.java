@@ -218,12 +218,17 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
      * @return Returns the new value of the counter
      */
     public synchronized final boolean decrementCounter(int partition) {
+        assert(this.partitions.contains(partition)) :
+            String.format("Trying to decrement for unexpected partition %d for %s [expected=%s]",
+                          partition, this.ts, this.partitions);
+        
         if (this.receivedPartitions.contains(partition) == false) {
             this.counter--;
             this.receivedPartitions.add(partition);
             if (debug.val)
-                LOG.debug(String.format("%s - %s.decrementCounter() / COUNTER: %d - %d = %d [origCtr=%d]%s",
-                          this.ts, this.getClass().getSimpleName(),
+                LOG.debug(String.format("%s - %s.decrementCounter(partition=%d) / " +
+                		  "COUNTER: %d - %d = %d [origCtr=%d]%s",
+                          this.ts, this.getClass().getSimpleName(), partition,
                           this.counter+1, 1, this.counter, this.orig_counter,
                           (trace.val ? "\n" + partition : "")));
             assert(this.counter >= 0 && (this.counter == (this.partitions.size() - this.receivedPartitions.size()))) :

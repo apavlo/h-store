@@ -91,7 +91,7 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         int partition = (Integer)rowKey;
         TransactionQueueManager.Debug dbg = this.queue_manager.getDebugContext();
         TransactionQueueManagerProfiler profiler = dbg.getProfiler(partition);
-        PartitionLockQueue initQueue = this.queue_manager.getInitQueue(partition);
+        PartitionLockQueue initQueue = this.queue_manager.getLockQueue(partition);
         PartitionLockQueueProfiler initProfiler = initQueue.getDebugContext().getProfiler();
         
         int offset = this.columnNameToIndex.get("PARTITION");

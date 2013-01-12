@@ -56,7 +56,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
         this.idManager = hstore_site.getTransactionIdManager(0);
         this.queueManager = this.hstore_site.getTransactionQueueManager();
-        this.work_queue = this.queueManager.getInitQueue(BASE_PARTITION);
+        this.work_queue = this.queueManager.getLockQueue(BASE_PARTITION);
         this.scheduler = new SpecExecScheduler(this.checker,
                                                BASE_PARTITION,
                                                this.work_queue,

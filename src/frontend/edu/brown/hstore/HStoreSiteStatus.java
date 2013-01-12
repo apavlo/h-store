@@ -482,7 +482,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             if (executor == null) continue;
             PartitionExecutor.Debug executorDebug = executor.getDebugContext();
             PartitionExecutorProfiler profiler = executorDebug.getProfiler();
-            PartitionLockQueue lockQueue = queueManager.getInitQueue(partition);
+            PartitionLockQueue lockQueue = queueManager.getLockQueue(partition);
             // PartitionLockQueue.Debug initQueueDebug = initQueue.getDebugContext();
             AbstractTransaction current_dtxn = executorDebug.getCurrentDtxn();
             

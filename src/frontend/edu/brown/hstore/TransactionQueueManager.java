@@ -545,6 +545,10 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         assert(ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction %s [status=%s, partition=%d]",
                           ts, status, partition);
+        assert(ts.getPredictTouchedPartitions().contains(partition)) :
+            String.format("Trying to remove %s from partition %d lock queue but it " +
+            		     "is not one of its original partitions: %s",
+                          ts, partition, ts.getPredictTouchedPartitions());
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + ts + " as finished on remote partition #" + partition;
         if (debug.val)
@@ -743,7 +747,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
-    public PartitionLockQueue getInitQueue(int partition) {
+    public PartitionLockQueue getLockQueue(int partition) {
         return (this.lockQueues[partition]);
     }
     

@@ -48,7 +48,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 2;
     private static final int BASE_PARTITION = 0;
-    private static final int NOTIFY_TIMEOUT = 2500; // ms
+    private static final int NOTIFY_TIMEOUT = 1000; // ms
     private static final int NUM_SPECEXEC_TXNS = 5;
     
     private HStoreSite hstore_site;
