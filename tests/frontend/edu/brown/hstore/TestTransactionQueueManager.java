@@ -37,6 +37,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     private TransactionIdManager idManager;
     private TransactionQueueManager queueManager;
     private TransactionQueueManager.Debug dbg;
+    private Thread thread;
     private final Map<Long, AbstractTransaction> txns = new HashMap<Long, AbstractTransaction>();
     
     class MockCallback extends LocalInitQueueCallback {
@@ -56,14 +57,11 @@ public class TestTransactionQueueManager extends BaseTestCase {
             assertFalse(invoked);
             this.lock.release();
             this.invoked = true;
+            System.err.println("INVOKED: " + invoked);
         }
         protected void abortCallback(Status status) {
             this.aborted = true;
         }
-//        @Override
-//        protected void finishImpl() {
-//            // Nothing
-//        }
     }
     
     @Override
@@ -86,6 +84,17 @@ public class TestTransactionQueueManager extends BaseTestCase {
         this.idManager = hstore_site.getTransactionIdManager(0);
         this.queueManager = this.hstore_site.getTransactionQueueManager();
         this.dbg = this.queueManager.getDebugContext();
+        
+        this.thread = new Thread(this.queueManager);
+        this.thread.setDaemon(true);
+        this.thread.start();
+    }
+    
+    @Override
+    protected void tearDown() throws Exception {
+        this.queueManager.shutdown();
+        if (this.thread.isAlive())
+            this.thread.interrupt();
     }
     
     // --------------------------------------------------------------------------------------------
@@ -111,14 +120,15 @@ public class TestTransactionQueueManager extends BaseTestCase {
     }
     
     private boolean checkQueues(PartitionSet partitions) throws InterruptedException {
-        boolean ret = false; 
+        boolean ret = true; 
         for (int partition : partitions.values()) {
-            this.queueManager.getInitQueue(partition).getDebugContext().checkQueueState();
-            AbstractTransaction ts = this.queueManager.checkLockQueue(partition);
+            PartitionLockQueue queue = this.queueManager.getInitQueue(partition);
+            queue.getDebugContext().checkQueueState();
+            // AbstractTransaction ts = this.queueManager.checkLockQueue(partition);
             // if (ts != null) System.err.printf("Partition %d => %s\n", partition, ts);
-            ret = (ts != null) || ret;
+            // ret = (ts != null) || ret;
         }
-        return (ret);
+        return (ret );
     }
     
     private boolean addToQueue(LocalTransaction txn, MockCallback callback) {

@@ -893,7 +893,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (trace.val)
                         LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
                                   this.work_queue.getClass().getSimpleName(), this.partitionId));
-                    if (this.utilityWork()) nextWork = UTIL_WORK_MSG; // FIXME
+                    if (this.utilityWork()) {
+                        // FIXME nextWork = UTIL_WORK_MSG; // FIXME
+                    }
                 }
                 
                 // -------------------------------
@@ -967,8 +969,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             assert(hstore_conf.site.specexec_enable) :
                 "Trying to schedule speculative txn even though it is disabled";
             
-            if (trace.val)
-                LOG.trace("Checking speculative execution scheduler for something to do at partition " + this.partitionId);
+            if (debug.val)
+                LOG.debug(String.format("Checking %s for something to do at partition %d while blocked on %s",
+                          this.specExecScheduler.getClass().getSimpleName(),
+                          this.partitionId, this.currentDtxn));
             assert(this.currentDtxn.isInitialized()) :
                 String.format("Uninitialized distributed transaction handle [%s]", this.currentDtxn);
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
@@ -1003,8 +1007,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Ok now that that's out of the way, let's run this baby...
                 this.executeTransaction(spec_ts);
             }
-            else if (trace.val) {
-                LOG.trace(String.format("%s - No speculative execution candidates found at partition %d [queueSize=%d]",
+            else if (debug.val) {
+                LOG.debug(String.format("%s - No speculative execution candidates found at partition %d [queueSize=%d]",
                           this.currentDtxn, this.partitionId, this.queueManager.getInitQueue(this.partitionId).size()));
             }
         }
@@ -3603,8 +3607,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Queue a speculatively executed transaction to send its ClientResponseImpl message
      */
     private void blockClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        if (debug.val) LOG.debug(String.format("%s - Blocking %s ClientResponse [partitions=%s]",
-                         ts, cresponse.getStatus(), ts.getTouchedPartitions().values()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Blocking %s ClientResponse [partitions=%s]",
+                      ts, cresponse.getStatus(), ts.getTouchedPartitions().values()));
         assert(ts.isPredictSinglePartition() == true) :
             String.format("Specutatively executed multi-partition %s [mode=%s, status=%s]",
                           ts, this.currentExecMode, cresponse.getStatus());
@@ -3617,16 +3622,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.currentExecMode != ExecutionMode.COMMIT_ALL) :
             String.format("Blocking ClientResponse for %s when in non-specutative mode [mode=%s, status=%s]",
                           ts, this.currentExecMode, cresponse.getStatus());
-//
-//        switch (ts.getSpeculativeType()) {
-//            case SP1_LOCAL:
-//            case S
-//        }
         
         this.specExecBlocked.push(Pair.of(ts, cresponse));
         this.specExecModified = this.specExecModified && ts.isExecReadOnly(this.partitionId);
 
-        if (trace.val) LOG.trace("Total # of Blocked Responses: " + this.specExecBlocked.size());
+        if (trace.val)
+            LOG.trace("Total # of Blocked Responses: " + this.specExecBlocked.size());
     }
     
     /**
