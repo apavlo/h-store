@@ -41,7 +41,7 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
             synchronized (this) {
                 if (this.neworder_hack_hashes == null || this.neworder_hack_hashes.length <= w_id) {
                     int temp[] = new int[w_id+1];
-                    for (int i = 0; i < this.neworder_hack_hashes.length; i++) {
+                    for (int i = 0; i < temp.length; i++) {
                         temp[i] = this.hasher.hash(i);
                     } // FOR
                     this.neworder_hack_hashes = temp;
