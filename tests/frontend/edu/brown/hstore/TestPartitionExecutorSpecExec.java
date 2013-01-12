@@ -17,11 +17,13 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.regressionsuites.specexecprocs.CheckSubscriber;
 import org.voltdb.regressionsuites.specexecprocs.DtxnTester;
 import org.voltdb.regressionsuites.specexecprocs.SinglePartitionTester;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
+import org.voltdb.sysprocs.NoOp;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
@@ -262,9 +264,17 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // Now fire off a bunch of single-partition txns
         LatchableProcedureCallback spCallback = new LatchableProcedureCallback(NUM_SPECEXEC_TXNS);
         params = new Object[]{ BASE_PARTITION+1 }; // S_ID
+        
+        // IMPORTANT: The way that the queue stuff works now is that we aren't able to
+        // speculatively execute the very next txn in the queue
+        // So we have to fire off one that gets put in the queue that will just sit there
+        this.client.callProcedure(new NullCallback(), VoltSystemProcedure.procCallName(NoOp.class));
+        ThreadUtil.sleep(NOTIFY_TIMEOUT);
         for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
             this.client.callProcedure(spCallback, this.spProc.getName(), params);
         } // FOR
+        // IMPORTANT: The way that the queue stuff works now is that we aren't able to
+        // speculatively execute the very next txn in the queue
         this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
         
         // Now release the locks and then wait until the dtxn returns and all 
