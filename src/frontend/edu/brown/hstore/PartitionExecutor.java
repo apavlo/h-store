@@ -119,10 +119,10 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.TransactionCallback;
-import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -164,7 +164,6 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
@@ -187,7 +186,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private static final long WORK_QUEUE_POLL_TIME = 500; // 0.5 milliseconds
     private static final TimeUnit WORK_QUEUE_POLL_TIMEUNIT = TimeUnit.MICROSECONDS;
     
-    @SuppressWarnings("unused")
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
     
     // ----------------------------------------------------------------------------
@@ -738,11 +736,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
         }
-        
-        EventObservable<?> observable = this.hstore_site.getStartWorkloadObservable();
-        this.profiler.idle_time.resetOnEventObservable(observable);
-        this.profiler.exec_time.resetOnEventObservable(observable);
-        this.profiler.txn_time.resetOnEventObservable(observable);
+
+        // Reset our profiling information when we get the first non-sysproc
+        this.profiler.resetOnEventObservable(this.hstore_site.getStartWorkloadObservable());
         
         // -------------------------------
         // SPECULATIVE EXECUTION INITIALIZATION
@@ -868,7 +864,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         else {
                             this.setCurrentDtxn(nextTxn);
                             this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
-                            if (hstore_conf.site.exec_profiling) profiler.idle_queue_dtxn_time.start();
                         }
                     }
                 }
@@ -885,10 +880,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     } catch (InterruptedException ex) {
                         continue;
                     } finally {
-                        if (hstore_conf.site.exec_profiling) { 
-                            profiler.idle_time.stopIfStarted();
-                            if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
-                        }
+                        if (hstore_conf.site.exec_profiling) profiler.idle_time.stopIfStarted();
                     }
                 }
                 // Check if we have any utility work to do while we wait
@@ -907,13 +899,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (nextWork != null) {
                     if (trace.val) LOG.trace("Next Work: " + nextWork);
                     if (hstore_conf.site.exec_profiling) {
-                        profiler.exec_time.start();
                         profiler.numMessages.put(nextWork.getClass().getSimpleName());
+                        profiler.exec_time.start();
+                        if (this.currentDtxn != null) profiler.sp2_time.stopIfStarted();
                     }
                     try {
                         this.processInternalMessage(nextWork);
                     } finally {
-                        if (hstore_conf.site.exec_profiling) profiler.exec_time.stopIfStarted();
+                        if (hstore_conf.site.exec_profiling) {
+                            profiler.exec_time.stopIfStarted();
+                            if (this.currentDtxn != null) profiler.sp2_time.start();
+                        }
                     }
                     if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                     this.tick();
@@ -1681,6 +1677,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       ts, this.partitionId, this.specExecIgnoreCurrent, this.lastDtxn));
             this.lastDtxn = this.currentDtxn.toString();
         }
+        if (hstore_conf.site.exec_profiling && ts.getBasePartition() != this.partitionId) {
+            profiler.sp2_time.start();
+        }
     }
     
     /**
@@ -1755,8 +1754,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     public void queueWork(AbstractTransaction ts, WorkFragment fragment) {
         assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
-        if (hstore_conf.site.exec_profiling) this.profiler.idle_waiting_dtxn_time.stopIfStarted();
-        
         WorkFragmentMessage work = ts.getWorkFragmentMessage(fragment);
         boolean success = this.work_queue.offer(work); // , true);
         assert(success) :
@@ -3306,7 +3303,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // If we didn't get back a list of fragments here, then we will spin through
                 // and invoke utilityWork() to try to do something useful until what we need shows up
                 if (needs_profiling) ts.profiler.startExecDtxnWork();
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_time.start();
+                if (hstore_conf.site.exec_profiling) this.profiler.sp1_time.start();
                 try {
                     while (fragmentBuilders == null) {
                         // If there is more work that we could do, then we'll just poll the queue
@@ -3327,7 +3324,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     return (null);
                 } finally {
                     if (needs_profiling) ts.profiler.stopExecDtxnWork();
-                    if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_time.stopIfStarted();
+                    if (hstore_conf.site.exec_profiling) this.profiler.sp1_time.stopIfStarted();
                 }
             }
             assert(fragmentBuilders != null);
@@ -3548,7 +3545,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             long startTime = EstTime.currentTimeMillis();
             
             if (needs_profiling) ts.profiler.startExecDtxnWork();
-            if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_time.start();
+            if (hstore_conf.site.exec_profiling) this.profiler.sp1_time.start();
             try {
                 while (latch.getCount() > 0 && ts.hasPendingError() == false) {
                     if (this.utilityWork() == false) {
@@ -3570,7 +3567,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 throw new ServerFaultException(msg, ex);
             } finally {
                 if (needs_profiling) ts.profiler.stopExecDtxnWork();
-                if (hstore_conf.site.exec_profiling) this.profiler.idle_dtxn_query_time.stopIfStarted();
+                if (hstore_conf.site.exec_profiling) this.profiler.sp1_time.stopIfStarted();
             }
             
             if (timeout && this.isShuttingDown() == false) {
@@ -3760,7 +3757,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             ts.setClientResponse(cresponse);
             if (hstore_conf.site.exec_profiling) {
                 this.profiler.network_time.start();
-                this.profiler.idle_2pc_local_time.start();
+                this.profiler.sp3_local_time.start();
             }
             LocalPrepareCallback callback = ts.getPrepareCallback();
             callback.init(ts, tmp_preparePartitions);
@@ -3814,6 +3811,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Skip if we've already invoked prepared for this txn at this partition
         if (ts.isMarkedPrepared(this.partitionId) == false) {
             ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
+            
+            if (hstore_conf.site.exec_profiling && this.partitionId != ts.getBasePartition() && ts.needsFinish(this.partitionId)) {
+                profiler.sp3_remote_time.start();
+            }
             
             // Set the speculative execution commit mode
             if (hstore_conf.site.specexec_enable) {
@@ -4224,8 +4225,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
             
             if (hstore_conf.site.exec_profiling) {
-                this.profiler.idle_2pc_local_time.stopIfStarted();
-                this.profiler.idle_2pc_remote_time.stopIfStarted();
+                this.profiler.sp3_local_time.stopIfStarted();
+                this.profiler.sp3_remote_time.stopIfStarted();
             }
         }
         // We were told told to finish a dtxn that is not the current one

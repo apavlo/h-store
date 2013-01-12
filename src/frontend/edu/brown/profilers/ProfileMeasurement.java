@@ -140,7 +140,7 @@ public class ProfileMeasurement implements JSONSerializable {
      * 
      * @return
      */
-    public String getType() {
+    public String getName() {
         return type;
     }
 

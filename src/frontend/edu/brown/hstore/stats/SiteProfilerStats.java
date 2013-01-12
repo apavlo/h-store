@@ -62,7 +62,7 @@ public class SiteProfilerStats extends StatsSource {
         assert(profiler != null);
         
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
-            String name = pm.getType().toUpperCase();
+            String name = pm.getName().toUpperCase();
             // We need two columns per ProfileMeasurement
             //  (1) The total think time in nanoseconds
             //  (2) The number of invocations

@@ -54,8 +54,8 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
             LOG.debug(String.format("Start PARENT[%s] -> NEXT[%s]", expected_parent, next));
         assert (this.stack.size() > 0);
         assert (this.stack.peek() == expected_parent) : String.format(
-                "Unexpected state %s: PARENT[%s] -> NEXT[%s]\n%s", this.stack.peek(), expected_parent.getType(),
-                next.getType(), StringUtil.join("\n", this.stack));
+                "Unexpected state %s: PARENT[%s] -> NEXT[%s]\n%s", this.stack.peek(), expected_parent.getName(),
+                next.getName(), StringUtil.join("\n", this.stack));
         long timestamp = ProfileMeasurement.getTime();
         if (stopParent) {
             ProfileMeasurementUtil.swap(timestamp, expected_parent, next);
@@ -132,7 +132,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (this.disabled)
             return;
         if (debug.val)
-            LOG.debug(String.format("START %s -> %s", this.pm_total.getType(), this.pm_init_total.getType()));
+            LOG.debug(String.format("START %s -> %s", this.pm_total.getName(), this.pm_init_total.getName()));
         this.pm_total.start(timestamp);
         this.pm_init_total.start(timestamp);
         this.stack.push(this.pm_total);
@@ -148,7 +148,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
             ProfileMeasurement pm = this.stack.pop();
             assert (pm != null);
             if (debug.val)
-                LOG.debug("STOP " + pm.getType());
+                LOG.debug("STOP " + pm.getName());
             assert (pm.isStarted()) : pm.debug();
             pm.stop(timestamp);
             assert (pm.isStarted() == false) : pm.debug();
@@ -299,14 +299,14 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
             pm = this.stack.pop();
             assert (pm != null);
             if (debug.val)
-                LOG.debug("STOP " + pm.getType());
+                LOG.debug("STOP " + pm.getName());
             if (pm == this.pm_init_total)
                 break;
             pm.stop(timestamp);
         } // WHILE
 
         if (debug.val)
-            LOG.debug("START " + this.pm_queue.getType());
+            LOG.debug("START " + this.pm_queue.getName());
         ProfileMeasurementUtil.swap(timestamp, pm, this.pm_queue);
         this.stack.push(this.pm_queue);
     }
@@ -629,7 +629,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         String history = "";
         int i = 0;
         for (ProfileMeasurement pm : this.history) {
-            String label = pm.getType();
+            String label = pm.getName();
             if (pm.isStarted()) {
                 label += " *ACTIVE*";
             }

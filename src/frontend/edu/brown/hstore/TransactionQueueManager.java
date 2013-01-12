@@ -10,7 +10,6 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -143,14 +142,14 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // Initialize internal queues
         for (int partition : this.localPartitions.values()) {
             PartitionLockQueue queue = new PartitionLockQueue(partition,
-                                                                          this.initWaitTime,
-                                                                          this.initThrottleThreshold,
-                                                                          this.initThrottleRelease);
-            queue.setThrottleThresholdIncreaseDelta(50);
-            queue.setAllowDecrease(true);
+                                                              this.initWaitTime,
+                                                              this.initThrottleThreshold,
+                                                              this.initThrottleRelease);
+            queue.setThrottleThresholdAutoDelta(50);
+            queue.setAllowDecrease(false);
             queue.setThrottleThresholdMinSize((int)(this.initThrottleThreshold*0.5));
             queue.setAllowIncrease(true);
-            queue.setThrottleThresholdMaxSize(this.initThrottleThreshold*2);
+            queue.setThrottleThresholdMaxSize((int)(this.initThrottleThreshold*3));
             queue.enableProfiling(hstore_conf.site.queue_profiling);
             this.lockQueues[partition] = queue;
             this.lockQueueBarriers[partition] = new ReentrantLock(true);
@@ -178,7 +177,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     @Override
     public void updateConf(HStoreConf hstore_conf) {
         this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
-        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns);
+        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * 1.5);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (PartitionLockQueue queue : this.lockQueues) {
             if (queue != null) {

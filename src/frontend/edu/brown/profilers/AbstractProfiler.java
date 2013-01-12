@@ -7,6 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
+
 public abstract class AbstractProfiler {
     
     /**
@@ -46,6 +49,29 @@ public abstract class AbstractProfiler {
         return (pm_cache);
     }
     
+    public final ProfileMeasurement getProfileMeasurement(String name) {
+        for (ProfileMeasurement pm : this.getProfileMeasurements()) {
+            if (pm.getName().equals(name)) {
+                return (pm);
+            }
+        } // FOR
+        return (null);
+    }
+    
+    /**
+     * Reset this AbstractProfiler's internal data when an update arrives
+     * for the given EventObservable
+     * @param e
+     */
+    public <T> void resetOnEventObservable(EventObservable<T> e) {
+        e.addObserver(new EventObserver<T>() {
+            @Override
+            public void update(EventObservable<T> o, T arg) {
+                AbstractProfiler.this.reset();
+            }
+        });
+    }
+    
     public void copy(AbstractProfiler other) {
         ProfileMeasurement pms0[] = this.getProfileMeasurements();
         ProfileMeasurement pms1[] = other.getProfileMeasurements();
@@ -53,7 +79,7 @@ public abstract class AbstractProfiler {
         
         for (int i = 0; i < pms0.length; i++) {
             pms0[i].appendTime(pms1[i]);
-            assert(pms0[i].getType().equals(pms1[i]));
+            assert(pms0[i].getName().equals(pms1[i]));
         } // FOR
     }
 
@@ -95,7 +121,7 @@ public abstract class AbstractProfiler {
         
         // FIELDS
         for (ProfileMeasurement pm : this.getProfileMeasurements()) {
-            String label = pm.getType();
+            String label = pm.getName();
             String debug = pm.debug().replace(label, "");
             m.put(label, debug);
         } // FOR

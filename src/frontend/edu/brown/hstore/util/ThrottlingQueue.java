@@ -248,7 +248,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
      * This will only matter if allow_increase is set to true.
      * @param delta
      */
-    public void setThrottleThresholdIncreaseDelta(int delta) {
+    public void setThrottleThresholdAutoDelta(int delta) {
         this.autoDelta = delta;
     }
     

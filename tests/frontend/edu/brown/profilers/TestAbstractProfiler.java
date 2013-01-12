@@ -81,15 +81,15 @@ public class TestAbstractProfiler extends TestCase {
         assertNotNull(last);
         last.stop();
         for (ProfileMeasurement pm : pms) {
-            assertTrue(pm.getType(), pm.getInvocations() > 0);
-            assertFalse(pm.getType(), pm.isStarted());
+            assertTrue(pm.getName(), pm.getInvocations() > 0);
+            assertFalse(pm.getName(), pm.isStarted());
         } // FOR
         
         profiler.reset();
         for (ProfileMeasurement pm : pms) {
-            assertEquals(pm.getType(), 0, pm.getInvocations());
-            assertEquals(pm.getType(), 0, pm.getTotalThinkTime());
-            assertFalse(pm.getType(), pm.isStarted());
+            assertEquals(pm.getName(), 0, pm.getInvocations());
+            assertEquals(pm.getName(), 0, pm.getTotalThinkTime());
+            assertFalse(pm.getName(), pm.isStarted());
         } // FOR
     }
     

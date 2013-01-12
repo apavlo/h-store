@@ -69,6 +69,10 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     private Long orig_txn_id = null;
     private int orig_counter;
     
+    private final PartitionSet runPartitions = new PartitionSet();
+    private final PartitionSet abortPartitions = new PartitionSet();
+    
+    
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------
@@ -129,6 +133,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         this.counter = 0;
         this.orig_counter = 0;
         this.ts = null;
+        
+        this.runPartitions.clear();
+        this.abortPartitions.clear();
     }
 
     // ----------------------------------------------------------------------------
@@ -208,7 +215,10 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     public void run(int partition) {
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
-        if (this.decrementCounter(partition)) this.unblock();
+        if (this.decrementCounter(partition)) {
+            this.unblock();
+            this.runPartitions.add(partition);
+        }
     }
     
     /**
@@ -289,6 +299,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         
         // Always attempt to add the partition
         this.decrementCounter(partition);
+        this.abortPartitions.add(partition);
         
         // If this is the first response that told us to abort, then we'll
         // send the abort message out
@@ -368,6 +379,8 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
 //        if (debug.val) {
             ret += String.format("\nReceivedPartitions=%s / AllPartitions=%s",
                                  this.receivedPartitions, this.partitions);
+            ret += String.format("\nRunPartitions=%s / AbortPartitions=%s",
+                    this.runPartitions, this.abortPartitions);
 //        }
         return (ret);
     }

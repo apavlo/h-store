@@ -89,7 +89,6 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
-import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RedirectCallback;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
@@ -123,7 +122,6 @@ import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.HStoreSiteProfiler;
-import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -1964,14 +1962,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         for (int p : this.local_partitions.values()) {
             if (partitions.contains(p) == false) continue;
-
-            // We are going queue a PrepareTxnMessage at each of the partitions that 
-            // this txn is using and let them deal with it.
-            if (hstore_conf.site.exec_profiling && p != ts.getBasePartition() && ts.needsFinish(p)) {
-                PartitionExecutorProfiler pep = this.executors[p].getProfiler();
-                assert(pep != null);
-                if (pep.idle_2pc_remote_time.isStarted() == false) pep.idle_2pc_remote_time.start();
-            }
             
             // TODO: If this txn is read-only, then we should invoke finish right here
             // Because this txn didn't change anything at this partition, we should

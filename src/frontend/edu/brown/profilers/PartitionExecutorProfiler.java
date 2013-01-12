@@ -1,6 +1,5 @@
 package edu.brown.profilers;
 
-import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 
@@ -63,38 +62,36 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     public final ProfileMeasurement conflicts_time = new ProfileMeasurement("CONFLICTS");
     
     // ----------------------------------------------------------------------------
-    // FINE-GRAINED IDLE MEASUREMENTS
+    // FINE-GRAINED STALL POINT MEASUREMENTS
     // ----------------------------------------------------------------------------
     
     /**
+     * STALL POINT 1 - LOCAL
      * How much time the PartitionExecutor was idle waiting for responses 
-     * from queries on remote partitions. (SP1)
+     * from queries on remote partitions.
      */
-    public final ProfileMeasurement idle_dtxn_query_time = new ConcurrentProfileMeasurement("IDLE_DTXN_QUERY");
+    public final ProfileMeasurement sp1_time = new ProfileMeasurement("SP1");
+
+    /**
+     * STALL POINT 2 - REMOTE
+     * How much time the PartitionExecutor was idle waiting for the first 
+     * WorkResult response of distributed transaction on remote partitions.
+     */
+    public final ProfileMeasurement sp2_time = new ProfileMeasurement("SP2");
     
     /**
-     * How much time the PartitionExecutor was idle waiting for
-     * response of distributed transaction on remote partitions. (SP2.remote)
-     */
-    public final ProfileMeasurement idle_waiting_dtxn_time = new ConcurrentProfileMeasurement("IDLE_WAITING_DTXN");
-    
-    /**
-     * How much time the PartitionExecutor was idle waiting for
-     * response of distributed transaction on remote partitions. (SP2.remote)
-     */
-    public final ProfileMeasurement idle_queue_dtxn_time = new ProfileMeasurement("IDLE_QUEUE_DTXN");
-    
-    /**
-     * How much time the local PartitionExecutor was idle waiting for prepare 
+     * STALL POINT 3 - LOCAL
+     * How much time the local PartitionExecutor was idle waiting for 2PC:PREPARE 
      * responses from remote partitions. (SP3.local) 
      */
-    public final ProfileMeasurement idle_2pc_local_time = new ConcurrentProfileMeasurement("IDLE_TWO_PHASE_LOCAL");
+    public final ProfileMeasurement sp3_local_time = new ProfileMeasurement("SP3_LOCAL");
     
     /**
+     * STALL POINT 3 - REMOTE
      * How much time the remote PartitionExecutor was idle waiting for commit/abort
-     * messages from base partition. (SP3.remote)
+     * messages from base partition.
      */
-    public final ProfileMeasurement idle_2pc_remote_time = new ConcurrentProfileMeasurement("IDLE_TWO_PHASE_REMOTE");
+    public final ProfileMeasurement sp3_remote_time = new ProfileMeasurement("SP3_REMOTE");
     
     @Override
     public void reset() {

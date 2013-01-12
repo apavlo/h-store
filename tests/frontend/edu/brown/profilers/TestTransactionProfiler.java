@@ -21,16 +21,16 @@ public class TestTransactionProfiler extends TestCase {
         ProfileMeasurement pms[] = profiler.getProfileMeasurements();
         for (ProfileMeasurement pm : pms) {
             assertNotNull(pm);
-            assertFalse(pm.getType(), fields.containsKey(pm.getType()));
-            fields.put(pm.getType(), pm.hashCode());
+            assertFalse(pm.getName(), fields.containsKey(pm.getName()));
+            fields.put(pm.getName(), pm.hashCode());
         } // FOR
         
         // Then just make sure that we don't get the same handles for a new object
         TransactionProfiler other = new TransactionProfiler();
         for (ProfileMeasurement pm : other.getProfileMeasurements()) {
             assertNotNull(pm);
-            assertTrue(pm.getType(), fields.containsKey(pm.getType()));
-            assertFalse(pm.getType(), fields.get(pm.getType()) == pm.hashCode());
+            assertTrue(pm.getName(), fields.containsKey(pm.getName()));
+            assertFalse(pm.getName(), fields.get(pm.getName()) == pm.hashCode());
         } // FOR
     }
     

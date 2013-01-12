@@ -97,7 +97,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     // RPC CALLBACK
     // ----------------------------------------------------------------------------
 
-//    @Override
+    @Override
     public void run(TransactionInitResponse response) {
         if (debug.val)
             LOG.debug(String.format("%s - Got %s with status %s from partitions %s",

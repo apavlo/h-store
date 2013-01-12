@@ -67,7 +67,7 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         
         columns.add(new VoltTable.ColumnInfo("AVG_CONCURRENT", VoltType.FLOAT));
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
-            String name = pm.getType().toUpperCase();
+            String name = pm.getName().toUpperCase();
             columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
             columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
         } // FOR
@@ -80,7 +80,7 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         PartitionLockQueueProfiler initProfiler = new PartitionLockQueueProfiler();
         columns.add(new VoltTable.ColumnInfo("AVG_TXN_WAIT", VoltType.FLOAT));
         for (ProfileMeasurement pm : initProfiler.queueStates.values()) {
-            String name = pm.getType().toUpperCase();
+            String name = pm.getName().toUpperCase();
             columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
             columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
         } // FOR

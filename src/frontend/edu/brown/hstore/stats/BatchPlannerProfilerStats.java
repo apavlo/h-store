@@ -69,7 +69,7 @@ public class BatchPlannerProfilerStats extends StatsSource {
         
         BatchPlannerProfiler profiler = new BatchPlannerProfiler();
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
-            String name = pm.getType().toUpperCase();
+            String name = pm.getName().toUpperCase();
             columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
             columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
         } // FOR

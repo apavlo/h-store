@@ -34,6 +34,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.pools.TypedObjectPool;
+import edu.brown.profilers.AbstractProfiler;
 import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
@@ -156,6 +157,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
 //                if (debug.val)
                 LOG.info(arg1.getSiteName() + " - " +HStoreConstants.SITE_FIRST_TXN);
                 startTime = System.currentTimeMillis();
+                HStoreSiteStatus.this.reset();
             }
         });
         
@@ -165,6 +167,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         // Pre-Compute TransactionProfile Information
         this.initTxnProfileInfo(hstore_site.getCatalogContext().database);
+    }
+    
+    private void reset() {
+        this.lastExecMeasurements.clear();
     }
     
     @Override
@@ -326,10 +332,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             siteInfo.put("Arrival Rate", value);
             
             pm = profiler.network_backup_off;
-            siteInfo.put("Back Pressure Off", ProfileMeasurementUtil.formatProfileMeasurements(pm, null, true, false));
+            siteInfo.put("Back Pressure Off", ProfileMeasurementUtil.formatComparison(pm, null, true));
             
             pm = profiler.network_backup_on;
-            siteInfo.put("Back Pressure On", ProfileMeasurementUtil.formatProfileMeasurements(pm, null, true, false));
+            siteInfo.put("Back Pressure On", ProfileMeasurementUtil.formatComparison(pm, null, true));
         }
 
         
@@ -365,12 +371,12 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         if (hstore_conf.site.profiling) {
             HStoreSiteProfiler profiler = this.hstore_site.getProfiler();
             pm = profiler.network_idle;
-            value = ProfileMeasurementUtil.formatProfileMeasurements(pm, this.lastNetworkIdle, true, true);
+            value = ProfileMeasurementUtil.formatComparison(pm, this.lastNetworkIdle, true);
             siteInfo.put("Network Idle", value);
             this.lastNetworkIdle = new ProfileMeasurement(pm);
             
             pm = profiler.network_processing;
-            value = ProfileMeasurementUtil.formatProfileMeasurements(pm, this.lastNetworkProcessing, true, true);
+            value = ProfileMeasurementUtil.formatComparison(pm, this.lastNetworkProcessing, true);
             siteInfo.put("Network Processing", value);
             this.lastNetworkProcessing = new ProfileMeasurement(pm);
         }
@@ -491,9 +497,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Map<Integer, String> partitionLabels = new HashMap<Integer, String>();
         ObjectHistogram<Integer> invokedTxns = new ObjectHistogram<Integer>();
         Long txn_id = null;
-        Collection<String> execProfilerShowTotals = CollectionUtil.addAll(
-                new HashSet<String>(), "IDLE", "SLEEP", "POLL"
-        );
         
         for (int partition : hstore_site.getLocalPartitionIds().values()) {
             String partitionLabel = String.format("%02d", partition);
@@ -504,8 +507,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             PartitionExecutor.Debug executorDebug = executor.getDebugContext();
             PartitionExecutorProfiler profiler = executorDebug.getProfiler();
             PartitionLockQueue lockQueue = queueManager.getLockQueue(partition);
-            // PartitionLockQueue.Debug initQueueDebug = initQueue.getDebugContext();
-            AbstractTransaction current_dtxn = executorDebug.getCurrentDtxn();
             
             // Queue Information
             Map<String, Object> m = new LinkedHashMap<String, Object>();
@@ -543,9 +544,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
 
             if (profiler != null) {
                 String inner = String.format("%d current / %d processed\n%s",
-                                                executorDebug.getWorkQueueSize(),
-                                                profiler.numMessages.getSampleCount(),
-                                                profiler.numMessages.toString(30, 20));
+                                             executorDebug.getWorkQueueSize(),
+                                             profiler.numMessages.getSampleCount(),
+                                             profiler.numMessages.toString(30, 20));
                 m.put("Work Queue", inner);
             } else {
                 m.put("Work Queue", String.format("%d current", executorDebug.getWorkQueueSize()));
@@ -553,6 +554,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
             txn_id = executorDebug.getCurrentTxnId();
             m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), executorDebug.getExecutionMode()));
+            AbstractTransaction current_dtxn = executorDebug.getCurrentDtxn();
             m.put("Current DTXN", (current_dtxn == null ? "-" : current_dtxn));
             
             txn_id = executorDebug.getLastExecutedTxnId();
@@ -561,32 +563,33 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             txn_id = executorDebug.getLastCommittedTxnId();
             m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
             
+            // Partition Executor Profiler Info
             if (hstore_conf.site.exec_profiling) {
                 PartitionExecutorProfiler lastProfiler = this.lastExecMeasurements.get(executor);
-                if (lastProfiler == null) {
-                    lastProfiler = new PartitionExecutorProfiler();
-                    this.lastExecMeasurements.put(executor, lastProfiler);
-                }
+                PartitionExecutorProfiler nextProfiler = new PartitionExecutorProfiler();
                 invokedTxns.put(partition, (int)profiler.txn_time.getInvocations());
                 
-                
-                ProfileMeasurement pmPairs[][] = {
-                    {profiler.exec_time, lastProfiler.exec_time, total.exec_time},
-                    {profiler.txn_time, lastProfiler.txn_time, total.txn_time},
-                    {profiler.idle_time, lastProfiler.idle_time, total.idle_time},
-                    {profiler.poll_time, lastProfiler.poll_time, total.poll_time},
-                    {profiler.network_time, lastProfiler.network_time, total.network_time},
-                    {profiler.util_time, lastProfiler.util_time, total.util_time}
-                };
-                
-                for (ProfileMeasurement pair[] : pmPairs) {
-                    String name = pair[0].getType();
-                    boolean compareLastAvg = (execProfilerShowTotals.contains(name) == false);
-                    m.put(String.format("%s Time", StringUtil.title(name)),
-                          ProfileMeasurementUtil.formatProfileMeasurements(pair[0], pair[1], true, compareLastAvg));
-                    pair[1].appendTime(pair[0]);
-                    pair[2].appendTime(pair[0]);
+                AbstractProfiler profilers[] = { profiler, lastProfiler, nextProfiler, total };
+                for (ProfileMeasurement pm : profilers[0].getProfileMeasurements()) {
+                    String name = pm.getName();
+                    ProfileMeasurement inner[] = new ProfileMeasurement[profilers.length];
+                    for (int i = 0; i < profilers.length; i++) {
+                        if (profilers[i] != null) {
+                            inner[i] = (i == 0 ? pm : profilers[i].getProfileMeasurement(name));
+                        }
+                    } // FOR
+                    
+                    if (name.startsWith("SP")) {
+                        name = StringUtil.title(name.replace("_", " ")).replace("Sp", "SP");
+                    } else {
+                        name = StringUtil.title(name);
+                    }
+                    m.put(name + " Time",
+                          ProfileMeasurementUtil.formatComparison(inner[0], inner[1], true));
+                    inner[2].appendTime(inner[0]);
+                    inner[3].appendTime(inner[0]);
                 } // FOR
+                this.lastExecMeasurements.put(executor, nextProfiler);
             }
             
             String label = "    Partition[" + partitionLabel + "]";
@@ -603,17 +606,16 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         } // FOR
         
         if (hstore_conf.site.exec_profiling) {
-            ProfileMeasurement pms[] = {
-                total.exec_time,
-                total.txn_time,
-                total.idle_time,
-                total.poll_time,
-                total.network_time,
-                total.util_time,
-            };
-            for (ProfileMeasurement pm : pms) {
-                m_exec.put(String.format("Total %s Time", StringUtil.title(pm.getType())),
-                           ProfileMeasurementUtil.formatProfileMeasurements(pm, null, true, true));    
+            for (ProfileMeasurement pm : total.getProfileMeasurements()) {
+                String name = pm.getName();
+                if (name.startsWith("SP")) {
+                    name = StringUtil.title(name.replace("_", " ")).replace("Sp", "SP");
+                } else {
+                    name = StringUtil.title(name);
+                }
+                
+                m_exec.put(String.format("Total %s Time", name),
+                           ProfileMeasurementUtil.formatComparison(pm, null, true));    
             } // FOR
             m_exec.put(" ", null);
         }
@@ -743,7 +745,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                         totals[i].appendTime(times[i-1]);
                     totals[0].appendTime(times[i-1]);
                 }
-                if (final_totals[i] == null) final_totals[i] = new ProfileMeasurement(totals[i].getType());
+                if (final_totals[i] == null) final_totals[i] = new ProfileMeasurement(totals[i].getName());
             } // FOR
         } // FOR
         if (proc_totals.isEmpty()) return (null);
@@ -761,7 +763,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             rows[i][j++] = proc.getName();
             if (first) header[0] = "";
             for (ProfileMeasurement pm : proc_totals.get(proc)) {
-                if (first) header[j] = pm.getType();
+                if (first) header[j] = pm.getName();
                 final_totals[j-1].appendTime(pm);
                 rows[i][j] = Long.toString(Math.round(pm.getTotalThinkTimeMS()));
                 j++;
@@ -857,7 +859,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         String col_delimiters[] = new String[fields.length*2 + 2];
         int col_idx = 0;
         for (ProfileMeasurement pm : fields) {
-            String prefix = pm.getType().split("_")[0];
+            String prefix = pm.getName().split("_")[0];
             assert(prefix.isEmpty() == false);
             if (last_prefix != null && col_idx > 0 && prefix.equals(last_prefix) == false) {
                 col_delimiters[col_idx+1] = " | ";        
@@ -876,7 +878,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         this.txn_profiler_header[idx++] = "";
         this.txn_profiler_header[idx++] = "txns";
         for (ProfileMeasurement pm : fields) {
-            String name = pm.getType();
+            String name = pm.getName();
             this.txn_profiler_header[idx++] = name;
             this.txn_profiler_header[idx++] = name+"_inv";
         } // FOR

@@ -109,44 +109,53 @@ public abstract class ProfileMeasurementUtil {
     // PRETTY PRINTING
     // --------------------------------------------------------------------------------------------
 
-    public static String formatProfileMeasurements(ProfileMeasurement pm, ProfileMeasurement last,
-                                                   boolean showInvocations, boolean compareLastAvg) {
-        String value = "";
+    /**
+     * Create a single-line that shows the delta for a given ProfileMeasurement
+     * from a previous one.
+     * @param pm
+     * @param last
+     * @param showInvocations
+     * @return
+     */
+    public static String formatComparison(ProfileMeasurement pm, ProfileMeasurement last,
+                                          boolean showInvocations) {
+        final String separator = "/";
+        StringBuilder value = new StringBuilder();
         if (showInvocations) {
-            value += String.format("%d invocations / ", pm.getInvocations()); 
+            value.append(String.format("%d invocations %s ", pm.getInvocations(), separator)); 
         }
         
-        String avgTime = StringUtil.formatTime("%.2f", pm.getAverageThinkTime());
-        value += String.format("%.2fms total / %s avg",
-                               pm.getTotalThinkTimeMS(), avgTime);
+        value.append(String.format("%.2fms total %s %s avg",
+                     pm.getTotalThinkTimeMS(), separator,
+                     StringUtil.formatTime("%.2f", pm.getAverageThinkTime())));
         if (last != null) {
-            double delta;
-            String deltaPrefix;
-            TimeUnit timeUnit = TimeUnit.NANOSECONDS;
-            if (compareLastAvg) {
-                delta = pm.getAverageThinkTime() - last.getAverageThinkTime();
-                deltaPrefix = "AVG: ";
-            } else {
-                if (pm.getTotalThinkTime() >= last.getTotalThinkTime()) {
+            value.append(" [");
+            for (int i = 0; i < 2; i++) {
+                if (i > 0) value.append(" ").append(separator).append(" ");
+                String deltaPrefix = "";
+                double delta;
+                // TOTAL
+                if (i == 0) {
                     delta = pm.getTotalThinkTime() - last.getTotalThinkTime();
-                    deltaPrefix = "";
+                    deltaPrefix = "TOTAL: ";
                 }
+                // AVERAGE
                 else {
-                    delta = pm.getTotalThinkTimeMS() - last.getTotalThinkTimeMS();
-                    deltaPrefix = "??? ";
-                    timeUnit = TimeUnit.MILLISECONDS;
+                    delta = pm.getAverageThinkTime() - last.getAverageThinkTime();
+                    deltaPrefix = "AVG: ";
                 }
-            }
-            String deltaTime = StringUtil.formatTime("%.2f", delta, timeUnit);
-            String deltaArrow = " ";
-            if (delta > 0) {
-                deltaArrow = StringUtil.UNICODE_UP_ARROW;
-            } else if (delta < 0) {
-                deltaArrow = StringUtil.UNICODE_DOWN_ARROW;
-            }
-            value += String.format("  [%s%s%s]", deltaPrefix, deltaArrow, deltaTime);
+                String deltaTime = StringUtil.formatTime("%.2f", delta, TimeUnit.NANOSECONDS);
+                String deltaArrow = "";
+                if (delta > 0) {
+                    deltaArrow = StringUtil.UNICODE_UP_ARROW;
+                } else if (delta < 0) {
+                    deltaArrow = StringUtil.UNICODE_DOWN_ARROW;
+                }
+                value.append(deltaPrefix + deltaArrow + deltaTime);
+            } // FOR
+            value.append("]");
         }
-        return (value);
+        return (value.toString());
     }
     
 }

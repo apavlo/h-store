@@ -18,7 +18,6 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.utils.PartitionSet;
 
 /**
@@ -107,18 +106,6 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
             
             this.origCallback.run(this.builder.build());
             this.builder = null;
-            
-            // start profile idle_waiting_dtxn_time on remote paritions
-            if (this.hstore_conf.site.exec_profiling) {
-                for (int p : this.hstore_site.getLocalPartitionIds().values()) {
-                    if (partitions.contains(p)) {
-                        PartitionExecutorProfiler pep = this.hstore_site.getPartitionExecutor(p).getProfiler();
-                        assert (pep != null);
-                        if (pep.idle_waiting_dtxn_time.isStarted()) pep.idle_waiting_dtxn_time.stop();
-                        pep.idle_waiting_dtxn_time.start();
-                    }
-                } // FOR
-            }
             
             // Bundle the prefetch queries in the txn so we can queue them up
             // At this point all of the partitions at this HStoreSite are allocated
