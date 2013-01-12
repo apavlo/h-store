@@ -168,7 +168,7 @@ public class ControlPipe implements Runnable {
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     } finally {
-                        pm.stop()
+                        pm.stop();
                         LOG.info("Drain Queue Time: " + ProfileMeasurementUtil.debug(pm));
                     }
                     break;
