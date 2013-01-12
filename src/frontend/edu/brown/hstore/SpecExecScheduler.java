@@ -235,6 +235,7 @@ public class SpecExecScheduler {
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
         if (next != null) {
+            next.markReleased(this.partitionId);
             if (this.profiling) profiler.success++;
             if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
                 this.lastIterator.remove();
