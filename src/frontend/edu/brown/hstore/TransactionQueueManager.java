@@ -135,6 +135,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     if (permits == 0) this.barrier.acquire();
                     this.last = nextTxn;
                     
+                    // HACK
+                    if (this.last.isInitialized() == false) continue;
+                    
                     if (debug.val) 
                         LOG.debug(String.format("%s - Invoking %s.run() for partition %d",
                                   nextTxn, nextTxn.getInitCallback().getClass().getSimpleName(), this.partition));

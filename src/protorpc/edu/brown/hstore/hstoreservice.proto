@@ -351,6 +351,21 @@ message TransactionRedirectResponse {
 }
 
 // -----------------------------------
+// TRANSACTION DEBUG MESSAGE
+// -----------------------------------
+
+message TransactionDebugRequest {
+    required int32 sender_site = 1;
+    required int64 transaction_id = 2;
+}
+
+message TransactionDebugResponse {
+    required int32 sender_site = 1;
+    required Status status = 2;
+    required string debug = 3;
+}
+
+// -----------------------------------
 // SEND DATA
 // -----------------------------------
 
@@ -437,6 +452,7 @@ message TimeSyncResponse {
     required int64 t1_s = 4;
 }
 
+
 // -----------------------------------
 // SERVICE
 // -----------------------------------
@@ -450,6 +466,7 @@ service HStoreService {
     rpc TransactionPrepare(TransactionPrepareRequest) returns (TransactionPrepareResponse);
     rpc TransactionFinish(TransactionFinishRequest) returns (TransactionFinishResponse);
     rpc TransactionRedirect(TransactionRedirectRequest) returns (TransactionRedirectResponse);
+    rpc TransactionDebug(TransactionDebugRequest) returns (TransactionDebugResponse);
     rpc SendData(SendDataRequest) returns (SendDataResponse);
     rpc Initialize(InitializeRequest) returns (InitializeResponse);
     rpc ShutdownPrepare(ShutdownPrepareRequest) returns (ShutdownPrepareResponse);

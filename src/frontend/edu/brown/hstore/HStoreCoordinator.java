@@ -43,6 +43,8 @@ import edu.brown.hstore.Hstoreservice.ShutdownResponse;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TimeSyncRequest;
 import edu.brown.hstore.Hstoreservice.TimeSyncResponse;
+import edu.brown.hstore.Hstoreservice.TransactionDebugRequest;
+import edu.brown.hstore.Hstoreservice.TransactionDebugResponse;
 import edu.brown.hstore.Hstoreservice.TransactionFinishRequest;
 import edu.brown.hstore.Hstoreservice.TransactionFinishResponse;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
@@ -76,6 +78,7 @@ import edu.brown.hstore.handlers.TransactionPrefetchHandler;
 import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.PrefetchQueryPlanner;
@@ -692,9 +695,10 @@ public class HStoreCoordinator implements Shutdownable {
 
         @Override
         public void timeSync(RpcController controller, TimeSyncRequest request, RpcCallback<TimeSyncResponse> done) {
-            if (debug.val) LOG.debug(String.format("Received %s from HStoreSite %s",
-                             request.getClass().getSimpleName(),
-                             HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
             
             TimeSyncResponse response = TimeSyncResponse.newBuilder()
                                                     .setT0R(System.currentTimeMillis())
@@ -702,6 +706,32 @@ public class HStoreCoordinator implements Shutdownable {
                                                     .setT0S(request.getT0S())
                                                     .setT1S(System.currentTimeMillis())
                                                     .build();
+            done.run(response);
+        }
+
+        @Override
+        public void transactionDebug(RpcController controller, TransactionDebugRequest request, RpcCallback<TransactionDebugResponse> done) {
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            
+            Long txnId = request.getTransactionId();
+            AbstractTransaction ts = hstore_site.getTransaction(txnId);
+            String debug;
+            Status status;
+            if (ts != null) {
+                debug = ts.debug();
+                status = Status.OK;
+            } else {
+                debug = "";
+                status = Status.ABORT_UNEXPECTED;
+            }
+            TransactionDebugResponse response = TransactionDebugResponse.newBuilder()
+                                                  .setSenderSite(local_site_id)
+                                                  .setStatus(status)
+                                                  .setDebug(debug)
+                                                  .build();
             done.run(response);
         }
 
@@ -1057,6 +1087,54 @@ public class HStoreCoordinator implements Shutdownable {
                 callback.run(builder.build());
             } // FOR
         }
+    }
+    
+    public Map<Integer, String> transactionDebug(Long txn_id) {
+        final CountDownLatch latch = new CountDownLatch(this.num_sites-1);
+        final Map<Integer, String> responses = new HashMap<Integer, String>();
+        
+        RpcCallback<TransactionDebugResponse> callback = new RpcCallback<TransactionDebugResponse>() {
+            @Override
+            public void run(TransactionDebugResponse response) {
+                if (response.getStatus() == Status.OK) {
+                    int site_id = response.getSenderSite();
+                    assert(responses.containsKey(site_id) == false);
+                    responses.put(site_id, response.getDebug());
+                }
+                latch.countDown();
+            }
+        };
+        
+        TransactionDebugRequest request = TransactionDebugRequest.newBuilder()
+                                           .setSenderSite(this.local_site_id)
+                                           .setTransactionId(txn_id)
+                                           .build();
+        for (int site_id = 0; site_id < this.num_sites; site_id++) {
+            if (site_id == this.local_site_id) continue;
+            this.channels[site_id].transactionDebug(new ProtoRpcController(), request, callback);
+            if (trace.val)
+                LOG.trace(String.format("Sent %s to %s",
+                          request.getClass().getSimpleName(), HStoreThreadManager.formatSiteName(site_id)));
+        } // FOR
+        
+        // Added our own debug info
+        AbstractTransaction ts = this.hstore_site.getTransaction(txn_id);
+        if (ts != null) {
+            responses.put(this.local_site_id, ts.debug());
+        }
+
+        // Then wait for all of our responses
+        boolean success = false;
+        try {
+            success = latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            // nothing
+        }
+        if (success == false) {
+            LOG.warn(String.format("Failed to recieve debug responses from %d remote HStoreSites",
+                     this.num_sites-1));
+        }
+        return (responses);
     }
     
     // ----------------------------------------------------------------------------

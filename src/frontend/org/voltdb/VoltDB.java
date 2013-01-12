@@ -223,7 +223,7 @@ public class VoltDB {
      * @return A reference to the underlying VoltDBInterface object.
      */
     public static VoltDBInterface instance() {
-        return singleton;
+        return null; //singleton;
     }
 
     /**
@@ -235,10 +235,8 @@ public class VoltDB {
      */
     public static void replaceVoltDBInstanceForTest(VoltDBInterface testInstance)
     {
-        singleton = testInstance;
+        // singleton = testInstance;
     }
-
-    private static VoltDBInterface singleton = new RealVoltDB();
 
     @Override
     public Object clone() throws CloneNotSupportedException {

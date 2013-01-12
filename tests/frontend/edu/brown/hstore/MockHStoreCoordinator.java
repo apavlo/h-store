@@ -16,6 +16,8 @@ import edu.brown.hstore.Hstoreservice.ShutdownRequest;
 import edu.brown.hstore.Hstoreservice.ShutdownResponse;
 import edu.brown.hstore.Hstoreservice.TimeSyncRequest;
 import edu.brown.hstore.Hstoreservice.TimeSyncResponse;
+import edu.brown.hstore.Hstoreservice.TransactionDebugRequest;
+import edu.brown.hstore.Hstoreservice.TransactionDebugResponse;
 import edu.brown.hstore.Hstoreservice.TransactionFinishRequest;
 import edu.brown.hstore.Hstoreservice.TransactionFinishResponse;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
@@ -190,8 +192,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             // TODO Auto-generated method stub
             
         }
+
+        @Override
+        public void transactionDebug(RpcController controller, TransactionDebugRequest request, RpcCallback<TransactionDebugResponse> done) {
+            // TODO Auto-generated method stub
+            
+        }
     }
-    
-    
 
 }
