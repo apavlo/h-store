@@ -11,7 +11,9 @@ import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionFinishRequest;
 import edu.brown.hstore.Hstoreservice.TransactionFinishResponse;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -67,10 +69,19 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     public void remoteHandler(RpcController controller, TransactionFinishRequest request,
                               RpcCallback<TransactionFinishResponse> callback) {
         assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
-        long txn_id = request.getTransactionId();
+        Long txn_id = Long.valueOf(request.getTransactionId());
         if (debug.val)
             LOG.debug(String.format("Got %s for txn #%d [status=%s]",
                       request.getClass().getSimpleName(), txn_id, request.getStatus()));
+
+        // Cancel the InitCallback if it hasn't been invoked yet
+        AbstractTransaction ts = this.hstore_site.getTransaction(txn_id);
+        if (ts != null) {
+            PartitionCountingCallback<AbstractTransaction> initCallback = ts.getInitCallback();
+            if (initCallback.isUnblocked() == false && initCallback.isAborted() == false) {
+                initCallback.cancel();
+            }
+        }
         
         this.finishPartitions.clear();
         this.finishPartitions.addAll(request.getPartitionsList());

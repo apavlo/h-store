@@ -7,7 +7,7 @@ import edu.brown.statistics.FastIntHistogram;
 
 public class TransactionQueueManagerProfiler extends AbstractProfiler {
     
-    public final FastIntHistogram concurrent_dtxn;
+    public final FastIntHistogram concurrent_dtxn = new FastIntHistogram();
     public final Set<Long> concurrent_dtxn_ids = new HashSet<Long>();
     
     /**
@@ -34,11 +34,6 @@ public class TransactionQueueManagerProfiler extends AbstractProfiler {
      * The time spent checking the blocked queue for a partition.
      */
     public final ProfileMeasurement restart_time = new ProfileMeasurement("RESTART_QUEUE");
-    
-    
-    public TransactionQueueManagerProfiler(int num_partitions) {
-        this.concurrent_dtxn = new FastIntHistogram(num_partitions+1);
-    }
     
     public void reset() {
         super.reset();

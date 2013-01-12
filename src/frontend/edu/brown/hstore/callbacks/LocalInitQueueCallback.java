@@ -53,6 +53,14 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     // ----------------------------------------------------------------------------
 
     @Override
+    public void run(int partition) {
+        if (partition != this.ts.getBasePartition() && this.hstore_site.isLocalPartition(partition)) {
+            this.hstore_site.transactionSetPartitionLock(this.ts, partition);
+        }
+        super.run(partition);
+    }
+    
+    @Override
     protected void unblockCallback() {
         assert(this.isAborted() == false);
         
@@ -82,6 +90,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
             default:
                 throw new RuntimeException(String.format("Unexpected status %s for %s", status, this.ts));
         } // SWITCH
+        // this.cancel();
     }
     
     // ----------------------------------------------------------------------------
@@ -114,17 +123,19 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     @Override
     public String toString() {
         String ret = super.toString();
-        ret += "\n-------------\n";
-        String debug = "";
-        while (true) {
-            try {
-                debug = StringUtil.join("\n", this.responses); 
-            } catch (ConcurrentModificationException ex) {
-                continue;
+        if (this.responses.isEmpty() == false) {
+            ret += "\n-------------\n";
+            String debug = "";
+            while (true) {
+                try {
+                    debug = StringUtil.join("\n", this.responses); 
+                } catch (ConcurrentModificationException ex) {
+                    continue;
+                }
+                break;
             }
-            break;
+            ret += debug;
         }
-        ret += debug; 
         return (ret);
     }
 }

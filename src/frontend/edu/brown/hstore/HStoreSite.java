@@ -2047,7 +2047,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     if (trace.val)
                         LOG.trace(String.format("%s - Decrementing %s directly for partition %d",
                                   ts, callback.getClass().getSimpleName(), partition));
-                    callback.decrementCounter(partition);
+                    callback.run(partition);
                 }
             } // FOR
         }

@@ -46,7 +46,8 @@ public abstract class HStoreConstants {
     public static final String THREAD_NAME_PREPROCESSOR = "pre";
     public static final String THREAD_NAME_POSTPROCESSOR = "post";
     public static final String THREAD_NAME_HELPER = "help";
-    public static final String THREAD_NAME_TXNQUEUE = "queue";
+    public static final String THREAD_NAME_QUEUE_MGR = "queuemgr";
+    public static final String THREAD_NAME_QUEUE_POLLER = "queuepoll";
     public static final String THREAD_NAME_COMMANDLOGGER = "cmdlg";
     public static final String THREAD_NAME_ANTICACHE = "anticache";
     public static final String THREAD_NAME_LOGGING = "logging";

@@ -62,7 +62,7 @@ public class TransactionQueueManagerProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("PARTITION", VoltType.INTEGER));
         
         // Make a dummy profiler just so that we can get the fields from it
-        TransactionQueueManagerProfiler profiler = new TransactionQueueManagerProfiler(1);
+        TransactionQueueManagerProfiler profiler = new TransactionQueueManagerProfiler();
         assert(profiler != null);
         
         columns.add(new VoltTable.ColumnInfo("AVG_CONCURRENT", VoltType.FLOAT));

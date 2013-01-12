@@ -205,7 +205,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
     // RUN
     // ----------------------------------------------------------------------------
     
-    public final void run(int partition) {
+    public void run(int partition) {
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
         if (this.decrementCounter(partition)) this.unblock();
@@ -295,9 +295,17 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
             }
             
             if (debug.val)
-                LOG.debug(String.format("%s - Invoking %s.abortCallback() [partition=%d, hashCode=%d]",
-                          this.ts, this.getClass().getSimpleName(), partition, this.hashCode()));
-            this.abortCallback(partition, status);
+                LOG.debug(String.format("%s - Invoking %s.abortCallback() [partition=%d, status=%s]",
+                          this.ts, this.getClass().getSimpleName(), partition, status));
+            try {
+                this.abortCallback(partition, status);
+            } catch (RuntimeException ex) {
+                String msg = String.format("Failed to invoke %s.abortCallback() for %s [partition=%d, status=%s]",
+                                           this.getClass().getSimpleName(), this.ts,
+                                           partition, status);
+                LOG.error(msg, ex);
+                throw ex;
+            }
             
             // If we abort, then we have to send out an ABORT to
             // all of the partitions that we originally sent INIT requests too

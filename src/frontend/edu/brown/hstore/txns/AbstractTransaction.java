@@ -185,8 +185,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // PER PARTITION EXECUTION FLAGS
     // ----------------------------------------------------------------------------
     
-    // TODO(pavlo): Document what these arrays are and how the offsets are calculated
-    
+    private final boolean queued[];
     private final boolean released[];
     private final boolean prepared[];
     private final boolean finished[];
@@ -253,8 +252,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public AbstractTransaction(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
-        
         int numPartitions = hstore_site.getCatalogContext().numberOfPartitions;
+        
+        this.queued = new boolean[numPartitions];
         this.released = new boolean[numPartitions];
         this.prepared = new boolean[numPartitions];
         this.finished = new boolean[numPartitions];
@@ -366,6 +366,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         }
         
         for (int partition : this.hstore_site.getLocalPartitionIds().values()) {
+            this.queued[partition] = false;
             this.released[partition] = false;
             this.prepared[partition] = false;
             this.finished[partition] = false;
@@ -816,14 +817,34 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // ----------------------------------------------------------------------------
     
     /**
+     * Mark this txn as being queued in the lock queue at the given partition.
+     * @param partition - The partition to mark this txn as "queued"
+     */
+    public final void markQueued(int partition) {
+        if (debug.val)
+            LOG.debug(String.format("%s - Marking as queued on partition %d %s [hashCode=%d]",
+                      this, partition, Arrays.toString(this.released), this.hashCode()));
+        assert(this.released[partition] == false) :
+            String.format("Trying to mark %s as queued to partition %d twice", this, partition);
+        this.queued[partition] = true;
+    }
+    /**
+     * Is this TransactionState marked as queued at the given partition
+     * @return
+     */
+    public final boolean isMarkedQueued(int partition) {
+        return (this.queued[partition]);
+    }
+    
+    /**
      * Mark this txn as being released from the lock queue at the given partition.
      * This means that this txn was released to that partition and will
      * need to be removed with a FinishTxnMessage
-     * @param partition - The partition to mark this txn as "queued"
+     * @param partition - The partition to mark this txn as "released"
      */
     public final void markReleased(int partition) {
         if (debug.val)
-            LOG.debug(String.format("%s - Marking as queued on partition %d %s [hashCode=%d]",
+            LOG.debug(String.format("%s - Marking as released on partition %d %s [hashCode=%d]",
                       this, partition, Arrays.toString(this.released), this.hashCode()));
         assert(this.released[partition] == false) :
             String.format("Trying to mark %s as released to partition %d twice", this, partition);
@@ -1182,6 +1203,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         maps.add(m);
 
         // Partition Execution State
+        m = new LinkedHashMap<String, Object>();
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Exec Read-Only", PartitionSet.toString(this.exec_readOnly));
         m.put("First UndoToken", Arrays.toString(this.exec_firstUndoToken));

@@ -66,6 +66,12 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
     // ----------------------------------------------------------------------------
 
     @Override
+    public void run(int partition) {
+        this.hstore_site.transactionSetPartitionLock(this.ts, partition);
+        super.run(partition);
+    }
+    
+    @Override
     protected void unblockCallback() {
         if (debug.val)
             LOG.debug(String.format("%s - Checking whether we can send back %s with status %s",

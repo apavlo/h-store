@@ -17,6 +17,8 @@ import org.voltdb.CatalogContext;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 
+import sun.nio.ch.PollSelectorProvider;
+
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -92,7 +94,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private final TransactionQueueManagerProfiler[] profilers;
 
     // ----------------------------------------------------------------------------
-    // TRANSACTIONS THAT NEED TO INIT
+    // TRANSACTIONS THAT NEED TO ADDED TO LOCK QUEUES
     // ----------------------------------------------------------------------------
 
     /**
@@ -100,6 +102,30 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * at this site.
      */
     private final BlockingQueue<AbstractTransaction> initQueue; 
+    
+    private final Thread pollingThreads[];
+    
+    private class LockQueuePoller extends ExceptionHandlingRunnable {
+        final int partition;
+        public LockQueuePoller(int partition) {
+            this.partition = partition;
+        }
+        @Override
+        public void runImpl() {
+            Thread self = Thread.currentThread();
+            String name = String.format("%s-%02d", HStoreConstants.THREAD_NAME_QUEUE_POLLER, this.partition);
+            self.setName(HStoreThreadManager.getThreadName(hstore_site, name));
+            hstore_site.getThreadManager().registerProcessingThread();
+            
+            while (stop == false) {
+                try {
+                    TransactionQueueManager.this.checkLockQueue(this.partition);
+                } catch (InterruptedException ex) {
+                    break;
+                }
+            } // WHILE
+        }
+    }
     
     // ----------------------------------------------------------------------------
     // TRANSACTIONS THAT NEED TO BE REQUEUED
@@ -125,13 +151,12 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.hstore_conf = hstore_site.getHStoreConf();
         
         CatalogContext catalogContext = hstore_site.getCatalogContext();
-        PartitionSet allPartitions = catalogContext.getAllPartitionIds();
-        int num_partitions = allPartitions.size();
         this.localPartitions = hstore_site.getLocalPartitionIds();
-        this.lockQueues = new PartitionLockQueue[num_partitions];
-        this.lockQueuesLastTxn = new Long[num_partitions];
+        this.lockQueues = new PartitionLockQueue[catalogContext.numberOfPartitions];
+        this.lockQueuesLastTxn = new Long[catalogContext.numberOfPartitions];
         this.initQueue = new LinkedBlockingQueue<AbstractTransaction>();
-        this.profilers = new TransactionQueueManagerProfiler[num_partitions];
+        this.pollingThreads = new Thread[catalogContext.numberOfPartitions];
+        this.profilers = new TransactionQueueManagerProfiler[catalogContext.numberOfPartitions];
         
         // Use updateConf() to initialize our internal values from the HStoreConf
         this.updateConf(this.hstore_conf);
@@ -149,8 +174,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             queue.setThrottleThresholdMaxSize(this.initThrottleThreshold*2);
             queue.enableProfiling(hstore_conf.site.queue_profiling);
             this.lockQueues[partition] = queue;
-            
-            this.profilers[partition] = new TransactionQueueManagerProfiler(num_partitions);
+            this.pollingThreads[partition] = new Thread(new LockQueuePoller(partition));
+            this.profilers[partition] = new TransactionQueueManagerProfiler();
         } // FOR
         Arrays.fill(this.lockQueuesLastTxn, Long.valueOf(-1l));
         
@@ -167,7 +192,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         if (debug.val)
             LOG.debug(String.format("Created %d %s for %s",
-                      num_partitions, PartitionLockQueue.class.getSimpleName(),
+                      this.localPartitions.size(), PartitionLockQueue.class.getSimpleName(),
                       hstore_site.getSiteName()));
     }
     
@@ -202,8 +227,16 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     @Override
     public void runImpl() {
         Thread self = Thread.currentThread();
-        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_TXNQUEUE));
+        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_MGR));
         this.hstore_site.getThreadManager().registerProcessingThread();
+        
+        // Start all of our polling threads
+        for (Thread t : this.pollingThreads) {
+            if (t == null) continue;
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(hstore_site.getExceptionHandler());
+            t.start();
+        } // FOR
         
         if (debug.val)
             LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
@@ -221,8 +254,12 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     String.format("Unexpected uninitialized %s for %s\n%s",
                                   callback.getClass().getSimpleName(),
                                   nextTxn, callback.toString());
-                boolean ret = (nextTxn.isAborted() == false);
+                boolean ret = (callback.isAborted() == false);
                 Status status = null;
+                
+                if (trace.val)
+                    LOG.trace(String.format("Adding %s to lock queus for partitions %s\n%s",
+                              nextTxn, nextTxn.getPredictTouchedPartitions(), callback));
                 for (int partition : nextTxn.getPredictTouchedPartitions().values()) {
                     // Skip any non-local partition
                     if (this.lockQueues[partition] == null) continue;
@@ -239,7 +276,12 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                         callback.decrementCounter(partition);
                     }
                 } // FOR
-                if (ret) added++;
+                if (ret) {
+                    added++;
+                    if (trace.val) 
+                        LOG.debug(String.format("Finished processing lock queues for %s [result=%s]",
+                                  nextTxn, ret));
+                }
             }
             
             // Requeue mispredicted local transactions
@@ -392,6 +434,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             LOG.trace(String.format("Added %s to initQueue for partition %d [queueSize=%d]",
                       ts, partition, this.lockQueues[partition].size()));
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
+        ts.markQueued(partition);
         return (Status.OK);
     }
     
@@ -400,54 +443,66 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * at the partitions controlled by this queue manager
      * Returns true if we released a transaction at at least one partition
      */
-    protected AbstractTransaction checkLockQueue(int partition) {
+    protected AbstractTransaction checkLockQueue(int partition) throws InterruptedException {
         if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.start();
         if (trace.val)
             LOG.trace(String.format("Checking lock queue for partition %d [queueSize=%d]",
                       partition, this.lockQueues[partition].size()));
         
         // Poll the queue and get the next value.
-        AbstractTransaction nextTxn = this.lockQueues[partition].poll();
-        if (nextTxn == null) return (nextTxn);
+        AbstractTransaction nextTxn = null;
+        while (nextTxn == null) {
+            nextTxn = this.lockQueues[partition].take();
+            if (nextTxn == null) continue;
 
-        PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getInitCallback();
-        assert(callback.isInitialized()) :
-            String.format("Uninitialized %s callback for %s [hashCode=%d]",
-                          callback.getClass().getSimpleName(), nextTxn, callback.hashCode());
-        
-        // If this callback has already been aborted, then there is nothing we need to
-        // do. Somebody else will make sure that this txn is removed from the queue
-        if (callback.isAborted()) {
+            PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getInitCallback();
+            assert(callback.isInitialized()) :
+                String.format("Uninitialized %s callback for %s [hashCode=%d]",
+                              callback.getClass().getSimpleName(), nextTxn, callback.hashCode());
+            
+            // HACK
+            if (nextTxn.isAborted()) {
+                if (debug.val)
+                    LOG.debug(String.format("The next txn for partition %d is %s but it is marked as aborted.",
+                              partition, nextTxn));
+                callback.decrementCounter(partition);
+                return (null);
+            }
+            // If this callback has already been aborted, then there is nothing we need to
+            // do. Somebody else will make sure that this txn is removed from the queue
+            else if (callback.isAborted()) {
+                if (debug.val)
+                    LOG.debug(String.format("The next txn for partition %d is %s but its %s is " +
+                              "marked as aborted. [queueSize=%d]",
+                              partition, nextTxn, callback.getClass().getSimpleName(),
+                              this.lockQueues[partition].size()));
+                callback.decrementCounter(partition);
+                return (null);
+            }
+    
             if (debug.val)
-                LOG.debug(String.format("The next id for partition %d is %s but its %s is " +
-                          "marked as aborted. [queueSize=%d]",
-                          partition, nextTxn, callback.getClass().getSimpleName(),
-                          this.lockQueues[partition].size()));
-            return (null);
-        }
-
-        if (debug.val)
-            LOG.debug(String.format("Good news! Partition %d is ready to execute %s! " +
-                      "Invoking %s.run()",
-                      partition, nextTxn, callback.getClass().getSimpleName()));
-        this.lockQueuesLastTxn[partition] = nextTxn.getTransactionId();
-        
-        // Mark the txn being released to the given partition
-        nextTxn.markReleased(partition);
-        
-        // Send the init request for the specified partition
-        try {
-            callback.run(partition);
-        } catch (NullPointerException ex) {
-            // HACK: Ignore...
-            if (debug.val)
-                LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
-                         callback.getClass().getSimpleName(), nextTxn, partition), ex);
-        } catch (Throwable ex) {
-            String msg = String.format("Failed to invoke %s for %s at partition %d",
-                                       callback.getClass().getSimpleName(), nextTxn, partition);
-            throw new ServerFaultException(msg, ex, nextTxn.getTransactionId());
-        }
+                LOG.debug(String.format("Good news! Partition %d is ready to execute %s! " +
+                          "Invoking %s.run()",
+                          partition, nextTxn, callback.getClass().getSimpleName()));
+            this.lockQueuesLastTxn[partition] = nextTxn.getTransactionId();
+            
+            // Mark the txn being released to the given partition
+            nextTxn.markReleased(partition);
+            
+            // Send the init request for the specified partition
+            try {
+                callback.run(partition);
+            } catch (NullPointerException ex) {
+                // HACK: Ignore...
+                if (debug.val)
+                    LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
+                             callback.getClass().getSimpleName(), nextTxn, partition), ex);
+            } catch (Throwable ex) {
+                String msg = String.format("Failed to invoke %s for %s at partition %d",
+                                           callback.getClass().getSimpleName(), nextTxn, partition);
+                throw new ServerFaultException(msg, ex, nextTxn.getTransactionId());
+            }
+        } // WHILE
         
         if (debug.val && nextTxn != null && nextTxn.isPredictSinglePartition() == false)
             LOG.debug(String.format("Finished processing lock queue for partition %d [next=%s]",
