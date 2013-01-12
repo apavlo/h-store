@@ -4256,8 +4256,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }    
     
     private void blockTransaction(InternalTxnMessage work) {
-        if (debug.val) LOG.debug(String.format("%s - Adding %s work to blocked queue",
-                         work.getTransaction(), work.getClass().getSimpleName()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Adding %s work to blocked queue",
+                      work.getTransaction(), work.getClass().getSimpleName()));
         this.currentBlockedTxns.add(work);
     }
     
@@ -4272,8 +4273,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private void releaseBlockedTransactions(AbstractTransaction ts) {
         if (this.currentBlockedTxns.isEmpty() == false) {
-            if (debug.val) LOG.debug(String.format("Attempting to release %d blocked transactions at partition %d because of %s",
-                                           this.currentBlockedTxns.size(), this.partitionId, ts));
+            if (debug.val)
+                LOG.debug(String.format("Attempting to release %d blocked transactions at partition %d because of %s",
+                          this.currentBlockedTxns.size(), this.partitionId, ts));
             this.work_queue.addAll(this.currentBlockedTxns);
             int released = this.currentBlockedTxns.size();
             this.currentBlockedTxns.clear();

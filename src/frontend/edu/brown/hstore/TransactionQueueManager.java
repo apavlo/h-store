@@ -10,14 +10,13 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
-
-import sun.nio.ch.PollSelectorProvider;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
@@ -103,10 +102,14 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      */
     private final BlockingQueue<AbstractTransaction> initQueue; 
     
-    private final Thread pollingThreads[];
+    private final LockQueuePoller lockPollers[];
     
     private class LockQueuePoller extends ExceptionHandlingRunnable {
         final int partition;
+        final Semaphore barrier = new Semaphore(1);
+        AbstractTransaction current; 
+        AbstractTransaction last;
+        
         public LockQueuePoller(int partition) {
             this.partition = partition;
         }
@@ -119,7 +122,30 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             
             while (stop == false) {
                 try {
-                    TransactionQueueManager.this.checkLockQueue(this.partition);
+                    // Grab the the next txn for this partition
+                    // This is a blocking call.
+                    this.current = TransactionQueueManager.this.checkLockQueue(this.partition);
+
+                    // Block here until we know that the previous txn is finished
+                    // at this partition.
+                    this.barrier.acquire();
+                    this.last = this.current;
+                    
+                    // Send the init request for the specified partition
+                    try {
+                        this.current.getInitCallback().run(this.partition);
+                    } catch (NullPointerException ex) {
+                        // HACK: Ignore...
+                        if (debug.val)
+                            LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
+                                     this.current.getInitCallback().getClass().getSimpleName(),
+                                     this.current, this.partition), ex);
+                    } catch (Throwable ex) {
+                        String msg = String.format("Failed to invoke %s for %s at partition %d",
+                                                   this.current.getInitCallback().getClass().getSimpleName(),
+                                                   this.current, this.partition);
+                        throw new ServerFaultException(msg, ex, this.current.getTransactionId());
+                    }
                 } catch (InterruptedException ex) {
                     break;
                 }
@@ -154,8 +180,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.localPartitions = hstore_site.getLocalPartitionIds();
         this.lockQueues = new PartitionLockQueue[catalogContext.numberOfPartitions];
         this.lockQueuesLastTxn = new Long[catalogContext.numberOfPartitions];
+        this.lockPollers = new LockQueuePoller[catalogContext.numberOfPartitions];
         this.initQueue = new LinkedBlockingQueue<AbstractTransaction>();
-        this.pollingThreads = new Thread[catalogContext.numberOfPartitions];
         this.profilers = new TransactionQueueManagerProfiler[catalogContext.numberOfPartitions];
         
         // Use updateConf() to initialize our internal values from the HStoreConf
@@ -174,7 +200,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             queue.setThrottleThresholdMaxSize(this.initThrottleThreshold*2);
             queue.enableProfiling(hstore_conf.site.queue_profiling);
             this.lockQueues[partition] = queue;
-            this.pollingThreads[partition] = new Thread(new LockQueuePoller(partition));
+            this.lockPollers[partition] = new LockQueuePoller(partition);
             this.profilers[partition] = new TransactionQueueManagerProfiler();
         } // FOR
         Arrays.fill(this.lockQueuesLastTxn, Long.valueOf(-1l));
@@ -231,8 +257,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.hstore_site.getThreadManager().registerProcessingThread();
         
         // Start all of our polling threads
-        for (Thread t : this.pollingThreads) {
-            if (t == null) continue;
+        for (LockQueuePoller poller : this.lockPollers) {
+            if (poller == null) continue;
+            Thread t = new Thread(poller);
             t.setDaemon(true);
             t.setUncaughtExceptionHandler(hstore_site.getExceptionHandler());
             t.start();
@@ -466,7 +493,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     LOG.debug(String.format("The next txn for partition %d is %s but it is marked as aborted.",
                               partition, nextTxn));
                 callback.decrementCounter(partition);
-                return (null);
+                nextTxn = null;
+                continue;
             }
             // If this callback has already been aborted, then there is nothing we need to
             // do. Somebody else will make sure that this txn is removed from the queue
@@ -477,7 +505,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                               partition, nextTxn, callback.getClass().getSimpleName(),
                               this.lockQueues[partition].size()));
                 callback.decrementCounter(partition);
-                return (null);
+                nextTxn = null;
+                continue;
             }
     
             if (debug.val)
@@ -488,20 +517,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             
             // Mark the txn being released to the given partition
             nextTxn.markReleased(partition);
-            
-            // Send the init request for the specified partition
-            try {
-                callback.run(partition);
-            } catch (NullPointerException ex) {
-                // HACK: Ignore...
-                if (debug.val)
-                    LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
-                             callback.getClass().getSimpleName(), nextTxn, partition), ex);
-            } catch (Throwable ex) {
-                String msg = String.format("Failed to invoke %s for %s at partition %d",
-                                           callback.getClass().getSimpleName(), nextTxn, partition);
-                throw new ServerFaultException(msg, ex, nextTxn.getTransactionId());
-            }
         } // WHILE
         
         if (debug.val && nextTxn != null && nextTxn.isPredictSinglePartition() == false)
@@ -535,11 +550,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // Note that this is always thread-safe because we will release the lock
         // only if we are the current transaction at this partition
         boolean checkQueue = true;
-        if (this.lockQueues[partition].getLastTransactionId().equals(ts.getTransactionId())) {
-            if (debug.val)
-                LOG.debug(String.format("Unlocking partition %d because %s is finished " +
-            	          "[status=%s]",
-                          partition, ts, status));
+        if (ts == this.lockPollers[partition].last) {
+            if (trace.val)
+                LOG.trace(String.format("Releasing lockPoller for partition %d because %s is finished",
+                          partition, ts));
+            this.lockPollers[partition].barrier.release();
             checkQueue = false;
         }
         
