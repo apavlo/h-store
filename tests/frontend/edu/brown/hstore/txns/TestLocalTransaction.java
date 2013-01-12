@@ -148,10 +148,14 @@ public class TestLocalTransaction extends BaseTestCase {
             this.tsDebug.clearReadWriteSets();
             for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
                 tableIds = catalogContext.getReadTableIds(Long.valueOf(catalog_frag.getId()));
-                ts.markTableIdsAsRead(BASE_PARTITION, tableIds);
+                if (tableIds != null) {
+                    ts.markTableIdsAsRead(BASE_PARTITION, tableIds);
+                }
                 
                 tableIds = catalogContext.getWriteTableIds(Long.valueOf(catalog_frag.getId()));
-                ts.markTableIdsAsWritten(BASE_PARTITION, tableIds);
+                if (tableIds != null) {
+                    ts.markTableIdsAsWritten(BASE_PARTITION, tableIds);
+                }
             } // FOR
 
             for (Table catalog_tbl : CatalogUtil.getAllTables(catalog_stmt)) {
