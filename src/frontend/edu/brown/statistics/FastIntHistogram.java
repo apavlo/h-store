@@ -579,7 +579,7 @@ public class FastIntHistogram implements Histogram<Integer> {
             }
         } // FOR
         stringer.key(Members.HISTOGRAM.name()).array();
-        for (int i = 0; i < maxSize; i++) {
+        for (int i = 0; i <= maxSize; i++) {
             stringer.value(this.histogram[i]);
         } // FOR
         stringer.endArray();
@@ -598,8 +598,7 @@ public class FastIntHistogram implements Histogram<Integer> {
     public void fromJSON(JSONObject object, Database catalog_db) throws JSONException {
         JSONArray jsonArr = object.getJSONArray(Members.HISTOGRAM.name());
         this.histogram = new long[jsonArr.length()];
-        this.num_values = 0;
-        this.num_samples = 0;
+        this.clear();
         for (int i = 0; i < this.histogram.length; i++) {
             long delta = jsonArr.getLong(i);
             if (delta != NULL_COUNT) this.put(i, delta);
