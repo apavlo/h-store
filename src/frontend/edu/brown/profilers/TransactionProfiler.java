@@ -52,10 +52,11 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     private long startInner(ProfileMeasurement expected_parent, ProfileMeasurement next, boolean stopParent) {
         if (debug.val)
             LOG.debug(String.format("Start PARENT[%s] -> NEXT[%s]", expected_parent, next));
-        assert (this.stack.size() > 0);
-        assert (this.stack.peek() == expected_parent) : String.format(
-                "Unexpected state %s: PARENT[%s] -> NEXT[%s]\n%s", this.stack.peek(), expected_parent.getName(),
-                next.getName(), StringUtil.join("\n", this.stack));
+        assert(this.stack.size() > 0);
+        assert(this.stack.peek() == expected_parent) :
+            String.format("Unexpected state %s: PARENT[%s] -> NEXT[%s]\n%s",
+                          this.stack.peek(), expected_parent.getName(),
+                          next.getName(), StringUtil.join("\n", this.stack));
         long timestamp = ProfileMeasurement.getTime();
         if (stopParent) {
             ProfileMeasurementUtil.swap(timestamp, expected_parent, next);
@@ -69,13 +70,14 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     private long stopInner(ProfileMeasurement expected_current, ProfileMeasurement next, boolean startNext) {
         if (debug.val)
             LOG.debug(String.format("Stop PARENT[%s] <- CURRENT[%s]", next, expected_current));
-        assert (this.stack.size() > 0);
+        assert(this.stack.size() > 0);
         ProfileMeasurement pm = this.stack.pop();
-        assert (pm == expected_current) : String
-                .format("Expected current state %s but was %s! [expectedParent=%s]\n%s", expected_current, pm, next,
-                        this.stack);
-        assert (next == this.stack.peek()) : String.format("Expected current parent %s but was %s! [inner=%s]", next,
-                this.stack.peek(), expected_current);
+        assert(pm == expected_current) :
+            String.format("Expected current state %s but was %s! [expectedParent=%s]\n%s",
+                          expected_current, pm, next, this.stack);
+        assert(next == this.stack.peek()) :
+            String.format("Expected current parent %s but was %s! [inner=%s]",
+                          next, this.stack.peek(), expected_current);
         long timestamp = ProfileMeasurement.getTime();
         if (startNext) {
             ProfileMeasurementUtil.swap(timestamp, expected_current, next);
@@ -84,7 +86,22 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         }
         return (timestamp);
     }
-
+    
+    private ProfileMeasurement popStack(ProfileMeasurement search, long timestamp) {
+        ProfileMeasurement pm = null;
+        while (this.stack.isEmpty() == false) {
+            pm = this.stack.pop();
+            assert(pm != null);
+            if (debug.val)
+                LOG.debug("STOP " + pm.getName());
+            if (pm == search) break;
+            pm.stop(timestamp);
+        } // WHILE
+        assert(pm == search);
+        return (pm);
+    }
+    
+    
     // private void startGlobal(ProfileMeasurement global_pm) {
     // assert(this.stack.size() > 0);
     // ProfileMeasurement parent = this.stack.peek();
@@ -146,15 +163,15 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         long timestamp = ProfileMeasurement.getTime();
         while (this.stack.isEmpty() == false) {
             ProfileMeasurement pm = this.stack.pop();
-            assert (pm != null);
+            assert(pm != null);
             if (debug.val)
                 LOG.debug("STOP " + pm.getName());
-            assert (pm.isStarted()) : pm.debug();
+            assert(pm.isStarted()) : pm.debug();
             pm.stop(timestamp);
-            assert (pm.isStarted() == false) : pm.debug();
+            assert(pm.isStarted() == false) : pm.debug();
         } // WHILE
-        assert (this.stack.isEmpty());
-        assert (this.isStopped());
+        assert(this.stack.isEmpty());
+        assert(this.isStopped());
 
         // Decrement POST_EE/POST_CLIENT from POST_FINISH
         for (ProfileMeasurement pm : new ProfileMeasurement[] { pm_post_ee, pm_post_client }) {
@@ -165,29 +182,25 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     }
 
     public void startSerialization() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.pm_serialize.start();
         // this.startGlobal(this.pm_serialize);
     }
 
     public void stopSerialization() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.pm_serialize.stop();
         // this.stopGlobal(this.pm_serialize);
     }
 
     public void startDeserialization() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.pm_deserialize.start();
         // this.startGlobal(this.pm_deserialize);
     }
 
     public void stopDeserialization() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.pm_deserialize.stop();
         // this.stopGlobal(this.pm_deserialize);
     }
@@ -197,7 +210,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     // ---------------------------------------------------------------
 
     /**
-     * The time spent setting up the transaction before it is queued in either an ExecutionSite or with the
+     * The time spent setting up the transaction before it is queued in either an PartitionExecutor or with the
      * Dtxn.Coordinator
      */
     protected final ProfileMeasurement pm_init_total = new ProfileMeasurement("INIT_TOTAL");
@@ -206,35 +219,31 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      */
     protected final ProfileMeasurement pm_init_est = new ProfileMeasurement("INIT_EST");
     /**
-     * Time spent waiting in the DTXN queue
+     * Time spent waiting in the initialization queue
      */
-    protected final ProfileMeasurement pm_init_dtxn = new ProfileMeasurement("INIT_DTXN");
+    protected final ProfileMeasurement pm_init_queue = new ProfileMeasurement("INIT_QUEUE");
 
     /**
      * 
      */
     public void startInitEstimation() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.startInner(this.pm_init_total, this.pm_init_est, false);
     }
 
     public void stopInitEstimation() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.stopInner(this.pm_init_est, this.pm_init_total, false);
     }
 
-    public void startInitDtxn() {
-        if (this.disabled)
-            return;
-        this.startInner(this.pm_init_total, this.pm_init_dtxn, false);
+    public void startInitQueue() {
+        if (this.disabled) return;
+        this.startInner(this.pm_init_total, this.pm_init_queue, false);
     }
 
-    public void stopInitDtxn() {
-        if (this.disabled)
-            return;
-        long timestamp = this.stopInner(this.pm_init_dtxn, this.pm_init_total, false);
+    public void stopInitQueue() {
+        if (this.disabled) return;
+        long timestamp = this.stopInner(this.pm_init_queue, this.pm_init_total, false);
         if (this.singlePartitioned == false) {
             this.pm_first_remote_query.start(timestamp);
         }
@@ -246,7 +255,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * on the first invocation.
      */
     public void markRemoteQuery() {
-        assert (this.singlePartitioned == false);
+        assert(this.singlePartitioned == false);
         if (this.pm_first_remote_query.isStarted()) {
             long timestamp = ProfileMeasurement.getTime();
             this.pm_first_remote_query.stop(timestamp);
@@ -259,7 +268,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * Mark that the results needed from a remote query has arrived.
      */
     public void markRemoteQueryResult() {
-        assert (this.singlePartitioned == false);
+        assert(this.singlePartitioned == false);
         if (this.pm_first_remote_query_result.isStarted()) {
             this.pm_first_remote_query_result.stop();
         }
@@ -270,7 +279,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * from a remote query.
      */
     public void markRemoteQueryAccess() {
-        assert (this.singlePartitioned == false);
+        assert(this.singlePartitioned == false);
         if (this.pm_first_remote_query_access.isStarted()) {
             this.pm_first_remote_query_access.stop();
         }
@@ -281,34 +290,35 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     // ---------------------------------------------------------------
 
     /**
+     * Time spent waiting in the PartitionLockQueue
+     */
+    protected final ProfileMeasurement pm_queue_lock = new ProfileMeasurement("QUEUE_LOCK");
+    
+    /**
      * Time spent waiting in the PartitionExecutor queue
      */
-    protected final ProfileMeasurement pm_queue = new ProfileMeasurement("QUEUE");
-
-    public void startQueue() {
-        if (this.disabled)
-            return;
-        assert (this.stack.size() > 0);
-        assert (this.stack.peek() != this.pm_queue) : "Duplicate calls for " + this.pm_queue;
+    protected final ProfileMeasurement pm_queue_exec = new ProfileMeasurement("QUEUE_EXEC");
+    
+    public void startQueueLock() {
+        if (this.disabled) return;
+        assert(this.stack.size() > 0);
+        assert(this.stack.peek() != this.pm_queue_lock) : "Duplicate calls for " + this.pm_queue_lock;
         long timestamp = ProfileMeasurement.getTime();
-
-        // We can either be put in an PartitionExecutor queue directly in HStoreSite
-        // or after we get a response from the coordinator
-        ProfileMeasurement pm = null;
-        while (this.stack.isEmpty() == false) {
-            pm = this.stack.pop();
-            assert (pm != null);
-            if (debug.val)
-                LOG.debug("STOP " + pm.getName());
-            if (pm == this.pm_init_total)
-                break;
-            pm.stop(timestamp);
-        } // WHILE
-
-        if (debug.val)
-            LOG.debug("START " + this.pm_queue.getName());
-        ProfileMeasurementUtil.swap(timestamp, pm, this.pm_queue);
-        this.stack.push(this.pm_queue);
+        ProfileMeasurement pm = this.popStack(this.pm_init_total, timestamp);
+        if (debug.val) LOG.debug("START " + this.pm_queue_lock.getName());
+        ProfileMeasurementUtil.swap(timestamp, pm, this.pm_queue_lock);
+        this.stack.push(this.pm_queue_lock);
+    }
+    
+    public void startQueueExec() {
+        if (this.disabled) return;
+        assert(this.stack.size() > 0);
+        assert(this.stack.peek() != this.pm_queue_exec) : "Duplicate calls for " + this.pm_queue_exec;
+        long timestamp = ProfileMeasurement.getTime();
+        ProfileMeasurement pm = this.popStack(this.pm_queue_lock, timestamp);
+        if (debug.val) LOG.debug("START " + this.pm_queue_exec.getName());
+        ProfileMeasurementUtil.swap(timestamp, pm, this.pm_queue_exec);
+        this.stack.push(this.pm_queue_exec);
     }
 
     // ---------------------------------------------------------------
@@ -317,7 +327,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
 
     /**
      * The total time spent executing the transaction This starts when the transaction is removed from the
-     * ExecutionSite's queue until it finishes
+     * PartitionExecutor's queue until it finishes
      */
     protected final ProfileMeasurement pm_exec_total = new ProfileMeasurement("EXEC_TOTAL");
     /**
@@ -342,17 +352,25 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     protected final ProfileMeasurement pm_exec_est = new ProfileMeasurement("EXEC_EST");
 
     /**
-     * Invoked when the txn has been removed from the queue and is starting to execute at a local ExecutionSite
+     * Invoked when the txn has been removed from the queue and is starting to execute at a local PartitionExecutor
      */
     public void startExec() {
-        if (this.disabled)
-            return;
-        assert (this.stack.size() > 0);
+        if (this.disabled) return;
+        assert(this.stack.size() > 0);
         ProfileMeasurement current = this.stack.pop();
-        assert (current != this.pm_exec_total) : "Trying to start txn execution twice!";
-        assert (current == this.pm_queue) : "Trying to start execution before txn was queued (" + current + ")";
+        assert(current != this.pm_exec_total) : "Trying to start txn execution twice!";
+        assert(current == this.pm_queue_exec) : "Trying to start execution before txn was queued (" + current + ")";
         ProfileMeasurementUtil.swap(current, this.pm_exec_total);
         this.stack.push(this.pm_exec_total);
+    }
+    
+    /**
+     * Invoked when the txn is going to be speculatively executed at a local PartitionExecutor
+     */
+    public void startSpecExec() {
+        if (this.disabled) return;
+        this.startQueueExec();
+        this.startExec();
     }
 
     public void startExecJava() {
@@ -446,7 +464,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public void startPost() {
         if (this.disabled)
             return;
-        assert (this.stack.size() > 0);
+        assert(this.stack.size() > 0);
         ProfileMeasurement current = null;
         while ((current = this.stack.pop()) != this.pm_exec_total) {
             // Keep this ball rollin'
@@ -454,7 +472,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
             if (trace.val)
                 LOG.trace("-> STOPPED: " + current + "[" + current.hashCode() + "]");
         } // WHILE
-        assert (current == this.pm_exec_total) : "Unexpected " + current;
+        assert(current == this.pm_exec_total) : "Unexpected " + current;
         if (trace.val)
             LOG.trace("STATUS: " + current.debug() + "[" + current.hashCode() + "]");
         if (current.isStarted() == false) {
@@ -537,7 +555,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
 
     @Override
     public void copy(AbstractProfiler other) {
-        assert (other instanceof TransactionProfiler);
+        assert(other instanceof TransactionProfiler);
         super.copy(other);
 
         // Stop anything that is already started

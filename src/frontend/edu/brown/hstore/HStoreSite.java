@@ -1813,12 +1813,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
 
     /**
-     * Queue a new transaction for execution. If it is a single-partition txn, then it will
-     * be queued at its base partition's PartitionExecutor queue. If it is distributed transaction,
-     * then it will need to first acquire the locks for all of the partitions that it wants to
-     * access.
-     * <B>Note:</B> This method should only be used for distributed transactions.
-     * Single-partition txns should be queued up directly within their base PartitionExecutor.
+     * Queue a new transaction for initialization and execution.
+     * If it is a single-partition txn, then it will be queued at its base 
+     * partition's PartitionExecutor queue. If it is distributed transaction,
+     * then it will need to first acquire the locks for all of the partitions
+     * that it wants to access.
      * @param ts
      */
     public void transactionQueue(LocalTransaction ts) {
@@ -1835,34 +1834,34 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                       ts, (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), 
                       ts.getBasePartition(), ts.getClientHandle()));
         
-        // This callback prevents us from making additional requests to the Dtxn.Coordinator until
-        // we get hear back about our our initialization request
-        // SlowTransactionInitCallback callback = ts.initTransactionInitCallback();
         if (ts.isPredictSinglePartition()) {
             this.transactionInit(ts);
         }
         else {
-            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitDtxn();
             LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
             this.hstore_coordinator.transactionInit(ts, initCallback);
         }
     }
     
     /**
-     * Queue the given transaction to be initialized
+     * Queue the given transaction to be initialized in the local TransactionQueueManager.
+     * This is a non-blocking call.
      * @param ts
      */
     public void transactionInit(AbstractTransaction ts) {
         assert(ts.isInitialized()) : "Uninitialized transaction handle [" + ts + "]";
+        if (hstore_conf.site.txn_profiling && ts instanceof LocalTransaction) {
+            LocalTransaction localTxn = (LocalTransaction)ts;
+            if (localTxn.profiler != null) localTxn.profiler.startInitQueue();
+        }
         this.txnQueueManager.initTransaction(ts);
-        
-//        for (int partition : ts.getPredictTouchedPartitions().values()) {
-//            if (this.isLocalPartition(partition)) {
-//                this.executors[partition].queueInit(ts);
-//            }
-//        } // FOR
     }
     
+    /**
+     * Pass a message that sets the current distributed txn at the target partition
+     * @param ts
+     * @param partition
+     */
     public void transactionSetPartitionLock(AbstractTransaction ts, int partition) {
         assert(ts.isInitialized()) : "Uninitialized transaction handle [" + ts + "]";
         assert(this.isLocalPartition(partition)) :
@@ -1888,7 +1887,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(this.executors[ts.getBasePartition()] != null) :
             "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + ts.getBasePartition() + " at HStoreSite " + this.site_id;
         
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueueExec();
         final boolean success = this.executors[ts.getBasePartition()].queueNewTransaction(ts);
         
         if (success == false) {

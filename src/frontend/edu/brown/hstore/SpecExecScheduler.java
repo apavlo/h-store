@@ -33,7 +33,7 @@ public class SpecExecScheduler {
     }
     
     private final int partitionId;
-    private final PartitionLockQueue work_queue;
+    private final PartitionLockQueue queue;
     private AbstractConflictChecker checker;
     private SpecExecSchedulerPolicyType policyType;
     private int window_size = 1;
@@ -57,15 +57,15 @@ public class SpecExecScheduler {
      * @param catalogContext
      * @param checker TODO
      * @param partitionId
-     * @param work_queue
+     * @param queue
      */
     public SpecExecScheduler(AbstractConflictChecker checker,
-                             int partitionId, PartitionLockQueue work_queue,
+                             int partitionId, PartitionLockQueue queue,
                              SpecExecSchedulerPolicyType schedule_policy, int window_size) {
         assert(schedule_policy != null) : "Unsupported schedule policy parameter passed in";
         
         this.partitionId = partitionId;
-        this.work_queue = work_queue;
+        this.queue = queue;
         this.checker = checker;
         this.policyType = schedule_policy;
         this.window_size = window_size;
@@ -131,7 +131,7 @@ public class SpecExecScheduler {
         if (debug.val) {
             LOG.debug(String.format("%s - Checking queue for transaction to speculatively execute " +
         		      "[specType=%s, queueSize=%d, policy=%s]",
-                      dtxn, specType, this.work_queue.size(), this.policyType));
+                      dtxn, specType, this.queue.size(), this.policyType));
             if (trace.val)
                 LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
                           dtxn, this.lastDtxn, this.lastSpecType, this.lastIterator));
@@ -160,11 +160,11 @@ public class SpecExecScheduler {
                 this.lastDtxn != dtxn ||
                 this.lastSpecType != specType ||
                 this.lastIterator == null ||
-                (this.ignore_queue_size_change == false && this.lastSize != this.work_queue.size())) {
-            this.lastIterator = this.work_queue.iterator();    
+                (this.ignore_queue_size_change == false && this.lastSize != this.queue.size())) {
+            this.lastIterator = this.queue.iterator();    
         }
         boolean resetIterator = true;
-        if (this.profiling) profiler.queue_size.put(this.work_queue.size());
+        if (this.profiling) profiler.queue_size.put(this.queue.size());
         while (this.lastIterator.hasNext()) {
             AbstractTransaction txn = this.lastIterator.next();
             assert(txn != null) : "Null transaction handle " + txn;
@@ -199,7 +199,11 @@ public class SpecExecScheduler {
                 continue;
             }
             try {
-                if (this.checker.canExecute(dtxn, localTxn, this.partitionId)) {
+                // We can execute anything when we are in 2PC
+                // Otherwise, we have to use our conflict checker
+                if (specType == SpeculationType.SP3_LOCAL ||
+                        specType == SpeculationType.SP3_REMOTE ||
+                        this.checker.canExecute(dtxn, localTxn, this.partitionId)) {
                     if (next == null) {
                         next = localTxn;
                         // Scheduling Policy: FIRST MATCH
@@ -240,12 +244,12 @@ public class SpecExecScheduler {
             if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
                 this.lastIterator.remove();
             } else {
-                this.work_queue.remove(next);
+                this.queue.remove(next);
             }
             if (debug.val)
                 LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
-        else if (debug.val && this.work_queue.isEmpty() == false) {
+        else if (debug.val && this.queue.isEmpty() == false) {
             LOG.debug(String.format("%s - Failed to find non-conflicting speculative txn " +
             		  "[txnCtr=%d, examinedCtr=%d]",
                       dtxn, txn_ctr, examined_ctr));
@@ -254,7 +258,7 @@ public class SpecExecScheduler {
         this.lastDtxn = dtxn;
         this.lastSpecType = specType;
         if (resetIterator) this.lastIterator = null;
-        else if (this.ignore_queue_size_change == false) this.lastSize = this.work_queue.size();
+        else if (this.ignore_queue_size_change == false) this.lastSize = this.queue.size();
         if (this.profiling) profiler.total_time.stop();
         return (next);
     }

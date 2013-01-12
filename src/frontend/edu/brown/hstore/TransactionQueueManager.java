@@ -219,6 +219,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 // IGNORE
             }
             if (nextTxn != null) {
+                if (hstore_conf.site.txn_profiling && nextTxn instanceof LocalTransaction) {
+                    LocalTransaction localTxn = (LocalTransaction)nextTxn;
+                    if (localTxn.profiler != null) localTxn.profiler.startQueueLock();
+                }
+                
                 PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getInitCallback();
                 assert(callback.isInitialized()) :
                     String.format("Unexpected uninitialized %s for %s\n%s",
@@ -239,7 +244,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     if (ret) {
                         status = this.lockQueueInsert(nextTxn, partition, callback);
                         if (status != Status.OK) ret = false;
-
                     // IMPORTANT: But we still need to go through and decrement the
                     // callback's counter for those other partitions.
                     } else {
