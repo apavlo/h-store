@@ -854,40 +854,42 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     }
                     
                     // If we get something back here, then it should become our current transaction.
-//                    if (nextTxn != null) {
-//                        // If it's a single-partition txn, then we can return the StartTxnMessage 
-//                        // so that we can fire it off right away.
-//
-//                        // If this a single-partition txn, then we'll want to execute it right away
-//                        if (nextTxn.isPredictSinglePartition()) {
-//                            // nextWork = ((LocalTransaction)nextTxn).getStartTxnMessage();
-//                        }
-//                        // If it's as distribued txn, then we'll want to just set it as our 
-//                        // current dtxn at this partition and then keep checking the queue
-//                        // for more work.
-//                        else {
-//                            this.setCurrentDtxn(nextTxn);
-//                            this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
-//                            if (hstore_conf.site.exec_profiling) profiler.idle_queue_dtxn_time.start();
-//                        }
-//                    }
+                    if (nextTxn != null) {
+                        // If it's a single-partition txn, then we can return the StartTxnMessage 
+                        // so that we can fire it off right away.
+
+                        // If this a single-partition txn, then we'll want to execute it right away
+                        if (nextTxn.isPredictSinglePartition()) {
+                            nextWork = ((LocalTransaction)nextTxn).getStartTxnMessage();
+                        }
+                        // If it's as distribued txn, then we'll want to just set it as our 
+                        // current dtxn at this partition and then keep checking the queue
+                        // for more work.
+                        else {
+                            this.setCurrentDtxn(nextTxn);
+                            this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
+                            if (hstore_conf.site.exec_profiling) profiler.idle_queue_dtxn_time.start();
+                        }
+                    }
                 }
                 
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
+                
                 // Check if we have anything to do right now
-                if (hstore_conf.site.exec_profiling) profiler.idle_time.start();
-                try {
-                    nextWork = this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT);
-                } catch (InterruptedException ex) {
-                    continue;
-                } finally {
-                    if (hstore_conf.site.exec_profiling) { 
-                        profiler.idle_time.stopIfStarted();
-                        if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
+                if (nextWork == null) {
+                    if (hstore_conf.site.exec_profiling) profiler.idle_time.start();
+                    try {
+                        nextWork = this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT);
+                    } catch (InterruptedException ex) {
+                        continue;
+                    } finally {
+                        if (hstore_conf.site.exec_profiling) { 
+                            profiler.idle_time.stopIfStarted();
+                            if (this.currentDtxn != null) profiler.idle_queue_dtxn_time.stopIfStarted();
+                        }
                     }
-
                 }
                 // Check if we have any utility work to do while we wait
                 if (nextWork == null && hstore_conf.site.specexec_enable) {
@@ -895,7 +897,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
                                   this.work_queue.getClass().getSimpleName(), this.partitionId));
                     if (this.utilityWork()) {
-                        // FIXME nextWork = UTIL_WORK_MSG; // FIXME
+                        nextWork = UTIL_WORK_MSG;
                     }
                 }
                 
@@ -906,7 +908,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (trace.val) LOG.trace("Next Work: " + nextWork);
                     if (hstore_conf.site.exec_profiling) {
                         profiler.exec_time.start();
-                        profiler.numMessages++;
+                        profiler.numMessages.put(nextWork.getClass().getSimpleName());
                     }
                     try {
                         this.processInternalMessage(nextWork);

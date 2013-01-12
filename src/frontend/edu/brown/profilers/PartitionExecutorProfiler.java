@@ -1,5 +1,9 @@
 package edu.brown.profilers;
 
+import edu.brown.hstore.internal.InternalMessage;
+import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
+
 public class PartitionExecutorProfiler extends AbstractProfiler {
 
     /**
@@ -13,7 +17,7 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     /**
      * Counter for the number of messages processed at this partition
      */
-    public long numMessages = 0;
+    public Histogram<String> numMessages = new ObjectHistogram<String>();
     
     // ----------------------------------------------------------------------------
     // GLOBAL MEASUREMENTS

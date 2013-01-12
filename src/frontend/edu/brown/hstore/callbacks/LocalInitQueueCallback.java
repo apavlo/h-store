@@ -52,13 +52,13 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
 
-    @Override
-    public void run(int partition) {
-        if (partition != this.ts.getBasePartition() && this.hstore_site.isLocalPartition(partition)) {
-            this.hstore_site.transactionSetPartitionLock(this.ts, partition);
-        }
-        super.run(partition);
-    }
+//    @Override
+//    public void run(int partition) {
+//        if (partition != this.ts.getBasePartition() && this.hstore_site.isLocalPartition(partition)) {
+//            this.hstore_site.transactionSetPartitionLock(this.ts, partition);
+//        }
+//        super.run(partition);
+//    }
     
     @Override
     protected void unblockCallback() {
@@ -67,10 +67,10 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
         // HACK: If this is a single-partition txn, then we don't
         // need to submit it for execution because the PartitionExecutor
         // will fire it off right away
-        // if (this.ts.isPredictSinglePartition() == false) {
+        if (this.ts.isPredictSinglePartition() == false) {
             if (debug.val) LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
             this.hstore_site.transactionStart(this.ts);
-        // }
+        }
     }
 
     @Override
@@ -97,7 +97,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     // RPC CALLBACK
     // ----------------------------------------------------------------------------
 
-    @Override
+//    @Override
     public void run(TransactionInitResponse response) {
         if (debug.val)
             LOG.debug(String.format("%s - Got %s with status %s from partitions %s",

@@ -65,11 +65,11 @@ public class RemoteInitQueueCallback extends PartitionCountingCallback<RemoteTra
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
 
-    @Override
-    public void run(int partition) {
-        this.hstore_site.transactionSetPartitionLock(this.ts, partition);
-        super.run(partition);
-    }
+//    @Override
+//    public void run(int partition) {
+//        this.hstore_site.transactionSetPartitionLock(this.ts, partition);
+//        super.run(partition);
+//    }
     
     @Override
     protected void unblockCallback() {

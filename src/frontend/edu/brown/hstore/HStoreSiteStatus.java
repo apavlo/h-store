@@ -542,9 +542,11 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             
 
             if (profiler != null) {
-                m.put("Work Queue", String.format("%d current / %d processed",
-                                                  executorDebug.getWorkQueueSize(),
-                                                  profiler.numMessages));
+                String inner = String.format("%d current / %d processed\n%s",
+                                                executorDebug.getWorkQueueSize(),
+                                                profiler.numMessages.getSampleCount(),
+                                                profiler.numMessages.toString(30, 20));
+                m.put("Work Queue", inner);
             } else {
                 m.put("Work Queue", String.format("%d current", executorDebug.getWorkQueueSize()));
             }
