@@ -12,6 +12,7 @@ import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
+import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 
 public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage> {
@@ -57,6 +58,7 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
     private static final Comparator<InternalMessage> WORK_COMPARATOR = new Comparator<InternalMessage>() {
         @SuppressWarnings("unchecked")
         private final Class<? extends InternalMessage> compareOrder[] = (Class<? extends InternalMessage>[])new Class<?>[]{
+            SetDistributedTxnMessage.class,
             InitializeTxnMessage.class,
             PrepareTxnMessage.class,
             FinishTxnMessage.class,

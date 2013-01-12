@@ -185,7 +185,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // PER PARTITION EXECUTION FLAGS
     // ----------------------------------------------------------------------------
     
-    private final boolean queued[];
     private final boolean released[];
     private final boolean prepared[];
     private final boolean finished[];
@@ -254,7 +253,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.hstore_site = hstore_site;
         int numPartitions = hstore_site.getCatalogContext().numberOfPartitions;
         
-        this.queued = new boolean[numPartitions];
         this.released = new boolean[numPartitions];
         this.prepared = new boolean[numPartitions];
         this.finished = new boolean[numPartitions];
@@ -366,7 +364,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         }
         
         for (int partition : this.hstore_site.getLocalPartitionIds().values()) {
-            this.queued[partition] = false;
             this.released[partition] = false;
             this.prepared[partition] = false;
             this.finished[partition] = false;
@@ -815,26 +812,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // ----------------------------------------------------------------------------
     // TRANSACTION STATE BOOKKEEPING
     // ----------------------------------------------------------------------------
-    
-    /**
-     * Mark this txn as being queued in the lock queue at the given partition.
-     * @param partition - The partition to mark this txn as "queued"
-     */
-    public final void markQueued(int partition) {
-        if (debug.val)
-            LOG.debug(String.format("%s - Marking as queued on partition %d %s [hashCode=%d]",
-                      this, partition, Arrays.toString(this.released), this.hashCode()));
-        assert(this.released[partition] == false) :
-            String.format("Trying to mark %s as queued to partition %d twice", this, partition);
-        this.queued[partition] = true;
-    }
-    /**
-     * Is this TransactionState marked as queued at the given partition
-     * @return
-     */
-    public final boolean isMarkedQueued(int partition) {
-        return (this.queued[partition]);
-    }
     
     /**
      * Mark this txn as being released from the lock queue at the given partition.

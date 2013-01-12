@@ -2021,7 +2021,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // We only need to do this for distributed transactions, because all single-partition
         // transactions will commit/abort immediately
         if (ts.isPredictSinglePartition() == false) {
-            PartitionCountingCallback<AbstractTransaction> callback = null;
+//            PartitionCountingCallback<AbstractTransaction> callback = null;
             for (int partition : this.local_partitions.values()) {
                 if (partitions.contains(partition) == false) continue;
                 
@@ -2030,7 +2030,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 // If it wasn't then we know that we don't need to queue a finish message
                 // This is to allow the PartitionExecutor to spend more time processing other
                 // more useful stuff.
-                if (ts.isMarkedReleased(partition)) {
+//                if (ts.isMarkedReleased(partition)) {
                     if (trace.val)
                         LOG.trace(String.format("%s - Queuing transaction to get finished on partition %d",
                                   ts, partition));
@@ -2041,14 +2041,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                   ts, ts.hashCode(), status, partitions));
                         throw new RuntimeException(ex);
                     }
-                }
-                else {
-                    if (callback == null) callback = ts.getFinishCallback();
-                    if (trace.val)
-                        LOG.trace(String.format("%s - Decrementing %s directly for partition %d",
-                                  ts, callback.getClass().getSimpleName(), partition));
-                    callback.run(partition);
-                }
+//                }
+//                else {
+//                    if (callback == null) callback = ts.getFinishCallback();
+//                    if (trace.val)
+//                        LOG.trace(String.format("%s - Decrementing %s directly for partition %d",
+//                                  ts, callback.getClass().getSimpleName(), partition));
+//                    callback.run(partition);
+//                }
             } // FOR
         }
     }

@@ -107,7 +107,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private class LockQueuePoller extends ExceptionHandlingRunnable {
         final int partition;
         final Semaphore barrier = new Semaphore(1);
-        AbstractTransaction current; 
         AbstractTransaction last;
         
         public LockQueuePoller(int partition) {
@@ -120,31 +119,40 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             self.setName(HStoreThreadManager.getThreadName(hstore_site, name));
             hstore_site.getThreadManager().registerProcessingThread();
             
+            AbstractTransaction nextTxn;
             while (stop == false) {
                 try {
                     // Grab the the next txn for this partition
                     // This is a blocking call.
-                    this.current = TransactionQueueManager.this.checkLockQueue(this.partition);
+                    nextTxn = TransactionQueueManager.this.checkLockQueue(this.partition);
 
                     // Block here until we know that the previous txn is finished
                     // at this partition.
-                    this.barrier.acquire();
-                    this.last = this.current;
+                    if (debug.val && this.barrier.availablePermits() == 0)
+                        LOG.info(String.format("%s - Waiting at lock barrier for partition %d",
+                                 nextTxn, this.partition));
+                    int permits = this.barrier.drainPermits();
+                    if (permits == 0) this.barrier.acquire();
+                    this.last = nextTxn;
+                    
+                    if (debug.val) 
+                        LOG.debug(String.format("%s - Invoking %s.run() for partition %d",
+                                  nextTxn, nextTxn.getInitCallback().getClass().getSimpleName(), this.partition));
                     
                     // Send the init request for the specified partition
                     try {
-                        this.current.getInitCallback().run(this.partition);
+                        nextTxn.getInitCallback().run(this.partition);
                     } catch (NullPointerException ex) {
                         // HACK: Ignore...
                         if (debug.val)
                             LOG.warn(String.format("Unexpected error when invoking %s for %s at partition %d",
-                                     this.current.getInitCallback().getClass().getSimpleName(),
-                                     this.current, this.partition), ex);
+                                     nextTxn.getInitCallback().getClass().getSimpleName(),
+                                     nextTxn, this.partition), ex);
                     } catch (Throwable ex) {
                         String msg = String.format("Failed to invoke %s for %s at partition %d",
-                                                   this.current.getInitCallback().getClass().getSimpleName(),
-                                                   this.current, this.partition);
-                        throw new ServerFaultException(msg, ex, this.current.getTransactionId());
+                                                   nextTxn.getInitCallback().getClass().getSimpleName(),
+                                                   nextTxn, this.partition);
+                        throw new ServerFaultException(msg, ex, nextTxn.getTransactionId());
                     }
                 } catch (InterruptedException ex) {
                     break;
@@ -461,7 +469,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             LOG.trace(String.format("Added %s to initQueue for partition %d [queueSize=%d]",
                       ts, partition, this.lockQueues[partition].size()));
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
-        ts.markQueued(partition);
         return (Status.OK);
     }
     
