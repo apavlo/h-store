@@ -40,6 +40,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.RemoteTransaction;
+import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
@@ -145,6 +146,8 @@ public class TestPartitionExecutor extends BaseTestCase {
         VoltTable vt = cresponse.getResults()[0];
         System.err.println(VoltTableUtil.format(vt));
         assertEquals(NUM_PARTITONS, vt.getRowCount());
+        PartitionExecutorProfiler profiler = this.executor.getDebugContext().getProfiler();
+        assertNotNull(profiler);
         while (vt.advanceRow()) {
             int partition = (int)vt.getLong("PARTITION");
             assertTrue(partition >= 0);
@@ -157,10 +160,9 @@ public class TestPartitionExecutor extends BaseTestCase {
             //      that we executed on it.
             Map<String, Long> expected = new HashMap<String, Long>();
             expected.put("TRANSACTIONS", basePartitions.get(partition, 0l));
-            // expected.put("IDLE_WAITING_DTXN_CNT", num_txns+1l);
-            // expected.put("IDLE_DTXN_QUERY_CNT", basePartitions.get(partition, 0l)+1);
-            expected.put("IDLE_TWO_PHASE_LOCAL_CNT", Math.min(basePartitions.get(partition, 0l), 1));
             expected.put("NETWORK_CNT", Math.min(basePartitions.get(partition, 0l), 1));
+            expected.put(profiler.sp3_local_time.getName()+"_CNT",
+                         Math.min(basePartitions.get(partition, 0l), 1));
             
             for (String colName : expected.keySet()) {
                 assertTrue(colName, vt.hasColumn(colName));
