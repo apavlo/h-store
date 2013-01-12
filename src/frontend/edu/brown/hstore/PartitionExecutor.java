@@ -1594,8 +1594,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(attachedInputs != null);
         boolean is_local = (ts instanceof LocalTransaction);
         
-        if (debug.val)
-            LOG.debug(String.format("%s - Attempting to retrieve input dependencies [isLocal=%s]", ts, is_local));
+        if (trace.val)
+            LOG.trace(String.format("%s - Attempting to retrieve input dependencies [isLocal=%s]", ts, is_local));
         for (Integer input_dep_id : input_dep_ids) {
             if (input_dep_id.intValue() == HStoreConstants.NULL_DEPENDENCY_ID) continue;
 
@@ -1606,8 +1606,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 assert(deps != null);
                 assert(inputs.containsKey(input_dep_id) == false);
                 inputs.put(input_dep_id, deps);
-                if (debug.val)
-                    LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d",
+                if (trace.val)
+                    LOG.trace(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d",
                               ts, deps.size(), input_dep_id,
                               (trace.val ? "\n" + deps : "")));
             }
@@ -1617,7 +1617,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 List<VoltTable> deps = attachedInputs.get(input_dep_id);
                 List<VoltTable> pDeps = null;
                 // We have to copy the tables if we have debugging enabled
-                if (debug.val) { // this.firstPartition == false) {
+                if (trace.val) { // this.firstPartition == false) {
                     pDeps = new ArrayList<VoltTable>();
                     for (VoltTable vt : deps) {
                         ByteBuffer buffer = vt.getTableDataReference();
@@ -1629,15 +1629,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     pDeps = deps;
                 }
                 inputs.put(input_dep_id, pDeps); 
-                if (debug.val)
-                    LOG.debug(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
+                if (trace.val)
+                    LOG.trace(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
                               ts, deps.size(), input_dep_id));
             }
 
         } // FOR (inputs)
-        if (debug.val) {
+        if (trace.val) {
             if (inputs.isEmpty() == false) {
-                LOG.debug(String.format("%s - Retrieved %d InputDependencies from partition %d",
+                LOG.trace(String.format("%s - Retrieved %d InputDependencies from partition %d",
                                         ts, inputs.size(), this.partitionId)); // StringUtil.formatMaps(inputs)));
 //            } else if (fragment.getNeedsInput()) {
 //                LOG.warn(String.format("%s - No InputDependencies retrieved for %s on partition %d",
@@ -2428,8 +2428,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // REMOTE TRANSACTION
         // -------------------------------
         else {
-            if (debug.val)
-                LOG.debug(String.format("%s - Constructing WorkResult with %d bytes from partition %d to send " +
+            if (trace.val)
+                LOG.trace(String.format("%s - Constructing WorkResult with %d bytes from partition %d to send " +
                           "back to initial partition %d [status=%s]",
                           ts, (result != null ? result.size() : null),
                           this.partitionId, ts.getBasePartition(), status));
@@ -2487,8 +2487,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.getFragmentInputs(ts, fragment.getInputDepIdList(), this.tmp_EEdependencies);
         
         // *********************************** DEBUG ***********************************
-        if (debug.val) {
-            LOG.debug(String.format("%s - Getting ready to kick %d fragments to partition %d EE [undoToken=%d]",
+        if (trace.val) {
+            LOG.trace(String.format("%s - Getting ready to kick %d fragments to partition %d EE [undoToken=%d]",
                       ts, fragmentCount, this.partitionId,
                       (undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN ? undoToken : "null")));
 //            if (trace.val) {
@@ -2532,10 +2532,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 String msg = "Unexpected error when executing system procedure";
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
             }
-            if (debug.val) LOG.debug(String.format("%s - Finished executing sysproc fragment for %s (#%d)%s",
-                                           ts, 
-                                           m_registeredSysProcPlanFragments.get(fragment_id).getClass().getSimpleName(),
-                                           fragment_id, (trace.val ? "\n" + result : "")));
+            if (debug.val)
+                LOG.debug(String.format("%s - Finished executing sysproc fragment for %s (#%d)%s",
+                          ts, m_registeredSysProcPlanFragments.get(fragment_id).getClass().getSimpleName(),
+                          fragment_id, (trace.val ? "\n" + result : "")));
         // -------------------------------
         // REGULAR FRAGMENTS
         // -------------------------------
@@ -3866,8 +3866,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
         if (ts.needsFinish(this.partitionId) && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-            if (debug.val)
-                LOG.debug(String.format("%s - Invoking EE to finish work for txn [%s / speculative=%s]",
+            if (trace.val)
+                LOG.trace(String.format("%s - Invoking EE to finish work for txn [%s / speculative=%s]",
                           ts, status, ts.isSpeculative()));
             this.finishWorkEE(ts, undoToken, commit);
         }
@@ -3875,8 +3875,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
         
-        if (debug.val)
-            LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
+        if (trace.val)
+            LOG.trace(String.format("%s - Telling queue manager that txn is finished at partition %d",
                       ts, this.partitionId));
         this.queueManager.lockQueueFinished(ts, status, this.partitionId);
         

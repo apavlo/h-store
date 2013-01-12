@@ -500,7 +500,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // HACK
             if (nextTxn.isAborted()) {
                 if (debug.val)
-                    LOG.debug(String.format("The next txn for partition %d is %s but it is marked as aborted.",
+                    LOG.warn(String.format("The next txn for partition %d is %s but it is marked as aborted.",
                               partition, nextTxn));
                 callback.decrementCounter(partition);
                 nextTxn = null;
@@ -510,7 +510,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             // do. Somebody else will make sure that this txn is removed from the queue
             else if (callback.isAborted()) {
                 if (debug.val)
-                    LOG.debug(String.format("The next txn for partition %d is %s but its %s is " +
+                    LOG.warn(String.format("The next txn for partition %d is %s but its %s is " +
                               "marked as aborted. [queueSize=%d]",
                               partition, nextTxn, callback.getClass().getSimpleName(),
                               this.lockQueues[partition].size()));
@@ -519,8 +519,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 continue;
             }
     
-            if (debug.val)
-                LOG.debug(String.format("Good news! Partition %d is ready to execute %s! " +
+            if (trace.val)
+                LOG.trace(String.format("Good news! Partition %d is ready to execute %s! " +
                           "Invoking %s.run()",
                           partition, nextTxn, callback.getClass().getSimpleName()));
             this.lockQueuesLastTxn[partition] = nextTxn.getTransactionId();
@@ -529,7 +529,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             nextTxn.markReleased(partition);
         } // WHILE
         
-        if (debug.val && nextTxn != null && nextTxn.isPredictSinglePartition() == false)
+        if (debug.val && nextTxn != null)
             LOG.debug(String.format("Finished processing lock queue for partition %d [next=%s]",
                       partition, nextTxn));
         if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stopIfStarted();
