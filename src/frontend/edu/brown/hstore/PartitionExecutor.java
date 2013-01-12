@@ -998,7 +998,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // It's also important that we cancel this txn's init queue callback, otherwise
                 // it will never get cleaned up properly. This is necessary in order to support
                 // sending out client results *before* the dtxn finishes
-                spec_ts.getTransactionInitQueueCallback().cancel();
+                spec_ts.getInitCallback().cancel();
                 
                 // Ok now that that's out of the way, let's run this baby...
                 this.executeTransaction(spec_ts);
@@ -1266,7 +1266,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Add Transaction to Lock Queue
         // -------------------------------
         else if (work instanceof InitializeTxnMessage) {
-            this.queueManager.lockQueueInsert(ts, this.partitionId, ts.getTransactionInitQueueCallback());
+            this.queueManager.lockQueueInsert(ts, this.partitionId, ts.getInitCallback());
         }
     }
 
@@ -1423,7 +1423,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (msg instanceof InitializeTxnMessage) {
                 InitializeTxnMessage initMsg = (InitializeTxnMessage)msg;
                 AbstractTransaction ts = initMsg.getTransaction();
-                TransactionCallback callback = ts.getTransactionInitQueueCallback();
+                TransactionCallback callback = ts.getInitCallback();
                 callback.abort(this.partitionId, Status.ABORT_REJECT);
             }
             // -------------------------------

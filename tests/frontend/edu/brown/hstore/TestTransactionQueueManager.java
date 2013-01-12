@@ -95,7 +95,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     private LocalTransaction createTransaction(Long txn_id, PartitionSet partitions, final MockCallback callback) {
         LocalTransaction ts = new LocalTransaction(this.hstore_site) {
             @Override
-            public MockCallback getTransactionInitQueueCallback() {
+            public MockCallback getInitCallback() {
                 return (callback);
             }
         };

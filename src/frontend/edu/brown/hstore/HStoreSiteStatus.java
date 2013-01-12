@@ -523,7 +523,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             if (txn_id != null) {
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);
                 if (ts != null) {
-                    PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
+                    PartitionCountingCallback<AbstractTransaction> callback = ts.getInitCallback();
                     queueStatus += "\n" + ts;
                     if (callback != null) {
                         queueStatus += String.format("\nReceivedPartitions=%s / AllPartitions=%s",

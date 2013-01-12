@@ -631,7 +631,7 @@ public class LocalTransaction extends AbstractTransaction {
     
     @SuppressWarnings("unchecked")
     @Override
-    public LocalInitQueueCallback getTransactionInitQueueCallback() {
+    public LocalInitQueueCallback getInitCallback() {
         return (this.init_callback);
     }
     @SuppressWarnings("unchecked")

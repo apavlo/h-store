@@ -183,7 +183,7 @@ public class RemoteTransaction extends AbstractTransaction {
     
     @SuppressWarnings("unchecked")
     @Override
-    public RemoteInitQueueCallback getTransactionInitQueueCallback() {
+    public RemoteInitQueueCallback getInitCallback() {
         return (this.init_callback);
     }
     @SuppressWarnings("unchecked")

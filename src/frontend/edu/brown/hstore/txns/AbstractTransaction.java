@@ -712,9 +712,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // ----------------------------------------------------------------------------
     
     /**
-     * Return this handle's InitQueueCallback
+     * Return this handle's InitCallback
      */
-    public abstract <T extends PartitionCountingCallback<? extends AbstractTransaction>> T getTransactionInitQueueCallback();
+    public abstract <T extends PartitionCountingCallback<? extends AbstractTransaction>> T getInitCallback();
     
     /**
      * Return this handle's PrepareCallback

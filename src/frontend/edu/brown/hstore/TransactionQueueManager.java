@@ -216,12 +216,12 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 // IGNORE
             }
             if (nextTxn != null) {
-                PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getTransactionInitQueueCallback();
+                PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getInitCallback();
                 assert(callback.isInitialized()) :
                     String.format("Unexpected uninitialized %s for %s\n%s",
                                   callback.getClass().getSimpleName(),
                                   nextTxn, callback.toString());
-                boolean ret = true;
+                boolean ret = (nextTxn.isAborted() == false);
                 Status status = null;
                 for (int partition : nextTxn.getPredictTouchedPartitions().values()) {
                     // Skip any non-local partition
@@ -410,7 +410,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         AbstractTransaction nextTxn = this.lockQueues[partition].poll();
         if (nextTxn == null) return (nextTxn);
 
-        PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getTransactionInitQueueCallback();
+        PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getInitCallback();
         assert(callback.isInitialized()) :
             String.format("Uninitialized %s callback for %s [hashCode=%d]",
                           callback.getClass().getSimpleName(), nextTxn, callback.hashCode());
@@ -518,7 +518,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // Make sure that if this txn is being aborted, that everyone
         // that is part of it knows what's going on.
-        PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
+        PartitionCountingCallback<AbstractTransaction> callback = ts.getInitCallback();
         callback.decrementCounter(partition);
 //        
 //        
@@ -570,7 +570,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
 
         // Always report the txn as aborted so that we can make sure
         // that the callback's counter is decremented properly.
-        PartitionCountingCallback<AbstractTransaction> callback = ts.getTransactionInitQueueCallback();
+        PartitionCountingCallback<AbstractTransaction> callback = ts.getInitCallback();
         try {
             callback.abort(reject_partition, status);
         } catch (Throwable ex) {

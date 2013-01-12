@@ -1845,7 +1845,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         else {
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitDtxn();
-            LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getTransactionInitQueueCallback();
+            LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
             this.hstore_coordinator.transactionInit(ts, initCallback);
         }
     }
@@ -2070,7 +2070,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                     ByteBuffer serializedRequest,
                                     int base_partition,
                                     RpcCallback<ClientResponseImpl> clientCallback) {
-        if (debug.val) LOG.debug(String.format("Forwarding %s request to partition %d", catalog_proc.getName(), base_partition));
+        if (debug.val)
+            LOG.debug(String.format("Forwarding %s request to partition %d",
+                      catalog_proc.getName(), base_partition));
         
         // Make a wrapper for the original callback so that when the result comes back frm the remote partition
         // we will just forward it back to the client. How sweet is that??
@@ -2118,7 +2120,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      */
     public void transactionReject(LocalTransaction ts, Status status) {
-        assert(ts.isInitialized());
+        assert(ts != null) : "Null LocalTransaction handle [status=" + status + "]";
+        assert(ts.isInitialized()) : "Uninitialized transaction: " + ts;
         if (debug.val)
             LOG.debug(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
                       ts, status, ts.getClientHandle()));

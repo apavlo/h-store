@@ -96,7 +96,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
                                                           request.getProcedureId());
             
             // Make sure that we initialize the RemoteTransactionInitCallback too!
-            RemoteInitQueueCallback initCallback = ts.getTransactionInitQueueCallback();
+            RemoteInitQueueCallback initCallback = ts.getInitCallback();
             initCallback.init((RemoteTransaction)ts, partitions, callback);
         }
         
