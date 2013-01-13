@@ -1005,7 +1005,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 assert(spec_ts.getBasePartition() == this.partitionId) :
                     String.format("Trying to speculatively execute %s at partition %d but its base partition is %d\n%s",
                                   spec_ts, this.partitionId, spec_ts.getBasePartition(), spec_ts.debug());
-                this.setExecutionMode(spec_ts, ExecutionMode.COMMIT_NONE);
                 
                 // It's also important that we cancel this txn's init queue callback, otherwise
                 // it will never get cleaned up properly. This is necessary in order to support
@@ -2070,8 +2069,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 SpeculationType specType = this.calculateSpeculationType();
                 ts.setSpeculative(specType);
                 if (debug.val)
-                    LOG.debug(String.format("%s - Speculatively executing %s while waiting for dtxn [%s]",
-                              this.currentDtxn, ts, specType));
+                    LOG.debug(String.format("Speculatively executing %s while waiting for dtxn %s [%s]",
+                              ts, this.currentDtxn, specType));
                 assert(ts.isSpeculative()) : ts + " was not marked as being speculative!";
             }
         }
