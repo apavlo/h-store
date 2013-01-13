@@ -823,8 +823,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         if (debug.val)
             LOG.debug(String.format("%s - Marking as released on partition %d %s [hashCode=%d]",
                       this, partition, Arrays.toString(this.released), this.hashCode()));
-        assert(this.released[partition] == false) :
-            String.format("Trying to mark %s as released to partition %d twice", this, partition);
+//        assert(this.released[partition] == false) :
+//            String.format("Trying to mark %s as released to partition %d twice", this, partition);
         this.released[partition] = true;
     }
     /**
