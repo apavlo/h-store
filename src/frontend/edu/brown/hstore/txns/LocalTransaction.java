@@ -1400,7 +1400,8 @@ public class LocalTransaction extends AbstractTransaction {
         
         // Run Time Stuff
         m = new LinkedHashMap<String, Object>();
-        m.put("Status", this.status);
+        m.put("Status", (this.status != null ? this.status : "null"));
+        m.put("Speculative Type", this.getSpeculativeType());
         m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
         m.put("Exec Touched Partitions", this.exec_touchedPartitions.toString(30));
         m.put("Restart Counter", this.restart_ctr);

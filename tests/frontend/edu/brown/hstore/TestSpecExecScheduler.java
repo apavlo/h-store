@@ -318,7 +318,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
-        next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE);
+        next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
         assertNull(next);
     }
 
