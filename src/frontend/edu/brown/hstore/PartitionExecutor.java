@@ -986,7 +986,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (spec_ts != null) {
                 // TODO: What we really want to do is check to see whether we have anything
                 // in our work queue before we go ahead and fire off this txn
-                if (this.work_queue.isEmpty() == false) {
+                if (debug.val && this.work_queue.isEmpty() == false) {
                     LOG.warn(String.format("About to speculatively execute %s on partition %d but there " +
                              "are %d messages in the work queue\n%s",
                              spec_ts, this.partitionId, this.work_queue.size(),
