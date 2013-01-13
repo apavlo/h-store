@@ -29,14 +29,19 @@ public class SpecExecProfiler extends AbstractProfiler {
      * something to execute that didn't have conflicts.
      */
     public int success = 0;
-
+    
+    /**
+     * The number of times that the SpecExecScheduler was interrupted
+     * and stopped its search.
+     */
+    public int interrupts = 0;
     
     @Override
     public void reset() {
         super.reset();
         this.success = 0;
+        this.interrupts = 0;
         this.num_comparisons.clear();
         this.queue_size.clear();
     }
-    
 }

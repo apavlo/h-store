@@ -1888,7 +1888,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + ts.getBasePartition() + " at HStoreSite " + this.site_id;
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueueExec();
-        final boolean success = this.executors[ts.getBasePartition()].queueNewTransaction(ts);
+        final boolean success = this.executors[ts.getBasePartition()].queueStartTransaction(ts);
         
         if (success == false) {
             // Depending on what we need to do for this type txn, we will send
@@ -2728,6 +2728,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.isSpeculative() && status != Status.ABORT_SPECULATIVE) {
                 TransactionCounter.SPECULATIVE.inc(catalog_proc);
                 switch (ts.getSpeculativeType()) {
+                    case IDLE:
+                        TransactionCounter.SPECULATIVE_IDLE.inc(catalog_proc);
+                        break;
                     case SP1_LOCAL:
                         TransactionCounter.SPECULATIVE_SP1.inc(catalog_proc);
                         break;

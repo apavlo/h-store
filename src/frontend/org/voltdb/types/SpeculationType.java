@@ -14,6 +14,10 @@ public enum SpeculationType {
      */
     NULL,
     /**
+     * Idle because of empty queue
+     */
+    IDLE,
+    /**
      * This stall point occurs on the base partition when the
      * transaction is waiting for a WorkResponse from a remote partition.
      */

@@ -288,7 +288,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private PartitionLockQueue lockQueue;
     
     // ----------------------------------------------------------------------------
-    // Partition-Specific Queues
+    // Work Queue
     // ----------------------------------------------------------------------------
     
     /**
@@ -514,6 +514,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                               result.getClass().getSimpleName(), result.getPartitionId(), ts));
                 PartitionExecutor.this.processWorkResult(ts, result);
             } // FOR
+            if (hstore_conf.site.specexec_enable) { 
+                specExecScheduler.interruptSearch();
+            }
         }
     }; // END CLASS
 
@@ -963,20 +966,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         InternalMessage work = null;
         
         // Check whether there is something we can speculatively execute right now
-        if (this.currentDtxn != null &&
-            this.specExecIgnoreCurrent == false &&
-            this.lockQueue.isEmpty() == false && 
-            this.currentDtxn.isInitialized()) {
-            
+        if (this.specExecIgnoreCurrent == false && this.lockQueue.isEmpty() == false) {
+            if (debug.val)
+                LOG.debug(String.format("Checking %s for something to do at partition %d while %s",
+                          this.specExecScheduler.getClass().getSimpleName(),
+                          this.partitionId,
+                          (this.currentDtxn != null ? "blocked on " + this.currentDtxn : "idle")));
             assert(hstore_conf.site.specexec_enable) :
                 "Trying to schedule speculative txn even though it is disabled";
-            
-            if (debug.val)
-                LOG.debug(String.format("Checking %s for something to do at partition %d while blocked on %s",
-                          this.specExecScheduler.getClass().getSimpleName(),
-                          this.partitionId, this.currentDtxn));
-            assert(this.currentDtxn.isInitialized()) :
-                String.format("Uninitialized distributed transaction handle [%s]", this.currentDtxn);
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
             try {
                 spec_ts = this.specExecScheduler.next(this.currentDtxn, this.calculateSpeculationType());
@@ -991,13 +988,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // in our work queue before we go ahead and fire off this txn
                 if (this.work_queue.isEmpty() == false) {
                     LOG.warn(String.format("About to speculatively execute %s on partition %d but there " +
-                    		 "are %d messages in the work queue",
-                             spec_ts, this.partitionId, this.work_queue.size()));
+                             "are %d messages in the work queue\n%s",
+                             spec_ts, this.partitionId, this.work_queue.size(),
+                             CollectionUtil.first(this.work_queue)));
                 }
                 
                 if (debug.val) {
-                    LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
-                              this.currentDtxn, spec_ts));
+                    LOG.debug(String.format("Utility Work found speculative txn to execute on partition %d [%s]",
+                              this.partitionId, spec_ts));
                     // IMPORTANT: We need to make sure that we remove this transaction for the lock queue
                     // before we execute it so that we don't try to run it again.
                     // We have to do this now because otherwise we may get the same transaction again
@@ -1467,12 +1465,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @return
      */
     private SpeculationType calculateSpeculationType() {
-        assert(this.currentDtxn != null);
-        
         SpeculationType specType = SpeculationType.NULL;
-        
+
+        // IDLE
+        if (this.currentDtxn == null) {
+            specType = SpeculationType.IDLE;
+        }
         // LOCAL
-        if (this.currentDtxn.getBasePartition() == this.partitionId) {
+        else if (this.currentDtxn.getBasePartition() == this.partitionId) {
             if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
                 specType = SpeculationType.SP3_LOCAL;
             } else {
@@ -1731,17 +1731,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * not have to be this txn's base partition/
      * @param ts
      */
-//    public boolean queueInit(AbstractTransaction ts) {
-//        assert(ts != null) : "Unexpected null transaction handle!";
-//        InitializeTxnMessage work = ts.getInitializeTxnMessage();
-//        if (debug.val) LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
-//                         "[currentDtxn=%s, queueSize=%d, mode=%s]",
-//                         work.getClass().getSimpleName(), ts.getProcedure().getName(), this.partitionId,
-//                         this.currentDtxn, this.work_queue.size(), this.currentExecMode));
-//        // return (this.work_queue.offer(work));
-//        return (this.utility_queue.offer(work));
-//    }
-    
     public void queueSetPartitionLock(AbstractTransaction ts) {
         assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
         SetDistributedTxnMessage work = ts.getSetDistributedTxnMessage();
@@ -1754,6 +1743,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
+        if (hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch();
     }
     
     /**
@@ -1776,6 +1766,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
+        if (hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch();
     }
 
     /**
@@ -1807,6 +1798,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
+        // if (hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch();
     }
     
     /**
@@ -1826,6 +1818,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
+        // if (success) this.specExecScheduler.haltSearch();
     }
 
     /**
@@ -1863,7 +1856,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param task
      * @param callback
      */
-    public boolean queueNewTransaction(LocalTransaction ts) {
+    public boolean queueStartTransaction(LocalTransaction ts) {
         assert(ts != null) : "Unexpected null transaction handle!";
         boolean singlePartitioned = ts.isPredictSinglePartition();
         boolean force = (singlePartitioned == false) || ts.isMapReduce() || ts.isSysProc();
@@ -1893,6 +1886,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             String msg = String.format("Failed to add %s even though force flag was true!", ts);
             throw new ServerFaultException(msg, ts.getTransactionId());
         }
+        if (success && hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch();
         return (success);
     }
 
@@ -2084,8 +2078,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // If we reach this point, we know that we're about to execute our homeboy here...
         if (hstore_conf.site.txn_profiling && ts.profiler != null) {
-            if (ts.isSpeculative()) ts.profiler.startSpecExec();
-            else ts.profiler.startExec();
+            ts.profiler.startExec();
         }
         if (hstore_conf.site.exec_profiling) this.profiler.numTransactions++;
         
@@ -2096,9 +2089,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
         if (debug.val) {
-            LOG.debug(String.format("%s - Starting execution of txn on partition %d [txnMode=%s, mode=%s]",
+            LOG.debug(String.format("%s - Starting execution of txn on partition %d " +
+                      "[txnMode=%s, mode=%s]",
                       ts, this.partitionId, before_mode, this.currentExecMode));
-            if (trace.val) LOG.trace("Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
+            if (trace.val)
+                LOG.trace(String.format("Current Transaction at partition #%d\n%s",
+                          this.partitionId, ts.debug()));
         }
         
         if (hstore_conf.site.txn_counters) TransactionCounter.EXECUTED.inc(ts.getProcedure());

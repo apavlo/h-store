@@ -78,6 +78,8 @@ public class SpecExecProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("SPECULATE_TYPE", VoltType.STRING));
         columns.add(new VoltTable.ColumnInfo("SUCCESS_CNT", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("SUCCESS_RATE", VoltType.FLOAT));
+        columns.add(new VoltTable.ColumnInfo("INTERRUPT_CNT", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("INTERRUPT_RATE", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("QUEUE_SIZE_AVG", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("QUEUE_SIZE_STDEV", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("COMPARISONS_AVG", VoltType.BIGINT));
@@ -107,10 +109,13 @@ public class SpecExecProfilerStats extends StatsSource {
         assert(profiler != null);
         
         int offset = columnNameToIndex.get("PARTITION");
+        double total = (double)profiler.total_time.getInvocations();
         rowValues[offset++] = partition;
         rowValues[offset++] = specType.toString();
         rowValues[offset++] = profiler.success;
-        rowValues[offset++] = profiler.success / (double)profiler.total_time.getInvocations();
+        rowValues[offset++] = profiler.success / total;
+        rowValues[offset++] = profiler.interrupts;
+        rowValues[offset++] = profiler.interrupts / total;
         rowValues[offset++] = MathUtil.weightedMean(profiler.queue_size);
         rowValues[offset++] = HistogramUtil.stdev(profiler.queue_size);
         rowValues[offset++] = MathUtil.weightedMean(profiler.num_comparisons);

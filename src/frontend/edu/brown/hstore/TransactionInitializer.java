@@ -345,7 +345,7 @@ public class TransactionInitializer {
         }
         
         // Setup TransactionProfiler
-        if (hstore_conf.site.txn_profiling) {
+        if (hstore_conf.site.txn_profiling && orig_ts.isSysProc() == false) {
             if (new_ts.profiler == null) {
                 new_ts.setProfiler(new TransactionProfiler());
             }
@@ -353,12 +353,8 @@ public class TransactionInitializer {
             
             // Since we're restarting the txn, we should probably include
             // the original profiler information the original txn.
-//            if (orig_ts.profiler.isDisabled() == false) {
-//                new_ts.profiler.copy(orig_ts.profiler);
-//            } else {
-                new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
-                new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);
-//            }
+            new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+            new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);
         } else if (new_ts.profiler != null) {
             new_ts.profiler.disableProfiling();
         }

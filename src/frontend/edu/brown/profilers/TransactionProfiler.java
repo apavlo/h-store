@@ -369,67 +369,57 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      */
     public void startSpecExec() {
         if (this.disabled) return;
-        this.startQueueExec();
+        this.pm_queue_exec.start().stopIfStarted();
         this.startExec();
     }
 
     public void startExecJava() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.startInner(this.pm_exec_total, this.pm_exec_java, false);
     }
 
     public void stopExecJava() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.stopInner(this.pm_exec_java, this.pm_exec_total, false);
     }
 
     public void startExecPlanning() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.startInner(this.pm_exec_total, this.pm_exec_planner, false);
     }
 
     public void stopExecPlanning() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.stopInner(this.pm_exec_planner, this.pm_exec_total, false);
     }
 
     public void startExecEstimation() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.startInner(this.pm_exec_total, this.pm_exec_est, false);
     }
 
     public void stopExecEstimation() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.stopInner(this.pm_exec_est, this.pm_exec_total, false);
     }
 
     public void startExecDtxnWork() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.startInner(this.pm_exec_total, this.pm_exec_dtxn_work, false);
     }
 
     public void stopExecDtxnWork() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.stopInner(this.pm_exec_dtxn_work, this.pm_exec_total, false);
     }
 
     public void startExecEE() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.startInner(this.pm_exec_total, this.pm_exec_ee, false);
     }
 
     public void stopExecEE() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.stopInner(this.pm_exec_ee, this.pm_exec_total, false);
     }
 
@@ -462,8 +452,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * Indicate that the txn is the post-processing stage. This should only be called after startExec() has been invoked
      */
     public void startPost() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         assert(this.stack.size() > 0);
         ProfileMeasurement current = null;
         while ((current = this.stack.pop()) != this.pm_exec_total) {
@@ -484,56 +473,48 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     }
 
     public void startPostPrepare() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.startInner(this.pm_post_total, this.pm_post_prepare, false);
     }
 
     public void stopPostPrepare() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.stopInner(this.pm_post_prepare, this.pm_post_total, false);
     }
 
     public void startPostFinish() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.startInner(this.pm_post_total, this.pm_post_finish, false);
     }
 
     public void stopPostFinish() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.stopInner(this.pm_post_finish, this.pm_post_total, false);
     }
 
     public void startPostEE() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.pm_post_ee.start();
         // ProfileMeasurement parent = this.stack.peek();
         // this.startInner(parent, this.pm_post_ee, false);
     }
 
     public void stopPostEE() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.pm_post_ee.stop();
         // ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
         // this.stopInner(this.pm_post_ee, parent, false);
     }
 
     public void startPostClient() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.pm_post_client.start();
         // ProfileMeasurement parent = this.stack.peek();
         // this.startInner(parent, this.pm_post_client, false);
     }
 
     public void stopPostClient() {
-        if (this.disabled)
-            return;
+        if (this.disabled) return;
         this.pm_post_client.stop();
         // ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
         // this.stopInner(this.pm_post_client, parent, false);
