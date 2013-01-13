@@ -12,6 +12,7 @@ import org.voltdb.types.SpeculationType;
 
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
+import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -50,6 +51,7 @@ public class SpecExecScheduler {
     private Iterator<AbstractTransaction> lastIterator;
     private int lastSize = 0;
     private final AtomicBoolean latch = new AtomicBoolean(false);
+    private Class<? extends InternalMessage> latchMsg;
 
     private final Map<SpeculationType, SpecExecProfiler> profilerMap = new HashMap<SpeculationType, SpecExecProfiler>();
     private boolean profiling = false;
@@ -110,8 +112,10 @@ public class SpecExecScheduler {
         return (this.checker.shouldIgnoreProcedure(catalog_proc));
     }
     
-    public void interruptSearch() {
-        this.latch.compareAndSet(false, true);
+    public void interruptSearch(InternalMessage msg) {
+        if (this.latch.compareAndSet(false, true)) {
+            this.latchMsg = msg.getClass();
+        }
     }
     
     /**
@@ -179,7 +183,9 @@ public class SpecExecScheduler {
         if (this.profiling) profiler.queue_size.put(this.queue.size());
         while (this.lastIterator.hasNext()) {
             if (this.latch.compareAndSet(true, false)) {
-                LOG.warn(String.format("Search interrupted after %d examinations", examined_ctr));
+                if (debug.val)
+                    LOG.warn(String.format("Search interrupted after %d examinations [%s]",
+                             examined_ctr, this.latchMsg.getSimpleName()));
                 if (this.profiling) profiler.interrupts++;
                 break;
             }

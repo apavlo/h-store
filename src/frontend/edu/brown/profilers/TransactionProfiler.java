@@ -358,8 +358,10 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (this.disabled) return;
         assert(this.stack.size() > 0);
         ProfileMeasurement current = this.stack.pop();
-        assert(current != this.pm_exec_total) : "Trying to start txn execution twice!";
-        assert(current == this.pm_queue_exec) : "Trying to start execution before txn was queued (" + current + ")";
+        assert(current != this.pm_exec_total) : 
+            "Trying to start txn execution twice!";
+        assert(current == this.pm_queue_exec || current == this.pm_queue_lock) : 
+            "Trying to start execution before txn was queued (" + current + ")";
         ProfileMeasurementUtil.swap(current, this.pm_exec_total);
         this.stack.push(this.pm_exec_total);
     }

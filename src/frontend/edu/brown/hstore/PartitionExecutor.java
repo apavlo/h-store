@@ -515,7 +515,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 PartitionExecutor.this.processWorkResult(ts, result);
             } // FOR
             if (hstore_conf.site.specexec_enable) { 
-                specExecScheduler.interruptSearch();
+                specExecScheduler.interruptSearch(UTIL_WORK_MSG);
             }
         }
     }; // END CLASS
@@ -1743,7 +1743,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
-        if (hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch();
+        if (hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch(work);
     }
     
     /**
@@ -1766,7 +1766,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       "work queue [size=%d]",
                       ts, work.getClass().getSimpleName(), this.partitionId,
                       this.work_queue.size()));
-        if (hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch();
+        if (hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch(work);
     }
 
     /**
@@ -1886,7 +1886,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             String msg = String.format("Failed to add %s even though force flag was true!", ts);
             throw new ServerFaultException(msg, ts.getTransactionId());
         }
-        if (success && hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch();
+        if (success && hstore_conf.site.specexec_enable) this.specExecScheduler.interruptSearch(work);
         return (success);
     }
 
