@@ -717,7 +717,6 @@ public abstract class VoltProcedure implements Poolable {
             this.status = Status.ABORT_UNEXPECTED;
             this.status_msg = "UNEXPECTED ERROR IN " + this.m_localTxnState;
         } finally {
-            this.m_localTxnState.markAsExecuted();
             if (debug.val) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + this.status + "]");
 
             // Workload Trace - Stop the transaction trace record.

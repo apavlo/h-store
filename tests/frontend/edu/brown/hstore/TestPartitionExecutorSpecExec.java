@@ -237,6 +237,65 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
+    /**
+     * testIdleSpeculation
+     */
+    @Test
+    public void testIdleSpeculation() throws Throwable {
+        // Check that we can speculative execute txns whenever the
+        // PartitionExecutor is idle waiting to start a txn that still 
+        // hasn't gotten all of the locks that it needs.
+        boolean result;
+        
+        // First fire off a single-partition txn that will block
+        int marker = 1000;
+        Semaphore spLock = new Semaphore(0);
+        SinglePartitionTester.LOCK_BEFORE.put(marker, spLock);
+        Semaphore spNotify = new Semaphore(0);
+        SinglePartitionTester.NOTIFY_BEFORE.put(marker, spNotify);
+        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
+        Object params[] = new Object[]{ BASE_PARTITION, marker, 0 };
+        Procedure spProc = this.getProcedure(SinglePartitionTester.class);
+        this.client.callProcedure(spCallback0, spProc.getName(), params);
+        
+        // Block until we know that the txn has started running
+        result = spNotify.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+        
+        // Then execute a distributed txn. It will get the lock for the
+        // other partition that the first partition isn't running on
+        Object dtxnParams[] = new Object[]{ BASE_PARTITION+1 };
+        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), dtxnParams);
+        ThreadUtil.sleep(NOTIFY_TIMEOUT);
+        
+        // Now blast out a single-partition txn that will get
+        // speculatively executed on the idle partition
+        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(1);
+        params = new Object[]{ BASE_PARTITION+1, marker + 1, 0 };
+        this.client.callProcedure(spCallback1, spProc.getName(), params);
+        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SINGLE-P1 LATCH: " + spCallback1.latch, result);
+        assertEquals(1, spCallback1.responses.size());
+        this.checkClientResponses(spCallback1.responses, Status.OK, true, 0);
+        
+        // Release all the locks and let this one fly
+        assertEquals(0, spCallback0.responses.size());
+        spLock.release();
+        this.lockBefore.release();
+        this.lockAfter.release();
+        
+        // Everyone else should succeed and not be speculative. 
+        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
+        assertEquals(Status.OK, this.dtxnResponse.getStatus());
+        
+        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SINGLE-P0 LATCH"+spCallback0.latch, result);
+        assertEquals(1, spCallback0.responses.size());
+        this.checkClientResponses(spCallback0.responses, Status.OK, false, 0);
+        
+        HStoreSiteTestUtil.checkObjectPools(hstore_site);
+    }
     
     /**
      * testAllCommitsBefore

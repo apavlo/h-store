@@ -333,7 +333,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public void finish() {
-        if (debug.val) LOG.debug(String.format("%s - Invoking finish() cleanup", this));
+        if (debug.val)
+            LOG.debug(String.format("%s - Invoking finish() cleanup", this));
         
         // Return our DistributedState
         if (this.dtxnState != null && hstore_site.getHStoreConf().site.pool_txn_enable) {
@@ -387,11 +388,13 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     public void setExecutionState(ExecutionState state) {
-        if (debug.val) LOG.debug(String.format("%s - Setting ExecutionState handle [isNull=%s]",
-                                       this, (this.state == null)));
+        if (debug.val)
+            LOG.debug(String.format("%s - Setting ExecutionState handle [isNull=%s]",
+                      this, (this.state == null)));
         assert(state != null);
         assert(this.state == null);
         this.state = state;
+        this.exec_controlCode = true;
         
         // Reset this so that we will call finish() on the cached DependencyInfos
         // before we try to use it again
@@ -404,8 +407,9 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.state);
     }
     public void resetExecutionState() {
-        if (debug.val) LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
-                                       this, (this.state == null)));
+        if (debug.val)
+            LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
+                      this, (this.state == null)));
         if (this.state != null) {
             ReentrantLock lock = state.lock;
             lock.lock();
@@ -419,10 +423,11 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     /**
-     * Marks that this transaction's control code was executed at its base partition 
+     * Returns true if the control code for this LocalTransaction was actually started
+     * in the PartitionExecutor
      */
-    public void markAsExecuted() {
-        this.exec_controlCode = true;
+    public final boolean isMarkExecuted() {
+        return (this.exec_controlCode);
     }
     
     // ----------------------------------------------------------------------------
@@ -538,8 +543,9 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public void finishRound(int partition) {
-        if (debug.val) LOG.debug(String.format("%s - Finishing ROUND #%d on partition %d", 
-                                 this, this.round_ctr[partition], partition));
+        if (debug.val)
+            LOG.debug(String.format("%s - Finishing ROUND #%d on partition %d", 
+                      this, this.round_ctr[partition], partition));
         
         // SAME SITE, DIFFERENT PARTITION
         if (this.base_partition != partition) {
@@ -683,22 +689,6 @@ public class LocalTransaction extends AbstractTransaction {
         }
         return (true);
     }
-    
-    /**
-     * Returns true if the control code for this LocalTransaction was actually started
-     * in the PartitionExecutor
-     */
-    public boolean wasExecuted() {
-        return (this.exec_controlCode);
-    }
-    
-//    @Override
-//    public boolean needsFinish(int partition) {
-//        if (this.base_partition == partition) {
-//            return (this.exec_controlCode);
-//        }
-//        return super.needsFinish(partition);
-//    }
     
     /**
      * Mark this transaction as needing to be restarted. This will prevent it from
@@ -854,6 +844,9 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.exec_specExecType == SpeculationType.NULL) :
             String.format("Trying to mark %s as speculative twice [new=%s / previous=%s]",
                           this, type, this.exec_specExecType); 
+//        if (debug.val)
+            LOG.info(String.format("%s - Set %s = %s", 
+                      this, type.getClass().getSimpleName(), type));
         this.exec_specExecType = type;
     }
 

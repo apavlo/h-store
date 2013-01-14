@@ -869,7 +869,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         // for more work.
                         else {
                             this.setCurrentDtxn(nextTxn);
-                            this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
                         }
                     }
                 }
@@ -887,15 +886,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         continue;
                     } finally {
                         if (hstore_conf.site.exec_profiling) profiler.idle_time.stopIfStarted();
-                    }
-                }
-                // Check if we have any utility work to do while we wait
-                if (nextWork == null && hstore_conf.site.specexec_enable) {
-                    if (trace.val)
-                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
-                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
-                    if (this.utilityWork()) {
-                        nextWork = UTIL_WORK_MSG;
                     }
                 }
                 
@@ -919,6 +909,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     }
                     if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                     this.tick();
+                }
+                // Check if we have any utility work to do while we wait
+                else if (hstore_conf.site.specexec_enable) {
+                    if (trace.val)
+                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
+                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
+                    if (this.utilityWork()) {
+                        nextWork = UTIL_WORK_MSG;
+                    }
                 }
             } // WHILE
         } catch (final Throwable ex) {
@@ -962,7 +961,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Poll Lock Queue
         // -------------------------------
 
-        LocalTransaction spec_ts = null;
+        LocalTransaction specTxn = null;
         InternalMessage work = null;
         
         // Check whether there is something we can speculatively execute right now
@@ -974,45 +973,47 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           (this.currentDtxn != null ? "blocked on " + this.currentDtxn : "idle")));
             assert(hstore_conf.site.specexec_enable) :
                 "Trying to schedule speculative txn even though it is disabled";
+            SpeculationType specType = this.calculateSpeculationType();
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
             try {
-                spec_ts = this.specExecScheduler.next(this.currentDtxn, this.calculateSpeculationType());
+                specTxn = this.specExecScheduler.next(this.currentDtxn, specType);
             } finally {
                 if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.stopIfStarted();
             }
             
             // Because we don't have fine-grained undo support, we are just going
             // keep all of our speculative execution txn results around
-            if (spec_ts != null) {
+            if (specTxn != null) {
                 // TODO: What we really want to do is check to see whether we have anything
                 // in our work queue before we go ahead and fire off this txn
                 if (debug.val && this.work_queue.isEmpty() == false) {
                     LOG.warn(String.format("About to speculatively execute %s on partition %d but there " +
                              "are %d messages in the work queue\n%s",
-                             spec_ts, this.partitionId, this.work_queue.size(),
+                             specTxn, this.partitionId, this.work_queue.size(),
                              CollectionUtil.first(this.work_queue)));
                 }
                 
                 if (debug.val) {
-                    LOG.debug(String.format("Utility Work found speculative txn to execute on partition %d [%s]",
-                              this.partitionId, spec_ts));
+                    LOG.debug(String.format("Utility Work found speculative txn to execute on " +
+                    		  "partition %d [%s, specType=%s]",
+                              this.partitionId, specTxn, specType));
                     // IMPORTANT: We need to make sure that we remove this transaction for the lock queue
                     // before we execute it so that we don't try to run it again.
                     // We have to do this now because otherwise we may get the same transaction again
-                    assert(this.lockQueue.contains(spec_ts.getTransactionId()) == false) :
-                        String.format("Failed to remove speculative %s before executing", spec_ts);
+                    assert(this.lockQueue.contains(specTxn.getTransactionId()) == false) :
+                        String.format("Failed to remove speculative %s before executing", specTxn);
                 }
-                assert(spec_ts.getBasePartition() == this.partitionId) :
+                assert(specTxn.getBasePartition() == this.partitionId) :
                     String.format("Trying to speculatively execute %s at partition %d but its base partition is %d\n%s",
-                                  spec_ts, this.partitionId, spec_ts.getBasePartition(), spec_ts.debug());
+                                  specTxn, this.partitionId, specTxn.getBasePartition(), specTxn.debug());
                 
                 // It's also important that we cancel this txn's init queue callback, otherwise
                 // it will never get cleaned up properly. This is necessary in order to support
                 // sending out client results *before* the dtxn finishes
-                spec_ts.getInitCallback().cancel();
+                specTxn.getInitCallback().cancel();
                 
                 // Ok now that that's out of the way, let's run this baby...
-                this.executeTransaction(spec_ts);
+                this.executeTransaction(specTxn);
             }
             else if (trace.val) {
                 LOG.trace(String.format("%s - No speculative execution candidates found at partition %d [queueSize=%d]",
@@ -1025,7 +1026,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
-        return (spec_ts != null || work != null);
+        return (specTxn != null || work != null);
     }
     
     // ----------------------------------------------------------------------------
@@ -1472,7 +1473,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         // LOCAL
         else if (this.currentDtxn.getBasePartition() == this.partitionId) {
-            if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
+            if (((LocalTransaction)this.currentDtxn).isMarkExecuted() == false) {
+                specType = SpeculationType.IDLE;
+            } else if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
                 specType = SpeculationType.SP3_LOCAL;
             } else {
                 specType = SpeculationType.SP1_LOCAL;
@@ -2038,9 +2041,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // If there is no other DTXN right now, then we're it!
             else if (this.currentDtxn == null) { //  || this.currentDtxn.equals(ts) == false) {
                 this.setCurrentDtxn(ts);
+            
             }
             // 2011-11-14: We don't want to set the execution mode here, because we know that we
             //             can check whether we were read-only after the txn finishes
+            this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
             if (debug.val)
                 LOG.debug(String.format("Marking %s as current DTXN on Partition %d [isLocal=%s, execMode=%s]",
                           ts, this.partitionId, true, this.currentExecMode));                    
@@ -2054,7 +2059,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // because it may be the case that we queued a bunch of transactions when speculative 
             // execution was enabled, but now the transaction that was ahead of this one is finished,
             // so now we're just executing them regularly
-            if (this.currentExecMode != ExecutionMode.COMMIT_ALL) {
+            if (this.currentDtxn != null) {
                 // HACK: If we are currently under DISABLED mode when we get this, then we just 
                 // need to block the transaction and return back to the queue. This is easier than 
                 // having to set all sorts of crazy locks

@@ -147,7 +147,6 @@ public class SpecExecScheduler {
         
         // If we have a distributed txn, then check make sure it's legit
         if (dtxn != null) {
-            assert(specType != SpeculationType.IDLE);
             assert(this.checker.shouldIgnoreProcedure(dtxn.getProcedure()) == false) :
                 String.format("Trying to check for speculative txns for %s but the txn " +
                 		      "should have been ignored", dtxn);
