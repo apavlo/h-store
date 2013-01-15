@@ -33,7 +33,6 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.ThreadUtil;
 
 /**
  * 
@@ -210,16 +209,14 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
         AbstractTransaction next_init = null;
         while (this.stop == false) {
-//            try {
-//                next_init = this.initQueue.poll(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
-//            } catch (InterruptedException ex) {
-//                // IGNORE
-//            }
-//            if (next_init != null) {
-//                this.initTransaction(next_init);
-//            }
-            // HACK
-            ThreadUtil.sleep(100);
+            try {
+                next_init = this.initQueue.poll(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
+            } catch (InterruptedException ex) {
+                // IGNORE
+            }
+            if (next_init != null) {
+                this.initTransaction(next_init);
+            }
             // Requeue mispredicted local transactions
             if (next_init == null && this.restartQueue.isEmpty() == false) {
                 this.checkRestartQueue();
@@ -263,7 +260,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // INIT QUEUES
     // ----------------------------------------------------------------------------
 
-    private void initTransaction(AbstractTransaction next_init) {
+    private boolean initTransaction(AbstractTransaction next_init) {
         PartitionCountingCallback<AbstractTransaction> callback = next_init.getTransactionInitQueueCallback();
         assert(callback.isInitialized());
         boolean ret = true;
@@ -284,7 +281,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             }
         } // FOR
         // if (ret) added++;
-        return;
+        return (ret);
     }
     
     /**
@@ -295,8 +292,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     protected void queueTransactionInit(AbstractTransaction ts) {
         if (debug.val)
             LOG.debug(String.format("Adding %s to initialization queue", ts));
-        // this.initQueue.add(ts);
-        this.initTransaction(ts);
+        this.initQueue.add(ts);
     }
     
     /**
