@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
@@ -49,9 +50,8 @@ import edu.brown.statistics.ObjectHistogram;
 public class YCSBClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(YCSBClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
     
@@ -98,7 +98,10 @@ public class YCSBClient extends BenchmarkComponent {
         this.randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
         this.value_list = new LinkedList<String>(); 
         
-        int init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * this.getScaleFactor()); 
+        final CatalogContext catalogContext = this.getCatalogContext(); 
+        final int init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * 
+                                                      catalogContext.numberOfPartitions *
+                                                      this.getScaleFactor());
                 
         // initialize distribution generators 
         synchronized (YCSBClient.class) { // XXX: Why do we need to lock this?
