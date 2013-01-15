@@ -1855,7 +1855,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void transactionInit(AbstractTransaction ts) {
         assert(ts.isInitialized()) : "Uninitialized transaction handle [" + ts + "]";
-        this.txnQueueManager.initTransaction(ts);
+        this.txnQueueManager.queueTransactionInit(ts);
         
 //        for (int partition : ts.getPredictTouchedPartitions().values()) {
 //            if (this.isLocalPartition(partition)) {
