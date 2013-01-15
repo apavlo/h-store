@@ -747,6 +747,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
 
     public class Debug implements DebugContext {
         public int getInitQueueSize() {
+            return (initQueue.size());
+        }
+        public int getLockQueueSize() {
             Set<AbstractTransaction> allTxns = new HashSet<AbstractTransaction>();
             for (int p : localPartitions.values()) {
                 try {
@@ -756,9 +759,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 }
             }
             return (allTxns.size());
-        }
-        public int getInitQueueSize(int partition) {
-            return (lockQueues[partition].size());
         }
         public int getRestartQueueSize() {
             return (restartQueue.size());

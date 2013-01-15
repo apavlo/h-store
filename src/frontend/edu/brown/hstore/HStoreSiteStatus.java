@@ -332,7 +332,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         TransactionQueueManager.Debug queueManagerDebug = queueManager.getDebugContext();
         
         int inflight_cur = siteDebug.getInflightTxnCount();
-        int inflight_local = queueManagerDebug.getInitQueueSize();
         if (inflight_cur < this.inflight_min && inflight_cur > 0) this.inflight_min = inflight_cur;
         if (inflight_cur > this.inflight_max) this.inflight_max = inflight_cur;
         
@@ -365,10 +364,11 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             inflight_cmdlog = cmdLogger.getTotalTxnCount();
         }
         
-        siteInfo.put("InFlight Txns", String.format("%d total / %d init / %d queued / %d cmdlog / %d deletable [totalMin=%d, totalMax=%d]",
+        siteInfo.put("InFlight Txns", String.format("%d total / %d init / %d queued / %d restart / %d cmdlog / %d deletable " +
+        		     "[totalMin=%d, totalMax=%d]",
                         inflight_cur,       // total
-                        queueManagerDebug.getInitQueueSize(),
-                        inflight_local,     // queued
+                        queueManagerDebug.getInitQueueSize(), // init
+                        queueManagerDebug.getLockQueueSize(), // queued
                         inflight_cmdlog,    // cmdlog
                         this.siteDebug.getDeletableTxnCount(), // deletable
                         this.inflight_min,  // totalMin
@@ -502,11 +502,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     // FULL TXN DEBUG
                     // status += "\n" + StringUtil.prefix(ts.debug(), spacer);
                 }
-            }
-            
-            // TransactionQueueManager - Requeued Txns
-            if (queueManagerDebug.getRestartQueueSize() > 0) {
-                queueStatus += "\nRequeues: " + queueManagerDebug.getRestartQueueSize();
             }
             m.put("Lock Queue", queueStatus);
             
