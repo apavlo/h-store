@@ -1437,10 +1437,13 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
         throwFatalException("Invalid table id %d", tableId);
     }
     
+    VOLT_INFO("Merging unevicted blocks for table %d", tableId);
     // Merge all the newly unevicted blocks back into our regular table data
     try {
         table->mergeUnevictedTuples();
     } catch (SerializableEEException &e) {
+        VOLT_INFO("Failed to merge blocks for table %d", tableId);
+
         VOLT_TRACE("antiCacheMerge: Failed to merge unevicted tuples for table '%s'",
                    table->name().c_str());
         resetReusedResultOutputBuffer();

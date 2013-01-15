@@ -32,21 +32,22 @@ package edu.brown.benchmark.ycsb;
 public abstract class YCSBConstants {
 
 	//public static final int NUM_RECORDS = 2684354; // 128 MB
-	public static final int NUM_RECORDS = 5368709; // 256 MB
+	//public static final int NUM_RECORDS = 5368709; // 256 MB
 	//public static final int NUM_RECORDS = 41943; // 2 MB
 	//public static final int NUM_RECORDS = 21474836; // 1 GB
+    public static final int NUM_RECORDS = 10737418; // .5 GB
 
 
-	public static final int HOT_DATA_SIZE = 20; 
-	public static final int HOT_DATA_WORKLOAD_SKEW = 80; 
+	public static final int HOT_DATA_SIZE = 90; 
+	public static final int HOT_DATA_WORKLOAD_SKEW = 10; 
 	
-	public static final int WARM_DATA_SIZE = 20; 
-	public static final int WARM_DATA_WORKLOAD_SKEW = 10; 
+	public static final int WARM_DATA_SIZE = 0; 
+	public static final int WARM_DATA_WORKLOAD_SKEW = 0; 
 
 	
 	public static final String TABLE_NAME = "USERTABLE"; 
     public static final int NUM_COLUMNS = 11; 
-	public static final int COLUMN_LENGTH = 100; 
+	public static final int COLUMN_LENGTH = 50; 
 	
 	public static final int BATCH_SIZE = 5000; 
 	public static final int MAX_SCAN = 1000; 

@@ -97,7 +97,7 @@ public class YCSBLoader extends Loader {
 
                         // randomly generate strings for each column
                         for (int col = 2; col < YCSBConstants.NUM_COLUMNS; col++) {
-                            row[col] = YCSBUtil.astring(50, 50);
+                            row[col] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
                         } // FOR
                         table.addRow(row);
 

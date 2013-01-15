@@ -589,7 +589,7 @@ public abstract class VoltProcedure implements Poolable {
             try {
                 // ANTI-CACHE TABLE MERGE
                 if (hstore_conf.site.anticache_enable && txnState.hasAntiCacheMergeTable()) {
-                    LOG.info("Merging blocks for anticache table.");
+                    LOG.debug("Merging blocks for anticache table.");
     
                     if (hstore_conf.site.anticache_profiling) {
                         this.hstore_site.getAntiCacheManager()
@@ -661,7 +661,7 @@ public abstract class VoltProcedure implements Poolable {
             // EvictedTupleAccessException
             // -------------------------------
             } else if (ex_class.equals(EvictedTupleAccessException.class)) {
-                LOG.info("Caught EvictedTupleAccessException for " + this.m_currentTxnState);
+                LOG.debug("Caught EvictedTupleAccessException for " + this.m_currentTxnState);
                 this.status = Status.ABORT_EVICTEDACCESS;
 
             // -------------------------------

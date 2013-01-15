@@ -2371,7 +2371,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             Table catalog_tbl = error.getTableId(this.catalogContext.database);
             short block_ids[] = error.getBlockIds();
 
-			LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks.",
+			LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks.",
 			         AntiCacheManager.class.getSimpleName(), block_ids.length));
             this.anticacheManager.queue(new_ts, base_partition, catalog_tbl, block_ids);
         }

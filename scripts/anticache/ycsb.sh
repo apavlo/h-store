@@ -11,7 +11,7 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=true
+ENABLE_ANTICACHE=false
 
 SITE_HOST="modis"
 
