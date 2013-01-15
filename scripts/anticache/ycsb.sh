@@ -16,13 +16,14 @@ ENABLE_ANTICACHE=true
 SITE_HOST="modis"
 
 CLIENT_HOSTS=( \
-	"modis2" \
-	"modis2" \
+        "modis2" \
+        "modis2" \
+        "modis2" \
 )
 
-BASE_CLIENT_THREADS=25
-BASE_SITE_MEMORY=8192
-BASE_SITE_MEMORY_PER_PARTITION=0
+BASE_CLIENT_THREADS=1
+BASE_SITE_MEMORY=2048
+BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
 
@@ -42,13 +43,16 @@ BASE_ARGS=( \
 #     "-Dsite.log_backup=true"\
     
     # Site Params
+    "-Dsite.jvm_asserts=false" \
+    "-Dsite.specexec_enable=false" \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
-    "-Dsite.exec_preprocessing_threads=false" \
-    "-Dsite.exec_preprocessing_threads_count=2" \
-    "-Dsite.exec_postprocessing_threads=false" \
-    "-Dsite.queue_incoming_max_per_partition=500" \
-    "-Dsite.queue_incoming_increase_max=2000" \
-
+    #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
+    #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
+    "-Dsite.network_incoming_limit_txns=8000" \
+    "-Dsite.commandlog_enable=true" \
+    "-Dsite.txn_incoming_delay=1" \
+    "-Dsite.exec_postprocessing_threads=true" \
+    
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.output_clients=true" \
@@ -67,7 +71,7 @@ BASE_ARGS=( \
     "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
     "-Dclient.interval=500" \
-	"-Dclient.output_txn_counters=txncounters.csv" \
+        "-Dclient.output_txn_counters=txncounters.csv" \
     "-Dclient.anticache_enable=false" \
     "-Dclient.anticache_evict_interval=30000" \
     "-Dclient.anticache_evict_size=4194304" \
@@ -85,23 +89,38 @@ EVICTABLE_TABLES=( \
     "usertable" \
 )
 EVICTABLES=""
-for t in ${EVICTABLE_TABLES[@]}; do
-    EVICTABLES="${t},${EVICTABLES}"
+if [ "$ENABLE_ANTICACHE" = "true" ]; then
+    for t in ${EVICTABLE_TABLES[@]}; do
+        EVICTABLES="${t},${EVICTABLES}"
+    done
+fi
+
+# Compile
+HOSTS_TO_UPDATE=("$SITE_HOST")
+for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
+    NEED_UPDATE=1
+    for x in ${HOSTS_TO_UPDATE[@]}; do
+        if [ "$CLIENT_HOST" = "$x" ]; then
+            NEED_UPDATE=0
+            break
+        fi
+    done
+    if [ $NEED_UPDATE = 1 ]; then
+        HOSTS_TO_UPDATE+=("$CLIENT_HOST")
+    fi
 done
+for HOST in ${HOSTS_TO_UPDATE[@]}; do
+    ssh $HOST "cd $BASE_DIR && git pull && ant compile" &
+done
+wait
 
 ant compile
 for i in 8; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
-#     if [ $i -gt 1 ]; then
-#         NUM_CLIENTS=`expr \( $i - 1 \) \* $BASE_CLIENT_THREADS`
-#     else
-#         NUM_CLIENTS=$BASE_CLIENT_THREADS
-#     fi
-#    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
-     SITE_MEMORY=$BASE_SITE_MEMORY
-   
+    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
+    
     # BUILD PROJECT JAR
     ant hstore-prepare \
         -Dproject=${BASE_PROJECT} \
@@ -113,9 +132,6 @@ for i in 8; do
     CLIENT_COUNT=0
     CLIENT_HOSTS_STR=""
     for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
-        if [ $CLIENT_HOST != $SITE_HOST ]; then
-            scp -r ${BASE_PROJECT}.jar ${CLIENT_HOST}:${BASE_DIR}
-        fi
         CLIENT_COUNT=`expr $CLIENT_COUNT + 1`
         if [ ! -z "$CLIENT_HOSTS_STR" ]; then
             CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR},"
@@ -123,11 +139,19 @@ for i in 8; do
         CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR}${CLIENT_HOST}"
     done
     
+    # DISTRIBUTE PROJECT JAR
+    for HOST in ${HOSTS_TO_UPDATE[@]}; do
+        if [ "$HOST" != $(hostname) ]; then
+            scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
+        fi
+    done
+    wait
+    
     # EXECUTE BENCHMARK
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
-        -Dkillonzero=false \
-        -Dclient.threads_per_host=25 \
+        -Dkillonzero=true \
+        -Dclient.threads_per_host=${NUM_CLIENTS} \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
         -Dclient.count=${CLIENT_COUNT}
