@@ -365,8 +365,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             inflight_cmdlog = cmdLogger.getTotalTxnCount();
         }
         
-        siteInfo.put("InFlight Txns", String.format("%d total / %d queued / %d cmdlog / %d deletable [totalMin=%d, totalMax=%d]",
+        siteInfo.put("InFlight Txns", String.format("%d total / %d init / %d queued / %d cmdlog / %d deletable [totalMin=%d, totalMax=%d]",
                         inflight_cur,       // total
+                        queueManagerDebug.getInitQueueSize(),
                         inflight_local,     // queued
                         inflight_cmdlog,    // cmdlog
                         this.siteDebug.getDeletableTxnCount(), // deletable
