@@ -49,7 +49,7 @@ public abstract class YCSBConstants {
     public static final int NUM_COLUMNS = 11; 
 	public static final int COLUMN_LENGTH = 50; 
 	
-	public static final int BATCH_SIZE = 5000; 
+	public static final int BATCH_SIZE = 10000; 
 	public static final int MAX_SCAN = 1000; 
 	
 	// Transaction frequencies as specified in YCSB
