@@ -1013,6 +1013,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 specTxn.getInitCallback().cancel();
                 
                 // Ok now that that's out of the way, let's run this baby...
+                specTxn.setSpeculative(specType);
                 this.executeTransaction(specTxn);
             }
             else if (trace.val) {
@@ -1021,8 +1022,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
         }
         else if (trace.val && this.currentDtxn != null) {
-            LOG.trace(String.format("%s - Skipping check for speculative execution txns at partition %d",
-                      this.currentDtxn, this.partitionId));
+            LOG.trace(String.format("%s - Skipping check for speculative execution txns at partition %d " +
+            		  "[lockQueue=%d, specExecIgnoreCurrent=%s]",
+                      this.currentDtxn, this.partitionId, this.lockQueue.size(), this.specExecIgnoreCurrent));
         }
         
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
@@ -2070,12 +2072,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     this.blockTransaction(ts);
                     return;
                 }
-                
-                SpeculationType specType = this.calculateSpeculationType();
-                ts.setSpeculative(specType);
+                assert(ts.getSpeculativeType() != null);
                 if (debug.val)
                     LOG.debug(String.format("Speculatively executing %s while waiting for dtxn %s [%s]",
-                              ts, this.currentDtxn, specType));
+                              ts, this.currentDtxn, ts.getSpeculativeType()));
                 assert(ts.isSpeculative()) : ts + " was not marked as being speculative!";
             }
         }
@@ -2177,8 +2177,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                               this.partitionId, ts));
                 }
             }
-            if (trace.val) LOG.trace(String.format("%s - Queuing ClientResponse [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
-                             ts, cresponse.getStatus(), before_mode, this.currentExecMode, this.currentDtxn));
+            if (trace.val)
+                LOG.trace(String.format("%s - Queuing ClientResponse [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
+                          ts, cresponse.getStatus(), before_mode, this.currentExecMode, this.currentDtxn));
             this.blockClientResponse(ts, cresponse);
         }
     }
@@ -3624,9 +3625,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Queue a speculatively executed transaction to send its ClientResponseImpl message
      */
     private void blockClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        if (debug.val)
-            LOG.debug(String.format("%s - Blocking %s ClientResponse [partitions=%s]",
-                      ts, cresponse.getStatus(), ts.getTouchedPartitions().values()));
         assert(ts.isPredictSinglePartition() == true) :
             String.format("Specutatively executed multi-partition %s [mode=%s, status=%s]",
                           ts, this.currentExecMode, cresponse.getStatus());
@@ -3642,9 +3640,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         this.specExecBlocked.push(Pair.of(ts, cresponse));
         this.specExecModified = this.specExecModified && ts.isExecReadOnly(this.partitionId);
-
-        if (trace.val)
-            LOG.trace("Total # of Blocked Responses: " + this.specExecBlocked.size());
+        if (debug.val)
+            LOG.debug(String.format("%s - Blocking %s ClientResponse [partitions=%s, blockQueue=%d]",
+                      ts, cresponse.getStatus(),
+                      ts.getTouchedPartitions().values(), this.specExecBlocked.size()));
     }
     
     /**

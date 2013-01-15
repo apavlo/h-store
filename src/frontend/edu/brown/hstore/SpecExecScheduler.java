@@ -280,7 +280,7 @@ public class SpecExecScheduler {
         
         this.lastDtxn = dtxn;
         this.lastSpecType = specType;
-        if (resetIterator) this.lastIterator = null;
+        if (resetIterator || this.lastIterator.hasNext() == false) this.lastIterator = null;
         else if (this.ignore_queue_size_change == false) this.lastSize = this.queue.size();
         if (this.profiling) profiler.total_time.stop();
         return (next);

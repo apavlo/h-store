@@ -844,8 +844,8 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.exec_specExecType == SpeculationType.NULL) :
             String.format("Trying to mark %s as speculative twice [new=%s / previous=%s]",
                           this, type, this.exec_specExecType); 
-//        if (debug.val)
-            LOG.info(String.format("%s - Set %s = %s", 
+        if (debug.val)
+            LOG.debug(String.format("%s - Set %s = %s", 
                       this, type.getClass().getSimpleName(), type));
         this.exec_specExecType = type;
     }
