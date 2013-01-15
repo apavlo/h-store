@@ -102,6 +102,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final Collection<Table> evictableTables;
     private boolean evicting = false;
     private final AntiCacheManagerProfiler profilers[];
+    
+    private int totalBytesEvicted = 0; 
 
     /**
      * 
@@ -329,6 +331,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             tableNames[i] = catalog_tbl.getName();
             // TODO: Need to figure out what the optimal solution is for picking the block sizes
             evictBytes[i] = DEFAULT_EVICTED_BLOCK_SIZE;
+            totalBytesEvicted += DEFAULT_EVICTED_BLOCK_SIZE; 
             i++;
         } // FOR
         Object params[] = new Object[] { HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
@@ -349,6 +352,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             }
             this.hstore_site.invocationProcess(b, this.evictionCallback);
         } // FOR
+
+        LOG.info("Evicted " + totalBytesEvicted + " total bytes."); 
     }
 
     // ----------------------------------------------------------------------------

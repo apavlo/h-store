@@ -54,11 +54,11 @@ BASE_ARGS=( \
     "-Dsite.exec_postprocessing_threads=true" \
     
     # Client Params
-    "-Dclient.scalefactor=1" \
+    "-Dclient.scalefactor=.1" \
     "-Dclient.output_clients=true" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=2000" \
-    "-Dclient.warmup=30000" \
+    "-Dclient.txnrate=55000" \
+    "-Dclient.warmup=120000" \
     "-Dclient.duration=30000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
@@ -115,7 +115,7 @@ done
 wait
 
 ant compile
-for i in 8; do
+for i in 4; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
