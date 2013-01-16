@@ -167,6 +167,7 @@ public class YCSBClient extends BenchmarkComponent {
                 break;
             case INSERT_RECORD:
                 params = new Object[]{ readRecord.nextInt() };
+                @SuppressWarnings("unused")
                 List<String> values = buildValues(10); // FIXME
                 break;
             case SCAN_RECORD:
