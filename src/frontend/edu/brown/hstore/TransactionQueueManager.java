@@ -139,26 +139,20 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.restartQueue = new LinkedBlockingQueue<Pair<LocalTransaction,Status>>();
         this.profilers = new TransactionQueueManagerProfiler[catalogContext.numberOfPartitions];
         
-        // Use updateConf() to initialize our internal values from the HStoreConf
-        this.updateConf(this.hstore_conf);
-        
         // Initialize internal queues
         for (int partition : this.localPartitions.values()) {
             PartitionLockQueue queue = new PartitionLockQueue(partition,
                                                               this.initWaitTime,
                                                               this.initThrottleThreshold,
                                                               this.initThrottleRelease);
-            queue.setThrottleThresholdAutoDelta(50);
-            queue.setAllowDecrease(true);
-            queue.setThrottleThresholdMinSize((int)(this.initThrottleThreshold*0.5));
-            queue.setAllowIncrease(true);
-            queue.setThrottleThresholdMaxSize((int)(this.initThrottleThreshold));
-            queue.enableProfiling(hstore_conf.site.queue_profiling);
             this.lockQueues[partition] = queue;
             this.lockQueueBarriers[partition] = new ReentrantLock(true);
             this.profilers[partition] = new TransactionQueueManagerProfiler();
         } // FOR
         Arrays.fill(this.lockQueueLastTxns, Long.valueOf(-1l));
+        
+        // Use updateConf() to initialize our internal values from the HStoreConf
+        this.updateConf(this.hstore_conf);
         
         // Add a EventObservable that will tell us when the first non-sysproc
         // request arrives from a client. This will then tell the queues that its ok
@@ -180,12 +174,17 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     @Override
     public void updateConf(HStoreConf hstore_conf) {
         this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
-        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * 1.5);
+        this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * hstore_conf.site.queue_threshold_factor);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (PartitionLockQueue queue : this.lockQueues) {
             if (queue != null) {
                 queue.setThrottleThreshold(this.initThrottleThreshold);
                 queue.setThrottleReleaseFactor(this.initThrottleRelease);
+                queue.setAllowDecrease(hstore_conf.site.queue_allow_decrease);
+                queue.setAllowIncrease(hstore_conf.site.queue_allow_increase);
+                queue.setThrottleThresholdMinSize((int)(this.initThrottleThreshold * hstore_conf.site.queue_min_factor));
+                queue.setThrottleThresholdMaxSize((int)(this.initThrottleThreshold * hstore_conf.site.queue_max_factor));
+                queue.setThrottleThresholdAutoDelta(hstore_conf.site.queue_autoscale_delta);
                 queue.enableProfiling(hstore_conf.site.queue_profiling);
             }
         } // FOR

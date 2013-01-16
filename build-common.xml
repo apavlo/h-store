@@ -148,6 +148,12 @@
 <arg value="site.txn_restart_limit_sysproc=${site.txn_restart_limit_sysproc}" />
 <arg value="site.txn_partition_id_managers=${site.txn_partition_id_managers}" />
 <arg value="site.queue_profiling=${site.queue_profiling}" />
+<arg value="site.queue_threshold_factor=${site.queue_threshold_factor}" />
+<arg value="site.queue_autoscale_delta=${site.queue_autoscale_delta}" />
+<arg value="site.queue_allow_decrease=${site.queue_allow_decrease}" />
+<arg value="site.queue_allow_increase=${site.queue_allow_increase}" />
+<arg value="site.queue_min_factor=${site.queue_min_factor}" />
+<arg value="site.queue_max_factor=${site.queue_max_factor}" />
 <arg value="site.queue_release_factor=${site.queue_release_factor}" />
 <arg value="site.mappings_path=${site.mappings_path}" />
 <arg value="site.markov_enable=${site.markov_enable}" />
