@@ -184,7 +184,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB();
     
     // get a unique block id from the executorContext
-    uint16_t block_id = antiCacheDB->nextBlockId(); 
+    uint16_t block_id = antiCacheDB->nextBlockId();
 
     // create a new evicted table tuple based on the schema for the source tuple
     // Get the columns in the source tuple are part of the primary key
@@ -197,7 +197,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     
     std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
     int tuple_length = -1;
-    int num_tuples_evicted = 0;
 
     // TODO: We may want to write a header in the block that tells us
     //       the original name of this table that these tuples came from,
@@ -209,11 +208,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 	ReferenceSerializeOutput* out = new ReferenceSerializeOutput(serialized_data, block_size);
     
     // Iterate through the table and pluck out tuples to put in our block
-    // TODO: This is reading tuples straight through. We need to create an LRU iterator
-    //       that can walk through the table and just grab the boring tuples and 
-    //       shove them out to our new block.
     TableTuple tuple(m_schema);
-    TableIterator table_itr(this);
     EvictionIterator evict_itr(this); 
     
     #ifdef VOLT_INFO_ENABLED
@@ -221,35 +216,45 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
     #endif
     
+    int16_t current_tuple_size;
+    size_t current_tuple_start_position;
+    
+    VOLT_INFO("Writing tuple header at position %d.", (int)out->position());
+    
+    int32_t num_tuples_evicted = 0;
+    out->writeInt(num_tuples_evicted); // reserve first 4 bytes in buffer for number of tuples in block
+    
     VOLT_DEBUG("Starting evictable tuple iterator for %s", name().c_str());
     while (evict_itr.hasNext()) {
-        evict_itr.next(tuple); 
-
-		// remove the tuple from the eviction chain
-		AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-	    eviction_manager->removeTuple(this, &tuple);
-
-        VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
-		
+        evict_itr.next(tuple);
+        
         // If this is the first tuple, then we need to allocate all of the memory and
         // what not that we're going to need
         if (tuple_length == -1) {
             tuple_length = tuple.tupleLength();
         }
-			
-		//VOLT_INFO("Evicting tuple id: %d", tuple_id); 
+        
+        // Check whether we have more space for one more tuple
+        if ((out->size()+tuple_length+2) > block_size)
+            break;
+        
+        current_tuple_start_position = out->position();
+        out->writeShort(0); // placeholder for tuple length
+        
+		// remove the tuple from the eviction chain
+		AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+	    eviction_manager->removeTuple(this, &tuple);
 
+        VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
+		        
 		if(tuple.isEvicted())
 		{
 			VOLT_INFO("tuple %d is already evicted.", tuple.getTupleID()); 
 			continue;
 		} 
 		
-        tuple.setEvictedTrue(); 
-
-        // Check whether we have more space for one more tuple
-        if ((out->size()+tuple_length) > block_size) break;
-        
+        tuple.setEvictedTrue();
+                
         // Populate the evicted_tuple with the source tuple's primary key values
         evicted_offset = 0;
         for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
@@ -267,16 +272,27 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address); 
 
         // Now copy the raw bytes for this tuple into the serialized buffer
-		serializer.serializeTo(tuple, out);  
-        //memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
+		serializer.serializeTo(tuple, out);
+        
+        // calculate current tuple length and write out tuple header
+        current_tuple_size = (int16_t)(out->size() - current_tuple_start_position - 2);
+        out->writeShortAt(current_tuple_start_position, current_tuple_size);
+        
+        VOLT_INFO("Evicting a tuple of size %d.", current_tuple_size);
         
         // At this point it's safe for us to delete this mofo
         deleteTupleStorage(tuple);
         num_tuples_evicted++;
         VOLT_DEBUG("Added new evicted %s tuple to block #%d [numEvicted=%d]",
                    name().c_str(), block_id, num_tuples_evicted);
-
+        
     } // WHILE
+    
+    // write out the block header (i.e. number of tuples in block)
+    out->writeIntAt(0, num_tuples_evicted);
+    
+    VOLT_INFO("Evicted %d total bytes.", (int)out->size());
+    
     #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("EvictedTable Time: %.2f sec", timer.elapsed());
     timer.restart();
@@ -303,7 +319,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         VOLT_INFO("AntiCacheDB Time: %.2f sec", timer.elapsed());
         VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
                 block_id, name().c_str(),
-                num_tuples_evicted, serialized_data_length, tuple_length);
+                num_tuples_evicted, m_bytesEvicted, tuple_length);
         VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
                 name().c_str(), (long)origEvictedTableSize, (long)m_evictedTable->activeTupleCount());
         #endif
@@ -339,17 +355,29 @@ bool PersistentTable::readEvictedBlock(uint16_t block_id) {
  * NOTE: We are assuming there are m_tuplePerBlock tuples in each evicted block
  */
 bool PersistentTable::mergeUnevictedTuples() 
-{    
-    char* tuple_ptr = NULL; 
-    int tuple_size_in_bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+{        
+    int num_blocks = static_cast<int> (m_unevictedBlocks.size());
+    int32_t num_tuples_in_block = -1;
+    int16_t tuple_size_in_bytes = -1;
     
-    int num_blocks = static_cast<int> (m_unevictedBlocks.size()); 
+    ReferenceSerializeInput* in; 
+
     
+    VOLT_INFO("Merging %d blocks.", num_blocks);
     for(int i = 0; i < num_blocks; i++)
-    {
-        tuple_ptr = m_unevictedBlocks[i]; 
-        for(int j = 0; j < m_tuplesPerBlock; j++)   
+    {        
+        // XXX: have to put block size, which we don't know, so just put something large, like 10MB
+        in = new ReferenceSerializeInput(m_unevictedBlocks[i], 10485760); 
+        num_tuples_in_block = in->readInt();
+        
+        VOLT_INFO("Merging %d tuples.", num_tuples_in_block);
+        
+        for(int j = 0; j < num_tuples_in_block; j++)
         {
+            tuple_size_in_bytes = in->readShort();
+            
+            VOLT_INFO("Merging tuple with %d bytes.", tuple_size_in_bytes);
+            
             // get a free tuple and increment the count of tuples current used
             nextFreeTuple(&m_tmpTarget1);
             m_tupleCount++;
@@ -357,19 +385,19 @@ bool PersistentTable::mergeUnevictedTuples()
             m_tmpTarget1.setEvictedFalse(); 
             
             // copy the data from the unevicted tuple into the newly acquired tuple slot
-            memcpy(m_tmpTarget1.address(), tuple_ptr, tuple_size_in_bytes); 
+            memcpy(m_tmpTarget1.address(), in->getRawPointer(tuple_size_in_bytes), tuple_size_in_bytes);
             
             // update all the indexes
             setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
             
             // TODO: remove the evicted table entry
-            //m_evictedTable->deleteTuple(); 
-    
-            // increment pointer to next tuple in block
-            tuple_ptr += tuple_size_in_bytes; 
+            //m_evictedTable->deleteTuple();
+            
+            VOLT_INFO("Successfully unevicted tuple of size %d.", tuple_size_in_bytes);
         }  
         
-        delete [] m_unevictedBlocks[i];
+        delete in;
+        //delete [] m_unevictedBlocks[i];
     }
     
     // Update eviction stats

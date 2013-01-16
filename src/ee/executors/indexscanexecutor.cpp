@@ -755,7 +755,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 
 		VOLT_INFO("Throwing EvictedTupleAccessException"); 
 
-		throw EvictedTupleAccessException(m_targetTable->databaseId(), num_block_ids, block_ids, tuple_keys);
+		//throw EvictedTupleAccessException(m_targetTable->databaseId(), num_block_ids, block_ids, tuple_keys);
+		throw EvictedTupleAccessException(0, num_block_ids, block_ids, tuple_keys);
     }
 #endif
     

@@ -2757,7 +2757,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             undoToken);
             
         } catch(EvictedTupleAccessException ex) {
-            LOG.info("Caught EvictedTupleAccessException.");
+            LOG.debug("Caught EvictedTupleAccessException.");
             error = ex;
             throw ex;
         } catch (SerializableException ex) {

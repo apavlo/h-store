@@ -103,7 +103,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
     int tuples_in_chain; 
     int current_tuple_id = table->getTupleID(tuple->address()); // scan blocks for this tuple
 
-	VOLT_INFO("In updateTuple() for tuple %d. %d tuples in the chain.", current_tuple_id, table->getNumTuplesInEvictionChain()); 
+	//VOLT_INFO("In updateTuple() for tuple %d. %d tuples in the chain.", current_tuple_id, table->getNumTuplesInEvictionChain()); 
     
 	if(current_tuple_id < 0)
 		return false; 
@@ -148,7 +148,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
     }
     
     // get the newest tuple in the LRU chain
-	VOLT_INFO("Current newest tuple is %d, setting to %d.", table->getNewestTupleID(), current_tuple_id); 
+	//VOLT_INFO("Current newest tuple is %d, setting to %d.", table->getNewestTupleID(), current_tuple_id); 
     TableTuple newest_tuple(table->dataPtrForTuple(table->getNewestTupleID()), table->m_schema); 
 
     // set the old "newest" tuple to point to the tuple we're updating
@@ -165,11 +165,11 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
 
 
 	//VOLT_INFO("tuples in eviction chain: %d", tuples_in_chain); 
-	VOLT_INFO("newest tuple in chain: %d", table->getNewestTupleID());
-	VOLT_INFO("oldest tuple in the chain: %d", table->getOldestTupleID());
+	//VOLT_INFO("newest tuple in chain: %d", table->getNewestTupleID());
+	//VOLT_INFO("oldest tuple in the chain: %d", table->getOldestTupleID());
 	
 	TableTuple oldest_tuple(table->dataPtrForTuple(table->getOldestTupleID()), table->m_schema); 
-	VOLT_INFO("2nd oldest tuple in chain: %d", oldest_tuple.getTupleID()); 
+	//VOLT_INFO("2nd oldest tuple in chain: %d", oldest_tuple.getTupleID()); 
     
     return true; 
 }
@@ -208,7 +208,7 @@ bool AntiCacheEvictionManager::removeTuple(PersistentTable* table, int removal_i
     // we're removing the front  of the chain, i.e. the oldest tuple
     if(table->getOldestTupleID() == removal_id)
     {
-		VOLT_INFO("Removing the first tuple in the eviction chain."); 
+		//VOLT_INFO("Removing the first tuple in the eviction chain."); 
         if(table->getNumTuplesInEvictionChain() == 1) // this is the only tuple in the chain
         {
             table->setOldestTupleID(0); 
@@ -219,7 +219,7 @@ bool AntiCacheEvictionManager::removeTuple(PersistentTable* table, int removal_i
             next_tuple_id = tuple.getTupleID(); 
             table->setOldestTupleID(next_tuple_id); 
 
-			VOLT_INFO("Oldest tuple in the chain: %d", next_tuple_id); 
+			//VOLT_INFO("Oldest tuple in the chain: %d", next_tuple_id); 
         }
         
         tuple_found = true; 
@@ -278,7 +278,7 @@ bool AntiCacheEvictionManager::removeTuple(PersistentTable* table, int removal_i
         --tuples_in_chain; 
         table->setNumTuplesInEvictionChain(tuples_in_chain); 
 
-		VOLT_INFO("Successfully removed tuple from eviction chain, new tuple count = %d.", tuples_in_chain); 
+		//VOLT_INFO("Successfully removed tuple from eviction chain, new tuple count = %d.", tuples_in_chain); 
         
         return true; 
     }

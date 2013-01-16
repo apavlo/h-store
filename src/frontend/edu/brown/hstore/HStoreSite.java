@@ -1854,7 +1854,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LocalTransaction localTxn = (LocalTransaction)ts;
             if (localTxn.profiler != null) localTxn.profiler.startInitQueue();
         }
-        this.txnQueueManager.initTransaction(ts);
+        this.txnQueueManager.queueTransactionInit(ts);
     }
     
     /**
@@ -2370,7 +2370,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             Table catalog_tbl = error.getTableId(this.catalogContext.database);
             short block_ids[] = error.getBlockIds();
 
-			LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks.",
+			LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks.",
 			         AntiCacheManager.class.getSimpleName(), block_ids.length));
             this.anticacheManager.queue(new_ts, base_partition, catalog_tbl, block_ids);
         }
@@ -2427,7 +2427,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostClient();
         boolean sendResponse = true;
-        if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
+        
+        // We have to send this txn to the CommandLog if all of the following are true:
+        //  (1) We have a CommandLogWriter
+        //  (2) The txn completed successfully
+        //  (3) It is not a sysproc
+        //  (4) It was not read-only
+        if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false &&
+            // HACK: We should be able to tell whether this txn was read-only at all
+            // partitions. For now we'll just base it on whether the Procedure was
+            // originally marked as read-only or not.
+            ts.isPredictReadOnly()) {
+            
             sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }
 
