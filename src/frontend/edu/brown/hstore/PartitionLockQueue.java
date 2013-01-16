@@ -62,7 +62,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
     // ----------------------------------------------------------------------------
 
     private final int partitionId;
-    private final int waitTime;
+    private int waitTime;
     
     private final ReentrantLock lock = new ReentrantLock(true);
     private final Condition isReady = lock.newCondition();
@@ -335,11 +335,9 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         if (retval) {
             if (trace.val)
                 LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
-
             this.lock.lock();
             try {
                 if (retval) this.checkQueueState(false);
-                
             } finally {
                 if (trace.val)
                     LOG.trace(String.format("Partition %d :: Releasing lock", this.partitionId));
@@ -640,6 +638,9 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                 lock.unlock();
             }
             return (ret);
+        }
+        public void setWaitTime(int waitTime) {
+            PartitionLockQueue.this.waitTime = waitTime;
         }
     }
     
