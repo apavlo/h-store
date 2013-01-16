@@ -19,6 +19,7 @@ CLIENT_HOSTS=( \
         "modis2" \
         "modis2" \
         "modis2" \
+        "modis2" \
 )
 
 BASE_CLIENT_THREADS=1
@@ -31,34 +32,33 @@ ANTICACHE_EVICT_SIZE=268400000
 ANTICACHE_THRESHOLD=.75
 
 BASE_ARGS=( \
-    "-Dsite.status_enable=true" \
-    
     # SITE DEBUG
-#     "-Dsite.status_enable=true" \
-#     "-Dsite.status_interval=10000" \
-#     "-Dsite.status_exec_info=true" \
-#     "-Dsite.exec_profiling=true" \
+    "-Dsite.status_enable=true" \
+    "-Dsite.status_interval=10000" \
+    "-Dsite.status_exec_info=true" \
+    "-Dsite.exec_profiling=true" \
+#    "-Dsite.pool_profiling=true" \
 #     "-Dsite.network_profiling=false" \
 #     "-Dsite.log_backup=true"\
-    
+#    "-Dnoshutdown=true" \    
+
     # Site Params
     "-Dsite.jvm_asserts=false" \
     "-Dsite.specexec_enable=false" \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-    "-Dsite.network_incoming_limit_txns=8000" \
+    "-Dsite.network_incoming_limit_txns=50000" \
     "-Dsite.commandlog_enable=true" \
-    "-Dsite.txn_incoming_delay=1" \
+    "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=true" \
     
     # Client Params
-    "-Dclient.scalefactor=.1" \
-    "-Dclient.output_clients=true" \
+    "-Dclient.scalefactor=.01" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=55000" \
-    "-Dclient.warmup=120000" \
-    "-Dclient.duration=30000" \
+    "-Dclient.txnrate=50000" \
+    "-Dclient.warmup=00000" \
+    "-Dclient.duration=120000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
@@ -69,17 +69,19 @@ BASE_ARGS=( \
     "-Dsite.anticache_check_interval=30000" \
     "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
-    "-Dclient.interval=500" \
-        "-Dclient.output_txn_counters=txncounters.csv" \
+#    "-Dclient.interval=500" \
     "-Dclient.anticache_enable=false" \
     "-Dclient.anticache_evict_interval=30000" \
     "-Dclient.anticache_evict_size=4194304" \
     "-Dclient.output_csv=false" \
-    "-Dclient.output_interval=false" \
+    "-Dclient.output_interval=true" \
 
     # CLIENT DEBUG
+#    "-Dclient.output_txn_counters=txncounters.csv" \
+    "-Dclient.output_clients=false" \
     "-Dclient.profiling=false" \
     "-Dclient.output_response_status=true" \
+#    "-Dclient.output_queue_profiling=${BASE_PROJECT}-queue.csv" \
 #     "-Dclient.output_basepartitions=true" \
 #     "-Dclient.jvm_args=\"-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:-TraceClassUnloading\"" 
 )
@@ -114,7 +116,7 @@ done
 wait
 
 ant compile
-for i in 4; do
+for i in `seq 4 4`; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
