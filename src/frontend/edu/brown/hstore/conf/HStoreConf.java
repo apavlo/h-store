@@ -757,12 +757,53 @@ public final class HStoreConf {
         public boolean queue_profiling;
         
         @ConfigProperty(
-            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
-                        "will not accept new requests until the number of queued transactions is less than " +
-                        "this percentage. This includes all transactions that are waiting to be executed, " +
-                        "executing, and those that have already executed and are waiting for their results " +
-                        "to be sent back to the client. The incoming queue release is calculated as " +
-                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
+            description="The initial throttling threshold for the PartitionLockQueue.",
+            defaultDouble=1.0,
+            experimental=false
+        )
+        public double queue_threshold_factor;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=50,
+            experimental=true
+        )
+        public int queue_autoscale_delta;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean queue_allow_decrease;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean queue_allow_increase;
+        
+        @ConfigProperty(
+            description="The initial throttling threshold for the PartitionLockQueue.",
+            defaultDouble=0.5,
+            experimental=false
+        )
+        public double queue_min_factor;
+        
+        @ConfigProperty(
+            description="The initial throttling threshold for the PartitionLockQueue.",
+            defaultDouble=1.5,
+            experimental=false
+        )
+        public double queue_max_factor;
+        
+        @ConfigProperty(
+            description="If the HStoreSite is throttling incoming client requests at individual partitions," +
+            		    " then that HStoreSite will not accept new requests until the number of queued " +
+            		    "transactions is less than this percentage in a partition's lock queue. Note that this " +
+            		    "only considers the total number of transactions that are in the PartitionLockQueue, " +
+            		    "not transactions that are waiting to be initialized or have already completed.",
             defaultDouble=0.50,
             experimental=false
         )
