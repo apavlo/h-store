@@ -211,7 +211,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         if (debug.val)
             LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
         AbstractTransaction nextTxn = null;
-        int added = 0;
         while (this.stop == false) {
             try {
                 nextTxn = this.initQueue.poll(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
@@ -219,50 +218,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 // IGNORE
             }
             if (nextTxn != null) {
-                if (hstore_conf.site.txn_profiling && nextTxn instanceof LocalTransaction) {
-                    LocalTransaction localTxn = (LocalTransaction)nextTxn;
-                    if (localTxn.profiler != null) localTxn.profiler.startQueueLock();
-                }
-                
-                PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getInitCallback();
-                assert(callback.isInitialized()) :
-                    String.format("Unexpected uninitialized %s for %s\n%s",
-                                  callback.getClass().getSimpleName(),
-                                  nextTxn, callback.toString());
-                boolean ret = (callback.isAborted() == false);
-                Status status = null;
-                
-                if (trace.val)
-                    LOG.trace(String.format("Adding %s to lock queus for partitions %s\n%s",
-                              nextTxn, nextTxn.getPredictTouchedPartitions(), callback));
-                for (int partition : nextTxn.getPredictTouchedPartitions().values()) {
-                    // Skip any non-local partition
-                    if (this.lockQueues[partition] == null) continue;
-                    
-                    // If this txn gets rejected when we try to insert it, then we 
-                    // just need to stop trying to add it to other partitions
-                    if (ret) {
-                        status = this.lockQueueInsert(nextTxn, partition, callback);
-                        if (status != Status.OK) ret = false;
-                    // IMPORTANT: But we still need to go through and decrement the
-                    // callback's counter for those other partitions.
-                    } else {
-                        callback.decrementCounter(partition);
-                    }
-                } // FOR
-                if (ret) {
-                    added++;
-                    if (trace.val) 
-                        LOG.debug(String.format("Finished processing lock queues for %s [result=%s]",
-                                  nextTxn, ret));
-                }
+                this.initTransaction(nextTxn);
             }
-            
             // Requeue mispredicted local transactions
-            if ((nextTxn == null || added > CHECK_INIT_QUEUE_LIMIT) &&
-                    this.restartQueue.isEmpty() == false) {
+            if (nextTxn == null && this.restartQueue.isEmpty() == false) {
                 this.checkRestartQueue();
-                added = 0; 
             }
         } // WHILE
     }
@@ -303,12 +263,51 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // INIT QUEUES
     // ----------------------------------------------------------------------------
 
+    private boolean initTransaction(AbstractTransaction nextTxn) {
+        if (hstore_conf.site.txn_profiling && nextTxn instanceof LocalTransaction) {
+            LocalTransaction localTxn = (LocalTransaction)nextTxn;
+            if (localTxn.profiler != null) localTxn.profiler.startQueueLock();
+        }
+        
+        PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getInitCallback();
+        assert(callback.isInitialized()) :
+            String.format("Unexpected uninitialized %s for %s\n%s",
+                          callback.getClass().getSimpleName(),
+                          nextTxn, callback.toString());
+        boolean ret = (callback.isAborted() == false);
+        Status status = null;
+        
+        if (trace.val)
+            LOG.trace(String.format("Adding %s to lock queus for partitions %s\n%s",
+                      nextTxn, nextTxn.getPredictTouchedPartitions(), callback));
+        for (int partition : nextTxn.getPredictTouchedPartitions().values()) {
+            // Skip any non-local partition
+            if (this.lockQueues[partition] == null) continue;
+            
+            // If this txn gets rejected when we try to insert it, then we 
+            // just need to stop trying to add it to other partitions
+            if (ret) {
+                status = this.lockQueueInsert(nextTxn, partition, callback);
+                if (status != Status.OK) ret = false;
+            // IMPORTANT: But we still need to go through and decrement the
+            // callback's counter for those other partitions.
+            } else {
+                callback.decrementCounter(partition);
+            }
+        } // FOR
+        if (trace.val && ret) {
+            LOG.trace(String.format("Finished processing lock queues for %s [result=%s]",
+                      nextTxn, ret));
+        }
+        return (ret);
+    }
+    
     /**
      * Queue a brand new transaction at this HStoreSite to be added into
      * the appropriate lock queues for the partitions that it needs to access.
      * @param ts
      */
-    protected void initTransaction(AbstractTransaction ts) {
+    protected void queueTransactionInit(AbstractTransaction ts) {
         if (debug.val)
             LOG.debug(String.format("Adding %s to initialization queue", ts));
         this.initQueue.add(ts);
@@ -761,6 +760,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
 
     public class Debug implements DebugContext {
         public int getInitQueueSize() {
+            return (initQueue.size());
+        }
+        public int getLockQueueSize() {
             Set<AbstractTransaction> allTxns = new HashSet<AbstractTransaction>();
             for (int p : localPartitions.values()) {
                 try {
@@ -770,9 +772,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 }
             }
             return (allTxns.size());
-        }
-        public int getInitQueueSize(int partition) {
-            return (lockQueues[partition].size());
         }
         public int getRestartQueueSize() {
             return (restartQueue.size());

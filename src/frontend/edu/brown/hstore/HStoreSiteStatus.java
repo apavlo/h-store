@@ -358,13 +358,17 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             inflight_cmdlog = cmdLogger.getTotalTxnCount();
         }
         
-        siteInfo.put("InFlight Txns", String.format("%d total / %d queued / %d cmdlog / %d deletable [totalMin=%d, totalMax=%d]",
-                        inflight_cur,                           // total
-                        queueManagerDebug.getInitQueueSize(),   // queued
-                        inflight_cmdlog,                        // cmdlog
-                        this.siteDebug.getDeletableTxnCount(),  // deletable
-                        this.inflight_min,                      // totalMin
-                        this.inflight_max                       // totalMax
+        siteInfo.put("InFlight Txns",
+                      String.format("%d total / %d init / %d queued / %d restart / %d cmdlog / %d deletable " +
+        		                    "[totalMin=%d, totalMax=%d]",
+                                    inflight_cur,       // total
+                                    queueManagerDebug.getInitQueueSize(), // init
+                                    queueManagerDebug.getLockQueueSize(), // queued
+                                    queueManagerDebug.getRestartQueueSize(), // restart
+                                    inflight_cmdlog,    // cmdlog
+                                    this.siteDebug.getDeletableTxnCount(), // deletable
+                                    this.inflight_min,  // totalMin
+                                    this.inflight_max   // totalMax
         ));
         
         
@@ -539,13 +543,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     }
                 }
             }
-            // TransactionQueueManager - Requeued Txns
-            if (queueManagerDebug.getRestartQueueSize() > 0) {
-                queueStatus += "\nRequeues: " + queueManagerDebug.getRestartQueueSize();
-            }
             m.put("Lock Queue", queueStatus);
             
-
             if (profiler != null) {
                 String inner = String.format("%d current / %d processed\n%s",
                                              executorDebug.getWorkQueueSize(),

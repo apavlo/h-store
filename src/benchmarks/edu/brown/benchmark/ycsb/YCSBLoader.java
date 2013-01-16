@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Table;
 import edu.brown.api.BenchmarkComponent;
@@ -46,9 +47,8 @@ import edu.brown.utils.ThreadUtil;
 public class YCSBLoader extends Loader {
     private static final Logger LOG = Logger.getLogger(YCSBClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
 
     public static void main(String args[]) throws Exception {
@@ -72,9 +72,12 @@ public class YCSBLoader extends Loader {
         if (debug.val)
             LOG.debug("Starting YCSBLoader");
 
-        final Table catalog_tbl = this.getCatalogContext().getTableByName(YCSBConstants.TABLE_NAME);
+        final CatalogContext catalogContext = this.getCatalogContext(); 
+        final Table catalog_tbl = catalogContext.getTableByName(YCSBConstants.TABLE_NAME);
         final AtomicLong total = new AtomicLong(0);
-        final int init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * this.getScaleFactor());
+        final int init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * 
+                                                      catalogContext.numberOfPartitions *
+                                                      this.getScaleFactor());
         
         // Multi-threaded loader
         final int num_cores = ThreadUtil.availableProcessors();
@@ -97,7 +100,7 @@ public class YCSBLoader extends Loader {
 
                         // randomly generate strings for each column
                         for (int col = 2; col < YCSBConstants.NUM_COLUMNS; col++) {
-                            row[col] = YCSBUtil.astring(50, 50);
+                            row[col] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
                         } // FOR
                         table.addRow(row);
 

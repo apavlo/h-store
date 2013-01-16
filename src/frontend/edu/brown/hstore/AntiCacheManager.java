@@ -56,11 +56,17 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
     // TODO: These should be moved into HStoreConf
     
-    // public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1MB
-    public static final long DEFAULT_MEMORY_THRESHOLD_MB = 2;
+    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1024 kB
+    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 524288; // 512 kB
+    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 262144; // 256 kB
+    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 131072; // 128 kB
+    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 65536; // 64 kB
+    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 32768; // 32 kB
+    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 16384; // 16 kB 
+    
 
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 51200; // 50 kb
-    // public static final long DEFAULT_MEMORY_THRESHOLD_MB = 512;
+    
+    public static final long DEFAULT_MEMORY_THRESHOLD_MB = 2500;
 
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY
@@ -96,6 +102,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final Collection<Table> evictableTables;
     private boolean evicting = false;
     private final AntiCacheManagerProfiler profilers[];
+    
+    private int totalBytesEvicted = 0; 
 
     /**
      * 
@@ -211,7 +219,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         assert(next.partition == next.ts.getBasePartition()) :
             String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
                           next.ts, next.ts.getBasePartition(), next.partition, next);
-        LOG.info("Processing " + next);
+        LOG.debug("Processing " + next);
         
         // We need to get the EE handle for the partition that this txn
         // needs to have read in some blocks from disk
@@ -232,10 +240,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         if (hstore_conf.site.anticache_profiling) 
             this.profilers[next.partition].retrieval_time.start();
         try {
-            LOG.info(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
+            LOG.debug(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
                      next.catalog_tbl.getName(), next.partition, Arrays.toString(next.block_ids)));
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids);
-            LOG.info(String.format("Finished reading blocks from partition %d",
+            LOG.debug(String.format("Finished reading blocks from partition %d",
                      next.partition));
         } catch (SerializableException ex) {
             LOG.info("Caught unexpected SerializableException.");
@@ -280,7 +288,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // TODO: We should check whether there are any other txns that are also blocked waiting
         // for these blocks. This will ensure that we don't try to read in blocks twice.
 
-        LOG.info("Queueing a transaction for partition " + partition);
+        //LOG.info("Queueing a transaction for partition " + partition);
         return (this.queue.offer(e));
     }
 
@@ -323,6 +331,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             tableNames[i] = catalog_tbl.getName();
             // TODO: Need to figure out what the optimal solution is for picking the block sizes
             evictBytes[i] = DEFAULT_EVICTED_BLOCK_SIZE;
+            totalBytesEvicted += DEFAULT_EVICTED_BLOCK_SIZE; 
             i++;
         } // FOR
         Object params[] = new Object[] { HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
@@ -343,6 +352,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             }
             this.hstore_site.invocationProcess(b, this.evictionCallback);
         } // FOR
+
+        LOG.info("Evicted " + totalBytesEvicted + " total bytes."); 
     }
 
     // ----------------------------------------------------------------------------
