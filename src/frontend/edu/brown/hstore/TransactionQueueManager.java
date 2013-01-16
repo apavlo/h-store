@@ -257,7 +257,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      */
     @Override
     public void runImpl() {
-        int numInitialzers = 2;
+        int numInitialzers = 4;
         int numRestarters = 1;
         
         List<Thread> threads = new ArrayList<Thread>();
