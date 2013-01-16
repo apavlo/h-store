@@ -1,9 +1,11 @@
 package edu.brown.hstore;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -113,8 +115,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * A queue of aborted transactions that need to restart and add back into the system
      * <B>NOTE:</B> Anything that shows up in this queue will be deleted by this manager
      */
-    private final Queue<Pair<LocalTransaction, Status>> restartQueue =
-            new ConcurrentLinkedQueue<Pair<LocalTransaction, Status>>(); 
+    private final BlockingQueue<Pair<LocalTransaction, Status>> restartQueue;
+            // new ConcurrentLinkedQueue<Pair<LocalTransaction, Status>>(); 
     
     // ----------------------------------------------------------------------------
     // INTIALIZATION
@@ -134,6 +136,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.lockQueueLastTxns = new Long[catalogContext.numberOfPartitions];
         this.lockQueueBarriers = new ReentrantLock[catalogContext.numberOfPartitions];
         this.initQueue = new LinkedBlockingQueue<AbstractTransaction>();
+        this.restartQueue = new LinkedBlockingQueue<Pair<LocalTransaction,Status>>();
         this.profilers = new TransactionQueueManagerProfiler[catalogContext.numberOfPartitions];
         
         // Use updateConf() to initialize our internal values from the HStoreConf
@@ -193,6 +196,57 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     // RUN METHOD
     // ----------------------------------------------------------------------------
     
+    private class Initializer extends ExceptionHandlingRunnable {
+        public void runImpl() {
+            Thread self = Thread.currentThread();
+            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_MGR));
+            hstore_site.getThreadManager().registerProcessingThread();
+            
+            if (debug.val)
+                LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
+            AbstractTransaction nextTxn = null;
+            while (stop == false) {
+                try {
+                    nextTxn = initQueue.take();
+                } catch (InterruptedException ex) {
+                    // IGNORE
+                }
+                if (nextTxn != null) initTransaction(nextTxn);
+            } // WHILE
+        };
+    }
+    
+    private class Restarter extends ExceptionHandlingRunnable {
+        @Override
+        public void runImpl() {
+            Thread self = Thread.currentThread();
+            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_MGR));
+            hstore_site.getThreadManager().registerProcessingThread();
+            
+            if (debug.val)
+                LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
+            Pair<LocalTransaction, Status> pair = null;
+            while (stop == false) {
+                try {
+                    pair = restartQueue.take();
+                } catch (InterruptedException ex) {
+                    // IGNORE
+                }
+                LocalTransaction ts = pair.getFirst();
+                Status status = pair.getSecond();
+                    
+                if (trace.val)
+                    LOG.trace(String.format("%s - Ready to restart transaction [status=%s]", ts, status));
+                Status ret = hstore_site.transactionRestart(ts, status);
+                if (trace.val)
+                    LOG.trace(String.format("%s - Got return result %s after restarting", ts, ret));
+                
+                ts.unmarkNeedsRestart();
+                hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
+            } // WHILE
+        }
+    }
+    
     /**
      * Every time this thread gets waken up, it locks the queues, loops through the txn_queues,
      * and looks at the lowest id in each queue. If any id is lower than the last_txn id for
@@ -204,27 +258,32 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      */
     @Override
     public void runImpl() {
-        Thread self = Thread.currentThread();
-        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_MGR));
-        this.hstore_site.getThreadManager().registerProcessingThread();
+        int numInitialzers = 2;
+        int numRestarters = 1;
         
-        if (debug.val)
-            LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
-        AbstractTransaction nextTxn = null;
-        while (this.stop == false) {
+        List<Thread> threads = new ArrayList<Thread>();
+        for (int i = 0; i < numInitialzers; i++) {
+            Thread t = new Thread(new Initializer());
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(hstore_site.getExceptionHandler());
+            t.start();
+            threads.add(t);
+        } // FOR
+        for (int i = 0; i < numRestarters; i++) {
+            Thread t = new Thread(new Restarter());
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(hstore_site.getExceptionHandler());
+            t.start();
+        } // FOR
+        
+        for (Thread t : threads) {
             try {
-                nextTxn = this.initQueue.poll(THREAD_WAIT_TIME, THREAD_WAIT_TIMEUNIT);
+                t.join();
             } catch (InterruptedException ex) {
                 // IGNORE
+                break;
             }
-            if (nextTxn != null) {
-                this.initTransaction(nextTxn);
-            }
-            // Requeue mispredicted local transactions
-            if (nextTxn == null && this.restartQueue.isEmpty() == false) {
-                this.checkRestartQueue();
-            }
-        } // WHILE
+        } // FOR
     }
     
     /**
