@@ -31,19 +31,10 @@ package edu.brown.benchmark.ycsb;
 
 import java.util.Random;
 
-import edu.brown.rand.RandomDistribution.Zipf;
-
 public abstract class YCSBUtil {
 
     public static final Random rand = new Random();
-    public static Zipf zipf = null;
-    public static final double zipf_sigma = 1.001d;
 
-    public static int isActive() {
-        return number(1, 100) < number(86, 100) ? 1 : 0;
-    }
-
-    // modified from tpcc.RandomGenerator
     /**
      * @returns a random alphabetic string with length in range [minimum_length,
      *          maximum_length].
@@ -52,7 +43,6 @@ public abstract class YCSBUtil {
         return randomString(minimum_length, maximum_length, 'A', 26);
     }
 
-    // taken from tpcc.RandomGenerator
     /**
      * @returns a random numeric string with length in range [minimum_length,
      *          maximum_length].
@@ -63,7 +53,7 @@ public abstract class YCSBUtil {
 
     // taken from tpcc.RandomGenerator
     public static String randomString(int minimum_length, int maximum_length, char base, int numCharacters) {
-        int length = number(minimum_length, maximum_length).intValue();
+        int length = (int)number(minimum_length, maximum_length);
         byte baseByte = (byte) base;
         byte[] bytes = new byte[length];
         for (int i = 0; i < length; ++i) {
@@ -73,45 +63,10 @@ public abstract class YCSBUtil {
     }
 
     // taken from tpcc.RandomGenerator
-    public static Long number(long minimum, long maximum) {
+    public static long number(long minimum, long maximum) {
         assert minimum <= maximum;
         long value = Math.abs(rand.nextLong()) % (maximum - minimum + 1) + minimum;
         assert minimum <= value && value <= maximum;
         return value;
     }
-
-    public static String padWithZero(Long n) {
-        String meat = n.toString();
-        char[] zeros = new char[15 - meat.length()];
-        for (int i = 0; i < zeros.length; i++)
-            zeros[i] = '0';
-        return (new String(zeros) + meat);
-    }
-
-    /**
-     * Returns sub array of arr, with length in range [min_len, max_len]. Each
-     * element in arr appears at most once in sub array.
-     */
-    public static int[] subArr(int arr[], int min_len, int max_len) {
-        assert min_len <= max_len && min_len >= 0;
-        int sub_len = number(min_len, max_len).intValue();
-        int arr_len = arr.length;
-
-        assert sub_len <= arr_len;
-
-        int sub[] = new int[sub_len];
-        for (int i = 0; i < sub_len; i++) {
-            int j = number(0, arr_len - 1).intValue();
-            sub[i] = arr[j];
-            // arr[j] put to tail
-            int tmp = arr[j];
-            arr[j] = arr[arr_len - 1];
-            arr[arr_len - 1] = tmp;
-
-            arr_len--;
-        } // FOR
-
-        return sub;
-    }
-
 }
