@@ -49,17 +49,25 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir) :
     m_dbDir(db_dir),
     m_nextBlockId(0) {
         
+    u_int32_t env_flags =
+        DB_CREATE       | // Create the environment if it does not exist
+        DB_AUTO_COMMIT  | // Immediately commit every operation
+        DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
+        DB_AUTO_COMMIT  | // Commit all changes immediately
+        DB_DIRECT_DB;     // Use O_DIRECT
+        
     try {
         // allocate and initialize Berkeley DB database env
         m_dbEnv = new DbEnv(0); 
-        m_dbEnv->open(m_dbDir.c_str(), DB_CREATE | DB_INIT_MPOOL, 0); 
+        m_dbEnv->open(m_dbDir.c_str(), env_flags, 0); 
         
         // allocate and initialize new Berkeley DB instance
         m_db = new Db(m_dbEnv, 0); 
-        m_db->open(NULL, "anticache.db", NULL, DB_HASH, DB_CREATE, 0); 
+        m_db->open(NULL, ANTICACHE_DB_NAME, NULL, DB_HASH, DB_CREATE, 0); 
         
     } catch (DbException &e) {
         VOLT_ERROR("Anti-Cache initialization error: %s", e.what());
+        VOLT_ERROR("Failed to initialize anti-cache database in directory %s", db_dir.c_str());
         throwFatalException("Failed to initialize anti-cache database in directory %s: %s",
                             db_dir.c_str(), e.what());
     }
@@ -99,9 +107,11 @@ void AntiCacheDB::writeBlock(const std::string tableName,
     
     VOLT_INFO("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
+    // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
 
-    m_db->sync(0); 
+    // I don't think that this is necessary if we're using DB_AUTO_COMMIT
+    // m_db->sync(0); 
 }
 
 AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, uint16_t blockId) {
