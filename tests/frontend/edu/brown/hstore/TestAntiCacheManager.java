@@ -143,30 +143,30 @@ public class TestAntiCacheManager extends BaseTestCase {
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
-    /**
-     * testReadEvictedTuples
-     */
-    @Test
-    public void testReadEvictedTuples() throws Exception {
-        this.loadData();
-        
-        // We should have all of our tuples evicted
-        VoltTable evictResult = this.evictData();
-        long evicted = evictResult.getLong("TUPLES_EVICTED");
-        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
-        
-        // Now execute a query that needs to access data from this block
-        long expected = 1;
-        Procedure proc = this.getProcedure("GetVote"); // Special Single-Stmt Proc
-        ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
-        assertEquals(Status.OK, cresponse.getStatus());
-        
-        VoltTable results[] = cresponse.getResults();
-        assertEquals(1, results.length);
-        boolean adv = results[0].advanceRow();
-        assertTrue(adv);
-        assertEquals(expected, results[0].getLong(0));
-    }
+//    /**
+//     * testReadEvictedTuples
+//     */
+//    @Test
+//    public void testReadEvictedTuples() throws Exception {
+//        this.loadData();
+//        
+//        // We should have all of our tuples evicted
+//        VoltTable evictResult = this.evictData();
+//        long evicted = evictResult.getLong("TUPLES_EVICTED");
+//        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
+//        
+//        // Now execute a query that needs to access data from this block
+//        long expected = 1;
+//        Procedure proc = this.getProcedure("GetVote"); // Special Single-Stmt Proc
+//        ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
+//        assertEquals(Status.OK, cresponse.getStatus());
+//        
+//        VoltTable results[] = cresponse.getResults();
+//        assertEquals(1, results.length);
+//        boolean adv = results[0].advanceRow();
+//        assertTrue(adv);
+//        assertEquals(expected, results[0].getLong(0));
+//    }
     
     /**
      * testEvictTuples
