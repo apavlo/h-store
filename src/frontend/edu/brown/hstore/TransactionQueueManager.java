@@ -186,6 +186,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 queue.setThrottleThresholdMaxSize((int)(this.initThrottleThreshold * hstore_conf.site.queue_max_factor));
                 queue.setThrottleThresholdAutoDelta(hstore_conf.site.queue_autoscale_delta);
                 queue.enableProfiling(hstore_conf.site.queue_profiling);
+                queue.reset();
             }
         } // FOR
         

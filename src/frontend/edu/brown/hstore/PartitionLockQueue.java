@@ -417,14 +417,20 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             // We always need to check whether this new txnId is less than our next safe txnID
             // If it is, then we know that we need to replace it.
             if (txnId.compareTo(this.lastSafeTxnId) < 0) {
+                // 2013-01-15
+                // Instead of calling checkQueueState() here, we'll 
+                // just change the state real quickly. This should be ok because
+                // then we'll immediately insert this new txn into the queue
+                // and then update the queue state then.
+                this.state = QueueState.BLOCKED_ORDERING;
                 this.lastSafeTxnId = txnId;
-                    if (trace.val)
+                if (trace.val)
                         LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d",
                                   this.partitionId, this.lastSafeTxnId));
 
                 // Since we know that we just replaced the last safeTxnId, we 
                 // need to check our queue state to update ourselves
-                this.checkQueueState(false);
+                // this.checkQueueState(false);
             }
         } finally {
             if (trace.val)

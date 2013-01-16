@@ -148,7 +148,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
             if (last_size >= this.throttleThreshold) {
                 if (this.throttle_time_enabled) this.throttle_time.start();
                 if (can_change && this.allowDecreaseOnThrottle) {
-                    LOG.warn("throttleThreshold=>"+this.throttleThreshold);
+                    if (trace.val) LOG.trace("throttleThreshold=>"+this.throttleThreshold);
                     synchronized (this.size) {
                         if (this.throttled == false) {
                             this.throttleThreshold = Math.max(this.autoMinSize, (this.throttleThreshold - this.autoDelta));
@@ -164,7 +164,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
             // Or if the queue is completely empty and we're allowe to increase
             // the max limit, then we'll go ahead and do that for them here
             else if (can_change && last_size == 0 && this.allowIncreaseOnZero) {
-                LOG.warn("throttleThreshold=>"+this.throttleThreshold);
+                if (trace.val) LOG.trace("throttleThreshold=>"+this.throttleThreshold);
                 synchronized (this.size) {
                     this.throttleThreshold = Math.min(this.autoMaxSize, (this.throttleThreshold + this.autoDelta));
                     this.computeReleaseThreshold();
@@ -180,7 +180,6 @@ public class ThrottlingQueue<E> implements Queue<E> {
             if (this.throttle_time_enabled) this.throttle_time.stopIfStarted();
             this.throttled = false;
         }
-        LOG.info(this.debug());
     }
     
     // ----------------------------------------------------------------------------
