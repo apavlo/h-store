@@ -54,6 +54,7 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir) :
         DB_AUTO_COMMIT  | // Immediately commit every operation
         DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
         DB_AUTO_COMMIT  | // Commit all changes immediately
+        DB_NOLOCKING    | // Disable locks and latches
         DB_DIRECT_DB;     // Use O_DIRECT
         
     try {
