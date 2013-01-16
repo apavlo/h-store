@@ -462,10 +462,10 @@ public class TestOrderBySuite extends RegressionSuite {
 
     static public junit.framework.Test suite() {
         VoltServerConfig config = null;
-        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(
-                TestOrderBySuite.class);
+        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestOrderBySuite.class);
+        builder.setGlobalConfParameter("site.specexec_enable", false);
+        
         VoltProjectBuilder project = new VoltProjectBuilder("testorderby");
-
         project.addSchema(TestOrderBySuite.class.getResource("testorderby-ddl.sql"));
         project.addTablePartitionInfo("O1", "PKEY");
         project.addProcedures(PROCEDURES);
