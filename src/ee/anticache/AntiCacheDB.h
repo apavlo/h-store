@@ -28,6 +28,8 @@
 
 #include <db_cxx.h>
 
+#define ANTICACHE_DB_NAME "anticache.db"
+
 using namespace std;
 
 namespace voltdb {

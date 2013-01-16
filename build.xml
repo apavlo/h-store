@@ -738,9 +738,14 @@ BERKELEYDB LIBRARY
         <arg value="--prefix=${build.berkeleydb.dir}" />
         <arg value="--enable-cxx" />
         <arg value="--enable-static" />
+        <arg value="--enable-o_direct" />
         <arg value="--with-pic" />
         
         <!-- These are features that we don't need -->
+        <!-- <arg value="disable-atomicsupport" /> -->
+        <!-- <arg value="disable-mutexsupport" /> -->
+        <arg value="--disable-heap" />
+        <arg value="--disable-queue" />
         <arg value="--disable-shared" />
         <arg value="--disable-test" />
         <arg value="--disable-cryptography" />
