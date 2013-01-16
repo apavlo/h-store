@@ -36,7 +36,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
-import org.voltdb.dtxn.SiteTracker;
 import org.voltdb.utils.JarClassLoader;
 
 import edu.brown.catalog.CatalogUtil;
