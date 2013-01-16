@@ -46,7 +46,7 @@ public abstract class TransactionState implements Comparable<TransactionState> {
     public final boolean isReadOnly;
     protected int m_nextDepId = 1;
     protected final Mailbox m_mbox;
-    protected final SiteTransactionConnection m_site;
+    // protected final SiteTransactionConnection m_site;
     protected boolean m_done = false;
 
     /**
@@ -61,7 +61,6 @@ public abstract class TransactionState implements Comparable<TransactionState> {
                                TransactionInfoBaseMessage notice)
     {
         m_mbox = mbox;
-        m_site = null; // site;
         txnId = notice.getTxnId();
         initiatorSiteId = notice.getSourcePartitionId();
         coordinatorSiteId = notice.getDestinationPartitionId();

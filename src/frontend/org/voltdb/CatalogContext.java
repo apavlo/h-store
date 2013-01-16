@@ -65,12 +65,6 @@ public class CatalogContext {
     /** The total number of unique Partitions in the cluster */
     public final int numberOfPartitions;
     
-    @Deprecated
-    public final AuthSystem authSystem;
-    
-    @Deprecated
-    public final SiteTracker siteTracker;
-
     // PRIVATE
     public final File jarPath;
     private final JarClassLoader catalogClassLoader;
@@ -175,10 +169,6 @@ public class CatalogContext {
             }
         } // FOR
         
-        authSystem = new AuthSystem(database, cluster.getSecurityenabled());
-        
-        siteTracker = null; // new SiteTracker(cluster.getSites());
-
         // count nodes
         this.numberOfHosts = cluster.getHosts().size();
 
