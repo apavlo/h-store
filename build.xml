@@ -742,8 +742,7 @@ BERKELEYDB LIBRARY
         <arg value="--with-pic" />
         
         <!-- These are features that we don't need -->
-        <!-- <arg value="disable-atomicsupport" /> -->
-        <!-- <arg value="disable-mutexsupport" /> -->
+        <arg value="--disable-atomicsupport" />
         <arg value="--disable-heap" />
         <arg value="--disable-queue" />
         <arg value="--disable-shared" />
