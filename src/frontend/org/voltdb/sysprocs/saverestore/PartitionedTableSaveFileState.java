@@ -160,9 +160,9 @@ public class PartitionedTableSaveFileState extends TableSaveFileState
                 }
             }
 
-            List<Integer> sitesAtHost =
-                VoltDB.instance().getCatalogContext().siteTracker.
-                getLiveExecutionSitesForHost(nextHost);
+            List<Integer> sitesAtHost = null; // FIXME
+//                VoltDB.instance().getCatalogContext().siteTracker.
+//                getLiveExecutionSitesForHost(nextHost);
 
             int originalHostsArray[] = new int[originalHosts.size()];
             int qq = 0;

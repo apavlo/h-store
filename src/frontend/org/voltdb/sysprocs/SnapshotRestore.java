@@ -178,9 +178,9 @@ public class SnapshotRestore extends VoltSystemProcedure
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
             int host_id = context.getHStoreSite().getHostId();
-            Integer lowest_site_id =
-                VoltDB.instance().getCatalogContext().siteTracker.
-                getLowestLiveExecSiteIdForHost(host_id);
+            Integer lowest_site_id = null; // FIXME
+//                VoltDB.instance().getCatalogContext().siteTracker.
+//                getLowestLiveExecSiteIdForHost(host_id);
             if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 m_initializedTableSaveFiles.clear();
@@ -919,13 +919,13 @@ public class SnapshotRestore extends VoltSystemProcedure
         // LoadMultipartitionTable.  Consider ways to consolidate later
         Map<Integer, Integer> sites_to_partitions =
             new HashMap<Integer, Integer>();
-        for (Site site : VoltDB.instance().getCatalogContext().siteTracker.getUpSites())
-        {
-            for (Partition partition : site.getPartitions()) {
-                sites_to_partitions.put(Integer.parseInt(site.getTypeName()),
-                                        partition.getId());
-            }
-        }
+//        for (Site site : VoltDB.instance().getCatalogContext().siteTracker.getUpSites())
+//        {
+//            for (Partition partition : site.getPartitions()) {
+//                sites_to_partitions.put(Integer.parseInt(site.getTypeName()),
+//                                        partition.getId());
+//            }
+//        }
 
         try
         {
