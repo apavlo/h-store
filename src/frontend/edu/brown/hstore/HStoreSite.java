@@ -2437,7 +2437,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // HACK: We should be able to tell whether this txn was read-only at all
             // partitions. For now we'll just base it on whether the Procedure was
             // originally marked as read-only or not.
-            ts.isPredictReadOnly()) {
+            ts.isPredictReadOnly() == false) {
             
             sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }
