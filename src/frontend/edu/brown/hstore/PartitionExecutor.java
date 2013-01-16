@@ -966,8 +966,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Check whether there is something we can speculatively execute right now
         if (this.specExecIgnoreCurrent == false && this.lockQueue.isEmpty() == false) {
-            if (debug.val)
-                LOG.debug(String.format("Checking %s for something to do at partition %d while %s",
+            if (trace.val)
+                LOG.trace(String.format("Checking %s for something to do at partition %d while %s",
                           this.specExecScheduler.getClass().getSimpleName(),
                           this.partitionId,
                           (this.currentDtxn != null ? "blocked on " + this.currentDtxn : "idle")));
