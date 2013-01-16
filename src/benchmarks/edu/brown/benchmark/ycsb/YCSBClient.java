@@ -156,49 +156,29 @@ public class YCSBClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // pick random transaction to call, weighted by txnWeights
-        final Transaction target = this.txnWeights.nextValue(); 
-        int procIdx = target.ordinal(); 
-        String procName = target.callName; 
+        final Transaction target = this.txnWeights.nextValue();
         
-        int key = 0; 
-        int scan_count = 0; 
+        Object params[];
+        switch (target) {
+            case DELETE_RECORD:
+            case READ_RECORD:
+            case UPDATE_RECORD:
+                params = new Object[]{ readRecord.nextInt() };
+                break;
+            case INSERT_RECORD:
+                params = new Object[]{ readRecord.nextInt() };
+                List<String> values = buildValues(10); // FIXME
+                break;
+            case SCAN_RECORD:
+                params = new Object[]{ readRecord.nextInt(), randScan.nextInt() };
+                break;
+            default:
+                throw new RuntimeException("Unexpected txn '" + target + "'");
+        } // SWITCH
+        assert(params != null);
         
-        if (procName.equals("DeleteRecord")) {
-            
-            key = readRecord.nextInt(); 
-        } 
-        else if (procName.equals("InsertRecord")) {
-            
-            key = insertRecord.nextInt(); 
-            List<String> values = buildValues(10); 
-        } 
-        else if (procName.equals("ReadModifyWriteRecord")) {
-            
-            key = readRecord.nextInt(); 
-            List<String> values = buildValues(10); 
-        } 
-        else if (procName.equals("ReadRecord")) {
-            
-            key = readRecord.nextInt(); 
-        } 
-        else if (procName.equals("ScanRecord")) {
-            
-            key = readRecord.nextInt(); 
-            scan_count = randScan.nextInt(); 
-        } 
-        else if (procName.equals("UpdateRecord")) {
-            
-            key = readRecord.nextInt(); 
-        }
-        else {
-            key = readRecord.nextInt();
-        }
-        
-        Object procParams[] = new Object[]{ key };
-        Callback callback = new Callback(procIdx);
-        boolean response = this.getClientHandle().callProcedure(callback, procName, procParams);
-                
-        return response; 
+        Callback callback = new Callback(target.ordinal());
+        return this.getClientHandle().callProcedure(callback, target.callName, params);
     }
     
     private List<String> buildValues(int numVals) {

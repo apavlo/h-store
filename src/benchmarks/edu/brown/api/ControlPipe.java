@@ -162,14 +162,14 @@ public class ControlPipe implements Runnable {
                     // Then tell the client to drain
                     ProfileMeasurement pm = new ProfileMeasurement();
                     try {
-                        if (debug.val) LOG.debug("Draing connection queue for client " + cmp.getClientId());
+                        if (debug.val) LOG.debug("Draining connection queue for client " + cmp.getClientId());
                         pm.start();
                         cmp.getClientHandle().drain();
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     } finally {
                         pm.stop();
-                        LOG.info("Drain Queue Time: " + ProfileMeasurementUtil.debug(pm));
+                        if (debug.val) LOG.debug("Drain Queue Time: " + ProfileMeasurementUtil.debug(pm));
                     }
                     break;
                 }
