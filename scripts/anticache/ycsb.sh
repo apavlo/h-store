@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # ---------------------------------------------------------------------
 
@@ -13,16 +13,15 @@ function onexit() {
 
 ENABLE_ANTICACHE=false
 
-SITE_HOST="modis"
+SITE_HOST="modis2"
 
 CLIENT_HOSTS=( \
-        "modis2" \
-        "modis2" \
-        "modis2" \
+        "modis" \
+        "modis" \
         "modis2" \
 )
 
-BASE_CLIENT_THREADS=1
+BASE_CLIENT_THREADS=2
 BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="ycsb"
@@ -33,10 +32,11 @@ ANTICACHE_THRESHOLD=.75
 
 BASE_ARGS=( \
     # SITE DEBUG
-    "-Dsite.status_enable=true" \
-    "-Dsite.status_interval=10000" \
-    "-Dsite.status_exec_info=true" \
-    "-Dsite.exec_profiling=true" \
+#    "-Dsite.status_enable=true" \
+#    "-Dsite.status_interval=10000" \
+#    "-Dsite.status_exec_info=true" \
+#    "-Dsite.status_check_for_zombies=true" \
+#    "-Dsite.exec_profiling=true" \
 #    "-Dsite.pool_profiling=true" \
 #     "-Dsite.network_profiling=false" \
 #     "-Dsite.log_backup=true"\
@@ -53,11 +53,15 @@ BASE_ARGS=( \
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=true" \
     
+#    "-Dsite.queue_allow_decrease=true" \
+#    "-Dsite.queue_allow_increase=true" \
+#    "-Dsite.queue_threshold_factor=0.5" \
+    
     # Client Params
-    "-Dclient.scalefactor=.01" \
+    "-Dclient.scalefactor=.1" \
     "-Dclient.memory=2048" \
     "-Dclient.txnrate=50000" \
-    "-Dclient.warmup=00000" \
+    "-Dclient.warmup=120000" \
     "-Dclient.duration=120000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
@@ -116,7 +120,7 @@ done
 wait
 
 ant compile
-for i in `seq 4 4`; do
+for i in `seq 4 8`; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
