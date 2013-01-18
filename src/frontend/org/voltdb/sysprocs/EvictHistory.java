@@ -13,12 +13,14 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.SortDirectionType;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.AntiCacheManagerProfiler;
+import edu.brown.profilers.AntiCacheManagerProfiler.EvictionHistory;
 
 /** 
  * Gather the eviction history from each partition
@@ -34,6 +36,10 @@ public class EvictHistory extends VoltSystemProcedure {
         new ColumnInfo("PARTITION", VoltType.INTEGER),
         new ColumnInfo("START", VoltType.BIGINT), // TIMESTAMP (MS)
         new ColumnInfo("STOP", VoltType.BIGINT), // TIMESTAMP (MS)
+        new ColumnInfo("TUPLES_EVICTED", VoltType.INTEGER),
+        new ColumnInfo("BLOCKS_EVICTED", VoltType.INTEGER),
+        new ColumnInfo("BYTES_EVICTED", VoltType.BIGINT),
+        new ColumnInfo("CREATED", VoltType.TIMESTAMP),
     };
     
     private static final int DISTRIBUTE_ID = SysProcFragmentId.PF_anitCacheHistoryDistribute;
@@ -57,13 +63,15 @@ public class EvictHistory extends VoltSystemProcedure {
                 VoltTable vt = new VoltTable(ResultsColumns);
                 AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(this.partitionId);
                 assert(profiler != null);
-                for (Pair<Long, Long> pair : profiler.eviction_timestamps) { 
+                for (EvictionHistory eh : profiler.eviction_history) { 
                     Object row[] = {
                         this.hstore_site.getSiteId(),
                         this.hstore_site.getSiteName(),
                         this.partitionId,
-                        pair.getFirst(),
-                        pair.getSecond(),
+                        eh.tuplesEvicted,
+                        eh.blocksEvicted,
+                        eh.bytesEvicted,
+                        new TimestampType()
                     };
                     vt.addRow(row);
                 } // FOR
