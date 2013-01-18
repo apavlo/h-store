@@ -1901,8 +1901,6 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
       case VALUE_TYPE_VARCHAR: {
           const int32_t length = input.readInt();
                     
-          VOLT_TRACE("Dserializing a string of length %d.", length);
-
           if (length > maxLength) {
               char msg[1024];
               snprintf(msg, 1024, "Object exceeds specified size. Size is %d and max is %d", length, maxLength);

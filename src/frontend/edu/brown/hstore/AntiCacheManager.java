@@ -57,14 +57,16 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     // TODO: These should be moved into HStoreConf
     
     //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1024 kB
-    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 524288; // 512 kB
+    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 524288; // 512 kB
     //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 262144; // 256 kB
     //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 131072; // 128 kB
     //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 65536; // 64 kB
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 32768; // 32 kB
+    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 32768; // 32 kB
     //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 16384; // 16 kB 
     
-    public static final long DEFAULT_MEMORY_THRESHOLD_MB = 2500;
+
+    
+    public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 1500;
 
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY
@@ -96,7 +98,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     // ----------------------------------------------------------------------------
 
     private final long availableMemory;
-    private final double memoryThreshold;
+    private final double evictionMemoryThreshold;
     private final Collection<Table> evictableTables;
     private boolean evicting = false;
     private final AntiCacheManagerProfiler profilers[];
@@ -145,6 +147,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         @Override
         public void run(ClientResponseImpl parameter) {
             int partition = parameter.getBasePartition();
+            if (hstore_conf.site.anticache_profiling) profilers[partition].eviction_time.stopIfStarted();
             
             LOG.info(String.format("Eviction Response for Partition %02d:\n%s",
                      partition, VoltTableUtil.format(parameter.getResults())));
@@ -174,8 +177,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
 
         CatalogContext catalogContext = hstore_site.getCatalogContext();
-        this.memoryThreshold = hstore_conf.site.anticache_threshold;
-        //this.memoryThreshold = DEFAULT_MEMORY_THRESHOLD_MB;
+        this.evictionMemoryThreshold = hstore_conf.site.anticache_threshold;
+        //this.evictionMemoryThreshold = DEFAULT_MAX_MEMORY_SIZE_MB;
         this.evictableTables = catalogContext.getEvictableTables();
 
         int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
@@ -296,9 +299,6 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      * Check whether the amount of memory used by this HStoreSite is above the eviction threshold.
      */
     protected boolean checkEviction() {
-        if (this.evicting) { // Is this thread safe? Does it matter?
-            return false;
-        }
 
         // SystemStatsCollector.Datum stats = SystemStatsCollector.getRecentSample();
         // LOG.info("Current Memory Status:\n" + stats);
@@ -308,11 +308,16 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // LOG.info("Current Memory Usage: " + usage);
 
         long total_size_kb = MathUtil.sum(this.partitionSizes);
-        LOG.info("Current Memory Usage: " + (total_size_kb / 1024) + " MB");
 
-        //totalDataSize = (int)(total_size_kb / 1024); 
+        totalDataSize = (int)(total_size_kb / 1024);
 
-        return ((total_size_kb / 1024) >= memoryThreshold);
+        LOG.info("Current Memory Usage: " + totalDataSize + " MB");
+        LOG.info("Total Data Evicted: " + (totalBytesEvicted/1024/1024) + " MB");
+
+        return((totalDataSize-(totalBytesEvicted/1024/1024)) > DEFAULT_MAX_MEMORY_SIZE_MB);
+        //    return false;
+
+        //return ((totalDataSize-(totalBytesEvicted/1024)/1024) > (DEFAULT_MAX_MEMORY_SIZE_MB * evictionMemoryThreshold));
     }
 
     protected void executeEviction() {
@@ -332,24 +337,30 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         Object params[] = new Object[] { HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
         String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
         
-        while((totalDataSize-totalBytesEvicted) > memoryThreshold)  // evict blocks until we're below the memory threshold
+        //while((totalDataSize-((totalBytesEvicted/1024)/1024)) > (DEFAULT_MAX_MEMORY_SIZE_MB * evictionMemoryThreshold))  // evict blocks until we're below the memory threshold
+//        //while(checkEviction())
+        while((totalDataSize - (totalBytesEvicted/1024/1024)) > DEFAULT_MAX_MEMORY_SIZE_MB)
         {
             StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
             for (int partition : hstore_site.getLocalPartitionIds().values()) {
+                if (hstore_conf.site.anticache_profiling)
+                    this.profilers[partition].eviction_time.start();
+                
                 invocation.getParams().toArray()[0] = partition;
+                LOG.info("Evicting block for partition " + partition);
                 ByteBuffer b = null;
                 try {
                     b = ByteBuffer.wrap(FastSerializer.serialize(invocation));
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
+                this.totalBytesEvicted += DEFAULT_EVICTED_BLOCK_SIZE;
                 this.hstore_site.invocationProcess(b, this.evictionCallback);
-                this.totalBytesEvicted += DEFAULT_EVICTED_BLOCK_SIZE; 
 
             } // FOR
         }
 
-        LOG.info("Evicted " + totalBytesEvicted + " total bytes."); 
+        LOG.info("Finished eviction. We are back below the memory threshold.");
     }
 
     // ----------------------------------------------------------------------------
@@ -425,8 +436,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         public AntiCacheManagerProfiler getProfiler(int partition) {
             return (profilers[partition]);
         }
-        public double getMemoryThreshold() {
-            return (memoryThreshold);
+        public double getevictionMemoryThreshold() {
+            return (evictionMemoryThreshold);
         }
     }
     
