@@ -14,10 +14,10 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.types.TimestampType;
-import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.profilers.AntiCacheManagerProfiler;
+import edu.brown.profilers.AntiCacheManagerProfiler.EvictionHistory;
 
 /** 
  * 
@@ -93,26 +93,40 @@ public class EvictTuples extends VoltSystemProcedure {
         // TODO: Instead of sending down requests one at a time per table, it will
         //       be much faster if we just send down the entire batch
         final VoltTable allResults = new VoltTable(ResultsColumns);
+        long totalTuplesEvicted = 0;
+        long totalBlocksEvicted = 0;
+        long totalBytesEvicted = 0;
         for (int i = 0; i < tableNames.length; i++) {
             VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i]);
             boolean adv = vt.advanceRow();
             assert(adv);
+            long tuplesEvicted = vt.getLong("TUPLES_EVICTED");
+            long blocksEvicted = vt.getLong("BLOCKS_EVICTED");
+            long bytesEvicted = vt.getLong("BYTES_EVICTED");
             Object row[] = {
                     this.hstore_site.getSiteId(),
                     this.hstore_site.getSiteName(),
                     this.executor.getPartitionId(),
                     vt.getString("TABLE_NAME"),
-                    vt.getLong("TUPLES_EVICTED"),
-                    vt.getLong("BLOCKS_EVICTED"),
-                    vt.getLong("BYTES_EVICTED"),
+                    tuplesEvicted,
+                    blocksEvicted,
+                    bytesEvicted,
                     new TimestampType()
             };
             allResults.addRow(row);
+            totalTuplesEvicted += tuplesEvicted;
+            totalBlocksEvicted += blocksEvicted;
+            totalBytesEvicted += bytesEvicted;
         } // FOR
         
         // PROFILER
         if (profiler != null) {
-            profiler.eviction_timestamps.add(Pair.of(start, System.currentTimeMillis()));
+            EvictionHistory eh = new EvictionHistory(start,
+                                                     System.currentTimeMillis(),
+                                                     totalTuplesEvicted,
+                                                     totalBlocksEvicted,
+                                                     totalBytesEvicted);
+            profiler.eviction_history.add(eh);
             profiler.eviction_time.stopIfStarted();
         }
         

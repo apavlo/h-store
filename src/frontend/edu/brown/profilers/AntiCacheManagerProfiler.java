@@ -1,11 +1,40 @@
 package edu.brown.profilers;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.voltdb.utils.Pair;
+import java.util.Collection;
+import java.util.TreeSet;
 
 public class AntiCacheManagerProfiler extends AbstractProfiler {
+    
+    public static class EvictionHistory implements Comparable<EvictionHistory> {
+        public final long startTimestamp;
+        public final long stopTimestamp;
+        public final long tuplesEvicted;
+        public final long blocksEvicted;
+        public final long bytesEvicted;
+        
+        public EvictionHistory(long startTimestamp, long stopTimestamp, long tuplesEvicted, long blocksEvicted, long bytesEvicted) {
+            this.startTimestamp = startTimestamp;
+            this.stopTimestamp = stopTimestamp;
+            this.tuplesEvicted = tuplesEvicted;
+            this.blocksEvicted = blocksEvicted;
+            this.bytesEvicted = bytesEvicted;
+        }
+        @Override
+        public int compareTo(EvictionHistory other) {
+            if (this.startTimestamp != other.startTimestamp) {
+                return (int)(this.startTimestamp - other.startTimestamp);
+            } else if (this.stopTimestamp != other.stopTimestamp) {
+                return (int)(this.stopTimestamp - other.stopTimestamp);
+            } else if (this.tuplesEvicted != other.tuplesEvicted) {
+                return (int)(this.tuplesEvicted - other.tuplesEvicted);
+            } else if (this.blocksEvicted != other.blocksEvicted) {
+                return (int)(this.blocksEvicted - other.blocksEvicted);
+            } else if (this.bytesEvicted != other.bytesEvicted) {
+                return (int)(this.bytesEvicted - other.bytesEvicted);
+            }
+            return (0);
+        }
+    };
     
     /**
      * The number of transactions that attempted to access evicted data.
@@ -13,9 +42,9 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
     public int restarted_txns = 0;
     
     /**
-     * Timestamps for when this partition was actually performing an eviction.
+     * Eviction history
      */
-    public List<Pair<Long, Long>> eviction_timestamps = new ArrayList<Pair<Long,Long>>();
+    public Collection<EvictionHistory> eviction_history = new TreeSet<EvictionHistory>();
     
     /**
      * The amount of time it takes for the AntiCacheManager to evict a block
