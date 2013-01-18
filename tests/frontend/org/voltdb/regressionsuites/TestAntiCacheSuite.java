@@ -17,7 +17,6 @@ import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.EvictHistory;
 import org.voltdb.sysprocs.EvictTuples;
 import org.voltdb.sysprocs.Statistics;
-import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
@@ -197,9 +196,9 @@ public class TestAntiCacheSuite extends RegressionSuite {
         System.err.println(VoltTableUtil.format(result));
         
         while (result.advanceRow()) {
-            TimestampType start = result.getTimestampAsTimestamp("START");
-            TimestampType stop = result.getTimestampAsTimestamp("STOP");
-            assert(start.compareTo(stop) <= 0) : start + " <= " + stop;
+            long start = result.getLong("START");
+            long stop = result.getLong("STOP");
+            assert(start <= stop) : start + " <= " + stop;
         } // WHILE
     }
         
