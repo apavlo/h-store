@@ -342,12 +342,9 @@ class Distributer {
                 }
             }
             else {
-                LOG.warn(String.format("Failed to get callback for client handle #%d from %s\n%s" +
-//                                       "\nLast Seen Handles: wasSeen=%s\n%s",
+                LOG.warn(String.format("Failed to get callback for client handle #%d from %s",
                                        clientHandle, this, response.toString()
-//                                       this.lastSeenClientHandles.contains(clientHandle),
-//                                       StringUtil.join("\n", this.lastSeenClientHandles))
-               )); 
+                )); 
             }
         }
 
