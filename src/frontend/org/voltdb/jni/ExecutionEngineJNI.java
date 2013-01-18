@@ -63,9 +63,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    private static boolean t = trace.get();
-    private static boolean d = debug.get();
-
 
     /** The HStoreEngine pointer. */
     private long pointer;
@@ -104,7 +101,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         // base class loads the volt shared library
         super(site);
         //exceptionBuffer.order(ByteOrder.nativeOrder());
-        if (d) LOG.debug("Creating Execution Engine [site#=" + siteId + ", partition#=" + partitionId + "]");
+        if (debug.val) LOG.debug("Creating Execution Engine [site#=" + siteId + ", partition#=" + partitionId + "]");
         /*
          * (Ning): The reason I'm testing if we're running in Sun's JVM is that
          * EE needs this info in order to decide whether it's safe to install
@@ -123,7 +120,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         checkErrorCode(errorCode);
         fsForParameterSet = new FastSerializer(false, new BufferGrowCallback() {
             public void onBufferGrow(final FastSerializer obj) {
-                if (t) LOG.trace("Parameter buffer has grown. re-setting to EE..");
+                if (trace.val) LOG.trace("Parameter buffer has grown. re-setting to EE..");
                 final int code = nativeSetBuffers(pointer,
                         fsForParameterSet.getContainerNoFlip().b,
                         fsForParameterSet.getContainerNoFlip().b.capacity(),
@@ -147,7 +144,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     final protected void throwExceptionForError(final int errorCode) throws RuntimeException {
         exceptionBuffer.clear();
         final int exceptionLength = exceptionBuffer.getInt();
-        if (d) LOG.debug("EEException Length: " + exceptionLength);
+        if (debug.val) LOG.debug("EEException Length: " + exceptionLength);
 
         if (exceptionLength == 0) {
             throw new EEException(errorCode);
@@ -173,7 +170,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      */
     @Override
     public void release() throws EEException {
-        if (t) LOG.trace("Releasing Execution Engine... " + pointer);
+        if (trace.val) LOG.trace("Releasing Execution Engine... " + pointer);
         if (pointer != 0L) {
             final int errorCode = nativeDestroy(pointer);
             pointer = 0L;
@@ -183,7 +180,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         deserializerBufferOrigin.discard();
         exceptionBuffer = null;
         exceptionBufferOrigin.discard();
-        if (t) LOG.trace("Released Execution Engine.");
+        if (trace.val) LOG.trace("Released Execution Engine.");
     }
     
     /**
@@ -209,7 +206,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     @Override
     public void updateCatalog(final String catalogDiffs, int catalogVersion) throws EEException {
         //C++ JSON deserializer is not thread safe, must synchronize
-        if (t) LOG.trace("Loading Application Catalog...");
+        if (trace.val) LOG.trace("Loading Application Catalog...");
         int errorCode = 0;
         synchronized (ExecutionEngineJNI.class) {
             errorCode = nativeUpdateCatalog(pointer, catalogDiffs, catalogVersion);
@@ -231,7 +228,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                                               final long undoToken)
       throws EEException
     {
-        if (t) LOG.trace("Executing planfragment:" + planFragmentId + ", params=" + parameterSet.toString());
+        if (trace.val) LOG.trace("Executing planfragment:" + planFragmentId + ", params=" + parameterSet.toString());
 
         // serialize the param set
         fsForParameterSet.clear();
@@ -333,7 +330,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         try {
             for (int i = 0; i < batchSize; ++i) {
                 parameterSets[i].writeExternal(fsForParameterSet);
-                if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
+                if (trace.val) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
             }
         } catch (final IOException exception) {
             throw new RuntimeException(exception); // can't happen
@@ -391,7 +388,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
                     results[dep_ctr] = PrivateVoltTableFactory.createVoltTableFromBuffer(tableBacking, true);
                     dependencies[dep_ctr] = depid;
-                    if (d) LOG.debug(String.format("%d - New output VoltTable for DependencyId %d [origTableSize=%d]\n%s",
+                    if (debug.val) LOG.debug(String.format("%d - New output VoltTable for DependencyId %d [origTableSize=%d]\n%s",
                                                    txnId, depid, tableSize, results[dep_ctr].toString())); 
                     dep_ctr++;
                 } // FOR
@@ -421,7 +418,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 //        fsForParameterSet.clear();
 //        for (int i = 0; i < numParameterSets; ++i) {
 //            fsForParameterSet.getBBContainer().b.put(parameterSets[i].asReadOnlyByteBuffer());
-//            if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
+//            if (trace.val) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
 //        }
 //        
 //        return _executeQueryPlanFragmentsAndGetDependencySet(planFragmentIds, numFragmentIds, input_depIds, output_depIds, txnId, lastCommittedTxnId, undoToken);
@@ -452,7 +449,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         final long undoToken, boolean allowExport) throws EEException
     {
         byte[] serialized_table = table.getTableDataReference().array();
-        if (t) LOG.trace(String.format("Passing table into EE [id=%d, bytes=%s]", tableId, serialized_table.length));
+        if (trace.val) LOG.trace(String.format("Passing table into EE [id=%d, bytes=%s]", tableId, serialized_table.length));
 
         final int errorCode = nativeLoadTable(pointer, tableId, serialized_table,
                                               txnId, lastCommittedTxnId,
