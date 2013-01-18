@@ -54,7 +54,7 @@ const void* EvictedTable::insertEvictedTuple(TableTuple &source) {
     m_tupleCount++;
     
     // Then copy the source into the target
-    m_tmpTarget1.copy(source);
+    m_tmpTarget1.copyForPersistentInsert(source);
     m_tmpTarget1.setDeletedFalse();
     
     // Make sure this tuple is marked as evicted, so that we know it is an

@@ -257,6 +257,10 @@ bool IndexScanExecutor::p_init(AbstractPlanNode *abstractNode,
     //target table should be persistenttable
     m_targetTable = static_cast<PersistentTable*>(m_node->getTargetTable());
     m_numOfColumns = static_cast<int>(m_outputTable->columnCount());
+    
+    // the catalog table is used to get the relativeIndex of the targetTable
+    m_catalogTable = catalogDb->tables().get(m_targetTable->name());
+    
 
     //
     // Grab the Index from our inner table
@@ -519,9 +523,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 		m_evicted_tuple = new TableTuple(m_targetTable->getEvictedTable()->schema()); 
 
 	
-	int block_id_index; 
 	uint16_t block_id;
-	int bytes_in_key = 0; 
+    int32_t tuple_id; 
 	char* key_storage; 
 	
 #endif        
@@ -550,22 +553,9 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 				// create an evicted tuple from the current tuple address
 				// NOTE: This is necessary because the original table tuple and the evicted tuple do not have the same schema
 				m_evicted_tuple->move(m_tuple.address()); 
+        
 			
-				if(bytes_in_key == 0) // only calculate this the first time through
-				{
-					for(int i = 0; i < m_evicted_tuple->getSchema()->columnCount(); i++)
-					{
-						NValue value = m_evicted_tuple->getNValue(i); 
-						bytes_in_key += value.getTupleStorageSize(value.getValueType());
-					}
-				
-				}
-			
-				key_storage = new char[bytes_in_key];
-			
-				int bytes_written = 0; 
-				int bytes_in_current_column; 
-			
+                /*
 				// copy the raw bytes from the evicted tuples primary key to include in the EvictedTupleAccessException
 				for(int i = 0; i < m_evicted_tuple->getSchema()->columnCount() - 1; i++)
 				{
@@ -574,10 +564,11 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 					value.serializeToTupleStorage(key_storage+bytes_written, true, bytes_in_current_column);  // we're assuming the keys are inlined 
 					bytes_written += bytes_in_current_column; 
 				}
+                 */
 			
 				// determine the block id using the evicted tuple
-				block_id_index = m_evicted_tuple->getSchema()->columnCount() - 1; 
-				block_id = peeker.peekSmallInt(m_evicted_tuple->getNValue(block_id_index)); 
+				block_id = peeker.peekSmallInt(m_evicted_tuple->getNValue(0));
+                tuple_id = peeker.peekInteger(m_evicted_tuple->getNValue(1)); 
 
 				evicted_block_ids.push_back(block_id); 
 				evicted_keys.push_back(key_storage); 
@@ -751,15 +742,12 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         {
             tuple_keys[i] = *itr; 
         }
-		
 
-		VOLT_INFO("Throwing EvictedTupleAccessException"); 
-
-		//throw EvictedTupleAccessException(m_targetTable->databaseId(), num_block_ids, block_ids, tuple_keys);
-		throw EvictedTupleAccessException(0, num_block_ids, block_ids, tuple_keys);
+		VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
+        
+		throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_keys);
     }
 #endif
-    
     
     VOLT_DEBUG ("Index Scanned :\n %s", m_outputTable->debug().c_str());
     return true;

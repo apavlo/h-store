@@ -48,6 +48,8 @@
 
 #include "common/valuevector.h"
 #include "common/tabletuple.h"
+#include "catalog/catalogtype.h"
+#include "catalog/table.h"
 #include "executors/abstractexecutor.h"
 
 #include "boost/shared_array.hpp"
@@ -88,6 +90,8 @@ protected:
     // Data in this class is arranged roughly in the order it is read for
     // p_execute(). Please don't reshuffle it only in the name of beauty.
 
+    catalog::Table* m_catalogTable;
+    
     IndexScanPlanNode *m_node;
     int m_numOfColumns;
     int m_numOfSearchkeys;
