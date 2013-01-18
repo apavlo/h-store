@@ -92,6 +92,7 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
 import org.voltdb.sysprocs.DatabaseDump;
+import org.voltdb.sysprocs.EvictHistory;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.MarkovUpdate;
@@ -121,6 +122,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -461,10 +463,9 @@ public class BenchmarkController {
             m_config.hosts = new String[unique_hosts.size()];
             unique_hosts.toArray(m_config.hosts);
             
-            HashSet<String> copyto_hosts = new HashSet<String>();
+            Set<String> copyto_hosts = new HashSet<String>();
             CollectionUtil.addAll(copyto_hosts, unique_hosts);
             CollectionUtil.addAll(copyto_hosts, m_config.clients);
-            
             Collection<Thread> threads = new ArrayList<Thread>();
             
             // HStoreSite
@@ -755,7 +756,7 @@ public class BenchmarkController {
     /**
      * Invoke the benchmark clients on the remote nodes
      */
-    public void startClients() {
+    private void startClients() {
         final ArrayList<String> allClientArgs = new ArrayList<String>();
         if (hstore_conf.global.sshprefix != null &&
             hstore_conf.global.sshprefix.isEmpty() == false) {
@@ -840,11 +841,11 @@ public class BenchmarkController {
         // Add all of the client hostnames in our list first so that we can check
         // to see whether we have duplicates. If so, then we'll make sure that
         // their hostnames are unique in our results print outs
-        ObjectHistogram<String> clientNames = new ObjectHistogram<String>();
+        Histogram<String> clientNames = new ObjectHistogram<String>();
         for (String clientHost : m_config.clients) {
             clientNames.put(clientHost.trim());
         } // FOR
-        ObjectHistogram<String> clientNamesIdxs = new ObjectHistogram<String>();
+        Histogram<String> clientNamesIdxs = new ObjectHistogram<String>();
         
         for (int host_idx = 0; host_idx < m_config.clients.length; host_idx++) {
             // The clientHost is the hostname that we actaully need to run on
@@ -1294,7 +1295,7 @@ public class BenchmarkController {
         for (ProfilingOutput po : BenchmarkControllerUtil.PROFILING_OUTPUTS) {
             Object output = hstore_conf.get(po.clientParam);
             if (output != null) {
-                this.writeStats(client, po.key, new File(output.toString()));
+                this.writeProfilingData(client, po.key, new File(output.toString()));
             }
         } // FOR
         
@@ -1342,10 +1343,22 @@ public class BenchmarkController {
         LOG.info(String.format("Wrote %d response entries information to '%s'", fullDump.size(), outputPath));
     }
     
-    private void writeStats(Client client, SysProcSelector sps, File outputPath) throws Exception {
-        Object params[] = { sps.name(), 0 };
-        ClientResponse cresponse = null;
-        String sysproc = VoltSystemProcedure.procCallName(Statistics.class);
+    private void writeProfilingData(Client client, SysProcSelector sps, File outputPath) throws Exception {
+        Object params[];
+        String sysproc;
+        
+        // The AntiCache history is as special case here. We need to use @EvictHistory
+        // instead of @Statistics
+        if (sps == SysProcSelector.ANTICACHEHISTORY) {
+            sysproc = VoltSystemProcedure.procCallName(EvictHistory.class);
+            params = new Object[]{ };
+        } else {
+            sysproc = VoltSystemProcedure.procCallName(Statistics.class);
+            params = new Object[]{ sps.name(), 0 };
+        }
+        
+        // Grab the data that we need from the cluster
+        ClientResponse cresponse;
         try {
             cresponse = client.callProcedure(sysproc, params);
         } catch (Exception ex) {

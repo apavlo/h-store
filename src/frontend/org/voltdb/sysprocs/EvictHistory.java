@@ -13,7 +13,6 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.SortDirectionType;
-import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
@@ -33,8 +32,8 @@ public class EvictHistory extends VoltSystemProcedure {
         new ColumnInfo(VoltSystemProcedure.CNAME_HOST_ID, VoltSystemProcedure.CTYPE_ID),
         new ColumnInfo("HOSTNAME", VoltType.STRING),
         new ColumnInfo("PARTITION", VoltType.INTEGER),
-        new ColumnInfo("START", VoltType.TIMESTAMP),
-        new ColumnInfo("STOP", VoltType.TIMESTAMP),
+        new ColumnInfo("START", VoltType.BIGINT), // TIMESTAMP (MS)
+        new ColumnInfo("STOP", VoltType.BIGINT), // TIMESTAMP (MS)
     };
     
     private static final int DISTRIBUTE_ID = SysProcFragmentId.PF_anitCacheHistoryDistribute;
@@ -63,8 +62,8 @@ public class EvictHistory extends VoltSystemProcedure {
                         this.hstore_site.getSiteId(),
                         this.hstore_site.getSiteName(),
                         this.partitionId,
-                        new TimestampType(pair.getFirst() * 1000),
-                        new TimestampType(pair.getSecond() * 1000),
+                        pair.getFirst(),
+                        pair.getSecond(),
                     };
                     vt.addRow(row);
                 } // FOR
@@ -95,7 +94,11 @@ public class EvictHistory extends VoltSystemProcedure {
     }
     
     public VoltTable[] run() {
-        if (hstore_conf.site.anticache_profiling == false) {
+        if (hstore_conf.site.anticache_enable == false) {
+            String msg = "Unable to collect eviction history because 'site.anticache_enable' is disabled";
+            throw new VoltAbortException(msg);
+        }
+        else if (hstore_conf.site.anticache_profiling == false) {
             String msg = "Unable to collect eviction history because 'site.anticache_profiling' is disabled";
             throw new VoltAbortException(msg);
         }

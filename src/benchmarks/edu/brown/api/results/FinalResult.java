@@ -73,7 +73,7 @@ public class FinalResult implements JSONSerializable {
         double intervalTotals[] = results.computeIntervalTotals();
         if (debug.val) LOG.debug("INTERVAL TOTALS: " + Arrays.toString(intervalTotals));
         for (int i = 0; i < intervalTotals.length; i++) {
-            intervalTotals[i] /= (results.m_pollIntervalInMillis / 1000.0);
+            intervalTotals[i] /= (results.pollIntervalInMillis / 1000.0);
         } // FOR
         if (debug.val) LOG.debug("INTERVAL TPS: " + Arrays.toString(intervalTotals));
         this.stddevTxnPerSecond = MathUtil.stdev(intervalTotals);

@@ -34,5 +34,6 @@ public enum SysProcSelector {
     SITEPROFILER, // network profiler information
     PLANNERPROFILER, // batch planner profiler information
     ANTICACHE,      // anti-cache manager information
+    ANTICACHEHISTORY, // anti-cache eviction history
     POOL,           // info about how object pools
 }

@@ -1901,7 +1901,7 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
       case VALUE_TYPE_VARCHAR: {
           const int32_t length = input.readInt();
                     
-          VOLT_INFO("Dserializing a string of length %d.", length);
+          VOLT_TRACE("Dserializing a string of length %d.", length);
 
           if (length > maxLength) {
               char msg[1024];

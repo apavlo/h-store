@@ -33,6 +33,7 @@ public abstract class BenchmarkControllerUtil {
         new ProfilingOutput(SysProcSelector.PLANNERPROFILER, "client.output_planner_profiling", "site.planner_profiling"),
         new ProfilingOutput(SysProcSelector.TXNCOUNTER, "client.output_txn_counters", "site.txn_counters"),
         new ProfilingOutput(SysProcSelector.ANTICACHE, "client.output_anticache_profiling", "site.anticache_profiling"),
+        new ProfilingOutput(SysProcSelector.ANTICACHEHISTORY, "client.output_anticache_history", "site.anticache_profiling"),
     };
     
     

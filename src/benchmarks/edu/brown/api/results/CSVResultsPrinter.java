@@ -14,16 +14,18 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.api.BenchmarkInterest;
+import edu.brown.statistics.Histogram;
+import edu.brown.statistics.HistogramUtil;
 
 public class CSVResultsPrinter implements BenchmarkInterest {
 
     public static final ColumnInfo COLUMNS[] = {
-        new ColumnInfo("INTERVAL", VoltType.INTEGER),
+        new ColumnInfo("INTERVAL", VoltType.FLOAT),
+        new ColumnInfo("TIMESTAMP", VoltType.BIGINT),
         new ColumnInfo("TRANSACTIONS", VoltType.BIGINT),
         new ColumnInfo("THROUGHPUT", VoltType.FLOAT),
         new ColumnInfo("LATENCY", VoltType.FLOAT),
         new ColumnInfo("EVICTING", VoltType.INTEGER),
-        new ColumnInfo("CREATED", VoltType.BIGINT),
     };
 
     private final List<Object[]> results = new ArrayList<Object[]>(); 
@@ -70,18 +72,24 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         Pair<Long, Long> p = br.computeTotalAndDelta();
         assert(p != null);
         
-        long time = br.getElapsedTime() / 1000;
-        long txnDelta = p.getSecond();
-        double tps = txnDelta / (double)(br.getIntervalDuration()) * 1000.0;
+        double interval = br.getElapsedTime() / 1000d;
         boolean new_eviction = this.evicting.compareAndSet(true, false);
         
+        // INTERVAL THROUGHPUT
+        long txnDelta = p.getSecond();
+        double intervalThroughput = txnDelta / (double)(br.getIntervalDuration()) * 1000.0;
+        
+        // INTERVAL LATENCY
+        Histogram<Integer> lastLatencies = br.getLastLatencies();
+        double intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
+        
         Object row[] = {
-            time,
+            interval,
+            br.getLastTimestamp(),
             txnDelta,
-            tps,
+            intervalThroughput,
+            intervalLatency,
             0,
-            0,
-            Long.valueOf(System.currentTimeMillis())
         };
         this.results.add(row);
         

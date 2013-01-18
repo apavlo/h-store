@@ -1645,6 +1645,16 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "AntiCacheManager eviction history. Note that this will automatically enable " +
+                        "${site.anticache_profiling}, which will affect the runtime performance. " +
+                        "Any file that exists with the same name as this will be overwritten.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_anticache_history;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
                     "transaction profiling stats. Note that this will automatically enable " +
                     "${site.txn_profiling}, which will affect the runtime performance." +
                     "Any file that exists with the same name as this will be overwritten.",
