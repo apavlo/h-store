@@ -95,7 +95,7 @@ public class EvictHistory extends VoltSystemProcedure {
     }
     
     public VoltTable[] run() {
-        if (hstore_conf.site.anticache_profiling) {
+        if (hstore_conf.site.anticache_profiling == false) {
             String msg = "Unable to collect eviction history because 'site.anticache_profiling' is disabled";
             throw new VoltAbortException(msg);
         }

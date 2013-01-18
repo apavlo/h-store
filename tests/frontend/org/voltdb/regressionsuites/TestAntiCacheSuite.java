@@ -14,8 +14,10 @@ import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.EvictHistory;
 import org.voltdb.sysprocs.EvictTuples;
 import org.voltdb.sysprocs.Statistics;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
@@ -44,6 +46,10 @@ public class TestAntiCacheSuite extends RegressionSuite {
         super(name);
     }
     
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
+    
     private void initializeDatabase(Client client) throws Exception {
         System.err.println("Loading data...");
         Object params[] = {
@@ -54,6 +60,33 @@ public class TestAntiCacheSuite extends RegressionSuite {
         ClientResponse cresponse = client.callProcedure(Initialize.class.getSimpleName(), params);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
+    }
+    
+    private void loadVotes(Client client, int num_txns) throws Exception {
+        LatchableProcedureCallback callback = new LatchableProcedureCallback(num_txns);
+        for (int i = 0; i < num_txns; i++) {
+            Object params[] = { new Long(i),
+                                TestVoterSuite.phoneNumber+i,
+                                TestVoterSuite.contestantNumber,
+                                num_txns+1 };  
+            client.callProcedure(callback, Vote.class.getSimpleName(), params);
+        } // FOR
+
+        // Wait until they all finish
+        boolean result = callback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(callback.toString(), result);
+        for (ClientResponse cr : callback.responses) {
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());
+        }
+        
+        // Make sure that our vote is actually in the real table and materialized views
+        String query = "SELECT COUNT(*) FROM votes";
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        ClientResponse cresponse = client.callProcedure(procName, query);
+        assertEquals(Status.OK, cresponse.getStatus());
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(1, results.length);
+        assertEquals(num_txns, results[0].asScalarLong());
     }
     
     private Map<Integer, VoltTable> evictData(Client client) throws Exception {
@@ -80,8 +113,14 @@ public class TestAntiCacheSuite extends RegressionSuite {
             assertEquals(cr.toString(), 1, cr.getResults().length);
             m.put(cr.getBasePartition(), cr.getResults()[0]);
         } // FOR
+        assertEquals(catalogContext.numberOfPartitions, m.size());
         return (m);
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
+    
     
     /**
      * testEvictEmptyTable
@@ -102,34 +141,8 @@ public class TestAntiCacheSuite extends RegressionSuite {
     public void testProfiling() throws Exception {
         Client client = this.getClient();
         this.initializeDatabase(client);
-        
-        // Call vote a bunch of times
-        int num_txns = 100;
-        LatchableProcedureCallback callback = new LatchableProcedureCallback(num_txns);
-        for (int i = 0; i < num_txns; i++) {
-            Object params[] = { new Long(i),
-                                TestVoterSuite.phoneNumber+i,
-                                TestVoterSuite.contestantNumber,
-                                num_txns+1 };  
-            client.callProcedure(callback, Vote.class.getSimpleName(), params);
-        } // FOR
+        this.loadVotes(client, 100);
 
-        // Wait until they all finish
-        boolean result = callback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue(callback.toString(), result);
-        for (ClientResponse cr : callback.responses) {
-            assertEquals(cr.toString(), Status.OK, cr.getStatus());
-        }
-        
-        // Make sure that our vote is actually in the real table and materialized views
-        String query = "SELECT COUNT(*) FROM votes";
-        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-        ClientResponse cresponse = client.callProcedure(procName, query);
-        assertEquals(Status.OK, cresponse.getStatus());
-        VoltTable results[] = cresponse.getResults();
-        assertEquals(1, results.length);
-        assertEquals(num_txns, results[0].asScalarLong());
-        
         // Force an eviction
         Map<Integer, VoltTable> evictResults = this.evictData(client);
         for (int partition : evictResults.keySet()) {
@@ -139,9 +152,9 @@ public class TestAntiCacheSuite extends RegressionSuite {
         System.err.println("-------------------------------");
 
         // Our stats should now come back with one eviction executed
-        procName = VoltSystemProcedure.procCallName(Statistics.class);
+        String procName = VoltSystemProcedure.procCallName(Statistics.class);
         Object params[] = { SysProcSelector.ANTICACHE.name(), 0 };
-        cresponse = client.callProcedure(procName, params);
+        ClientResponse cresponse = client.callProcedure(procName, params);
         assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
         assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
         VoltTable statsResult = cresponse.getResults()[0];
@@ -161,6 +174,34 @@ public class TestAntiCacheSuite extends RegressionSuite {
         } // WHILE
     }
 
+    /**
+     * testEvictHistory
+     */
+    public void testEvictHistory() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        this.loadVotes(client, 100);
+        int num_evicts = 5;
+        for (int i = 0; i < num_evicts; i++) {
+            this.evictData(client);
+        } // FOR
+        
+        // Our stats should now come back with one eviction executed
+        String procName = VoltSystemProcedure.procCallName(EvictHistory.class);
+        ClientResponse cresponse = client.callProcedure(procName);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+        VoltTable result = cresponse.getResults()[0];
+        assertEquals(num_evicts * catalogContext.numberOfPartitions, result.getRowCount());
+        System.err.println(VoltTableUtil.format(result));
+        
+        while (result.advanceRow()) {
+            TimestampType start = result.getTimestampAsTimestamp("START");
+            TimestampType stop = result.getTimestampAsTimestamp("STOP");
+            assert(start.compareTo(stop) <= 0) : start + " <= " + stop;
+        } // WHILE
+    }
         
 
     public static Test suite() {
