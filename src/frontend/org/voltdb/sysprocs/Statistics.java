@@ -92,16 +92,16 @@ public class Statistics extends VoltSystemProcedure {
     
     static {
         addStatsFragments(SysProcSelector.MEMORY, SysProcFragmentId.PF_nodeMemory, SysProcFragmentId.PF_nodeMemoryAggregator);
-        addStatsFragments(SysProcSelector.TXNCOUNTER, SysProcFragmentId.PF_txnCounterData, SysProcFragmentId.PF_txnCounterDataAggregator);
-        addStatsFragments(SysProcSelector.TXNPROFILER, SysProcFragmentId.PF_txnProfilerData, SysProcFragmentId.PF_txnProfilerDataAggregator);
-        addStatsFragments(SysProcSelector.EXECPROFILER, SysProcFragmentId.PF_execProfilerData, SysProcFragmentId.PF_execProfilerDataAggregator);
-        addStatsFragments(SysProcSelector.QUEUEPROFILER, SysProcFragmentId.PF_queueProfilerData, SysProcFragmentId.PF_queueProfilerDataAggregator);
-        addStatsFragments(SysProcSelector.MARKOVPROFILER, SysProcFragmentId.PF_markovProfilerData, SysProcFragmentId.PF_markovProfilerDataAggregator);
-        addStatsFragments(SysProcSelector.SPECEXECPROFILER, SysProcFragmentId.PF_specexecProfilerData, SysProcFragmentId.PF_specexecProfilerDataAggregator);
-        addStatsFragments(SysProcSelector.SITEPROFILER, SysProcFragmentId.PF_siteProfilerData, SysProcFragmentId.PF_siteProfilerDataAggregator);
-        addStatsFragments(SysProcSelector.PLANNERPROFILER, SysProcFragmentId.PF_plannerProfilerData, SysProcFragmentId.PF_plannerProfilerDataAggregator);
-        addStatsFragments(SysProcSelector.ANTICACHE, SysProcFragmentId.PF_anticacheProfilerData, SysProcFragmentId.PF_anticacheProfilerDataAggregator);
-        addStatsFragments(SysProcSelector.POOL, SysProcFragmentId.PF_poolData, SysProcFragmentId.PF_poolDataAggregator);
+        addStatsFragments(SysProcSelector.TXNCOUNTER, SysProcFragmentId.PF_txnCounterData, SysProcFragmentId.PF_txnCounterAggregator);
+        addStatsFragments(SysProcSelector.TXNPROFILER, SysProcFragmentId.PF_txnProfilerData, SysProcFragmentId.PF_txnProfilerAggregator);
+        addStatsFragments(SysProcSelector.EXECPROFILER, SysProcFragmentId.PF_execProfilerData, SysProcFragmentId.PF_execProfilerAggregator);
+        addStatsFragments(SysProcSelector.QUEUEPROFILER, SysProcFragmentId.PF_queueProfilerData, SysProcFragmentId.PF_queueProfilerAggregator);
+        addStatsFragments(SysProcSelector.MARKOVPROFILER, SysProcFragmentId.PF_markovProfilerData, SysProcFragmentId.PF_markovProfilerAggregator);
+        addStatsFragments(SysProcSelector.SPECEXECPROFILER, SysProcFragmentId.PF_specexecProfilerData, SysProcFragmentId.PF_specexecProfilerAggregator);
+        addStatsFragments(SysProcSelector.SITEPROFILER, SysProcFragmentId.PF_siteProfilerData, SysProcFragmentId.PF_siteProfilerAggregator);
+        addStatsFragments(SysProcSelector.PLANNERPROFILER, SysProcFragmentId.PF_plannerProfilerData, SysProcFragmentId.PF_plannerProfilerAggregator);
+        addStatsFragments(SysProcSelector.ANTICACHE, SysProcFragmentId.PF_anticacheProfilerData, SysProcFragmentId.PF_anticacheProfilerAggregator);
+        addStatsFragments(SysProcSelector.POOL, SysProcFragmentId.PF_poolData, SysProcFragmentId.PF_poolAggregator);
     } // STATIC
     
     @Override
@@ -176,16 +176,16 @@ public class Statistics extends VoltSystemProcedure {
             // PROFILER DATA AGGREGATION
             // ----------------------------------------------------------------------------
             case SysProcFragmentId.PF_nodeMemoryAggregator:
-            case SysProcFragmentId.PF_txnCounterDataAggregator:
-            case SysProcFragmentId.PF_txnProfilerDataAggregator:
-            case SysProcFragmentId.PF_execProfilerDataAggregator:
-            case SysProcFragmentId.PF_queueProfilerDataAggregator:
-            case SysProcFragmentId.PF_markovProfilerDataAggregator:
-            case SysProcFragmentId.PF_specexecProfilerDataAggregator:
-            case SysProcFragmentId.PF_siteProfilerDataAggregator:
-            case SysProcFragmentId.PF_plannerProfilerDataAggregator:
-            case SysProcFragmentId.PF_anticacheProfilerDataAggregator:
-            case SysProcFragmentId.PF_poolDataAggregator: {
+            case SysProcFragmentId.PF_txnCounterAggregator:
+            case SysProcFragmentId.PF_txnProfilerAggregator:
+            case SysProcFragmentId.PF_execProfilerAggregator:
+            case SysProcFragmentId.PF_queueProfilerAggregator:
+            case SysProcFragmentId.PF_markovProfilerAggregator:
+            case SysProcFragmentId.PF_specexecProfilerAggregator:
+            case SysProcFragmentId.PF_siteProfilerAggregator:
+            case SysProcFragmentId.PF_plannerProfilerAggregator:
+            case SysProcFragmentId.PF_anticacheProfilerAggregator:
+            case SysProcFragmentId.PF_poolAggregator: {
                 // Do a reverse look up to find the input dependency id
                 int dataFragmentId = -1;
                 for (Integer id : STATS_DATA.keySet()) {

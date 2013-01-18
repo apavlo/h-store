@@ -42,25 +42,25 @@ public class SysProcFragmentId {
     public static final int PF_ioData = 18;
     public static final int PF_ioDataAggregator = 19;
     public static final int PF_poolData = 20;
-    public static final int PF_poolDataAggregator = 21;
+    public static final int PF_poolAggregator = 21;
     public static final int PF_txnCounterData = 22;
-    public static final int PF_txnCounterDataAggregator = 23;
+    public static final int PF_txnCounterAggregator = 23;
     public static final int PF_txnProfilerData = 24;
-    public static final int PF_txnProfilerDataAggregator = 25;
+    public static final int PF_txnProfilerAggregator = 25;
     public static final int PF_execProfilerData = 26;
-    public static final int PF_execProfilerDataAggregator = 27;
+    public static final int PF_execProfilerAggregator = 27;
     public static final int PF_queueProfilerData = 28;
-    public static final int PF_queueProfilerDataAggregator = 29;
+    public static final int PF_queueProfilerAggregator = 29;
     public static final int PF_markovProfilerData = 30;
-    public static final int PF_markovProfilerDataAggregator = 31;
+    public static final int PF_markovProfilerAggregator = 31;
     public static final int PF_specexecProfilerData = 32;
-    public static final int PF_specexecProfilerDataAggregator = 33;
+    public static final int PF_specexecProfilerAggregator = 33;
     public static final int PF_siteProfilerData = 34;
-    public static final int PF_siteProfilerDataAggregator = 35;
+    public static final int PF_siteProfilerAggregator = 35;
     public static final int PF_plannerProfilerData = 36;
-    public static final int PF_plannerProfilerDataAggregator = 37;
+    public static final int PF_plannerProfilerAggregator = 37;
     public static final int PF_anticacheProfilerData = 38;
-    public static final int PF_anticacheProfilerDataAggregator = 39;
+    public static final int PF_anticacheProfilerAggregator = 39;
 
     // @Shutdown
     public static final int PF_shutdownCommand = 50;
