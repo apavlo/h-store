@@ -249,33 +249,5 @@ public class TestAntiCacheManager extends BaseTestCase {
         }
         assertTrue(failed);
     }
-
-// TODO: Move this into a regression test
-//    /**
-//     * testProfiling
-//     */
-//    @Test
-//    public void testProfiling() throws Exception {
-//        this.loadData();
-//        VoltTable evictResult = this.evictData();
-//        evictResult.advanceRow();
-//
-//        // Our stats should now come back with one block evicted
-//        String procName = VoltSystemProcedure.procCallName(Statistics.class);
-//        Object params[] = { SysProcSelector.ANTICACHE.name(), 0 };
-//        ClientResponse cresponse = client.callProcedure(procName, params);
-//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-//        VoltTable statsResult = cresponse.getResults()[0];
-//
-//        System.err.println("-------------------------------");
-//        System.err.println(VoltTableUtil.format(statsResult));
-//
-//        // We need this just to get the name of the column
-//        AntiCacheManagerProfiler profiler = new AntiCacheManagerProfiler();
-//        statsResult.advanceRow();
-//        assertEquals(evictResult.getLong("BLOCKS_EVICTED"),
-//                     statsResult.getLong(profiler.eviction_time.getType().toUpperCase()));
-//    }
     
 }
