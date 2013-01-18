@@ -19,6 +19,7 @@ import edu.brown.hstore.Hstoreservice.Status;
  */
 public class TestVoterSuite extends RegressionSuite {
 
+    private static final String PREFIX = "voter";
     public static long voteId = 1;
     public static final long phoneNumber = 8675309; // Jenny
     public static final int contestantNumber = 1;
@@ -136,7 +137,7 @@ public class TestVoterSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("voter-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -144,7 +145,7 @@ public class TestVoterSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("voter-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX+"-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -152,7 +153,7 @@ public class TestVoterSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-        config = new LocalCluster("voter-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);

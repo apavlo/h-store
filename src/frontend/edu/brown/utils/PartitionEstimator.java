@@ -351,7 +351,7 @@ public class PartitionEstimator {
 
     private synchronized void buildCatalogCache() {
         for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
-            if (catalog_proc.getSystemproc() == false && catalog_proc.getParameters().size() > 0) {
+            if (catalog_proc.getParameters().size() > 0) {
                 ProcParameter catalog_param = null;
                 int param_idx = catalog_proc.getPartitionparameter();
                 if (param_idx == NullProcParameter.PARAM_IDX || catalog_proc.getParameters().isEmpty()) {
@@ -712,7 +712,7 @@ public class PartitionEstimator {
                         stmt_cache.put(catalog_col, catalog_param.getIndex(), catalog_tbl);
                         found = true;
                     } // FOR
-                    if (found && trace.get())
+                    if (trace.val && found)
                         LOG.trace("UpdatePlanNode in " + catalog_stmt.fullName() + " modifies " + catalog_tbl);
                 } // FOR
             } // IF (UPDATE)

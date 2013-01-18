@@ -13,6 +13,7 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
 import org.voltdb.jni.ExecutionEngine;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.PartitionExecutor;
@@ -29,7 +30,9 @@ public class EvictTuples extends VoltSystemProcedure {
     @SuppressWarnings("unused")
     private static final Logger LOG = Logger.getLogger(EvictTuples.class);
 
-    public static final ColumnInfo nodeResultsColumns[] = {
+    public static final ColumnInfo ResultsColumns[] = {
+        new ColumnInfo(VoltSystemProcedure.CNAME_HOST_ID, VoltSystemProcedure.CTYPE_ID),
+        new ColumnInfo("HOSTNAME", VoltType.STRING),
         new ColumnInfo("PARTITION", VoltType.INTEGER),
         new ColumnInfo("TABLE", VoltType.STRING),
         new ColumnInfo("TUPLES_EVICTED", VoltType.INTEGER),
@@ -56,13 +59,14 @@ public class EvictTuples extends VoltSystemProcedure {
     public VoltTable[] run(int partition, String tableNames[], long blockSizes[]) {
         ExecutionEngine ee = executor.getExecutionEngine();
         assert(tableNames.length == blockSizes.length);
-        assert(partition == this.partitionId);
         
+        // PROFILER
         AntiCacheManagerProfiler profiler = null;
         long start = -1;
         if (hstore_conf.site.anticache_profiling) {
             start = System.currentTimeMillis();
-            profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(partition);
+            profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(this.partitionId);
+            profiler.eviction_time.start();
         }
 
         // Check Input
@@ -88,19 +92,28 @@ public class EvictTuples extends VoltSystemProcedure {
         
         // TODO: Instead of sending down requests one at a time per table, it will
         //       be much faster if we just send down the entire batch
-        VoltTable allResults = null;
+        final VoltTable allResults = new VoltTable(ResultsColumns);
         for (int i = 0; i < tableNames.length; i++) {
             VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i]);
-            if (allResults == null) {
-                allResults = new VoltTable(vt);
-            }
             boolean adv = vt.advanceRow();
             assert(adv);
-            allResults.add(vt);
+            Object row[] = {
+                    this.hstore_site.getSiteId(),
+                    this.hstore_site.getSiteName(),
+                    this.executor.getPartitionId(),
+                    vt.getString("TABLE_NAME"),
+                    vt.getLong("TUPLES_EVICTED"),
+                    vt.getLong("BLOCKS_EVICTED"),
+                    vt.getLong("BYTES_EVICTED"),
+                    new TimestampType()
+            };
+            allResults.addRow(row);
         } // FOR
         
+        // PROFILER
         if (profiler != null) {
             profiler.eviction_timestamps.add(Pair.of(start, System.currentTimeMillis()));
+            profiler.eviction_time.stopIfStarted();
         }
         
         return new VoltTable[]{ allResults };
