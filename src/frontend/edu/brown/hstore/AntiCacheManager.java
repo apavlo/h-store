@@ -104,6 +104,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final AntiCacheManagerProfiler profilers[];
     
     private int totalBytesEvicted = 0; 
+    private int totalDataSize = 0; 
 
     /**
      * 
@@ -176,8 +177,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
 
         CatalogContext catalogContext = hstore_site.getCatalogContext();
-        // this.memoryThreshold = hstore_conf.site.anticache_threshold;
-        this.memoryThreshold = DEFAULT_MEMORY_THRESHOLD_MB;
+        this.memoryThreshold = hstore_conf.site.anticache_threshold;
+        //this.memoryThreshold = DEFAULT_MEMORY_THRESHOLD_MB;
         this.evictableTables = catalogContext.getEvictableTables();
 
         int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
@@ -240,7 +241,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         if (hstore_conf.site.anticache_profiling) 
             this.profilers[next.partition].retrieval_time.start();
         try {
-            LOG.debug(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
+            LOG.info(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
                      next.catalog_tbl.getName(), next.partition, Arrays.toString(next.block_ids)));
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids);
             LOG.debug(String.format("Finished reading blocks from partition %d",
@@ -314,7 +315,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         long total_size_kb = MathUtil.sum(this.partitionSizes);
         LOG.info("Current Memory Usage: " + (total_size_kb / 1024) + " MB");
 
-        return ((total_size_kb / 1024) >= DEFAULT_MEMORY_THRESHOLD_MB);
+        //totalDataSize = (int)(total_size_kb / 1024); 
+
+        return ((total_size_kb / 1024) >= memoryThreshold);
     }
 
     protected void executeEviction() {
@@ -322,36 +325,37 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // Invoke our special sysproc that will tell the EE to evict some blocks
         // to save us space.
         this.evicting = true;
-        LOG.info("Evicting block.");
 
         String tableNames[] = new String[this.evictableTables.size()];
         long evictBytes[] = new long[this.evictableTables.size()];
         int i = 0;
         for (Table catalog_tbl : this.evictableTables) {
             tableNames[i] = catalog_tbl.getName();
-            // TODO: Need to figure out what the optimal solution is for picking the block sizes
             evictBytes[i] = DEFAULT_EVICTED_BLOCK_SIZE;
-            totalBytesEvicted += DEFAULT_EVICTED_BLOCK_SIZE; 
             i++;
         } // FOR
         Object params[] = new Object[] { HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
         String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
         
-        // XXX: This could probably be cached, but we probably don't call this that often
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
-        for (int partition : hstore_site.getLocalPartitionIds().values()) {
-            if (hstore_conf.site.anticache_profiling)
-                this.profilers[partition].eviction_time.start();
-            
-            invocation.getParams().toArray()[0] = partition;
-            ByteBuffer b = null;
-            try {
-                b = ByteBuffer.wrap(FastSerializer.serialize(invocation));
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
-            this.hstore_site.invocationProcess(b, this.evictionCallback);
-        } // FOR
+        while((totalDataSize-totalBytesEvicted) > memoryThreshold)  // evict blocks until we're below the memory threshold
+        {
+            StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
+            for (int partition : hstore_site.getLocalPartitionIds().values()) {
+                if (hstore_conf.site.anticache_profiling)
+                    this.profilers[partition].eviction_time.start();
+                
+                invocation.getParams().toArray()[0] = partition;
+                ByteBuffer b = null;
+                try {
+                    b = ByteBuffer.wrap(FastSerializer.serialize(invocation));
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+                this.hstore_site.invocationProcess(b, this.evictionCallback);
+                totalBytesEvicted += DEFAULT_EVICTED_BLOCK_SIZE; 
+
+            } // FOR
+        }
 
         LOG.info("Evicted " + totalBytesEvicted + " total bytes."); 
     }

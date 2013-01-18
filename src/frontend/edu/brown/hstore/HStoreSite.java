@@ -2367,12 +2367,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
 			
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
-            Table catalog_tbl = error.getTableId(this.catalogContext.database);
             short block_ids[] = error.getBlockIds();
+            Table evicted_table = error.getTable(this.catalogContext.database); 
 
-			LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks.",
-			         AntiCacheManager.class.getSimpleName(), block_ids.length));
-            this.anticacheManager.queue(new_ts, base_partition, catalog_tbl, block_ids);
+			LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
+			         AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
+            this.anticacheManager.queue(new_ts, base_partition, evicted_table, block_ids);
         }
             
         // -------------------------------
