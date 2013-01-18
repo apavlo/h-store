@@ -218,13 +218,11 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     
     int16_t current_tuple_size;
     size_t current_tuple_start_position;
-    
-    VOLT_INFO("Writing tuple header at position %d.", (int)out.position());
-    
+        
     int32_t num_tuples_evicted = 0;
     out.writeInt(num_tuples_evicted); // reserve first 4 bytes in buffer for number of tuples in block
     
-    VOLT_INFO("Starting evictable tuple iterator for %s", name().c_str());
+    VOLT_DEBUG("Starting evictable tuple iterator for %s", name().c_str());
     while (evict_itr.hasNext()) {
         evict_itr.next(tuple);
         
@@ -245,7 +243,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 		AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
 	    eviction_manager->removeTuple(this, &tuple);
 
-        VOLT_INFO("Evicting Tuple: %s", tuple.debug(name()).c_str());
+        VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
 		        
 		if(tuple.isEvicted())
 		{
@@ -255,15 +253,10 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 		
         tuple.setEvictedTrue();
                 
-        // Populate the evicted_tuple with the source tuple's primary key values
+        // Populate the evicted_tuple with the block id and tuple offset
         evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));
         evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted));
-        /*
-        for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
-            evicted_tuple.setNValue(evicted_offset++, tuple.getNValue(*it)); 
-        } // FOR
-        evicted_tuple.setNValue(evicted_offset, ValueFactory.getIntegerValue(block_id));
-         */
+
         VOLT_DEBUG("EvictedTuple: %s", evicted_tuple.debug(m_evictedTable->name()).c_str());
                 
         // make sure this tuple is marked as evicted, so that we know it is an evicted tuple as we iterate through the index
@@ -293,7 +286,11 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
                    name().c_str(), block_id, num_tuples_evicted);
         
     } // WHILE
-    VOLT_INFO("Finished processing EvictionIterator [num_tuples_evicted=%d]", num_tuples_evicted);
+    
+    // write out the block header (i.e. number of tuples in block)
+    out.writeIntAt(0, num_tuples_evicted);
+    
+    VOLT_INFO("Evicted %d total bytes.", (int)out.size());
     
     #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("EvictedTable Time: %.2f sec", timer.elapsed());
@@ -302,10 +299,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     
     // Only write out a bock if there are tuples in it
     if (num_tuples_evicted > 0) {
-        // write out the block header (i.e. number of tuples in block)
-        out.writeIntAt(0, num_tuples_evicted);
-        VOLT_INFO("Evicted %d total bytes.", (int)out.size());
-    
         antiCacheDB->writeBlock(name(),
                                 block_id,
                                 num_tuples_evicted,
@@ -396,7 +389,7 @@ bool PersistentTable::mergeUnevictedTuples()
             // TODO: remove the evicted table entry
             //m_evictedTable->deleteTuple(evictedTuple, false);
             
-            VOLT_INFO("Successfully unevicted tuple.");
+            //VOLT_INFO("Successfully unevicted tuple.");
         }  
         delete [] m_unevictedBlocks[i];
     }
@@ -915,7 +908,7 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
     
 void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
-        VOLT_INFO("Updating tuple address in index %s.%s [%s]",
+        VOLT_DEBUG("Updating tuple address in index %s.%s [%s]",
                    name().c_str(), m_indexes[i]->getName().c_str(), m_indexes[i]->getTypeName().c_str());
         
         //if(!m_indexes[i]->exists(tuple))

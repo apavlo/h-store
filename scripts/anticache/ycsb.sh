@@ -11,14 +11,14 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=false
+ENABLE_ANTICACHE=true
 
-SITE_HOST="modis2"
+SITE_HOST="modis"
 
 CLIENT_HOSTS=( \
-        "modis" \
-        "modis" \
         "modis2" \
+        "modis2" \
+        "modis" \
 )
 
 BASE_CLIENT_THREADS=2
@@ -28,7 +28,7 @@ BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
 
 ANTICACHE_EVICT_SIZE=268400000
-ANTICACHE_THRESHOLD=.75
+ANTICACHE_THRESHOLD=.5
 
 BASE_ARGS=( \
     # SITE DEBUG
@@ -60,7 +60,7 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=.1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=50000" \
+    "-Dclient.txnrate=60000" \
     "-Dclient.warmup=120000" \
     "-Dclient.duration=120000" \
     "-Dclient.shared_connection=false" \
@@ -120,7 +120,7 @@ done
 wait
 
 ant compile
-for i in `seq 4 8`; do
+for i in 6; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
