@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections15.buffer.CircularFifoBuffer;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
@@ -194,7 +193,7 @@ class Distributer {
         private final AtomicInteger m_callbacksToInvoke = new AtomicInteger(0);
         private final HashMap<Long, CallbackValues> m_callbacks;
         private final HashMap<String, ProcedureStats> m_stats = new HashMap<String, ProcedureStats>();
-        private final CircularFifoBuffer<Long> lastSeenClientHandles = new CircularFifoBuffer<Long>(100);
+        // private final CircularFifoBuffer<Long> lastSeenClientHandles = new CircularFifoBuffer<Long>(100);
         private final int m_hostId;
         private final long m_connectionId;
         private Connection m_connection;
@@ -289,7 +288,7 @@ class Distributer {
                 stuff = m_callbacks.remove(clientHandle);
                 if (stuff != null) {
                     m_invocationsCompleted++;
-                    this.lastSeenClientHandles.add(clientHandle);
+                    // this.lastSeenClientHandles.add(clientHandle);
                 }
             } // SYNCH
 
@@ -344,10 +343,11 @@ class Distributer {
             }
             else {
                 LOG.warn(String.format("Failed to get callback for client handle #%d from %s\n%s" +
-                                       "\nLast Seen Handles: wasSeen=%s\n%s",
-                                       clientHandle, this, response.toString(),
-                                       this.lastSeenClientHandles.contains(clientHandle),
-                                       StringUtil.join("\n", this.lastSeenClientHandles))); 
+//                                       "\nLast Seen Handles: wasSeen=%s\n%s",
+                                       clientHandle, this, response.toString()
+//                                       this.lastSeenClientHandles.contains(clientHandle),
+//                                       StringUtil.join("\n", this.lastSeenClientHandles))
+               )); 
             }
         }
 
