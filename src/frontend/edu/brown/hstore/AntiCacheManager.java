@@ -64,8 +64,6 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     public static final long DEFAULT_EVICTED_BLOCK_SIZE = 32768; // 32 kB
     //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 16384; // 16 kB 
     
-
-    
     public static final long DEFAULT_MEMORY_THRESHOLD_MB = 2500;
 
     // ----------------------------------------------------------------------------
@@ -147,7 +145,6 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         @Override
         public void run(ClientResponseImpl parameter) {
             int partition = parameter.getBasePartition();
-            if (hstore_conf.site.anticache_profiling) profilers[partition].eviction_time.stopIfStarted();
             
             LOG.info(String.format("Eviction Response for Partition %02d:\n%s",
                      partition, VoltTableUtil.format(parameter.getResults())));
@@ -186,11 +183,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         Arrays.fill(this.partitionSizes, 0);
 
         this.profilers = new AntiCacheManagerProfiler[num_partitions];
-        if (hstore_conf.site.anticache_profiling) {
-            for (int partition : hstore_site.getLocalPartitionIds().values()) {
-                this.profilers[partition] = new AntiCacheManagerProfiler();
-            } // FOR
-        }
+        for (int partition : hstore_site.getLocalPartitionIds().values()) {
+            this.profilers[partition] = new AntiCacheManagerProfiler();
+        } // FOR
         
         this.statsMessage = new TableStatsRequestMessage(catalogContext.getDataTables());
         this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
@@ -341,9 +336,6 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         {
             StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
             for (int partition : hstore_site.getLocalPartitionIds().values()) {
-                if (hstore_conf.site.anticache_profiling)
-                    this.profilers[partition].eviction_time.start();
-                
                 invocation.getParams().toArray()[0] = partition;
                 ByteBuffer b = null;
                 try {
@@ -352,7 +344,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                     throw new RuntimeException(ex);
                 }
                 this.hstore_site.invocationProcess(b, this.evictionCallback);
-                totalBytesEvicted += DEFAULT_EVICTED_BLOCK_SIZE; 
+                this.totalBytesEvicted += DEFAULT_EVICTED_BLOCK_SIZE; 
 
             } // FOR
         }

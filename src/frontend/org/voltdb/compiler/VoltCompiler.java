@@ -116,6 +116,7 @@ import org.xml.sax.SAXParseException;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.conflicts.ConflictSetCalculator;
 import edu.brown.catalog.special.MultiColumn;
+import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -1324,6 +1325,18 @@ public class VoltCompiler {
             procedure.setSinglepartition(info.singlePartition());
             procedure.setEverysite(everysite);
             ProcedureCompiler.populateProcedureParameters(this, procClass, procedure);
+            
+            // ProcInfo.partitionParam overrides everything else
+            if (info.partitionParam() != -1) {
+                if (info.partitionParam() >= procedure.getParameters().size() || info.partitionParam() < 0) {
+                    String msg = "PartitionInfo 'partitionParam' not a valid parameter for procedure: " + procedure.getClassname();
+                    throw new VoltCompilerException(msg);
+                }
+                procedure.setPartitionparameter(info.partitionParam());
+            }
+            else {
+                procedure.setPartitionparameter(NullProcParameter.PARAM_IDX);
+            }
 
             // Stored procedure sysproc classes are present in VoltDB.jar
             // and not duplicated in the catalog. This was decided

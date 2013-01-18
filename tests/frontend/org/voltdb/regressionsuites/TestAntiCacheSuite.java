@@ -13,6 +13,7 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.EvictTuples;
 import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.VoltTableUtil;
@@ -32,8 +33,8 @@ import edu.brown.utils.StringUtil;
  */
 public class TestAntiCacheSuite extends RegressionSuite {
 
+    private static final String PREFIX = "anticache";
     private static final int NOTIFY_TIMEOUT = 2000; // ms
-    
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -56,14 +57,13 @@ public class TestAntiCacheSuite extends RegressionSuite {
     }
     
     private Map<Integer, VoltTable> evictData(Client client) throws Exception {
-        System.err.println("Evicting data...");
-        
         String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
         CatalogContext catalogContext = this.getCatalogContext();
         String tableNames[] = { VoterConstants.TABLENAME_VOTES };
         LatchableProcedureCallback callback = new LatchableProcedureCallback(catalogContext.numberOfPartitions);
-        long evictBytes[] = { 100 };
+        long evictBytes[] = { Integer.MAX_VALUE };
         for (int partition : catalogContext.getAllPartitionIds()) {
+            System.err.printf("Evicting data at partition %d...\n", partition);
             Object params[] = { partition, tableNames, evictBytes };
             boolean result = client.callProcedure(callback, procName, params);
             assertTrue(result);
@@ -96,73 +96,70 @@ public class TestAntiCacheSuite extends RegressionSuite {
         System.err.println("-------------------------------");
     }
     
+    /**
+     * testProfiling
+     */
+    public void testProfiling() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        
+        // Call vote a bunch of times
+        int num_txns = 100;
+        LatchableProcedureCallback callback = new LatchableProcedureCallback(num_txns);
+        for (int i = 0; i < num_txns; i++) {
+            Object params[] = { new Long(i),
+                                TestVoterSuite.phoneNumber+i,
+                                TestVoterSuite.contestantNumber,
+                                num_txns+1 };  
+            client.callProcedure(callback, Vote.class.getSimpleName(), params);
+        } // FOR
 
-//    /**
-//     * testVote
-//     */
-//    public void testVote() throws Exception {
-//        Client client = this.getClient();
-//        this.initializeDatabase(client);
-//        
-//        ClientResponse cresponse = client.callProcedure(Vote.class.getSimpleName(),
-//                                                        TestVoterSuite.voteId++,
-//                                                        TestVoterSuite.phoneNumber,
-//                                                        TestVoterSuite.contestantNumber,
-//                                                        TestVoterSuite.maxVotesPerPhoneNumber);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//        VoltTable results[] = cresponse.getResults();
-//        assertEquals(1, results.length);
-//        assertEquals(VoterConstants.VOTE_SUCCESSFUL, results[0].asScalarLong());
-//        
-//        // Make sure that our vote is actually in the real table and materialized views
-//        String query = "SELECT COUNT(*) FROM votes";
-//        cresponse = client.callProcedure("@AdHoc", query);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//        results = cresponse.getResults();
-//        assertEquals(1, results.length);
-//        assertEquals(1, results[0].asScalarLong());
-//
-//        
-//        query = "SELECT * FROM v_votes_by_phone_number";
-//        cresponse = client.callProcedure("@AdHoc", query);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//        results = cresponse.getResults();
-//        assertEquals(1, results.length);
-//        System.err.println(results[0]);
-//        assertTrue(results[0].advanceRow());
-//        assertEquals(TestVoterSuite.phoneNumber, results[0].getLong(0));
-//        //assertEquals(1, results[0].getLong(1));
-//    }
-    
-//    /**
-//     * testProfiling
-//     */
-//    public void testProfiling() throws Exception {
-//        Client client = this.getClient();
-//        this.initializeDatabase(client);
-//        
-//        // Force an eviction
-//        Map<Integer, VoltTable> evictResults = this.evictData(client);
-//        System.err.println(StringUtil.formatMaps(evictResults));
-//        System.err.println("-------------------------------");
-//
-//        // Our stats should now come back with one block evicted
-//        String procName = VoltSystemProcedure.procCallName(Statistics.class);
-//        Object params[] = { SysProcSelector.ANTICACHE.name(), 0 };
-//        ClientResponse cresponse = client.callProcedure(procName, params);
-//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-//        VoltTable statsResult = cresponse.getResults()[0];
-//
-//        System.err.println("-------------------------------");
-//        System.err.println(VoltTableUtil.format(statsResult));
-//
-//        // We need this just to get the name of the column
-//        AntiCacheManagerProfiler profiler = new AntiCacheManagerProfiler();
-//    //        statsResult.advanceRow();
-//    //        assertEquals(evictResult.getLong("BLOCKS_EVICTED"),
-//    //                     statsResult.getLong(profiler.eviction_time.getName().toUpperCase()));
-//    }
+        // Wait until they all finish
+        boolean result = callback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(callback.toString(), result);
+        for (ClientResponse cr : callback.responses) {
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());
+        }
+        
+        // Make sure that our vote is actually in the real table and materialized views
+        String query = "SELECT COUNT(*) FROM votes";
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        ClientResponse cresponse = client.callProcedure(procName, query);
+        assertEquals(Status.OK, cresponse.getStatus());
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(1, results.length);
+        assertEquals(num_txns, results[0].asScalarLong());
+        
+        // Force an eviction
+        Map<Integer, VoltTable> evictResults = this.evictData(client);
+        for (int partition : evictResults.keySet()) {
+            System.err.println("Partition " + partition);
+            System.err.println(StringUtil.prefix("  ", VoltTableUtil.format(evictResults.get(partition))));
+        }
+        System.err.println("-------------------------------");
+
+        // Our stats should now come back with one eviction executed
+        procName = VoltSystemProcedure.procCallName(Statistics.class);
+        Object params[] = { SysProcSelector.ANTICACHE.name(), 0 };
+        cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+        VoltTable statsResult = cresponse.getResults()[0];
+
+        System.err.println(VoltTableUtil.format(statsResult));
+
+        // We need this just to get the name of the column
+        AntiCacheManagerProfiler profiler = new AntiCacheManagerProfiler();
+        String colName = profiler.eviction_time.getName().toUpperCase()+"_CNT";
+        while (statsResult.advanceRow()) {
+            int partition = (int)statsResult.getLong("PARTITION");
+            VoltTable vt = evictResults.get(partition);
+            boolean adv = vt.advanceRow();
+            assert(adv);
+            long expected = vt.getLong("BLOCKS_EVICTED");
+            assertEquals("Partition "+partition, expected, statsResult.getLong(colName));
+        } // WHILE
+    }
 
         
 
@@ -170,6 +167,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
         VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestAntiCacheSuite.class);
+        builder.setGlobalConfParameter("site.exec_voltdb_procinfo", true);
         builder.setGlobalConfParameter("site.anticache_enable", true);
         builder.setGlobalConfParameter("site.anticache_profiling", true);
         builder.setGlobalConfParameter("site.anticache_reset", true);
@@ -186,7 +184,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("voter-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -194,7 +192,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("voter-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX+"-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -202,7 +200,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-        config = new LocalCluster("voter-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);

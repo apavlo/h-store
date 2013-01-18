@@ -189,9 +189,26 @@ public class TransactionInitializer {
         // System Procedure
         // -------------------------------
         else if (this.isSysProc[procId]) {
-            // If it's a sysproc, then it doesn't need to go to a specific partition
-            // We'll set it to NULL_PARTITION_ID so that we'll pick a random one down below
-            base_partition = HStoreConstants.NULL_PARTITION_ID;
+            if (catalog_proc.getSinglepartition() &&
+                catalog_proc.getEverysite() == false &&
+                catalog_proc.getPartitionparameter() >= 0) {
+                if (debug.val)
+                    LOG.debug(String.format("Using PartitionEstimator for %s request",
+                              catalog_proc.getName()));
+                try {
+                    base_partition = this.p_estimator.getBasePartition(catalog_proc, procParams.toArray(), false);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+            else {
+                // If it's a sysproc, then it doesn't need to go to a specific partition
+                // We'll set it to NULL_PARTITION_ID so that we'll pick a random one down below
+                if (debug.val)
+                    LOG.debug(String.format("Using random local partition for %s request",
+                              catalog_proc.getName()));
+                base_partition = HStoreConstants.NULL_PARTITION_ID;
+            }
         }
         // -------------------------------
         // PartitionEstimator
@@ -762,7 +779,7 @@ public class TransactionInitializer {
         
         if (debug.val) {
             LOG.debug(String.format("Initializing %s on partition %d " +
-            		                "[clientHandle=%d, partitions=%s, singlePartitioned=%s, readOnly=%s, abortable=%s]",
+            		                "[clientHandle=%d, partitions=%s, singlePartition=%s, readOnly=%s, abortable=%s]",
                       ts, base_partition,
                       client_handle,
                       ts.getPredictTouchedPartitions(),

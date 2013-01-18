@@ -19,6 +19,8 @@ package org.voltdb;
 
 import java.lang.annotation.*;
 
+import edu.brown.catalog.special.NullProcParameter;
+
 /**
  * Annotates a stored procedure with information needed by the stored
  * procedure compiler.
@@ -40,7 +42,7 @@ public @interface ProcInfo {
     /**
      * Explicitly define what ProcParameter to use to route transactions
      */
-    int partitionParam() default -1;
+    int partitionParam() default NullProcParameter.PARAM_IDX;
 
     /**
      * Is the procedure single sited? This information is hard to determine if there
