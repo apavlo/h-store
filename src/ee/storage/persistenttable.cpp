@@ -224,7 +224,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     int32_t num_tuples_evicted = 0;
     out.writeInt(num_tuples_evicted); // reserve first 4 bytes in buffer for number of tuples in block
     
-    VOLT_DEBUG("Starting evictable tuple iterator for %s", name().c_str());
+    VOLT_INFO("Starting evictable tuple iterator for %s", name().c_str());
     while (evict_itr.hasNext()) {
         evict_itr.next(tuple);
         
@@ -245,7 +245,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 		AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
 	    eviction_manager->removeTuple(this, &tuple);
 
-        VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
+        VOLT_INFO("Evicting Tuple: %s", tuple.debug(name()).c_str());
 		        
 		if(tuple.isEvicted())
 		{
@@ -293,11 +293,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
                    name().c_str(), block_id, num_tuples_evicted);
         
     } // WHILE
-    
-    // write out the block header (i.e. number of tuples in block)
-    out.writeIntAt(0, num_tuples_evicted);
-    
-    VOLT_INFO("Evicted %d total bytes.", (int)out.size());
+    VOLT_INFO("Finished processing EvictionIterator [num_tuples_evicted=%d]", num_tuples_evicted);
     
     #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("EvictedTable Time: %.2f sec", timer.elapsed());
@@ -306,6 +302,10 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     
     // Only write out a bock if there are tuples in it
     if (num_tuples_evicted > 0) {
+        // write out the block header (i.e. number of tuples in block)
+        out.writeIntAt(0, num_tuples_evicted);
+        VOLT_INFO("Evicted %d total bytes.", (int)out.size());
+    
         antiCacheDB->writeBlock(name(),
                                 block_id,
                                 num_tuples_evicted,
