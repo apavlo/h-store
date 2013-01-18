@@ -68,6 +68,8 @@ public class EvictHistory extends VoltSystemProcedure {
                         this.hstore_site.getSiteId(),
                         this.hstore_site.getSiteName(),
                         this.partitionId,
+                        eh.startTimestamp,
+                        eh.stopTimestamp,
                         eh.tuplesEvicted,
                         eh.blocksEvicted,
                         eh.bytesEvicted,
