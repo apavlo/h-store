@@ -315,6 +315,9 @@ public:
     void serializeTo(voltdb::SerializeOutput &output);
     void serializeToExport(voltdb::ExportSerializeOutput &io,
                           int colOffset, uint8_t *nullArray);
+    
+    void serializeWithHeaderTo(voltdb::SerializeOutput &output);
+    void deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn);
 
     void freeObjectColumns();
     size_t hashCode(size_t seed) const;
@@ -602,6 +605,109 @@ inline void TableTuple::deserializeFrom(voltdb::SerializeInput &tupleIn, Pool *d
     }
 }
 
+inline void TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn) {
+    
+    size_t total_bytes_deserialized = 0;
+    
+    assert(m_schema);
+    assert(m_data);
+    
+    tupleIn.readInt();  // read in the tuple size, discard 
+        
+    memcpy(m_data, tupleIn.getRawPointer(TUPLE_HEADER_SIZE), TUPLE_HEADER_SIZE);    
+    total_bytes_deserialized += TUPLE_HEADER_SIZE; 
+    
+    for (int j = 0; j < m_schema->columnCount(); ++j) {
+        ValueType type = m_schema->columnType(j);
+        
+        switch (type) {
+            case VALUE_TYPE_BIGINT:
+            case VALUE_TYPE_TIMESTAMP:
+                
+                *reinterpret_cast<int64_t*>(m_data+total_bytes_deserialized) = tupleIn.readLong();
+                total_bytes_deserialized += 8;
+                break;
+                
+            case VALUE_TYPE_TINYINT:
+                
+                *reinterpret_cast<int8_t*>(m_data+total_bytes_deserialized) = tupleIn.readByte();
+                total_bytes_deserialized += 1;
+                break;
+                
+            case VALUE_TYPE_SMALLINT:
+                
+                *reinterpret_cast<int16_t*>(m_data+total_bytes_deserialized) = tupleIn.readShort();
+                total_bytes_deserialized += 2;
+                break;
+                
+            case VALUE_TYPE_INTEGER:
+                
+                *reinterpret_cast<int32_t*>(m_data+total_bytes_deserialized) = tupleIn.readInt();
+                total_bytes_deserialized += 4;
+                break;
+                
+            case VALUE_TYPE_DOUBLE:
+                
+                *reinterpret_cast<double* >(m_data+total_bytes_deserialized) = tupleIn.readDouble();
+                total_bytes_deserialized += sizeof(double);
+                break;
+                
+            case VALUE_TYPE_VARCHAR: {
+                int32_t length = tupleIn.readInt();  // read in the length of this serialized string
+                
+                memcpy(m_data+total_bytes_deserialized, &length, 4);
+                total_bytes_deserialized += 4;
+
+                if(!m_schema->columnIsInlined(j))
+                {
+                    VOLT_INFO("Dserializing an non in-line string of length %d.", length);
+                }
+                
+                memcpy(m_data+total_bytes_deserialized, tupleIn.getRawPointer(length), length);
+                total_bytes_deserialized += length;
+
+                break;
+            }
+            case VALUE_TYPE_DECIMAL: {
+                int64_t *longStorage = reinterpret_cast<int64_t*>(m_data+total_bytes_deserialized);
+                
+                total_bytes_deserialized += 8;
+
+                //Reverse order for Java BigDecimal BigEndian
+                longStorage[1] = tupleIn.readLong();
+                longStorage[0] = tupleIn.readLong();
+                break;
+            }
+            default:
+                char message[128];
+                snprintf(message, 128, "NValue::deserializeFrom() unrecognized type '%d'",
+                         type);
+                throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
+                                              message);
+        }
+    }
+}
+
+inline void TableTuple::serializeWithHeaderTo(voltdb::SerializeOutput &output) {
+    
+    size_t start = output.position(); 
+    output.writeInt(0);  // reserve first 4 bytes for the total tuple size
+    
+    output.writeBytes(m_data, TUPLE_HEADER_SIZE);
+    
+    for (int j = 0; j < m_schema->columnCount(); ++j) {
+        //int fieldStart = output.position();
+        NValue value = getNValue(j);
+        value.serializeTo(output);
+    }
+    
+    int32_t serialized_size = static_cast<int32_t>(output.position() - start - sizeof(int32_t));
+    
+    // write the length of the tuple
+    output.writeIntAt(start, serialized_size);
+}
+    
+
 inline void TableTuple::serializeTo(voltdb::SerializeOutput &output) {
     size_t start = output.reserveBytes(4);
 
@@ -614,6 +720,8 @@ inline void TableTuple::serializeTo(voltdb::SerializeOutput &output) {
     // write the length of the tuple
     output.writeIntAt(start, static_cast<int32_t>(output.position() - start - sizeof(int32_t)));
 }
+    
+
 
 inline
 void

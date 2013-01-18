@@ -302,11 +302,12 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
             // Get the column names for the EvictedTable
             std::vector<int> column_indices = parentPkey->getColumnIndices();
             string *evictedColumnNames = new string[evictedSchema->columnCount()];
-            int evictedColumnOffset = 0;
-            for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
-                evictedColumnNames[evictedColumnOffset++] = columnNames[*it];
-            } // FOR
-            evictedColumnNames[evictedColumnOffset] = std::string("BLOCK_ID");
+//            int evictedColumnOffset = 0;
+//            for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
+//                evictedColumnNames[evictedColumnOffset++] = columnNames[*it];
+//            } // FOR
+            evictedColumnNames[0] = std::string("BLOCK_ID");
+            evictedColumnNames[1] = std::string("TUPLE_OFFSET"); 
             
             // TODO: Should we construct a primary key index?
             //       For now I'm going to skip that.
