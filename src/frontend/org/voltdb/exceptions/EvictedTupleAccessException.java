@@ -38,8 +38,8 @@ public class EvictedTupleAccessException extends SerializableException {
      * Retrieve the Table that the txn tried to access that generated this exception.
      * @param catalog_db The current Database catalog handle
      */
-    public Table getTableId(Database catalog_db) {
-        return catalog_db.getTables().values()[this.table_id];
+    public Table getTable(Database catalog_db) {
+        return catalog_db.getTables().values()[this.table_id-1];
     }
     
     /**

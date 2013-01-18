@@ -143,22 +143,27 @@ TupleSchema::createTupleSchema(const TupleSchema *first,
 }
     
 TupleSchema* TupleSchema::createEvictedTupleSchema(const TupleSchema *pkey_schema) {
-    std::vector<ValueType> columnTypes(1);
-    std::vector<int32_t> columnSizes(1);
-    std::vector<bool> allowNull(1);
+    std::vector<ValueType> columnTypes(2);
+    std::vector<int32_t> columnSizes(2);
+    std::vector<bool> allowNull(2);
     
     // create a schema containing a single column for the block_id
     columnTypes[0] = VALUE_TYPE_SMALLINT; 
     columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT)); 
-    allowNull[0] = false; 
+    allowNull[0] = false;
+    
+    columnTypes[1] = VALUE_TYPE_INTEGER;
+    columnSizes[1] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    allowNull[1] = false; 
+    
     TupleSchema *blockids_schema = TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false);
     
-    TupleSchema *evicted_schema = TupleSchema::createTupleSchema(pkey_schema, blockids_schema);
+    //TupleSchema *evicted_schema = TupleSchema::createTupleSchema(pkey_schema, blockids_schema);
     
     // Always make sure that we return memory!
-    TupleSchema::freeTupleSchema(blockids_schema);
+    //TupleSchema::freeTupleSchema(blockids_schema);
     
-    return (evicted_schema);
+    return (blockids_schema);
 }
 
 void TupleSchema::freeTupleSchema(TupleSchema *schema) {

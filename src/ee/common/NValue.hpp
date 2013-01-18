@@ -1900,6 +1900,9 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
         break;
       case VALUE_TYPE_VARCHAR: {
           const int32_t length = input.readInt();
+                    
+          VOLT_INFO("Dserializing a string of length %d.", length);
+
           if (length > maxLength) {
               char msg[1024];
               snprintf(msg, 1024, "Object exceeds specified size. Size is %d and max is %d", length, maxLength);
@@ -1908,9 +1911,11 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
                   msg);
           }
 
+          
           const int8_t lengthLength = getAppropriateObjectLengthLength(length);
           // the NULL SQL string is a NULL C pointer
           if (isInlined) {
+              
               setObjectLengthToLocation(length, storage);
               if (length == OBJECTLENGTH_NULL) {
                   break;
@@ -2025,6 +2030,7 @@ inline void NValue::serializeTo(SerializeOutput &output) const {
     const ValueType type = getValueType();
     switch (type) {
       case VALUE_TYPE_VARCHAR: {
+                    
           if (isNull()) {
               output.writeInt(OBJECTLENGTH_NULL);
               break;
@@ -2033,7 +2039,9 @@ inline void NValue::serializeTo(SerializeOutput &output) const {
           if (length < OBJECTLENGTH_NULL) {
               throwFatalException("Attempted to serialize an NValue with a negative length");
           }
+          
           output.writeInt(static_cast<int32_t>(length));
+          
           if (length != OBJECTLENGTH_NULL) {
               // Not a null string: write it out
               const char * str = reinterpret_cast<const char*>(getObjectValue());
@@ -2042,7 +2050,7 @@ inline void NValue::serializeTo(SerializeOutput &output) const {
           } else {
               assert(getObjectValue() == NULL || length == OBJECTLENGTH_NULL);
           }
-
+          
           break;
       }
       case VALUE_TYPE_TINYINT: {
