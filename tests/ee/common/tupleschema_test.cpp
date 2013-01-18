@@ -129,16 +129,9 @@ TEST_F(TupleSchemaTest, CreateEvictedTupleSchema) {
     // The first columns should be all of the columns of our primary key index
     TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema(m_primaryKeyIndexSchema);
     // fprintf(stdout, "\nEVICTED TABLE SCHEMA\n%s\n", evictedSchema->debug().c_str());
-    ASSERT_EQ(m_numPrimaryKeyCols+1, evictedSchema->columnCount());
-    for (int i = 0; i < m_numPrimaryKeyCols; i++) {
-        ASSERT_EQ(m_primaryKeyIndexSchema->columnType(i), evictedSchema->columnType(i));
-        ASSERT_EQ(m_primaryKeyIndexSchema->columnLength(i), evictedSchema->columnLength(i));
-        ASSERT_EQ(m_primaryKeyIndexSchema->columnAllowNull(i), evictedSchema->columnAllowNull(i));
-    }
-    
-    // Then there should only be one more column that contains the 16-bit block ids
-    ASSERT_EQ(VALUE_TYPE_SMALLINT, evictedSchema->columnType(m_numPrimaryKeyCols));
-    ASSERT_FALSE(evictedSchema->columnAllowNull(m_numPrimaryKeyCols));
+    ASSERT_EQ(2, evictedSchema->columnCount());
+    ASSERT_EQ(VALUE_TYPE_SMALLINT, evictedSchema->columnType(0));
+    ASSERT_EQ(VALUE_TYPE_INTEGER, evictedSchema->columnType(1));
     
     TupleSchema::freeTupleSchema(evictedSchema);
 }
