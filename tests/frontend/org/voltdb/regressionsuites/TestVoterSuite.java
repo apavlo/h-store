@@ -19,10 +19,10 @@ import edu.brown.hstore.Hstoreservice.Status;
  */
 public class TestVoterSuite extends RegressionSuite {
 
-    private static long voteId = 1;
-    private static final long phoneNumber = 8675309; // Jenny
-    private static final int contestantNumber = 1;
-    private static final long maxVotesPerPhoneNumber = 5;
+    public static long voteId = 1;
+    public static final long phoneNumber = 8675309; // Jenny
+    public static final int contestantNumber = 1;
+    public static final long maxVotesPerPhoneNumber = 5;
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
