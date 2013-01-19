@@ -1415,7 +1415,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // do other periodic work
                 if (m_snapshotter != null) m_snapshotter.doSnapshotWork(this.ee);
                 
-                if ((time - this.lastStatsTime) >= 30000) {
+                if ((time - this.lastStatsTime) >= 10000) {
                     this.lastStatsTime = time;
                     if (debug.val)
                         LOG.debug("Updating memory stats for partition " + this.partitionId);

@@ -1597,6 +1597,15 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "the memory stats information about the cluster. This will periodically invoke " +
+                        "the @Statistics system stored procedure to collect SysProcSelector.MEMORY data.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_memory;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
             		    "the complete listing of all transactions executed by the clients.",
             defaultNull=true,
             experimental=false

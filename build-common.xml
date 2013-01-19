@@ -60,6 +60,7 @@
 <arg value="client.output_specexec=${client.output_specexec}" />
 <arg value="client.output_json=${client.output_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
+<arg value="client.output_memory=${client.output_memory}" />
 <arg value="client.output_responses=${client.output_responses}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
 <arg value="client.output_queue_profiling=${client.output_queue_profiling}" />

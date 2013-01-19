@@ -108,6 +108,7 @@ import edu.brown.api.BenchmarkControllerUtil.ProfilingOutput;
 import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
+import edu.brown.api.results.MemoryStatsPrinter;
 import edu.brown.api.results.ResponseEntries;
 import edu.brown.api.results.ResultsChecker;
 import edu.brown.api.results.ResultsPrinter;
@@ -933,6 +934,12 @@ public class BenchmarkController {
         if (hstore_conf.client.output_csv) {
             File f = new File(this.getProjectName() + ".csv");
             this.registerInterest(new CSVResultsPrinter(f));
+        }
+        
+        // Memory Stats Output
+        if (hstore_conf.client.output_memory != null) {
+            File f = new File(hstore_conf.client.output_memory);
+            this.registerInterest(new MemoryStatsPrinter(this.getClientConnection(), f));
         }
 
         // Kill Benchmark on Zero Results
