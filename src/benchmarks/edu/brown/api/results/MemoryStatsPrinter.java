@@ -22,6 +22,8 @@ import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.api.BenchmarkInterest;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
 
 /**
@@ -31,6 +33,10 @@ import edu.brown.utils.CollectionUtil;
  */
 public class MemoryStatsPrinter implements BenchmarkInterest {
     private static final Logger LOG = Logger.getLogger(MemoryStatsPrinter.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug);
+    }
 
     private final List<Object[]> results = new ArrayList<Object[]>(); 
     private final Client client;
@@ -81,6 +87,10 @@ public class MemoryStatsPrinter implements BenchmarkInterest {
         if (this.stop) return;
         
         final int interval = this.intervalCounter++;
+        
+        // HACK: Skip every other interval
+        if (interval % 2 != 0) return;
+        
         ProcedureCallback callback = new ProcedureCallback() {
             @Override
             public void clientCallback(ClientResponse clientResponse) {
@@ -88,10 +98,12 @@ public class MemoryStatsPrinter implements BenchmarkInterest {
                     LOG.warn("Failed to get memory stats", clientResponse.getException());
                     return;
                 }
+                if (debug.val)
+                    LOG.debug("Updating memory stats information [interval=" + interval + "]");
                 
                 // TOTAL STATS FROM ALL SITES 
                 VoltTable vt = clientResponse.getResults()[0];
-                LOG.info("Memory Stats Info:\n" + VoltTableUtil.format(vt));
+                
                 long totals[] = new long[vt.getColumnCount()];
                 Arrays.fill(totals, 0);
                 int colOffsets[] = null;
@@ -129,7 +141,7 @@ public class MemoryStatsPrinter implements BenchmarkInterest {
         String procName = VoltSystemProcedure.procCallName(Statistics.class);
         Object params[] = { SysProcSelector.MEMORY.name(), 0 };
         try {
-            LOG.info("Retrieving memory stats from cluster");
+            if (debug.val) LOG.debug("Retrieving memory stats from cluster");
             boolean result = this.client.callProcedure(callback, procName, params);
             assert(result) : "Failed to queue " + procName + " request";
         } catch (Exception ex) {

@@ -26,7 +26,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.internal.TableStatsRequestMessage;
+import edu.brown.hstore.internal.UtilityWorkMessage.TableStatsRequestMessage;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.AbstractProcessingRunnable;
 import edu.brown.interfaces.DebugContext;
@@ -383,6 +383,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 partition = (int) vt.getLong("PARTITION_ID");
                 memory_idx = vt.getColumnIndex("TUPLE_DATA_MEMORY");
             }
+            assert(memory_idx >= 0);
             totalSizeKb += vt.getLong(memory_idx);
         } // WHILE
 

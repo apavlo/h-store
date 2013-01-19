@@ -139,8 +139,9 @@ import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
-import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.internal.UtilityWorkMessage;
+import edu.brown.hstore.internal.UtilityWorkMessage.TableStatsRequestMessage;
+import edu.brown.hstore.internal.UtilityWorkMessage.UpdateMemoryMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.MarkovConflictChecker;
@@ -1057,7 +1058,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // UTILITY WORK
         // -------------------------------
         else if (work instanceof UtilityWorkMessage) {
-            // IGNORE
+            // UPDATE MEMORY STATS
+            if (work instanceof UpdateMemoryMessage) {
+                this.updateMemoryStats(EstTime.currentTimeMillis());
+            }
+            // TABLE STATS REQUEST
+            else if (work instanceof TableStatsRequestMessage) {
+                TableStatsRequestMessage stats_work = (TableStatsRequestMessage)work;
+                VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE,
+                                                       stats_work.getLocators(),
+                                                       false,
+                                                       EstTime.currentTimeMillis());
+                assert(results.length == 1);
+                stats_work.getObservable().notifyObservers(results[0]);
+            }
+            else {
+                // IGNORE
+            }
         }
         // -------------------------------
         // TRANSACTION INITIALIZATION
@@ -1087,18 +1104,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                        null // We don't need the client callback
             );
             this.executeSQLStmtBatch(tmp_def_txn, 1, tmp_def_stmt, tmp_def_params, false, false);
-        }
-        // -------------------------------
-        // TABLE STATS REQUEST
-        // -------------------------------
-        else if (work instanceof TableStatsRequestMessage) {
-            TableStatsRequestMessage stats_work = (TableStatsRequestMessage)work;
-            VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE,
-                                                   stats_work.getLocators(),
-                                                   false,
-                                                   EstTime.currentTimeMillis());
-            assert(results.length == 1);
-            stats_work.getObservable().notifyObservers(results[0]);
         }
         // -------------------------------
         // SNAPSHOT WORK
@@ -1415,69 +1420,84 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // do other periodic work
                 if (m_snapshotter != null) m_snapshotter.doSnapshotWork(this.ee);
                 
-                if ((time - this.lastStatsTime) >= 10000) {
-                    this.lastStatsTime = time;
-                    if (debug.val)
-                        LOG.debug("Updating memory stats for partition " + this.partitionId);
-                    
-                    Collection<Table> tables = this.catalogContext.database.getTables();
-                    int[] tableIds = new int[tables.size()];
-                    int i = 0;
-                    for (Table table : tables) {
-                        tableIds[i++] = table.getRelativeIndex();
-                    }
-
-                    // data to aggregate
-                    long tupleCount = 0;
-                    int tupleDataMem = 0;
-                    int tupleAllocatedMem = 0;
-                    int indexMem = 0;
-                    int stringMem = 0;
-
-                    // update table stats
-                    final VoltTable[] s1 = this.ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
-                    if (s1 != null) {
-                        VoltTable stats = s1[0];
-                        assert(stats != null);
-
-                        // rollup the table memory stats for this site
-                        while (stats.advanceRow()) {
-                            tupleCount += stats.getLong(7);
-                            tupleAllocatedMem += (int) stats.getLong(8);
-                            tupleDataMem += (int) stats.getLong(9);
-                            stringMem += (int) stats.getLong(10);
-                        }
-                        stats.resetRowPosition();
-                    }
-
-//                    // update index stats
-//                    final VoltTable[] s2 = ee.getStats(SysProcSelector.INDEX, tableIds, false, time);
-//                    if ((s2 != null) && (s2.length > 0)) {
-//                        VoltTable stats = s2[0];
-//                        assert(stats != null);
-//
-//                        // rollup the index memory stats for this site
-//                        while (stats.advanceRow()) {
-//                            indexMem += stats.getLong(10);
-//                        }
-//                        stats.resetRowPosition();
-//
-//                        m_indexStats.setStatsTable(stats);
-//                    }
-
-                    // update the rolled up memory statistics
-                    MemoryStats memoryStats = hstore_site.getMemoryStatsSource();
-                    memoryStats.eeUpdateMemStats(this.siteId,
-                                                 tupleCount,
-                                                 tupleDataMem,
-                                                 tupleAllocatedMem,
-                                                 indexMem,
-                                                 stringMem,
-                                                 0); // FIXME
+                if ((time - this.lastStatsTime) >= 20000) {
+                    this.updateMemoryStats(time);
                 }
             }
             this.lastTickTime = time;
         }
+    }
+    
+    private void updateMemoryStats(long time) {
+        if (debug.val)
+            LOG.debug("Updating memory stats for partition " + this.partitionId);
+        
+        Collection<Table> tables = this.catalogContext.database.getTables();
+        int[] tableIds = new int[tables.size()];
+        int i = 0;
+        for (Table table : tables) {
+            tableIds[i++] = table.getRelativeIndex();
+        }
+
+        // data to aggregate
+        long tupleCount = 0;
+        int tupleDataMem = 0;
+        int tupleAllocatedMem = 0;
+        int indexMem = 0;
+        int stringMem = 0;
+        long tuplesEvicted = 0;
+        long blocksEvicted = 0;
+        long bytesEvicted = 0;
+
+        // update table stats
+        final VoltTable[] s1 = this.ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
+        if (s1 != null) {
+            VoltTable stats = s1[0];
+            assert(stats != null);
+
+            // rollup the table memory stats for this site
+            while (stats.advanceRow()) {
+                int idx = 7;
+                tupleCount += stats.getLong(idx++);
+                tupleAllocatedMem += (int) stats.getLong(idx++);
+                tupleDataMem += (int) stats.getLong(idx++);
+                stringMem += (int) stats.getLong(idx++);
+                tuplesEvicted += (long) stats.getLong(idx++);
+                blocksEvicted += (long) stats.getLong(idx++);
+                bytesEvicted += (long) stats.getLong(idx++);
+            }
+            stats.resetRowPosition();
+        }
+
+//        // update index stats
+//        final VoltTable[] s2 = ee.getStats(SysProcSelector.INDEX, tableIds, false, time);
+//        if ((s2 != null) && (s2.length > 0)) {
+//            VoltTable stats = s2[0];
+//            assert(stats != null);
+//
+//            // rollup the index memory stats for this site
+//            while (stats.advanceRow()) {
+//                indexMem += stats.getLong(10);
+//            }
+//            stats.resetRowPosition();
+//
+//            m_indexStats.setStatsTable(stats);
+//        }
+
+        // update the rolled up memory statistics
+        MemoryStats memoryStats = hstore_site.getMemoryStatsSource();
+        memoryStats.eeUpdateMemStats(this.siteId,
+                                     tupleCount,
+                                     tupleDataMem,
+                                     tupleAllocatedMem,
+                                     indexMem,
+                                     stringMem,
+                                     0, // FIXME
+                                     tuplesEvicted,
+                                     blocksEvicted,
+                                     bytesEvicted);
+        
+        this.lastStatsTime = time;
     }
     
     public void haltProcessing() {

@@ -1590,10 +1590,10 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="",
-            defaultBoolean=false,
+            defaultNull=true,
             experimental=false
         )
-        public boolean output_csv;
+        public String output_csv;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
