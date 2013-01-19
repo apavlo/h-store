@@ -342,6 +342,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
      */
     private long lastTickTime = 0;
+
+    /**
+     * The time in ms since last stats update
+     */
+    private long lastStatsTime = 0;
     
     /**
      * The last txn id that we executed (either local or remote)
@@ -846,6 +851,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // So we need to go our PartitionLockQueue and get back the next
                 // txn that will have our lock.
                 if (this.currentDtxn == null) {
+                    this.tick();
+                    
                     if (hstore_conf.site.exec_profiling) profiler.poll_time.start();
                     try {
                         nextTxn = this.queueManager.checkLockQueue(this.partitionId); // NON-BLOCKING
@@ -909,7 +916,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         }
                     }
                     if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
-                    this.tick();
                 }
                 // Check if we have any utility work to do while we wait
                 else if (hstore_conf.site.specexec_enable) {
@@ -1409,7 +1415,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // do other periodic work
                 if (m_snapshotter != null) m_snapshotter.doSnapshotWork(this.ee);
                 
-                if (elapsed >= 30000) {
+                if ((time - this.lastStatsTime) >= 30000) {
+                    this.lastStatsTime = time;
                     if (debug.val)
                         LOG.debug("Updating memory stats for partition " + this.partitionId);
                     
@@ -1428,7 +1435,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     int stringMem = 0;
 
                     // update table stats
-                    final VoltTable[] s1 = ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
+                    final VoltTable[] s1 = this.ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
                     if (s1 != null) {
                         VoltTable stats = s1[0];
                         assert(stats != null);
