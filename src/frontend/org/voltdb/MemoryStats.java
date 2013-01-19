@@ -28,15 +28,18 @@ import org.voltdb.utils.SystemStatsCollector;
 public class MemoryStats extends StatsSource {
     
     public static final VoltTable.ColumnInfo COLUMNS[] = {
-        new VoltTable.ColumnInfo("RSS", VoltType.INTEGER),
-        new VoltTable.ColumnInfo("JAVAUSED", VoltType.INTEGER),
-        new VoltTable.ColumnInfo("JAVAUNUSED", VoltType.INTEGER),
-        new VoltTable.ColumnInfo("TUPLEDATA", VoltType.INTEGER),
-        new VoltTable.ColumnInfo("TUPLEALLOCATED", VoltType.INTEGER),
-        new VoltTable.ColumnInfo("INDEXMEMORY", VoltType.INTEGER),
-        new VoltTable.ColumnInfo("STRINGMEMORY", VoltType.INTEGER),
-        new VoltTable.ColumnInfo("TUPLECOUNT", VoltType.BIGINT),
-        new VoltTable.ColumnInfo("POOLEDMEMORY", VoltType.BIGINT)
+        new VoltTable.ColumnInfo("RSS", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("JAVA_USED", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("JAVA_UNUSED", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("TUPLE_COUNT", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("TUPLE_ALLOCATED_MEMORY", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("TUPLE_DATA_MEMORY", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("INDEX_MEMORY", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("STRING_MEMORY", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("POOLED_MEMORY", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("TUPLES_EVICTED", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("BLOCKS_EVICTED", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("BYTES_EVICTED", VoltType.BIGINT),
     };
     
     static class PartitionMemRow {
@@ -46,6 +49,9 @@ public class MemoryStats extends StatsSource {
         int indexMem = 0;
         int stringMem = 0;
         long pooledMem = 0;
+        long tuplesEvicted = 0;
+        long blocksEvicted = 0;
+        long bytesEvicted = 0;
     }
     Map<Long, PartitionMemRow> m_memoryStats = new TreeMap<Long, PartitionMemRow>();
 
@@ -99,6 +105,9 @@ public class MemoryStats extends StatsSource {
             totals.indexMem += pmr.indexMem;
             totals.stringMem += pmr.stringMem;
             totals.pooledMem += pmr.pooledMem;
+            totals.tuplesEvicted += pmr.tuplesEvicted;
+            totals.blocksEvicted += pmr.blocksEvicted;
+            totals.bytesEvicted += pmr.bytesEvicted;
         }
 
         // get system statistics
@@ -112,14 +121,17 @@ public class MemoryStats extends StatsSource {
         }
 
         rowValues[columnNameToIndex.get("RSS")] = rss;
-        rowValues[columnNameToIndex.get("JAVAUSED")] = javaused;
-        rowValues[columnNameToIndex.get("JAVAUNUSED")] = javaunused;
-        rowValues[columnNameToIndex.get("TUPLEDATA")] = totals.tupleDataMem;
-        rowValues[columnNameToIndex.get("TUPLEALLOCATED")] = totals.tupleAllocatedMem;
-        rowValues[columnNameToIndex.get("INDEXMEMORY")] = totals.indexMem;
-        rowValues[columnNameToIndex.get("STRINGMEMORY")] = totals.stringMem;
-        rowValues[columnNameToIndex.get("TUPLECOUNT")] = totals.tupleCount;
-        rowValues[columnNameToIndex.get("POOLEDMEMORY")] = totals.pooledMem / 1024;
+        rowValues[columnNameToIndex.get("JAVA_USED")] = javaused;
+        rowValues[columnNameToIndex.get("JAVA_UNUSED")] = javaunused;
+        rowValues[columnNameToIndex.get("TUPLE_COUNT")] = totals.tupleCount;
+        rowValues[columnNameToIndex.get("TUPLE_ALLOCATED_MEMORY")] = totals.tupleAllocatedMem;
+        rowValues[columnNameToIndex.get("TUPLE_DATA_MEMORY")] = totals.tupleDataMem;
+        rowValues[columnNameToIndex.get("INDEX_MEMORY")] = totals.indexMem;
+        rowValues[columnNameToIndex.get("STRING_MEMORY")] = totals.stringMem;
+        rowValues[columnNameToIndex.get("POOLED_MEMORY")] = totals.pooledMem / 1024;
+        rowValues[columnNameToIndex.get("TUPLES_EVICTED")] = totals.tuplesEvicted;
+        rowValues[columnNameToIndex.get("BLOCKS_EVICTED")] = totals.blocksEvicted;
+        rowValues[columnNameToIndex.get("BYTES_EVICTED")] = totals.bytesEvicted;
         super.updateStatsRow(rowKey, rowValues);
     }
 
@@ -129,7 +141,10 @@ public class MemoryStats extends StatsSource {
                                               int tupleAllocatedMem,
                                               int indexMem,
                                               int stringMem,
-                                              long pooledMemory) {
+                                              long pooledMemory,
+                                              long tuplesEvicted,
+                                              long blocksEvicted,
+                                              long bytesEvicted) {
         PartitionMemRow pmr = new PartitionMemRow();
         pmr.tupleCount = tupleCount;
         pmr.tupleDataMem = tupleDataMem;
@@ -137,6 +152,9 @@ public class MemoryStats extends StatsSource {
         pmr.indexMem = indexMem;
         pmr.stringMem = stringMem;
         pmr.pooledMem = pooledMemory;
+        pmr.tuplesEvicted = tuplesEvicted;
+        pmr.blocksEvicted = blocksEvicted;
+        pmr.bytesEvicted = bytesEvicted;
         m_memoryStats.put(siteId, pmr);
     }
 }
