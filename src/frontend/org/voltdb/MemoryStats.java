@@ -26,6 +26,19 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.utils.SystemStatsCollector;
 
 public class MemoryStats extends StatsSource {
+    
+    public static final VoltTable.ColumnInfo COLUMNS[] = {
+        new VoltTable.ColumnInfo("RSS", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("JAVAUSED", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("JAVAUNUSED", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("TUPLEDATA", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("TUPLEALLOCATED", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("INDEXMEMORY", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("STRINGMEMORY", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("TUPLECOUNT", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("POOLEDMEMORY", VoltType.BIGINT)
+    };
+    
     static class PartitionMemRow {
         long tupleCount = 0;
         int tupleDataMem = 0;
@@ -70,15 +83,9 @@ public class MemoryStats extends StatsSource {
     @Override
     protected void populateColumnSchema(ArrayList<ColumnInfo> columns) {
         super.populateColumnSchema(columns);
-        columns.add(new VoltTable.ColumnInfo("RSS", VoltType.INTEGER));
-        columns.add(new VoltTable.ColumnInfo("JAVAUSED", VoltType.INTEGER));
-        columns.add(new VoltTable.ColumnInfo("JAVAUNUSED", VoltType.INTEGER));
-        columns.add(new VoltTable.ColumnInfo("TUPLEDATA", VoltType.INTEGER));
-        columns.add(new VoltTable.ColumnInfo("TUPLEALLOCATED", VoltType.INTEGER));
-        columns.add(new VoltTable.ColumnInfo("INDEXMEMORY", VoltType.INTEGER));
-        columns.add(new VoltTable.ColumnInfo("STRINGMEMORY", VoltType.INTEGER));
-        columns.add(new VoltTable.ColumnInfo("TUPLECOUNT", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo("POOLEDMEMORY", VoltType.BIGINT));
+        for (VoltTable.ColumnInfo col : COLUMNS) {
+            columns.add(col);
+        } // FOR
     }
 
     @Override
