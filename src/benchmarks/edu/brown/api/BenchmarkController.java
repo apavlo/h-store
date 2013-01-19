@@ -371,7 +371,7 @@ public class BenchmarkController {
         }
         this.totalNumClients = total_num_clients;
         int num_results = (int)(m_pollCount * this.totalNumClients);
-        if (hstore_conf.client.output_full_csv != null) num_results += this.totalNumClients;
+        if (hstore_conf.client.output_responses != null) num_results += this.totalNumClients;
         this.resultsToRead = new CountDownLatch(num_results);
     }
     
@@ -1275,8 +1275,8 @@ public class BenchmarkController {
             String.format("Failed to quiesce cluster!\n%s", cresponse);
         
         // DUMP RESPONSE ENTRIES
-        if (hstore_conf.client.output_full_csv != null) {
-            File outputPath = new File(hstore_conf.client.output_full_csv);
+        if (hstore_conf.client.output_responses != null) {
+            File outputPath = new File(hstore_conf.client.output_responses);
             this.writeResponseEntries(client, outputPath);
         }
         
@@ -1324,7 +1324,11 @@ public class BenchmarkController {
         }
         
         // Merge sort them
-        LOG.info(String.format("Merging %s ClientResponse lists together and sorting...", m_statusThreads.size()));
+        int count = 0;
+        for (ClientStatusThread t : m_statusThreads) {
+            count += t.getResponseEntries().size();
+        } // FOR
+        LOG.info(String.format("Merging %d ClientResponse entries together...", count));
         ResponseEntries fullDump = new ResponseEntries();
         for (ClientStatusThread t : m_statusThreads) {
             fullDump.addAll(t.getResponseEntries());
@@ -1335,12 +1339,15 @@ public class BenchmarkController {
         }
         
         // Convert to a VoltTable and then write out to a CSV file
+        LOG.info(String.format("Writing %d ClientResponse entries to '%s'", fullDump.size(), outputPath));
         String txnNames[] = m_currentResults.getTransactionNames();
         FileWriter out = new FileWriter(outputPath);
         VoltTable vt = ResponseEntries.toVoltTable(fullDump, txnNames);
         VoltTableUtil.csv(out, vt, true);
         out.close();
-        LOG.info(String.format("Wrote %d response entries information to '%s'", fullDump.size(), outputPath));
+        if (debug.val)
+            LOG.debug(String.format("Wrote %d response entries information to '%s'",
+                      fullDump.size(), outputPath));
     }
     
     private void writeProfilingData(Client client, SysProcSelector sps, File outputPath) throws Exception {
