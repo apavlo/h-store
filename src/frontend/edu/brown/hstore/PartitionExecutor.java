@@ -106,6 +106,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -166,6 +167,8 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
@@ -747,8 +750,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             tmp_def_txn = new LocalTransaction(hstore_site);
         }
 
+        // -------------------------------
+        // BENCHMARK START NOTIFICATIONS
+        // -------------------------------
+        
+        EventObservable<HStoreSite> observable = this.hstore_site.getStartWorkloadObservable(); 
+        
+        // Poke ourselves to update the partition stats
+        observable.addObserver(new EventObserver<HStoreSite>() {
+            @Override
+            public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
+                updateMemoryStats(EstTime.currentTimeMillis());
+            }
+        });
+        
         // Reset our profiling information when we get the first non-sysproc
-        this.profiler.resetOnEventObservable(this.hstore_site.getStartWorkloadObservable());
+        this.profiler.resetOnEventObservable(observable);
         
         // -------------------------------
         // SPECULATIVE EXECUTION INITIALIZATION
@@ -1469,19 +1486,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             stats.resetRowPosition();
         }
 
-//        // update index stats
+        // update index stats
 //        final VoltTable[] s2 = ee.getStats(SysProcSelector.INDEX, tableIds, false, time);
 //        if ((s2 != null) && (s2.length > 0)) {
 //            VoltTable stats = s2[0];
 //            assert(stats != null);
+//            LOG.info("INDEX:\n" + VoltTableUtil.format(stats));
 //
 //            // rollup the index memory stats for this site
-//            while (stats.advanceRow()) {
-//                indexMem += stats.getLong(10);
-//            }
+////            while (stats.advanceRow()) {
+////                indexMem += stats.getLong(10);
+////            }
 //            stats.resetRowPosition();
 //
-//            m_indexStats.setStatsTable(stats);
+//            // m_indexStats.setStatsTable(stats);
 //        }
 
         // update the rolled up memory statistics
@@ -4548,6 +4566,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         public int getWorkQueueSize() {
             return (PartitionExecutor.this.work_queue.size());
+        }
+        public void updateMemory() {
+            PartitionExecutor.this.updateMemoryStats(EstTime.currentTimeMillis());
         }
     }
     

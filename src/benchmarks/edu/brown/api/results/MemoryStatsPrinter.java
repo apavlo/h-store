@@ -78,8 +78,8 @@ public class MemoryStatsPrinter implements BenchmarkInterest {
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
-        String msg = "Wrote CSV memory stats to '" + this.outputPath.getAbsolutePath() + "'";
-        return (msg);
+        LOG.info("Wrote CSV memory stats to '" + this.outputPath.getAbsolutePath() + "'");
+        return (null);
     }
     
     @Override

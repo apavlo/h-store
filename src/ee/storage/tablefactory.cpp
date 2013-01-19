@@ -125,6 +125,9 @@ Table* TableFactory::getPersistentTable(
         initConstraints(pTable);
     }
 
+    // initialize stats for the table
+    configureStats(databaseId, ctx, name, table);
+    
     table->getTableStats()->configure(name + " stats",
                                       ctx->m_hostId,
                                       ctx->m_hostname,
@@ -270,6 +273,33 @@ void TableFactory::initConstraints(PersistentTable* table) {
         if ((index->isUniqueIndex()) && (index != table->m_pkeyIndex)) {
             table->m_uniqueIndexes[curIndex++] = index;
         }
+    }
+}
+
+void TableFactory::configureStats(voltdb::CatalogId databaseId,
+                                  ExecutorContext *ctx,
+                                  std::string name,
+                                  Table *table) {
+
+    // initialize stats for the table
+    table->getTableStats()->configure(name + " stats",
+                                      ctx->m_hostId,
+                                      ctx->m_hostname,
+                                      ctx->m_siteId,
+                                      ctx->m_partitionId,
+                                      databaseId);
+
+    // initialize stats for all the indexes for the table
+    std::vector<TableIndex*> tindexes = table->allIndexes();
+    for (size_t i = 0; i < tindexes.size(); i++) {
+        TableIndex *index = tindexes[i];
+        index->getIndexStats()->configure(index->getName() + " stats",
+                                          table->name(),
+                                          ctx->m_hostId,
+                                          ctx->m_hostname,
+                                          ctx->m_siteId,
+                                          ctx->m_partitionId,
+                                          databaseId);
     }
 }
 

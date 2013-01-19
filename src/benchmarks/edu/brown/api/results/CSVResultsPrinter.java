@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
@@ -18,6 +19,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.statistics.HistogramUtil;
 
 public class CSVResultsPrinter implements BenchmarkInterest {
+    private static final Logger LOG = Logger.getLogger(CSVResultsPrinter.class);
 
     public static final ColumnInfo COLUMNS[] = {
         new ColumnInfo("INTERVAL", VoltType.INTEGER),
@@ -63,8 +65,8 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
-        String msg = "Wrote CSV results to '" + this.outputPath.getAbsolutePath() + "'";
-        return (msg);
+        LOG.info("Wrote CSV results to '" + this.outputPath.getAbsolutePath() + "'");
+        return (null);
     }
     
     @Override
