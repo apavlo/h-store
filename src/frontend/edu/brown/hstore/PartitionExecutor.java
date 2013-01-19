@@ -66,6 +66,7 @@ import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
+import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
@@ -1400,12 +1401,73 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private void tick() {
         // invoke native ee tick if at least one second has passed
         final long time = EstTime.currentTimeMillis();
-        if ((time - this.lastTickTime) >= 1000) {
-            if ((this.lastTickTime != 0) && (ee != null)) {
+        long elapsed = time - this.lastTickTime; 
+        if (elapsed >= 1000) {
+            if ((this.lastTickTime != 0) && (this.ee != null)) {
                 this.ee.tick(time, this.lastCommittedTxnId);
                 
                 // do other periodic work
                 if (m_snapshotter != null) m_snapshotter.doSnapshotWork(this.ee);
+                
+                if (elapsed >= 30000) {
+                    if (debug.val)
+                        LOG.debug("Updating memory stats for partition " + this.partitionId);
+                    
+                    Collection<Table> tables = this.catalogContext.database.getTables();
+                    int[] tableIds = new int[tables.size()];
+                    int i = 0;
+                    for (Table table : tables) {
+                        tableIds[i++] = table.getRelativeIndex();
+                    }
+
+                    // data to aggregate
+                    long tupleCount = 0;
+                    int tupleDataMem = 0;
+                    int tupleAllocatedMem = 0;
+                    int indexMem = 0;
+                    int stringMem = 0;
+
+                    // update table stats
+                    final VoltTable[] s1 = ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
+                    if (s1 != null) {
+                        VoltTable stats = s1[0];
+                        assert(stats != null);
+
+                        // rollup the table memory stats for this site
+                        while (stats.advanceRow()) {
+                            tupleCount += stats.getLong(7);
+                            tupleAllocatedMem += (int) stats.getLong(8);
+                            tupleDataMem += (int) stats.getLong(9);
+                            stringMem += (int) stats.getLong(10);
+                        }
+                        stats.resetRowPosition();
+                    }
+
+//                    // update index stats
+//                    final VoltTable[] s2 = ee.getStats(SysProcSelector.INDEX, tableIds, false, time);
+//                    if ((s2 != null) && (s2.length > 0)) {
+//                        VoltTable stats = s2[0];
+//                        assert(stats != null);
+//
+//                        // rollup the index memory stats for this site
+//                        while (stats.advanceRow()) {
+//                            indexMem += stats.getLong(10);
+//                        }
+//                        stats.resetRowPosition();
+//
+//                        m_indexStats.setStatsTable(stats);
+//                    }
+
+                    // update the rolled up memory statistics
+                    MemoryStats memoryStats = hstore_site.getMemoryStatsSource();
+                    memoryStats.eeUpdateMemStats(this.siteId,
+                                                 tupleCount,
+                                                 tupleDataMem,
+                                                 tupleAllocatedMem,
+                                                 indexMem,
+                                                 stringMem,
+                                                 0); // FIXME
+                }
             }
             this.lastTickTime = time;
         }

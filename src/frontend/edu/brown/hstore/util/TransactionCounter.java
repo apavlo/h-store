@@ -11,8 +11,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
 
@@ -65,10 +68,9 @@ public enum TransactionCounter {
     SPECULATIVE_SP2_AFTER,
     SPECULATIVE_SP3_LOCAL,
     SPECULATIVE_SP3_REMOTE,
-
     ;
     
-    private final ObjectHistogram<String> h = new ObjectHistogram<String>();
+    private final FastIntHistogram h = new FastIntHistogram();
     private final String name;
     private TransactionCounter() {
         this.name = StringUtil.title(this.name().replace("_", "-"));
@@ -77,35 +79,44 @@ public enum TransactionCounter {
     public String toString() {
         return (this.name);
     }
-    public ObjectHistogram<String> getHistogram() {
-        return (this.h);
+    public Histogram<Procedure> getHistogram(CatalogContext catalogContext) {
+        Histogram<Procedure> procHistogram = new ObjectHistogram<Procedure>();
+        for (int procId : this.h.fastValues()) {
+            Procedure catalog_proc = catalogContext.getProcedureById(procId);
+            procHistogram.put(catalog_proc, this.h.get(procId));
+        }
+        return (procHistogram);
     }
     public int get() {
         return ((int)this.h.getSampleCount());
     }
     public Long get(Procedure catalog_proc) {
-        return (this.h.get(catalog_proc.getName()));
+        long val = this.h.get(catalog_proc.getId());
+        return (val < 0 ? null : val);
     }
-    public synchronized int inc(String procName) {
-        this.h.put(procName);
+    public int inc(Procedure catalog_proc) {
+        synchronized (catalog_proc) {
+            this.h.put(catalog_proc.getId());
+        } // SYNCH
         return (this.get());
     }
-    public synchronized int inc(Procedure catalog_proc) {
-        this.h.put(catalog_proc.getName());
+    public int dec(Procedure catalog_proc) {
+        synchronized (catalog_proc) {
+            this.h.dec(catalog_proc.getId());
+        } // SYNCH
         return (this.get());
     }
-    public synchronized int dec(Procedure catalog_proc) {
-        this.h.dec(catalog_proc.getName());
-        return (this.get());
-    }
-    public synchronized void clear() {
+    public void clear() {
         this.h.clear();
     }
-    public static Collection<String> getAllProcedures() {
-        Set<String> ret = new TreeSet<String>();
+    public static Collection<Procedure> getAllProcedures(CatalogContext catalogContext) {
+        Set<Procedure> ret = new TreeSet<Procedure>();
         for (TransactionCounter tc : TransactionCounter.values()) {
-            ret.addAll(tc.h.values());
-        }
+            for (int procId : tc.h.fastValues()) {
+                Procedure catalog_proc = catalogContext.getProcedureById(procId);
+                ret.add(catalog_proc);
+            } // FOR
+        } // fOR
         return (ret);
     }
     public Double ratio() {

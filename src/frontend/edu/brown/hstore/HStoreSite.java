@@ -239,6 +239,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     private final StatsAgent statsAgent = new StatsAgent();
     private TransactionProfilerStats txnProfilerStats;
+    private MemoryStats memoryStats;
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -781,8 +782,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
         
         // MEMORY
-        statsSource = new MemoryStats();
-        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, statsSource);
+        this.memoryStats = new MemoryStats();
+        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, this.memoryStats);
         
         // TXN COUNTERS
         statsSource = new TransactionCounterStats(this.catalogContext);
@@ -1139,6 +1140,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             String.format("Unexpected null PartitionExecutor for partition #%d on %s",
                           partition, this.getSiteName());
         return (es);
+    }
+    public MemoryStats getMemoryStatsSource() {
+        return (this.memoryStats);
     }
     
     public Collection<TransactionPreProcessor> getTransactionPreProcessors() {
