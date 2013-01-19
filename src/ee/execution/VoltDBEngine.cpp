@@ -744,6 +744,15 @@ bool VoltDBEngine::rebuildTableCollections() {
             getStatsManager().registerStatsSource(STATISTICS_SELECTOR_TYPE_TABLE,
                                                   catTable->relativeIndex(),
                                                   tcd->getTable()->getTableStats());
+            
+            // add all of the indexes to the stats source
+            std::vector<TableIndex*> tindexes = tcd->getTable()->allIndexes();
+            for (int i = 0; i < tindexes.size(); i++) {
+                TableIndex *index = tindexes[i];
+                getStatsManager().registerStatsSource(STATISTICS_SELECTOR_TYPE_INDEX,
+                                                      catTable->relativeIndex(),
+                                                      index->getIndexStats());
+            }
         }
         cdIt++;
     }
@@ -1090,6 +1099,23 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
     try {
         switch (selector) {
         case STATISTICS_SELECTOR_TYPE_TABLE:
+            for (int ii = 0; ii < numLocators; ii++) {
+                CatalogId locator = static_cast<CatalogId>(locators[ii]);
+                if (m_tables.find(locator) == m_tables.end()) {
+                    char message[256];
+                    snprintf(message, 256,  "getStats() called with selector %d, and"
+                            " an invalid locator %d that does not correspond to"
+                            " a table", selector, locator);
+                    throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
+                                                  message);
+                }
+            }
+
+            resultTable = m_statsManager.getStats(
+                (StatisticsSelectorType) selector,
+                locatorIds, interval, now);
+            break;
+        case STATISTICS_SELECTOR_TYPE_INDEX:
             for (int ii = 0; ii < numLocators; ii++) {
                 CatalogId locator = static_cast<CatalogId>(locators[ii]);
                 if (m_tables.find(locator) == m_tables.end()) {

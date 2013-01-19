@@ -55,6 +55,7 @@
 #include "common/valuevector.h"
 #include "common/tabletuple.h"
 #include "common/TupleSchema.h"
+#include "indexes/IndexStats.h"
 
 namespace voltdb {
 
@@ -280,6 +281,10 @@ public:
 
     virtual size_t getSize() const = 0;
 
+    // Return the amount of memory we think is allocated for this
+    // index.
+    virtual int64_t getMemoryEstimate() const = 0;
+    
     const std::vector<int>& getColumnIndices() const {
         return column_indices_vector_;
     }
@@ -314,6 +319,8 @@ public:
     TableIndexScheme getScheme() const {
         return m_scheme;
     }
+    
+    virtual voltdb::IndexStats* getIndexStats();
 
 protected:
     TableIndex(const TableIndexScheme &scheme);
@@ -334,6 +341,9 @@ protected:
     int m_deletes;
     int m_updates;
     TupleSchema *m_tupleSchema;
+    
+    // stats
+    IndexStats m_stats;
 };
 
 }

@@ -31,6 +31,7 @@ public class EvictHistory extends VoltSystemProcedure {
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
     private static final ColumnInfo ResultsColumns[] = {
+        new ColumnInfo("TIMESTAMP", VoltType.TIMESTAMP),
         new ColumnInfo(VoltSystemProcedure.CNAME_HOST_ID, VoltSystemProcedure.CTYPE_ID),
         new ColumnInfo("HOSTNAME", VoltType.STRING),
         new ColumnInfo("PARTITION", VoltType.INTEGER),
@@ -39,7 +40,6 @@ public class EvictHistory extends VoltSystemProcedure {
         new ColumnInfo("TUPLES_EVICTED", VoltType.INTEGER),
         new ColumnInfo("BLOCKS_EVICTED", VoltType.INTEGER),
         new ColumnInfo("BYTES_EVICTED", VoltType.BIGINT),
-        new ColumnInfo("CREATED", VoltType.TIMESTAMP),
     };
     
     private static final int DISTRIBUTE_ID = SysProcFragmentId.PF_anitCacheHistoryDistribute;
@@ -65,6 +65,7 @@ public class EvictHistory extends VoltSystemProcedure {
                 assert(profiler != null);
                 for (EvictionHistory eh : profiler.eviction_history) { 
                     Object row[] = {
+                        new TimestampType(),
                         this.hstore_site.getSiteId(),
                         this.hstore_site.getSiteName(),
                         this.partitionId,
@@ -73,7 +74,6 @@ public class EvictHistory extends VoltSystemProcedure {
                         eh.tuplesEvicted,
                         eh.blocksEvicted,
                         eh.bytesEvicted,
-                        new TimestampType()
                     };
                     vt.addRow(row);
                 } // FOR

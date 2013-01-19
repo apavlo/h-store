@@ -165,7 +165,13 @@ namespace voltdb {
                                TupleSchema *schema,
                                const std::string *columnNames,
                                const bool ownsTupleSchema);
+        static void configureStats(
+                               voltdb::CatalogId databaseId,
+                               ExecutorContext *ctx,
+                               std::string name,
+                               Table *table);
     };
+        
     
 }
 
