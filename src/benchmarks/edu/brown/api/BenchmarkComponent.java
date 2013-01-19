@@ -665,7 +665,7 @@ public abstract class BenchmarkComponent {
         if (m_countDisplayNames != null) {
             Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
             
-            m_enableResponseEntries = (m_hstoreConf.client.output_full_csv != null);
+            m_enableResponseEntries = (m_hstoreConf.client.output_responses != null);
             m_responseEntries = new ResponseEntries();
             
             for (int i = 0; i < m_countDisplayNames.length; i++) {

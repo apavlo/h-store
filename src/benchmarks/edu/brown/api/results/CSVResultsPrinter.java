@@ -20,7 +20,8 @@ import edu.brown.statistics.HistogramUtil;
 public class CSVResultsPrinter implements BenchmarkInterest {
 
     public static final ColumnInfo COLUMNS[] = {
-        new ColumnInfo("INTERVAL", VoltType.FLOAT),
+        new ColumnInfo("INTERVAL", VoltType.INTEGER),
+        new ColumnInfo("ELAPSED", VoltType.BIGINT),
         new ColumnInfo("TIMESTAMP", VoltType.BIGINT),
         new ColumnInfo("TRANSACTIONS", VoltType.BIGINT),
         new ColumnInfo("THROUGHPUT", VoltType.FLOAT),
@@ -35,6 +36,7 @@ public class CSVResultsPrinter implements BenchmarkInterest {
     private long last_eviction_start = -1;
     private long last_eviction_stop = -1;
     private boolean stop = false;
+    private int intervalCounter = 0;
     
     public CSVResultsPrinter(File outputPath) {
         this.outputPath = outputPath;
@@ -72,7 +74,6 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         Pair<Long, Long> p = br.computeTotalAndDelta();
         assert(p != null);
         
-        double interval = br.getElapsedTime() / 1000d;
         boolean new_eviction = this.evicting.compareAndSet(true, false);
         
         // INTERVAL THROUGHPUT
@@ -84,7 +85,8 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         double intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
         
         Object row[] = {
-            interval,
+            this.intervalCounter++,
+            br.getElapsedTime(),
             br.getLastTimestamp(),
             txnDelta,
             intervalThroughput,
