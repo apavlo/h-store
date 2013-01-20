@@ -1390,7 +1390,7 @@ size_t VoltDBEngine::tableHashCode(int32_t tableId) {
 
 #ifdef ANTICACHE
 void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
-    VOLT_ERROR("Enabling Anti-Cache at Partition %d: dir=%s / blockSize=%ld",
+    VOLT_INFO("Enabling Anti-Cache at Partition %d: dir=%s / blockSize=%ld",
               m_partitionId, dbDir.c_str(), blockSize);
     m_executorContext->enableAntiCache(dbDir, blockSize);
 }
