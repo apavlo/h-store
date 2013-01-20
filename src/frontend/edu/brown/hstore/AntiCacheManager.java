@@ -54,17 +54,6 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    // TODO: These should be moved into HStoreConf
-    
-    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 1048576; // 1024 kB
-    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 524288; // 512 kB
-    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 262144; // 256 kB
-    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 131072; // 128 kB
-    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 65536; // 64 kB
-    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 32768; // 32 kB
-    //public static final long DEFAULT_EVICTED_BLOCK_SIZE = 16384; // 16 kB 
-    
-
     
     public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 1500;
 
@@ -331,7 +320,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         int i = 0;
         for (Table catalog_tbl : this.evictableTables) {
             tableNames[i] = catalog_tbl.getName();
-            evictBytes[i] = DEFAULT_EVICTED_BLOCK_SIZE;
+            evictBytes[i] = hstore_conf.site.anticache_block_size; // FIXME
             i++;
         } // FOR
         Object params[] = new Object[] { HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
@@ -339,7 +328,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         
         //while((totalDataSize-((totalBytesEvicted/1024)/1024)) > (DEFAULT_MAX_MEMORY_SIZE_MB * evictionMemoryThreshold))  // evict blocks until we're below the memory threshold
 //        //while(checkEviction())
-        while((totalDataSize - (totalBytesEvicted/1024/1024)) > DEFAULT_MAX_MEMORY_SIZE_MB)
+        while((this.totalDataSize - (this.totalBytesEvicted/1024/1024)) > DEFAULT_MAX_MEMORY_SIZE_MB)
         {
             StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
             for (int partition : hstore_site.getLocalPartitionIds().values()) {
@@ -354,7 +343,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
-                this.totalBytesEvicted += DEFAULT_EVICTED_BLOCK_SIZE;
+                this.totalBytesEvicted += hstore_conf.site.anticache_block_size; // FIXME
                 this.hstore_site.invocationProcess(b, this.evictionCallback);
 
             } // FOR

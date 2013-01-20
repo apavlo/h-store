@@ -70,7 +70,7 @@ class AntiCacheBlock {
 class AntiCacheDB {
         
     public: 
-        AntiCacheDB(ExecutorContext *ctx, std::string db_dir); 
+        AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
         ~AntiCacheDB();
 
         /**
@@ -98,6 +98,7 @@ class AntiCacheDB {
     private:
         ExecutorContext *m_executorContext;
         string m_dbDir;
+        long m_blockSize;
         DbEnv* m_dbEnv;
         Db* m_db; 
         uint16_t m_nextBlockId;

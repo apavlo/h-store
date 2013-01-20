@@ -132,6 +132,7 @@
 <arg value="site.anticache_enable=${site.anticache_enable}" />
 <arg value="site.anticache_profiling=${site.anticache_profiling}" />
 <arg value="site.anticache_dir=${site.anticache_dir}" />
+<arg value="site.anticache_block_size=${site.anticache_block_size}" />
 <arg value="site.anticache_reset=${site.anticache_reset}" />
 <arg value="site.anticache_check_interval=${site.anticache_check_interval}" />
 <arg value="site.anticache_threshold=${site.anticache_threshold}" />

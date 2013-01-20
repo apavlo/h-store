@@ -106,7 +106,6 @@ import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
-import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -685,8 +684,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 
                 // Initialize Anti-Cache
                 if (hstore_conf.site.anticache_enable) {
-                    File acFile = AntiCacheManager.getDatabaseDir(this); 
-                    eeTemp.antiCacheInitialize(acFile);
+                    File acFile = AntiCacheManager.getDatabaseDir(this);
+                    long blockSize = hstore_conf.site.anticache_block_size;
+                    eeTemp.antiCacheInitialize(acFile, blockSize);
                 }
                 
                 eeTemp.loadCatalog(catalogContext.catalog.serialize());

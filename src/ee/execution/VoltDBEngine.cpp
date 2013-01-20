@@ -1389,9 +1389,10 @@ size_t VoltDBEngine::tableHashCode(int32_t tableId) {
 // -------------------------------------------------
 
 #ifdef ANTICACHE
-void VoltDBEngine::antiCacheInitialize(std::string dbDir) const {
-    VOLT_INFO("Enabling Anti-Cache at Partition %d: %s", m_partitionId, dbDir.c_str());
-    m_executorContext->enableAntiCache(dbDir);
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
+    VOLT_ERROR("Enabling Anti-Cache at Partition %d: dir=%s / blockSize=%ld",
+              m_partitionId, dbDir.c_str(), blockSize);
+    m_executorContext->enableAntiCache(dbDir, blockSize);
 }
 
 int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, uint16_t blockIds[]) {
@@ -1481,7 +1482,7 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
 }
 
 #else
-void VoltDBEngine::antiCacheInitialize(std::string dbDir) const {
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
     VOLT_ERROR("Anti-Cache feature was not enable when compiling the EE");
 }
 #endif
