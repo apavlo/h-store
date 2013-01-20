@@ -550,7 +550,7 @@ public class VoltProjectBuilder {
 
     public void addProcedures(final Iterable<ProcedureInfo> procedures) {
         // check for duplicates and existings
-        final HashSet<ProcedureInfo> newProcs = new HashSet<ProcedureInfo>();
+        final Set<ProcedureInfo> newProcs = new HashSet<ProcedureInfo>();
         for (final ProcedureInfo procedure : procedures) {
             assert(newProcs.contains(procedure) == false);
             assert(m_procedures.contains(procedure) == false);

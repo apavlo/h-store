@@ -44,12 +44,20 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ThreadUtil;
 
+/**
+ * YCSB Database Loader
+ * @author jdebrabant
+ * @author pavlo
+ */
 public class YCSBLoader extends Loader {
     private static final Logger LOG = Logger.getLogger(YCSBClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
+    
+    private final long init_record_count;
+    
 
     public static void main(String args[]) throws Exception {
         if (debug.val)
@@ -61,10 +69,33 @@ public class YCSBLoader extends Loader {
         super(args);
         if (debug.val)
             LOG.debug("CONSTRUCTOR: " + YCSBLoader.class.getName());
+        
+        final CatalogContext catalogContext = this.getCatalogContext();
+        boolean useFixedSize = false;
+        long fixedSize = -1;
+        for (String key : m_extraParams.keySet()) {
+            String value = m_extraParams.get(key);
 
-//        for (String key : m_extraParams.keySet()) {
-//            // TODO: Retrieve extra configuration parameters
-//        } // FOR
+            // Used Fixed-size Database
+            // Parameter that points to where we can find the initial data files
+            if (key.equalsIgnoreCase("fixed_size")) {
+                useFixedSize = Boolean.valueOf(value);
+            }
+            // Fixed Database Size
+            else if (key.equalsIgnoreCase("num_records")) {
+                fixedSize = Long.valueOf(value);
+            }
+        } // FOR
+        
+        // Figure out the # of records that we need
+        if (useFixedSize && fixedSize > 0) {
+            this.init_record_count = fixedSize;
+        }
+        else {
+            this.init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * 
+                                                     catalogContext.numberOfPartitions *
+                                                     this.getScaleFactor());
+        }
     }
 
     @Override
@@ -75,9 +106,6 @@ public class YCSBLoader extends Loader {
         final CatalogContext catalogContext = this.getCatalogContext(); 
         final Table catalog_tbl = catalogContext.getTableByName(YCSBConstants.TABLE_NAME);
         final AtomicLong total = new AtomicLong(0);
-        final int init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * 
-                                                      catalogContext.numberOfPartitions *
-                                                      this.getScaleFactor());
         
         // Multi-threaded loader
         final int num_cores = ThreadUtil.availableProcessors();

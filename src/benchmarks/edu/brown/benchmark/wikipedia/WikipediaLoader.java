@@ -78,9 +78,9 @@ public class WikipediaLoader extends Loader {
         super(args);
         this.util = new WikipediaUtil(this.randGenerator, this.getScaleFactor());
         
-        this.user_revision_ctr = new int[util.num_users];
-        this.page_last_rev_id = new int[util.num_pages];
-        this.page_last_rev_length = new int[util.num_pages];
+        this.user_revision_ctr = new int[this.util.num_users];
+        this.page_last_rev_id = new int[this.util.num_pages];
+        this.page_last_rev_length = new int[this.util.num_pages];
         
         Arrays.fill(this.page_last_rev_id, 0);
         Arrays.fill(this.user_revision_ctr, 0);
