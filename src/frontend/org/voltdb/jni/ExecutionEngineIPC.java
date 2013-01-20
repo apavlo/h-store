@@ -1462,7 +1462,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
 
     @Override
-    public void antiCacheInitialize(File dbFilePath) throws EEException {
+    public void antiCacheInitialize(File dbFilePath, long blockSize) throws EEException {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 

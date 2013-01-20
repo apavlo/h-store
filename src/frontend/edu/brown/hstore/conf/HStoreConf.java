@@ -581,6 +581,13 @@ public final class HStoreConf {
         public String anticache_dir;
         
         @ConfigProperty(
+            description="The size (in bytes) for the anti-cache's blocks on disk.",
+            defaultLong=524288,
+            experimental=true
+        )
+        public long anticache_block_size;
+        
+        @ConfigProperty(
             description="Reset the anti-cache database directory for each partition when " +
             		    "the HStoreSite is started.",
             defaultBoolean=true,

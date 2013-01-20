@@ -700,9 +700,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * Initialize anti-caching at this partition's EE.
      * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
      * @param dbDir
+     * @param blockSize TODO
      * @throws EEException
      */
-    public abstract void antiCacheInitialize(File dbDir) throws EEException;
+    public abstract void antiCacheInitialize(File dbDir, long blockSize) throws EEException;
     
     /**
      * 
@@ -735,9 +736,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * for dbDir exist and are writable.  
      * @param pointer
      * @param dbDir
+     * @param blockSize TODO
      * @return
      */
-    protected native int nativeAntiCacheInitialize(long pointer, String dbDir);
+    protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize);
     
     /**
      * 

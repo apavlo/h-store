@@ -44,9 +44,10 @@ AntiCacheBlock::~AntiCacheBlock() {
     delete [] (char*)m_value.get_data(); 
 }
     
-AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir) :
+AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     m_executorContext(ctx),
     m_dbDir(db_dir),
+    m_blockSize(blockSize),
     m_nextBlockId(0) {
         
     u_int32_t env_flags =
