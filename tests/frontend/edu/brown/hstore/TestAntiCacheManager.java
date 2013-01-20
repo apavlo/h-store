@@ -17,8 +17,8 @@ import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.benchmark.voter.VoterConstants;
-import edu.brown.benchmark.voter.VoterProjectBuilder;
+import edu.brown.benchmark.ycsb.YCSBConstants;
+import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
@@ -35,8 +35,8 @@ import edu.brown.utils.ThreadUtil;
 public class TestAntiCacheManager extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 1;
-    private static final int NUM_TUPLES = 100;
-    private static final String TARGET_TABLE = VoterConstants.TABLENAME_VOTES;
+    private static final int NUM_TUPLES = 1000;
+    private static final String TARGET_TABLE = YCSBConstants.TABLE_NAME;
     
     private static final String statsFields[] = {
         "TUPLES_EVICTED",
@@ -54,12 +54,12 @@ public class TestAntiCacheManager extends BaseTestCase {
     private Table catalog_tbl;
     private int locators[];
 
-    private final AbstractProjectBuilder builder = new VoterProjectBuilder() {
+    private final AbstractProjectBuilder builder = new YCSBProjectBuilder() {
         {
             this.markTableEvictable(TARGET_TABLE);
             this.addAllDefaults();
-            this.addStmtProcedure("GetVote",
-                                  "SELECT * FROM " + TARGET_TABLE + " WHERE vote_id = ?");
+            this.addStmtProcedure("GetRecord",
+                                  "SELECT * FROM " + TARGET_TABLE + " WHERE ycsb_key = ?");
         }
     };
     
@@ -108,7 +108,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertNotNull(vt);
         for (int i = 0; i < NUM_TUPLES; i++) {
             Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
-            row[0] = Integer.valueOf(i);
+            row[0] = i;
             vt.addRow(row);
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
@@ -157,7 +157,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // Now execute a query that needs to access data from this block
         long expected = 1;
-        Procedure proc = this.getProcedure("GetVote"); // Special Single-Stmt Proc
+        Procedure proc = this.getProcedure("GetRecord"); // Special Single-Stmt Proc
         ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
         assertEquals(Status.OK, cresponse.getStatus());
         
@@ -220,6 +220,7 @@ public class TestAntiCacheManager extends BaseTestCase {
                 System.err.println(StringUtil.repeat("-", 100));
                 ThreadUtil.sleep(1000);
             }
+            System.err.println("Eviction #" + i);
             evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 512);
             System.err.println(VoltTableUtil.format(evictResult));
             assertNotNull(evictResult);
