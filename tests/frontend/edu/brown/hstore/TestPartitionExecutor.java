@@ -64,6 +64,7 @@ public class TestPartitionExecutor extends BaseTestCase {
     private HStoreConf hstore_conf;
     private Client client;
     private PartitionExecutor executor;
+    private PartitionExecutor.Debug executorDebug;
     private Procedure catalog_proc;
     
     private final Random rand = new Random(1); 
@@ -93,7 +94,7 @@ public class TestPartitionExecutor extends BaseTestCase {
         this.hstore_site = this.createHStoreSite(catalog_site, hstore_conf);
         this.client = createClient();
         this.executor = hstore_site.getPartitionExecutor(PARTITION_ID);
-        assertNotNull(this.executor);
+        this.executorDebug = this.executor.getDebugContext();
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
     }
     
@@ -106,6 +107,13 @@ public class TestPartitionExecutor extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testUpdateMemoryStats
+     */
+    public void testUpdateMemoryStats() throws Exception {
+        executorDebug.updateMemory();
+    }
     
     /**
      * testProfiling
