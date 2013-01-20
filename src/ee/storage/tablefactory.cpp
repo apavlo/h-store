@@ -127,13 +127,6 @@ Table* TableFactory::getPersistentTable(
 
     // initialize stats for the table
     configureStats(databaseId, ctx, name, table);
-    
-    table->getTableStats()->configure(name + " stats",
-                                      ctx->m_hostId,
-                                      ctx->m_hostname,
-                                      ctx->m_siteId,
-                                      ctx->m_partitionId,
-                                      databaseId);
     return dynamic_cast<Table*>(table);
 }
 
@@ -173,12 +166,8 @@ Table* TableFactory::getPersistentTable(
         initConstraints(pTable);
     }
 
-    table->getTableStats()->configure(name + " stats",
-                                      ctx->m_hostId,
-                                      ctx->m_hostname,
-                                      ctx->m_siteId,
-                                      ctx->m_partitionId,
-                                      databaseId);
+    configureStats(databaseId, ctx, name, table);
+
     return dynamic_cast<Table*>(table);
 }
 
