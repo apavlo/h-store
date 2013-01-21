@@ -94,9 +94,10 @@ public class TestAntiCacheSuite extends RegressionSuite {
         String tableNames[] = { VoterConstants.TABLENAME_VOTES };
         LatchableProcedureCallback callback = new LatchableProcedureCallback(catalogContext.numberOfPartitions);
         long evictBytes[] = { Integer.MAX_VALUE };
+        int numBlocks[] = { 1 };
         for (int partition : catalogContext.getAllPartitionIds()) {
             System.err.printf("Evicting data at partition %d...\n", partition);
-            Object params[] = { partition, tableNames, evictBytes };
+            Object params[] = { partition, tableNames, evictBytes, numBlocks };
             boolean result = client.callProcedure(callback, procName, params);
             assertTrue(result);
         } // FOR
