@@ -37,8 +37,8 @@ public abstract class YCSBConstants {
 	//public static final int NUM_RECORDS = 21474836; // 1 GB
     public static final int NUM_RECORDS = 10737418; // .5 GB
 
-	public static final int HOT_DATA_WORKLOAD_SKEW = 90;
-	public static final int HOT_DATA_SIZE = 10;
+	public static final int HOT_DATA_WORKLOAD_SKEW = 70;
+	public static final int HOT_DATA_SIZE = 30;
 	
 	public static final int WARM_DATA_SIZE = 0; 
 	public static final int WARM_DATA_WORKLOAD_SKEW = 0; 
@@ -46,7 +46,7 @@ public abstract class YCSBConstants {
 	
 	public static final String TABLE_NAME = "USERTABLE"; 
     public static final int NUM_COLUMNS = 11; 
-	public static final int COLUMN_LENGTH = 50; 
+	public static final int COLUMN_LENGTH = 100;
 	
 	public static final int BATCH_SIZE = 10000; 
 	public static final int MAX_SCAN = 1000; 

@@ -26,7 +26,7 @@
 #include <iostream>
 #include <vector>
 
-#define UNINLINEABLE_OBJECT_LENGTH 64
+#define UNINLINEABLE_OBJECT_LENGTH 128
 
 namespace voltdb {
 
@@ -70,10 +70,7 @@ public:
                                           const TupleSchema *second,
                                           const std::vector<uint16_t> secondSet);
     
-    /**
-     * 
-     * TODO(debrabant)
-     */
+
     static TupleSchema* createEvictedTupleSchema(); 
 
     /** Static factory method to destroy a TupleSchema object. Set to null after this call */
