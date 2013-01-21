@@ -208,7 +208,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
         int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
         #endif
 
-        int16_t current_tuple_size;
         size_t current_tuple_start_position;
             
         int32_t num_tuples_evicted = 0;
