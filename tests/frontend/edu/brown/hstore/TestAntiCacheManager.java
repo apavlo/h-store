@@ -113,9 +113,9 @@ public class TestAntiCacheManager extends BaseTestCase {
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
         
-        VoltTable stats[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
-        assertEquals(1, stats.length);
-        System.err.println(VoltTableUtil.format(stats));
+//        VoltTable stats[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+//        assertEquals(1, stats.length);
+//        System.err.println(VoltTableUtil.format(stats));
     }
     
     private VoltTable evictData() throws Exception {
