@@ -820,16 +820,16 @@ public class VoltCompiler {
                 if (catalog_tbl == null) {
                     throw new VoltCompilerException("Invalid evictable table name '" + tableName + "'");
                 }
-                Index pkey = null;
-                try {
-                    pkey = CatalogUtil.getPrimaryKeyIndex(catalog_tbl);
-                } catch (Exception ex) {
-                    // Ignore
-                }
-                if (pkey == null) {
-                    throw new VoltCompilerException("Unable to mark table '" + catalog_tbl.getName() + "' as " +
-                    		                        "evictable because it does not have a primary key");
-                }
+//                Index pkey = null;
+//                try {
+//                    pkey = CatalogUtil.getPrimaryKeyIndex(catalog_tbl);
+//                } catch (Exception ex) {
+//                    // Ignore
+//                }
+//                if (pkey == null) {
+//                    throw new VoltCompilerException("Unable to mark table '" + catalog_tbl.getName() + "' as " +
+//                    		                        "evictable because it does not have a primary key");
+//                }
                 catalog_tbl.setEvictable(true);
             } // FOR
         }
