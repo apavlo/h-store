@@ -166,7 +166,7 @@ voltdb::Table* PersistentTable::getEvictedTable()
     return m_evictedTable; 
 }
 
-bool PersistentTable::evictBlockToDisk(const long block_size) {
+bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
     if (m_evictedTable == NULL) {
         throwFatalException("Trying to evict block from table '%s' before its "\
                             "EvictedTable has been initialized", this->name().c_str());
@@ -182,153 +182,145 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 
     // get the AntiCacheDB instance from the executorContext
     AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB();
-    
-    // get a unique block id from the executorContext
-    uint16_t block_id = antiCacheDB->nextBlockId();
-
-    // create a new evicted table tuple based on the schema for the source tuple
-    // Get the columns in the source tuple are part of the primary key
-    // The last entry will always be the block id for this new evicted tuple
-    VOLT_INFO("Getting %s tuple", m_evictedTable->name().c_str());
-    TableTuple evicted_tuple = m_evictedTable->tempTuple();
-    int evicted_offset = m_pkeyIndex->getColumnCount();
-    VOLT_INFO("Setting %s tuple blockId at offset %d", m_evictedTable->name().c_str(), evicted_offset);
-    evicted_tuple.setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); // BROKEN!
-    
     std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
     int tuple_length = -1;
-
-    // TODO: We may want to write a header in the block that tells us
-    //       the original name of this table that these tuples came from,
-    //       as well as the number of tuples that we evicted.
-    char* serialized_data = new char[block_size]; 
-
-    // buffer used for serializing a single tuple
-    DefaultTupleSerializer serializer;
-    ReferenceSerializeOutput out(serialized_data, block_size);
+    char serialized_data[block_size]; 
     
-    // Iterate through the table and pluck out tuples to put in our block
-    TableTuple tuple(m_schema);
-    EvictionIterator evict_itr(this); 
-    
-    #ifdef VOLT_INFO_ENABLED
-    boost::timer timer;
-    int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
-    #endif
-    
-    int16_t current_tuple_size;
-    size_t current_tuple_start_position;
+    for(int i = 0; i < num_blocks; i++)
+    {
+        // get a unique block id from the executorContext
+        uint16_t block_id = antiCacheDB->nextBlockId();
         
-    int32_t num_tuples_evicted = 0;
-    out.writeInt(num_tuples_evicted); // reserve first 4 bytes in buffer for number of tuples in block
-    
-    VOLT_DEBUG("Starting evictable tuple iterator for %s", name().c_str());
-    while (evict_itr.hasNext()) {
-        evict_itr.next(tuple);
+        // create a new evicted table tuple based on the schema for the source tuple
+        TableTuple evicted_tuple = m_evictedTable->tempTuple();
+        VOLT_INFO("Setting %s tuple blockId at offset %d", m_evictedTable->name().c_str(), 0);
+        evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id)); // BROKEN!
+
+        // buffer used for serializing a single tuple
+        DefaultTupleSerializer serializer;
+        ReferenceSerializeOutput out(serialized_data, block_size);
         
-        // If this is the first tuple, then we need to allocate all of the memory and
-        // what not that we're going to need
-        if (tuple_length == -1) {
-            tuple_length = tuple.tupleLength();
+        // Iterate through the table and pluck out tuples to put in our block
+        TableTuple tuple(m_schema);
+        EvictionIterator evict_itr(this); 
+        
+        #ifdef VOLT_INFO_ENABLED
+        boost::timer timer;
+        int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
+        #endif
+
+        int16_t current_tuple_size;
+        size_t current_tuple_start_position;
+            
+        int32_t num_tuples_evicted = 0;
+        out.writeInt(num_tuples_evicted); // reserve first 4 bytes in buffer for number of tuples in block
+        
+        VOLT_DEBUG("Starting evictable tuple iterator for %s", name().c_str());
+        while (evict_itr.hasNext()) {
+            evict_itr.next(tuple);
+            
+            // If this is the first tuple, then we need to allocate all of the memory and
+            // what not that we're going to need
+            if (tuple_length == -1) {
+                tuple_length = tuple.tupleLength();
+            }
+            
+            // Check whether we have more space for one more tuple
+            if ((out.size()+tuple_length+4) > block_size)
+                break;
+            
+            current_tuple_start_position = out.position();
+            //out.writeShort(0); // placeholder for tuple length
+            
+            // remove the tuple from the eviction chain
+            AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+            eviction_manager->removeTuple(this, &tuple);
+
+            VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
+                    
+            if(tuple.isEvicted())
+            {
+                VOLT_INFO("tuple %d is already evicted.", tuple.getTupleID()); 
+                continue;
+            } 
+            
+            tuple.setEvictedTrue();
+                    
+            // Populate the evicted_tuple with the block id and tuple offset
+            evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));
+            evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted));
+
+            VOLT_DEBUG("EvictedTuple: %s", evicted_tuple.debug(m_evictedTable->name()).c_str());
+                    
+            // make sure this tuple is marked as evicted, so that we know it is an evicted tuple as we iterate through the index
+            evicted_tuple.setEvictedTrue(); 
+
+            // Then add it to this table's EvictedTable
+            const void* evicted_tuple_address = static_cast<EvictedTable*>(m_evictedTable)->insertEvictedTuple(evicted_tuple);
+            
+            // Change all of the indexes to point to our new evicted tuple
+            setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address);
+
+            // Now copy the raw bytes for this tuple into the serialized buffer
+            //tuple.serializeTo(out);
+            
+            tuple.serializeWithHeaderTo(out);
+            
+            // calculate current tuple length and write out tuple header
+            current_tuple_size = (int16_t)(out.size() - current_tuple_start_position);
+            //out.writeShortAt(current_tuple_start_position, current_tuple_size);
+            
+            //VOLT_INFO("Evicting a tuple of size %d.", current_tuple_size);
+            
+            // At this point it's safe for us to delete this mofo
+            deleteTupleStorage(tuple);
+            num_tuples_evicted++;
+            VOLT_DEBUG("Added new evicted %s tuple to block #%d [numEvicted=%d]",
+                       name().c_str(), block_id, num_tuples_evicted);
+            
+        } // WHILE
+        
+        // write out the block header (i.e. number of tuples in block)
+        out.writeIntAt(0, num_tuples_evicted);
+        
+        #ifdef VOLT_INFO_ENABLED
+        VOLT_INFO("Evicted %d total bytes.", (int)out.size());
+        VOLT_INFO("EvictedTable Time: %.2f sec", timer.elapsed());
+        timer.restart();
+        #endif
+        
+        // Only write out a bock if there are tuples in it
+        if (num_tuples_evicted > 0) {
+            antiCacheDB->writeBlock(name(),
+                                    block_id,
+                                    num_tuples_evicted,
+                                    out.data(),
+                                    out.size());
+                    
+            // Update Stats
+            m_tuplesEvicted += num_tuples_evicted;
+            m_blocksEvicted += 1;
+            m_bytesEvicted += out.size();
+            
+            m_tuplesWritten += num_tuples_evicted;
+            m_blocksWritten += 1;
+            m_bytesWritten += out.size();
+        
+            #ifdef VOLT_INFO_ENABLED
+            VOLT_INFO("AntiCacheDB Time: %.2f sec", timer.elapsed());
+            VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
+                    block_id, name().c_str(),
+                    num_tuples_evicted, m_bytesEvicted, tuple_length);
+            VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
+                    name().c_str(), (long)origEvictedTableSize, (long)m_evictedTable->activeTupleCount());
+            #endif
+        } else {
+            VOLT_WARN("No tuples were evicted from %s", name().c_str());
         }
         
-        // Check whether we have more space for one more tuple
-        if ((out.size()+tuple_length+4) > block_size)
-            break;
-        
-        current_tuple_start_position = out.position();
-        //out.writeShort(0); // placeholder for tuple length
-        
-        // remove the tuple from the eviction chain
-        AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-        eviction_manager->removeTuple(this, &tuple);
-
-        VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
-                
-        if(tuple.isEvicted())
-        {
-            VOLT_INFO("tuple %d is already evicted.", tuple.getTupleID()); 
-            continue;
-        } 
-        
-        tuple.setEvictedTrue();
-                
-        // Populate the evicted_tuple with the block id and tuple offset
-        evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));
-        evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted));
-
-        VOLT_DEBUG("EvictedTuple: %s", evicted_tuple.debug(m_evictedTable->name()).c_str());
-                
-        // make sure this tuple is marked as evicted, so that we know it is an evicted tuple as we iterate through the index
-        evicted_tuple.setEvictedTrue(); 
-
-        // Then add it to this table's EvictedTable
-        const void* evicted_tuple_address = static_cast<EvictedTable*>(m_evictedTable)->insertEvictedTuple(evicted_tuple);
-        
-        // Change all of the indexes to point to our new evicted tuple
-        setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address);
-
-        // Now copy the raw bytes for this tuple into the serialized buffer
-        //tuple.serializeTo(out);
-        
-        tuple.serializeWithHeaderTo(out);
-        
-        // calculate current tuple length and write out tuple header
-        current_tuple_size = (int16_t)(out.size() - current_tuple_start_position);
-        //out.writeShortAt(current_tuple_start_position, current_tuple_size);
-        
-        //VOLT_INFO("Evicting a tuple of size %d.", current_tuple_size);
-        
-        // At this point it's safe for us to delete this mofo
-        deleteTupleStorage(tuple);
-        num_tuples_evicted++;
-        VOLT_DEBUG("Added new evicted %s tuple to block #%d [numEvicted=%d]",
-                   name().c_str(), block_id, num_tuples_evicted);
-        
-    } // WHILE
+    }  // FOR
     
-    // write out the block header (i.e. number of tuples in block)
-    out.writeIntAt(0, num_tuples_evicted);
-    
-    VOLT_INFO("Evicted %d total bytes.", (int)out.size());
-    
-    #ifdef VOLT_INFO_ENABLED
-    VOLT_INFO("EvictedTable Time: %.2f sec", timer.elapsed());
-    timer.restart();
-    #endif
-    
-    // Only write out a bock if there are tuples in it
-    if (num_tuples_evicted > 0) {
-        antiCacheDB->writeBlock(name(),
-                                block_id,
-                                num_tuples_evicted,
-                                out.data(),
-                                out.size());
-                
-        // Update Stats
-        m_tuplesEvicted += num_tuples_evicted;
-        m_blocksEvicted += 1;
-        m_bytesEvicted += out.size();
-        
-        m_tuplesWritten += num_tuples_evicted;
-        m_blocksWritten += 1;
-        m_bytesWritten += out.size();
-        
-        // clean up memory                     
-        delete [] serialized_data;
-        //delete out;
-    
-        #ifdef VOLT_INFO_ENABLED
-        VOLT_INFO("AntiCacheDB Time: %.2f sec", timer.elapsed());
-        VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
-                block_id, name().c_str(),
-                num_tuples_evicted, m_bytesEvicted, tuple_length);
-        VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
-                name().c_str(), (long)origEvictedTableSize, (long)m_evictedTable->activeTupleCount());
-        #endif
-    } else {
-        VOLT_WARN("No tuples were evicted from %s", name().c_str());
-    }
+    antiCacheDB->flushBlocks(); 
     
     return true;
 }

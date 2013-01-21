@@ -56,7 +56,7 @@ public class EvictTuples extends VoltSystemProcedure {
         throw new IllegalAccessError("Invalid invocation of " + this.getClass() + ".executePlanFragment()");
     }
     
-    public VoltTable[] run(int partition, String tableNames[], long blockSizes[]) {
+    public VoltTable[] run(int partition, String tableNames[], long blockSizes[], int numBlocks[]) {
         ExecutionEngine ee = executor.getExecutionEngine();
         assert(tableNames.length == blockSizes.length);
         
@@ -88,6 +88,10 @@ public class EvictTuples extends VoltSystemProcedure {
                 String msg = String.format("Invalid block eviction size '%d' for table '%s'", blockSizes[i], tables[i].getName());
                 throw new VoltAbortException(msg);
             }
+            else if(numBlocks[i] <= 0) {
+                String msg = String.format("Invalid number of blocks to evict '%d' for table '%s'", numBlocks[i], tables[i].getName());
+                throw new VoltAbortException(msg);
+            }
         } // FOR
         
         // TODO: Instead of sending down requests one at a time per table, it will
@@ -97,7 +101,7 @@ public class EvictTuples extends VoltSystemProcedure {
         long totalBlocksEvicted = 0;
         long totalBytesEvicted = 0;
         for (int i = 0; i < tableNames.length; i++) {
-            VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i]);
+            VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);
             boolean adv = vt.advanceRow();
             assert(adv);
             long tuplesEvicted = vt.getLong("TUPLES_EVICTED");

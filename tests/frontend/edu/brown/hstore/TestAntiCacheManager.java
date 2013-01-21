@@ -132,7 +132,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
-        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024);
+        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024, 1);
 
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(evictResult));
@@ -313,7 +313,7 @@ public class TestAntiCacheManager extends BaseTestCase {
                 ThreadUtil.sleep(1000);
             }
             System.err.println("Eviction #" + i);
-            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 512);
+            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 512, 1);
             System.err.println(VoltTableUtil.format(evictResult));
             assertNotNull(evictResult);
             assertEquals(1, evictResult.getRowCount());
