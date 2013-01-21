@@ -57,6 +57,7 @@ public class YCSBLoader extends Loader {
     }
     
     private final long init_record_count;
+    private int loadthreads = ThreadUtil.availableProcessors();
     
 
     public static void main(String args[]) throws Exception {
@@ -85,6 +86,10 @@ public class YCSBLoader extends Loader {
             else if (key.equalsIgnoreCase("num_records")) {
                 fixedSize = Long.valueOf(value);
             }
+            // Multi-Threaded Loader
+            else if (key.equalsIgnoreCase("loadthreads")) {
+                this.loadthreads = Integer.valueOf(value);
+            }
         } // FOR
         
         // Figure out the # of records that we need
@@ -108,10 +113,9 @@ public class YCSBLoader extends Loader {
         final AtomicLong total = new AtomicLong(0);
         
         // Multi-threaded loader
-        final int num_cores = ThreadUtil.availableProcessors();
-        final int rows_per_thread = (int)Math.ceil(init_record_count / (double)num_cores);
+        final int rows_per_thread = (int)Math.ceil(init_record_count / (double)this.loadthreads);
         final List<Runnable> runnables = new ArrayList<Runnable>();
-        for (int i = 0; i < num_cores; i++) {
+        for (int i = 0; i < this.loadthreads; i++) {
             final int thread_id = i;
             final int start = rows_per_thread * i;
             final int stop = start + rows_per_thread;
