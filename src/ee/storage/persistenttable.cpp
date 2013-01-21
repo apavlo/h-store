@@ -229,7 +229,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
                 break;
             
             current_tuple_start_position = out.position();
-            //out.writeShort(0); // placeholder for tuple length
             
             // remove the tuple from the eviction chain
             AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
@@ -259,12 +258,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
 
             // Now copy the raw bytes for this tuple into the serialized buffer
             tuple.serializeWithHeaderTo(out);
-            
-            // calculate current tuple length and write out tuple header
-            current_tuple_size = (int16_t)(out.size() - current_tuple_start_position);
-            //out.writeShortAt(current_tuple_start_position, current_tuple_size);
-            
-            //VOLT_INFO("Evicting a tuple of size %d.", current_tuple_size);
             
             // At this point it's safe for us to delete this mofo
             deleteTupleStorage(tuple);
