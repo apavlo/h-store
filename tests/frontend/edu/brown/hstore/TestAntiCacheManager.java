@@ -112,12 +112,16 @@ public class TestAntiCacheManager extends BaseTestCase {
             vt.addRow(row);
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
+        
+        VoltTable stats[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, stats.length);
+        System.err.println(VoltTableUtil.format(stats));
     }
     
     private VoltTable evictData() throws Exception {
         VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
-        System.err.println(VoltTableUtil.format(results));
+        // System.err.println(VoltTableUtil.format(results));
         for (String col : statsFields) {
 			results[0].advanceRow(); 
             int idx = results[0].getColumnIndex(col);
@@ -142,6 +146,67 @@ public class TestAntiCacheManager extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testStats
+     */
+    @Test
+    public void testStats() throws Exception {
+        boolean adv;
+        this.loadData();
+        
+        String writtenFields[] = new String[statsFields.length];
+        String readFields[] = new String[statsFields.length];
+        for (int i = 0; i < statsFields.length; i++) {
+            writtenFields[i] = statsFields[i].replace("EVICTED", "WRITTEN");
+            readFields[i] = statsFields[i].replace("EVICTED", "READ");
+        } // FOR
+        
+        // Evict some data
+        VoltTable evictResult = this.evictData();
+        
+        // Check to make sure that our stats say that something was evicted
+        VoltTable origStats[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, origStats.length);
+        System.err.println(VoltTableUtil.format(origStats));
+        adv = origStats[0].advanceRow();
+        assert(adv);
+        for (int i = 0; i < statsFields.length; i++) {
+            // ACTIVE
+            assertTrue(statsFields[i], evictResult.getLong(statsFields[i]) > 0);
+            assertEquals(statsFields[i], evictResult.getLong(statsFields[i]), origStats[0].getLong(statsFields[i]));
+            
+            // GLOBAL WRITTEN
+            assertEquals(writtenFields[i], evictResult.getLong(statsFields[i]), origStats[0].getLong(writtenFields[i]));
+            
+            // GLOBAL READ
+            assertEquals(readFields[i], 0, origStats[0].getLong(readFields[i]));
+        } // FOR
+        
+        // Now execute a query that needs to access data from this block
+        long expected = 1;
+        Procedure proc = this.getProcedure("GetRecord");
+        ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
+        assertEquals(Status.OK, cresponse.getStatus());
+        
+        // Check to make sure that our stats were updated
+        VoltTable newStats[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, newStats.length);
+        System.err.println(VoltTableUtil.format(newStats));
+        adv = newStats[0].advanceRow();
+        assert(adv);
+        for (int i = 0; i < statsFields.length; i++) {
+            // ACTIVE
+            assertEquals(statsFields[i], 0, newStats[0].getLong(statsFields[i]));
+            
+            // GLOBAL WRITTEN
+            assertEquals(writtenFields[i], origStats[0].getLong(writtenFields[i]), newStats[0].getLong(writtenFields[i]));
+            
+            // GLOBAL READ
+            assertEquals(readFields[i], origStats[0].getLong(writtenFields[i]), newStats[0].getLong(readFields[i]));
+        } // FOR
+        
+    }
     
     /**
      * testReadEvictedTuples

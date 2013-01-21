@@ -112,9 +112,20 @@ private:
     int64_t m_lastStringDataMemory;
     
     #ifdef ANTICACHE
+    // ACTIVE
     int32_t m_lastTuplesEvicted;
     int32_t m_lastBlocksEvicted;
     int64_t m_lastBytesEvicted;
+    
+    // GLOBAL WRITTEN
+    int32_t m_lastTuplesWritten;
+    int32_t m_lastBlocksWritten;
+    int64_t m_lastBytesWritten;
+    
+    // GLOBAL READ
+    int32_t m_lastTuplesRead;
+    int32_t m_lastBlocksRead;
+    int64_t m_lastBytesRead;
     #endif
 };
 

@@ -203,9 +203,9 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     //       as well as the number of tuples that we evicted.
     char* serialized_data = new char[block_size]; 
 
-	// buffer used for serializing a single tuple
-	DefaultTupleSerializer serializer;
-	ReferenceSerializeOutput out(serialized_data, block_size);
+    // buffer used for serializing a single tuple
+    DefaultTupleSerializer serializer;
+    ReferenceSerializeOutput out(serialized_data, block_size);
     
     // Iterate through the table and pluck out tuples to put in our block
     TableTuple tuple(m_schema);
@@ -239,18 +239,18 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         current_tuple_start_position = out.position();
         //out.writeShort(0); // placeholder for tuple length
         
-		// remove the tuple from the eviction chain
-		AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-	    eviction_manager->removeTuple(this, &tuple);
+        // remove the tuple from the eviction chain
+        AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+        eviction_manager->removeTuple(this, &tuple);
 
         VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
-		        
-		if(tuple.isEvicted())
-		{
-			VOLT_INFO("tuple %d is already evicted.", tuple.getTupleID()); 
-			continue;
-		} 
-		
+                
+        if(tuple.isEvicted())
+        {
+            VOLT_INFO("tuple %d is already evicted.", tuple.getTupleID()); 
+            continue;
+        } 
+        
         tuple.setEvictedTrue();
                 
         // Populate the evicted_tuple with the block id and tuple offset
@@ -271,7 +271,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         // Now copy the raw bytes for this tuple into the serialized buffer
         //tuple.serializeTo(out);
         
-		tuple.serializeWithHeaderTo(out);
+        tuple.serializeWithHeaderTo(out);
         
         // calculate current tuple length and write out tuple header
         current_tuple_size = (int16_t)(out.size() - current_tuple_start_position);
@@ -304,15 +304,19 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
                                 num_tuples_evicted,
                                 out.data(),
                                 out.size());
-		        
+                
         // Update Stats
         m_tuplesEvicted += num_tuples_evicted;
         m_blocksEvicted += 1;
-		m_bytesEvicted += out.size();
-		
-		// clean up memory 					
-		delete [] serialized_data;
-		//delete out;
+        m_bytesEvicted += out.size();
+        
+        m_tuplesWritten += num_tuples_evicted;
+        m_blocksWritten += 1;
+        m_bytesWritten += out.size();
+        
+        // clean up memory                     
+        delete [] serialized_data;
+        //delete out;
     
         #ifdef VOLT_INFO_ENABLED
         VOLT_INFO("AntiCacheDB Time: %.2f sec", timer.elapsed());
@@ -329,13 +333,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     return true;
 }
 
-/*
-bool PersistentTable::readEvictedTuple(uint16_t block_id)
-{
-	
-}
-*/
-	
 bool PersistentTable::readEvictedBlock(uint16_t block_id) {
     AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB(); 
     AntiCacheBlock value = antiCacheDB->readBlock(this->name(), block_id);
@@ -395,9 +392,13 @@ bool PersistentTable::mergeUnevictedTuples()
     }
     
     // Update eviction stats
-    m_blocksEvicted -= num_blocks; 
     m_tuplesEvicted -= (num_blocks * m_tuplesPerBlock); 
+    m_blocksEvicted -= num_blocks; 
     m_bytesEvicted -= (num_blocks * m_tuplesPerBlock * tuple_size_in_bytes); 
+    
+    m_tuplesRead += (num_blocks * m_tuplesPerBlock);
+    m_blocksRead += num_blocks;
+    m_bytesRead += (num_blocks * m_tuplesPerBlock * tuple_size_in_bytes);
     
     m_unevictedBlocks.clear(); 
     
@@ -461,7 +462,7 @@ void setSearchKeyFromTuple(TableTuple &source) {
 bool PersistentTable::insertTuple(TableTuple &source) {
     size_t elMark = 0;
 
-	//VOLT_INFO("In insertTuple().");
+    //VOLT_INFO("In insertTuple().");
 
     // not null checks at first
     FAIL_IF(!checkNulls(source)) {
@@ -550,7 +551,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
  */
 void PersistentTable::insertTupleForUndo(TableTuple &source, size_t wrapperOffset) {
 
-	//VOLT_INFO("In insertTupleForUndo()."); 
+    //VOLT_INFO("In insertTupleForUndo()."); 
 
     // not null checks at first
     if (!checkNulls(source)) {
@@ -1041,14 +1042,14 @@ void PersistentTable::onSetColumns() {
  * to do additional processing for views and Export
  */
 void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
-	
-	//VOLT_INFO("in processLoadedTuple()."); 
-	
+    
+    //VOLT_INFO("in processLoadedTuple()."); 
+    
 #ifdef ANTICACHE
-	AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-	eviction_manager->updateTuple(this, &m_tmpTarget1, true); 
+    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+    eviction_manager->updateTuple(this, &m_tmpTarget1, true); 
 #endif
-	
+    
     // handle any materialized views
     for (int i = 0; i < m_views.size(); i++) {
         m_views[i]->processTupleInsert(m_tmpTarget1);

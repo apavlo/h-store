@@ -257,7 +257,7 @@ class PersistentTable : public Table {
     // ------------------------------------------------------------------
     // ANTI-CACHING OPERATIONS
     // ------------------------------------------------------------------
-#ifdef ANTICACHE
+    #ifdef ANTICACHE
     void setEvictedTable(voltdb::Table *evictedTable);
     voltdb::Table* getEvictedTable(); 
     bool evictBlockToDisk(const long block_size);
@@ -271,7 +271,7 @@ class PersistentTable : public Table {
     uint32_t getOldestTupleID(); 
     void setNumTuplesInEvictionChain(int num_tuples);
     int getNumTuplesInEvictionChain(); 
-#endif
+    #endif
 
 protected:
     
@@ -329,7 +329,7 @@ protected:
     int64_t m_tsSeqNo;
     
     // ANTI-CACHE VARIABLES
-#ifdef ANTICACHE
+    #ifdef ANTICACHE
     voltdb::Table *m_evictedTable;
     
     std::vector<char*> m_unevictedBlocks; 
@@ -341,7 +341,7 @@ protected:
     uint32_t m_newestTupleID; 
     
     int m_numTuplesInEvictionChain; 
-#endif
+    #endif
     
     // partition key
     int m_partitionColumn;
