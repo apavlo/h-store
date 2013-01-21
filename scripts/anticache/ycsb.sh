@@ -70,12 +70,12 @@ BASE_ARGS=( \
     
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
-    "-Dsite.anticache_check_interval=30000" \
+    "-Dsite.anticache_check_interval=10000" \
     "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
 #    "-Dclient.interval=500" \
     "-Dclient.anticache_enable=false" \
-    "-Dclient.anticache_evict_interval=30000" \
+    "-Dclient.anticache_evict_interval=10000" \
     "-Dclient.anticache_evict_size=4194304" \
     "-Dclient.output_csv=false" \
     "-Dclient.output_interval=true" \
@@ -155,7 +155,7 @@ for i in 6; do
     # EXECUTE BENCHMARK
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
-        -Dkillonzero=true \
+        -Dkillonzero=false \
         -Dclient.threads_per_host=${NUM_CLIENTS} \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \

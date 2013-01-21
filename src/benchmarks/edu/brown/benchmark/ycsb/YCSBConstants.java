@@ -37,9 +37,8 @@ public abstract class YCSBConstants {
 	//public static final int NUM_RECORDS = 21474836; // 1 GB
     public static final int NUM_RECORDS = 10737418; // .5 GB
 
-
-	public static final int HOT_DATA_SIZE = 90; 
-	public static final int HOT_DATA_WORKLOAD_SKEW = 10; 
+	public static final int HOT_DATA_WORKLOAD_SKEW = 90;
+	public static final int HOT_DATA_SIZE = 10;
 	
 	public static final int WARM_DATA_SIZE = 0; 
 	public static final int WARM_DATA_WORKLOAD_SKEW = 0; 
@@ -55,7 +54,7 @@ public abstract class YCSBConstants {
 	// Transaction frequencies as specified in YCSB
 	public static final int FREQUENCY_INSERT_RECORD = 0; 
 	public static final int FREQUENCY_DELETE_RECORD = 0;
-	public static final int FREQUENCY_READ_RECORD = 100;
+	public static final int FREQUENCY_READ_RECORD = 90;
 	public static final int FREQUENCY_SCAN_RECORD = 0;
-	public static final int FREQUENCY_UPDATE_RECORD = 0;
+	public static final int FREQUENCY_UPDATE_RECORD = 10;
 }

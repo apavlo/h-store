@@ -1316,7 +1316,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jobject obj,
         jlong engine_ptr,
         jint tableId,
-        jlong blockSize) {
+        jlong blockSize,
+        jint numBlocks) {
          
     int retval = -1;
     VOLT_DEBUG("nativeAntiCacheEvictBlocks() start");
@@ -1327,7 +1328,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     engine->resetReusedResultOutputBuffer();
     
     try {
-        retval = engine->antiCacheEvictBlock(static_cast<int32_t>(tableId), static_cast<long>(blockSize));
+        retval = engine->antiCacheEvictBlock(static_cast<int32_t>(tableId), static_cast<long>(blockSize), static_cast<int>(numBlocks));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
