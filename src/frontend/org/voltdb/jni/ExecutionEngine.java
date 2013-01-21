@@ -719,7 +719,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param block_size The number of bytes to evict from the target table
      * @return TODO
      */
-    public abstract VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size);
+    public abstract VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks);
     
     /**
      * Instruct the EE to merge in the unevicted blocks into the table's regular data.
@@ -757,7 +757,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param blockSize
      * @return
      */
-    protected native int nativeAntiCacheEvictBlock(long pointer, int tableId, long blockSize);
+    protected native int nativeAntiCacheEvictBlock(long pointer, int tableId, long blockSize, int num_blocks);
     
     /**
      * 

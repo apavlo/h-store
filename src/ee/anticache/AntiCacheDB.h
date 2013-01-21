@@ -86,6 +86,11 @@ class AntiCacheDB {
          * Read a block and return its contents
          */
         AntiCacheBlock readBlock(std::string tableName, uint16_t blockId);
+    
+        /**
+         * Flush the buffered blocks to disk.
+         */
+        void flushBlocks();
 
         /**
          * Return the next BlockId to use in the anti-cache database

@@ -643,14 +643,14 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
     
     @Override
-    public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size) {
+    public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks) {
         if (m_anticache == false) {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
         deserializer.clear();
         
-        final int numResults = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
+        final int numResults = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size, num_blocks);
         if (numResults == -1) {
             throwExceptionForError(ERRORCODE_ERROR);
         }
