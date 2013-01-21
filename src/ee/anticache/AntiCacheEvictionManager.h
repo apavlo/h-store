@@ -46,7 +46,7 @@ public:
     bool updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert);
     bool removeTuple(PersistentTable* table, TableTuple* tuple); 
 
-    Table* evictBlock(PersistentTable *table, long blockSize);
+    Table* evictBlock(PersistentTable *table, long blockSize, int numBlocks);
     Table* readBlocks(PersistentTable *table, int numBlocks, uint16_t blockIds[]);
     
     //int numTuplesInEvictionList(); 

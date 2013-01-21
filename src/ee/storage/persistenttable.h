@@ -260,7 +260,7 @@ class PersistentTable : public Table {
 #ifdef ANTICACHE
     void setEvictedTable(voltdb::Table *evictedTable);
     voltdb::Table* getEvictedTable(); 
-    bool evictBlockToDisk(const long block_size);
+    bool evictBlockToDisk(const long block_size, int num_blocks);
     bool readEvictedBlock(uint16_t block_id);
     bool mergeUnevictedTuples();
     

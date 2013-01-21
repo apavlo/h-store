@@ -1405,7 +1405,7 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, uint16_t b
  * @param tableId
  * @param blockSize The number of bytes to evict from this table
  */
-int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize) {
+int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks) {
     PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
     if (table == NULL) {
         throwFatalException("Invalid table id %d", tableId);
@@ -1414,7 +1414,7 @@ int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize) {
     VOLT_DEBUG("Attempting to evict a block of %ld bytes from table '%s'",
                blockSize, table->name().c_str());
     size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
-    Table *resultTable = m_executorContext->getAntiCacheEvictionManager()->evictBlock(table, blockSize);
+    Table *resultTable = m_executorContext->getAntiCacheEvictionManager()->evictBlock(table, blockSize, numBlocks);
     if (resultTable != NULL) {
         resultTable->serializeTo(m_resultOutput);
         m_resultOutput.writeIntAt(lengthPosition,
