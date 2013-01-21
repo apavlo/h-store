@@ -185,6 +185,8 @@ public class TestAntiCacheManager extends BaseTestCase {
             assertEquals(readFields[i], 0, origStats[0].getLong(readFields[i]));
         } // FOR
         
+        // TODO: Check that the string data has all been evicted.
+        
         // Now execute a query that needs to access data from this block
         long expected = 1;
         Procedure proc = this.getProcedure("GetRecord");
