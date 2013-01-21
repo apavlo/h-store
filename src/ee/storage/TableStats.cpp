@@ -38,9 +38,20 @@ vector<string> TableStats::generateTableStatsColumnNames() {
     columnNames.push_back("STRING_DATA_MEMORY");
     
     #ifdef ANTICACHE
+    // ACTIVE
     columnNames.push_back("TUPLES_EVICTED");
     columnNames.push_back("BLOCKS_EVICTED");
     columnNames.push_back("BYTES_EVICTED");
+    
+    // GLOBAL WRITTEN
+    columnNames.push_back("TUPLES_WRITTEN");
+    columnNames.push_back("BLOCKS_WRITTEN");
+    columnNames.push_back("BYTES_WRITTEN");
+    
+    // GLOBAL READ
+    columnNames.push_back("TUPLES_READ");
+    columnNames.push_back("BLOCKS_READ");
+    columnNames.push_back("BYTES_READ");
     #endif
     
     return columnNames;
@@ -70,6 +81,36 @@ void TableStats::populateTableStatsSchema(
     allowNull.push_back(false);
     
     // BYTES_EVICTED
+    types.push_back(VALUE_TYPE_BIGINT);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
+    allowNull.push_back(false);
+    
+    // TUPLES_WRITTEN
+    types.push_back(VALUE_TYPE_INTEGER);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    allowNull.push_back(false);
+    
+    // BLOCKS_WRITTEN
+    types.push_back(VALUE_TYPE_INTEGER);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    allowNull.push_back(false);
+    
+    // BYTES_WRITTEN
+    types.push_back(VALUE_TYPE_BIGINT);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
+    allowNull.push_back(false);
+    
+    // TUPLES_READ
+    types.push_back(VALUE_TYPE_INTEGER);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    allowNull.push_back(false);
+    
+    // BLOCKS_READ
+    types.push_back(VALUE_TYPE_INTEGER);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    allowNull.push_back(false);
+    
+    // BYTES_READ
     types.push_back(VALUE_TYPE_BIGINT);
     columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
     allowNull.push_back(false);
@@ -114,6 +155,14 @@ TableStats::TableStats(Table* table)
     m_lastTuplesEvicted = 0;
     m_lastBlocksEvicted = 0;
     m_lastBytesEvicted = 0;
+    
+    m_lastTuplesWritten = 0;
+    m_lastBlocksWritten = 0;
+    m_lastBytesWritten = 0;
+    
+    m_lastTuplesRead = 0;
+    m_lastBlocksRead = 0;
+    m_lastBytesRead = 0;
     #endif
 }
 
@@ -164,6 +213,14 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
     int32_t tuplesEvicted = m_table->getTuplesEvicted();
     int32_t blocksEvicted = m_table->getBlocksEvicted();
     int64_t bytesEvicted = m_table->getBytesEvicted();
+    
+    int32_t tuplesWritten = m_table->getTuplesWritten();
+    int32_t blocksWritten = m_table->getBlocksWritten();
+    int64_t bytesWritten = m_table->getBytesWritten();
+    
+    int32_t tuplesRead = m_table->getTuplesRead();
+    int32_t blocksRead = m_table->getBlocksRead();
+    int64_t bytesRead = m_table->getBytesRead();
     #endif
 
     if (interval()) {
@@ -180,6 +237,8 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
         m_lastStringDataMemory = m_table->nonInlinedMemorySize();
         
         #ifdef ANTICACHE
+        
+        // ACTIVE
         tuplesEvicted = tuplesEvicted - m_lastTuplesEvicted;
         m_lastTuplesEvicted = m_table->getTuplesEvicted();
         
@@ -188,6 +247,26 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
         
         bytesEvicted = bytesEvicted - m_lastBytesEvicted;
         m_lastBytesEvicted = m_table->getBytesEvicted();
+        
+        // GLOBAL WRITTEN
+        tuplesWritten = tuplesWritten - m_lastTuplesWritten;
+        m_lastTuplesWritten = m_table->getTuplesWritten();
+        
+        blocksWritten = blocksWritten - m_lastBlocksWritten;
+        m_lastBlocksWritten = m_table->getBlocksWritten();
+        
+        bytesWritten = bytesWritten - m_lastBytesWritten;
+        m_lastBytesWritten = m_table->getBytesWritten();
+        
+        // GLOBAL READ
+        tuplesRead = tuplesRead - m_lastTuplesRead;
+        m_lastTuplesRead = m_table->getTuplesRead();
+        
+        blocksRead = blocksRead - m_lastBlocksRead;
+        m_lastBlocksRead = m_table->getBlocksRead();
+        
+        bytesRead = bytesRead - m_lastBytesRead;
+        m_lastBytesRead = m_table->getBytesRead();
         #endif
     }
 
@@ -227,6 +306,28 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
     tuple->setNValue( StatsSource::m_columnName2Index["BYTES_EVICTED"],
                       ValueFactory::
                       getBigIntValue(static_cast<int64_t>(bytesEvicted)));
+    
+    // GLOBAL WRITTEN
+    tuple->setNValue( StatsSource::m_columnName2Index["TUPLES_WRITTEN"],
+                      ValueFactory::
+                      getIntegerValue(static_cast<int32_t>(tuplesWritten)));
+    tuple->setNValue( StatsSource::m_columnName2Index["BLOCKS_WRITTEN"],
+                      ValueFactory::
+                      getIntegerValue(static_cast<int32_t>(blocksWritten)));
+    tuple->setNValue( StatsSource::m_columnName2Index["BYTES_WRITTEN"],
+                      ValueFactory::
+                      getBigIntValue(static_cast<int64_t>(bytesWritten)));
+    
+    // GLOBAL READ
+    tuple->setNValue( StatsSource::m_columnName2Index["TUPLES_READ"],
+                      ValueFactory::
+                      getIntegerValue(static_cast<int32_t>(tuplesRead)));
+    tuple->setNValue( StatsSource::m_columnName2Index["BLOCKS_READ"],
+                      ValueFactory::
+                      getIntegerValue(static_cast<int32_t>(blocksRead)));
+    tuple->setNValue( StatsSource::m_columnName2Index["BYTES_READ"],
+                      ValueFactory::
+                      getBigIntValue(static_cast<int64_t>(bytesRead)));
     #endif
 }
 
