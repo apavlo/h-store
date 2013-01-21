@@ -142,7 +142,7 @@ TupleSchema::createTupleSchema(const TupleSchema *first,
     return schema;
 }
     
-TupleSchema* TupleSchema::createEvictedTupleSchema(const TupleSchema *pkey_schema) {
+TupleSchema* TupleSchema::createEvictedTupleSchema() {
     std::vector<ValueType> columnTypes(2);
     std::vector<int32_t> columnSizes(2);
     std::vector<bool> allowNull(2);
