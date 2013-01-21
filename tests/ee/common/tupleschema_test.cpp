@@ -127,7 +127,7 @@ TEST_F(TupleSchemaTest, CreateEvictedTupleSchema) {
     
     // Create the TupleSchema for our evicted tuple tables
     // The first columns should be all of the columns of our primary key index
-    TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema(m_primaryKeyIndexSchema);
+    TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema();
     // fprintf(stdout, "\nEVICTED TABLE SCHEMA\n%s\n", evictedSchema->debug().c_str());
     ASSERT_EQ(2, evictedSchema->columnCount());
     ASSERT_EQ(VALUE_TYPE_SMALLINT, evictedSchema->columnType(0));
