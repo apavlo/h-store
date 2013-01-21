@@ -340,8 +340,11 @@ bool PersistentTable::readEvictedBlock(uint16_t block_id) {
     // allocate the memory for this block
     char* unevicted_tuples = new char[value.getSize()]; 
     memcpy(unevicted_tuples, value.getData(), value.getSize()); 
-    
     m_unevictedBlocks.push_back(unevicted_tuples); 
+    
+    // Update eviction stats
+    m_bytesEvicted -= value.getSize(); 
+    m_bytesRead += value.getSize();
     
     return true; 
 }
@@ -354,17 +357,14 @@ bool PersistentTable::mergeUnevictedTuples()
 {        
     int num_blocks = static_cast<int> (m_unevictedBlocks.size());
     int32_t num_tuples_in_block = -1;
-    int16_t tuple_size_in_bytes = 1;
+    int tuplesRead = 0;
     
     DefaultTupleSerializer serializer;
-    
     std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
-    
     TableTuple unevictedTuple(m_schema);
-
     
     VOLT_INFO("Merging %d blocks for table %s.", num_blocks, name().c_str());
-    for(int i = 0; i < num_blocks; i++)
+    for (int i = 0; i < num_blocks; i++)
     {        
         // XXX: have to put block size, which we don't know, so just put something large, like 10MB
         ReferenceSerializeInput in(m_unevictedBlocks[i], 10485760);
@@ -372,7 +372,7 @@ bool PersistentTable::mergeUnevictedTuples()
         
         VOLT_INFO("Merging %d tuples.", num_tuples_in_block);
         
-        for(int j = 0; j < num_tuples_in_block; j++)
+        for (int j = 0; j < num_tuples_in_block; j++)
         {            
             // get a free tuple and increment the count of tuples current used
             nextFreeTuple(&m_tmpTarget1);
@@ -387,18 +387,17 @@ bool PersistentTable::mergeUnevictedTuples()
             //m_evictedTable->deleteTuple(evictedTuple, false);
             
             //VOLT_INFO("Successfully unevicted tuple.");
-        }  
+        }
+        tuplesRead += num_tuples_in_block;
         delete [] m_unevictedBlocks[i];
     }
     
     // Update eviction stats
-    m_tuplesEvicted -= (num_blocks * m_tuplesPerBlock); 
+    m_tuplesEvicted -= tuplesRead;
+    m_tuplesRead += tuplesRead;
+
     m_blocksEvicted -= num_blocks; 
-    m_bytesEvicted -= (num_blocks * m_tuplesPerBlock * tuple_size_in_bytes); 
-    
-    m_tuplesRead += (num_blocks * m_tuplesPerBlock);
     m_blocksRead += num_blocks;
-    m_bytesRead += (num_blocks * m_tuplesPerBlock * tuple_size_in_bytes);
     
     m_unevictedBlocks.clear(); 
     
