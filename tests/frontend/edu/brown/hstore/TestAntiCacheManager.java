@@ -5,6 +5,7 @@ import java.io.File;
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.SysProcSelector;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -13,6 +14,7 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.UnknownBlockAccessException;
 import org.voltdb.jni.ExecutionEngine;
+import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
@@ -204,6 +206,29 @@ public class TestAntiCacheManager extends BaseTestCase {
             
             // GLOBAL READ
             assertEquals(readFields[i], origStats[0].getLong(writtenFields[i]), newStats[0].getLong(readFields[i]));
+        } // FOR
+        
+        // Check that the global stats for the site matches too
+        this.executor.getDebugContext().updateMemory();
+        proc = this.getProcedure(VoltSystemProcedure.procCallName(Statistics.class));
+        Object params[] = { SysProcSelector.MEMORY.name(), 0 };
+        cresponse = this.client.callProcedure(proc.getName(), params);
+        assertEquals(Status.OK, cresponse.getStatus());
+        VoltTable results = cresponse.getResults()[0];
+        adv = results.advanceRow();
+        assert(adv);
+        for (int i = 0; i < statsFields.length; i++) {
+            // XXX: Skip the byte counters since it will be kilobytes
+            if (statsFields[i].startsWith("BYTES")) continue;
+            
+            // ACTIVE
+            assertEquals(statsFields[i], newStats[0].getLong(statsFields[i]), results.getLong(statsFields[i]));
+            
+            // GLOBAL WRITTEN
+            assertEquals(writtenFields[i], newStats[0].getLong(writtenFields[i]), results.getLong(writtenFields[i]));
+            
+            // GLOBAL READ
+            assertEquals(readFields[i], newStats[0].getLong(readFields[i]), results.getLong(readFields[i]));
         } // FOR
         
     }

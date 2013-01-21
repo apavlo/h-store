@@ -1462,9 +1462,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         int tupleAllocatedMem = 0;
         int indexMem = 0;
         int stringMem = 0;
+        
+        // ACTIVE
         long tuplesEvicted = 0;
         long blocksEvicted = 0;
         long bytesEvicted = 0;
+        
+        // GLOBAL WRITTEN
+        long tuplesWritten = 0;
+        long blocksWritten = 0;
+        long bytesWritten = 0;
+        
+        // GLOBAL READ
+        long tuplesRead = 0;
+        long blocksRead = 0;
+        long bytesRead = 0;
 
         // update table stats
         final VoltTable[] s1 = this.ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
@@ -1479,9 +1491,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 tupleAllocatedMem += (int) stats.getLong(idx++);
                 tupleDataMem += (int) stats.getLong(idx++);
                 stringMem += (int) stats.getLong(idx++);
+                
+                // ACTIVE
                 tuplesEvicted += (long) stats.getLong(idx++);
                 blocksEvicted += (long) stats.getLong(idx++);
                 bytesEvicted += (long) stats.getLong(idx++);
+                
+                // GLOBAL WRITTEN
+                tuplesWritten += (long) stats.getLong(idx++);
+                blocksWritten += (long) stats.getLong(idx++);
+                bytesWritten += (long) stats.getLong(idx++);
+                
+                // GLOBAL READ
+                tuplesRead += (long) stats.getLong(idx++);
+                blocksRead += (long) stats.getLong(idx++);
+                bytesRead += (long) stats.getLong(idx++);
             }
             stats.resetRowPosition();
         }
@@ -1511,9 +1535,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                      indexMem,
                                      stringMem,
                                      0, // FIXME
-                                     tuplesEvicted,
-                                     blocksEvicted,
-                                     bytesEvicted);
+                                     
+                                     // ACTIVE
+                                     tuplesEvicted, blocksEvicted, bytesEvicted,
+                                     
+                                     // GLOBAL WRITTEN
+                                     tuplesWritten, blocksWritten, bytesWritten,
+                                     
+                                     // GLOBAL READ
+                                     tuplesRead, blocksRead, bytesRead
+        );
         
         this.lastStatsTime = time;
     }

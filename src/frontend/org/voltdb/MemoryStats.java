@@ -37,9 +37,18 @@ public class MemoryStats extends StatsSource {
         new VoltTable.ColumnInfo("INDEX_MEMORY", VoltType.INTEGER),
         new VoltTable.ColumnInfo("STRING_MEMORY", VoltType.INTEGER),
         new VoltTable.ColumnInfo("POOLED_MEMORY", VoltType.BIGINT),
+        // ACTIVE
         new VoltTable.ColumnInfo("TUPLES_EVICTED", VoltType.BIGINT),
         new VoltTable.ColumnInfo("BLOCKS_EVICTED", VoltType.BIGINT),
         new VoltTable.ColumnInfo("BYTES_EVICTED", VoltType.BIGINT),
+        // GLOBAL WRITTEN
+        new VoltTable.ColumnInfo("TUPLES_WRITTEN", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("BLOCKS_WRITTEN", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("BYTES_WRITTEN", VoltType.BIGINT),
+        // GLOBAL READ
+        new VoltTable.ColumnInfo("TUPLES_READ", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("BLOCKS_READ", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("BYTES_READ", VoltType.BIGINT),
     };
     
     static class PartitionMemRow {
@@ -49,9 +58,21 @@ public class MemoryStats extends StatsSource {
         int indexMem = 0;
         int stringMem = 0;
         long pooledMem = 0;
+        
+        // ACTIVE
         long tuplesEvicted = 0;
         long blocksEvicted = 0;
         long bytesEvicted = 0;
+        
+        // GLOBAL WRITTEN
+        long tuplesWritten = 0;
+        long blocksWritten = 0;
+        long bytesWritten = 0;
+        
+        // GLOBAL READ
+        long tuplesRead = 0;
+        long blocksRead = 0;
+        long bytesRead = 0;
     }
     Map<Long, PartitionMemRow> m_memoryStats = new TreeMap<Long, PartitionMemRow>();
 
@@ -105,9 +126,22 @@ public class MemoryStats extends StatsSource {
             totals.indexMem += pmr.indexMem;
             totals.stringMem += pmr.stringMem;
             totals.pooledMem += pmr.pooledMem;
+            
+            // ACTIVE
             totals.tuplesEvicted += pmr.tuplesEvicted;
             totals.blocksEvicted += pmr.blocksEvicted;
             totals.bytesEvicted += pmr.bytesEvicted;
+            
+            // GLOBAL WRITTEN
+            totals.tuplesWritten += pmr.tuplesWritten;
+            totals.blocksWritten += pmr.blocksWritten;
+            totals.bytesWritten += pmr.bytesWritten;
+            
+            // GLOBAL READ
+            totals.tuplesRead += pmr.tuplesRead;
+            totals.blocksRead += pmr.blocksRead;
+            totals.bytesRead += pmr.bytesRead;
+            
         }
 
         // get system statistics
@@ -129,9 +163,22 @@ public class MemoryStats extends StatsSource {
         rowValues[columnNameToIndex.get("INDEX_MEMORY")] = totals.indexMem;
         rowValues[columnNameToIndex.get("STRING_MEMORY")] = totals.stringMem;
         rowValues[columnNameToIndex.get("POOLED_MEMORY")] = totals.pooledMem / 1024;
+        
+        // ACTIVE
         rowValues[columnNameToIndex.get("TUPLES_EVICTED")] = totals.tuplesEvicted;
         rowValues[columnNameToIndex.get("BLOCKS_EVICTED")] = totals.blocksEvicted;
-        rowValues[columnNameToIndex.get("BYTES_EVICTED")] = totals.bytesEvicted;
+        rowValues[columnNameToIndex.get("BYTES_EVICTED")] = totals.bytesEvicted / 1024;
+        
+        // GLOBAL WRITTEN
+        rowValues[columnNameToIndex.get("TUPLES_WRITTEN")] = totals.tuplesWritten;
+        rowValues[columnNameToIndex.get("BLOCKS_WRITTEN")] = totals.blocksWritten;
+        rowValues[columnNameToIndex.get("BYTES_WRITTEN")] = totals.bytesWritten / 1024;
+        
+        // GLOBAL READ
+        rowValues[columnNameToIndex.get("TUPLES_READ")] = totals.tuplesRead;
+        rowValues[columnNameToIndex.get("BLOCKS_READ")] = totals.blocksRead;
+        rowValues[columnNameToIndex.get("BYTES_READ")] = totals.bytesRead / 1024;
+        
         super.updateStatsRow(rowKey, rowValues);
     }
 
@@ -142,9 +189,14 @@ public class MemoryStats extends StatsSource {
                                               int indexMem,
                                               int stringMem,
                                               long pooledMemory,
-                                              long tuplesEvicted,
-                                              long blocksEvicted,
-                                              long bytesEvicted) {
+                                              
+                                              // ACTIVE
+                                              long tuplesEvicted, long blocksEvicted, long bytesEvicted,
+                                              // GLOBAL WRITTEN 
+                                              long tuplesWritten, long blocksWritten, long bytesWritten,
+                                              // GLOBAL READ
+                                              long tuplesRead, long blocksRead, long bytesRead
+                                              ) {
         PartitionMemRow pmr = new PartitionMemRow();
         pmr.tupleCount = tupleCount;
         pmr.tupleDataMem = tupleDataMem;
@@ -152,9 +204,23 @@ public class MemoryStats extends StatsSource {
         pmr.indexMem = indexMem;
         pmr.stringMem = stringMem;
         pmr.pooledMem = pooledMemory;
+        
+        // ACTIVE
         pmr.tuplesEvicted = tuplesEvicted;
         pmr.blocksEvicted = blocksEvicted;
         pmr.bytesEvicted = bytesEvicted;
+        
+        // GLOBAL WRITTEN
+        pmr.tuplesWritten = tuplesWritten;
+        pmr.blocksWritten = blocksWritten;
+        pmr.bytesWritten = bytesWritten;
+        
+        // GLOBAL READ
+        pmr.tuplesRead = tuplesRead;
+        pmr.blocksRead = blocksRead;
+        pmr.bytesRead = bytesRead;
+        
+        
         m_memoryStats.put(siteId, pmr);
     }
 }
