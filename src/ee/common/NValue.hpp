@@ -1908,7 +1908,6 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
                   SQLException::data_exception_string_data_length_mismatch,
                   msg);
           }
-
           
           const int8_t lengthLength = getAppropriateObjectLengthLength(length);
           // the NULL SQL string is a NULL C pointer
