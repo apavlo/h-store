@@ -27,7 +27,8 @@ BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
 
-ANTICACHE_EVICT_SIZE=268400000
+ANTICACHE_BLOCK_SIZE=524288
+#ANTICACHE_EVICT_SIZE=268400000
 ANTICACHE_THRESHOLD=.5
 
 BASE_ARGS=( \
@@ -60,8 +61,8 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=.1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=60000" \
-    "-Dclient.warmup=120000" \
+    "-Dclient.txnrate=5000" \
+    "-Dclient.warmup=10000" \
     "-Dclient.duration=120000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
@@ -70,8 +71,9 @@ BASE_ARGS=( \
     
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
-    "-Dsite.anticache_check_interval=10000" \
-    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
+    "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}"
+    "-Dsite.anticache_check_interval=3000" \
+#    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
 #    "-Dclient.interval=500" \
     "-Dclient.anticache_enable=false" \
