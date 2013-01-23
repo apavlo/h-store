@@ -54,8 +54,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 1500;
-    public static final int NUM_BLOCKS_TO_EVICT = 516; 
+    public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 500;
+    public static final int TOTAL_BLOCKS_TO_EVICT = 10000;
+    public static final int MAX_BLOCKS_TO_EVICT_EACH_EVICTION = 1000;
 
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY
@@ -240,7 +241,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.debug(String.format("Finished reading blocks from partition %d",
                      next.partition));
         } catch (SerializableException ex) {
-            LOG.info("Caught unexpected SerializableException.");
+            LOG.error("Caught unexpected SerializableException while reading anti-cache block.", ex);
         } finally {
             if (hstore_conf.site.anticache_profiling) 
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
@@ -301,21 +302,26 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         this.totalDataSize = (int)(total_size_kb / 1024);
 
-//        LOG.info("Current Memory Usage: " + this.totalDataSize + " MB");
+        LOG.info("Current Memory Usage: " + this.totalDataSize + " MB");
         LOG.info("Blocks Currently Evicted: " + MathUtil.sum(this.partitionEvictions));
     
         // only start eviction once we've passed this threshold 
         if(this.totalDataSize < DEFAULT_MAX_MEMORY_SIZE_MB)
             return false; 
 
-        return(total_evicted_blocks < NUM_BLOCKS_TO_EVICT); 
+        return(total_evicted_blocks < TOTAL_BLOCKS_TO_EVICT); 
     }
 
     protected long blocksToEvict()
     {
-        long blocks = MathUtil.sum(this.partitionEvictions);
+        long blocks_currently_evicted = MathUtil.sum(this.partitionEvictions);
+        long blocks_to_evict = 0;
 
-        return(NUM_BLOCKS_TO_EVICT - blocks);  
+        // I think this happens because some blocks are unevicted twice
+        if(blocks_currently_evicted < 0 || TOTAL_BLOCKS_TO_EVICT - blocks_currently_evicted > MAX_BLOCKS_TO_EVICT_EACH_EVICTION) 
+            return MAX_BLOCKS_TO_EVICT_EACH_EVICTION;
+
+        return(TOTAL_BLOCKS_TO_EVICT - blocks_currently_evicted);
     }
 
     protected void executeEviction() {
@@ -416,7 +422,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                                             catalog_db.getProject());
         synchronized (AntiCacheManager.class) {
             FileUtil.makeDirIfNotExists(base_dir);
-        } // SYNCH
+        } // SYNC
 
         // Then each partition will have a separate directory inside of the base one
         String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),

@@ -26,7 +26,7 @@
 #include <iostream>
 #include <vector>
 
-#define UNINLINEABLE_OBJECT_LENGTH 128
+#define UNINLINEABLE_OBJECT_LENGTH 64
 
 namespace voltdb {
 

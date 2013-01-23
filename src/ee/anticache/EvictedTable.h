@@ -41,7 +41,10 @@ class EvictedTable : public PersistentTable {
         EvictedTable(); 
                         
         const void* insertEvictedTuple(TableTuple &source);
-        
+    
+        void deleteEvictedTuple(TableTuple source);
+
+    
     protected:
         
         EvictedTable(ExecutorContext *ctx);
