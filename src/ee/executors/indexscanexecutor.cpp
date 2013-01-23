@@ -511,8 +511,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 #ifdef ANTICACHE
     // anti-cache variables
     //EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
-	list<uint16_t> evicted_block_ids; 
-	list<char*> evicted_keys; 
+	list<int16_t> evicted_block_ids;
+	list<int32_t> evicted_offsets;
 	
 	ValuePeeker peeker; 
 	//TableTuple m_evicted_tuple; 
@@ -523,9 +523,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 		m_evicted_tuple = new TableTuple(m_targetTable->getEvictedTable()->schema()); 
 
 	
-	uint16_t block_id;
-    int32_t tuple_id; 
-	char* key_storage; 
+	int16_t block_id;
+    int32_t tuple_id;
 	
 #endif        
 
@@ -555,23 +554,12 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 				m_evicted_tuple->move(m_tuple.address()); 
         
 			
-                /*
-				// copy the raw bytes from the evicted tuples primary key to include in the EvictedTupleAccessException
-				for(int i = 0; i < m_evicted_tuple->getSchema()->columnCount() - 1; i++)
-				{
-					NValue value = m_evicted_tuple->getNValue(i); 
-					bytes_in_current_column = value.getTupleStorageSize(value.getValueType());
-					value.serializeToTupleStorage(key_storage+bytes_written, true, bytes_in_current_column);  // we're assuming the keys are inlined 
-					bytes_written += bytes_in_current_column; 
-				}
-                 */
-			
 				// determine the block id using the evicted tuple
 				block_id = peeker.peekSmallInt(m_evicted_tuple->getNValue(0));
                 tuple_id = peeker.peekInteger(m_evicted_tuple->getNValue(1)); 
 
 				evicted_block_ids.push_back(block_id); 
-				evicted_keys.push_back(key_storage); 
+				evicted_offsets.push_back(tuple_id);
 			}
 		}
 #endif        
@@ -721,31 +709,31 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     // throw exception indicating evicted blocks are needed
     if(evicted_block_ids.size() > 0)
     {
-		evicted_block_ids.unique(); 
+		//evicted_block_ids.unique();
 		
 		int num_block_ids = static_cast<int>(evicted_block_ids.size()); 
 		
 		assert(num_block_ids > 0); 
 		VOLT_INFO("%d evicted blocks to read.", num_block_ids); 
 		
-        uint16_t* block_ids = new uint16_t[num_block_ids];
+        int16_t* block_ids = new int16_t[num_block_ids];
+        int32_t* tuple_ids = new int32_t[num_block_ids];
 		int i = 0; 
-        for(list<uint16_t>::iterator itr = evicted_block_ids.begin(); itr != evicted_block_ids.end(); ++itr, ++i)
+        for(list<int16_t>::iterator itr = evicted_block_ids.begin(); itr != evicted_block_ids.end(); ++itr, ++i)
         {
             block_ids[i] = *itr; 
 			VOLT_INFO("Unevicting block %d", *itr); 
         }
 
-		char** tuple_keys = new char*[num_block_ids]; 
 		i = 0; 
-		for(list<char*>::iterator itr = evicted_keys.begin(); itr != evicted_keys.end(); ++itr, ++i)
+		for(list<int32_t>::iterator itr = evicted_offsets.begin(); itr != evicted_offsets.end(); ++itr, ++i)
         {
-            tuple_keys[i] = *itr; 
+            tuple_ids[i] = *itr;
         }
 
 		VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
         
-		throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_keys);
+		//throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
     }
 #endif
     
