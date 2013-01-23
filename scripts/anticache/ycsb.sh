@@ -13,12 +13,12 @@ function onexit() {
 
 ENABLE_ANTICACHE=true
 
-SITE_HOST="modis"
+SITE_HOST="vise4"
 
 CLIENT_HOSTS=( \
-        "modis2" \
-        "modis2" \
-        "modis" \
+        "vise5" \
+        "vise5" \
+        "vise4" \
 )
 
 BASE_CLIENT_THREADS=2
@@ -61,13 +61,14 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=.1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=5000" \
-    "-Dclient.warmup=10000" \
+    "-Dclient.txnrate=10000" \
+    "-Dclient.warmup=120000" \
     "-Dclient.duration=120000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
+    "-Dclient.output_anticache_history=evictions.csv" \
     
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
@@ -79,7 +80,7 @@ BASE_ARGS=( \
     "-Dclient.anticache_enable=false" \
     "-Dclient.anticache_evict_interval=10000" \
     "-Dclient.anticache_evict_size=4194304" \
-    "-Dclient.output_csv=false" \
+    "-Dclient.output_csv=results.csv" \
     "-Dclient.output_interval=true" \
 
     # CLIENT DEBUG

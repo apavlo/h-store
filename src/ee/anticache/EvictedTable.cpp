@@ -68,12 +68,10 @@ const void* EvictedTable::insertEvictedTuple(TableTuple &source) {
     return m_tmpTarget1.address(); 
 }
     
-    /*
-bool deleteEvictedTuple(TableTuple &source)
+void EvictedTable::deleteEvictedTuple(TableTuple source)
 {
-    
+    deleteTupleStorage(source);
 }
-     */
     
 }
 
