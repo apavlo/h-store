@@ -24,6 +24,7 @@ public abstract class BenchmarkControllerUtil {
      * site config parameter so that we can collect the proper data
      */
     public static final ProfilingOutput[] PROFILING_OUTPUTS = {
+        new ProfilingOutput(SysProcSelector.TABLE, "client.output_table_stats", null),
         new ProfilingOutput(SysProcSelector.EXECPROFILER, "client.output_exec_profiling", "site.exec_profiling"),
         new ProfilingOutput(SysProcSelector.QUEUEPROFILER, "client.output_queue_profiling", "site.queue_profiling"),
         new ProfilingOutput(SysProcSelector.TXNPROFILER, "client.output_txn_profiling", "site.txn_profiling"),

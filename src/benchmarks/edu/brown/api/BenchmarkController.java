@@ -546,6 +546,8 @@ public class BenchmarkController {
         // For each client output option, we'll enable the corresponding
         // site config parameter so that we can collect the proper data
         for (ProfilingOutput po : BenchmarkControllerUtil.PROFILING_OUTPUTS) {
+            if (po.siteParam == null) continue;
+            
             assert(HStoreConf.isConfParameter(po.clientParam)) : "Invalid Client Param: " + po;
             assert(HStoreConf.isConfParameter(po.siteParam)) : "Invalid Site Param: " + po;
             String clientOptVal = (String)hstore_conf.get(po.clientParam);
