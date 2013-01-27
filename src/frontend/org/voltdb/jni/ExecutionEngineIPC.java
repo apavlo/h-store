@@ -1467,7 +1467,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
 
     @Override
-    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
+    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
         // TODO Auto-generated method stub
         
     }
