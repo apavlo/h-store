@@ -330,9 +330,10 @@ public class TestAntiCacheManager extends BaseTestCase {
     @Test
     public void testReadNonExistentBlock() throws Exception {
         short block_ids[] = new short[]{ 1111 };
+        int tuple_offsets[] = new int[]{0}; 
         boolean failed = false;
         try {
-            ee.antiCacheReadBlocks(catalog_tbl, block_ids);   
+            ee.antiCacheReadBlocks(catalog_tbl, block_ids, tuple_offsets);
         } catch (UnknownBlockAccessException ex) {
             // This is what we want!
             assertEquals(catalog_tbl, ex.getTableId(catalog_db));

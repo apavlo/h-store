@@ -108,7 +108,8 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_numUnevictedTuples = 0; 
     m_newestTupleID = 0; 
     m_oldestTupleID = 0;
-    m_numTuplesInEvictionChain = 0; 
+    m_numTuplesInEvictionChain = 0;
+    m_blockMerge = true; 
     #endif
     
     if (exportEnabled) {
@@ -373,53 +374,56 @@ bool PersistentTable::mergeUnevictedTuples()
     
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     
-    VOLT_INFO("Merging %d blocks for table %s.", num_blocks, name().c_str());
-    for (int i = 0; i < num_blocks; i++)
-    {        
-        // XXX: have to put block size, which we don't know, so just put something large, like 10MB
-        ReferenceSerializeInput in(m_unevictedBlocks[i], 10485760);
-        num_tuples_in_block = in.readInt();
-        
-        VOLT_INFO("Merging %d tuples.", num_tuples_in_block);
-        
-        for (int j = 0; j < num_tuples_in_block; j++)
-        {            
-            // get a free tuple and increment the count of tuples current used
-            nextFreeTuple(&m_tmpTarget1);
-            m_tupleCount++;
+    if(m_blockMerge)
+    {
+        VOLT_INFO("Merging %d blocks for table %s.", num_blocks, name().c_str());
+        for (int i = 0; i < num_blocks; i++)
+        {        
+            // XXX: have to put block size, which we don't know, so just put something large, like 10MB
+            ReferenceSerializeInput in(m_unevictedBlocks[i], 10485760);
+            num_tuples_in_block = in.readInt();
             
-            // deserialize tuple from unevicted block
-            m_tmpTarget1.deserializeWithHeaderFrom(in);
-            m_tmpTarget1.setEvictedFalse();
+            VOLT_INFO("Merging %d tuples.", num_tuples_in_block);
             
-            
-            // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
-            // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
-            m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
-            evicted_tuple.move(m_tmpTarget2.address());
-            static_cast<EvictedTable*>(m_evictedTable)->deleteEvictedTuple(evicted_tuple);             // delete the EvictedTable tuple
-            
-            // update the indexes to point to this newly unevicted tuple
-            setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
-            
-            // re-insert the tuple back into the eviction chain
-            eviction_manager->updateTuple(this, &m_tmpTarget1, false);
+            for (int j = 0; j < num_tuples_in_block; j++)
+            {            
+                // get a free tuple and increment the count of tuples current used
+                nextFreeTuple(&m_tmpTarget1);
+                m_tupleCount++;
+                
+                // deserialize tuple from unevicted block
+                m_tmpTarget1.deserializeWithHeaderFrom(in);
+                m_tmpTarget1.setEvictedFalse();
+                
+                
+                // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
+                // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
+                m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
+                evicted_tuple.move(m_tmpTarget2.address());
+                static_cast<EvictedTable*>(m_evictedTable)->deleteEvictedTuple(evicted_tuple);             // delete the EvictedTable tuple
+                
+                // update the indexes to point to this newly unevicted tuple
+                setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
+                
+                // re-insert the tuple back into the eviction chain
+                eviction_manager->updateTuple(this, &m_tmpTarget1, false);
 
-            
-            //VOLT_INFO("Successfully unevicted tuple.");
+                
+                //VOLT_INFO("Successfully unevicted tuple.");
+            }
+            tuplesRead += num_tuples_in_block;
+            delete [] m_unevictedBlocks[i];
         }
-        tuplesRead += num_tuples_in_block;
-        delete [] m_unevictedBlocks[i];
-    }
-    
-    // Update eviction stats
-    m_tuplesEvicted -= tuplesRead;
-    m_tuplesRead += tuplesRead;
+        
+        // Update eviction stats
+        m_tuplesEvicted -= tuplesRead;
+        m_tuplesRead += tuplesRead;
 
-    m_blocksEvicted -= num_blocks; 
-    m_blocksRead += num_blocks;
-    
-    m_unevictedBlocks.clear(); 
+        m_blocksEvicted -= num_blocks; 
+        m_blocksRead += num_blocks;
+        
+        m_unevictedBlocks.clear();
+    }
     
     return true; 
 }

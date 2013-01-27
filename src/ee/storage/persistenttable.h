@@ -47,6 +47,7 @@
 #define HSTOREPERSISTENTTABLE_H
 
 #include <string>
+#include <map>
 #include <vector>
 #include "boost/shared_ptr.hpp"
 #include "boost/scoped_ptr.hpp"
@@ -332,7 +333,9 @@ protected:
     #ifdef ANTICACHE
     voltdb::Table *m_evictedTable;
     
-    std::vector<char*> m_unevictedBlocks; 
+    std::vector<char*> m_unevictedBlocks;
+    
+    std::map<int, int> m_unevictedTuplesPerBlocks;
     
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
@@ -340,7 +343,11 @@ protected:
     uint32_t m_oldestTupleID; 
     uint32_t m_newestTupleID; 
     
-    int m_numTuplesInEvictionChain; 
+    int m_numTuplesInEvictionChain;
+        
+    bool m_blockMerge;
+    
+    
     #endif
     
     // partition key

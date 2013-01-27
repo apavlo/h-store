@@ -13,12 +13,12 @@ function onexit() {
 
 ENABLE_ANTICACHE=true
 
-SITE_HOST="vise4"
+SITE_HOST="modis"
 
 CLIENT_HOSTS=( \
-        "vise5" \
-        "vise5" \
-        "vise4" \
+        "modis2" \
+        "modis2" \
+        "modis" \
 )
 
 BASE_CLIENT_THREADS=2
@@ -26,6 +26,7 @@ BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
+OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
 ANTICACHE_BLOCK_SIZE=524288
 #ANTICACHE_EVICT_SIZE=268400000
@@ -59,9 +60,9 @@ BASE_ARGS=( \
 #    "-Dsite.queue_threshold_factor=0.5" \
     
     # Client Params
-    "-Dclient.scalefactor=.1" \
+    "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=10000" \
+    "-Dclient.txnrate=25000" \
     "-Dclient.warmup=120000" \
     "-Dclient.duration=120000" \
     "-Dclient.shared_connection=false" \
