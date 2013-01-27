@@ -633,12 +633,12 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
     
     @Override
-    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
+    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
         if (m_anticache == false) {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
-        final int errorCode = nativeAntiCacheReadBlocks(pointer, catalog_tbl.getRelativeIndex(), block_ids);
+        final int errorCode = nativeAntiCacheReadBlocks(pointer, catalog_tbl.getRelativeIndex(), block_ids, tuple_offsets);
         checkErrorCode(errorCode);
     }
     
