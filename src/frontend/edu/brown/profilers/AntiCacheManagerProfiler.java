@@ -66,6 +66,7 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
     
     public void reset() {
         super.reset();
+        this.eviction_history.clear();
         this.restarted_txns = 0;
     }
 }
