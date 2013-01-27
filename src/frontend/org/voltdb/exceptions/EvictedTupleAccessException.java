@@ -17,6 +17,7 @@ public class EvictedTupleAccessException extends SerializableException {
 
     public final int table_id;
     public final short[] block_ids;
+    public final int[] tuple_offsets;
     
     /**
      * 
@@ -29,9 +30,14 @@ public class EvictedTupleAccessException extends SerializableException {
         final int num_blocks = buffer.getShort();
         assert(num_blocks > 0);
         this.block_ids = new short[num_blocks];
+        this.tuple_offsets = new int[num_blocks];
         for (int i = 0; i < this.block_ids.length; i++) {
             this.block_ids[i] = buffer.getShort();
         } // FOR
+        
+        for(int i = 0; i < this.tuple_offsets.length; i++) {
+            this.tuple_offsets[i] = buffer.getInt();
+        }
     }
 
     /**
@@ -48,6 +54,13 @@ public class EvictedTupleAccessException extends SerializableException {
     public short[] getBlockIds() {
         return (this.block_ids);
     }
+    
+    /**
+     * Retrieve the tuples ids that the txn tried to access that generated this exception.
+     */
+    public int[] getTupleOffsets() {
+        return (this.tuple_offsets);
+    }
 
     /**
      * Return the amount of storage necessary to store this exception
@@ -57,7 +70,8 @@ public class EvictedTupleAccessException extends SerializableException {
         // 4 bytes for tableId
         // 2 bytes for # of block_ids 
         // (2 bytes * # of block_ids)
-        return (4 + 2 + (2 * this.block_ids.length));
+        // (4 bytes * # of tuple offsets)
+        return (4 + 2 + (2 * this.block_ids.length) + (4 * this.tuple_offsets.length));
     }
 
     /**
@@ -71,6 +85,10 @@ public class EvictedTupleAccessException extends SerializableException {
         for (int i = 0; i < this.block_ids.length; i++) {
             b.putShort(this.block_ids[i]);
         } // FOR
+        
+        for(int i = 0; i < this.tuple_offsets.length; i++) {
+            b.putInt(this.tuple_offsets[i]); 
+        }
     }
 
     @Override

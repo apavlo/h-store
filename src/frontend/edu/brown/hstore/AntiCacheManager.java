@@ -54,9 +54,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 500;
-    public static final int TOTAL_BLOCKS_TO_EVICT = 10000;
-    public static final int MAX_BLOCKS_TO_EVICT_EACH_EVICTION = 1000;
+    public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 1000000;
+//    public static final int TOTAL_BLOCKS_TO_EVICT = 10000;
+    public static final int TOTAL_BLOCKS_TO_EVICT = 20000;
+    public static final int MAX_BLOCKS_TO_EVICT_EACH_EVICTION = 1500;
 
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY
@@ -67,12 +68,14 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         final Table catalog_tbl;
         final int partition;
         final short block_ids[];
+        final int tuple_offsets[]; 
 
-        public QueueEntry(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
+        public QueueEntry(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
             this.ts = ts;
             this.partition = partition;
             this.catalog_tbl = catalog_tbl;
             this.block_ids = block_ids;
+            this.tuple_offsets = tuple_offsets; 
         }
         @Override
         public String toString() {
@@ -236,7 +239,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.debug(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
                      next.catalog_tbl.getName(), next.partition, Arrays.toString(next.block_ids)));
 
-            ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids);
+            ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids, next.tuple_offsets);
 
             LOG.debug(String.format("Finished reading blocks from partition %d",
                      next.partition));
@@ -276,10 +279,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      * @param block_ids
      *            - The list of blockIds that need to be read in for the table
      */
-    public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
+    public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
         if (hstore_conf.site.anticache_profiling) this.profilers[partition].restarted_txns++;
         
-        QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids);
+        QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids, tuple_offsets);
 
         // TODO: We should check whether there are any other txns that are also blocked waiting
         // for these blocks. This will ensure that we don't try to read in blocks twice.

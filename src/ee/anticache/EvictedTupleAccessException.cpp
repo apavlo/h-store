@@ -56,4 +56,8 @@ void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) 
     for (int ii = 0; ii < m_numBlockIds; ii++) {
         output->writeShort(m_blockIds[ii]);
     }
+    
+    for(int ii = 0; ii<m_numBlockIds; ii++) {  // write out the tuple offsets 
+        output->writeInt(m_tupleKeys[ii]);
+    }
 }
