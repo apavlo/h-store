@@ -24,6 +24,7 @@ import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.profilers.AntiCacheManagerProfiler;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
@@ -258,6 +259,42 @@ public class TestAntiCacheManager extends BaseTestCase {
         boolean adv = results[0].advanceRow();
         assertTrue(adv);
         assertEquals(expected, results[0].getLong(0));
+        
+        AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
+        assertNotNull(profiler);
+        assertEquals(1, profiler.evictedaccess_history.size());
+    }
+    
+    /**
+     * testMultipleReadEvictedTuples
+     */
+    @Test
+    public void testMultipleReadEvictedTuples() throws Exception {
+        this.loadData();
+        
+        // We should have all of our tuples evicted
+        VoltTable evictResult = this.evictData();
+        long evicted = evictResult.getLong("TUPLES_EVICTED");
+        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
+        
+        // Execute multiple queries that try to access tuples the same block
+        // Only one should get an evicted access exception
+        Procedure proc = this.getProcedure("GetRecord"); // Special Single-Stmt Proc
+        for (int i = 1; i < 10; i++) {
+            long expected = i;
+            ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
+            assertEquals(Status.OK, cresponse.getStatus());
+            
+            VoltTable results[] = cresponse.getResults();
+            assertEquals(1, results.length);
+            boolean adv = results[0].advanceRow();
+            assertTrue(adv);
+            assertEquals(expected, results[0].getLong(0));
+        } // FOR
+        
+        AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
+        assertNotNull(profiler);
+        assertEquals(1, profiler.evictedaccess_history.size());
     }
     
     /**
