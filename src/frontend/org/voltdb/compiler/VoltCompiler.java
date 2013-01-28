@@ -86,6 +86,7 @@ import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.EvictHistory;
 import org.voltdb.sysprocs.EvictTuples;
 import org.voltdb.sysprocs.DatabaseDump;
+import org.voltdb.sysprocs.EvictedAccessHistory;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.GetCatalog;
@@ -1285,6 +1286,7 @@ public class VoltCompiler {
             // Anti-Cache Operations
             {EvictTuples.class,                     false,      false},
             {EvictHistory.class,                    true,       true},
+            {EvictedAccessHistory.class,            true,       true},
          
 //         {"org.voltdb.sysprocs.StartSampler",                 false,    false},
 //         {"org.voltdb.sysprocs.SystemInformation",            true,     false},
