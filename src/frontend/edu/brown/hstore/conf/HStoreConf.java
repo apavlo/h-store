@@ -1667,7 +1667,7 @@ public final class HStoreConf {
             defaultNull=true,
             experimental=false
         )
-        public String output_anticache_history;
+        public String output_anticache_evictions;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
