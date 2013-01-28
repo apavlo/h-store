@@ -61,13 +61,13 @@
 <arg value="client.output_json=${client.output_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
 <arg value="client.output_memory=${client.output_memory}" />
-<arg value="client.output_table_stats=${client.output_table_stats}" />
 <arg value="client.output_responses=${client.output_responses}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
 <arg value="client.output_queue_profiling=${client.output_queue_profiling}" />
 <arg value="client.output_anticache_profiling=${client.output_anticache_profiling}" />
 <arg value="client.output_site_profiling=${client.output_site_profiling}" />
 <arg value="client.output_anticache_history=${client.output_anticache_history}" />
+<arg value="client.output_anticache_access=${client.output_anticache_access}" />
 <arg value="client.output_txn_profiling=${client.output_txn_profiling}" />
 <arg value="client.output_txn_profiling_combine=${client.output_txn_profiling_combine}" />
 <arg value="client.output_specexec_profiling=${client.output_specexec_profiling}" />

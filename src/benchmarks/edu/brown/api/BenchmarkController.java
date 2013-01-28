@@ -93,6 +93,7 @@ import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.EvictHistory;
+import org.voltdb.sysprocs.EvictedAccessHistory;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.MarkovUpdate;
@@ -1368,12 +1369,17 @@ public class BenchmarkController {
         Object params[];
         String sysproc;
         
-        // The AntiCache history is as special case here. We need to use @EvictHistory
-        // instead of @Statistics
-        if (sps == SysProcSelector.ANTICACHEHISTORY) {
+        // The AntiCache history is as special case here.
+        // We need to use the correct sysproc instead of @Statistics
+        if (sps == SysProcSelector.ANTICACHEEVICTIONS) {
             sysproc = VoltSystemProcedure.procCallName(EvictHistory.class);
             params = new Object[]{ };
-        } else {
+        }
+        else if (sps == SysProcSelector.ANTICACHEACCESS) {
+            sysproc = VoltSystemProcedure.procCallName(EvictedAccessHistory.class);
+            params = new Object[]{ };
+        }
+        else {
             sysproc = VoltSystemProcedure.procCallName(Statistics.class);
             params = new Object[]{ sps.name(), 0 };
         }

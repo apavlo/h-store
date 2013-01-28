@@ -3,8 +3,21 @@ package edu.brown.profilers;
 import java.util.Collection;
 import java.util.TreeSet;
 
+import org.voltdb.exceptions.EvictedTupleAccessException;
+import org.voltdb.utils.EstTime;
+
+import edu.brown.hstore.txns.LocalTransaction;
+
+/**
+ * Anti-Cache Profiler Information
+ * There should be one of these per partition.
+ * @author pavlo
+ */
 public class AntiCacheManagerProfiler extends AbstractProfiler {
     
+    /**
+     * Eviction History
+     */
     public static class EvictionHistory implements Comparable<EvictionHistory> {
         public final long startTimestamp;
         public final long stopTimestamp;
@@ -12,7 +25,11 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
         public final long blocksEvicted;
         public final long bytesEvicted;
         
-        public EvictionHistory(long startTimestamp, long stopTimestamp, long tuplesEvicted, long blocksEvicted, long bytesEvicted) {
+        public EvictionHistory(long startTimestamp,
+                               long stopTimestamp,
+                               long tuplesEvicted,
+                               long blocksEvicted,
+                               long bytesEvicted) {
             this.startTimestamp = startTimestamp;
             this.stopTimestamp = stopTimestamp;
             this.tuplesEvicted = tuplesEvicted;
@@ -37,6 +54,37 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
     };
     
     /**
+     * Transaction Evicted Tuple Access History
+     */
+    public static class AccessHistory implements Comparable<AccessHistory> {
+        public final long startTimestamp;
+        public final Long txnId;
+        public final int procId;
+        public final int numTuples;
+        public final int numBlocks;
+        public final int numTables;
+        public final int restarts;
+        
+        public AccessHistory(LocalTransaction ts, EvictedTupleAccessException ex) {
+            this.startTimestamp = EstTime.currentTimeMillis();
+            this.txnId = ts.getTransactionId();
+            this.procId = ts.getProcedure().getId();
+            this.restarts = ts.getRestartCounter();
+            
+            this.numBlocks = ex.getBlockIds().length;
+            this.numTuples = ex.getTupleOffsets().length;
+            this.numTables = 1; // FIXME
+        }
+        @Override
+        public int compareTo(AccessHistory other) {
+            if (this.startTimestamp != other.startTimestamp) {
+                return (int)(this.startTimestamp - other.startTimestamp);
+            }
+            return (this.txnId.compareTo(other.txnId));
+        }
+    }
+    
+    /**
      * The number of transactions that attempted to access evicted data.
      */
     public int restarted_txns = 0;
@@ -45,6 +93,11 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
      * Eviction history
      */
     public Collection<EvictionHistory> eviction_history = new TreeSet<EvictionHistory>();
+
+    /**
+     * Evicted Tuple Access History
+     */
+    public Collection<AccessHistory> evictedaccess_history = new TreeSet<AccessHistory>();
     
     /**
      * The amount of time it takes for the AntiCacheManager to evict a block
@@ -67,6 +120,16 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
     public void reset() {
         super.reset();
         this.eviction_history.clear();
+        this.evictedaccess_history.clear();
         this.restarted_txns = 0;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
+    public void addEvictedAccess(LocalTransaction ts, EvictedTupleAccessException ex) {
+        AccessHistory eah = new AccessHistory(ts, ex);
+        this.evictedaccess_history.add(eah);
     }
 }

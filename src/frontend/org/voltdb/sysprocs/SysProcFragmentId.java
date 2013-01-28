@@ -172,7 +172,11 @@ public class SysProcFragmentId {
     public static final int PF_anitCacheHistoryDistribute = 211;
     public static final int PF_anitCacheHistoryAggregate = 212;
     
+    // @EvictedAccessHistory
+    public static final int PF_anitCacheAccessDistribute = 213;
+    public static final int PF_anitCacheAccessAggregate = 214;
+    
     // @SetConfiguration
-    public static final int PF_setConfDistribute = 215;
-    public static final int PF_setConfAggregate = 216;
+    public static final int PF_setConfDistribute = 300;
+    public static final int PF_setConfAggregate = 301;
 }
