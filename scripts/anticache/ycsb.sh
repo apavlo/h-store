@@ -69,7 +69,7 @@ BASE_ARGS=( \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
-    "-Dclient.output_anticache_history=evictions.csv" \
+    "-Dclient.output_anticache_evictions=evictions.csv" \
     
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
