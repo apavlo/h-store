@@ -186,7 +186,7 @@ public class YCSBClient extends BenchmarkComponent {
             }
             case UPDATE_RECORD:
             case INSERT_RECORD: {
-                long key = this.readRecord.nextInt();
+                int key = this.readRecord.nextInt();
                 String fields[] = new String[YCSBConstants.NUM_COLUMNS];
                 for (int i = 0; i < fields.length; i++) {
                     fields[i] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);

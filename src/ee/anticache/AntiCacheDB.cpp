@@ -104,7 +104,7 @@ AntiCacheDB::~AntiCacheDB() {
 }
 
 void AntiCacheDB::writeBlock(const std::string tableName,
-                             uint16_t blockId,
+                             int16_t blockId,
                              const int tupleCount,
                              const char* data,
                              const long size) {
@@ -138,7 +138,7 @@ AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
     
-    VOLT_ERROR("Reading evicted block with id %d", blockId);
+    VOLT_DEBUG("Reading evicted block with id %d", blockId);
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
     if (ret_value != 0) {

@@ -35,7 +35,7 @@ ANTICACHE_THRESHOLD=.5
 BASE_ARGS=( \
     # SITE DEBUG
 #    "-Dsite.status_enable=true" \
-#    "-Dsite.status_interval=10000" \
+    "-Dsite.status_interval=10000" \
 #    "-Dsite.status_exec_info=true" \
 #    "-Dsite.status_check_for_zombies=true" \
 #    "-Dsite.exec_profiling=true" \
@@ -54,6 +54,7 @@ BASE_ARGS=( \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=true" \
+    "-Dsite.anticache_profiling=true" \
     
 #    "-Dsite.queue_allow_decrease=true" \
 #    "-Dsite.queue_allow_increase=true" \
@@ -62,18 +63,20 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=25000" \
+    "-Dclient.txnrate=5000" \
     "-Dclient.warmup=120000" \
-    "-Dclient.duration=120000" \
+    "-Dclient.duration=300000" \
+    "-Dclient.interval=3000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
+    "-Dclient.output_interval=true" \
     "-Dclient.output_anticache_evictions=evictions.csv" \
     
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
-    "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}"
+    "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
     "-Dsite.anticache_check_interval=3000" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
@@ -82,7 +85,6 @@ BASE_ARGS=( \
     "-Dclient.anticache_evict_interval=10000" \
     "-Dclient.anticache_evict_size=4194304" \
     "-Dclient.output_csv=results.csv" \
-    "-Dclient.output_interval=true" \
 
     # CLIENT DEBUG
 #    "-Dclient.output_txn_counters=txncounters.csv" \

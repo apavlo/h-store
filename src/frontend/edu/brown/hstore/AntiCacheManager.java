@@ -55,10 +55,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 1000000;
-//    public static final int TOTAL_BLOCKS_TO_EVICT = 10000;
-    public static final int TOTAL_BLOCKS_TO_EVICT = 20000;
-    public static final int MAX_BLOCKS_TO_EVICT_EACH_EVICTION = 1500;
+    public static long DEFAULT_MAX_MEMORY_SIZE_MB = 250;
+    //public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 40000;
+    public static final int TOTAL_BLOCKS_TO_EVICT = 5000;
+//    public static final int TOTAL_BLOCKS_TO_EVICT = 3000;
+    public static final int MAX_BLOCKS_TO_EVICT_EACH_EVICTION = 1000;
 
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY
@@ -76,7 +77,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             this.partition = partition;
             this.catalog_tbl = catalog_tbl;
             this.block_ids = block_ids;
-            this.tuple_offsets = tuple_offsets; 
+            this.tuple_offsets = tuple_offsets;
         }
         @Override
         public String toString() {
@@ -96,6 +97,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final Collection<Table> evictableTables;
     private boolean evicting = false;
     private final AntiCacheManagerProfiler profilers[];
+    private boolean firstEviction = true;
     
     private long totalDataSize = 0; 
 
@@ -109,7 +111,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      */
     private final long partitionSizes[];
     
-    private final long partitionEvictions[]; 
+    private final long partitionEvictions[];
+    
+    private final long partitionFetches[]; 
 
     /**
      * Thread that is periodically executed to check whether the amount of memory used by this HStoreSite is over the
@@ -179,9 +183,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
         this.partitionSizes = new long[num_partitions];
-        this.partitionEvictions = new long[num_partitions]; 
+        this.partitionEvictions = new long[num_partitions];
+        this.partitionFetches = new long[num_partitions];
         Arrays.fill(this.partitionSizes, 0);
-        Arrays.fill(this.partitionEvictions, 0); 
+        Arrays.fill(this.partitionEvictions, 0);
+        Arrays.fill(this.partitionFetches, 0);
 
         this.profilers = new AntiCacheManagerProfiler[num_partitions];
         for (int partition : hstore_site.getLocalPartitionIds().values()) {
@@ -310,17 +316,31 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         long total_size_kb = MathUtil.sum(this.partitionSizes);
         long total_evicted_blocks = MathUtil.sum(this.partitionEvictions);
+        long total_fetched_blocks = MathUtil.sum(this.partitionFetches);
 
         this.totalDataSize = (int)(total_size_kb / 1024);
 
         LOG.info("Current Memory Usage: " + this.totalDataSize + " MB");
-        LOG.info("Blocks Currently Evicted: " + MathUtil.sum(this.partitionEvictions));
-    
-        // only start eviction once we've passed this threshold 
-        if(this.totalDataSize < DEFAULT_MAX_MEMORY_SIZE_MB)
-            return false; 
+        LOG.info("Blocks Currently Evicted: " + total_evicted_blocks);
+        LOG.info("Total Blocks Fetched: " + total_fetched_blocks);
 
-        return(total_evicted_blocks < TOTAL_BLOCKS_TO_EVICT); 
+        if(firstEviction)
+        {
+            // only start eviction once we've passed this threshold
+            if(this.totalDataSize < DEFAULT_MAX_MEMORY_SIZE_MB)
+            {
+                return false;
+            }
+            firstEviction = false;
+        }
+
+//        if(total_evicted_blocks < TOTAL_BLOCKS_TO_EVICT)
+//        {
+//            return true;
+//        }
+//
+//        return false;
+        return(total_evicted_blocks < TOTAL_BLOCKS_TO_EVICT);
     }
 
     protected long blocksToEvict()
@@ -355,8 +375,14 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // initialize params
         for (Table catalog_tbl : this.evictableTables) {
             tableNames[i] = catalog_tbl.getName();
-            evictBytes[i] = hstore_conf.site.anticache_block_size; // FIXME
-            evictBlocks[i] = (int)blocks_to_evict / hstore_site.getLocalPartitionIds().size(); 
+            evictBytes[i] = hstore_conf.site.anticache_block_size;
+
+            if(blocks_to_evict < hstore_site.getLocalPartitionIds().size()) {  // make sure we evict at least 1 block from each partition
+                evictBlocks[i] = 1;
+            }
+            else {
+                evictBlocks[i] = (int)blocks_to_evict / hstore_site.getLocalPartitionIds().size();
+            }
             i++;
         } // FOR
 
@@ -393,7 +419,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         long totalSizeKb = 0;
         int partition = -1;
         int memory_idx = -1;
-        long num_blocks_evicted = 0; 
+        long num_blocks_evicted = 0;
+        long num_blocks_fetched = 0;
         vt.resetRowPosition();
         while (vt.advanceRow()) {
             if (memory_idx == -1) {
@@ -402,6 +429,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             }
             assert(memory_idx >= 0);
             num_blocks_evicted += vt.getLong("BLOCKS_EVICTED");
+            num_blocks_fetched += vt.getLong("BLOCKS_READ");
             totalSizeKb += vt.getLong(memory_idx);
         } // WHILE
 
@@ -410,7 +438,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         if (debug.val)
             LOG.debug(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
                       partition, totalSizeKb, this.partitionSizes[partition]));
-        this.partitionEvictions[partition] = num_blocks_evicted; 
+        this.partitionEvictions[partition] = num_blocks_evicted;
+        this.partitionFetches[partition] = num_blocks_fetched;
         this.partitionSizes[partition] = totalSizeKb;
     }
 

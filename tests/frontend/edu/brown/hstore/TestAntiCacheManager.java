@@ -116,9 +116,9 @@ public class TestAntiCacheManager extends BaseTestCase {
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
         
-//        VoltTable stats[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
-//        assertEquals(1, stats.length);
-//        System.err.println(VoltTableUtil.format(stats));
+        VoltTable stats[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, stats.length);
+        System.err.println(VoltTableUtil.format(stats));
     }
     
     private VoltTable evictData() throws Exception {
@@ -130,7 +130,7 @@ public class TestAntiCacheManager extends BaseTestCase {
             int idx = results[0].getColumnIndex(col);
             assertEquals(0, results[0].getLong(idx));    
         } // FOR
-        
+
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
         VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024, 1);
@@ -139,11 +139,11 @@ public class TestAntiCacheManager extends BaseTestCase {
         System.err.println(VoltTableUtil.format(evictResult));
         assertNotNull(evictResult);
         assertEquals(1, evictResult.getRowCount());
-        assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
+        //assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
         evictResult.resetRowPosition();
         boolean adv = evictResult.advanceRow();
         assertTrue(adv);
-        return (evictResult);
+          return (evictResult);
     }
     
     // --------------------------------------------------------------------------------------------
@@ -235,7 +235,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         } // FOR
         
     }
-    
+
     /**
      * testReadEvictedTuples
      */
@@ -296,7 +296,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertNotNull(profiler);
         assertEquals(1, profiler.evictedaccess_history.size());
     }
-    
+
     /**
      * testEvictTuples
      */
@@ -322,7 +322,7 @@ public class TestAntiCacheManager extends BaseTestCase {
             }
         } // FOR
     }
-    
+
     /**
      * testMultipleEvictions
      */
