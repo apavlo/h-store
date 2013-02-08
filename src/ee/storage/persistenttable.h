@@ -262,7 +262,7 @@ class PersistentTable : public Table {
     void setEvictedTable(voltdb::Table *evictedTable);
     voltdb::Table* getEvictedTable(); 
     bool evictBlockToDisk(const long block_size, int num_blocks);
-    bool readEvictedBlock(uint16_t block_id);
+    bool readEvictedBlock(int16_t block_id);
     bool mergeUnevictedTuples();
     
     // needed for LRU chain eviction
@@ -333,6 +333,7 @@ protected:
     #ifdef ANTICACHE
     voltdb::Table *m_evictedTable;
     
+    std::vector<int16_t> m_unevictedBlockIDs;
     std::vector<char*> m_unevictedBlocks;
     
     std::map<int, int> m_unevictedTuplesPerBlocks;

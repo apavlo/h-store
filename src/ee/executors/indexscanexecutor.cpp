@@ -733,7 +733,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 
 		VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
         
-		//throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
+		throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
     }
 #endif
     

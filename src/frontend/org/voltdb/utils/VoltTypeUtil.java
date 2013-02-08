@@ -80,7 +80,8 @@ public abstract class VoltTypeUtil {
             // STRINGS
             // --------------------------------
             case STRING:
-                int size = rand.nextInt(31) + 1;
+                //int size = rand.nextInt(31) + 1;
+                int size = 124; 
                 String ret_str = "";
                 for (int ctr = 0; ctr < size; ctr++) {
                     char data = (char)(Math.abs(rand.nextInt()) % 128);
