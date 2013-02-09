@@ -106,6 +106,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -1493,19 +1494,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 stringMem += (int) stats.getLong(idx++);
                 
                 // ACTIVE
-                tuplesEvicted += (long) stats.getLong(idx++);
-                blocksEvicted += (long) stats.getLong(idx++);
-                bytesEvicted += (long) stats.getLong(idx++);
+                if (hstore_conf.site.anticache_enable) {
+                    tuplesEvicted += (long) stats.getLong(idx++);
+                    blocksEvicted += (long) stats.getLong(idx++);
+                    bytesEvicted += (long) stats.getLong(idx++);
                 
-                // GLOBAL WRITTEN
-                tuplesWritten += (long) stats.getLong(idx++);
-                blocksWritten += (long) stats.getLong(idx++);
-                bytesWritten += (long) stats.getLong(idx++);
-                
-                // GLOBAL READ
-                tuplesRead += (long) stats.getLong(idx++);
-                blocksRead += (long) stats.getLong(idx++);
-                bytesRead += (long) stats.getLong(idx++);
+                    // GLOBAL WRITTEN
+                    tuplesWritten += (long) stats.getLong(idx++);
+                    blocksWritten += (long) stats.getLong(idx++);
+                    bytesWritten += (long) stats.getLong(idx++);
+                    
+                    // GLOBAL READ
+                    tuplesRead += (long) stats.getLong(idx++);
+                    blocksRead += (long) stats.getLong(idx++);
+                    bytesRead += (long) stats.getLong(idx++);
+                }
             }
             stats.resetRowPosition();
         }
