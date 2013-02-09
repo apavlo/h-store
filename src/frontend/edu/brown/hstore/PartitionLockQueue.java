@@ -541,27 +541,19 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                 if (this.profiler != null && this.lastSafeTxnId.equals(txnId) == false)
                     this.profiler.waitTimes.put(newState == QueueState.UNBLOCKED ? 0 : waitTime);
                 
-
-                if (debug.val)
-                    LOG.debug(String.format("Partition %d :: SET lastSafeTxnId = %d --> %s",
-                              this.partitionId, this.lastSafeTxnId, ts));
-                
-                if (trace.val) {
-                    LOG.trace(String.format("Partition %d :: SET lastSafeTxnId = %d --> %s",
-                              this.partitionId, this.lastSafeTxnId, ts));
-                    
-                    String debug = "";
+                if (debug.val) {
+                    String traceOutput = "";
                     if (trace.val) {
                         Map<String, Object> m = new LinkedHashMap<String, Object>();
                         m.put("Txn Init Timestamp", txnTimestamp);
                         m.put("Current Timestamp", currentTimestamp);
                         m.put("Block Time Remaining", (this.blockTimestamp - currentTimestamp));
-                        debug = "\n" + StringUtil.formatMaps(m);
+                        traceOutput = "\n" + StringUtil.formatMaps(m);
                     }
-                    LOG.trace(String.format("Partition %d :: Blocking %s for %d ms " +
+                    LOG.debug(String.format("Partition %d :: Blocking %s for %d ms " +
                     		  "[maxWait=%d, origState=%s, newState=%s]\n%s%s",
                               this.partitionId, ts, (this.blockTimestamp - currentTimestamp),
-                              this.waitTime, this.state, newState, this.debug(), debug));
+                              this.waitTime, this.state, newState, this.debug(), traceOutput));
                 }
             }
             else if (newState == QueueState.UNBLOCKED) {
