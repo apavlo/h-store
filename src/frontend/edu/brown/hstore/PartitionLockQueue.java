@@ -62,7 +62,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
     // ----------------------------------------------------------------------------
 
     private final int partitionId;
-    private int waitTime;
+    private int maxWaitTime;
     
     private final ReentrantLock lock = new ReentrantLock(true);
     private final Condition isReady = lock.newCondition();
@@ -94,16 +94,16 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
     /**
      * Constructor
      * @param partitionId
-     * @param waitTime
+     * @param maxWaitTime
      * @param throttle_threshold TODO
      * @param throttle_release TODO
      * @param hstore_site
      */
-    public PartitionLockQueue(int partitionId, int waitTime, int throttle_threshold, double throttle_release) {
+    public PartitionLockQueue(int partitionId, int maxWaitTime, int throttle_threshold, double throttle_release) {
         super(new PriorityBlockingQueue<AbstractTransaction>(), throttle_threshold, throttle_release);
         
         this.partitionId = partitionId;
-        this.waitTime = waitTime;
+        this.maxWaitTime = maxWaitTime;
         
         if (HStoreConf.singleton().site.queue_profiling) {
             this.profiler = new PartitionLockQueueProfiler();
@@ -222,7 +222,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                     // period. We won't actually have to wait this long because somebody will poke
                     // us after the new txn is added to the queue.
                     if (this.state == QueueState.BLOCKED_ORDERING) {
-                        waitTime = this.waitTime;
+                        waitTime = this.maxWaitTime;
                     } else { 
                         waitTime = this.blockTimestamp - System.currentTimeMillis();
                     }
@@ -525,15 +525,15 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                 // If we're blocking on "safety", then we can use an offset based 
                 // on when the txnId was created. If we're blocking for "ordering",
                 // then we'll want to wait for the full wait time.
-                int waitTime = this.waitTime;
+                int waitTime = this.maxWaitTime;
                 if (newState == QueueState.BLOCKED_SAFETY) {
-                    waitTime = (int)Math.max(0, this.waitTime - (currentTimestamp - txnTimestamp));
+                    waitTime = (int)Math.max(0, this.maxWaitTime - (currentTimestamp - txnTimestamp));
                 }
                 
                 this.blockTimestamp = currentTimestamp + waitTime;
                 if (debug.val)
-                    LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
-                              this.partitionId, this.blockTimestamp, ts));
+                    LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s [waitTime=%d]",
+                              this.partitionId, this.blockTimestamp, ts, waitTime));
                 
                 if (this.blockTimestamp <= currentTimestamp) {
                     newState = QueueState.UNBLOCKED;
@@ -553,7 +553,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                     LOG.debug(String.format("Partition %d :: Blocking %s for %d ms " +
                     		  "[maxWait=%d, origState=%s, newState=%s]\n%s%s",
                               this.partitionId, ts, (this.blockTimestamp - currentTimestamp),
-                              this.waitTime, this.state, newState, this.debug(), traceOutput));
+                              this.maxWaitTime, this.state, newState, this.debug(), traceOutput));
                 }
             }
             else if (newState == QueueState.UNBLOCKED) {
@@ -631,8 +631,8 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             }
             return (ret);
         }
-        public void setWaitTime(int waitTime) {
-            PartitionLockQueue.this.waitTime = waitTime;
+        public void setMaxWaitTime(int maxWaitTime) {
+            PartitionLockQueue.this.maxWaitTime = maxWaitTime;
         }
     }
     
@@ -671,7 +671,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
 
         m[++i] = new LinkedHashMap<String, Object>();
         m[i].put("Peek Txn", (peek == null ? "null" : peek));
-        m[i].put("Wait Time", this.waitTime + " ms");
+        m[i].put("Wait Time", this.maxWaitTime + " ms");
         m[i].put("Current Time", timestamp);
         m[i].put("Blocked Time", (this.blockTimestamp > 0 ? this.blockTimestamp + (this.blockTimestamp < timestamp ? " **PASSED**" : "") : "--"));
         m[i].put("Blocked Remaining", (this.blockTimestamp > 0 ? Math.max(0, this.blockTimestamp - timestamp) + " ms" : "--"));
