@@ -5,27 +5,24 @@
 trap onexit 1 2 3 15
 function onexit() {
     local exit_status=${1:-$?}
-    pkill -f hstore.tag
+    for SITE_HOST in ${SITE_HOSTS[@]}; do
+        ssh $SITE_HOST "pkill -f hstore.tag"
+    done
     exit $exit_status
 }
 
 # ---------------------------------------------------------------------
 
-SITE_HOST="modis"
+SITE_HOSTS=( \
+    "modis"
+    "modis2"
+    "vise5"
+)
 CLIENT_HOSTS=( \
     "saw" \
 #     "saw" \
 #     "saw" \
 )
-
-START_PARTITION=1
-STOP_PARTITION=16
-if [ -n "$1" ]; then
-    START_PARTITION="$1"
-fi
-if [ -n "$2" ]; then
-    STOP_PARTITION="$2"
-fi
 
 BASE_CLIENT_THREADS=1
 BASE_SITE_MEMORY=2048
@@ -34,6 +31,7 @@ BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
 
 MARKOV_ENABLE=true
+MARKOV_FIXED=true
 MARKOV_DIR="files/markovs/vldb-august2012"
 MARKOV_RECOMPUTE=true
 
@@ -58,10 +56,10 @@ BASE_ARGS=( \
     "-Dsite.queue_incoming_increase_max=20000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.network_txn_initialization=true" \
-    "-Dsite.txn_incoming_delay=2" \
     
     # Markov Params
     "-Dsite.markov_enable=$MARKOV_ENABLE" \
+    "-Dsite.markov_fixed=$MARKOV_FIXED" \
     "-Dsite.markov_singlep_updates=false" \
     "-Dsite.markov_dtxn_updates=true" \
     "-Dsite.markov_path_caching=true" \
@@ -82,12 +80,10 @@ BASE_ARGS=( \
     
     # CLIENT DEBUG
     "-Dclient.profiling=false" \
-    "-Dclient.output_markov_profiling=markovprofile.csv" \
+#     "-Dclient.output_markov_profiling=markovprofile.csv" \
 #     "-Dclient.output_site_profiling=siteprofile.csv" \
-    "-Dclient.output_specexec=true" \
-    "-Dclient.output_txn_counters=txncounters.csv" \
-    "-Dclient.output_txn_counters_combine=true" \
-    "-Dclient.output_response_status=true" \
+#     "-Dclient.output_txn_counters=txncounters.csv" \
+#     "-Dclient.output_txn_counters_combine=true" \
 #     "-Dclient.output_basepartitions=true" \
 #     "-Dclient.jvm_args=\"-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:-TraceClassUnloading\"" \
 )
@@ -98,9 +94,11 @@ FILES_TO_COPY=( \
     "properties/benchmarks/${BASE_PROJECT}.properties" \
 )
 
-ssh ${SITE_HOST} "cd ${BASE_DIR} && git pull && ant compile" || exit -1
+for SITE_HOST in ${SITE_HOSTS[@]}; do
+    ssh ${SITE_HOST} "cd ${BASE_DIR} && git pull && ant compile" || exit -1
+done
 
-UPDATED_HOSTS=($SITE_HOST)
+UPDATED_HOSTS=$SITE_HOSTS
 for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
     found=0
     for H in ${UPDATED_HOSTS[@]}; do
@@ -115,15 +113,22 @@ for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
     fi
 done
 
-for i in `seq $START_PARTITION $STOP_PARTITION`; do
-    HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
+for i in 4 8 16 24; do
+    if [ "$i" = 4 ]; then
+        HSTORE_HOSTS="modis:0:0-3"
+    fi
+    if [ "$i" = 8 ]; then
+        HSTORE_HOSTS="modis:0:0-7"
+    fi
+    if [ "$i" = 16 ]; then
+        HSTORE_HOSTS="modis:0:0-7;modis2:1:8-15"
+    fi
+    if [ "$i" = 24 ]; then
+        HSTORE_HOSTS="modis:0:0-7;modis2:1:8-15;vise5:1:16-23"
+    fi
+    
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
     NUM_CLIENTS=1
-#     if [ $i -gt 1 ]; then
-#         NUM_CLIENTS=`expr \( $i - 1 \) \* $BASE_CLIENT_THREADS`
-#     else
-#         NUM_CLIENTS=$BASE_CLIENT_THREADS
-#     fi
     SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
     
     # BUILD PROJECT JAR
@@ -136,7 +141,7 @@ for i in `seq $START_PARTITION $STOP_PARTITION`; do
     
     # BUILD MARKOVS FILE
     MARKOV_FILE="$MARKOV_DIR/${BASE_PROJECT}-${i}p.markov.gz"
-    if [ $MARKOV_ENABLE = "true" -a ! -f $MARKOV_FILE ]; then
+    if [ $MARKOV_FIXED != "true" -a $MARKOV_ENABLE = "true" -a ! -f $MARKOV_FILE ]; then
         ant markov-generate -Dproject=$BASE_PROJECT \
             -Dworkload=files/workloads/$BASE_PROJECT.100p-1.trace.gz \
             -Dglobal=false \
@@ -146,11 +151,16 @@ for i in `seq $START_PARTITION $STOP_PARTITION`; do
         mv $BASE_PROJECT.markov.gz $MARKOV_FILE
     fi
     
-    if [ $SITE_HOST != `hostname` ]; then
-        for file in ${FILES_TO_COPY[@]}; do
-            scp $file ${SITE_HOST}:${BASE_DIR}/$file || exit -1
+    
+    for file in ${FILES_TO_COPY[@]}; do
+        for SITE_HOST in ${SITE_HOSTS[@]}; do
+            if [ $SITE_HOST != `hostname` ]; then
+                scp $file ${SITE_HOST}:${BASE_DIR}/$file || exit -1
+            fi
         done
-        if [ $MARKOV_ENABLE = "true" -a -f $MARKOV_FILE ]; then
+    done
+    if [ $MARKOV_FIXED != "true" -a $MARKOV_ENABLE = "true" -a -f $MARKOV_FILE ]; then
+        if [ $SITE_HOST != `hostname` ]; then
             scp ${MARKOV_FILE} ${SITE_HOST}:${BASE_DIR}/${MARKOV_FILE}
         fi
     fi
