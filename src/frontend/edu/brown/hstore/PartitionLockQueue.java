@@ -527,13 +527,18 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                 // then we'll want to wait for the full wait time.
                 int waitTime = this.maxWaitTime;
                 if (newState == QueueState.BLOCKED_SAFETY) {
-                    waitTime = (int)Math.max(0, this.maxWaitTime - (currentTimestamp - txnTimestamp));
+                    waitTime = this.maxWaitTime - (int)(currentTimestamp - txnTimestamp);
+                    if (waitTime > this.maxWaitTime) {
+                        waitTime = this.maxWaitTime;
+                    } else if (waitTime < 0) {
+                        waitTime = 0;
+                    }
                 }
                 
                 this.blockTimestamp = currentTimestamp + waitTime;
                 if (debug.val)
-                    LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s [waitTime=%d]",
-                              this.partitionId, this.blockTimestamp, ts, waitTime));
+                    LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s [waitTime=%d, txnTimestamp=%d]",
+                              this.partitionId, this.blockTimestamp, ts, waitTime, txnTimestamp));
                 
                 if (this.blockTimestamp <= currentTimestamp) {
                     newState = QueueState.UNBLOCKED;
