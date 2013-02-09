@@ -700,14 +700,12 @@ public class HStoreCoordinator implements Shutdownable {
                 LOG.debug(String.format("Received %s from HStoreSite %s",
                           request.getClass().getSimpleName(),
                           HStoreThreadManager.formatSiteName(request.getSenderSite())));
-            
-            TimeSyncResponse response = TimeSyncResponse.newBuilder()
+            TimeSyncResponse.Builder builder = TimeSyncResponse.newBuilder()
                                                     .setT0R(System.currentTimeMillis())
-                                                    .setSenderSite(local_site_id)
                                                     .setT0S(request.getT0S())
-                                                    .setT1S(System.currentTimeMillis())
-                                                    .build();
-            done.run(response);
+                                                    .setSenderSite(local_site_id);
+            ThreadUtil.sleep(10);
+            done.run(builder.setT1S(System.currentTimeMillis()).build());
         }
 
         @Override
@@ -1187,7 +1185,7 @@ public class HStoreCoordinator implements Shutdownable {
         }
         if (success == false) {
             LOG.warn(String.format("Failed to recieve time synchronization responses " +
-            		               "from %d remote HStoreSites", this.num_sites-1));
+            		 "from %d remote sites", this.num_sites-1));
         } else if (trace.val) LOG.trace("Received all TIMESYNC responses!");
         
         // Then do the time calculation
@@ -1195,13 +1193,13 @@ public class HStoreCoordinator implements Shutdownable {
         int culprit = this.local_site_id;
         for (Entry<Integer, Integer> e : time_deltas.entrySet()) {
             if (debug.val)
-                LOG.debug(String.format("Time delta to HStoreSite %d is %d ms",
-                          e.getKey(), e.getValue()));
+                LOG.debug(String.format("Time delta to site %s is %d ms",
+                         HStoreThreadManager.formatSiteName(e.getKey()), e.getValue()));
             if (e.getValue() > max_dt) {
                 max_dt = e.getValue();
                 culprit = e.getKey();
             }
-        }
+        } // FOR
         this.hstore_site.setTransactionIdManagerTimeDelta(max_dt);
         if (debug.val)
             LOG.debug(String.format("Setting time delta to %d ms [culprit=%s]",
