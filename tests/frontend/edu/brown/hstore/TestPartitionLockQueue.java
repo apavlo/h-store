@@ -248,7 +248,7 @@ public class TestPartitionLockQueue extends BaseTestCase {
             Long lastBlockTime = null;
             long nextBlockTime;
             for (int j = 0; j < 10; j++) {
-                if (j != 0) PartitionLockQueue.LOG.info(StringUtil.SINGLE_LINE.trim());
+                // if (j != 0) PartitionLockQueue.LOG.info(StringUtil.SINGLE_LINE.trim());
                 String debug = String.format("i=%d / j=%d", i, j);
                 state = this.queueDbg.checkQueueState();
                 nextBlockTime = this.queueDbg.getBlockedTimestamp();
@@ -261,7 +261,7 @@ public class TestPartitionLockQueue extends BaseTestCase {
                 lastBlockTime = nextBlockTime;
             } // FOR
             assertEquals("i="+i, it.next(), this.queue.poll());
-            PartitionLockQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
+            // PartitionLockQueue.LOG.info(StringUtil.DOUBLE_LINE.trim());
         } // FOR
     }
     
@@ -346,7 +346,7 @@ public class TestPartitionLockQueue extends BaseTestCase {
             // assertNull(this.queue.poll());
         } // FOR
         assertEquals(added.size(), this.queue.size());
-        assertEquals(QueueState.UNBLOCKED, this.queueDbg.checkQueueState());
+        assertEquals(QueueState.BLOCKED_SAFETY, this.queueDbg.checkQueueState());
 
         // Now we should be able to remove the first of these mofos
         Iterator<AbstractTransaction> it = added.iterator();
