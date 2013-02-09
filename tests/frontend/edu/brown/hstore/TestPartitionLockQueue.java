@@ -485,7 +485,7 @@ public class TestPartitionLockQueue extends BaseTestCase {
     @Test
     public void testPollTooEarly() throws Exception {
         // Try polling *before* the appropriate wait time
-        this.queueDbg.setWaitTime(TXN_DELAY * 5);
+        this.queueDbg.setMaxWaitTime(TXN_DELAY * 5);
         Collection<AbstractTransaction> added = this.loadQueue(1);
         ThreadUtil.sleep(TXN_DELAY * 5);
         added.addAll(this.loadQueue(1));
