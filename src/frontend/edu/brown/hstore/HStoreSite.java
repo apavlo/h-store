@@ -2438,13 +2438,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         //  (1) We have a CommandLogWriter
         //  (2) The txn completed successfully
         //  (3) It is not a sysproc
-        //  (4) It was not read-only
-        if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false &&
-            // HACK: We should be able to tell whether this txn was read-only at all
-            // partitions. For now we'll just base it on whether the Procedure was
-            // originally marked as read-only or not.
-            ts.isPredictReadOnly() == false) {
-            
+        if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
             sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }
 
