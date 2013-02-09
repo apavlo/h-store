@@ -518,8 +518,8 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                 if (trace.val)
                     LOG.trace(String.format("Partition %d :: NewState=%s --> %s",
                               this.partitionId, newState, ts));
-                long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(txnId.longValue());
                 if (currentTimestamp == -1) currentTimestamp = System.currentTimeMillis();
+                long txnTimestamp = TransactionIdManager.getTimestampFromTransactionId(txnId.longValue());
                 
                 // Calculate how long we need to wait before this txn is safe to run
                 // If we're blocking on "safety", then we can use an offset based 
