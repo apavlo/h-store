@@ -631,7 +631,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             }
             return (ret);
         }
-        public void setMaxWaitTime(int maxWaitTime) {
+        protected void setMaxWaitTime(int maxWaitTime) {
             PartitionLockQueue.this.maxWaitTime = maxWaitTime;
         }
     }
