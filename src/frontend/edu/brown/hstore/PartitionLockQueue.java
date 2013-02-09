@@ -531,8 +531,8 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                 }
                 
                 this.blockTimestamp = currentTimestamp + waitTime;
-                if (trace.val)
-                    LOG.trace(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
+                if (debug.val)
+                    LOG.debug(String.format("Partition %d :: SET blockTimestamp = %d --> %s",
                               this.partitionId, this.blockTimestamp, ts));
                 
                 if (this.blockTimestamp <= currentTimestamp) {
