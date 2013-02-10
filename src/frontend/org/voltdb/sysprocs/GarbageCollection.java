@@ -68,6 +68,7 @@ public class GarbageCollection extends VoltSystemProcedure {
             }
             // Aggregate Results
             case SysProcFragmentId.PF_gcAggregate:
+                LOG.debug("Combining results");
                 List<VoltTable> siteResults = dependencies.get(SysProcFragmentId.PF_gcDistribute);
                 if (siteResults == null || siteResults.isEmpty()) {
                     String msg = "Missing site results";
@@ -87,6 +88,6 @@ public class GarbageCollection extends VoltSystemProcedure {
     
     public VoltTable[] run() {
         return this.executeOncePerSite(SysProcFragmentId.PF_gcDistribute,
-                                   SysProcFragmentId.PF_gcAggregate);
+                                       SysProcFragmentId.PF_gcAggregate);
     }
 }
