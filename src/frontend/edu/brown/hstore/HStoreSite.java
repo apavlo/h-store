@@ -1972,7 +1972,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // If this txn is already prepared at this partition, then we 
             // can skip it
             if (ts.isMarkedPrepared(partition)) {
-                callback.decrementCounter(partition);
+                callback.run(partition);
             }
             else {
                 // TODO: If this txn is read-only, then we should invoke finish right here
