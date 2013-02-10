@@ -535,7 +535,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Directory for storage of command logging files",
-            defaultString="${global.temp_dir}/wal",
+            defaultString="${global.temp_dir}/cmdlog",
             experimental=true
         )
         public String commandlog_dir;
