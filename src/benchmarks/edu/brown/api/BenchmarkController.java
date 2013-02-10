@@ -1108,7 +1108,8 @@ public class BenchmarkController {
         
         // Spin on whether all clients are ready
         while (m_clientsNotReady.get() > 0 && this.stop == false) {
-            if (debug.val) LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
+            if (debug.val)
+                LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
             try {
                 Thread.sleep(500);
             } catch (InterruptedException ex) {
@@ -1116,7 +1117,12 @@ public class BenchmarkController {
                 return;
             }
         } // WHILE
-        if (this.stop) return;
+        if (this.stop) {
+            if (debug.val) LOG.debug("Stop flag is set to true");
+            return;
+        }
+        if (debug.val)
+            LOG.debug("All clients are on-line and ready to go!");
         if (m_clientFilesUploaded.get() > 0) {
             LOG.info(String.format("Uploaded %d files to clients", m_clientFilesUploaded.get()));
         }
@@ -1125,8 +1131,13 @@ public class BenchmarkController {
         this.resetCluster(local_client);
         
         // Start up all the clients
-        for (String clientName : m_clients)
+        if (debug.val)
+            LOG.debug(String.format("Telling %d clients to start executing", m_clients.size()));
+        for (String clientName : m_clients) {
+            if (debug.val)
+                LOG.debug(String.format("Sending %s to %s", ControlCommand.START, clientName)); 
             m_clientPSM.writeToProcess(clientName, ControlCommand.START.name());
+        } // FOR
 
         // Warm-up
         if (hstore_conf.client.warmup > 0) {
@@ -1506,6 +1517,9 @@ public class BenchmarkController {
     }
     
     private void resetCluster(Client client) {
+        if (debug.val)
+            LOG.debug("Resetting internal profiling and invoking garbage collection on cluster");
+        
         @SuppressWarnings("unchecked")
         Class<VoltSystemProcedure> sysprocs[] = (Class<VoltSystemProcedure>[])new Class<?>[]{
             ResetProfiling.class,
