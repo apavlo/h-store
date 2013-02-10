@@ -109,7 +109,7 @@ public class HStoreThreadManager {
         HStoreConstants.THREAD_NAME_COORDINATOR,
         HStoreConstants.THREAD_NAME_QUEUE_MGR,
         HStoreConstants.THREAD_NAME_QUEUE_MGR,
-        HStoreConstants.THREAD_NAME_QUEUE_POLLER,
+        HStoreConstants.THREAD_NAME_QUEUE_RESTART,
         HStoreConstants.THREAD_NAME_TXNCLEANER,
         HStoreConstants.THREAD_NAME_POSTPROCESSOR,
     };

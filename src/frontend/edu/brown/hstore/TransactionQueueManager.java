@@ -195,7 +195,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private class Initializer extends ExceptionHandlingRunnable {
         public void runImpl() {
             Thread self = Thread.currentThread();
-            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_MGR));
+            self.setName(HStoreThreadManager.getThreadName(hstore_site,
+                         HStoreConstants.THREAD_NAME_QUEUE_INIT));
             hstore_site.getThreadManager().registerProcessingThread();
             
             if (debug.val)
@@ -216,7 +217,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         @Override
         public void runImpl() {
             Thread self = Thread.currentThread();
-            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_MGR));
+            self.setName(HStoreThreadManager.getThreadName(hstore_site,
+                         HStoreConstants.THREAD_NAME_QUEUE_RESTART));
             hstore_site.getThreadManager().registerProcessingThread();
             
             if (debug.val)
@@ -270,6 +272,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             t.setDaemon(true);
             t.setUncaughtExceptionHandler(hstore_site.getExceptionHandler());
             t.start();
+            threads.add(t);
         } // FOR
         
         for (Thread t : threads) {
