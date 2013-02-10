@@ -48,11 +48,12 @@ BASE_ARGS=( \
 #    "-Dnoshutdown=true" \
     
     # Site Params
-    "-Dsite.jvm_asserts=false" \
+    "-Dsite.jvm_asserts=true" \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     "-Dsite.queue_incoming_max_per_partition=10000" \
     "-Dsite.queue_incoming_increase_max=20000" \
     "-Dsite.commandlog_enable=false" \
+    "-Dsite.txn_incoming_delay=5" \
     "-Dsite.network_txn_initialization=true" \
     
     # Markov Params
