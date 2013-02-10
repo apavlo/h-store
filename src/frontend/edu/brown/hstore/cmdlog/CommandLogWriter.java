@@ -548,7 +548,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
 
                 this.writingEntry.release();
             } catch (InterruptedException e) {
-                throw new RuntimeException("[WAL] Thread interrupted while waiting for WriterThread to finish writing");
+                throw new RuntimeException("Unexpected interruption while waiting for WriterThread to finish");
             } finally {
                 if (hstore_conf.site.commandlog_profiling && profiler != null) profiler.blockedTime.stopIfStarted();
             }
