@@ -3856,23 +3856,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 this.finishTransaction(ts, status);
             }
             
-            // Use the separate post-processor thread to send back the result
-            if (hstore_conf.site.exec_postprocessing_threads) {
-                if (trace.val)
-                    LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
-                              ts, cresponse.getStatus()));
-                this.hstore_site.responseQueue(ts, cresponse);
-            }
-            // Send back the result right now!
-            else {
-                // We have to mark it as loggable to prevent the response
-                // from getting sent back to the client
-                if (hstore_conf.site.commandlog_enable) ts.markLogEnabled();
-                
-                if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
-                this.hstore_site.responseSend(ts, cresponse);
-                if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
-            }
+            // We have to mark it as loggable to prevent the response
+            // from getting sent back to the client
+            if (hstore_conf.site.commandlog_enable) ts.markLogEnabled();
+            
+            if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
+            this.hstore_site.responseSend(ts, cresponse);
+            if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
         } 
         // -------------------------------
@@ -4244,18 +4234,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         spec_ts.markFinished(this.partitionId);
                         
                         try {
-                            if (hstore_conf.site.exec_postprocessing_threads) {
-                                if (trace.val)
-                                    LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
-                                              ts, spec_ts, spec_cr.getStatus()));
-                                hstore_site.responseQueue(spec_ts, spec_cr);
-                            }
-                            else {
-                                if (trace.val)
-                                    LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                              ts, spec_ts, spec_cr.getStatus()));
-                                this.processClientResponse(spec_ts, spec_cr);
-                            }
+                            if (trace.val)
+                                LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                          ts, spec_ts, spec_cr.getStatus()));
+                            this.processClientResponse(spec_ts, spec_cr);
                         } catch (Throwable ex) {
                             String msg = "Failed to complete queued response for " + spec_ts;
                             throw new ServerFaultException(msg, ex, ts.getTransactionId());
@@ -4322,18 +4304,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         spec_cr = pair.getSecond();
                         spec_ts.markFinished(this.partitionId);
                         try {
-                            if (hstore_conf.site.exec_postprocessing_threads) {
-                                if (trace.val)
-                                    LOG.trace(String.format("%s - Queueing %s on post-processing thread [status=%s]",
-                                              ts, spec_ts, spec_cr.getStatus()));
-                                hstore_site.responseQueue(spec_ts, spec_cr);
-                            }
-                            else {
-                                if (trace.val)
-                                    LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                              ts, spec_ts, spec_cr.getStatus()));
-                                this.processClientResponse(spec_ts, spec_cr);
-                            }
+                            if (trace.val)
+                                LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                          ts, spec_ts, spec_cr.getStatus()));
+                            this.processClientResponse(spec_ts, spec_cr);
                         } catch (Throwable ex) {
                             String msg = "Failed to complete queued response for " + spec_ts;
                             throw new ServerFaultException(msg, ex, ts.getTransactionId());

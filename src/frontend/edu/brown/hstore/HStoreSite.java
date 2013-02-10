@@ -2455,10 +2455,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (sendResponse) {
             // NO GROUP COMMIT -- SEND OUT AND COMPLETE
             // NO COMMAND LOGGING OR TXN ABORTED -- SEND OUT AND COMPLETE
-            this.responseSend(cresponse,
-                              ts.getClientCallback(),
-                              ts.getInitiateTime(),
-                              ts.getRestartCounter());
+            if (hstore_conf.site.exec_postprocessing_threads) {
+                if (trace.val)
+                    LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
+                              ts, cresponse.getStatus()));
+                this.responseQueue(ts, cresponse);
+            } else {
+                this.responseSend(cresponse,
+                                  ts.getClientCallback(),
+                                  ts.getInitiateTime(),
+                                  ts.getRestartCounter());
+            }
         } else if (debug.val) { 
             LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
         }
@@ -2471,7 +2478,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param cresponse
      */
-    public void responseQueue(LocalTransaction ts, ClientResponseImpl cresponse) {
+    private void responseQueue(LocalTransaction ts, ClientResponseImpl cresponse) {
         assert(hstore_conf.site.exec_postprocessing_threads);
         if (debug.val)
             LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
