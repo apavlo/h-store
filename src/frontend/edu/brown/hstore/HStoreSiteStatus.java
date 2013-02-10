@@ -398,11 +398,13 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             int i = 0;
             for (TransactionPostProcessor tpp : hstore_site.getTransactionPostProcessors()) {
                 pm = tpp.getExecTime();
-                val += String.format("\n[%02d] %d total / %.2fms total / %.2fms avg",
-                                     i++,
-                                     pm.getInvocations(),
-                                     pm.getTotalThinkTimeMS(),
-                                     pm.getAverageThinkTimeMS());
+                if (pm != null) {
+                    val += String.format("\n[%02d] %d total / %.2fms total / %.2fms avg",
+                                         i++,
+                                         pm.getInvocations(),
+                                         pm.getTotalThinkTimeMS(),
+                                         pm.getAverageThinkTimeMS());
+                }
             } // FOR
             
             siteInfo.put("Post-Processing Txns", val);
