@@ -2374,7 +2374,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             short block_ids[] = error.getBlockIds();
             int tuple_offsets[] = error.getTupleOffsets(); 
 						
-            Table evicted_table = error.getTable(this.catalogContext.database); 
+            Table evicted_table = error.getTable(this.catalogContext.database);
+            new_ts.setPendingError(error, false);
 
 			LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
 			         AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));

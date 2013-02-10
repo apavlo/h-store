@@ -60,14 +60,14 @@ public class EvictTuples extends VoltSystemProcedure {
         ExecutionEngine ee = executor.getExecutionEngine();
         assert(tableNames.length == blockSizes.length);
         
-        // PROFILER
-        AntiCacheManagerProfiler profiler = null;
-        long start = -1;
-        if (hstore_conf.site.anticache_profiling) {
-            start = System.currentTimeMillis();
-            profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(this.partitionId);
-            profiler.eviction_time.start();
-        }
+//        // PROFILER
+//        AntiCacheManagerProfiler profiler = null;
+//        long start = -1;
+//        if (hstore_conf.site.anticache_profiling) {
+//            start = System.currentTimeMillis();
+//            profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(this.partitionId);
+//            profiler.eviction_time.start();
+//        }
 
         // Check Input
         if (tableNames.length == 0) {
@@ -101,9 +101,16 @@ public class EvictTuples extends VoltSystemProcedure {
         long totalBlocksEvicted = 0;
         long totalBytesEvicted = 0;
         for (int i = 0; i < tableNames.length; i++) {
+            System.err.printf("Evicting %d blocks of blockSize %d", (int)numBlocks[i], blockSizes[i]);
+            
             VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);
             boolean adv = vt.advanceRow();
-            assert(adv);
+            
+            if(!adv) {
+                String msg = String.format("antiCacheEvictBlock failed to return any rows.");
+                throw new VoltAbortException(msg);
+            }
+//            assert(adv);
             long tuplesEvicted = vt.getLong("TUPLES_EVICTED");
             long blocksEvicted = vt.getLong("BLOCKS_EVICTED");
             long bytesEvicted = vt.getLong("BYTES_EVICTED");
@@ -123,16 +130,16 @@ public class EvictTuples extends VoltSystemProcedure {
             totalBytesEvicted += bytesEvicted;
         } // FOR
         
-        // PROFILER
-        if (profiler != null) {
-            EvictionHistory eh = new EvictionHistory(start,
-                                                     System.currentTimeMillis(),
-                                                     totalTuplesEvicted,
-                                                     totalBlocksEvicted,
-                                                     totalBytesEvicted);
-            profiler.eviction_history.add(eh);
-            profiler.eviction_time.stopIfStarted();
-        }
+//        // PROFILER
+//        if (profiler != null) {
+//            EvictionHistory eh = new EvictionHistory(start,
+//                                                     System.currentTimeMillis(),
+//                                                     totalTuplesEvicted,
+//                                                     totalBlocksEvicted,
+//                                                     totalBytesEvicted);
+//            profiler.eviction_history.add(eh);
+//            profiler.eviction_time.stopIfStarted();
+//        }
         
         return new VoltTable[]{ allResults };
     }

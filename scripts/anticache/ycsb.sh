@@ -83,7 +83,7 @@ BASE_ARGS=( \
 #    "-Dclient.interval=500" \
     "-Dclient.anticache_enable=false" \
     "-Dclient.anticache_evict_interval=10000" \
-    "-Dclient.anticache_evict_size=4194304" \
+    "-Dclient.anticache_evict_size=524288" \
     "-Dclient.output_csv=results.csv" \
 
     # CLIENT DEBUG

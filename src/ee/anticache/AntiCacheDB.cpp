@@ -62,10 +62,9 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
         DB_CREATE       | // Create the environment if it does not exist
         DB_AUTO_COMMIT  | // Immediately commit every operation
         DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
-        DB_AUTO_COMMIT  | // Commit all changes immediately
         DB_TXN_NOSYNC   | // Don't flush to disk every time, we will do that explicitly
-        DB_DIRECT_DB    | // Use O_DIRECT
-        DB_NOLOCKING;     // Disable locks and latches
+        DB_INIT_LOCK     | // concurrent data store
+        DB_DIRECT_DB;     // Use O_DIRECT
         
     try {
         // allocate and initialize Berkeley DB database env
@@ -110,7 +109,7 @@ void AntiCacheDB::writeBlock(const std::string tableName,
                              const long size) {
     Dbt key; 
     key.set_data(&blockId);
-    key.set_size(sizeof(uint16_t));
+    key.set_size(sizeof(int16_t));
     
     Dbt value;
     value.set_data(const_cast<char*>(data));
@@ -133,7 +132,7 @@ void AntiCacheDB::flushBlocks()
 AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     Dbt key;
     key.set_data(&blockId);
-    key.set_size(sizeof(uint16_t));
+    key.set_size(sizeof(int16_t));
 
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
