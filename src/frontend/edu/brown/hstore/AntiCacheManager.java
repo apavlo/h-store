@@ -287,15 +287,15 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      *            - The list of blockIds that need to be read in for the table
      */
     public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
-        if (hstore_conf.site.anticache_profiling) {
+//        if (hstore_conf.site.anticache_profiling) {
             assert(ts.getPendingError() != null) :
                 String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
             assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
                 String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
             this.profilers[partition].restarted_txns++;
             this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
-        }
-        
+//        }
+
         QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids, tuple_offsets);
 
         // TODO: We should check whether there are any other txns that are also blocked waiting

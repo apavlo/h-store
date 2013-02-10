@@ -33,8 +33,8 @@ public abstract class YCSBConstants {
 
     public static final int NUM_RECORDS = 10737418; // .5 GB
 
-    public static final int HOT_DATA_WORKLOAD_SKEW = 50;
-    public static final int HOT_DATA_SIZE = 50;
+    public static final int HOT_DATA_WORKLOAD_SKEW = 90;
+    public static final int HOT_DATA_SIZE = 10;
 
     public static final int WARM_DATA_SIZE = 0;
     public static final int WARM_DATA_WORKLOAD_SKEW = 0;

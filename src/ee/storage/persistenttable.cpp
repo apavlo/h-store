@@ -413,7 +413,7 @@ bool PersistentTable::mergeUnevictedTuples()
                 setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
                 
                 // re-insert the tuple back into the eviction chain
-                eviction_manager->updateTuple(this, &m_tmpTarget1, false);
+                eviction_manager->updateTuple(this, &m_tmpTarget1, true);
 
                 
                 //VOLT_INFO("Successfully unevicted tuple.");
