@@ -72,6 +72,7 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         RemotePrepareCallback wrapper = ts.getPrepareCallback();
         if (wrapper.isInitialized()) wrapper.finish();
         wrapper.init(ts, partitions, callback);
+        
         this.hstore_site.transactionPrepare(ts, partitions);
     }
     @Override

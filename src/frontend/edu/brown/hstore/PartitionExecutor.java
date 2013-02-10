@@ -1293,7 +1293,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 //                String.format("The current dtxn %s does not match %s given in the %s",
 //                              this.currentTxn, ftask.getTransaction(), ftask.getClass().getSimpleName());
             this.prepareTransaction(ftask.getTransaction());
-            ftask.getTransaction().markPrepared(this.partitionId);
         }
         // -------------------------------
         // Set Distributed Transaction 
@@ -3961,7 +3960,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (ts.isMarkedPrepared(this.partitionId) == false) {
             ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
             
-            if (hstore_conf.site.exec_profiling && this.partitionId != ts.getBasePartition() && ts.needsFinish(this.partitionId)) {
+            if (hstore_conf.site.exec_profiling && 
+                   this.partitionId != ts.getBasePartition() &&
+                   ts.needsFinish(this.partitionId)) {
                 profiler.sp3_remote_time.start();
             }
             
@@ -3975,9 +3976,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // If it is, then that means all read-only transactions can commit right away
                 if (ts.isExecReadOnly(this.partitionId)) {
                     newMode = ExecutionMode.COMMIT_READONLY;
-//                    if (debug.val) LOG.debug(String.format("%s - Telling queue manager that txn is finished at partition %d",
-//                                     ts, this.partitionId));
-//                    hstore_site.getTransactionQueueManager().lockQueueFinished(ts, Status.OK, this.partitionId);
                 }
             }
             if (this.currentDtxn != null) this.setExecutionMode(ts, newMode);
@@ -3993,11 +3991,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // because we don't know what callback to use to send the acknowledgements
         // back over the network
         PartitionCountingCallback<AbstractTransaction> callback = ts.getPrepareCallback();
-        try {
-            callback.run(this.partitionId);
-        } catch (Throwable ex) {
-            LOG.warn("Unexpected error for " + ts, ex);
+        if (callback.isInitialized()) {
+            try {
+                callback.run(this.partitionId);
+            } catch (Throwable ex) {
+                LOG.warn("Unexpected error for " + ts, ex);
+            }
         }
+        
+        // But we will always mark ourselves as prepared at this partition
+        ts.markPrepared(this.partitionId);
 
         return (true);
     }
@@ -4042,7 +4045,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         if (debug.val)
             LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
-                      ts, (commit ? "commit" : "abort"), this.partitionId));
+                      ts, (commit ? "committ" : "abort"), this.partitionId));
         ts.markFinished(this.partitionId);
     }
     
