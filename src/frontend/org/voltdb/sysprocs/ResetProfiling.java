@@ -117,6 +117,7 @@ public class ResetProfiling extends VoltSystemProcedure {
             }
             // Aggregate Results
             case SysProcFragmentId.PF_resetProfilingAggregate:
+                LOG.debug("Combining results");
                 List<VoltTable> siteResults = dependencies.get(SysProcFragmentId.PF_resetProfilingDistribute);
                 if (siteResults == null || siteResults.isEmpty()) {
                     String msg = "Missing site results";
