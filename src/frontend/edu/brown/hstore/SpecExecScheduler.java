@@ -237,6 +237,7 @@ public class SpecExecScheduler {
                     LOG.trace(String.format("Skipping %s because it is not single-partitioned", localTxn));
                 continue;
             }
+            examined_ctr++;
             try {
                 switch (specType) {
                     // We can execute anything when we are in 2PC or idle
@@ -250,7 +251,6 @@ public class SpecExecScheduler {
                     // executed a query at this partition.
                     case SP1_LOCAL:
                     case SP2_REMOTE_AFTER: {
-                        examined_ctr++;    
                         if (this.checker.canExecute(dtxn, localTxn, this.partitionId) == false) {
                             continue;
                         }
