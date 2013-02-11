@@ -1044,7 +1044,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 
                 // Ok now that that's out of the way, let's run this baby...
                 specTxn.setSpeculative(specType);
-                this.executeTransaction(specTxn);
+                if (hstore_conf.site.exec_profiling) profiler.specexec_time.start();
+                try {
+                    this.executeTransaction(specTxn);
+                } finally {
+                    if (hstore_conf.site.exec_profiling) profiler.specexec_time.stopIfStarted();
+                }
             }
             else if (trace.val) {
                 LOG.trace(String.format("%s - No speculative execution candidates found at partition %d [queueSize=%d]",
@@ -1210,17 +1215,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Start Transaction
         // -------------------------------
         if (work instanceof StartTxnMessage) {
-            if (hstore_conf.site.exec_profiling) {
-                profiler.txn_time.start();
-                if (ts.isSpeculative()) profiler.specexec_time.start();
-            }
+            if (hstore_conf.site.exec_profiling) profiler.txn_time.start();
             try {
                 this.executeTransaction((LocalTransaction)ts);
             } finally {
-                if (hstore_conf.site.exec_profiling) {
-                    profiler.txn_time.stopIfStarted();
-                    if (ts.isSpeculative()) profiler.specexec_time.stopIfStarted();
-                }
+                if (hstore_conf.site.exec_profiling) profiler.txn_time.stopIfStarted();
             }
         }
         // -------------------------------
