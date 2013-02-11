@@ -1,7 +1,6 @@
 package edu.brown.hstore.stats;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -75,13 +74,7 @@ public class TransactionCounterStats extends StatsSource {
     @Override
     protected Iterator<Object> getStatsRowKeyIterator(boolean interval) {
         // HACK: Figure out what procedures actually have results
-        List<Object> hasResults = new ArrayList<Object>();
-        Collection<String> procNames = TransactionCounter.getAllProcedures();
-        for (Procedure proc : this.procedures) {
-            if (procNames.contains(proc.getName())) {
-                hasResults.add(proc);
-            }
-        } // FOR
+        List<Object> hasResults = new ArrayList<Object>(TransactionCounter.getAllProcedures(this.catalogContext));
         return hasResults.iterator();
     }
 

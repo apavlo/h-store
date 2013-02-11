@@ -18,6 +18,7 @@ package org.voltdb;
 
 public enum SysProcSelector {
     TABLE,            // invoked as @stat table
+    INDEX,            // invoked as @stat index
     PROCEDURE,        // invoked as @stat procedure
     INITIATOR,         // invoked as @stat initiator
     PARTITIONCOUNT,
@@ -34,6 +35,7 @@ public enum SysProcSelector {
     SITEPROFILER, // network profiler information
     PLANNERPROFILER, // batch planner profiler information
     ANTICACHE,      // anti-cache manager information
-    ANTICACHEHISTORY, // anti-cache eviction history
+    ANTICACHEEVICTIONS, // anti-cache eviction history
+    ANTICACHEACCESS, // anti-cache evicted access history
     POOL,           // info about how object pools
 }

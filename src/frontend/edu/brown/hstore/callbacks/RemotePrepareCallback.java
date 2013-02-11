@@ -48,6 +48,7 @@ public class RemotePrepareCallback extends PartitionCountingCallback<RemoteTrans
         this.localPartitions.clear();
         this.localPartitions.addAll(partitions);
         this.localPartitions.retainAll(this.hstore_site.getLocalPartitionIds());
+        
         super.init(ts, this.localPartitions);
     }
     

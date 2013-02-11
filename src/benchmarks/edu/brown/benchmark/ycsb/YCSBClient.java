@@ -29,8 +29,6 @@
 package edu.brown.benchmark.ycsb;
 
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
@@ -45,8 +43,14 @@ import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 
+/**
+ * YCSB Client
+ * @author jdebrabant
+ * @author pavlo
+ */
 public class YCSBClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(YCSBClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -77,12 +81,13 @@ public class YCSBClient extends BenchmarkComponent {
     
     } // TRANSCTION ENUM
 
-    private CustomSkewGenerator readRecord; 
-    private CustomSkewGenerator insertRecord;
-    private ZipfianGenerator randScan;
-    private List<String> value_list; 
+    private final long init_record_count;
+    private final CustomSkewGenerator readRecord; 
+    @SuppressWarnings("unused")
+    private final CustomSkewGenerator insertRecord;
+    private final ZipfianGenerator randScan;
     private final FlatHistogram<Transaction> txnWeights;
-    private Random rand_gen;
+    private final Random rand_gen;
     
     // private ZipfianGenerator readRecord;
     // private final double SIGMA = 1.4; 
@@ -94,34 +99,48 @@ public class YCSBClient extends BenchmarkComponent {
     public YCSBClient(String args[]) {
         super(args);
 
+        final CatalogContext catalogContext = this.getCatalogContext();
+        boolean useFixedSize = false;
+        long fixedSize = -1;
+        for (String key : m_extraParams.keySet()) {
+            String value = m_extraParams.get(key);
+
+            // Used Fixed-size Database
+            // Parameter that points to where we can find the initial data files
+            if (key.equalsIgnoreCase("fixed_size")) {
+                useFixedSize = Boolean.valueOf(value);
+            }
+            // Fixed Database Size
+            else if (key.equalsIgnoreCase("num_records")) {
+                fixedSize = Long.valueOf(value);
+            }
+        } // FOR
+        
+        // Figure out the # of records that we need
+        if (useFixedSize && fixedSize > 0) {
+            this.init_record_count = fixedSize;
+        }
+        else {
+            this.init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * 
+                                                     catalogContext.numberOfPartitions *
+                                                     this.getScaleFactor());
+        }
+        
         this.rand_gen = new Random(); 
         this.randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
-        this.value_list = new LinkedList<String>(); 
-        
-        final CatalogContext catalogContext = this.getCatalogContext(); 
-        final int init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * 
-                                                      catalogContext.numberOfPartitions *
-                                                      this.getScaleFactor());
                 
         // initialize distribution generators 
-        synchronized (YCSBClient.class) { // XXX: Why do we need to lock this?
-            // We must know where to start inserting
-            if (insertRecord == null) {
-                insertRecord = new CustomSkewGenerator(this.rand_gen, init_record_count, 
-                                                    YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
-                                                    YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+        // We must know where to start inserting
+        this.insertRecord = new CustomSkewGenerator(this.rand_gen, this.init_record_count, 
+                                            YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+                                            YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
 
-            }
-
-            if (readRecord == null) {
-                readRecord = new CustomSkewGenerator(this.rand_gen, init_record_count, 
-                                                    YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
-                                                    YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
-            }
-        }  // end SYNC
+        this.readRecord = new CustomSkewGenerator(this.rand_gen, this.init_record_count, 
+                                            YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+                                            YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
         
         // Initialize the sampling table
-        ObjectHistogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
+        Histogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
         for (Transaction t : Transaction.values()) {
             Integer weight = this.getTransactionWeight(t.callName);
             if (weight == null) weight = t.weight;
@@ -161,17 +180,22 @@ public class YCSBClient extends BenchmarkComponent {
         Object params[];
         switch (target) {
             case DELETE_RECORD:
-            case READ_RECORD:
+            case READ_RECORD: {
+                params = new Object[]{ this.readRecord.nextInt() };
+                break;
+            }
             case UPDATE_RECORD:
-                params = new Object[]{ readRecord.nextInt() };
+            case INSERT_RECORD: {
+                long key = this.readRecord.nextInt();
+                String fields[] = new String[YCSBConstants.NUM_COLUMNS];
+                for (int i = 0; i < fields.length; i++) {
+                    fields[i] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
+                } // FOR
+                params = new Object[]{ key, fields };
                 break;
-            case INSERT_RECORD:
-                params = new Object[]{ readRecord.nextInt() };
-                @SuppressWarnings("unused")
-                List<String> values = buildValues(10); // FIXME
-                break;
+            }
             case SCAN_RECORD:
-                params = new Object[]{ readRecord.nextInt(), randScan.nextInt() };
+                params = new Object[]{ this.readRecord.nextInt(), this.randScan.nextInt() };
                 break;
             default:
                 throw new RuntimeException("Unexpected txn '" + target + "'");
@@ -182,14 +206,6 @@ public class YCSBClient extends BenchmarkComponent {
         return this.getClientHandle().callProcedure(callback, target.callName, params);
     }
     
-    private List<String> buildValues(int numVals) {
-        this.value_list.clear();
-        for (int i = 0; i < numVals; i++) {
-            this.value_list.add(YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH));
-        }
-        return this.value_list;
-    }
-
     private class Callback implements ProcedureCallback {
         private final int idx;
 

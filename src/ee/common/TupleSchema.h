@@ -70,11 +70,8 @@ public:
                                           const TupleSchema *second,
                                           const std::vector<uint16_t> secondSet);
     
-    /**
-     * 
-     * TODO(debrabant)
-     */
-    static TupleSchema* createEvictedTupleSchema(const TupleSchema *pkey_schema); 
+
+    static TupleSchema* createEvictedTupleSchema(); 
 
     /** Static factory method to destroy a TupleSchema object. Set to null after this call */
     static void freeTupleSchema(TupleSchema *schema);

@@ -700,14 +700,12 @@ public class HStoreCoordinator implements Shutdownable {
                 LOG.debug(String.format("Received %s from HStoreSite %s",
                           request.getClass().getSimpleName(),
                           HStoreThreadManager.formatSiteName(request.getSenderSite())));
-            
-            TimeSyncResponse response = TimeSyncResponse.newBuilder()
+            TimeSyncResponse.Builder builder = TimeSyncResponse.newBuilder()
                                                     .setT0R(System.currentTimeMillis())
-                                                    .setSenderSite(local_site_id)
                                                     .setT0S(request.getT0S())
-                                                    .setT1S(System.currentTimeMillis())
-                                                    .build();
-            done.run(response);
+                                                    .setSenderSite(local_site_id);
+            ThreadUtil.sleep(10);
+            done.run(builder.setT1S(System.currentTimeMillis()).build());
         }
 
         @Override
@@ -1169,11 +1167,12 @@ public class HStoreCoordinator implements Shutdownable {
         // Send out TimeSync request 
         for (int site_id = 0; site_id < this.num_sites; site_id++) {
             if (site_id == this.local_site_id) continue;
+            ProtoRpcController controller = new ProtoRpcController();
             TimeSyncRequest request = TimeSyncRequest.newBuilder()
                                             .setSenderSite(this.local_site_id)
                                             .setT0S(System.currentTimeMillis())
                                             .build();
-            this.channels[site_id].timeSync(new ProtoRpcController(), request, callback);
+            this.channels[site_id].timeSync(controller, request, callback);
             if (trace.val) LOG.trace("Sent TIMESYNC to " + HStoreThreadManager.formatSiteName(site_id));
         } // FOR
         
@@ -1185,24 +1184,26 @@ public class HStoreCoordinator implements Shutdownable {
             // nothing
         }
         if (success == false) {
-            LOG.warn(String.format("Failed to recieve time synchronization responses from %d remote HStoreSites", this.num_sites-1));
+            LOG.warn(String.format("Failed to recieve time synchronization responses " +
+            		 "from %d remote sites", this.num_sites-1));
         } else if (trace.val) LOG.trace("Received all TIMESYNC responses!");
         
         // Then do the time calculation
         long max_dt = 0L;
         int culprit = this.local_site_id;
         for (Entry<Integer, Integer> e : time_deltas.entrySet()) {
-            if (debug.val) LOG.debug(String.format("Time delta to HStoreSite %d is %d ms", e.getKey(), e.getValue()));
+            if (debug.val)
+                LOG.debug(String.format("Time delta to site %s is %d ms",
+                         HStoreThreadManager.formatSiteName(e.getKey()), e.getValue()));
             if (e.getValue() > max_dt) {
                 max_dt = e.getValue();
                 culprit = e.getKey();
             }
-        }
+        } // FOR
         this.hstore_site.setTransactionIdManagerTimeDelta(max_dt);
-        if (debug.val) {
-            LOG.debug("Setting time delta to " + max_dt + "ms");
-            LOG.debug("I think the killer is site " + culprit + "!");
-        }
+        if (debug.val)
+            LOG.debug(String.format("Setting time delta to %d ms [culprit=%s]",
+                      max_dt, HStoreThreadManager.formatSiteName(culprit)));
     }
     
     // ----------------------------------------------------------------------------

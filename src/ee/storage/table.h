@@ -201,6 +201,14 @@ public:
     inline int32_t getTuplesEvicted() const { return (m_tuplesEvicted); }
     inline int32_t getBlocksEvicted() const { return (m_blocksEvicted); }
     inline int64_t getBytesEvicted()  const { return (m_bytesEvicted); }
+    
+    inline int32_t getTuplesWritten() const { return (m_tuplesWritten); }
+    inline int32_t getBlocksWritten() const { return (m_blocksWritten); }
+    inline int64_t getBytesWritten()  const { return (m_bytesWritten); }
+    
+    inline int32_t getTuplesRead() const { return (m_tuplesRead); }
+    inline int32_t getBlocksRead() const { return (m_blocksRead); }
+    inline int64_t getBytesRead()  const { return (m_bytesRead); }
     #endif
     
     int getTupleID(const char* tuple_address); 
@@ -363,9 +371,20 @@ protected:
     int32_t m_columnHeaderSize;
 
 #if ANTICACHE
+    // ACTIVE
     int32_t m_tuplesEvicted;
     int32_t m_blocksEvicted;
     int64_t m_bytesEvicted;
+    
+    // GLOBAL WRITTEN
+    int32_t m_tuplesWritten;
+    int32_t m_blocksWritten;
+    int64_t m_bytesWritten;
+    
+    // GLOBAL READ
+    int32_t m_tuplesRead;
+    int32_t m_blocksRead;
+    int64_t m_bytesRead;
 #endif
 
 #ifdef MEMCHECK_NOFREELIST

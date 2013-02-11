@@ -1901,8 +1901,6 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
       case VALUE_TYPE_VARCHAR: {
           const int32_t length = input.readInt();
                     
-          VOLT_TRACE("Dserializing a string of length %d.", length);
-
           if (length > maxLength) {
               char msg[1024];
               snprintf(msg, 1024, "Object exceeds specified size. Size is %d and max is %d", length, maxLength);
@@ -1910,7 +1908,6 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
                   SQLException::data_exception_string_data_length_mismatch,
                   msg);
           }
-
           
           const int8_t lengthLength = getAppropriateObjectLengthLength(length);
           // the NULL SQL string is a NULL C pointer

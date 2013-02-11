@@ -52,20 +52,17 @@ public class PoolCounterStats extends StatsSource {
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
         String poolName = (String)rowKey;
-        boolean isGlobal = this.globalPools.containsKey(poolName);
-        assert(isGlobal || this.partitionPools.containsKey(poolName)) : "Unexpected '" + poolName + "'";
-        
-        TypedObjectPool<?> pool = null;
-        TypedPoolableObjectFactory<?> factory = null;
+        boolean isGlobal;
         int total_active = 0;
         int total_idle = 0;
         int total_created = 0;
         int total_passivated = 0;
         int total_destroyed = 0;
         
-        if (isGlobal) {
-            pool = this.globalPools.get(poolName);
-            factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+        if (this.globalPools.containsKey(poolName)) {
+            isGlobal = true;
+            TypedObjectPool<?> pool = this.globalPools.get(poolName);
+            TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
             
             total_active = pool.getNumActive();
             total_idle = pool.getNumIdle(); 
@@ -73,18 +70,22 @@ public class PoolCounterStats extends StatsSource {
             total_passivated = factory.getPassivatedCount();
             total_destroyed = factory.getDestroyedCount();
         }
-        else {
+        else if (this.partitionPools.containsKey(poolName)) {
+            isGlobal = false;
             TypedObjectPool<?> pools[] = this.partitionPools.get(poolName);
             for (int i = 0; i < pools.length; i++) {
-                pool = pools[i];
-                factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+                if (pools[i] == null) continue;
+                TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pools[i].getFactory();
                 
-                total_active += pool.getNumActive();
-                total_idle += pool.getNumIdle(); 
+                total_active += pools[i].getNumActive();
+                total_idle += pools[i].getNumIdle(); 
                 total_created += factory.getCreatedCount();
                 total_passivated += factory.getPassivatedCount();
                 total_destroyed += factory.getDestroyedCount();
             } // FOR
+        }
+        else {
+            throw new RuntimeException("Unexpected '" + poolName + "'");
         }
         
         rowValues[columnNameToIndex.get("POOL_NAME")] = poolName;

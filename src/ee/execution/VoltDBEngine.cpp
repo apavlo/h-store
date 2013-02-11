@@ -744,6 +744,15 @@ bool VoltDBEngine::rebuildTableCollections() {
             getStatsManager().registerStatsSource(STATISTICS_SELECTOR_TYPE_TABLE,
                                                   catTable->relativeIndex(),
                                                   tcd->getTable()->getTableStats());
+            
+            // add all of the indexes to the stats source
+            std::vector<TableIndex*> tindexes = tcd->getTable()->allIndexes();
+            for (int i = 0; i < tindexes.size(); i++) {
+                TableIndex *index = tindexes[i];
+                getStatsManager().registerStatsSource(STATISTICS_SELECTOR_TYPE_INDEX,
+                                                      catTable->relativeIndex(),
+                                                      index->getIndexStats());
+            }
         }
         cdIt++;
     }
@@ -1106,6 +1115,23 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                 (StatisticsSelectorType) selector,
                 locatorIds, interval, now);
             break;
+        case STATISTICS_SELECTOR_TYPE_INDEX:
+            for (int ii = 0; ii < numLocators; ii++) {
+                CatalogId locator = static_cast<CatalogId>(locators[ii]);
+                if (m_tables.find(locator) == m_tables.end()) {
+                    char message[256];
+                    snprintf(message, 256,  "getStats() called with selector %d, and"
+                            " an invalid locator %d that does not correspond to"
+                            " a table", selector, locator);
+                    throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
+                                                  message);
+                }
+            }
+
+            resultTable = m_statsManager.getStats(
+                (StatisticsSelectorType) selector,
+                locatorIds, interval, now);
+            break;
         default:
             char message[256];
             snprintf(message, 256, "getStats() called with an unrecognized selector"
@@ -1363,9 +1389,10 @@ size_t VoltDBEngine::tableHashCode(int32_t tableId) {
 // -------------------------------------------------
 
 #ifdef ANTICACHE
-void VoltDBEngine::antiCacheInitialize(std::string dbDir) const {
-    VOLT_INFO("Enabling Anti-Cache at Partition %d: %s", m_partitionId, dbDir.c_str());
-    m_executorContext->enableAntiCache(dbDir);
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
+    VOLT_INFO("Enabling Anti-Cache at Partition %d: dir=%s / blockSize=%ld",
+              m_partitionId, dbDir.c_str(), blockSize);
+    m_executorContext->enableAntiCache(dbDir, blockSize);
 }
 
 int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, uint16_t blockIds[]) {
@@ -1405,7 +1432,7 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, uint16_t b
  * @param tableId
  * @param blockSize The number of bytes to evict from this table
  */
-int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize) {
+int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks) {
     PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
     if (table == NULL) {
         throwFatalException("Invalid table id %d", tableId);
@@ -1414,7 +1441,7 @@ int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize) {
     VOLT_DEBUG("Attempting to evict a block of %ld bytes from table '%s'",
                blockSize, table->name().c_str());
     size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
-    Table *resultTable = m_executorContext->getAntiCacheEvictionManager()->evictBlock(table, blockSize);
+    Table *resultTable = m_executorContext->getAntiCacheEvictionManager()->evictBlock(table, blockSize, numBlocks);
     if (resultTable != NULL) {
         resultTable->serializeTo(m_resultOutput);
         m_resultOutput.writeIntAt(lengthPosition,
@@ -1455,7 +1482,7 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
 }
 
 #else
-void VoltDBEngine::antiCacheInitialize(std::string dbDir) const {
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
     VOLT_ERROR("Anti-Cache feature was not enable when compiling the EE");
 }
 #endif

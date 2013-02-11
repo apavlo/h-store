@@ -32,7 +32,7 @@ using namespace std;
 
 namespace voltdb {
 
-AntiCacheBlock::AntiCacheBlock(uint16_t blockId, Dbt value) :
+AntiCacheBlock::AntiCacheBlock(int16_t blockId, Dbt value) :
         m_blockId(blockId),
         m_value(value) {
     // They see me rollin'
@@ -44,18 +44,28 @@ AntiCacheBlock::~AntiCacheBlock() {
     delete [] (char*)m_value.get_data(); 
 }
     
-AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir) :
+AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     m_executorContext(ctx),
     m_dbDir(db_dir),
+    m_blockSize(blockSize),
     m_nextBlockId(0) {
         
-    u_int32_t env_flags =
+//    u_int32_t env_flags =
+//        DB_CREATE       | // Create the environment if it does not exist
+//        DB_AUTO_COMMIT  | // Immediately commit every operation
+//        DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
+//        DB_AUTO_COMMIT  | // Commit all changes immediately
+//        DB_NOLOCKING    | // Disable locks and latches
+//        DB_DIRECT_DB;     // Use O_DIRECT
+        
+        u_int32_t env_flags =
         DB_CREATE       | // Create the environment if it does not exist
         DB_AUTO_COMMIT  | // Immediately commit every operation
         DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
         DB_AUTO_COMMIT  | // Commit all changes immediately
-        DB_NOLOCKING    | // Disable locks and latches
-        DB_DIRECT_DB;     // Use O_DIRECT
+        DB_TXN_NOSYNC   | // Don't flush to disk every time, we will do that explicitly
+        DB_DIRECT_DB    | // Use O_DIRECT
+        DB_NOLOCKING;     // Disable locks and latches
         
     try {
         // allocate and initialize Berkeley DB database env
@@ -106,7 +116,7 @@ void AntiCacheDB::writeBlock(const std::string tableName,
     value.set_data(const_cast<char*>(data));
     value.set_size(static_cast<int32_t>(size)); 
     
-    VOLT_INFO("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
+    VOLT_DEBUG("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
@@ -114,14 +124,21 @@ void AntiCacheDB::writeBlock(const std::string tableName,
     // I don't think that this is necessary if we're using DB_AUTO_COMMIT
     // m_db->sync(0); 
 }
+    
+void AntiCacheDB::flushBlocks()
+{
+    m_db->sync(0); 
+}
 
-AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, uint16_t blockId) {
+AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     Dbt key;
     key.set_data(&blockId);
     key.set_size(sizeof(uint16_t));
 
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
+    
+    VOLT_ERROR("Reading evicted block with id %d", blockId);
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
     if (ret_value != 0) {

@@ -192,13 +192,13 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public void antiCacheInitialize(File dbFilePath) throws EEException {
+    public void antiCacheInitialize(File dbFilePath, long blockSize) throws EEException {
         // TODO Auto-generated method stub
         
     }
 
     @Override
-    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
+    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
         // TODO Auto-generated method stub
         
     }
@@ -210,7 +210,7 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public VoltTable antiCacheEvictBlock(Table catalog_tbl, long num_blocks) {
+    public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks) {
         // TODO Auto-generated method stub
         return (null);
     }

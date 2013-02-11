@@ -89,6 +89,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
+import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RedirectCallback;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
@@ -239,6 +240,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     private final StatsAgent statsAgent = new StatsAgent();
     private TransactionProfilerStats txnProfilerStats;
+    private MemoryStats memoryStats;
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -781,8 +783,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
         
         // MEMORY
-        statsSource = new MemoryStats();
-        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, statsSource);
+        this.memoryStats = new MemoryStats();
+        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, this.memoryStats);
         
         // TXN COUNTERS
         statsSource = new TransactionCounterStats(this.catalogContext);
@@ -1139,6 +1141,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             String.format("Unexpected null PartitionExecutor for partition #%d on %s",
                           partition, this.getSiteName());
         return (es);
+    }
+    public MemoryStats getMemoryStatsSource() {
+        return (this.memoryStats);
     }
     
     public Collection<TransactionPreProcessor> getTransactionPreProcessors() {
@@ -1959,22 +1964,31 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (debug.val)
             LOG.debug(String.format("2PC:PREPARE %s [partitions=%s]", ts, partitions));
         
-        for (int p : this.local_partitions.values()) {
-            if (partitions.contains(p) == false) continue;
+        PartitionCountingCallback<? extends AbstractTransaction> callback = ts.getPrepareCallback();
+        assert(callback.isInitialized());
+        for (int partition : this.local_partitions.values()) {
+            if (partitions.contains(partition) == false) continue;
             
-            // TODO: If this txn is read-only, then we should invoke finish right here
-            // Because this txn didn't change anything at this partition, we should
-            // release all of its locks and immediately allow the partition to execute
-            // transactions without speculative execution. We sort of already do that
-            // because we will allow spec exec read-only txns to commit immediately 
-            // but it would reduce the number of messages that the base partition needs
-            // to wait for when it does the 2PC:FINISH
-            // Berstein's book says that most systems don't actually do this because a txn may 
-            // need to execute triggers... but since we don't have any triggers we can do it!
-            // More Info: https://github.com/apavlo/h-store/issues/31
-            // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
-            // for this partition
-            this.executors[p].queuePrepare(ts);
+            // If this txn is already prepared at this partition, then we 
+            // can skip it
+            if (ts.isMarkedPrepared(partition)) {
+                callback.run(partition);
+            }
+            else {
+                // TODO: If this txn is read-only, then we should invoke finish right here
+                // Because this txn didn't change anything at this partition, we should
+                // release all of its locks and immediately allow the partition to execute
+                // transactions without speculative execution. We sort of already do that
+                // because we will allow spec exec read-only txns to commit immediately 
+                // but it would reduce the number of messages that the base partition needs
+                // to wait for when it does the 2PC:FINISH
+                // Berstein's book says that most systems don't actually do this because a txn may 
+                // need to execute triggers... but since we don't have any triggers we can do it!
+                // More Info: https://github.com/apavlo/h-store/issues/31
+                // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
+                // for this partition
+                this.executors[partition].queuePrepare(ts);
+            }
         } // FOR
     }
     
@@ -2368,11 +2382,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 			
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
             short block_ids[] = error.getBlockIds();
+            int tuple_offsets[] = error.getTupleOffsets(); 
+						
             Table evicted_table = error.getTable(this.catalogContext.database); 
 
-			LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
+			LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
 			         AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
-            this.anticacheManager.queue(new_ts, base_partition, evicted_table, block_ids);
+            this.anticacheManager.queue(new_ts, base_partition, evicted_table, block_ids, tuple_offsets);
         }
             
         // -------------------------------
@@ -2432,23 +2448,24 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         //  (1) We have a CommandLogWriter
         //  (2) The txn completed successfully
         //  (3) It is not a sysproc
-        //  (4) It was not read-only
-        if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false &&
-            // HACK: We should be able to tell whether this txn was read-only at all
-            // partitions. For now we'll just base it on whether the Procedure was
-            // originally marked as read-only or not.
-            ts.isPredictReadOnly() == false) {
-            
+        if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
             sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }
 
         if (sendResponse) {
             // NO GROUP COMMIT -- SEND OUT AND COMPLETE
             // NO COMMAND LOGGING OR TXN ABORTED -- SEND OUT AND COMPLETE
-            this.responseSend(cresponse,
-                              ts.getClientCallback(),
-                              ts.getInitiateTime(),
-                              ts.getRestartCounter());
+            if (hstore_conf.site.exec_postprocessing_threads) {
+                if (trace.val)
+                    LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
+                              ts, cresponse.getStatus()));
+                this.responseQueue(ts, cresponse);
+            } else {
+                this.responseSend(cresponse,
+                                  ts.getClientCallback(),
+                                  ts.getInitiateTime(),
+                                  ts.getRestartCounter());
+            }
         } else if (debug.val) { 
             LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
         }
@@ -2461,7 +2478,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param cresponse
      */
-    public void responseQueue(LocalTransaction ts, ClientResponseImpl cresponse) {
+    private void responseQueue(LocalTransaction ts, ClientResponseImpl cresponse) {
         assert(hstore_conf.site.exec_postprocessing_threads);
         if (debug.val)
             LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",

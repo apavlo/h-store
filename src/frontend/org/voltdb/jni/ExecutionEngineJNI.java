@@ -620,37 +620,37 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     // ----------------------------------------------------------------------------
 
     @Override
-    public void antiCacheInitialize(File dbDir) throws EEException {
+    public void antiCacheInitialize(File dbDir, long blockSize) throws EEException {
         assert(m_anticache == false);
         
         // TODO: Switch to LOG.debug
         LOG.info("Initializing anti-cache feature at partition " + this.site.getPartitionId());
         LOG.info(String.format("Partition #%d AntiCache Directory: %s",
                                 this.site.getPartitionId(), dbDir.getAbsolutePath()));
-        final int errorCode = nativeAntiCacheInitialize(pointer, dbDir.getAbsolutePath());
+        final int errorCode = nativeAntiCacheInitialize(pointer, dbDir.getAbsolutePath(), blockSize);
         checkErrorCode(errorCode);
         m_anticache = true;
     }
     
     @Override
-    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
+    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
         if (m_anticache == false) {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
-        final int errorCode = nativeAntiCacheReadBlocks(pointer, catalog_tbl.getRelativeIndex(), block_ids);
+        final int errorCode = nativeAntiCacheReadBlocks(pointer, catalog_tbl.getRelativeIndex(), block_ids, tuple_offsets);
         checkErrorCode(errorCode);
     }
     
     @Override
-    public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size) {
+    public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks) {
         if (m_anticache == false) {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
         deserializer.clear();
         
-        final int numResults = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
+        final int numResults = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size, num_blocks);
         if (numResults == -1) {
             throwExceptionForError(ERRORCODE_ERROR);
         }

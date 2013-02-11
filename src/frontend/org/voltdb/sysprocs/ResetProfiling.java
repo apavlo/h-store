@@ -1,6 +1,7 @@
 package org.voltdb.sysprocs;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -21,9 +22,8 @@ import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
+import edu.brown.profilers.AbstractProfiler;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.profilers.SpecExecProfiler;
-import edu.brown.profilers.TransactionQueueManagerProfiler;
 
 /** 
  * Reset internal profiling statistics
@@ -60,6 +60,7 @@ public class ResetProfiling extends VoltSystemProcedure {
                 HStoreConf hstore_conf = hstore_site.getHStoreConf();
                 
                 PartitionExecutor.Debug executorDebug = this.executor.getDebugContext();
+                Collection<AbstractProfiler> profilers = new HashSet<AbstractProfiler>();
                 
                 // EXECUTOR
                 if (hstore_conf.site.exec_profiling) {
@@ -68,24 +69,26 @@ public class ResetProfiling extends VoltSystemProcedure {
                 
                 // SPEC EXEC
                 if (hstore_conf.site.specexec_profiling) {
-                    Collection<SpecExecProfiler> profilers = executorDebug.getSpecExecScheduler().getDebugContext().getProfilers().values();
-                    for (SpecExecProfiler profiler : profilers) {
-                        profiler.reset();
-                    } // FOR
+                    profilers.addAll(executorDebug.getSpecExecScheduler().getDebugContext().getProfilers().values());
+                    
                 }
                                 
                 // MARKOV
                 if (hstore_conf.site.markov_profiling) {
                     TransactionEstimator est = executor.getTransactionEstimator();
                     if (est instanceof MarkovEstimator) {
-                        ((MarkovEstimator)est).getDebugContext().getProfiler().reset();
+                        profilers.add(((MarkovEstimator)est).getDebugContext().getProfiler());
                     }
+                }
+                
+                // ANTI-CACHE
+                if (hstore_conf.site.anticache_enable) {
+                    profilers.add(hstore_site.getAntiCacheManager().getDebugContext().getProfiler(this.partitionId));
                 }
 
                 // QUEUE
                 if (hstore_conf.site.queue_profiling) {
-                    TransactionQueueManagerProfiler profiler = hstore_site.getTransactionQueueManager().getDebugContext().getProfiler(this.partitionId);
-                    profiler.reset();
+                    profilers.add(hstore_site.getTransactionQueueManager().getDebugContext().getProfiler(this.partitionId));
                 }
                 
                 // The first partition at this HStoreSite will have to reset
@@ -94,12 +97,16 @@ public class ResetProfiling extends VoltSystemProcedure {
                     // COMMAND LOGGER
                     CommandLogWriter commandLog = hstore_site.getCommandLogWriter();
                     if (hstore_conf.site.commandlog_profiling && commandLog.getProfiler() != null) {
-                        commandLog.getProfiler().reset();
+                        profilers.add(commandLog.getProfiler());
                     }
                     
                     // Reset the StartWorkload flag in the HStoreSite
                     hstore_site.getDebugContext().resetStartWorkload();
                 }
+                
+                for (AbstractProfiler profiler : profilers) {
+                    profiler.reset();
+                } // FOR
                 
                 VoltTable vt = new VoltTable(nodeResultsColumns);
                 vt.addRow(this.executor.getHStoreSite().getSiteName(),
@@ -110,6 +117,7 @@ public class ResetProfiling extends VoltSystemProcedure {
             }
             // Aggregate Results
             case SysProcFragmentId.PF_resetProfilingAggregate:
+                LOG.debug("Combining results");
                 List<VoltTable> siteResults = dependencies.get(SysProcFragmentId.PF_resetProfilingDistribute);
                 if (siteResults == null || siteResults.isEmpty()) {
                     String msg = "Missing site results";

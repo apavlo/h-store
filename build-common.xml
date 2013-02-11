@@ -60,12 +60,14 @@
 <arg value="client.output_specexec=${client.output_specexec}" />
 <arg value="client.output_json=${client.output_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
-<arg value="client.output_full_csv=${client.output_full_csv}" />
+<arg value="client.output_memory=${client.output_memory}" />
+<arg value="client.output_responses=${client.output_responses}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
 <arg value="client.output_queue_profiling=${client.output_queue_profiling}" />
 <arg value="client.output_anticache_profiling=${client.output_anticache_profiling}" />
 <arg value="client.output_site_profiling=${client.output_site_profiling}" />
-<arg value="client.output_anticache_history=${client.output_anticache_history}" />
+<arg value="client.output_anticache_evictions=${client.output_anticache_evictions}" />
+<arg value="client.output_anticache_access=${client.output_anticache_access}" />
 <arg value="client.output_txn_profiling=${client.output_txn_profiling}" />
 <arg value="client.output_txn_profiling_combine=${client.output_txn_profiling_combine}" />
 <arg value="client.output_specexec_profiling=${client.output_specexec_profiling}" />
@@ -73,6 +75,7 @@
 <arg value="client.output_planner_profiling=${client.output_planner_profiling}" />
 <arg value="client.output_planner_profiling_combine=${client.output_planner_profiling_combine}" />
 <arg value="client.output_markov_profiling=${client.output_markov_profiling}" />
+<arg value="client.output_table_stats=${client.output_table_stats}" />
 <arg value="client.output_txn_counters=${client.output_txn_counters}" />
 <arg value="client.output_txn_counters_combine=${client.output_txn_counters_combine}" />
 <arg value="client.profiling=${client.profiling}" />
@@ -132,6 +135,7 @@
 <arg value="site.anticache_enable=${site.anticache_enable}" />
 <arg value="site.anticache_profiling=${site.anticache_profiling}" />
 <arg value="site.anticache_dir=${site.anticache_dir}" />
+<arg value="site.anticache_block_size=${site.anticache_block_size}" />
 <arg value="site.anticache_reset=${site.anticache_reset}" />
 <arg value="site.anticache_check_interval=${site.anticache_check_interval}" />
 <arg value="site.anticache_threshold=${site.anticache_threshold}" />

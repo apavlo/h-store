@@ -48,7 +48,7 @@
 
 using namespace voltdb;
 
-TableIndex::TableIndex(const TableIndexScheme &scheme) : m_scheme(scheme)
+TableIndex::TableIndex(const TableIndexScheme &scheme) : m_scheme(scheme), m_stats(this)
 {
     name_ = scheme.name;
     column_indices_vector_ = scheme.columnIndices;
@@ -73,6 +73,10 @@ TableIndex::~TableIndex()
     delete[] column_indices_;
     delete[] column_types_;
     voltdb::TupleSchema::freeTupleSchema(m_keySchema);
+}
+
+IndexStats* TableIndex::getIndexStats() {
+    return &m_stats;
 }
 
 std::string TableIndex::debug() const
