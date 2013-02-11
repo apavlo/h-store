@@ -47,6 +47,7 @@ public class SpecExecProfiler extends AbstractProfiler {
         this.success = 0;
         this.interrupts = 0;
         this.num_comparisons.clear();
+        this.num_executed.clear();
         this.queue_size.clear();
     }
 }
