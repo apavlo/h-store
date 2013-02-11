@@ -106,6 +106,12 @@ public class FastIntHistogram implements Histogram<Integer> {
         return (false);
     }
     
+    public void ensureSize(int size) {
+        if (this.histogram.length < size) {
+            this.grow(size);
+        }
+    }
+    
     // ----------------------------------------------------------------------------
     // FAST ACCESS METHODS
     // ----------------------------------------------------------------------------
