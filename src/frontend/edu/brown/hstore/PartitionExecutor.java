@@ -997,8 +997,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Check whether there is something we can speculatively execute right now
         if (this.specExecIgnoreCurrent == false && this.lockQueue.approximateIsEmpty() == false) {
-            this.utilityStart();
-            
             if (trace.val)
                 LOG.trace(String.format("Checking %s for something to do at partition %d while %s",
                           this.specExecScheduler.getClass().getSimpleName(),
@@ -1058,8 +1056,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 LOG.trace(String.format("%s - No speculative execution candidates found at partition %d [queueSize=%d]",
                           this.currentDtxn, this.partitionId, this.queueManager.getLockQueue(this.partitionId).size()));
             }
-            
-            this.utilityStop();
         }
         else if (trace.val && this.currentDtxn != null) {
             LOG.trace(String.format("%s - Skipping check for speculative execution txns at partition %d " +
@@ -1069,14 +1065,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
         return (specTxn != null || work != null);
-    }
-    
-    private void utilityStart() {
-        // Nothing
-    }
-    
-    private void utilityStop() {
-        // Nothing
     }
     
     // ----------------------------------------------------------------------------
