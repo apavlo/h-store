@@ -4524,6 +4524,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         public SpecExecScheduler getSpecExecScheduler() {
             return (PartitionExecutor.this.specExecScheduler);
         }
+        public AbstractConflictChecker getSpecExecConflictChecker() {
+            return (PartitionExecutor.this.specExecChecker);
+        }
         public Collection<BatchPlanner> getBatchPlanners() {
             return (PartitionExecutor.this.batchPlanners.values());
         }
