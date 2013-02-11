@@ -180,9 +180,10 @@ public enum TransactionCounter {
     public static TransactionCounter get(String name) {
         return TransactionCounter.name_lookup.get(name.toLowerCase());
     }
-    public static void resetAll() {
+    public static void resetAll(CatalogContext catalogContext) {
         for (TransactionCounter tc : EnumSet.allOf(TransactionCounter.class)) {
-            tc.clear(); 
+            tc.clear();
+            tc.h.ensureSize(catalogContext.procedures.size());
         } // FOR
     }
     public static String debug() {

@@ -451,6 +451,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TODO: Move this cache information into CatalogContext
         CatalogUtil.clearCache(this.catalogContext.database);
         BatchPlanner.clear(this.catalogContext.numberOfPartitions);
+        TransactionCounter.resetAll(this.catalogContext);
 
         // Only preload stuff if we were asked to
         if (hstore_conf.site.preload) {
