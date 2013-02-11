@@ -61,6 +61,7 @@ public class PartitionExecutorProfilerStats extends StatsSource {
         
         columns.add(new VoltTable.ColumnInfo("PARTITION", VoltType.INTEGER));
         columns.add(new VoltTable.ColumnInfo("TRANSACTIONS", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("ELAPSED_TIME", VoltType.BIGINT));
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             String name = pm.getName().toUpperCase();
             // We need two columns per ProfileMeasurement
@@ -81,6 +82,7 @@ public class PartitionExecutorProfilerStats extends StatsSource {
         int offset = columnNameToIndex.get("PARTITION");
         rowValues[offset++] = partition;
         rowValues[offset++] = profiler.numTransactions;
+        rowValues[offset++] = System.currentTimeMillis() - profiler.start_time;
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();
             rowValues[offset++] = pm.getInvocations();
