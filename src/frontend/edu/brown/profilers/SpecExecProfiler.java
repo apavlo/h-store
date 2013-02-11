@@ -25,6 +25,11 @@ public class SpecExecProfiler extends AbstractProfiler {
     public final FastIntHistogram num_comparisons = new FastIntHistogram(100);
     
     /**
+     * The number of txns executed per stalled txn
+     */
+    public final FastIntHistogram num_executed = new FastIntHistogram(100);
+    
+    /**
      * The number of times that the SpecExecScheduler successfully found
      * something to execute that didn't have conflicts.
      */
