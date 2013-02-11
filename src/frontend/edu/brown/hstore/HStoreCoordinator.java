@@ -510,15 +510,17 @@ public class HStoreCoordinator implements Shutdownable {
             this.channels[site_id].initialize(controller, request, callback);
         } // FOR
         
-        if (debug.val)
-            LOG.debug(String.format("Waiting for %s initialization responses", latch.getCount()));
-        boolean finished = false;
-        try {
-            finished = latch.await(10, TimeUnit.SECONDS);
-        } catch (InterruptedException ex) {
-            throw new ServerFaultException("Unexpected interruption", ex);
+        if (latch.getCount() > 0) {
+            if (debug.val)
+                LOG.debug(String.format("Waiting for %s initialization responses", latch.getCount()));
+            boolean finished = false;
+            try {
+                finished = latch.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+                throw new ServerFaultException("Unexpected interruption", ex);
+            }
+            assert(finished);
         }
-        assert(finished);
     }
     
     // ----------------------------------------------------------------------------
