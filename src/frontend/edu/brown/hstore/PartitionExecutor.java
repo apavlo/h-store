@@ -850,6 +850,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.hstore_site.getThreadManager().registerEEThread(partition);
         this.shutdown_latch = new Semaphore(0);
         this.shutdown_state = ShutdownState.STARTED;
+        if (hstore_conf.site.exec_profiling) profiler.start_time = System.currentTimeMillis();
         
         // *********************************** DEBUG ***********************************
         if (hstore_conf.site.exec_validate_work) {

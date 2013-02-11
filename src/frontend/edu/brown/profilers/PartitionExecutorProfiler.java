@@ -18,6 +18,11 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
      */
     public Histogram<String> numMessages = new ObjectHistogram<String>();
     
+    /**
+     * The timestamp of when this PartitionExecutor cam on-line (in ms)
+     */
+    public long start_time;
+    
     // ----------------------------------------------------------------------------
     // GLOBAL MEASUREMENTS
     // ----------------------------------------------------------------------------
@@ -101,6 +106,7 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     @Override
     public void reset() {
         super.reset();
+        this.start_time = System.currentTimeMillis();
         this.numTransactions = 0;
     }
 }
