@@ -62,7 +62,7 @@ public class PartitionExecutorProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("PARTITION", VoltType.INTEGER));
         columns.add(new VoltTable.ColumnInfo("TRANSACTIONS", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("ELAPSED_TIME", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo("CONFLICT_CHECKER", VoltType.STRING));
+//        columns.add(new VoltTable.ColumnInfo("CONFLICT_CHECKER", VoltType.STRING));
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             String name = pm.getName().toUpperCase();
             // We need two columns per ProfileMeasurement
@@ -85,11 +85,11 @@ public class PartitionExecutorProfilerStats extends StatsSource {
         rowValues[offset++] = profiler.numTransactions;
         rowValues[offset++] = System.currentTimeMillis() - profiler.start_time;
         
-        if (dbg.getSpecExecConflictChecker() != null) {
-            rowValues[offset++] = dbg.getSpecExecConflictChecker().getClass().getSimpleName();
-        } else {
-            rowValues[offset++] = null;
-        }
+//        if (dbg.getSpecExecConflictChecker() != null) {
+//            rowValues[offset++] = dbg.getSpecExecConflictChecker().getClass().getSimpleName();
+//        } else {
+//            rowValues[offset++] = null;
+//        }
         
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();
