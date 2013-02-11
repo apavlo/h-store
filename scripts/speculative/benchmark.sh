@@ -21,39 +21,42 @@ SITE_HOSTS=( \
 )
 CLIENT_HOSTS=( \
     "saw" \
+    "vise5" \
+    "vise5" \
+    "vise5" \
 #     "saw" \
 #     "saw" \
 )
 
 LOCALHOST=`hostname`
-BASE_CLIENT_THREADS=22
+BASE_CLIENT_THREADS=10
 BASE_SITE_MEMORY=2048
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
 
-MARKOV_ENABLE=false
+MARKOV_ENABLE=true
 MARKOV_FIXED=${MARKOV_ENABLE}
 MARKOV_DIR="files/markovs/vldb-august2012"
 MARKOV_RECOMPUTE=false
 
 BASE_ARGS=( \
     # SITE DEBUG
-    "-Dsite.status_enable=true" \
-    "-Dsite.status_interval=10000" \
-    "-Dsite.status_exec_info=true" \
+#     "-Dsite.status_enable=true" \
+#     "-Dsite.status_interval=10000" \
+#     "-Dsite.status_exec_info=true" \
 #    "-Dsite.exec_profiling=true" \
 #     "-Dsite.network_profiling=false" \
 #     "-Dsite.log_backup=true" \
 #    "-Dnoshutdown=true" \
     
     # Site Params
-    "-Dsite.jvm_asserts=true" \
+    "-Dsite.jvm_asserts=false" \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     "-Dsite.queue_incoming_max_per_partition=10000" \
     "-Dsite.queue_incoming_increase_max=20000" \
     "-Dsite.commandlog_enable=false" \
-    "-Dsite.txn_incoming_delay=5" \
+    "-Dsite.commandlog_timeout=50" \
     "-Dsite.network_txn_initialization=true" \
     
     # Markov Params
@@ -62,7 +65,7 @@ BASE_ARGS=( \
     "-Dsite.markov_singlep_updates=false" \
     "-Dsite.markov_dtxn_updates=false" \
     "-Dsite.markov_path_caching=true" \
-    "-Dsite.specexec_enable=false" \
+    "-Dsite.specexec_enable=true" \
     "-Dsite.specexec_idle=true" \
     "-Dsite.exec_mispredict_crash=false" \
 #     "-Dsite.exec_force_localexecution=false" \
@@ -71,19 +74,20 @@ BASE_ARGS=( \
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=4096" \
     "-Dclient.txnrate=10000" \
-    "-Dclient.warmup=20000" \
+    "-Dclient.warmup=60000" \
     "-Dclient.duration=60000 "\
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=true" \
-    "-Dclient.blocking_concurrent=2" \
+    "-Dclient.blocking_concurrent=50" \
     "-Dclient.throttle_backoff=100" \
     
     # CLIENT DEBUG
     "-Dclient.profiling=false" \
     "-Dclient.txn_hints=${MARKOV_ENABLE}" \
+    "-Dclient.output_specexec_profiling=${BASE_PROJECT}-specexec.csv" \
+    "-Dclient.output_txn_counters=${BASE_PROJECT}-txncounters.csv" \
 #     "-Dclient.output_markov_profiling=markovprofile.csv" \
 #     "-Dclient.output_site_profiling=siteprofile.csv" \
-#     "-Dclient.output_txn_counters=txncounters.csv" \
 #     "-Dclient.output_txn_counters_combine=true" \
 #     "-Dclient.output_basepartitions=true" \
 #     "-Dclient.jvm_args=\"-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:-TraceClassUnloading\"" \
@@ -97,11 +101,8 @@ FILES_TO_COPY=( \
 )
 
 for SITE_HOST in ${SITE_HOSTS[@]}; do
-    if [ $SITE_HOST != $LOCALHOST ]; then
-        ssh ${SITE_HOST} "cd ${BASE_DIR} && git pull && ant compile" &
-    fi
+    ssh ${SITE_HOST} "cd ${BASE_DIR} && git pull && ant compile" &
 done
-wait
 
 UPDATED_HOSTS=$SITE_HOSTS
 for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
@@ -119,10 +120,10 @@ for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
 done
 wait
 
-for i in 4 ; do
+for i in 8 ; do
     if [ "$i" = 4 ]; then
-#         HSTORE_HOSTS="modis2:0:0-3"
-        HSTORE_HOSTS="modis2:0:0-1;modis:1:2-3"
+        HSTORE_HOSTS="modis2:0:0-3"
+#         HSTORE_HOSTS="modis2:0:0-1;modis:1:2-3"
     fi
     if [ "$i" = 8 ]; then
         HSTORE_HOSTS="modis2:0:0-7"
@@ -130,8 +131,8 @@ for i in 4 ; do
     if [ "$i" = 16 ]; then
         HSTORE_HOSTS="modis2:0:0-7;modis:1:8-15"
     fi
-    if [ "$i" = 24 ]; then
-        HSTORE_HOSTS="modis2:0:0-7;modis:1:8-15;vise5:1:16-23"
+    if [ "$i" = 32 ]; then
+        HSTORE_HOSTS="modis2:0:0-10;modis:1:11-20;vise5:2:21-31"
     fi
     
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
