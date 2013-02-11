@@ -74,6 +74,11 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
     }
     
     /**
+     * The default file extension to use for the command log output
+     */
+    public static final String LOG_OUTPUT_EXT = ".cmdlog"; 
+    
+    /**
      * Special LogEntry that holds additional data that we
      * need in order to send back a ClientResponse
      */

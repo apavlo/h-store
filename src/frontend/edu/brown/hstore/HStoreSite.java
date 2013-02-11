@@ -541,7 +541,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // we'll just write out to our directory...
             File logFile = new File(hstore_conf.site.commandlog_dir +
                                     File.separator +
-                                    this.getSiteName().toLowerCase() + ".log");
+                                    this.getSiteName().toLowerCase() +
+                                    CommandLogWriter.LOG_OUTPUT_EXT);
             this.commandLogger = new CommandLogWriter(this, logFile);
         } else {
             this.commandLogger = null;
