@@ -144,6 +144,7 @@ import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.MarkovConflictChecker;
 import edu.brown.hstore.specexec.TableConflictChecker;
+import edu.brown.hstore.specexec.UnsafeConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -751,7 +752,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // The MarkovConflictChecker is thread-safe, so we all of the partitions
             // at this site can reuse the same one.
             this.specExecChecker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
-        } else {
+        } 
+        else if (hstore_conf.site.specexec_unsafe) {
+            this.specExecChecker = new UnsafeConflictChecker(this.catalogContext);
+        }
+        else {
             this.specExecChecker = new TableConflictChecker(this.catalogContext);
         }
         

@@ -499,6 +499,14 @@ public final class HStoreConf {
         public boolean specexec_markov;
         
         @ConfigProperty(
+            description="" +
+                        "Note that ${site.markov_enable} must be set to true.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean specexec_unsafe;
+        
+        @ConfigProperty(
             description="If enabled, then the SpecExecScheduler will keep track of various internal " +
                         "profile statistics. " +
                         "The profiling data collected can be retrieved using the @Statistics sysproc.",
