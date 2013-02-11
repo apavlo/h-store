@@ -254,6 +254,7 @@ public class SpecExecScheduler {
                         if (this.checker.canExecute(dtxn, localTxn, this.partitionId) == false) {
                             continue;
                         }
+                        break;
                     }
                     // BUSTED!
                     default:
