@@ -2810,7 +2810,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (debug.val) {
                 LOG.warn(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
                          ts, ts.getClass().getSimpleName(), ts.hashCode()));
-                this.deletable_last.add(String.format("%s :: %s", ts, status));
+                this.deletable_last.add(String.format("%s :: %s [SPECULATIVE=%s]",
+                                        ts, status, ts.isSpeculative()));
             }
             if (this.mr_helper_started == true && ts.isMapReduce()) {
                 this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);

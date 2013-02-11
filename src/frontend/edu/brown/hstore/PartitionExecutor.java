@@ -800,7 +800,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         if (hstore_conf.site.specexec_unsafe) {
             this.specExecScheduler.setIgnoreQueueSizeChange(true);
-            this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
+            // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
         }
         
 
@@ -2267,7 +2267,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 SQLStmt last[] = volt_proc.voltLastQueriesExecuted();
                 LOG.fatal("Unexpected error while executing " + ts, ex);
                 if (last.length > 0) {
-                    LOG.fatal(String.format("Last Queries Executed [%d]: %s", last.length, Arrays.toString(last)));
+                    LOG.fatal(String.format("Last Queries Executed [%d]: %s",
+                              last.length, Arrays.toString(last)));
                 }
                 LOG.fatal("LocalTransactionState Dump:\n" + ts.debug());
                 this.crash(ex);
