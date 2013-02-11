@@ -1,7 +1,6 @@
 package edu.brown.hstore;
 
 import java.util.Iterator;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
@@ -49,7 +48,7 @@ public class SpecExecScheduler {
     private SpeculationType lastSpecType;
     private Iterator<AbstractTransaction> lastIterator;
     private int lastSize = 0;
-    private final AtomicBoolean latch = new AtomicBoolean(false);
+    private boolean interrupted = false;
     private Class<? extends InternalMessage> latchMsg;
 
     private final SpecExecProfiler profilerMap[];
@@ -116,7 +115,8 @@ public class SpecExecScheduler {
     }
     
     public void interruptSearch(InternalMessage msg) {
-        if (this.latch.compareAndSet(false, true)) {
+        if (this.interrupted == false) {
+            this.interrupted = true;
             this.latchMsg = msg.getClass();
         }
     }
@@ -131,7 +131,16 @@ public class SpecExecScheduler {
      * @return
      */
     public LocalTransaction next(AbstractTransaction dtxn, SpeculationType specType) {
-        this.latch.set(false);
+        this.interrupted = false;
+        
+        if (debug.val) {
+            LOG.debug(String.format("%s - Checking queue for transaction to speculatively execute " +
+                      "[specType=%s, queueSize=%d, policy=%s]",
+                      dtxn, specType, this.queue.size(), this.policyType));
+            if (trace.val)
+                LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
+                          dtxn, this.lastDtxn, this.lastSpecType, this.lastIterator));
+        }
         
         SpecExecProfiler profiler = null;
         if (this.profiling) {
@@ -145,15 +154,6 @@ public class SpecExecScheduler {
             this.profilerCurrentTxn = dtxn;
             profiler = this.profilerMap[specType.ordinal()];
             profiler.total_time.start();
-        }
-        
-        if (debug.val) {
-            LOG.debug(String.format("%s - Checking queue for transaction to speculatively execute " +
-        		      "[specType=%s, queueSize=%d, policy=%s]",
-                      dtxn, specType, this.queue.size(), this.policyType));
-            if (trace.val)
-                LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
-                          dtxn, this.lastDtxn, this.lastSpecType, this.lastIterator));
         }
         
         // If we have a distributed txn, then check make sure it's legit
@@ -192,7 +192,7 @@ public class SpecExecScheduler {
         boolean resetIterator = true;
         if (this.profiling) profiler.queue_size.put(this.queue.size());
         while (this.lastIterator.hasNext()) {
-            if (this.latch.compareAndSet(true, false)) {
+            if (this.interrupted) {
                 if (debug.val)
                     LOG.warn(String.format("Search interrupted after %d examinations [%s]",
                              examined_ctr, this.latchMsg.getSimpleName()));
