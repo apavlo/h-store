@@ -22,8 +22,13 @@ public class UnsafeConflictChecker extends AbstractConflictChecker {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    public UnsafeConflictChecker(CatalogContext catalogContext) {
+    private final int limit;
+    private int counter = 0;
+    private AbstractTransaction lastDtxn;
+    
+    public UnsafeConflictChecker(CatalogContext catalogContext, int limit) {
         super(catalogContext);
+        this.limit = limit;
     }
 
     @Override
@@ -33,6 +38,14 @@ public class UnsafeConflictChecker extends AbstractConflictChecker {
 
     @Override
     public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
-        return (true);
+        if (this.lastDtxn != dtxn) {
+            this.counter = 1;
+            this.lastDtxn = dtxn;
+            return (true);
+        }
+        if (this.limit < 0 || ++this.counter < this.limit) {
+            return (true);
+        }
+        return (false);
     }
 }

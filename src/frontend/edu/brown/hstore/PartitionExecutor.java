@@ -778,7 +778,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.specExecChecker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
         } 
         else if (hstore_conf.site.specexec_unsafe) {
-            this.specExecChecker = new UnsafeConflictChecker(this.catalogContext);
+            this.specExecChecker = new UnsafeConflictChecker(this.catalogContext, hstore_conf.site.specexec_unsafe_limit);
         }
         else {
             this.specExecChecker = new TableConflictChecker(this.catalogContext);
