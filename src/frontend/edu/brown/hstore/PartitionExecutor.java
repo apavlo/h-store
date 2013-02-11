@@ -985,6 +985,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @return true if there is more utility work that can be done
      */
     private boolean utilityWork() {
+        this.utilityStart();
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.start();
         if (trace.val) LOG.trace("Entering utilityWork");
         
@@ -996,7 +997,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         InternalMessage work = null;
         
         // Check whether there is something we can speculatively execute right now
-        if (this.specExecIgnoreCurrent == false && this.lockQueue.isEmpty() == false) {
+        if (this.specExecIgnoreCurrent == false && this.lockQueue.approximateIsEmpty() == false) {
             if (trace.val)
                 LOG.trace(String.format("Checking %s for something to do at partition %d while %s",
                           this.specExecScheduler.getClass().getSimpleName(),
@@ -1064,7 +1065,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
+        this.utilityStop();
         return (specTxn != null || work != null);
+    }
+    
+    private void utilityStart() {
+        // Nothing
+    }
+    
+    private void utilityStop() {
+        // Nothing
     }
     
     // ----------------------------------------------------------------------------
