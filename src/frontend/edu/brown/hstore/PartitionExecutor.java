@@ -798,6 +798,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (hstore_conf.site.specexec_ignore_all_local) {
             this.specExecScheduler.setIgnoreAllLocal(true);
         }
+        if (hstore_conf.site.specexec_unsafe) {
+            this.specExecScheduler.setIgnoreQueueSizeChanges(true);
+        }
+        
 
         // Initialize all of our VoltProcedures handles
         this.initializeVoltProcedures();
