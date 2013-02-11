@@ -84,6 +84,8 @@ public class SpecExecProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("QUEUE_SIZE_STDEV", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("COMPARISONS_AVG", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("COMPARISONS_STDEV", VoltType.FLOAT));
+        columns.add(new VoltTable.ColumnInfo("EXECUTED_PER_TXN_AVG", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("EXECUTED_PER_TXN_STDEV", VoltType.FLOAT));
         
         // Make a dummy profiler just so that we can get the fields from it
         SpecExecProfiler profiler = new SpecExecProfiler();
@@ -120,6 +122,8 @@ public class SpecExecProfilerStats extends StatsSource {
         rowValues[offset++] = HistogramUtil.stdev(profiler.queue_size);
         rowValues[offset++] = MathUtil.weightedMean(profiler.num_comparisons);
         rowValues[offset++] = HistogramUtil.stdev(profiler.num_comparisons);
+        rowValues[offset++] = MathUtil.weightedMean(profiler.num_executed);
+        rowValues[offset++] = HistogramUtil.stdev(profiler.num_executed);
         
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();

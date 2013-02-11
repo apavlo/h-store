@@ -1,8 +1,6 @@
 package edu.brown.hstore;
 
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -20,6 +18,7 @@ import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.SpecExecProfiler;
+import edu.brown.statistics.FastIntHistogram;
 
 /**
  * Special scheduler that can figure out what the next best single-partition
@@ -53,8 +52,10 @@ public class SpecExecScheduler {
     private final AtomicBoolean latch = new AtomicBoolean(false);
     private Class<? extends InternalMessage> latchMsg;
 
-    private final Map<SpeculationType, SpecExecProfiler> profilerMap = new HashMap<SpeculationType, SpecExecProfiler>();
+    private final SpecExecProfiler profilerMap[];
     private boolean profiling = false;
+    private AbstractTransaction profilerCurrentTxn;
+    private final FastIntHistogram profilerExecuteCounter = new FastIntHistogram(SpeculationType.values().length);
     
     /**
      * Constructor
@@ -75,9 +76,11 @@ public class SpecExecScheduler {
         this.window_size = window_size;
         
         this.profiling = HStoreConf.singleton().site.specexec_profiling;
+        this.profilerExecuteCounter.setKeepZeroEntries(true);
+        this.profilerMap = new SpecExecProfiler[SpeculationType.values().length];
         if (this.profiling) {
-            for (SpeculationType type: SpeculationType.values()) {
-                this.profilerMap.put(type, new SpecExecProfiler());
+            for (int i = 0; i < this.profilerMap.length; i++) {
+                this.profilerMap[i] = new SpecExecProfiler();
             } // FOR
         }
     }
@@ -132,7 +135,15 @@ public class SpecExecScheduler {
         
         SpecExecProfiler profiler = null;
         if (this.profiling) {
-            profiler = profilerMap.get(specType);
+            if (this.profilerCurrentTxn != dtxn && this.profilerCurrentTxn != null) {
+                for (int i = 0; i < this.profilerMap.length; i++) {
+                    int cnt = (int)this.profilerExecuteCounter.get(i, 0);
+                    this.profilerMap[i].num_executed.put(i, cnt);
+                } // FOR
+                this.profilerExecuteCounter.clearValues();
+            }
+            this.profilerCurrentTxn = dtxn;
+            profiler = this.profilerMap[specType.ordinal()];
             profiler.total_time.start();
         }
         
@@ -263,7 +274,10 @@ public class SpecExecScheduler {
         // Make sure that we set the speculative flag to true!
         if (next != null) {
             next.markReleased(this.partitionId);
-            if (this.profiling) profiler.success++;
+            if (this.profiling) {
+                this.profilerExecuteCounter.put(specType.ordinal());
+                profiler.success++;
+            }
             if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
                 this.lastIterator.remove();
             } else {
@@ -303,11 +317,11 @@ public class SpecExecScheduler {
         public SpeculationType getLastSpecType() {
             return (lastSpecType);
         }
-        public Map<SpeculationType,SpecExecProfiler> getProfilers() {
+        public SpecExecProfiler[] getProfilers() {
             return (profilerMap);
         }
         public SpecExecProfiler getProfiler(SpeculationType stype) {
-            return (profilerMap.get(stype));
+            return (profilerMap[stype.ordinal()]);
         }
         
     } // CLASS

@@ -69,8 +69,9 @@ public class ResetProfiling extends VoltSystemProcedure {
                 
                 // SPEC EXEC
                 if (hstore_conf.site.specexec_profiling) {
-                    profilers.addAll(executorDebug.getSpecExecScheduler().getDebugContext().getProfilers().values());
-                    
+                    for (AbstractProfiler p : executorDebug.getSpecExecScheduler().getDebugContext().getProfilers()) {
+                        profilers.add(p);
+                    } // FOR
                 }
                                 
                 // MARKOV
